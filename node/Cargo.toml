@@ -1,21 +1,21 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['GalacticCouncil']
 build = 'build.rs'
-description = 'A fresh FRAME-based Substrate node, ready for hacking.'
+description = 'Hydra DX'
 edition = '2018'
-homepage = 'https://substrate.dev'
+homepage = 'https://github.com/galacticcouncil/hydraswap'
 license = 'Unlicense'
-name = 'node-template'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+name = 'hydraswap'
+repository = 'https://github.com/galacticcouncil/hydraswap'
 version = '2.0.0-rc5'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [[bin]]
-name = 'node-template'
+name = 'hydraswap'
 
-[dependencies.node-template-runtime]
+[dependencies.hydraswap-runtime]
 path = '../runtime'
 version = '2.0.0-rc5'
 
