@@ -2,7 +2,7 @@
 
 /// HydraSwap AMM Module
 use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get
+	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
 use primitives::{fee, traits::TokenPool, traits::AMM, AssetId, Balance};
