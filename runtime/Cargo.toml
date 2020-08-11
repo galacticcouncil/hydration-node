@@ -1,11 +1,49 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['GalacticCouncil']
 edition = '2018'
-homepage = 'https://substrate.dev'
+homepage = 'https://github.com/galacticcouncil/hydraswap'
 license = 'Unlicense'
-name = 'node-template-runtime'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+name = 'hydraswap-runtime'
+repository = 'https://github.com/galacticcouncil/hydraswap'
 version = '2.0.0-rc5'
+
+[dependencies.primitives]
+default-features = false
+package = 'primitives'
+path = '../primitives'
+
+[dependencies.amm]
+default-features = false
+package = 'pallet-amm'
+path = '../pallets/amm'
+version = '1.0.0'
+
+[dependencies.asset-registry]
+default-features = false
+package = 'pallet-asset-registry'
+path = '../pallets/asset-registry'
+version = '1.0.0'
+
+[dependencies.orml-currencies]
+default-features = false
+git = 'https://github.com/open-web3-stack/open-runtime-module-library.git'
+package = 'orml-currencies'
+rev = '5a0e46b45d1a0f1aaebec82a693f96663b1cd07b'
+version = '0.1.3-dev'
+
+[dependencies.orml-tokens]
+default-features = false
+git = 'https://github.com/open-web3-stack/open-runtime-module-library.git'
+package = 'orml-tokens'
+rev = '5a0e46b45d1a0f1aaebec82a693f96663b1cd07b'
+version = '0.1.3-dev'
+
+[dependencies.orml-traits]
+default-features = false
+git = 'https://github.com/open-web3-stack/open-runtime-module-library.git'
+package = 'orml-traits'
+rev = '5a0e46b45d1a0f1aaebec82a693f96663b1cd07b'
+version = '0.1.3-dev'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -170,6 +208,7 @@ version = '1.0.5'
 [features]
 default = ['std']
 std = [
+    'amm/std',
     'aura/std',
     'balances/std',
     'codec/std',
