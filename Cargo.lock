@@ -1849,6 +1849,7 @@ name = "hydraswap"
 version = "2.0.0-rc5"
 dependencies = [
  "hydraswap-runtime",
+ "primitives",
  "sc-basic-authorship",
  "sc-cli",
  "sc-client-api",
@@ -1876,6 +1877,11 @@ dependencies = [
  "frame-executive",
  "frame-support",
  "frame-system",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-amm",
+ "pallet-asset-registry",
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",
@@ -1885,6 +1891,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "parity-scale-codec",
+ "primitives",
  "serde",
  "sp-api",
  "sp-block-builder",
@@ -3161,6 +3168,20 @@ name = "openssl-probe"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
+
+[[package]]
+name = "orml-currencies"
+version = "0.1.3-dev"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library.git?rev=5a0e46b45d1a0f1aaebec82a693f96663b1cd07b#5a0e46b45d1a0f1aaebec82a693f96663b1cd07b"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
 
 [[package]]
 name = "orml-tokens"
@@ -6808,7 +6829,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bfd5b7557925ce778ff9b9ef90e3ade34c524b5ff10e239c69a42d546d2af56"
 dependencies = [
- "rand 0.7.3",
+ "rand 0.3.23",
 ]
 
 [[package]]

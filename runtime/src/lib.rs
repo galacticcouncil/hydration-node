@@ -38,6 +38,11 @@ pub use frame_support::{
 	},
 };
 
+use orml_currencies::BasicCurrencyAdapter;
+use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
+
+pub use amm;
+
 /// Import the template pallet.
 pub use template;
 
@@ -54,9 +59,6 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
 pub type AccountIndex = u32;
-
-/// Balance of an account.
-pub type Balance = u128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
@@ -215,6 +217,7 @@ impl grandpa::Trait for Runtime {
 
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+	pub const HDXAssetId: AssetId = CORE_ASSET_ID;
 }
 
 impl timestamp::Trait for Runtime {
@@ -262,6 +265,35 @@ impl template::Trait for Runtime {
 	type Event = Event;
 }
 
+impl orml_tokens::Trait for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type OnReceived = ();
+}
+
+impl orml_currencies::Trait for Runtime {
+	type Event = Event;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Balances, Balance, Balance, Amount, BlockNumber>;
+	type GetNativeCurrencyId = HDXAssetId;
+}
+
+/// Used for AMM Module
+impl asset_registry::Trait for Runtime {
+	type AssetId = AssetId;
+}
+
+/// Used for AMM Module
+impl amm::Trait for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type AssetPairAccountId = amm::AssetPairAccountId<Self>;
+	type HDXAssetId = HDXAssetId;
+}
+
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -279,6 +311,15 @@ construct_runtime!(
 		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the template pallet in the runtime.
 		TemplateModule: template::{Module, Call, Storage, Event<T>},
+
+		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
+		Currencies: orml_currencies::{Module, Call, Event<T>},
+
+		// Asset registry module
+		AssetRegistry: asset_registry::{Module, Call, Storage, Config<T>},
+
+		// AMM module
+		AMM: amm::{Module, Call, Storage, Event<T>},
 	}
 );
 

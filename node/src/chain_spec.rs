@@ -1,12 +1,14 @@
 use sp_core::{Pair, Public, sr25519};
 use hydraswap_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-	SudoConfig, SystemConfig, WASM_BINARY, Signature
+	SudoConfig, SystemConfig, WASM_BINARY, Signature, AssetRegistryConfig, TokensConfig,
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
+
+use primitives::{CORE_ASSET_ID};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -138,6 +140,23 @@ fn testnet_genesis(
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
+		}),
+		asset_registry: Some(AssetRegistryConfig {
+			core_asset_id: CORE_ASSET_ID,
+			asset_ids: vec![(b"ETH".to_vec(), 1), (b"DOT".to_vec(), 2), (b"BTC".to_vec(), 3)],
+			next_asset_id: 4,
+		}),
+		orml_tokens: Some(TokensConfig {
+			endowed_accounts: endowed_accounts
+				.iter()
+				.flat_map(|x| {
+					vec![
+						(x.clone(), 1, 1_000_000_000_000_000u128),
+						(x.clone(), 2, 1_000_000_000_000_000u128),
+						(x.clone(), 3, 1_000_000_000_000_000u128),
+					]
+				})
+				.collect(),
 		}),
 		balances: Some(BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
