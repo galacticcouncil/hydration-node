@@ -34,6 +34,7 @@ features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'v2.0.0-rc5'
 version = '0.8.0-rc5'
+optional = true
 
 [dependencies.sc-client-api]
 git = 'https://github.com/paritytech/substrate.git'
@@ -114,3 +115,43 @@ version = '0.3.8'
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'v2.0.0-rc5'
 version = '2.0.0-rc5'
+
+[dependencies.frame-benchmarking-cli]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc5'
+version = '2.0.0-rc5'
+optional = true
+
+[dependencies.frame-benchmarking]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc5'
+version = '2.0.0-rc5'
+
+[build-dependencies.frame-benchmarking-cli]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc5'
+version = '2.0.0-rc5'
+optional = true
+
+[features]
+default = [ "cli" ]
+cli = [
+	"sc-cli",
+    "frame-benchmarking-cli",
+]
+runtime-benchmarks = [
+	"hydraswap-runtime/runtime-benchmarks",
+	"frame-benchmarking-cli",
+]
+
+# wasmtime = [
+# 	"sc-executor/wasmtime",
+# ]
+# wasmi-errno = [
+# 	"sc-executor/wasmi-errno",
+# ]
+# stress-test = []
+
+# [[bench]]
+# name = "bench"
+# harness = false
