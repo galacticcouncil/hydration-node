@@ -23,6 +23,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+
 /// The pallet's configuration trait.
 pub trait Trait: frame_system::Trait + asset_registry::Trait {
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;

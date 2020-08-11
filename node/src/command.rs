@@ -16,11 +16,13 @@
 // limitations under the License.
 
 use crate::chain_spec;
-use crate::cli::Cli;
+use crate::cli::{Cli, Subcommand};
 use crate::service;
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::ServiceParams;
 use crate::service::new_full_params;
+
+use hydraswap_runtime::{Block};
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -67,7 +69,22 @@ pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
 	match &cli.subcommand {
-		Some(subcommand) => {
+		Some(Subcommand::Benchmark(cmd)) => {
+			if cfg!(feature = "runtime-benchmarks") {
+				let runner = cli.create_runner(cmd)?;
+
+				//runner.sync_run(|config| cmd.run::<Block, Executor>(config))
+
+                runner.sync_run(|config| {
+                    cmd.run::<hydraswap_runtime::Block, service::Executor>(config)
+                })
+			} else {
+				println!("Benchmarking wasn't enabled when building the node. \
+				You can enable it with `--features runtime-benchmarks`.");
+				Ok(())
+			}
+		}
+        Some(Subcommand::Base(subcommand)) => {
 			let runner = cli.create_runner(subcommand)?;
 			runner.run_subcommand(subcommand, |config| {
 				let (ServiceParams { client, backend, task_manager, import_queue, .. }, ..)

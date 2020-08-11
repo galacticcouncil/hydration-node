@@ -18,6 +18,7 @@ native_executor_instance!(
 	pub Executor,
 	hydraswap_runtime::api::dispatch,
 	hydraswap_runtime::native_version,
+    frame_benchmarking::benchmarking::HostFunctions,
 );
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;

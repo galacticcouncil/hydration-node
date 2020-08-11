@@ -456,4 +456,43 @@ impl_runtime_apis! {
 			None
 		}
 	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	impl frame_benchmarking::Benchmark<Block> for Runtime {
+		fn dispatch_benchmark(
+			pallet: Vec<u8>,
+			benchmark: Vec<u8>,
+			lowest_range_values: Vec<u32>,
+			highest_range_values: Vec<u32>,
+			steps: Vec<u32>,
+			repeat: u32,
+		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark};
+			// Trying to add benchmarks directly to the Session Pallet caused cyclic dependency issues.
+			// To get around that, we separated the Session benchmarks into its own crate, which is why
+			// we need these two lines below.
+			//use amm::Module as AmmBench;
+			//use pallet_offences_benchmarking::Module as OffencesBench;
+			use frame_system_benchmarking::Module as SystemBench;
+
+			//impl amm::Trait for Runtime {}
+			//impl pallet_offences_benchmarking::Trait for Runtime {}
+			impl frame_system_benchmarking::Trait for Runtime {}
+
+			let whitelist: Vec<Vec<u8>> = vec![
+			];
+
+
+			let mut batches = Vec::<BenchmarkBatch>::new();
+			let params = (&pallet, &benchmark, &lowest_range_values, &highest_range_values, &steps, repeat, &whitelist);
+
+			add_benchmark!(params, batches, amm, AMM);
+			add_benchmark!(params, batches, balances, Balances);
+			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+			//add_benchmark!(params, batches, b"timestamp", Timestamp);
+
+			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+			Ok(batches)
+		}
+	}
 }
