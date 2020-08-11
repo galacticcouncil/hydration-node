@@ -20,32 +20,86 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
-use frame_support::sp_runtime::traits::Saturating;
 use sp_std::prelude::*;
 use system::RawOrigin;
 
+use crate::Module as AMM;
+
 use primitives::{AssetId, Balance};
 
-const SEED: u32 = 0;
-const MAX_EXISTENTIAL_DEPOSIT: u32 = 1000;
+const SEED: u32 = 1;
 const MAX_USER_INDEX: u32 = 1000;
+const MAX_AMOUNT: u32 = 1_000_000;
+
+fn funded_account<T: Trait>(name: &'static str, index: u32) -> T::AccountId {
+	let caller: T::AccountId = account(name, index, SEED);
+	match T::Currency::update_balance(1, &caller, 1_000_000_000_000_000) {
+		_ => {} // let's do nothing here if error, let's just fail the benchmark test ( very rare i would say )
+	}
+	match T::Currency::update_balance(2, &caller, 1_000_000_000_000_000) {
+		_ => {} // let's do nothing here if error, let's just fail the benchmark test ( very rare i would say )
+	}
+	caller
+}
 
 benchmarks! {
 	_ {
-		let e in 2 .. MAX_EXISTENTIAL_DEPOSIT => ();
 		let u in 1 .. MAX_USER_INDEX => ();
+		let a in 1 .. MAX_AMOUNT=> ();
 	}
 
 	create_pool {
 		let u in ...;
-		let e in ...;
+		let a in ...;
 
-		let caller = account("caller", u, SEED);
+		let caller = funded_account::<T>("caller", u);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = a as u128;
+		let initial_price : Balance = 10;
+
+	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, initial_price)
+
+
+	add_liquidity {
+		let u in ...;
+
+		let caller = funded_account::<T>("caller", u);
 
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
 		let amount : Balance = 100;
-		let initial_price : Balance = 10;
+		let max_limit : Balance = 10 * 1_000_000;
 
-	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, initial_price)
+		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, 10)?;
+
+	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, max_limit)
+
+	remove_liquidity {
+		let u in ...;
+
+		let caller = funded_account::<T>("caller", u);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 10;
+
+		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, 10)?;
+
+	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount)
+
+	sell {
+		let u in ...;
+
+		let caller = funded_account::<T>("caller", u);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 10;
+		let discount = false;
+
+		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, 10)?;
+
+	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, discount)
 }
