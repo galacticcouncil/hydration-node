@@ -22,8 +22,6 @@ use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::ServiceParams;
 use crate::service::new_full_params;
 
-use hydraswap_runtime::{Block};
-
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
 		"Substrate Node".into()
