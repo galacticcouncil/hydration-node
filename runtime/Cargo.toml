@@ -30,6 +30,12 @@ package = 'pallet-faucet'
 path = '../pallets/faucet'
 version = '1.0.0'
 
+[dependencies.exchange]
+default-features = false
+package = 'pallet-exchange'
+path = '../pallets/exchange'
+version = '1.0.0'
+
 [dependencies.orml-currencies]
 default-features = false
 git = 'https://github.com/open-web3-stack/open-runtime-module-library.git'

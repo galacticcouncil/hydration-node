@@ -47,6 +47,9 @@ pub use amm;
 
 pub use faucet;
 
+/// Importing Exchange pallet
+pub use exchange;
+
 /// Import the template pallet.
 pub use template;
 
@@ -299,6 +302,18 @@ impl faucet::Trait for Runtime {
 	type Currency = Currencies;
 }
 
+/// Used for Exchange Module
+impl exchange::Trait for Runtime {
+	type Event = Event;
+	type TokenPool = AMM;
+	type AMMTrader = AMM;
+	type DirectTrader = Exchange;
+	type IntentionMatcher = Exchange;
+	type Resolver = Exchange;
+	type Currency = Currencies;
+}
+
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -325,6 +340,8 @@ construct_runtime!(
 
 		// AMM module
 		AMM: amm::{Module, Call, Storage, Event<T>},
+
+		Exchange: exchange::{Module, Call, Storage, Event<T>},
 
 		Faucet: faucet::{Module, Call, Storage, Event<T>},
 	}
