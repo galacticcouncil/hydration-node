@@ -3216,6 +3216,7 @@ dependencies = [
  "frame-system",
  "orml-traits",
  "parity-scale-codec",
+ "serde",
  "sp-io",
  "sp-runtime",
  "sp-std",
