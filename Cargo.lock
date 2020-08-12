@@ -1921,6 +1921,7 @@ dependencies = [
  "pallet-asset-registry",
  "pallet-aura",
  "pallet-balances",
+ "pallet-faucet",
  "pallet-grandpa",
  "pallet-randomness-collective-flip",
  "pallet-sudo",
@@ -3339,6 +3340,20 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-faucet"
+version = "1.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitives",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]

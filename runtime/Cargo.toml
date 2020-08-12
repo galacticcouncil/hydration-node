@@ -24,6 +24,12 @@ package = 'pallet-asset-registry'
 path = '../pallets/asset-registry'
 version = '1.0.0'
 
+[dependencies.faucet]
+default-features = false
+package = 'pallet-faucet'
+path = '../pallets/faucet'
+version = '1.0.0'
+
 [dependencies.orml-currencies]
 default-features = false
 git = 'https://github.com/open-web3-stack/open-runtime-module-library.git'

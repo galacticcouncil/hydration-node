@@ -45,6 +45,8 @@ use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
 pub use amm;
 
+pub use faucet;
+
 /// Import the template pallet.
 pub use template;
 
@@ -262,6 +264,8 @@ impl sudo::Trait for Runtime {
 /// Configure the pallet template in pallets/template.
 impl template::Trait for Runtime {
 	type Event = Event;
+	type Currency = Currencies;
+	type HDXAssetId = HDXAssetId;
 }
 
 impl orml_tokens::Trait for Runtime {
@@ -292,6 +296,12 @@ impl amm::Trait for Runtime {
 	type HDXAssetId = HDXAssetId;
 }
 
+impl faucet::Trait for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type HDXAssetId = HDXAssetId;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -318,6 +328,8 @@ construct_runtime!(
 
 		// AMM module
 		AMM: amm::{Module, Call, Storage, Event<T>},
+
+		Faucet: faucet::{Module, Call, Storage, Event<T>},
 	}
 );
 
