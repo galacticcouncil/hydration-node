@@ -248,7 +248,7 @@ impl balances::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
+	pub const TransactionByteFee: Balance = 0;
 }
 
 impl transaction_payment::Trait for Runtime {
