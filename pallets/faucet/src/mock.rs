@@ -5,6 +5,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
 use frame_system as system;
+use primitives::{AssetId, Balance};
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -49,13 +50,56 @@ impl system::Trait for Test {
 	type SystemWeightInfo = ();
 }
 
+pub type Amount = i128;
+
+impl orml_tokens::Trait for Test {
+	type Event = ();
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type OnReceived = ();
+}
+
+pub type Currency = orml_tokens::Module<Test>;
+
 impl Trait for Test {
 	type Event = ();
+	type Currency = Currency;
 }
 
 pub type Faucet = Module<Test>;
 
-// Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+pub type AccountId = u64;
+
+pub const ALICE: AccountId = 1;
+
+pub const HDX: AssetId = 1000;
+
+pub struct ExtBuilder {
+	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+}
+
+// Returns default values for genesis config
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		Self {
+			endowed_accounts: vec![
+				(ALICE, HDX, 1000u128),
+			],
+		}
+	}
+}
+
+impl ExtBuilder {
+	pub fn build(self) -> sp_io::TestExternalities {
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+		orml_tokens::GenesisConfig::<Test> {
+			endowed_accounts: self.endowed_accounts,
+		}
+			.assimilate_storage(&mut t)
+			.unwrap();
+
+		t.into()
+	}
 }

@@ -16,7 +16,6 @@ mod tests;
 pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
-	type HDXAssetId: Get<AssetId>;
 }
 
 decl_storage! {
