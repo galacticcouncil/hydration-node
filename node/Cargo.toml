@@ -24,6 +24,10 @@ path = '../primitives'
 path = '../runtime'
 version = '2.0.0-rc5'
 
+[dependencies.serde_json]
+default-features = false
+version = '1.0.41'
+
 [dependencies.sc-basic-authorship]
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'v2.0.0-rc5'
@@ -32,9 +36,9 @@ version = '0.8.0-rc5'
 [dependencies.sc-cli]
 features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
+optional = true
 tag = 'v2.0.0-rc5'
 version = '0.8.0-rc5'
-optional = true
 
 [dependencies.sc-client-api]
 git = 'https://github.com/paritytech/substrate.git'
@@ -118,9 +122,9 @@ version = '2.0.0-rc5'
 
 [dependencies.frame-benchmarking-cli]
 git = 'https://github.com/paritytech/substrate.git'
+optional = true
 tag = 'v2.0.0-rc5'
 version = '2.0.0-rc5'
-optional = true
 
 [dependencies.frame-benchmarking]
 git = 'https://github.com/paritytech/substrate.git'
@@ -129,19 +133,19 @@ version = '2.0.0-rc5'
 
 [build-dependencies.frame-benchmarking-cli]
 git = 'https://github.com/paritytech/substrate.git'
+optional = true
 tag = 'v2.0.0-rc5'
 version = '2.0.0-rc5'
-optional = true
 
 [features]
-default = [ "cli" ]
 cli = [
-	"sc-cli",
-    "frame-benchmarking-cli",
+  "sc-cli",
+  "frame-benchmarking-cli",
 ]
+default = ["cli"]
 runtime-benchmarks = [
-	"hydraswap-runtime/runtime-benchmarks",
-	"frame-benchmarking-cli",
+  "hydraswap-runtime/runtime-benchmarks",
+  "frame-benchmarking-cli",
 ]
 
 # wasmtime = [

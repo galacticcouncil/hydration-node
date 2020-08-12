@@ -1894,6 +1894,7 @@ dependencies = [
  "sc-finality-grandpa",
  "sc-service",
  "sc-transaction-pool",
+ "serde_json",
  "sp-consensus",
  "sp-consensus-aura",
  "sp-core",

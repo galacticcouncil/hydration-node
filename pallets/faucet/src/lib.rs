@@ -1,6 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, dispatch, traits::Get};
+use frame_support::{
+	decl_error, decl_event, decl_module, decl_storage, dispatch,
+	weights::{DispatchClass, Pays},
+};
 use frame_system::ensure_signed;
 
 use primitives::{AssetId, Balance};
@@ -24,10 +27,11 @@ decl_storage! {
 }
 
 decl_event!(
-	pub enum Event<T> where
+	pub enum Event<T>
+	where
 		AccountId = <T as frame_system::Trait>::AccountId,
 		AssetId = AssetId,
-		Balance = Balance
+		Balance = Balance,
 	{
 		Mint(AccountId, AssetId, Balance),
 	}
@@ -44,7 +48,7 @@ decl_module! {
 
 		fn deposit_event() = default;
 
-		#[weight = 10_000 + T::DbWeight::get().writes(1)]
+		#[weight = (10_000, DispatchClass::Normal, Pays::No)]
 		pub fn mint(origin, asset: AssetId, amount: Balance) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 			T::Currency::deposit(asset, &who, amount)?;

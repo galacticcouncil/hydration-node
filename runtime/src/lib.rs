@@ -248,7 +248,7 @@ impl balances::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 0;
+	pub const TransactionByteFee: Balance = 1;
 }
 
 impl transaction_payment::Trait for Runtime {
@@ -312,7 +312,6 @@ impl exchange::Trait for Runtime {
 	type Resolver = Exchange;
 	type Currency = Currencies;
 }
-
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
