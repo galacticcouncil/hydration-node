@@ -247,6 +247,7 @@ std = [
     'timestamp/std',
     'transaction-payment/std',
     'template/std',
+    'orml-currencies/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
