@@ -148,9 +148,15 @@ fn testnet_genesis(
 				(b"BTC".to_vec(), 4),
 				(b"EDG".to_vec(), 5),
 				(b"aUSD".to_vec(), 6),
-				(b"USDT".to_vec(), 7),
+				(b"PLM".to_vec(), 7),
+				(b"FIS".to_vec(), 8),
+				(b"rXTZ".to_vec(), 9),
+				(b"rDOT".to_vec(), 10),
+				(b"rEDG".to_vec(), 11),
+				(b"PHA".to_vec(), 12),
+				(b"USDT".to_vec(), 13),
 			],
-			next_asset_id: 8,
+			next_asset_id: 14,
 		}),
 		orml_tokens: Some(TokensConfig {
 			endowed_accounts: endowed_accounts
