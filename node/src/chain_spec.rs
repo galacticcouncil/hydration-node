@@ -140,8 +140,17 @@ fn testnet_genesis(
 		}),
 		asset_registry: Some(AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![(b"ETH".to_vec(), 1), (b"DOT".to_vec(), 2), (b"BTC".to_vec(), 3)],
-			next_asset_id: 4,
+			asset_ids: vec![
+				(b"KSM".to_vec(), 1),
+				(b"DOT".to_vec(), 2),
+				(b"ACA".to_vec(), 4),
+				(b"ETH".to_vec(), 3),
+				(b"BTC".to_vec(), 4),
+				(b"EDG".to_vec(), 5),
+				(b"aUSD".to_vec(), 6),
+				(b"USDT".to_vec(), 7),
+			],
+			next_asset_id: 8,
 		}),
 		orml_tokens: Some(TokensConfig {
 			endowed_accounts: endowed_accounts
