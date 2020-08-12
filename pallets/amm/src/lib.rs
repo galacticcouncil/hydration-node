@@ -97,6 +97,15 @@ decl_event!(
 		AddLiquidity(AccountId, AssetId, AssetId, Balance, Balance),
 		/// who, asset_a, asset_b, shares
 		RemoveLiquidity(AccountId, AssetId, AssetId, Balance),
+
+		/// Pool creation - who, asset a, asset b, liquidity
+		CreatePool(AccountId, AssetId, AssetId, Balance),
+
+		/// Sell token - who, asset sell asset buy, amount, sale price
+		Sell(AccountId, AssetId, AssetId, Balance, Balance),
+
+		/// Buy token - who, asset buy asset sell, amount, sale price
+		Buy(AccountId, AssetId, AssetId, Balance, Balance),
 	}
 );
 
@@ -195,6 +204,8 @@ decl_module! {
 			T::Currency::deposit(share_token, &who, shares_added)?;
 
 			<TotalLiquidity<T>>::mutate(&pair_account, |total| *total = total.saturating_add(shares_added));
+
+			Self::deposit_event(RawEvent::CreatePool(who, asset_a, asset_b, shares_added));
 
 			Ok(())
 		}
@@ -481,6 +492,14 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		T::Currency::transfer(asset_sell, who, &pair_account, amount_sell)?;
 		T::Currency::transfer(asset_buy, &pair_account, who, sale_price)?;
 
+		Self::deposit_event(Event::<T>::Sell(
+			who.clone(),
+			asset_sell,
+			asset_buy,
+			amount_sell,
+			sale_price,
+		));
+
 		Ok(())
 	}
 
@@ -542,6 +561,14 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		T::Currency::transfer(asset_buy, &pair_account, who, amount_buy)?;
 		T::Currency::transfer(asset_sell, who, &pair_account, buy_price)?;
+
+		Self::deposit_event(Event::<T>::Buy(
+			who.clone(),
+			asset_buy,
+			asset_sell,
+			amount_buy,
+			buy_price,
+		));
 
 		Ok(())
 	}
