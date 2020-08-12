@@ -164,7 +164,7 @@ decl_module! {
 			asset_a: AssetId,
 			asset_b: AssetId,
 			amount: Balance,
-			initial_price: Balance
+			initial_price: u32
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -182,7 +182,7 @@ decl_module! {
 				Error::<T>::TokenPoolAlreadyExists
 			);
 
-			let asset_b_amount= amount.checked_mul(initial_price).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
+			let asset_b_amount= amount.checked_mul(initial_price as u128).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
 			let shares_added = amount.checked_mul(asset_b_amount).ok_or(Error::<T>::CreatePoolSharesAmountInvalid)?;
 
 			ensure!(
