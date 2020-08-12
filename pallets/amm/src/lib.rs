@@ -101,10 +101,10 @@ decl_event!(
 		/// Pool creation - who, asset a, asset b, liquidity
 		CreatePool(AccountId, AssetId, AssetId, Balance),
 
-		/// Sell token - who, asset sell asset buy, amount, sale price
+		/// Sell token - who, asset sell, asset buy, amount, sale price
 		Sell(AccountId, AssetId, AssetId, Balance, Balance),
 
-		/// Buy token - who, asset buy asset sell, amount, sale price
+		/// Buy token - who, asset buy, asset sell, amount, buy price
 		Buy(AccountId, AssetId, AssetId, Balance, Balance),
 	}
 );
