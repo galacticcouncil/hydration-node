@@ -18,6 +18,13 @@ package = 'pallet-amm'
 path = '../pallets/amm'
 version = '1.0.0'
 
+[dependencies.amm-rpc]
+default-features = false
+package = 'module-amm-rpc-runtime-api'
+path = '../pallets/amm/rpc/runtime-api'
+version = '1.0.0'
+
+
 [dependencies.asset-registry]
 default-features = false
 package = 'pallet-asset-registry'
@@ -235,6 +242,7 @@ version = '1.0.5'
 default = ['std']
 std = [
     'amm/std',
+    "amm-rpc/std",
     'aura/std',
     'balances/std',
     'codec/std',

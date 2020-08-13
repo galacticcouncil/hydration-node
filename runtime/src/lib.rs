@@ -482,6 +482,34 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl amm_rpc::AMMApi<
+		Block,
+		AssetId,
+		Balance,
+	> for Runtime {
+		fn get_spot_price(
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+		) -> amm_rpc::BalanceInfo<Balance> {
+			 amm_rpc::BalanceInfo{
+				amount: AMM::get_spot_price(asset_a,asset_b, amount)
+			}
+		}
+
+		fn get_sell_price(
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+		) -> amm_rpc::BalanceInfo<Balance> {
+			 amm_rpc::BalanceInfo{
+				amount: AMM::get_sell_price(asset_a,asset_b, amount)
+			}
+		}
+
+	}
+
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn dispatch_benchmark(

@@ -1726,6 +1726,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "hack-hydra-dx-runtime",
+ "jsonrpc-core",
+ "module-amm-rpc",
  "primitives",
  "sc-basic-authorship",
  "sc-cli",
@@ -1734,6 +1736,7 @@ dependencies = [
  "sc-consensus-aura",
  "sc-executor",
  "sc-finality-grandpa",
+ "sc-rpc-api",
  "sc-service",
  "sc-transaction-pool",
  "serde_json",
@@ -1757,6 +1760,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frame-system-benchmarking",
+ "module-amm-rpc-runtime-api",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
@@ -2955,6 +2959,32 @@ checksum = "07b88fb9795d4d36d62a012dfbf49a8f5cf12751f36d31a9dbe66d528e58979e"
 dependencies = [
  "socket2",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "module-amm-rpc"
+version = "1.0.0"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "module-amm-rpc-runtime-api",
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+]
+
+[[package]]
+name = "module-amm-rpc-runtime-api"
+version = "1.0.0"
+dependencies = [
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

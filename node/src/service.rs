@@ -13,6 +13,8 @@ use sp_inherents::InherentDataProviders;
 use std::sync::Arc;
 use std::time::Duration;
 
+use amm_rpc::{AMMApi, AMM};
+
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
@@ -250,13 +252,17 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		client.clone() as Arc<_>,
 	));
 
+	//TODO: here create rpc extension builder and extend with the rpc calls
+	//let mut io = jsonrpc_core::IoHandler::default();
+	//io.extend_with(AMMApi::to_delegate(AMM::new(client.clone())));
+
 	sc_service::build(sc_service::ServiceParams {
 		block_announce_validator_builder: None,
 		finality_proof_request_builder: Some(finality_proof_request_builder),
 		finality_proof_provider: Some(finality_proof_provider),
 		on_demand: Some(on_demand),
 		remote_blockchain: Some(backend.remote_blockchain()),
-		rpc_extensions_builder: Box::new(|_| ()),
+		rpc_extensions_builder: Box::new(|_| ( )),
 		transaction_pool: Arc::new(transaction_pool),
 		config,
 		client,
