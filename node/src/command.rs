@@ -58,7 +58,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&hydraswap_runtime::VERSION
+		&hack_hydra_dx_runtime::VERSION
 	}
 }
 
@@ -74,7 +74,7 @@ pub fn run() -> sc_cli::Result<()> {
 				//runner.sync_run(|config| cmd.run::<Block, Executor>(config))
 
                 runner.sync_run(|config| {
-                    cmd.run::<hydraswap_runtime::Block, service::Executor>(config)
+                    cmd.run::<hack_hydra_dx_runtime::Block, service::Executor>(config)
                 })
 			} else {
 				println!("Benchmarking wasn't enabled when building the node. \

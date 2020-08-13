@@ -1,4 +1,4 @@
-use hydraswap_runtime::{
+use hack_hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
 	SystemConfig, TokensConfig, WASM_BINARY,
 };

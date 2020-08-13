@@ -3,24 +3,24 @@ authors = ['GalacticCouncil']
 build = 'build.rs'
 description = 'Hydra DX'
 edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hydraswap'
+homepage = 'https://github.com/galacticcouncil/hack-hydra-dx'
 license = 'Unlicense'
-name = 'hydraswap'
-repository = 'https://github.com/galacticcouncil/hydraswap'
+name = 'hack-hydra-dx'
+repository = 'https://github.com/galacticcouncil/hack-hydra-dx'
 version = '2.0.0-rc5'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [[bin]]
-name = 'hydraswap'
+name = 'hack-hydra-dx'
 
 [dependencies.primitives]
 default-features = false
 package = 'primitives'
 path = '../primitives'
 
-[dependencies.hydraswap-runtime]
+[dependencies.hack-hydra-dx-runtime]
 path = '../runtime'
 version = '2.0.0-rc5'
 
@@ -144,7 +144,7 @@ cli = [
 ]
 default = ["cli"]
 runtime-benchmarks = [
-  "hydraswap-runtime/runtime-benchmarks",
+  "hack-hydra-dx-runtime/runtime-benchmarks",
   "frame-benchmarking-cli",
 ]
 
