@@ -45,6 +45,43 @@ fn create_same_pool_should_not_work() {
 }
 
 #[test]
+fn create_pool_and_add_liquidity() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			150_000_000_000,
+			2
+		));
+
+		assert_ok!(AMM::add_liquidity(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			2_000_000_000,
+			5_000_000_000
+		));
+	});
+}
+
+#[test]
+fn overflow_should_panic() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			AMM::create_pool(
+				Origin::signed(ALICE),
+				HDX,
+				DOT,
+				u128::MAX,
+				2
+			),
+			Error::<Test>::CreatePoolAssetAmountInvalid
+		);
+	});
+}
+
+#[test]
 fn add_liquidity_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		let user = ALICE;
@@ -64,7 +101,7 @@ fn add_liquidity_should_work() {
 			asset_a,
 			asset_b,
 			400_000,
-			1_000_000_000_000
+			4_000_000_000
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_b, &asset_a);

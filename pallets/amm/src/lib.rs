@@ -259,16 +259,22 @@ decl_module! {
 				let asset_b_total = T::Currency::free_balance(asset_b, &pair_account);
 				let total_liquidity = Self::total_liquidity(&pair_account);
 
-				let asset_b_required = amount_a
+				let amount_b_required = amount_a
 					.checked_mul(asset_b_total).ok_or(Error::<T>::AddAssetAmountInvalid)?
 					.checked_div(asset_a_total).ok_or(Error::<T>::AddAssetAmountInvalid)?;
 
-				let liquidity_minted = amount_a
-					.checked_mul(total_liquidity).ok_or(Error::<T>::AddSharesAmountInvalid)?
-					.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?;
+				let liquidity_minted = if total_liquidity > asset_b_total {
+						total_liquidity
+							.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?
+							.checked_mul(amount_a).ok_or(Error::<T>::AddSharesAmountInvalid)?
+					} else {
+						amount_a
+							.checked_mul(total_liquidity).ok_or(Error::<T>::AddSharesAmountInvalid)?
+							.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?
+					};
 
 				ensure!(
-					asset_b_required <= amount_b_max_limit,
+					amount_b_required <= amount_b_max_limit,
 					Error::<T>::AssetBalanceLimitExceeded
 				);
 
@@ -277,7 +283,7 @@ decl_module! {
 					Error::<T>::InvalidMintedLiquidity
 				);
 
-				(liquidity_minted, asset_b_required)
+				(liquidity_minted, amount_b_required)
 			};
 
 			let asset_b_balance = T::Currency::free_balance(asset_b, &who);
