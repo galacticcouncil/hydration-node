@@ -47,13 +47,7 @@ fn create_same_pool_should_not_work() {
 #[test]
 fn create_pool_and_add_liquidity() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AMM::create_pool(
-			Origin::signed(ALICE),
-			HDX,
-			DOT,
-			150_000_000_000,
-			2
-		));
+		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, DOT, 150_000_000_000, 2));
 
 		assert_ok!(AMM::add_liquidity(
 			Origin::signed(ALICE),
@@ -69,13 +63,7 @@ fn create_pool_and_add_liquidity() {
 fn overflow_should_panic() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			AMM::create_pool(
-				Origin::signed(ALICE),
-				HDX,
-				DOT,
-				u128::MAX,
-				2
-			),
+			AMM::create_pool(Origin::signed(ALICE), HDX, DOT, u128::MAX, 2),
 			Error::<Test>::CreatePoolAssetAmountInvalid
 		);
 	});

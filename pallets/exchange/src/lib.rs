@@ -56,6 +56,8 @@ decl_event!(
 		AccountId = <T as system::Trait>::AccountId,
 	{
 		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionId),
+		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionId, Balance),
+		IntentionResolvedDirectTrade(AccountId, AccountId, IntentionId, IntentionId, Balance, Balance),
 
 		InsufficientAssetBalanceEvent(
 			AccountId,
@@ -230,6 +232,13 @@ impl<T: Trait> Module<T> {
 		amount: Balance,
 		discount: bool,
 	) -> bool {
+		Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
+			who.clone(),
+			exchange_type.clone(),
+			intention_id,
+			amount,
+		));
+
 		match exchange_type {
 			IntentionType::SELL => match T::AMMTrader::sell(who, asset_sell, asset_buy, amount, discount) {
 				Ok(()) => true,
@@ -336,6 +345,15 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 				let transfer_a_fee = fee::get_fee(spot_price_b).unwrap();
 				let transfer_b_fee = fee::get_fee(amount_b).unwrap();
 
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
+					intention.who.clone(),
+					matched_intention.who.clone(),
+					intention.intention_id,
+					matched_intention.intention_id,
+					spot_price_b - transfer_a_fee,
+					amount_b - transfer_b_fee,
+				));
+
 				// If ok , do direct transfer - this should not fail at this point
 				T::DirectTrader::transfer(
 					&intention.who,
@@ -402,6 +420,15 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 						let transfer_a_fee = fee::get_fee(amount_a).unwrap();
 						let transfer_b_fee = fee::get_fee(spot_price_a).unwrap();
 
+						Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
+							intention.who.clone(),
+							matched_intention.who.clone(),
+							intention.intention_id,
+							matched_intention.intention_id,
+							amount_a - transfer_a_fee,
+							spot_price_a - transfer_b_fee,
+						));
+
 						// If ok , do direct transfer - this should not fail at this point
 						T::DirectTrader::transfer(
 							&intention.who,
@@ -453,6 +480,15 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					amount_b - transfer_b_fee,
 				)
 				.expect("Should not failed. Checks had been done.");
+
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
+					intention.who.clone(),
+					matched_intention.who.clone(),
+					intention.intention_id,
+					matched_intention.intention_id,
+					amount_a - transfer_a_fee,
+					amount_b - transfer_b_fee,
+				));
 
 				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee)
 					.expect("Should not failed. Checks had been done.");
