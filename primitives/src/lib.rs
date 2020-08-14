@@ -26,7 +26,7 @@ pub type Balance = u128;
 pub type Amount = i128;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Encode, Decode, Clone, PartialEq)]
+#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq)]
 pub enum IntentionType {
 	SELL,
 	BUY,
@@ -38,6 +38,8 @@ impl Default for IntentionType {
 	}
 }
 
+pub type IntentionIdType = u128;
+
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 pub struct ExchangeIntention<AccountId, AssetId, Balance> {
@@ -47,6 +49,7 @@ pub struct ExchangeIntention<AccountId, AssetId, Balance> {
 	pub amount: Balance,
 	pub discount: bool,
 	pub sell_or_buy: IntentionType,
+	pub intention_id: IntentionIdType,
 }
 
 // FIXME: removed once HDX pallet updated to use fee::apply_fee

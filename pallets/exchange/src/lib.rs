@@ -8,7 +8,7 @@ use sp_std::vec::Vec;
 use primitives::{
 	fee,
 	traits::{DirectTrade, Matcher, Resolver, TokenPool, AMM},
-	AssetId, Balance, ExchangeIntention, IntentionType,
+	AssetId, Balance, ExchangeIntention, IntentionIdType, IntentionType,
 };
 use sp_std::cmp;
 
@@ -44,6 +44,8 @@ decl_storage! {
 	trait Store for Module<T: Trait> as Exchange {
 		ExchangeAssetsIntentionCount get(fn get_intentions_count): map hasher(blake2_128_concat) (AssetId, AssetId) => u32;
 		ExchangeAssetsIntentions get(fn get_intentions): map hasher(blake2_128_concat) (AssetId, AssetId) => Vec<Intention<T>>;
+
+		Nonce: u128; // Used as intention ids for now
 	}
 }
 
@@ -53,11 +55,32 @@ decl_event!(
 	where
 		AccountId = <T as system::Trait>::AccountId,
 	{
-		IntentionRegistered(AccountId, AssetId, AssetId, Balance),
+		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionIdType),
 
-		InsufficientAssetBalanceEvent(AccountId, AssetId, Balance, dispatch::DispatchError),
-		AMMSellErrorEvent(AccountId, AssetId, Balance, dispatch::DispatchError),
-		AMMBuyErrorEvent(AccountId, AssetId, Balance, dispatch::DispatchError),
+		InsufficientAssetBalanceEvent(
+			AccountId,
+			AssetId,
+			Balance,
+			IntentionType,
+			IntentionIdType,
+			dispatch::DispatchError,
+		),
+		AMMSellErrorEvent(
+			AccountId,
+			AssetId,
+			Balance,
+			IntentionType,
+			IntentionIdType,
+			dispatch::DispatchError,
+		),
+		AMMBuyErrorEvent(
+			AccountId,
+			AssetId,
+			Balance,
+			IntentionType,
+			IntentionIdType,
+			dispatch::DispatchError,
+		),
 	}
 );
 
@@ -99,13 +122,15 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
+
 			let intention = Intention::<T> {
 					who: who.clone(),
 					asset_sell: asset_sell,
 					asset_buy: asset_buy,
 					amount: amount_sell,
 					discount: discount,
-					sell_or_buy : IntentionType::SELL
+					sell_or_buy : IntentionType::SELL,
+					intention_id: Nonce::get()
 			};
 
 			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
@@ -115,7 +140,9 @@ decl_module! {
 
 			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total = *total + 1u32);
 
-			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount_sell));
+			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount_sell, IntentionType::SELL, intention.intention_id));
+
+			Nonce::mutate(|n| *n += 1);
 
 			Ok(())
 		}
@@ -144,7 +171,8 @@ decl_module! {
 					asset_buy: asset_buy,
 					amount: amount,
 					sell_or_buy: IntentionType::BUY,
-					discount: discount
+					discount: discount,
+					intention_id: Nonce::get()
 			};
 
 			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
@@ -154,7 +182,9 @@ decl_module! {
 
 			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total = *total + 1u32);
 
-			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount));
+			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount, IntentionType::BUY, intention.intention_id));
+
+			Nonce::mutate(|n| *n += 1);
 
 			Ok(())
 		}
@@ -194,6 +224,7 @@ impl<T: Trait> Module<T> {
 	fn amm_exchange(
 		who: &T::AccountId,
 		exchange_type: &IntentionType,
+		intention_id: IntentionIdType,
 		asset_sell: AssetId,
 		asset_buy: AssetId,
 		amount: Balance,
@@ -207,6 +238,8 @@ impl<T: Trait> Module<T> {
 						who.clone(),
 						asset_sell,
 						amount,
+						exchange_type.clone(),
+						intention_id,
 						error.into(),
 					));
 					false
@@ -216,7 +249,14 @@ impl<T: Trait> Module<T> {
 			IntentionType::BUY => match T::AMMTrader::buy(who, asset_buy, asset_sell, amount, discount) {
 				Ok(()) => true,
 				Err(error) => {
-					Self::deposit_event(RawEvent::AMMBuyErrorEvent(who.clone(), asset_buy, amount, error.into()));
+					Self::deposit_event(RawEvent::AMMBuyErrorEvent(
+						who.clone(),
+						asset_buy,
+						amount,
+						exchange_type.clone(),
+						intention_id,
+						error.into(),
+					));
 					false
 				}
 			},
@@ -229,6 +269,7 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 		Self::amm_exchange(
 			&intention.who,
 			&intention.sell_or_buy,
+			intention.intention_id,
 			intention.asset_sell,
 			intention.asset_buy,
 			intention.amount,
@@ -271,6 +312,8 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 						intention.who.clone(),
 						intention.asset_sell,
 						spot_price_b,
+						intention.sell_or_buy.clone(),
+						intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
 					));
 					return false;
@@ -281,6 +324,8 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 						matched_intention.who.clone(),
 						intention.asset_buy,
 						amount_b,
+						matched_intention.sell_or_buy.clone(),
+						matched_intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
 					));
 					return false;
@@ -323,6 +368,8 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 						intention.who.clone(),
 						intention.asset_sell,
 						spot_price_b,
+						intention.sell_or_buy.clone(),
+						intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
 					));
 					return false;
@@ -333,6 +380,8 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 						matched_intention.who.clone(),
 						intention.asset_buy,
 						amount_b,
+						matched_intention.sell_or_buy.clone(),
+						matched_intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
 					));
 					return false;
@@ -343,6 +392,7 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 				match Self::amm_exchange(
 					&matched_intention.who,
 					&matched_intention.sell_or_buy,
+					matched_intention.intention_id,
 					matched_intention.asset_sell,
 					matched_intention.asset_buy,
 					rest_amount,
