@@ -38,7 +38,7 @@ impl Default for IntentionType {
 	}
 }
 
-pub type IntentionIdType = u128;
+pub type IntentionId = u128;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
@@ -49,7 +49,7 @@ pub struct ExchangeIntention<AccountId, AssetId, Balance> {
 	pub amount: Balance,
 	pub discount: bool,
 	pub sell_or_buy: IntentionType,
-	pub intention_id: IntentionIdType,
+	pub intention_id: IntentionId,
 }
 
 // FIXME: removed once HDX pallet updated to use fee::apply_fee

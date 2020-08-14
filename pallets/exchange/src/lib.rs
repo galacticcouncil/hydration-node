@@ -8,7 +8,7 @@ use sp_std::vec::Vec;
 use primitives::{
 	fee,
 	traits::{DirectTrade, Matcher, Resolver, TokenPool, AMM},
-	AssetId, Balance, ExchangeIntention, IntentionIdType, IntentionType,
+	AssetId, Balance, ExchangeIntention, IntentionId, IntentionType,
 };
 use sp_std::cmp;
 
@@ -55,14 +55,14 @@ decl_event!(
 	where
 		AccountId = <T as system::Trait>::AccountId,
 	{
-		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionIdType),
+		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionId),
 
 		InsufficientAssetBalanceEvent(
 			AccountId,
 			AssetId,
 			Balance,
 			IntentionType,
-			IntentionIdType,
+			IntentionId,
 			dispatch::DispatchError,
 		),
 		AMMSellErrorEvent(
@@ -70,7 +70,7 @@ decl_event!(
 			AssetId,
 			Balance,
 			IntentionType,
-			IntentionIdType,
+			IntentionId,
 			dispatch::DispatchError,
 		),
 		AMMBuyErrorEvent(
@@ -78,7 +78,7 @@ decl_event!(
 			AssetId,
 			Balance,
 			IntentionType,
-			IntentionIdType,
+			IntentionId,
 			dispatch::DispatchError,
 		),
 	}
@@ -224,7 +224,7 @@ impl<T: Trait> Module<T> {
 	fn amm_exchange(
 		who: &T::AccountId,
 		exchange_type: &IntentionType,
-		intention_id: IntentionIdType,
+		intention_id: IntentionId,
 		asset_sell: AssetId,
 		asset_buy: AssetId,
 		amount: Balance,
