@@ -13,12 +13,14 @@ use sp_std::prelude::*;
 #[derive(Eq, PartialEq, Encode, Decode, Default)]
 #[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
-pub struct BalanceInfo<Balance> {
+pub struct BalanceInfo<AssetId, Balance> {
 	#[cfg_attr(feature = "std", serde(bound(serialize = "Balance: std::fmt::Display")))]
 	#[cfg_attr(feature = "std", serde(serialize_with = "serialize_as_string"))]
 	#[cfg_attr(feature = "std", serde(bound(deserialize = "Balance: std::str::FromStr")))]
 	#[cfg_attr(feature = "std", serde(deserialize_with = "deserialize_from_string"))]
 	pub amount: Balance,
+
+	pub asset: Option<AssetId>,
 }
 
 #[cfg(feature = "std")]
@@ -43,22 +45,22 @@ sp_api::decl_runtime_apis! {
 			asset_a: AssetId,
 			asset_b: AssetId,
 			amount: Balance,
-		) -> BalanceInfo<Balance>;
+		) -> BalanceInfo<AssetId, Balance>;
 
 		fn get_buy_price(
 			asset_a: AssetId,
 			asset_b: AssetId,
 			amount: Balance,
-		) -> BalanceInfo<Balance>;
+		) -> BalanceInfo<AssetId, Balance>;
 
 		fn get_sell_price(
 			asset_a: AssetId,
 			asset_b: AssetId,
 			amount: Balance,
-		) -> BalanceInfo<Balance>;
+		) -> BalanceInfo<AssetId, Balance>;
 
 		fn get_pool_balances(
 			pool_address: AccountId,
-		) -> Vec<BalanceInfo<Balance>>;
+		) -> Vec<BalanceInfo<AssetId, Balance>>;
 	}
 }

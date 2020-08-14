@@ -84,7 +84,7 @@ impl From<Error> for i64 {
 }
 
 impl<C, Block, AccountId, AssetId, Balance>
-	AMMApi<<Block as BlockT>::Hash, AccountId, AssetId, Balance, BalanceInfo<Balance>> for AMM<C, Block>
+	AMMApi<<Block as BlockT>::Hash, AccountId, AssetId, Balance, BalanceInfo<AssetId, Balance>> for AMM<C, Block>
 where
 	Block: BlockT,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
@@ -99,7 +99,7 @@ where
 		asset_b: AssetId,
 		amount: Balance,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<BalanceInfo<Balance>> {
+	) -> Result<BalanceInfo<AssetId, Balance>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.
@@ -118,7 +118,7 @@ where
 		asset_b: AssetId,
 		amount: Balance,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<BalanceInfo<Balance>> {
+	) -> Result<BalanceInfo<AssetId, Balance>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.
@@ -137,7 +137,7 @@ where
 		asset_b: AssetId,
 		amount: Balance,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<BalanceInfo<Balance>> {
+	) -> Result<BalanceInfo<AssetId, Balance>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.
@@ -154,7 +154,7 @@ where
 		&self,
 		pool_address: AccountId,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<Vec<BalanceInfo<Balance>>> {
+	) -> Result<Vec<BalanceInfo<AssetId, Balance>>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.

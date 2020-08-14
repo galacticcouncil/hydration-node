@@ -445,6 +445,21 @@ impl<T: Trait> Module<T> {
 			false => 0,
 		}
 	}
+
+	pub fn get_pool_balances(pool_address: T::AccountId) -> Option<Vec<(AssetId, Balance)>> {
+		let mut vec = Vec::new();
+
+		if let Some(assets) = Self::get_pool_assets(&pool_address) {
+			// Note : this will need to change once we change to multi asset pools
+			// THere are only 2 assets no in one pool, so let's do quick'n'dirty
+			let reserve = T::Currency::free_balance(assets.0, &pool_address);
+			vec.push((assets.0, reserve));
+			let reserve = T::Currency::free_balance(assets.1, &pool_address);
+			vec.push((assets.1, reserve));
+		}
+
+		Some(vec)
+	}
 }
 
 impl<T: Trait> TokenPool<T::AccountId, AssetId> for Module<T> {
