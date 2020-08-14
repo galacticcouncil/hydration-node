@@ -325,6 +325,11 @@ decl_module! {
 			let total_shares = Self::total_liquidity(&pair_account);
 
 			ensure!(
+				total_shares >= amount,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			ensure!(
 				T::Currency::free_balance(share_token, &who) >= amount,
 				Error::<T>::InsufficientAssetBalance
 			);
@@ -337,13 +342,9 @@ decl_module! {
 			let amount_a = T::Currency::free_balance(asset_a, &pair_account);
 			let amount_b = T::Currency::free_balance(asset_b, &pair_account);
 
-			let remove_amount_a =
-				(amount_a.checked_mul(amount).ok_or(Error::<T>::RemoveAssetAmountInvalid)?)
-					.checked_div(total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
-
-			let remove_amount_b =
-				(amount_b.checked_mul(amount).ok_or(Error::<T>::RemoveAssetAmountInvalid)?)
-					.checked_div(total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let portion = total_shares.checked_div(amount).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let remove_amount_a = amount_a.checked_div(portion).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let remove_amount_b = amount_b.checked_div(portion).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
