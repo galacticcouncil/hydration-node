@@ -438,7 +438,7 @@ impl<T: Trait> Module<T> {
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-				match Self::calculate_buy_price(asset_a_reserve, asset_b_reserve, amount) {
+				match Self::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount) {
 					Result::Ok(v) => v,
 					_ => 0,
 				}

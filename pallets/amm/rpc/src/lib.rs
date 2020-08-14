@@ -145,7 +145,7 @@ where
 
 		api.get_buy_price(&at, asset_a, asset_b, amount).map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
-			message: "Unable to calculate sell price.".into(),
+			message: "Unable to calculate buy price.".into(),
 			data: Some(format!("{:?}", e).into()),
 		})
 	}
