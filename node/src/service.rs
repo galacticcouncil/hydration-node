@@ -15,6 +15,8 @@ use std::time::Duration;
 
 use amm_rpc::{AMMApi, AMM};
 
+pub type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
+
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
@@ -36,7 +38,7 @@ pub fn new_full_params(
 			FullClient,
 			sc_consensus_aura::AuraImportQueue<Block, FullClient>,
 			sc_transaction_pool::FullPool<Block, FullClient>,
-			(),
+			RpcExtension,
 			FullBackend,
 		>,
 		FullSelectChain,
@@ -82,6 +84,9 @@ pub fn new_full_params(
 	let provider = client.clone() as Arc<dyn StorageAndProofProvider<_, _>>;
 	let finality_proof_provider = Arc::new(GrandpaFinalityProofProvider::new(backend.clone(), provider));
 
+	let mut rpc_extensions = jsonrpc_core::IoHandler::default();
+	rpc_extensions.extend_with(AMMApi::to_delegate(AMM::new(client.clone())));
+
 	let params = sc_service::ServiceParams {
 		backend,
 		client,
@@ -95,7 +100,7 @@ pub fn new_full_params(
 		finality_proof_provider: Some(finality_proof_provider),
 		on_demand: None,
 		remote_blockchain: None,
-		rpc_extensions_builder: Box::new(|_| ()),
+		rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
 	};
 
 	Ok((
@@ -252,9 +257,8 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		client.clone() as Arc<_>,
 	));
 
-	//TODO: here create rpc extension builder and extend with the rpc calls
-	//let mut io = jsonrpc_core::IoHandler::default();
-	//io.extend_with(AMMApi::to_delegate(AMM::new(client.clone())));
+	let mut rpc_extensions = jsonrpc_core::IoHandler::default();
+	rpc_extensions.extend_with(AMMApi::to_delegate(AMM::new(client.clone())));
 
 	sc_service::build(sc_service::ServiceParams {
 		block_announce_validator_builder: None,
@@ -262,7 +266,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		finality_proof_provider: Some(finality_proof_provider),
 		on_demand: Some(on_demand),
 		remote_blockchain: Some(backend.remote_blockchain()),
-		rpc_extensions_builder: Box::new(|_| ( )),
+		rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
 		transaction_pool: Arc::new(transaction_pool),
 		config,
 		client,
