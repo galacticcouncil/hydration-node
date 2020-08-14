@@ -1,6 +1,6 @@
 # hack HydraDX node
 
-XYK AMM + Exchange order matching blockchain built on substrate for Hackusnama hackaton
+XYK AMM + Exchange order matching blockchain built on substrate for Hackusama hackaton
 
 - https://hack.hydradx.io/
 - [app source](https://github.com/galacticcouncil/hack.HydraDX-app)
