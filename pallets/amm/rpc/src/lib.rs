@@ -41,6 +41,15 @@ pub trait AMMApi<BlockHash, AccountId, AssetId, Balance, ResponseType> {
 		at: Option<BlockHash>,
 	) -> Result<ResponseType>;
 
+	#[rpc(name = "amm_getBuyPrice")]
+	fn get_buy_price(
+		&self,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		amount: Balance,
+		at: Option<BlockHash>,
+	) -> Result<ResponseType>;
+
 	#[rpc(name = "amm_getPoolBalances")]
 	fn get_pool_balances(&self, pool_address: AccountId, at: Option<BlockHash>) -> Result<Vec<ResponseType>>;
 }
@@ -116,6 +125,25 @@ where
 			self.client.info().best_hash));
 
 		api.get_sell_price(&at, asset_a, asset_b, amount).map_err(|e| RpcError {
+			code: ErrorCode::ServerError(Error::RuntimeError.into()),
+			message: "Unable to calculate sell price.".into(),
+			data: Some(format!("{:?}", e).into()),
+		})
+	}
+
+	fn get_buy_price(
+		&self,
+		asset_a: AssetId,
+		asset_b: AssetId,
+		amount: Balance,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> Result<BalanceInfo<Balance>> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(at.unwrap_or_else(||
+			// If the block hash is not supplied assume the best block.
+			self.client.info().best_hash));
+
+		api.get_buy_price(&at, asset_a, asset_b, amount).map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
 			message: "Unable to calculate sell price.".into(),
 			data: Some(format!("{:?}", e).into()),

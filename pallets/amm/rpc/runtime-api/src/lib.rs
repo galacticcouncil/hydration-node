@@ -45,6 +45,12 @@ sp_api::decl_runtime_apis! {
 			amount: Balance,
 		) -> BalanceInfo<Balance>;
 
+		fn get_buy_price(
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+		) -> BalanceInfo<Balance>;
+
 		fn get_sell_price(
 			asset_a: AssetId,
 			asset_b: AssetId,

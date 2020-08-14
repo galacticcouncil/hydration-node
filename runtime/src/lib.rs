@@ -508,6 +508,16 @@ impl_runtime_apis! {
 			}
 		}
 
+		fn get_buy_price(
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+		) -> amm_rpc::BalanceInfo<Balance> {
+			 amm_rpc::BalanceInfo{
+				amount: AMM::get_buy_price(asset_a,asset_b, amount)
+			}
+		}
+
 		fn get_pool_balances(
 			pool_address: AccountId,
 		) -> Vec<amm_rpc::BalanceInfo<Balance>> {
