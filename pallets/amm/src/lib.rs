@@ -396,26 +396,36 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
 	pub fn get_spot_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		let pair_account = Self::get_pair_id(&asset_a, &asset_b);
+		match <Self as TokenPool<_, _>>::exists(asset_a, asset_b) {
+			true => {
+				let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
-		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-		let asset_b_reserve = T::Currency::free_balance(asset_a, &pair_account);
+				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount) {
-			Result::Ok(v) => v,
-			_ => 0,
+				match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount) {
+					Result::Ok(v) => v,
+					_ => 0,
+				}
+			}
+			false => 0,
 		}
 	}
 
 	pub fn get_sell_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		let pair_account = Self::get_pair_id(&asset_a, &asset_b);
+		match <Self as TokenPool<_, _>>::exists(asset_a, asset_b) {
+			true => {
+				let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
-		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-		let asset_b_reserve = T::Currency::free_balance(asset_a, &pair_account);
+				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		match Self::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount) {
-			Result::Ok(v) => v,
-			_ => 0,
+				match Self::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount) {
+					Result::Ok(v) => v,
+					_ => 0,
+				}
+			}
+			false => 0,
 		}
 	}
 }

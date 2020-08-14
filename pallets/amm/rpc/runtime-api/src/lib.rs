@@ -34,7 +34,8 @@ fn deserialize_from_string<'de, D: Deserializer<'de>, T: std::str::FromStr>(dese
 }
 
 sp_api::decl_runtime_apis! {
-	pub trait AMMApi<AssetId, Balance> where
+	pub trait AMMApi<AccountId, AssetId, Balance> where
+		AccountId: Codec,
 		AssetId: Codec,
 		Balance: Codec + MaybeDisplay + MaybeFromStr,
 	{
@@ -49,5 +50,9 @@ sp_api::decl_runtime_apis! {
 			asset_b: AssetId,
 			amount: Balance,
 		) -> BalanceInfo<Balance>;
+
+		fn get_pool_balances(
+			pool_address: AccountId,
+		) -> Vec<BalanceInfo<Balance>>;
 	}
 }

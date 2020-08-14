@@ -22,7 +22,7 @@ pub struct BalanceRequest<Balance> {
 }
 
 #[rpc]
-pub trait AMMApi<BlockHash, AssetId, Balance, ResponseType> {
+pub trait AMMApi<BlockHash, AccountId, AssetId, Balance, ResponseType> {
 	#[rpc(name = "amm_getSpotPrice")]
 	fn get_spot_price(
 		&self,
@@ -40,6 +40,9 @@ pub trait AMMApi<BlockHash, AssetId, Balance, ResponseType> {
 		amount: Balance,
 		at: Option<BlockHash>,
 	) -> Result<ResponseType>;
+
+	#[rpc(name = "amm_getPoolBalances")]
+	fn get_pool_balances(&self, pool_address: AccountId, at: Option<BlockHash>) -> Result<Vec<ResponseType>>;
 }
 
 /// A struct that implements the [`AMMApi`].
@@ -71,12 +74,13 @@ impl From<Error> for i64 {
 	}
 }
 
-impl<C, Block, AssetId, Balance> AMMApi<<Block as BlockT>::Hash, AssetId, Balance, BalanceInfo<Balance>>
-	for AMM<C, Block>
+impl<C, Block, AccountId, AssetId, Balance>
+	AMMApi<<Block as BlockT>::Hash, AccountId, AssetId, Balance, BalanceInfo<Balance>> for AMM<C, Block>
 where
 	Block: BlockT,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-	C::Api: AMMRuntimeApi<Block, AssetId, Balance>,
+	C::Api: AMMRuntimeApi<Block, AccountId, AssetId, Balance>,
+	AccountId: Codec,
 	AssetId: Codec,
 	Balance: Codec + MaybeDisplay + MaybeFromStr,
 {
@@ -114,6 +118,23 @@ where
 		api.get_sell_price(&at, asset_a, asset_b, amount).map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
 			message: "Unable to calculate sell price.".into(),
+			data: Some(format!("{:?}", e).into()),
+		})
+	}
+
+	fn get_pool_balances(
+		&self,
+		pool_address: AccountId,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> Result<Vec<BalanceInfo<Balance>>> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(at.unwrap_or_else(||
+			// If the block hash is not supplied assume the best block.
+			self.client.info().best_hash));
+
+		api.get_pool_balances(&at, pool_address).map_err(|e| RpcError {
+			code: ErrorCode::ServerError(Error::RuntimeError.into()),
+			message: "Unable to retrieve pool balances.".into(),
 			data: Some(format!("{:?}", e).into()),
 		})
 	}

@@ -484,6 +484,7 @@ impl_runtime_apis! {
 
 	impl amm_rpc::AMMApi<
 		Block,
+		AccountId,
 		AssetId,
 		Balance,
 	> for Runtime {
@@ -505,6 +506,13 @@ impl_runtime_apis! {
 			 amm_rpc::BalanceInfo{
 				amount: AMM::get_sell_price(asset_a,asset_b, amount)
 			}
+		}
+
+		fn get_pool_balances(
+			pool_address: AccountId,
+		) -> Vec<amm_rpc::BalanceInfo<Balance>> {
+			let mut vec = Vec::new();
+			vec
 		}
 
 	}
