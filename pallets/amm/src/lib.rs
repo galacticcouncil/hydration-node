@@ -263,15 +263,9 @@ decl_module! {
 					.checked_mul(asset_b_total).ok_or(Error::<T>::AddAssetAmountInvalid)?
 					.checked_div(asset_a_total).ok_or(Error::<T>::AddAssetAmountInvalid)?;
 
-				let liquidity_minted = if total_liquidity > asset_a_total {
-						total_liquidity
-							.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?
-							.checked_mul(amount_a).ok_or(Error::<T>::AddSharesAmountInvalid)?
-					} else {
-						amount_a
-							.checked_mul(total_liquidity).ok_or(Error::<T>::AddSharesAmountInvalid)?
-							.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?
-					};
+				let liquidity_minted = total_liquidity
+					.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?
+					.checked_mul(amount_a).ok_or(Error::<T>::AddSharesAmountInvalid)?;
 
 				ensure!(
 					amount_b_required <= amount_b_max_limit,
