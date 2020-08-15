@@ -58,9 +58,7 @@ RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hack-hydra-dx -lruntime=debug -
 
 ### Interaction with the node
 
-Go to deployed polkadot apps at https://polkadot.js.org/apps/#/explorer
-
-Connect to the `hack.hydradx.io:9944` or local node.
+Go to the polkadot apps at https://dotapps.io
 
 Then open settings screen -> developer and paste
 
@@ -91,4 +89,5 @@ Then open settings screen -> developer and paste
 }
 ```
 
+Connect to the `hack.hydradx.io:9944` or local node.
 
