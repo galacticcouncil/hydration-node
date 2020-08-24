@@ -25,7 +25,7 @@ use system::RawOrigin;
 
 use crate::Module as AMM;
 
-use primitives::{AssetId, Balance};
+use primitives::{AssetId, Balance, Price};
 
 const SEED: u32 = 1;
 const MAX_USER_INDEX: u32 = 1000;
@@ -57,7 +57,7 @@ benchmarks! {
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
 		let amount : Balance = a as u128;
-		let initial_price : Balance = 10;
+		let initial_price : Price = Price::from(10);
 
 	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, initial_price)
 
@@ -72,7 +72,7 @@ benchmarks! {
 		let amount : Balance = 100;
 		let max_limit : Balance = 10 * 1_000_000;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, 10)?;
+		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, Price::from(10))?;
 
 	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, max_limit)
 
@@ -85,7 +85,7 @@ benchmarks! {
 		let asset_b: AssetId = 2;
 		let amount : Balance = 10;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, 10)?;
+		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, Price::from(10))?;
 
 	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount)
 
@@ -99,7 +99,7 @@ benchmarks! {
 		let amount : Balance = 10;
 		let discount = false;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, 10)?;
+		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, Price::from(10))?;
 
 	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, discount)
 }

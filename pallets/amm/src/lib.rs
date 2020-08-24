@@ -4,16 +4,19 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{fee, traits::TokenPool, traits::AMM, AssetId, Balance};
+use primitives::{fee, traits::TokenPool, traits::AMM, AssetId, Balance, Price};
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::{
 	traits::{Hash, Zero},
-	DispatchError,
+	DispatchError, FixedPointNumber,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
 
+use primitives::{HighPrecisionBalance, LowPrecisionBalance};
+
 use asset_registry;
 
+use core::convert::TryFrom;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 
 #[cfg(test)]
@@ -163,7 +166,7 @@ decl_module! {
 			asset_a: AssetId,
 			asset_b: AssetId,
 			amount: Balance,
-			initial_price: u32
+			initial_price: Price
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -181,7 +184,7 @@ decl_module! {
 				Error::<T>::TokenPoolAlreadyExists
 			);
 
-			let asset_b_amount= amount.checked_mul(initial_price as u128).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
+			let asset_b_amount= initial_price.checked_mul_int(amount).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
 			let shares_added = amount.checked_mul(asset_b_amount).ok_or(Error::<T>::CreatePoolSharesAmountInvalid)?;
 
 			ensure!(
@@ -255,20 +258,29 @@ decl_module! {
 			let (shares, amount_b_required) = if Self::total_liquidity(&pair_account).is_zero() {
 				(amount_a.checked_mul(amount_b_max_limit).ok_or(Error::<T>::AddAssetAmountInvalid)?, amount_b_max_limit)
 			} else {
-				let asset_a_total = T::Currency::free_balance(asset_a, &pair_account);
-				let asset_b_total = T::Currency::free_balance(asset_b, &pair_account);
+				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 				let total_liquidity = Self::total_liquidity(&pair_account);
 
-				let amount_b_required = amount_a
-					.checked_mul(asset_b_total).ok_or(Error::<T>::AddAssetAmountInvalid)?
-					.checked_div(asset_a_total).ok_or(Error::<T>::AddAssetAmountInvalid)?;
+				let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount_a).into();
+				let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve).into();
+				let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve).into();
+				let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_liquidity).into();
 
-				let liquidity_minted = total_liquidity
-					.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?
-					.checked_mul(amount_a).ok_or(Error::<T>::AddSharesAmountInvalid)?;
+				let b_required_hp = amount_hp.checked_mul( b_reserve_hp).expect("Cannot overflow").checked_div( a_reserve_hp).expect("Cannot panic as reserve cannot be 0");
+
+				let b_required_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(b_required_hp);
+				ensure!(b_required_lp.is_ok(), Error::<T>::AddAssetAmountInvalid);
+				let asset_b_required = b_required_lp.unwrap();
+
+				let l_minted = amount_hp.checked_mul(liquidity_hp).expect("Cannot overflow").checked_div(a_reserve_hp).expect("Cannot panic as asset reserve cannot be 0");
+
+				let l_minted_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(l_minted);
+				ensure!(l_minted_lp.is_ok(), Error::<T>::AddAssetAmountInvalid);
+				let liquidity_minted = l_minted_lp.unwrap();
 
 				ensure!(
-					amount_b_required <= amount_b_max_limit,
+					asset_b_required <= amount_b_max_limit,
 					Error::<T>::AssetBalanceLimitExceeded
 				);
 
@@ -277,7 +289,7 @@ decl_module! {
 					Error::<T>::InvalidMintedLiquidity
 				);
 
-				(liquidity_minted, amount_b_required)
+				(liquidity_minted, asset_b_required)
 			};
 
 			let asset_b_balance = T::Currency::free_balance(asset_b, &who);
@@ -339,12 +351,25 @@ decl_module! {
 				Error::<T>::CannotRemoveLiquidityWithZero
 			);
 
-			let amount_a = T::Currency::free_balance(asset_a, &pair_account);
-			let amount_b = T::Currency::free_balance(asset_b, &pair_account);
+			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let portion = total_shares.checked_div(amount).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
-			let remove_amount_a = amount_a.checked_div(portion).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
-			let remove_amount_b = amount_b.checked_div(portion).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount).into();
+			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve).into();
+			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve).into();
+			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_shares).into();
+
+			let remove_amount_a_hp = amount_hp.checked_mul( a_reserve_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
+
+			let remove_amount_a_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_a_hp);
+			ensure!(remove_amount_a_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
+			let remove_amount_a = remove_amount_a_lp.unwrap();
+
+			let remove_amount_b_hp = b_reserve_hp.checked_mul(amount_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
+
+			let remove_amount_b_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_b_hp);
+			ensure!(remove_amount_b_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
+			let remove_amount_b = remove_amount_b_lp.unwrap();
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
