@@ -25,7 +25,7 @@ use system::RawOrigin;
 
 use crate::Module as AMM;
 
-use primitives::{AssetId, Balance};
+use primitives::{AssetId, Balance, Price};
 
 const SEED: u32 = 1;
 const MAX_USER_INDEX: u32 = 1000;
