@@ -182,7 +182,11 @@ decl_module! {
 			);
 
 			let asset_b_amount= amount.checked_mul(initial_price as u128).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
-			let shares_added = amount.checked_mul(asset_b_amount).ok_or(Error::<T>::CreatePoolSharesAmountInvalid)?;
+			let shares_added = if asset_a < asset_b {
+				amount
+			} else {
+				asset_b_amount
+			};
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &who) >= amount,
@@ -195,7 +199,7 @@ decl_module! {
 			);
 
 			// Create pool only if amounts dont overflow
-			let (pair_account, share_token ) = <Self as TokenPool<_,_>>::create_pool(&asset_a, &asset_b)?;
+			let (pair_account, share_token) = <Self as TokenPool<_,_>>::create_pool(&asset_a, &asset_b)?;
 
 			T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
 			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
@@ -253,28 +257,29 @@ decl_module! {
 			// TODO: after we switch from generic_asset pallet
 
 			let (shares, amount_b_required) = if Self::total_liquidity(&pair_account).is_zero() {
-				(amount_a.checked_mul(amount_b_max_limit).ok_or(Error::<T>::AddAssetAmountInvalid)?, amount_b_max_limit)
+				let shares = if asset_a < asset_b {
+					amount_a
+				} else {
+					amount_b_max_limit
+				};
+				(shares, amount_b_max_limit)
 			} else {
 				let asset_a_total = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_total = T::Currency::free_balance(asset_b, &pair_account);
-				let total_liquidity = Self::total_liquidity(&pair_account);
 
 				let amount_b_required = amount_a
 					.checked_mul(asset_b_total).ok_or(Error::<T>::AddAssetAmountInvalid)?
 					.checked_div(asset_a_total).ok_or(Error::<T>::AddAssetAmountInvalid)?;
 
-				let liquidity_minted = total_liquidity
-					.checked_div(asset_a_total).ok_or(Error::<T>::AddSharesAmountInvalid)?
-					.checked_mul(amount_a).ok_or(Error::<T>::AddSharesAmountInvalid)?;
+				let liquidity_minted = if asset_a < asset_b {
+					amount_a
+				} else {
+					amount_b_required
+				};
 
 				ensure!(
 					amount_b_required <= amount_b_max_limit,
 					Error::<T>::AssetBalanceLimitExceeded
-				);
-
-				ensure!(
-					liquidity_minted >= amount_a,
-					Error::<T>::InvalidMintedLiquidity
 				);
 
 				(liquidity_minted, amount_b_required)

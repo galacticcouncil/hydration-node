@@ -30,7 +30,7 @@ fn sell_test() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(
@@ -79,7 +79,7 @@ fn sell_test() {
 		// TODO: check if final transferred balances add up to initial balance
 		// No tokens should be created or lost
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_a, asset_b)), 0);
 	});
@@ -112,7 +112,7 @@ fn sell_test_case_two() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intention
 		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 1000, false));
@@ -147,7 +147,7 @@ fn sell_test_case_two() {
 		// TODO: check if final transferred balances add up to initial balance
 		// No tokens should be created or lost
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -180,7 +180,7 @@ fn sell_test_exact_match() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 1000, false));
@@ -211,7 +211,7 @@ fn sell_test_exact_match() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 199_997);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_013);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -244,7 +244,7 @@ fn sell_test_single_eth_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 1000, false));
@@ -275,7 +275,7 @@ fn sell_test_single_eth_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 203_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 394_099);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -308,7 +308,7 @@ fn sell_test_single_dot_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_b, asset_a, 1000, false));
@@ -339,7 +339,7 @@ fn sell_test_single_dot_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 198_513);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 403_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -372,7 +372,7 @@ fn sell_test_single_multiple_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
@@ -412,7 +412,7 @@ fn sell_test_single_multiple_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 199_004);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 402_019);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -445,7 +445,7 @@ fn sell_test_group_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
@@ -481,7 +481,7 @@ fn sell_test_group_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_598);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 398_808);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -535,7 +535,7 @@ fn sell_test_mixed_buy_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
@@ -574,7 +574,7 @@ fn sell_test_mixed_buy_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 201_103);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 397_809);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -611,7 +611,7 @@ fn discount_tests_no_discount() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
@@ -651,7 +651,7 @@ fn discount_tests_no_discount() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 201_103);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 397_809);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 400000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -702,7 +702,7 @@ fn discount_tests_with_discount() {
 
 		assert_eq!(
 			Currency::free_balance(share_token, &user_1),
-			80000000000000000000000000000
+			400000000000000
 		);
 
 		// Make sell intentions
@@ -767,7 +767,7 @@ fn discount_tests_with_discount() {
 
 		assert_eq!(
 			Currency::free_balance(share_token, &user_1),
-			80000000000000000000000000000
+			400000000000000
 		);
 
 		assert_eq!(Currency::free_balance(HDX, &user_1), 999860000210000);
