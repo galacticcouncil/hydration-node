@@ -3,38 +3,52 @@ use crate::mock::*;
 use frame_support::traits::OnFinalize;
 use frame_support::{assert_noop, assert_ok};
 use primitives::Price;
+use sp_runtime::FixedPointNumber;
+
+const ENDOWED_AMOUNT: u128 = 1_000_000_000_000_000;
+
+/// HELPER FOR INITIALIZING POOLS
+fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: Price) {
+	assert_ok!(AMMModule::create_pool(
+		Origin::signed(user),
+		asset_a,
+		asset_b,
+		amount,
+		price
+	));
+
+	let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+	let share_token = AMMModule::share_token(pair_account);
+
+	let amount_b = price.saturating_mul_int(amount);
+
+	// Check users state
+	assert_eq!(Currency::free_balance(asset_a, &user), ENDOWED_AMOUNT - amount);
+	assert_eq!(Currency::free_balance(asset_b, &user), ENDOWED_AMOUNT - amount_b);
+
+	// Check initial state of the pool
+	assert_eq!(Currency::free_balance(asset_a, &pair_account), amount);
+	assert_eq!(Currency::free_balance(asset_b, &pair_account), amount_b);
+
+	// Check pool shares
+	assert_eq!(Currency::free_balance(share_token, &user), amount * amount_b);
+}
 
 #[test]
-fn sell_test_standard() {
+fn sell_test_pool_finalization_states() {
 	ExtBuilder::default().build().execute_with(|| {
 		let user_1 = ALICE;
 		let user_2 = BOB;
 		let user_3 = CHARLIE;
 		let asset_a = ETH;
 		let asset_b = DOT;
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			100_000_000_000_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
 		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 900_000_000_000_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 800_000_000_000_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100_000_000_000_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200_000_000_000_000);
-
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			20_000_000_000_000_000_000_000_000_000
-		);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(
@@ -52,9 +66,11 @@ fn sell_test_standard() {
 			false
 		));
 
+		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
+
 		assert_eq!(
-			Exchange::get_intentions((asset_a, asset_b)).len() + Exchange::get_intentions((asset_b, asset_a)).len(),
-			2
+			Currency::free_balance(share_token, &user_1),
+			20_000_000_000_000_000_000_000_000_000
 		);
 
 		// Balance should not change yet
@@ -73,23 +89,73 @@ fn sell_test_standard() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 998_000_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_003_972_238_015_089);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000996000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 998000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_000_996_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 998_000_000_000_000);
 
 		// Check final pool balances
 		// TODO: CHECK IF RIGHT
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 101004000000000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 198027761984911);
-
-		// TODO: check if final transferred balances add up to initial balance
-		// No tokens should be created or lost
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 101_004_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 198_027_761_984_911);
 
 		assert_eq!(
 			Currency::free_balance(share_token, &user_1),
-			20000000000000000000000000000
+			20_000_000_000_000_000_000_000_000_000
 		);
 
-		assert_eq!(Exchange::get_intentions_count((asset_a, asset_b)), 0);
+		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
+	});
+}
+
+#[test]
+fn sell_test_standard() {
+	ExtBuilder::default().build().execute_with(|| {
+		let user_1 = ALICE;
+		let user_2 = BOB;
+		let user_3 = CHARLIE;
+		let asset_a = ETH;
+		let asset_b = DOT;
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
+
+		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
+
+		// Make sell intentions
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			2_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_3),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			false
+		));
+
+		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
+
+		// Finalize block
+		<Exchange as OnFinalize<u64>>::on_finalize(9);
+
+		// Check final account balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 998_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_003_972_238_015_089);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_000_996_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 998_000_000_000_000);
+
+		// Check final pool balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 101_004_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 198_027_761_984_911);
+
+		// TODO: check if final transferred balances add up to initial balance
+		// No tokens should be created or lost
+		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
 }
 
@@ -101,29 +167,12 @@ fn sell_test_inverse_standard() {
 		let user_3 = CHARLIE;
 		let asset_a = ETH;
 		let asset_b = DOT;
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			100_000_000_000_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 900_000_000_000_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 800_000_000_000_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100_000_000_000_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200_000_000_000_000);
-
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			20_000_000_000_000_000_000_000_000_000
-		);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(
@@ -143,37 +192,22 @@ fn sell_test_inverse_standard() {
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
 
-		// Balance should not change yet
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100_000_000_000_000);
-
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
-		// Check final account balances
+		// Check final account balances  -> SEEMS LEGIT
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_000_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_001_992_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_001_986_138_378_978);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 996_000_000_000_000);
 
-		// Check final pool balances
+		// Check final pool balances  -> SEEMS LEGIT
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 99_013_861_621_022);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 202_008_000_000_000);
 
 		// TODO: check if final transferred balances add up to initial balance
 		// No tokens should be created or lost
-
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			20000000000000000000000000000
-		);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -187,57 +221,44 @@ fn sell_test_exact_match() {
 		let user_3 = CHARLIE;
 		let asset_a = ETH;
 		let asset_b = DOT;
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 2000, false));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			2_000_000_000_000,
+			false
+		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
-		// Balance should not change yet
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
-		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999999000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000001987);
+		// Check final account balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_001_996_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000001003);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999998000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_000_998_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 998_000_000_000_000);
 
-		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 199_997);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_013);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		// Check final pool balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100002000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200004000000000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -251,57 +272,44 @@ fn sell_test_single_eth_sells() {
 		let user_3 = CHARLIE;
 		let asset_a = ETH;
 		let asset_b = DOT;
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_a, asset_b, 2000, false));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_a,
+			asset_b,
+			2_000_000_000_000,
+			false
+		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
-
-		// Balance should not change yet
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
-		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999999000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000001948);
+		// Check final account balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_001_899_978_143_094);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 999999999998000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000000000003953);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 998_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 1003913878975647);
 
-		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 203_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 394_099);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		// Check final pool balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 103_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 194_186_142_881_259);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -315,57 +323,44 @@ fn sell_test_single_dot_sells() {
 		let user_3 = CHARLIE;
 		let asset_a = ETH;
 		let asset_b = DOT;
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_b, asset_a, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 2000, false));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_b,
+			asset_a,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			2_000_000_000_000,
+			false
+		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
-
-		// Balance should not change yet
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
-		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000000498);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 999999999999000);
+		// Check final account balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1_000_496_522_353_457);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 999_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000989);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999998000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_000_978_388_447_963);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 998_000_000_000_000);
 
-		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 198_513);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 403_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		// Check final pool balances -> SEEMS LEGIT
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 98_525_089_198_580);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 203_000_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -377,68 +372,74 @@ fn sell_test_single_multiple_sells() {
 		let user_1 = ALICE;
 		let user_2 = BOB;
 		let user_3 = CHARLIE;
+		let user_4 = DAVE;
+		let user_5 = FERDIE;
+		let user_6 = GEORGE;
 		let asset_a = ETH;
 		let asset_b = DOT;
 
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_b, asset_a, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_b, asset_a, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 2000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 2000, false));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_4),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_5),
+			asset_b,
+			asset_a,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_6),
+			asset_b,
+			asset_a,
+			2_000_000_000_000,
+			false
+		));
 
-		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 6);
-
-		// Balance should not change yet
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
+		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 5);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999798000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999603981);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000001000);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 999000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 999999999998000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000001996);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999996000);
 
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999798000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999603981);
+
 		// Check final pool balances
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 199_004);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 402_019);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -450,64 +451,58 @@ fn sell_test_group_sells() {
 		let user_1 = ALICE;
 		let user_2 = BOB;
 		let user_3 = CHARLIE;
+		let user_4 = DAVE;
 		let asset_a = ETH;
 		let asset_b = DOT;
 
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_b, asset_a, 500, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 300, false));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_b,
+			asset_a,
+			5_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			3_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_4),
+			asset_a,
+			asset_b,
+			10_000_000_000_000,
+			false
+		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
-		// Balance should not change yet
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999799000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999601992);
-
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000000250);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 999999999999500);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000152);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999999700);
 
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999799000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999601992);
+
 		// Check final pool balances
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_598);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 398_808);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -546,67 +541,58 @@ fn sell_test_mixed_buy_sells() {
 		let user_1 = ALICE;
 		let user_2 = BOB;
 		let user_3 = CHARLIE;
+		let user_4 = DAVE;
 		let asset_a = ETH;
 		let asset_b = DOT;
 
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::buy(Origin::signed(user_2), asset_b, asset_a, 500, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 300, false));
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_2),
+			asset_b,
+			asset_a,
+			5_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			3_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_4),
+			asset_a,
+			asset_b,
+			10_000_000_000_000,
+			false
+		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
-		// Balance should not change yet
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999799000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999601991);
-
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999999747);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000500);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000150);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999999700);
 
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999799000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999601991);
+
 		// Check final pool balances
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 201_103);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 397_809);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -618,84 +604,58 @@ fn discount_tests_no_discount() {
 		let user_1 = ALICE;
 		let user_2 = BOB;
 		let user_3 = CHARLIE;
+		let user_4 = DAVE;
 		let asset_a = ETH;
 		let asset_b = DOT;
 
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000,
-			Price::from(2)
-		));
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_2),
-			asset_a,
-			HDX,
-			200_000,
-			Price::from(2)
-		));
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_3),
-			asset_b,
-			HDX,
-			200_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(Origin::signed(user_1), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::buy(Origin::signed(user_2), asset_b, asset_a, 500, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 300, false));
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_2),
+			asset_b,
+			asset_a,
+			5_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			3_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_4),
+			asset_a,
+			asset_b,
+			10_000_000_000_000,
+			false
+		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
-
-		// Balance should not change yet
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999800000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000000);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999800000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999799000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999601991);
-
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999799747);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000500);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000150);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999799700);
 
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999799000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999601991);
+
 		// Check final pool balances
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 201_103);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 397_809);
-
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -707,112 +667,58 @@ fn discount_tests_with_discount() {
 		let user_1 = ALICE;
 		let user_2 = BOB;
 		let user_3 = CHARLIE;
+		let user_4 = DAVE;
 		let asset_a = ETH;
 		let asset_b = DOT;
 
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			200_000_000_000_000,
-			Price::from(2)
-		));
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_2),
-			asset_a,
-			HDX,
-			200_000_000_000_000,
-			Price::from(2)
-		));
-
-		assert_ok!(AMMModule::create_pool(
-			Origin::signed(user_3),
-			asset_b,
-			HDX,
-			200_000_000_000_000,
-			Price::from(2)
-		));
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
-		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 800000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 600000000000000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400000000000000);
-
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			80000000000000000000000000000
-		);
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
 		// Make sell intentions
-		assert_ok!(Exchange::sell(
-			Origin::signed(user_1),
-			asset_a,
-			asset_b,
-			100_000_000_000_000,
-			true
-		));
 		assert_ok!(Exchange::buy(
 			Origin::signed(user_2),
 			asset_b,
 			asset_a,
-			500_000_000,
+			5_000_000_000_000,
 			true
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
-			300_000_000,
+			3_000_000_000_000,
+			true
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_4),
+			asset_a,
+			asset_b,
+			10_000_000_000_000,
 			true
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
 
-		// Balance should not change yet
-
-		assert_eq!(Currency::free_balance(HDX, &user_1), 1000000000000000);
-		assert_eq!(Currency::free_balance(HDX, &user_2), 600000000000000);
-		assert_eq!(Currency::free_balance(HDX, &user_3), 600000000000000);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 800000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 600000000000000);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 800000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000000);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 800000000000000);
-
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000000);
-
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 700000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 733271262753542);
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 799999437237099);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1_000_000_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000500000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000149700000);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 799999700000000);
 
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 700000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 733271262753542);
+
 		// Check final pool balances
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 300000413062901);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 266728537246458);
-
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			80000000000000000000000000000
-		);
 
 		assert_eq!(Currency::free_balance(HDX, &user_1), 999860000210000);
 		assert_eq!(Currency::free_balance(HDX, &user_2), 599999999300000);
