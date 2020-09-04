@@ -1,17 +1,15 @@
 use frame_support::dispatch;
 use sp_std::vec::Vec;
 
-pub trait TokenPool<AccountId, AssetId> {
+pub trait AMM<AccountId, AssetId, Amount> {
 	fn exists(asset_a: AssetId, asset_b: AssetId) -> bool;
+
 	fn get_pair_id(asset_a: &AssetId, asset_b: &AssetId) -> AccountId;
 
-	/// Returns AssetIds for given TokenPool
 	fn get_pool_assets(pool_account_id: &AccountId) -> Option<(AssetId, AssetId)>;
 
-	fn create_pool(asset_a: &AssetId, asset_b: &AssetId) -> Result<(AccountId, AssetId), dispatch::DispatchError>;
-}
+	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Amount) -> Amount;
 
-pub trait AMM<AccountId, AssetId, Amount> {
 	fn sell(
 		origin: &AccountId,
 		asset_sell: AssetId,
@@ -20,13 +18,18 @@ pub trait AMM<AccountId, AssetId, Amount> {
 		discount: bool,
 	) -> dispatch::DispatchResult;
 
-	fn buy(origin: &AccountId, asset_buy: AssetId, asset_sell: AssetId, amount_buy: Amount, discount: bool)
-		-> dispatch::DispatchResult;
+	fn buy(
+		origin: &AccountId,
+		asset_buy: AssetId,
+		asset_sell: AssetId,
+		amount_buy: Amount,
+		discount: bool,
+	) -> dispatch::DispatchResult;
 
 	fn calculate_sell_price(
 		sell_reserve: Amount,
 		buy_reserve: Amount,
-		sell_amount: Amount
+		sell_amount: Amount,
 	) -> Result<Amount, dispatch::DispatchError>;
 
 	fn calculate_buy_price(
@@ -41,11 +44,7 @@ pub trait AMM<AccountId, AssetId, Amount> {
 		sell_amount: Amount,
 	) -> Result<Amount, dispatch::DispatchError>;
 
-	fn calculate_fees(
-		amount: Amount,
-		discount: bool,
-		hdx_fee: &mut Amount,
-	) -> Result<Amount, dispatch::DispatchError>;
+	fn calculate_fees(amount: Amount, discount: bool, hdx_fee: &mut Amount) -> Result<Amount, dispatch::DispatchError>;
 }
 
 // Note: still not sure this is needed
