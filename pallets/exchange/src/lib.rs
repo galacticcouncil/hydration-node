@@ -57,19 +57,12 @@ decl_event!(
 		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionId, Balance),
 		IntentionResolvedDirectTrade(AccountId, AccountId, IntentionId, IntentionId, Balance, Balance),
 
-		InsufficientAssetBalanceEvent(
-			AccountId,
-			AssetId,
-			Balance,
-			IntentionType,
-			IntentionId,
-			dispatch::DispatchError,
-		),
+		InsufficientAssetBalanceEvent(AccountId, AssetId, IntentionType, IntentionId, dispatch::DispatchError),
+
 		AMMSellErrorEvent(
 			AccountId,
 			AssetId,
 			AssetId,
-			Balance,
 			IntentionType,
 			IntentionId,
 			dispatch::DispatchError,
@@ -78,7 +71,6 @@ decl_event!(
 			AccountId,
 			AssetId,
 			AssetId,
-			Balance,
 			IntentionType,
 			IntentionId,
 			dispatch::DispatchError,
@@ -266,7 +258,6 @@ impl<T: Trait> Module<T> {
 						who.clone(),
 						asset_sell,
 						asset_buy,
-						amount_sell,
 						exchange_type.clone(),
 						intention_id,
 						error.into(),
@@ -290,7 +281,6 @@ impl<T: Trait> Module<T> {
 						who.clone(),
 						asset_buy,
 						asset_sell,
-						amount_buy,
 						exchange_type.clone(),
 						intention_id,
 						error.into(),
@@ -305,29 +295,22 @@ impl<T: Trait> Module<T> {
 impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Balance>> for Module<T> {
 	fn resolve_single_intention(intention: &ExchangeIntention<T::AccountId, AssetId, Balance>) {
 		println!("SINGLE INTENTION");
-		if intention.sell_or_buy == IntentionType::SELL {
-			Self::amm_exchange(
-				&intention.who,
-				&intention.sell_or_buy,
-				intention.intention_id,
-				intention.asset_sell,
-				intention.asset_buy,
-				intention.amount_sell,
-				intention.amount_buy,
-				intention.discount,
-			);
-		} else {
-			Self::amm_exchange(
-				&intention.who,
-				&intention.sell_or_buy,
-				intention.intention_id,
-				intention.asset_sell,
-				intention.asset_buy,
-				intention.amount_sell,
-				intention.amount_buy,
-				intention.discount,
-			);
-		}
+
+		println!(
+			"S: {:?}\nB: {:?}\n{:?}:{:?}",
+			intention.amount_sell, intention.amount_buy, intention.asset_sell, intention.asset_buy
+		);
+
+		Self::amm_exchange(
+			&intention.who,
+			&intention.sell_or_buy,
+			intention.intention_id,
+			intention.asset_sell,
+			intention.asset_buy,
+			intention.amount_sell,
+			intention.amount_buy,
+			intention.discount,
+		);
 	}
 
 	fn resolve_intention(
@@ -355,46 +338,45 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 
 			if amount_a_sell > amount_b_buy {
 				println!("traded A>B");
-				// if T::Currency::free_balance(intention.asset_sell, &intention.who) < spot_price_b {
-				// 	Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-				// 		intention.who.clone(),
-				// 		intention.asset_sell,
-				// 		spot_price_b,
-				// 		intention.sell_or_buy.clone(),
-				// 		intention.intention_id,
-				// 		Error::<T>::InsufficientAssetBalance.into(),
-				// 	));
-				// 	return false;
-				// }
+				//TODO: THIS IS NOT ENOUGH WE NEED TO CHECK BOTH PARTICIPANTS -> HELPER FUNCTION
+				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
+					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
+						intention.who.clone(),
+						intention.asset_sell,
+						intention.sell_or_buy.clone(),
+						intention.intention_id,
+						Error::<T>::InsufficientAssetBalance.into(),
+					));
+					return false;
+				}
 
-				// if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_b {
-				// 	Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-				// 		matched_intention.who.clone(),
-				// 		intention.asset_buy,
-				// 		amount_b,
-				// 		matched_intention.sell_or_buy.clone(),
-				// 		matched_intention.intention_id,
-				// 		Error::<T>::InsufficientAssetBalance.into(),
-				// 	));
-				// 	return false;
-				// }
+				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_a_buy {
+					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
+						matched_intention.who.clone(),
+						intention.asset_buy,
+						matched_intention.sell_or_buy.clone(),
+						matched_intention.intention_id,
+						Error::<T>::InsufficientAssetBalance.into(),
+					));
+					return false;
+				}
 
 				intention_copy.amount_sell = amount_a_sell - amount_b_buy;
 				intention_copy.amount_buy = amount_a_buy - amount_b_sell;
 
-				//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT)
-
+				//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
 				let transfer_a_fee = fee::get_fee(amount_a_sell).unwrap();
 				let transfer_b_fee = fee::get_fee(amount_b_sell).unwrap();
 
-				// Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-				// 	intention.who.clone(),
-				// 	matched_intention.who.clone(),
-				// 	intention.intention_id,
-				// 	matched_intention.intention_id,
-				// 	spot_price_b - transfer_a_fee,
-				// 	amount_b - transfer_b_fee,
-				// ));
+				//TODO: EVENT FOR BOTH -> HELPER FUNCTION -> DETERMINISTIC AMOUNTS
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
+					intention.who.clone(),
+					matched_intention.who.clone(),
+					intention.intention_id,
+					matched_intention.intention_id,
+					amount_a_sell - transfer_a_fee,
+					amount_b_sell - transfer_b_fee,
+				));
 
 				// If ok , do direct transfer - this should not fail at this point
 				T::DirectTrader::transfer(
@@ -424,29 +406,28 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 				.expect("Should not failed. Checks had been done.");
 			} else if amount_a_sell < amount_b_buy {
 				println!("traded A<B");
-				// if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a {
-				// 	Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-				// 		intention.who.clone(),
-				// 		intention.asset_sell,
-				// 		spot_price_b,
-				// 		intention.sell_or_buy.clone(),
-				// 		intention.intention_id,
-				// 		Error::<T>::InsufficientAssetBalance.into(),
-				// 	));
-				// 	return false;
-				// }
+				// TODO: HELPER for both sides of the trade
+				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
+					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
+						intention.who.clone(),
+						intention.asset_sell,
+						intention.sell_or_buy.clone(),
+						intention.intention_id,
+						Error::<T>::InsufficientAssetBalance.into(),
+					));
+					return false;
+				}
 
-				// if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < spot_price_a {
-				// 	Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-				// 		matched_intention.who.clone(),
-				// 		intention.asset_buy,
-				// 		amount_b,
-				// 		matched_intention.sell_or_buy.clone(),
-				// 		matched_intention.intention_id,
-				// 		Error::<T>::InsufficientAssetBalance.into(),
-				// 	));
-				// 	return false;
-				// }
+				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_b_buy {
+					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
+						matched_intention.who.clone(),
+						intention.asset_buy,
+						matched_intention.sell_or_buy.clone(),
+						matched_intention.intention_id,
+						Error::<T>::InsufficientAssetBalance.into(),
+					));
+					return false;
+				}
 
 				let rest_sell_amount = amount_b_sell - amount_a_buy;
 				let rest_buy_amount = amount_b_buy - amount_a_sell;
@@ -600,6 +581,7 @@ impl<T: Trait> Matcher<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Ba
 				b_copy.remove(idx);
 				idx += 1;
 
+				//TODO: CHECK IF OK
 				if total >= intention.amount_sell {
 					break;
 				}
