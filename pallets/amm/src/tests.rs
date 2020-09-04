@@ -321,6 +321,56 @@ fn remove_all_liquidity() {
 }
 
 #[test]
+fn remove_all_liquidity_by_portions() {
+	ExtBuilder::default().build().execute_with(|| {
+		let share_token = AMM::share_token(AMM::get_pair_id(&HDX, &DOT));
+		let amount = 100_000_000;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			amount,
+			Price::from(10_000)
+		));
+
+		assert_eq!(Currency::free_balance(share_token, &ALICE), amount);
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			70_000_000,
+		));
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			999_999,
+		));
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			1_000_001,
+		));
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			28_000_000,
+		));
+
+		assert_eq!(Currency::free_balance(share_token, &ALICE), 0);
+		assert_eq!(Currency::free_balance(HDX, &ALICE), INITIAL_BALANCE);
+		assert_eq!(Currency::free_balance(DOT, &ALICE), INITIAL_BALANCE);
+	});
+}
+
+#[test]
 fn cannot_remove_more_liquidity() {
 	ExtBuilder::default().build().execute_with(|| {
 		let amount = 100_000_000;
