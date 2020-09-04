@@ -1,5 +1,5 @@
 use super::*;
-use crate::mock::{calculate_sale_price, Currency, ExtBuilder, Origin, Test, ACA, ALICE, AMM, BOB, DOT, HDX};
+use crate::mock::{calculate_sale_price, Currency, ExtBuilder, Origin, Test, ACA, ALICE, AMM, BOB, DOT, HDX, INITIAL_BALANCE};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -12,7 +12,7 @@ fn create_pool_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000_000_000,
-			10
+			Price::from(10)
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
@@ -40,7 +40,7 @@ fn create_pool_picks_lower_id_to_calculate_shares() {
 			asset_b,
 			asset_a,
 			100_000_000_000_000,
-			10
+			Price::from(10)
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
@@ -59,35 +59,16 @@ fn create_same_pool_should_not_work() {
 		let user = ALICE;
 		let asset_id = ACA;
 
-		assert_ok!(AMM::create_pool(Origin::signed(user), asset_id, HDX, 100, 2));
-		assert_noop!(
-			AMM::create_pool(Origin::signed(user), asset_id, HDX, 100, 2),
-			Error::<Test>::TokenPoolAlreadyExists
-		);
-	});
-}
-
-#[test]
-fn create_pool_and_add_liquidity() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, DOT, 150_000_000_000, 2));
-
-		assert_ok!(AMM::add_liquidity(
-			Origin::signed(ALICE),
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user),
+			asset_id,
 			HDX,
-			DOT,
-			2_000_000_000,
-			5_000_000_000
+			100,
+			Price::from(2)
 		));
-	});
-}
-
-#[test]
-fn overflow_should_panic() {
-	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), HDX, DOT, u128::MAX, 2),
-			Error::<Test>::CreatePoolAssetAmountInvalid
+			AMM::create_pool(Origin::signed(user), asset_id, HDX, 100, Price::from(2)),
+			Error::<Test>::TokenPoolAlreadyExists
 		);
 	});
 }
@@ -108,7 +89,7 @@ fn add_liquidity_should_work() {
 			asset_a,
 			asset_b,
 			amount1,
-			10_000
+			Price::from(10_000)
 		));
 
 		assert_ok!(AMM::add_liquidity(
@@ -148,7 +129,7 @@ fn add_liquidity_pick_lower_id_as_share_token() {
 			asset_a,
 			asset_b,
 			amount1,
-			10
+			Price::from(10)
 		));
 
 		assert_ok!(AMM::add_liquidity(
@@ -193,7 +174,7 @@ fn add_liquidity_as_another_user_should_work() {
 			asset_id,
 			asset_hdx,
 			a1,
-			10_000
+			Price::from(10_000)
 		));
 		assert_ok!(AMM::add_liquidity(
 			Origin::signed(user),
@@ -246,7 +227,7 @@ fn remove_liquidity_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			10_000
+			Price::from(10_000)
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
@@ -273,9 +254,104 @@ fn remove_liquidity_should_work() {
 }
 
 #[test]
+fn remove_most_liquidity_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000,
+			Price::from(10_000)
+		));
+
+		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let share_token = AMM::share_token(pair_account);
+
+		assert_eq!(Currency::free_balance(share_token, &user), 100_000_000);
+		assert_eq!(Currency::free_balance(asset_a, &user), 999999900000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000000);
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			90_000_000
+		));
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 10000000);
+		assert_eq!(Currency::free_balance(asset_a, &user), 999999990000000);
+		assert_eq!(Currency::free_balance(share_token, &user), 10_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 100_000_000_000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 10_000_000);
+	});
+}
+
+#[test]
+fn remove_all_liquidity() {
+	ExtBuilder::default().build().execute_with(|| {
+		let share_token = AMM::share_token(AMM::get_pair_id(&HDX, &DOT));
+		let amount = 100_000_000;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			amount,
+			Price::from(10_000)
+		));
+
+		assert_eq!(Currency::free_balance(share_token, &ALICE), amount);
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			amount
+		));
+
+		assert_eq!(Currency::free_balance(share_token, &ALICE), 0);
+		assert_eq!(Currency::free_balance(HDX, &ALICE), INITIAL_BALANCE);
+		assert_eq!(Currency::free_balance(DOT, &ALICE), INITIAL_BALANCE);
+	});
+}
+
+#[test]
+fn cannot_remove_more_liquidity() {
+	ExtBuilder::default().build().execute_with(|| {
+		let amount = 100_000_000;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			amount,
+			Price::from(10_000)
+		));
+
+		assert_noop!(AMM::remove_liquidity(
+			Origin::signed(ALICE),
+			HDX,
+			DOT,
+			amount + 1
+		), Error::<Test>::InsufficientAssetBalance);
+	});
+}
+
+#[test]
 fn add_liquidity_more_than_owner_should_not_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 200_000_000, 3000000));
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			ACA,
+			200_000_000,
+			Price::from(3000000)
+		));
 
 		assert_eq!(Currency::free_balance(ACA, &ALICE), 400000000000000);
 
@@ -289,7 +365,7 @@ fn add_liquidity_more_than_owner_should_not_work() {
 #[test]
 fn add_zero_liquidity_should_not_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 100, 1));
+		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 100, Price::from(1)));
 
 		assert_noop!(
 			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 0, 0),
@@ -325,7 +401,7 @@ fn sell_test() {
 			asset_a,
 			asset_b,
 			200_000_000_000,
-			3000
+			Price::from(3000)
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
@@ -375,7 +451,7 @@ fn work_flow_happy_path_should_work() {
 			asset_a,
 			asset_b,
 			350_000_000_000,
-			40
+			Price::from(40)
 		));
 
 		// User 1 really tries!
@@ -485,11 +561,7 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(share_token, &user_2), 300_000_000_000);
 
 		// User 2 removes liquidity
-
-		let a_pool = Currency::free_balance(asset_a, &pair_account);
-		let b_pool = Currency::free_balance(asset_b, &pair_account);
 		let withdraw = 300_000_000_000 / 3;
-		let ratio = AMM::total_liquidity(&pair_account) / withdraw;
 
 		assert_ok!(AMM::remove_liquidity(
 			Origin::signed(user_2),
@@ -498,8 +570,8 @@ fn work_flow_happy_path_should_work() {
 			withdraw
 		));
 
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 500000000000000 + a_pool / ratio);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1013966156043470 + b_pool / ratio);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 715384615384615);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1013968019297892);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 200_000_000_000);
 
 		assert_ok!(AMM::remove_liquidity(
@@ -509,8 +581,8 @@ fn work_flow_happy_path_should_work() {
 			50_000_000_000
 		));
 
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 839393939393939);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1013969092080741);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 823076923076922);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1013968950925103);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 150_000_000_000);
 
 		assert_eq!(AMM::total_liquidity(&pair_account), 350_000_000_000 + 150_000_000_000);
@@ -551,7 +623,7 @@ fn sell_with_correct_fees_should_work() {
 			asset_a,
 			asset_b,
 			10_000_000,
-			200
+			Price::from(200)
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
@@ -600,8 +672,20 @@ fn discount_sell_fees_should_work() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(Origin::signed(user_1), asset_a, HDX, 5_000, 2));
-		assert_ok!(AMM::create_pool(Origin::signed(user_1), asset_a, asset_b, 1000, 2));
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user_1),
+			asset_a,
+			HDX,
+			5_000,
+			Price::from(2)
+		));
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user_1),
+			asset_a,
+			asset_b,
+			1000,
+			Price::from(2)
+		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
 		let hdx_pair_account = AMM::get_pair_id(&asset_a, &HDX);
@@ -640,7 +724,7 @@ fn single_buy_should_work() {
 			asset_a,
 			asset_b,
 			200_000_000,
-			3200
+			Price::from(3200)
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
@@ -675,7 +759,7 @@ fn single_buy_with_discount_should_work() {
 			asset_a,
 			asset_b,
 			200_000_000,
-			3200
+			Price::from(3200)
 		));
 
 		assert_ok!(AMM::create_pool(
@@ -683,7 +767,7 @@ fn single_buy_with_discount_should_work() {
 			asset_a,
 			HDX,
 			5_000_0000_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
@@ -712,12 +796,12 @@ fn single_buy_with_discount_should_work() {
 fn create_pool_with_zero_liquidity_should_not_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 0, 3200),
+			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 0, Price::from(3200)),
 			Error::<Test>::CannotCreatePoolWithZeroLiquidity
 		);
 
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 10, 0),
+			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 10, Price::from(0)),
 			Error::<Test>::CannotCreatePoolWithZeroInitialPrice
 		);
 	});
@@ -756,7 +840,13 @@ fn sell_with_non_existing_pool_should_not_work() {
 #[test]
 fn discount_sell_with_no_hdx_pool_should_not_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AMM::create_pool(Origin::signed(ALICE), ACA, DOT, 100, 3200));
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			ACA,
+			DOT,
+			100,
+			Price::from(3200)
+		));
 
 		assert_noop!(
 			AMM::sell(Origin::signed(ALICE), ACA, DOT, 456_444_678, true),
@@ -778,11 +868,67 @@ fn buy_with_non_existing_pool_should_not_work() {
 #[test]
 fn discount_buy_with_no_hdx_pool_should_not_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AMM::create_pool(Origin::signed(ALICE), ACA, DOT, 100, 3200));
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			ACA,
+			DOT,
+			100,
+			Price::from(3200)
+		));
 
 		assert_noop!(
 			AMM::buy(Origin::signed(ALICE), ACA, DOT, 10, true),
 			Error::<Test>::CannotApplyDiscount
 		);
+	});
+}
+
+#[test]
+fn create_pool_small_fixed_point_amount_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_a = HDX;
+		let asset_b = ACA;
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			asset_a,
+			asset_b,
+			100_000_000_000_000,
+			Price::from_fraction(0.00001)
+		));
+
+		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let share_token = AMM::share_token(pair_account);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000);
+		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &ALICE), 999999000000000);
+		assert_eq!(Currency::free_balance(share_token, &ALICE), 100_000_000_000_000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 100_000_000_000_000);
+	});
+}
+
+#[test]
+fn create_pool_fixed_point_amount_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_a = HDX;
+		let asset_b = ACA;
+		assert_ok!(AMM::create_pool(
+			Origin::signed(ALICE),
+			asset_a,
+			asset_b,
+			100_000_000_000,
+			Price::from_fraction(4560.234543)
+		));
+
+		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let share_token = AMM::share_token(pair_account);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 456023454299999);
+		assert_eq!(Currency::free_balance(asset_a, &ALICE), 999900000000000);
+		assert_eq!(Currency::free_balance(asset_b, &ALICE), 543976545700001);
+		assert_eq!(Currency::free_balance(share_token, &ALICE), 100_000_000_000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 100_000_000_000);
 	});
 }

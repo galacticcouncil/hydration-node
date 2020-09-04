@@ -39,6 +39,11 @@ features = ['derive']
 optional = true
 version = '1.0.101'
 
+[dependencies.primitive-types]
+default-features = false
+package = 'primitive-types'
+version = '0.7.2'
+
 [features]
 default = ['std']
 std = [
@@ -46,4 +51,5 @@ std = [
   'codec/std',
   'serde',
   'sp-std/std',
+  'primitive-types/std',
 ]

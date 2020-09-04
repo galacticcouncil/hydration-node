@@ -22,6 +22,8 @@ pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ACA: AssetId = 3000;
 
+pub const INITIAL_BALANCE: Balance = 1000_000_000_000_000u128;
+
 pub const FEE_RATE: u128 = fee::FEE_RATE;
 
 mod amm {
@@ -129,12 +131,12 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![
-				(ALICE, HDX, 1000_000_000_000_000u128),
-				(BOB, HDX, 1000_000_000_000_000u128),
-				(ALICE, ACA, 1000_000_000_000_000u128),
-				(BOB, ACA, 1000_000_000_000_000u128),
-				(ALICE, DOT, 1000_000_000_000_000u128),
-				(BOB, DOT, 1000_000_000_000_000u128),
+				(ALICE, HDX, INITIAL_BALANCE),
+				(BOB, HDX, INITIAL_BALANCE),
+				(ALICE, ACA, INITIAL_BALANCE),
+				(BOB, ACA, INITIAL_BALANCE),
+				(ALICE, DOT, INITIAL_BALANCE),
+				(BOB, DOT, INITIAL_BALANCE),
 			],
 		}
 	}

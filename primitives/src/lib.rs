@@ -2,6 +2,12 @@
 
 use codec::{Decode, Encode};
 
+use sp_runtime::{
+	FixedU128
+};
+
+use primitive_types::U256;
+
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +30,14 @@ pub type Balance = u128;
 
 /// Signed version of Balance
 pub type Amount = i128;
+
+/// Price
+pub type Price = FixedU128;
+
+/// Scaled Unsigned of Balance
+pub type HighPrecisionBalance = U256;
+pub type LowPrecisionBalance = u128;
+
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Debug, Encode, Decode, Clone, PartialEq, Eq)]

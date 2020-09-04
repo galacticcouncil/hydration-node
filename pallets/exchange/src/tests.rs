@@ -2,6 +2,7 @@ use super::*;
 use crate::mock::*;
 use frame_support::traits::OnFinalize;
 use frame_support::{assert_noop, assert_ok};
+use primitives::Price;
 
 #[test]
 fn sell_test() {
@@ -17,7 +18,7 @@ fn sell_test() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -99,7 +100,7 @@ fn sell_test_case_two() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -167,7 +168,7 @@ fn sell_test_exact_match() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -231,7 +232,7 @@ fn sell_test_single_eth_sells() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -295,7 +296,7 @@ fn sell_test_single_dot_sells() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -359,7 +360,7 @@ fn sell_test_single_multiple_sells() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -432,7 +433,7 @@ fn sell_test_group_sells() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -499,7 +500,13 @@ fn sell_without_pool_should_not_work() {
 #[test]
 fn sell_more_than_owner_should_not_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(AMMModule::create_pool(Origin::signed(ALICE), HDX, ETH, 200_000, 2));
+		assert_ok!(AMMModule::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			ETH,
+			200_000,
+			Price::from(2)
+		));
 
 		assert_noop!(
 			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000_000_000_000_000u128, false),
@@ -522,7 +529,7 @@ fn sell_test_mixed_buy_sells() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
@@ -594,12 +601,24 @@ fn discount_tests_no_discount() {
 			asset_a,
 			asset_b,
 			200_000,
-			2
+			Price::from(2)
 		));
 
-		assert_ok!(AMMModule::create_pool(Origin::signed(user_2), asset_a, HDX, 200_000, 2));
+		assert_ok!(AMMModule::create_pool(
+			Origin::signed(user_2),
+			asset_a,
+			HDX,
+			200_000,
+			Price::from(2)
+		));
 
-		assert_ok!(AMMModule::create_pool(Origin::signed(user_3), asset_b, HDX, 200_000, 2));
+		assert_ok!(AMMModule::create_pool(
+			Origin::signed(user_3),
+			asset_b,
+			HDX,
+			200_000,
+			Price::from(2)
+		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
 		let share_token = AMMModule::share_token(pair_account);
@@ -671,7 +690,7 @@ fn discount_tests_with_discount() {
 			asset_a,
 			asset_b,
 			200_000_000_000_000,
-			2
+			Price::from(2)
 		));
 
 		assert_ok!(AMMModule::create_pool(
@@ -679,7 +698,7 @@ fn discount_tests_with_discount() {
 			asset_a,
 			HDX,
 			200_000_000_000_000,
-			2
+			Price::from(2)
 		));
 
 		assert_ok!(AMMModule::create_pool(
@@ -687,7 +706,7 @@ fn discount_tests_with_discount() {
 			asset_b,
 			HDX,
 			200_000_000_000_000,
-			2
+			Price::from(2)
 		));
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);

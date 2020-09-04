@@ -62,6 +62,11 @@ Go to the polkadot apps at https://dotapps.io
 
 Then open settings screen -> developer and paste
 
+*NOTE - FixedU128 type is not yet implemented for polkadot apps. Balance is a measure so price can be reasonably selected. If using polkadot apps to create pool:*
+- 1 Mega Units equals 1:1 price
+- 20 Mega Units equals 20:1 price
+- 50 Kilo Units equals 0.05:1 price
+
 ```
 {
   "Amount": "i128",
@@ -71,13 +76,8 @@ Then open settings screen -> developer and paste
     "amount": "Balance",
     "assetId": "AssetId"
   },
-  "LookupSource": "AccountId",
   "CurrencyId": "AssetId",
   "CurrencyIdOf": "AssetId",
-  "IntentionId": "u128",
-  "IntentionType": {
-    "_enum": ["SELL", "BUY"]
-  },
   "Intention": {
     "who": "AccountId",
     "asset_sell": "AssetId",
@@ -85,7 +85,16 @@ Then open settings screen -> developer and paste
     "amount": "Balance",
     "discount": "bool",
     "sell_or_buy": "IntentionType"
-  }
+  },
+  "IntentionId": "u128",
+  "IntentionType": {
+    "_enum": [
+      "SELL",
+      "BUY"
+    ]
+  },
+  "LookupSource": "AccountId",
+  "Price": "Balance"
 }
 ```
 

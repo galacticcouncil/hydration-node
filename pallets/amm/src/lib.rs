@@ -4,11 +4,11 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{fee, traits::TokenPool, traits::AMM, AssetId, Balance};
+use primitives::{fee, traits::TokenPool, traits::AMM, AssetId, Balance, Price};
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::{
 	traits::{Hash, Zero},
-	DispatchError,
+	DispatchError, FixedPointNumber,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
 
@@ -163,7 +163,7 @@ decl_module! {
 			asset_a: AssetId,
 			asset_b: AssetId,
 			amount: Balance,
-			initial_price: u32
+			initial_price: Price
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -181,7 +181,7 @@ decl_module! {
 				Error::<T>::TokenPoolAlreadyExists
 			);
 
-			let asset_b_amount= amount.checked_mul(initial_price as u128).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
+			let asset_b_amount= initial_price.checked_mul_int(amount).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
 			let shares_added = if asset_a < asset_b {
 				amount
 			} else {
@@ -347,9 +347,9 @@ decl_module! {
 			let amount_a = T::Currency::free_balance(asset_a, &pair_account);
 			let amount_b = T::Currency::free_balance(asset_b, &pair_account);
 
-			let portion = total_shares.checked_div(amount).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
-			let remove_amount_a = amount_a.checked_div(portion).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
-			let remove_amount_b = amount_b.checked_div(portion).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let portion = Price::checked_from_rational(amount, total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let remove_amount_a = portion.checked_mul_int(amount_a).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let remove_amount_b = portion.checked_mul_int(amount_b).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
