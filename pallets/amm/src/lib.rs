@@ -4,7 +4,7 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{fee, traits::TokenPool, traits::AMM, AssetId, Balance, Price};
+use primitives::{fee, traits::AMM, AssetId, Balance, Price};
 use sp_core::crypto::UncheckedFrom;
 use sp_runtime::{
 	traits::{Hash, Zero},
@@ -180,7 +180,7 @@ decl_module! {
 			);
 
 			ensure!(
-				!<Self as TokenPool<_,_>>::exists(asset_a, asset_b),
+				!Self::exists(asset_a, asset_b),
 				Error::<T>::TokenPoolAlreadyExists
 			);
 
@@ -197,8 +197,19 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			// Create pool only if amounts dont overflow
-			let (pair_account, share_token ) = <Self as TokenPool<_,_>>::create_pool(&asset_a, &asset_b)?;
+
+			let pair_account = Self::get_pair_id(&asset_a, &asset_b);
+
+			let share_token = match Self::exists(asset_a, asset_b) {
+				true => Self::share_token(&pair_account),
+				false => {
+					let token_name = Self::get_token_name(asset_a, asset_b);
+					let share_token = <asset_registry::Module<T>>::create_asset(token_name)?.into();
+					<ShareToken<T>>::insert(&pair_account, &share_token);
+					<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
+					share_token
+				}
+			};
 
 			T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
 			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
@@ -223,7 +234,7 @@ decl_module! {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
-				<Self as TokenPool<_,_>>::exists(asset_a, asset_b),
+				Self::exists(asset_a, asset_b),
 				Error::<T>::TokenPoolNotFound
 			);
 
@@ -326,7 +337,7 @@ decl_module! {
 			);
 
 			ensure!(
-				<Self as TokenPool<_,_>>::exists(asset_a, asset_b),
+				Self::exists(asset_a, asset_b),
 				Error::<T>::TokenPoolNotFound
 			);
 
@@ -422,24 +433,14 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
 	pub fn get_spot_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		match <Self as TokenPool<_, _>>::exists(asset_a, asset_b) {
-			true => {
-				let pair_account = Self::get_pair_id(&asset_a, &asset_b);
-
-				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-
-				match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount) {
-					Result::Ok(v) => v,
-					_ => 0,
-				}
-			}
+		match Self::exists(asset_a, asset_b) {
+			true => Self::get_spot_price_unchecked(asset_a, asset_b, amount),
 			false => 0,
 		}
 	}
 
 	pub fn get_sell_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		match <Self as TokenPool<_, _>>::exists(asset_a, asset_b) {
+		match Self::exists(asset_a, asset_b) {
 			true => {
 				let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
@@ -456,7 +457,7 @@ impl<T: Trait> Module<T> {
 	}
 
 	pub fn get_buy_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		match <Self as TokenPool<_, _>>::exists(asset_a, asset_b) {
+		match Self::exists(asset_a, asset_b) {
 			true => {
 				let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
@@ -488,7 +489,7 @@ impl<T: Trait> Module<T> {
 	}
 }
 
-impl<T: Trait> TokenPool<T::AccountId, AssetId> for Module<T> {
+impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn exists(asset_a: AssetId, asset_b: AssetId) -> bool {
 		let pair_account = T::AssetPairAccountId::from_assets(asset_a, asset_b);
 		<ShareToken<T>>::contains_key(&pair_account)
@@ -505,27 +506,18 @@ impl<T: Trait> TokenPool<T::AccountId, AssetId> for Module<T> {
 		}
 	}
 
-	/// Creates new pool, returns pair account id
-	/// It is no-op if pool already exists
-	fn create_pool(asset_a: &AssetId, asset_b: &AssetId) -> Result<(T::AccountId, AssetId), DispatchError> {
-		let pair_account = Self::get_pair_id(asset_a, asset_b);
+	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
+		let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
-		let token = match Self::exists(*asset_a, *asset_b) {
-			true => Self::share_token(&pair_account),
-			false => {
-				let token_name = Self::get_token_name(*asset_a, *asset_b);
-				let share_token = <asset_registry::Module<T>>::create_asset(token_name)?.into();
-				<ShareToken<T>>::insert(&pair_account, &share_token);
-				<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
-				share_token
-			}
-		};
+		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		Ok((pair_account, token))
+		match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount) {
+			Result::Ok(v) => v,
+			_ => 0,
+		}
 	}
-}
 
-impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn sell(
 		who: &T::AccountId,
 		asset_sell: AssetId,
@@ -538,15 +530,12 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			Error::<T>::InsufficientAssetBalance
 		);
 
-		ensure!(
-			<Self as TokenPool<_, _>>::exists(asset_sell, asset_buy),
-			Error::<T>::TokenPoolNotFound
-		);
+		ensure!(Self::exists(asset_sell, asset_buy), Error::<T>::TokenPoolNotFound);
 
 		// If discount, pool for Sell asset and HDX must exist
 		if discount {
 			ensure!(
-				<Self as TokenPool<_, _>>::exists(asset_sell, T::HDXAssetId::get()),
+				Self::exists(asset_sell, T::HDXAssetId::get()),
 				Error::<T>::CannotApplyDiscount
 			);
 		}
@@ -603,10 +592,7 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		amount_buy: Balance,
 		discount: bool,
 	) -> DispatchResult {
-		ensure!(
-			<Self as TokenPool<_, _>>::exists(asset_sell, asset_buy),
-			Error::<T>::TokenPoolNotFound
-		);
+		ensure!(Self::exists(asset_sell, asset_buy), Error::<T>::TokenPoolNotFound);
 
 		let pair_account = Self::get_pair_id(&asset_buy, &asset_sell);
 
@@ -618,7 +604,7 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		// If discount, pool for Sell asset and HDX must exist
 		if discount {
 			ensure!(
-				<Self as TokenPool<_, _>>::exists(asset_buy, T::HDXAssetId::get()),
+				Self::exists(asset_buy, T::HDXAssetId::get()),
 				Error::<T>::CannotApplyDiscount
 			);
 		}
@@ -706,14 +692,14 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	}
 
 	fn calculate_spot_price(
-		sell_reserve: Balance,
-		buy_reserve: Balance,
-		sell_amount: Balance,
+		asset_a_reserve: Balance,
+		asset_b_reserve: Balance,
+		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let spot_price = buy_reserve
-			.checked_mul(sell_amount)
+		let spot_price = asset_b_reserve
+			.checked_mul(amount)
 			.ok_or::<Error<T>>(Error::<T>::SpotPriceInvalid)?
-			.checked_div(sell_reserve)
+			.checked_div(asset_a_reserve)
 			.ok_or::<Error<T>>(Error::<T>::SpotPriceInvalid)?;
 
 		Ok(spot_price)

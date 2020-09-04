@@ -5,7 +5,7 @@ use frame_support::{assert_noop, assert_ok};
 use primitives::Price;
 
 #[test]
-fn sell_test() {
+fn sell_test_standard() {
 	ExtBuilder::default().build().execute_with(|| {
 		let user_1 = ALICE;
 		let user_2 = BOB;
@@ -17,7 +17,7 @@ fn sell_test() {
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
-			200_000,
+			100_000_000_000_000,
 			Price::from(2)
 		));
 
@@ -25,13 +25,16 @@ fn sell_test() {
 		let share_token = AMMModule::share_token(pair_account);
 
 		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 900_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 800_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(
+			Currency::free_balance(share_token, &user_1),
+			20_000_000_000_000_000_000_000_000_000
+		);
 
 		// Make sell intentions
 		assert_ok!(Exchange::sell(
@@ -41,10 +44,10 @@ fn sell_test() {
 			2_000_000_000_000,
 			false
 		));
-		assert_ok!(Exchange::sell(
+		assert_ok!(Exchange::buy(
 			Origin::signed(user_3),
-			asset_b,
 			asset_a,
+			asset_b,
 			1_000_000_000_000,
 			false
 		));
@@ -61,33 +64,37 @@ fn sell_test() {
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
 
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100_000_000_000_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 998000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000999999064353);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 998_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_003_972_238_015_089);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000499000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000996000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 998000000000000);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1501000200000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1335647);
+		// TODO: CHECK IF RIGHT
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 101004000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 198027761984911);
 
 		// TODO: check if final transferred balances add up to initial balance
 		// No tokens should be created or lost
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(
+			Currency::free_balance(share_token, &user_1),
+			20000000000000000000000000000
+		);
 
 		assert_eq!(Exchange::get_intentions_count((asset_a, asset_b)), 0);
 	});
 }
 
 #[test]
-fn sell_test_case_two() {
+fn sell_test_inverse_standard() {
 	ExtBuilder::default().build().execute_with(|| {
 		let user_1 = ALICE;
 		let user_2 = BOB;
@@ -99,7 +106,7 @@ fn sell_test_case_two() {
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
-			200_000,
+			100_000_000_000_000,
 			Price::from(2)
 		));
 
@@ -107,17 +114,32 @@ fn sell_test_case_two() {
 		let share_token = AMMModule::share_token(pair_account);
 
 		// Check initial state of the pool
-		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999999800_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999999999600_000);
+		assert_eq!(Currency::free_balance(asset_a, &user_1), 900_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 800_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 400_000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(
+			Currency::free_balance(share_token, &user_1),
+			20_000_000_000_000_000_000_000_000_000
+		);
 
-		// Make sell intention
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 1000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 4000, false));
+		// Make sell intentions
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			false
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			4_000_000_000_000,
+			false
+		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
 
@@ -129,26 +151,29 @@ fn sell_test_case_two() {
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000_000_000_000_000u128);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000_000_000_000_000u128);
 
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100_000_000_000_000);
 
 		// Finalize block
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999999000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000001987);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_001_992_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000001996);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999996000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_001_986_138_378_978);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 996_000_000_000_000);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 199004);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 402013);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 99_013_861_621_022);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 202_008_000_000_000);
 
 		// TODO: check if final transferred balances add up to initial balance
 		// No tokens should be created or lost
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 80_000_000_000);
+		assert_eq!(
+			Currency::free_balance(share_token, &user_1),
+			20000000000000000000000000000
+		);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});

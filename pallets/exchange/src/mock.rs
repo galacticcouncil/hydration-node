@@ -122,8 +122,7 @@ pub type AMMModule = amm::Module<Test>;
 
 impl Trait for Test {
 	type Event = TestEvent;
-	type TokenPool = AMMModule;
-	type AMMTrader = AMMModule;
+	type AMMPool = AMMModule;
 	type DirectTrader = exchange::Module<Test>;
 	type Currency = Currency;
 	type IntentionMatcher = exchange::Module<Test>;
