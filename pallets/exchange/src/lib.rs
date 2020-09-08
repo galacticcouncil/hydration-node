@@ -119,6 +119,9 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
+			//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
+			//WE SHOULD ADD FEE ON TOP OF BUY ACTION -> WE MIGHT NEED TO USE FIXED FEE AT THIS TIME OF THE TX TO BE DETERMINISTIC
+
 			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
 
 			//CHECK IF POOL HAS ENOUGH -> STILL CAN FAIL
