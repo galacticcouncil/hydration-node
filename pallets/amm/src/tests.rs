@@ -74,7 +74,7 @@ fn add_liquidity_should_work() {
 			1_000_000_000_000
 		));
 
-		let pair_account = <AMM>::get_pair_id(&asset_b, &asset_a);
+		let pair_account = AMM::get_pair_id(&asset_b, &asset_a);
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1004000000000);
