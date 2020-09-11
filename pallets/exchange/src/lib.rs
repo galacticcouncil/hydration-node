@@ -297,13 +297,6 @@ impl<T: Trait> Module<T> {
 
 impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Balance>> for Module<T> {
 	fn resolve_single_intention(intention: &ExchangeIntention<T::AccountId, AssetId, Balance>) {
-		println!("SINGLE INTENTION");
-
-		println!(
-			"S: {:?}\nB: {:?}\n{:?}:{:?}",
-			intention.amount_sell, intention.amount_buy, intention.asset_sell, intention.asset_buy
-		);
-
 		Self::amm_exchange(
 			&intention.who,
 			&intention.sell_or_buy,
@@ -329,18 +322,7 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 			let amount_b_sell = matched_intention.amount_sell;
 			let amount_b_buy = matched_intention.amount_buy;
 
-			println!(
-				"A:S: {:?}\nA:B: {:?}\nB:S: {:?}\nB:B: {:?}\n{:?}:{:?}",
-				amount_a_sell,
-				amount_a_buy,
-				amount_b_sell,
-				amount_b_buy,
-				intention_copy.asset_sell,
-				matched_intention.asset_sell
-			);
-
 			if amount_a_sell > amount_b_buy {
-				println!("traded A>B");
 				//TODO: THIS IS NOT ENOUGH WE NEED TO CHECK BOTH PARTICIPANTS -> HELPER FUNCTION
 				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
 					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
@@ -408,7 +390,6 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 				)
 				.expect("Should not failed. Checks had been done.");
 			} else if amount_a_sell < amount_b_buy {
-				println!("traded A<B");
 				// TODO: HELPER for both sides of the trade
 				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
 					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
@@ -492,7 +473,6 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					}
 				}
 			} else {
-				println!("traded A=B");
 				let transfer_a_fee = fee::get_fee(amount_a_sell).unwrap();
 				let transfer_b_fee = fee::get_fee(amount_b_sell).unwrap();
 
