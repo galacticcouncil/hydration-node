@@ -677,6 +677,8 @@ fn discount_tests_with_discount() {
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
+		initialize_pool(asset_a, HDX, user_2, pool_amount, initial_price);
+		initialize_pool(asset_b, HDX, user_3, pool_amount, initial_price);
 
 		// Make sell intentions
 		assert_ok!(Exchange::buy(
@@ -707,22 +709,22 @@ fn discount_tests_with_discount() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 896972459214812);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1005000000000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001480000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 897000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_4), 998500000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 1002994000000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 990000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1018649677438083);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100020000000000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200006000000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 111547540785188);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 179350322561917);
 
-		assert_eq!(Currency::free_balance(HDX, &user_1), 1000000000000000);
-		assert_eq!(Currency::free_balance(HDX, &user_2), 1000000000000000);
-		assert_eq!(Currency::free_balance(HDX, &user_3), 1000000000000000);
+		assert_eq!(Currency::free_balance(HDX, &user_4), 999988100000000);
+		assert_eq!(Currency::free_balance(HDX, &user_2), 799993000000000);
+		assert_eq!(Currency::free_balance(HDX, &user_3), 800000000000000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
