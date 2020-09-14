@@ -429,17 +429,17 @@ fn sell_test_single_multiple_sells() {
 
 		// Check final account balances
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 999000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 999999999998000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1001996000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000001996);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999996000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000498000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 999000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999798000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999603981);
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 999000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1001991034974081);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 199_004);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 402_019);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100002512534115);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200012965025919);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -491,18 +491,18 @@ fn sell_test_group_sells() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000000250);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 999999999999500);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1002480000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 995000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000152);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999999700);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001702547361447);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999799000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999601992);
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 990000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1018915629970700);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_598);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 398_808);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 105817452638553);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 189084370029300);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -581,18 +581,18 @@ fn sell_test_mixed_buy_sells() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999999747);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000500);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 996968733621972);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1005000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000150);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999999700);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001480000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999799000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999601991);
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 990000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1018630903108670);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 201_103);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 397_809);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 111551266378028);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 179369096891330);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -644,18 +644,18 @@ fn discount_tests_no_discount() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999999999799747);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000500);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 996968733621972);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1005000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000150);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 999999999799700);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001480000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_4), 999999999799000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 999999999601991);
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 990000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1018630903108670);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 201_103);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 397_809);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 111551266378028);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 179369096891330);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -707,22 +707,22 @@ fn discount_tests_with_discount() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1_000_000_000_000_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000500000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000149700000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 799999700000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001480000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_4), 700000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 733271262753542);
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 998500000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1002994000000000);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 300000413062901);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 266728537246458);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100020000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200006000000000);
 
-		assert_eq!(Currency::free_balance(HDX, &user_1), 999860000210000);
-		assert_eq!(Currency::free_balance(HDX, &user_2), 599999999300000);
-		assert_eq!(Currency::free_balance(HDX, &user_3), 600000000000000);
+		assert_eq!(Currency::free_balance(HDX, &user_1), 1000000000000000);
+		assert_eq!(Currency::free_balance(HDX, &user_2), 1000000000000000);
+		assert_eq!(Currency::free_balance(HDX, &user_3), 1000000000000000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
