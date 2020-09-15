@@ -122,6 +122,7 @@ impl amm::Trait for Test {
 }
 
 pub type AMMModule = amm::Module<Test>;
+pub type System = system::Module<Test>;
 
 impl Trait for Test {
 	type Event = TestEvent;
