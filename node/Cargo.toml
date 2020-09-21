@@ -7,7 +7,7 @@ homepage = 'https://github.com/galacticcouncil/hack-hydra-dx'
 license = 'Unlicense'
 name = 'hack-hydra-dx'
 repository = 'https://github.com/galacticcouncil/hack-hydra-dx'
-version = '2.0.0-rc5'
+version = '2.0.0-rc6'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -15,166 +15,142 @@ targets = ['x86_64-unknown-linux-gnu']
 [[bin]]
 name = 'hack-hydra-dx'
 
-[dependencies.amm-rpc]
+[dependencies.hack-hydra-dx-runtime]
+path = '../runtime'
+version = '2.0.0-rc6'
+
+[dependencies.pallet-transaction-payment-rpc]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sc-basic-authorship]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-cli]
+features = ['wasmtime']
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-client-api]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sc-consensus]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-consensus-aura]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-executor]
+features = ['wasmtime']
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-finality-grandpa]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-rpc]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sc-rpc-api]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-service]
+features = ['wasmtime']
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sc-transaction-pool]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-api]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-block-builder]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-blockchain]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-consensus]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sp-consensus-aura]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '0.8.0-rc6'
+
+[dependencies.sp-core]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-finality-grandpa]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-inherents]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-runtime]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.sp-transaction-pool]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.substrate-frame-rpc-system]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies]
+jsonrpc-core = '14.0.3'
+structopt = '0.3.8'
+
+[dependencies.serde_json]
 default-features = false
-package = 'module-amm-rpc'
-path = '../pallets/amm/rpc'
-version = '1.0.0'
+version = '1.0.41'
 
 [dependencies.primitives]
 default-features = false
 package = 'primitives'
 path = '../primitives'
 
-[dependencies.hack-hydra-dx-runtime]
-path = '../runtime'
-version = '2.0.0-rc5'
-
-[dependencies.serde_json]
-default-features = false
-version = '1.0.41'
-
-[dependencies.jsonrpc-core]
-default-features = false
-version = '14.0.3'
-
-[dependencies.sc-basic-authorship]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-cli]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-optional = true
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-client-api]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.sc-rpc-api]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-rpc]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-
-[dependencies.sc-consensus]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-consensus-aura]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-executor]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-finality-grandpa]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-service]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sc-transaction-pool]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.sp-consensus]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sp-consensus-aura]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '0.8.0-rc5'
-
-[dependencies.sp-core]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.sp-finality-grandpa]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.sp-inherents]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.sp-runtime]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.sp-transaction-pool]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.structopt]
-version = '0.3.8'
-
 [build-dependencies.substrate-build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.frame-benchmarking-cli]
-git = 'https://github.com/paritytech/substrate.git'
-optional = true
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[dependencies.frame-benchmarking]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[build-dependencies.frame-benchmarking-cli]
-git = 'https://github.com/paritytech/substrate.git'
-optional = true
-tag = 'v2.0.0-rc5'
-version = '2.0.0-rc5'
-
-[features]
-cli = [
-  "sc-cli",
-  "frame-benchmarking-cli",
-]
-default = ["cli"]
-runtime-benchmarks = [
-  "hack-hydra-dx-runtime/runtime-benchmarks",
-  "frame-benchmarking-cli",
-]
-
-# wasmtime = [
-# 	"sc-executor/wasmtime",
-# ]
-# wasmi-errno = [
-# 	"sc-executor/wasmi-errno",
-# ]
-# stress-test = []
-
-# [[bench]]
-# name = "bench"
-# harness = false
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'

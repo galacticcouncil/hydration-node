@@ -91,6 +91,7 @@ impl orml_tokens::Trait for Test {
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type OnReceived = ();
+	type WeightInfo = ();
 }
 
 pub type Currency = orml_tokens::Module<Test>;

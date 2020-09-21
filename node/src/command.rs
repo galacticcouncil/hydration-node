@@ -16,11 +16,11 @@
 // limitations under the License.
 
 use crate::chain_spec;
-use crate::cli::{Cli, Subcommand};
+use crate::cli::Cli;
 use crate::service;
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
-use sc_service::ServiceParams;
-use crate::service::new_full_params;
+use sc_service::PartialComponents;
+use crate::service::new_partial;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -66,27 +66,12 @@ impl SubstrateCli for Cli {
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
-	match &cli.subcommand {
-		Some(Subcommand::Benchmark(cmd)) => {
-			if cfg!(feature = "runtime-benchmarks") {
-				let runner = cli.create_runner(cmd)?;
-
-				//runner.sync_run(|config| cmd.run::<Block, Executor>(config))
-
-                runner.sync_run(|config| {
-                    cmd.run::<hack_hydra_dx_runtime::Block, service::Executor>(config)
-                })
-			} else {
-				println!("Benchmarking wasn't enabled when building the node. \
-				You can enable it with `--features runtime-benchmarks`.");
-				Ok(())
-			}
-		}
-        Some(Subcommand::Base(subcommand)) => {
+	match cli.subcommand {
+		Some(ref subcommand) => {
 			let runner = cli.create_runner(subcommand)?;
 			runner.run_subcommand(subcommand, |config| {
-				let (ServiceParams { client, backend, task_manager, import_queue, .. }, ..)
-					= new_full_params(config)?;
+				let PartialComponents { client, backend, task_manager, import_queue, .. }
+					= new_partial(&config)?;
 				Ok((client, backend, import_queue, task_manager))
 			})
 		}

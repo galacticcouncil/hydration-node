@@ -6,8 +6,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use grandpa::fg_primitives;
-use grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+use pallet_grandpa::fg_primitives;
+use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -25,7 +25,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
-pub use balances::Call as BalancesCall;
+pub use pallet_balances::Call as BalancesCall;
 pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{KeyOwnerProofSystem, Randomness},
@@ -38,20 +38,17 @@ pub use frame_support::{
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
-pub use timestamp::Call as TimestampCall;
+pub use pallet_timestamp::Call as TimestampCall;
 
 use orml_currencies::BasicCurrencyAdapter;
 use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
-pub use amm;
+ use amm;
 
 pub use faucet;
 
 /// Importing Exchange pallet
 pub use exchange;
-
-/// Import the template pallet.
-pub use template;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -142,7 +139,7 @@ parameter_types! {
 
 // Configure FRAME pallets to include in runtime.
 
-impl system::Trait for Runtime {
+impl frame_system::Trait for Runtime {
 	/// The basic call filter to use in dispatchable.
 	type BaseCallFilter = ();
 	/// The identifier used to distinguish between accounts.
@@ -196,16 +193,16 @@ impl system::Trait for Runtime {
 	/// What to do if an account is fully reaped from the system.
 	type OnKilledAccount = ();
 	/// The data to be stored in an account.
-	type AccountData = balances::AccountData<Balance>;
+	type AccountData = pallet_balances::AccountData<Balance>;
 	/// Weight information for the extrinsics of this pallet.
 	type SystemWeightInfo = ();
 }
 
-impl aura::Trait for Runtime {
+impl pallet_aura::Trait for Runtime {
 	type AuthorityId = AuraId;
 }
 
-impl grandpa::Trait for Runtime {
+impl pallet_grandpa::Trait for Runtime {
 	type Event = Event;
 	type Call = Call;
 
@@ -224,7 +221,7 @@ parameter_types! {
 	pub const HDXAssetId: AssetId = CORE_ASSET_ID;
 }
 
-impl timestamp::Trait for Runtime {
+impl pallet_timestamp::Trait for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
 	type OnTimestampSet = Aura;
@@ -236,7 +233,7 @@ parameter_types! {
 	pub const ExistentialDeposit: u128 = 500;
 }
 
-impl balances::Trait for Runtime {
+impl pallet_balances::Trait for Runtime {
 	/// The type for recording an account's balance.
 	type Balance = Balance;
 	/// The ubiquitous event type.
@@ -251,22 +248,17 @@ parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 }
 
-impl transaction_payment::Trait for Runtime {
-	type Currency = balances::Module<Runtime>;
+impl pallet_transaction_payment::Trait for Runtime {
+	type Currency = pallet_balances::Module<Runtime>;
 	type OnTransactionPayment = ();
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
 }
 
-impl sudo::Trait for Runtime {
+impl pallet_sudo::Trait for Runtime {
 	type Event = Event;
 	type Call = Call;
-}
-
-/// Configure the pallet template in pallets/template.
-impl template::Trait for Runtime {
-	type Event = Event;
 }
 
 impl orml_tokens::Trait for Runtime {
@@ -275,6 +267,7 @@ impl orml_tokens::Trait for Runtime {
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type OnReceived = ();
+	type WeightInfo = ();
 }
 
 impl orml_currencies::Trait for Runtime {
@@ -282,6 +275,7 @@ impl orml_currencies::Trait for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Balances, Balance, Balance, Amount, BlockNumber>;
 	type GetNativeCurrencyId = HDXAssetId;
+	type WeightInfo = ();
 }
 
 /// Used for AMM Module
@@ -319,16 +313,14 @@ construct_runtime!(
 		NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
-		System: system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: randomness_collective_flip::{Module, Call, Storage},
-		Timestamp: timestamp::{Module, Call, Storage, Inherent},
-		Aura: aura::{Module, Config<T>, Inherent},
-		Grandpa: grandpa::{Module, Call, Storage, Config, Event},
-		Balances: balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: transaction_payment::{Module, Storage},
-		Sudo: sudo::{Module, Call, Config<T>, Storage, Event<T>},
-		// Include the custom logic from the template pallet in the runtime.
-		TemplateModule: template::{Module, Call, Storage, Event<T>},
+		System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+		Aura: pallet_aura::{Module, Config<T>, Inherent},
+		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
+		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
+		TransactionPayment: pallet_transaction_payment::{Module, Storage},
+		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 
 		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Module, Call, Event<T>},
@@ -357,20 +349,20 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-	system::CheckSpecVersion<Runtime>,
-	system::CheckTxVersion<Runtime>,
-	system::CheckGenesis<Runtime>,
-	system::CheckEra<Runtime>,
-	system::CheckNonce<Runtime>,
-	system::CheckWeight<Runtime>,
-	transaction_payment::ChargeTransactionPayment<Runtime>,
+	frame_system::CheckSpecVersion<Runtime>,
+	frame_system::CheckTxVersion<Runtime>,
+	frame_system::CheckGenesis<Runtime>,
+	frame_system::CheckEra<Runtime>,
+	frame_system::CheckNonce<Runtime>,
+	frame_system::CheckWeight<Runtime>,
+	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<Runtime, Block, system::ChainContext<Runtime>, Runtime, AllModules>;
+pub type Executive = frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllModules>;
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -481,66 +473,21 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl amm_rpc::AMMApi<
-		Block,
-		AccountId,
-		AssetId,
-		Balance,
-	> for Runtime {
-		fn get_spot_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_spot_price(asset_a,asset_b, amount)
-			}
-		}
 
-		fn get_sell_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_sell_price(asset_a,asset_b, amount)
-			}
-		}
+	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
+        fn account_nonce(account: AccountId) -> Index {
+            System::account_nonce(account)
+        }
+    }
 
-		fn get_buy_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_buy_price(asset_a,asset_b, amount)
-			}
-		}
-
-		fn get_pool_balances(
-			pool_address: AccountId,
-		) -> Vec<amm_rpc::BalanceInfo<AssetId, Balance>> {
-			let mut vec = Vec::new();
-
-			let pool_balances = AMM::get_pool_balances(pool_address).unwrap();
-
-			for b in pool_balances {
-				let item  = amm_rpc::BalanceInfo{
-				 asset: Some(b.0),
-					amount: b.1
-				};
-
-				vec.push(item);
-			}
-
-			vec
-		}
-
-	}
-
+    impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance> for Runtime {
+        fn query_info(
+            uxt: <Block as BlockT>::Extrinsic,
+            len: u32,
+        ) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
+            TransactionPayment::query_info(uxt, len)
+        }
+    }
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
