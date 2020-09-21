@@ -19,6 +19,9 @@ pub type AccountId = u64;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
+pub const DAVE: AccountId = 4;
+pub const FERDIE: AccountId = 5;
+pub const GEORGE: AccountId = 6;
 
 pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
@@ -119,11 +122,11 @@ impl amm::Trait for Test {
 }
 
 pub type AMMModule = amm::Module<Test>;
+pub type System = system::Module<Test>;
 
 impl Trait for Test {
 	type Event = TestEvent;
-	type TokenPool = AMMModule;
-	type AMMTrader = AMMModule;
+	type AMMPool = AMMModule;
 	type DirectTrader = exchange::Module<Test>;
 	type Currency = Currency;
 	type IntentionMatcher = exchange::Module<Test>;
@@ -142,12 +145,21 @@ impl Default for ExtBuilder {
 				(ALICE, HDX, 1000_000_000_000_000u128),
 				(BOB, HDX, 1000_000_000_000_000u128),
 				(CHARLIE, HDX, 1000_000_000_000_000u128),
+				(DAVE, HDX, 1000_000_000_000_000u128),
+				(FERDIE, HDX, 1000_000_000_000_000u128),
+				(GEORGE, HDX, 1000_000_000_000_000u128),
 				(ALICE, ETH, 1000_000_000_000_000u128),
 				(BOB, ETH, 1000_000_000_000_000u128),
 				(CHARLIE, ETH, 1000_000_000_000_000u128),
+				(DAVE, ETH, 1000_000_000_000_000u128),
+				(FERDIE, ETH, 1000_000_000_000_000u128),
+				(GEORGE, ETH, 1000_000_000_000_000u128),
 				(ALICE, DOT, 1000_000_000_000_000u128),
 				(BOB, DOT, 1000_000_000_000_000u128),
 				(CHARLIE, DOT, 1000_000_000_000_000u128),
+				(DAVE, DOT, 1000_000_000_000_000u128),
+				(FERDIE, DOT, 1000_000_000_000_000u128),
+				(GEORGE, DOT, 1000_000_000_000_000u128),
 			],
 		}
 	}

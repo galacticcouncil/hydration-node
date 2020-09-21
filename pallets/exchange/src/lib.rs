@@ -7,7 +7,7 @@ use sp_std::vec::Vec;
 
 use primitives::{
 	fee,
-	traits::{DirectTrade, Matcher, Resolver, TokenPool, AMM},
+	traits::{DirectTrade, Matcher, Resolver, AMM},
 	AssetId, Balance, ExchangeIntention, IntentionId, IntentionType,
 };
 use sp_std::cmp;
@@ -24,9 +24,7 @@ mod tests;
 pub trait Trait: system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
-	type TokenPool: TokenPool<Self::AccountId, AssetId>;
-
-	type AMMTrader: AMM<Self::AccountId, AssetId, Balance>;
+	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
 
 	type DirectTrader: DirectTrade<Self::AccountId, AssetId, Balance>;
 
@@ -58,19 +56,14 @@ decl_event!(
 		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionId),
 		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionId, Balance),
 		IntentionResolvedDirectTrade(AccountId, AccountId, IntentionId, IntentionId, Balance, Balance),
+		IntentionResolvedDirectTradeFees(AccountId, AccountId, AssetId, Balance),
 
-		InsufficientAssetBalanceEvent(
-			AccountId,
-			AssetId,
-			Balance,
-			IntentionType,
-			IntentionId,
-			dispatch::DispatchError,
-		),
+		InsufficientAssetBalanceEvent(AccountId, AssetId, IntentionType, IntentionId, dispatch::DispatchError),
+
 		AMMSellErrorEvent(
 			AccountId,
 			AssetId,
-			Balance,
+			AssetId,
 			IntentionType,
 			IntentionId,
 			dispatch::DispatchError,
@@ -78,7 +71,7 @@ decl_event!(
 		AMMBuyErrorEvent(
 			AccountId,
 			AssetId,
-			Balance,
+			AssetId,
 			IntentionType,
 			IntentionId,
 			dispatch::DispatchError,
@@ -108,14 +101,17 @@ decl_module! {
 
 		/// Add new intention for new block
 		#[weight = 10_000] // TODO: check correct weight
-		pub fn sell(origin, asset_sell: AssetId,
-							asset_buy: AssetId,
-							amount_sell: Balance,
-							discount: bool)  -> dispatch::DispatchResult {
+		pub fn sell(
+			origin,
+			asset_sell: AssetId,
+			asset_buy: AssetId,
+			amount_sell: Balance,
+			discount: bool
+		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
-				T::TokenPool::exists(asset_sell, asset_buy),
+				T::AMMPool::exists(asset_sell, asset_buy),
 				Error::<T>::TokenPoolNotFound
 			);
 
@@ -124,12 +120,19 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
+			//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
+			//WE SHOULD ADD FEE ON TOP OF BUY ACTION -> WE MIGHT NEED TO USE FIXED FEE AT THIS TIME OF THE TX TO BE DETERMINISTIC
+
+			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
+
+			//CHECK IF POOL HAS ENOUGH -> STILL CAN FAIL
 
 			let intention = Intention::<T> {
 					who: who.clone(),
 					asset_sell: asset_sell,
 					asset_buy: asset_buy,
-					amount: amount_sell,
+					amount_sell: amount_sell,
+					amount_buy: amount_buy,
 					discount: discount,
 					sell_or_buy : IntentionType::SELL,
 					intention_id: Nonce::get()
@@ -151,19 +154,27 @@ decl_module! {
 
 		/// Add new intention for new block
 		#[weight = 10_000] // TODO: check correct weight
-		pub fn buy(origin, asset_buy: AssetId,
-							asset_sell: AssetId,
-							amount: Balance,
-							discount: bool)  -> dispatch::DispatchResult {
+		pub fn buy(
+			origin,
+			asset_buy: AssetId,
+			asset_sell: AssetId,
+			amount_buy: Balance,
+			discount: bool
+		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
-				T::TokenPool::exists(asset_sell, asset_buy),
+				T::AMMPool::exists(asset_sell, asset_buy),
 				Error::<T>::TokenPoolNotFound
 			);
 
+			//CHECK IF POOL HAS ENOUGH
+
+			let amount_sell = T::AMMPool::get_spot_price_unchecked(asset_buy, asset_sell, amount_buy);
+
+			//THIS CAN STILL FAIL IF AMM PRICE > BALANCE
 			ensure!(
-				T::Currency::free_balance(asset_sell, &who) >= amount,
+				T::Currency::free_balance(asset_sell, &who) >= amount_sell,
 				Error::<T>::InsufficientAssetBalance
 			);
 
@@ -171,7 +182,8 @@ decl_module! {
 					who: who.clone(),
 					asset_sell: asset_sell,
 					asset_buy: asset_buy,
-					amount: amount,
+					amount_sell: amount_sell,
+					amount_buy: amount_buy,
 					sell_or_buy: IntentionType::BUY,
 					discount: discount,
 					intention_id: Nonce::get()
@@ -184,7 +196,7 @@ decl_module! {
 
 			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total = *total + 1u32);
 
-			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount, IntentionType::BUY, intention.intention_id));
+			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_buy, asset_sell, amount_buy, IntentionType::BUY, intention.intention_id));
 
 			Nonce::mutate(|n| *n += 1);
 
@@ -194,10 +206,11 @@ decl_module! {
 		fn on_finalize(){
 
 			for ((asset_1,asset_2), count) in ExchangeAssetsIntentionCount::iter() {
-				if count == 0 {
+				if count == 0u32 {
 					continue;
 				}
-				let pair_account = T::TokenPool::get_pair_id(&asset_1, &asset_2);
+
+				let pair_account = T::AMMPool::get_pair_id(&asset_1, &asset_2);
 
 				let asset_a_sells = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
 				let asset_b_sells = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
@@ -229,24 +242,26 @@ impl<T: Trait> Module<T> {
 		intention_id: IntentionId,
 		asset_sell: AssetId,
 		asset_buy: AssetId,
-		amount: Balance,
+		amount_sell: Balance,
+		amount_buy: Balance,
 		discount: bool,
 	) -> bool {
-		Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
-			who.clone(),
-			exchange_type.clone(),
-			intention_id,
-			amount,
-		));
-
 		match exchange_type {
-			IntentionType::SELL => match T::AMMTrader::sell(who, asset_sell, asset_buy, amount, discount) {
-				Ok(()) => true,
+			IntentionType::SELL => match T::AMMPool::sell(who, asset_sell, asset_buy, amount_sell, discount) {
+				Ok(()) => {
+					Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
+						who.clone(),
+						exchange_type.clone(),
+						intention_id,
+						amount_sell,
+					));
+					true
+				}
 				Err(error) => {
 					Self::deposit_event(RawEvent::AMMSellErrorEvent(
 						who.clone(),
 						asset_sell,
-						amount,
+						asset_buy,
 						exchange_type.clone(),
 						intention_id,
 						error.into(),
@@ -255,13 +270,21 @@ impl<T: Trait> Module<T> {
 				}
 			},
 
-			IntentionType::BUY => match T::AMMTrader::buy(who, asset_buy, asset_sell, amount, discount) {
-				Ok(()) => true,
+			IntentionType::BUY => match T::AMMPool::buy(who, asset_buy, asset_sell, amount_buy, discount) {
+				Ok(()) => {
+					Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
+						who.clone(),
+						exchange_type.clone(),
+						intention_id,
+						amount_buy,
+					));
+					true
+				}
 				Err(error) => {
 					Self::deposit_event(RawEvent::AMMBuyErrorEvent(
 						who.clone(),
 						asset_buy,
-						amount,
+						asset_sell,
 						exchange_type.clone(),
 						intention_id,
 						error.into(),
@@ -269,6 +292,135 @@ impl<T: Trait> Module<T> {
 					false
 				}
 			},
+		}
+	}
+
+	fn handle_direct_trades(
+		intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
+		matched_intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
+		amounts: (Balance, Balance),
+		pair_account: &T::AccountId,
+	) {
+		//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
+
+		let amount_a = amounts.0;
+		let amount_b = amounts.1;
+
+		let transfer_a_fee = fee::get_fee(amount_a).unwrap();
+		let transfer_b_fee = fee::get_fee(amount_b).unwrap();
+
+		//TODO: EVENT FOR BOTH -> HELPER FUNCTION -> DETERMINISTIC AMOUNTS
+		Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
+			intention.who.clone(),
+			matched_intention.who.clone(),
+			intention.intention_id,
+			matched_intention.intention_id,
+			amount_a,
+			amount_b,
+		));
+
+		// If ok , do direct transfer - this should not fail at this point
+		T::DirectTrader::transfer(&intention.who, &matched_intention.who, intention.asset_sell, amount_a)
+			.expect("Should not failed. Checks had been done.");
+
+		T::DirectTrader::transfer(&matched_intention.who, &intention.who, intention.asset_buy, amount_b)
+			.expect("Should not failed. Checks had been done.");
+
+		match (&intention.sell_or_buy, &matched_intention.sell_or_buy) {
+			(IntentionType::SELL, IntentionType::SELL) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_buy, transfer_b_fee).unwrap();
+
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_sell,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_buy,
+					transfer_a_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_buy,
+					transfer_b_fee,
+				));
+			}
+			(IntentionType::BUY, IntentionType::BUY) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee).unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_sell,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_sell,
+					transfer_b_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_buy,
+					transfer_b_fee,
+				));
+			}
+			(IntentionType::BUY, IntentionType::SELL) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee).unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_sell,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_buy,
+					transfer_b_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					matched_intention.asset_buy,
+					transfer_b_fee,
+				));
+			}
+			(IntentionType::SELL, IntentionType::BUY) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_buy, transfer_a_fee).unwrap();
+
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_buy,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_sell,
+					transfer_b_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					matched_intention.asset_sell,
+					transfer_b_fee,
+				));
+			}
 		}
 	}
 }
@@ -281,7 +433,8 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 			intention.intention_id,
 			intention.asset_sell,
 			intention.asset_buy,
-			intention.amount,
+			intention.amount_sell,
+			intention.amount_buy,
 			intention.discount,
 		);
 	}
@@ -291,36 +444,20 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 		intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
 		matched: &Vec<ExchangeIntention<T::AccountId, AssetId, Balance>>,
 	) -> bool {
-		let asset_a_reserve = T::Currency::free_balance(intention.asset_sell, pair_account);
-		let asset_b_reserve = T::Currency::free_balance(intention.asset_buy, pair_account);
-
 		let mut intention_copy = intention.clone();
 
 		for matched_intention in matched.iter() {
-			let amount_a = intention_copy.amount;
-			let amount_b = matched_intention.amount;
+			let amount_a_sell = intention_copy.amount_sell;
+			let amount_a_buy = intention_copy.amount_buy;
+			let amount_b_sell = matched_intention.amount_sell;
+			let amount_b_buy = matched_intention.amount_buy;
 
-			let spot_price_a = match T::AMMTrader::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount_a) {
-				Ok(price) => price,
-				Err(_error) => {
-					// Note : Should not happen if pool exists and is not 0 (should not happen because 0 value pools should be destroyed)
-					return false;
-				}
-			};
-			let spot_price_b = match T::AMMTrader::calculate_spot_price(asset_b_reserve, asset_a_reserve, amount_b) {
-				Ok(price) => price,
-				Err(_error) => {
-					// Note : Should not happen if pool exists and is not 0 (should not happen because 0 value pools should be destroyed)
-					return false;
-				}
-			};
-
-			if amount_a > spot_price_b {
-				if T::Currency::free_balance(intention.asset_sell, &intention.who) < spot_price_b {
+			if amount_a_sell > amount_b_buy {
+				//TODO: THIS IS NOT ENOUGH WE NEED TO CHECK BOTH PARTICIPANTS -> HELPER FUNCTION
+				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
 					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
 						intention.who.clone(),
 						intention.asset_sell,
-						spot_price_b,
 						intention.sell_or_buy.clone(),
 						intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
@@ -328,11 +465,10 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					return false;
 				}
 
-				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_b {
+				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_a_buy {
 					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
 						matched_intention.who.clone(),
 						intention.asset_buy,
-						amount_b,
 						matched_intention.sell_or_buy.clone(),
 						matched_intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
@@ -340,52 +476,23 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					return false;
 				}
 
-				intention_copy.amount = amount_a - spot_price_b;
+				intention_copy.amount_sell = amount_a_sell - amount_b_buy;
+				intention_copy.amount_buy = amount_a_buy - amount_b_sell;
 
-				let transfer_a_fee = fee::get_fee(spot_price_b).unwrap();
-				let transfer_b_fee = fee::get_fee(amount_b).unwrap();
+				//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
 
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-					intention.who.clone(),
-					matched_intention.who.clone(),
-					intention.intention_id,
-					matched_intention.intention_id,
-					spot_price_b - transfer_a_fee,
-					amount_b - transfer_b_fee,
-				));
-
-				// If ok , do direct transfer - this should not fail at this point
-				T::DirectTrader::transfer(
-					&intention.who,
-					&matched_intention.who,
-					intention.asset_sell,
-					spot_price_b - transfer_a_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&intention.who,
-					intention.asset_buy,
-					amount_b - transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee)
-					.expect("Should not failed. Checks had been done.");
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					intention.asset_buy,
-					transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-			} else if amount_a < spot_price_b {
-				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a {
+				Self::handle_direct_trades(
+					intention,
+					matched_intention,
+					(amount_a_sell - intention_copy.amount_sell, amount_b_sell),
+					pair_account,
+				);
+			} else if amount_a_sell < amount_b_buy {
+				// TODO: HELPER for both sides of the trade
+				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
 					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
 						intention.who.clone(),
 						intention.asset_sell,
-						spot_price_b,
 						intention.sell_or_buy.clone(),
 						intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
@@ -393,11 +500,10 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					return false;
 				}
 
-				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < spot_price_a {
+				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_b_buy {
 					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
 						matched_intention.who.clone(),
 						intention.asset_buy,
-						amount_b,
 						matched_intention.sell_or_buy.clone(),
 						matched_intention.intention_id,
 						Error::<T>::InsufficientAssetBalance.into(),
@@ -405,7 +511,8 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					return false;
 				}
 
-				let rest_amount = amount_b - spot_price_a;
+				let rest_sell_amount = amount_b_sell - amount_a_buy;
+				let rest_buy_amount = amount_b_buy - amount_a_sell;
 
 				match Self::amm_exchange(
 					&matched_intention.who,
@@ -413,100 +520,38 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					matched_intention.intention_id,
 					matched_intention.asset_sell,
 					matched_intention.asset_buy,
-					rest_amount,
+					rest_sell_amount,
+					rest_buy_amount,
 					matched_intention.discount,
 				) {
 					true => {
-						let transfer_a_fee = fee::get_fee(amount_a).unwrap();
-						let transfer_b_fee = fee::get_fee(spot_price_a).unwrap();
+						Self::handle_direct_trades(
+							intention,
+							matched_intention,
+							(amount_a_sell, amount_b_sell - rest_sell_amount),
+							pair_account,
+						);
 
-						Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-							intention.who.clone(),
-							matched_intention.who.clone(),
-							intention.intention_id,
-							matched_intention.intention_id,
-							amount_a - transfer_a_fee,
-							spot_price_a - transfer_b_fee,
-						));
-
-						// If ok , do direct transfer - this should not fail at this point
-						T::DirectTrader::transfer(
-							&intention.who,
-							&matched_intention.who,
-							intention.asset_sell,
-							amount_a - transfer_a_fee,
-						)
-						.expect("Should not failed. Checks had been done.");
-						T::DirectTrader::transfer(
-							&matched_intention.who,
-							&intention.who,
-							intention.asset_buy,
-							spot_price_a - transfer_b_fee,
-						)
-						.expect("Should not failed. Checks had been done.");
-
-						T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee)
-							.expect("Should not failed. Checks had been done.");
-
-						T::DirectTrader::transfer(
-							&matched_intention.who,
-							&pair_account,
-							intention.asset_buy,
-							transfer_b_fee,
-						)
-						.expect("Should not failed. Checks had been done.");
-
-						intention_copy.amount = 0;
+						intention_copy.amount_sell = 0;
 					}
 					false => {
 						return false;
 					}
 				}
 			} else {
-				let transfer_a_fee = fee::get_fee(amount_a).unwrap();
-				let transfer_b_fee = fee::get_fee(amount_b).unwrap();
+				Self::handle_direct_trades(
+					intention,
+					matched_intention,
+					(amount_a_sell, amount_b_sell),
+					pair_account,
+				);
 
-				T::DirectTrader::transfer(
-					&intention.who,
-					&matched_intention.who,
-					intention.asset_sell,
-					amount_a - transfer_a_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&intention.who,
-					intention.asset_buy,
-					amount_b - transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-					intention.who.clone(),
-					matched_intention.who.clone(),
-					intention.intention_id,
-					matched_intention.intention_id,
-					amount_a - transfer_a_fee,
-					amount_b - transfer_b_fee,
-				));
-
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee)
-					.expect("Should not failed. Checks had been done.");
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					intention.asset_buy,
-					transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-
-				intention_copy.amount = 0;
+				intention_copy.amount_sell = 0;
 			}
 		}
 
 		// If there is something left, just resolve as single intention
-		if intention_copy.amount > 0 {
+		if intention_copy.amount_sell > 0 {
 			Self::resolve_single_intention(&intention_copy);
 		}
 
@@ -534,8 +579,8 @@ impl<T: Trait> Matcher<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Ba
 		let mut b_copy = asset_b_sell.clone();
 		let mut a_copy = asset_a_sell.clone();
 
-		b_copy.sort_by(|a, b| b.amount.cmp(&a.amount));
-		a_copy.sort_by(|a, b| b.amount.cmp(&a.amount));
+		b_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
+		a_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
 
 		for intention in a_copy {
 			let mut bvec = Vec::<Intention<T>>::new();
@@ -544,18 +589,20 @@ impl<T: Trait> Matcher<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Ba
 
 			// we can further optimize this loop!
 			loop {
-				let m = match b_copy.get(idx) {
+				let matched = match b_copy.get(idx) {
 					Some(x) => x,
 					None => break,
 				};
 
-				if m.amount + total <= intention.amount {
-					bvec.push(m.clone());
-					total += m.amount;
-					b_copy.remove(idx);
-				}
-
+				bvec.push(matched.clone());
+				total += matched.amount_sell;
+				b_copy.remove(idx);
 				idx += 1;
+
+				//TODO: CHECK IF OK
+				if total >= intention.amount_sell {
+					break;
+				}
 			}
 
 			T::Resolver::resolve_intention(pair_account, &intention, &bvec);

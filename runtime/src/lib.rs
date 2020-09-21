@@ -305,8 +305,7 @@ impl faucet::Trait for Runtime {
 /// Used for Exchange Module
 impl exchange::Trait for Runtime {
 	type Event = Event;
-	type TokenPool = AMM;
-	type AMMTrader = AMM;
+	type AMMPool = AMM;
 	type DirectTrader = Exchange;
 	type IntentionMatcher = Exchange;
 	type Resolver = Exchange;

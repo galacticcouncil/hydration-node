@@ -1,6 +1,7 @@
 use super::*;
 use crate::mock::{calculate_sale_price, Currency, ExtBuilder, Origin, Test, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
+use primitives::traits::AMM as AMMPool;
 
 #[test]
 fn create_pool_should_work() {
