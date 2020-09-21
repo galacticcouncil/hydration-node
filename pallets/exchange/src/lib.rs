@@ -56,6 +56,7 @@ decl_event!(
 		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionId),
 		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionId, Balance),
 		IntentionResolvedDirectTrade(AccountId, AccountId, IntentionId, IntentionId, Balance, Balance),
+		IntentionResolvedDirectTradeFees(AccountId, AccountId, AssetId, Balance),
 
 		InsufficientAssetBalanceEvent(AccountId, AssetId, IntentionType, IntentionId, dispatch::DispatchError),
 
@@ -205,7 +206,7 @@ decl_module! {
 		fn on_finalize(){
 
 			for ((asset_1,asset_2), count) in ExchangeAssetsIntentionCount::iter() {
-				if count < 2u32 {
+				if count == 0u32 {
 					continue;
 				}
 
@@ -293,6 +294,135 @@ impl<T: Trait> Module<T> {
 			},
 		}
 	}
+
+	fn handle_direct_trades(
+		intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
+		matched_intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
+		amounts: (Balance, Balance),
+		pair_account: &T::AccountId,
+	) {
+		//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
+
+		let amount_a = amounts.0;
+		let amount_b = amounts.1;
+
+		let transfer_a_fee = fee::get_fee(amount_a).unwrap();
+		let transfer_b_fee = fee::get_fee(amount_b).unwrap();
+
+		//TODO: EVENT FOR BOTH -> HELPER FUNCTION -> DETERMINISTIC AMOUNTS
+		Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
+			intention.who.clone(),
+			matched_intention.who.clone(),
+			intention.intention_id,
+			matched_intention.intention_id,
+			amount_a,
+			amount_b,
+		));
+
+		// If ok , do direct transfer - this should not fail at this point
+		T::DirectTrader::transfer(&intention.who, &matched_intention.who, intention.asset_sell, amount_a)
+			.expect("Should not failed. Checks had been done.");
+
+		T::DirectTrader::transfer(&matched_intention.who, &intention.who, intention.asset_buy, amount_b)
+			.expect("Should not failed. Checks had been done.");
+
+		match (&intention.sell_or_buy, &matched_intention.sell_or_buy) {
+			(IntentionType::SELL, IntentionType::SELL) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_buy, transfer_b_fee).unwrap();
+
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_sell,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_buy,
+					transfer_a_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_buy,
+					transfer_b_fee,
+				));
+			}
+			(IntentionType::BUY, IntentionType::BUY) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee).unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_sell,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_sell,
+					transfer_b_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_buy,
+					transfer_b_fee,
+				));
+			}
+			(IntentionType::BUY, IntentionType::SELL) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee).unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_sell,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_buy,
+					transfer_b_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					matched_intention.asset_buy,
+					transfer_b_fee,
+				));
+			}
+			(IntentionType::SELL, IntentionType::BUY) => {
+				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_buy, transfer_a_fee).unwrap();
+
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					intention.who.clone(),
+					pair_account.clone(),
+					intention.asset_buy,
+					transfer_a_fee,
+				));
+
+				T::DirectTrader::transfer(
+					&matched_intention.who,
+					&pair_account,
+					matched_intention.asset_sell,
+					transfer_b_fee,
+				)
+				.unwrap();
+				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
+					matched_intention.who.clone(),
+					pair_account.clone(),
+					matched_intention.asset_sell,
+					transfer_b_fee,
+				));
+			}
+		}
+	}
 }
 
 impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Balance>> for Module<T> {
@@ -350,45 +480,13 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 				intention_copy.amount_buy = amount_a_buy - amount_b_sell;
 
 				//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
-				let transfer_a_fee = fee::get_fee(amount_a_sell).unwrap();
-				let transfer_b_fee = fee::get_fee(amount_b_sell).unwrap();
 
-				//TODO: EVENT FOR BOTH -> HELPER FUNCTION -> DETERMINISTIC AMOUNTS
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-					intention.who.clone(),
-					matched_intention.who.clone(),
-					intention.intention_id,
-					matched_intention.intention_id,
-					amount_a_sell - transfer_a_fee,
-					amount_b_sell - transfer_b_fee,
-				));
-
-				// If ok , do direct transfer - this should not fail at this point
-				T::DirectTrader::transfer(
-					&intention.who,
-					&matched_intention.who,
-					intention.asset_sell,
-					amount_a_sell - intention_copy.amount_sell - transfer_a_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&intention.who,
-					intention.asset_buy,
-					amount_b_sell - transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee)
-					.expect("Should not failed. Checks had been done.");
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					intention.asset_buy,
-					transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
+				Self::handle_direct_trades(
+					intention,
+					matched_intention,
+					(amount_a_sell - intention_copy.amount_sell, amount_b_sell),
+					pair_account,
+				);
 			} else if amount_a_sell < amount_b_buy {
 				// TODO: HELPER for both sides of the trade
 				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
@@ -427,44 +525,12 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					matched_intention.discount,
 				) {
 					true => {
-						let transfer_a_fee = fee::get_fee(amount_a_sell).unwrap();
-						let transfer_b_fee = fee::get_fee(amount_b_sell).unwrap();
-
-						Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-							intention.who.clone(),
-							matched_intention.who.clone(),
-							intention.intention_id,
-							matched_intention.intention_id,
-							amount_a_sell - transfer_a_fee,
-							amount_b_sell - transfer_b_fee,
-						));
-
-						// If ok , do direct transfer - this should not fail at this point
-						T::DirectTrader::transfer(
-							&intention.who,
-							&matched_intention.who,
-							intention.asset_sell,
-							amount_a_sell - transfer_a_fee,
-						)
-						.expect("Should not failed. Checks had been done.");
-						T::DirectTrader::transfer(
-							&matched_intention.who,
-							&intention.who,
-							intention.asset_buy,
-							amount_b_sell - rest_sell_amount - transfer_b_fee,
-						)
-						.expect("Should not failed. Checks had been done.");
-
-						T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee)
-							.expect("Should not failed. Checks had been done.");
-
-						T::DirectTrader::transfer(
-							&matched_intention.who,
-							&pair_account,
-							intention.asset_buy,
-							transfer_b_fee,
-						)
-						.expect("Should not failed. Checks had been done.");
+						Self::handle_direct_trades(
+							intention,
+							matched_intention,
+							(amount_a_sell, amount_b_sell - rest_sell_amount),
+							pair_account,
+						);
 
 						intention_copy.amount_sell = 0;
 					}
@@ -473,43 +539,12 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 					}
 				}
 			} else {
-				let transfer_a_fee = fee::get_fee(amount_a_sell).unwrap();
-				let transfer_b_fee = fee::get_fee(amount_b_sell).unwrap();
-
-				T::DirectTrader::transfer(
-					&intention.who,
-					&matched_intention.who,
-					intention.asset_sell,
-					amount_a_sell - transfer_a_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&intention.who,
-					intention.asset_buy,
-					amount_b_sell - transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
-
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-					intention.who.clone(),
-					matched_intention.who.clone(),
-					intention.intention_id,
-					matched_intention.intention_id,
-					amount_a_sell - transfer_a_fee,
-					amount_b_sell - transfer_b_fee,
-				));
-
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee)
-					.expect("Should not failed. Checks had been done.");
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					intention.asset_buy,
-					transfer_b_fee,
-				)
-				.expect("Should not failed. Checks had been done.");
+				Self::handle_direct_trades(
+					intention,
+					matched_intention,
+					(amount_a_sell, amount_b_sell),
+					pair_account,
+				);
 
 				intention_copy.amount_sell = 0;
 			}
