@@ -16,6 +16,7 @@ native_executor_instance!(
 	pub Executor,
 	hack_hydra_dx_runtime::api::dispatch,
 	hack_hydra_dx_runtime::native_version,
+	frame_benchmarking::benchmarking::HostFunctions,
 );
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;

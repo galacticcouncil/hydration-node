@@ -82,13 +82,6 @@ optional = true
 tag = 'v2.0.0-rc6'
 version = '2.0.0-rc6'
 
-[dependencies.frame-system-benchmarking]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-optional = true
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
 [features]
 default = ['std']
 runtime-benchmarks = [
@@ -107,4 +100,5 @@ std = [
   'orml-tokens/std',
   'orml-traits/std',
   'primitives/std',
+  "frame-benchmarking/std",
 ]

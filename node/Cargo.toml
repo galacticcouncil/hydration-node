@@ -34,6 +34,7 @@ features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'v2.0.0-rc6'
 version = '0.8.0-rc6'
+optional = true
 
 [dependencies.sc-client-api]
 git = 'https://github.com/paritytech/substrate.git'
@@ -154,3 +155,31 @@ path = '../primitives'
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'v2.0.0-rc6'
 version = '2.0.0-rc6'
+
+[dependencies.frame-benchmarking-cli]
+git = 'https://github.com/paritytech/substrate.git'
+optional = true
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.frame-benchmarking]
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[build-dependencies.frame-benchmarking-cli]
+git = 'https://github.com/paritytech/substrate.git'
+optional = true
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[features]
+cli = [
+  "sc-cli",
+  "frame-benchmarking-cli",
+]
+default = ["cli"]
+runtime-benchmarks = [
+  "hack-hydra-dx-runtime/runtime-benchmarks",
+  "frame-benchmarking-cli",
+]

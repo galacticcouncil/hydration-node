@@ -213,8 +213,38 @@ git = 'https://github.com/paritytech/substrate.git'
 tag = 'v2.0.0-rc6'
 version = '2.0.0-rc6'
 
+[dependencies.frame-benchmarking]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+optional = true
+tag = 'v2.0.0-rc6'
+version = "2.0.0-rc6"
+
+[dependencies.pallet-collective]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+package = 'pallet-collective'
+tag = 'v2.0.0-rc6'
+version = '2.0.0-rc6'
+
+[dependencies.hex-literal]
+optional = true
+version = "0.2.1"
+
 [features]
 default = ['std']
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+
+  "pallet-balances/runtime-benchmarks",
+  "pallet-collective/runtime-benchmarks",
+
+  "amm/runtime-benchmarks",
+  "hex-literal",
+]
 std = [
     'codec/std',
     'frame-executive/std',
@@ -242,6 +272,10 @@ std = [
     'sp-transaction-pool/std',
     'sp-version/std',
     'orml-currencies/std',
+    'pallet-collective/std',
+    "amm-rpc/std",
+    'amm/std',
+    "frame-benchmarking/std",
 ]
 
 [build-dependencies.wasm-builder-runner]
