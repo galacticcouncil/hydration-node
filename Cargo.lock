@@ -1821,6 +1821,7 @@ dependencies = [
  "frame-benchmarking-cli",
  "hack-hydra-dx-runtime",
  "jsonrpc-core",
+ "module-amm-rpc",
  "pallet-transaction-payment-rpc",
  "primitives",
  "sc-basic-authorship",
@@ -3273,6 +3274,21 @@ checksum = "07b88fb9795d4d36d62a012dfbf49a8f5cf12751f36d31a9dbe66d528e58979e"
 dependencies = [
  "socket2",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "module-amm-rpc"
+version = "1.0.0"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "module-amm-rpc-runtime-api",
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
 ]
 
 [[package]]

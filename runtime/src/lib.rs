@@ -489,6 +489,66 @@ impl_runtime_apis! {
         }
     }
 
+    impl amm_rpc::AMMApi<
+		Block,
+		AccountId,
+		AssetId,
+		Balance,
+	> for Runtime {
+		fn get_spot_price(
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
+			 amm_rpc::BalanceInfo{
+				 asset: None,
+				amount: AMM::get_spot_price(asset_a,asset_b, amount)
+			}
+		}
+
+		fn get_sell_price(
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
+			 amm_rpc::BalanceInfo{
+				 asset: None,
+				amount: AMM::get_sell_price(asset_a,asset_b, amount)
+			}
+		}
+
+		fn get_buy_price(
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
+			 amm_rpc::BalanceInfo{
+				 asset: None,
+				amount: AMM::get_buy_price(asset_a,asset_b, amount)
+			}
+		}
+
+		fn get_pool_balances(
+			pool_address: AccountId,
+		) -> Vec<amm_rpc::BalanceInfo<AssetId, Balance>> {
+			let mut vec = Vec::new();
+
+			let pool_balances = AMM::get_pool_balances(pool_address).unwrap();
+
+			for b in pool_balances {
+				let item  = amm_rpc::BalanceInfo{
+				 asset: Some(b.0),
+					amount: b.1
+				};
+
+				vec.push(item);
+			}
+
+			vec
+		}
+
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn dispatch_benchmark(
@@ -502,7 +562,7 @@ impl_runtime_apis! {
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
-			let whitelist: Vec<Vec<u8>> = vec![
+			let whitelist: Vec<TrackedStorageKey> = vec![
 			];
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
