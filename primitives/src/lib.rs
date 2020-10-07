@@ -2,14 +2,10 @@
 
 use codec::{Decode, Encode};
 
-use sp_runtime::{
-	FixedU128
-};
-
 use primitive_types::U256;
-
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use sp_runtime::FixedU128;
 
 pub mod traits;
 
@@ -38,7 +34,6 @@ pub type Price = FixedU128;
 pub type HighPrecisionBalance = U256;
 pub type LowPrecisionBalance = u128;
 
-
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Debug, Encode, Decode, Clone, PartialEq, Eq)]
 pub enum IntentionType {
@@ -62,6 +57,7 @@ pub struct ExchangeIntention<AccountId, AssetId, Balance> {
 	pub asset_buy: AssetId,
 	pub amount_sell: Balance,
 	pub amount_buy: Balance,
+	pub trade_limit: Balance,
 	pub discount: bool,
 	pub sell_or_buy: IntentionType,
 	pub intention_id: IntentionId,

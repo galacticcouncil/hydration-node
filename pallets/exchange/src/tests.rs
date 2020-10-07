@@ -90,7 +90,8 @@ fn sell_test_pool_finalization_states() {
 			asset_a,
 			asset_b,
 			2_000_000_000_000,
-			false
+			20000000000,
+			false,
 		));
 
 		assert_ok!(Exchange::buy(
@@ -98,7 +99,8 @@ fn sell_test_pool_finalization_states() {
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			4_000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
@@ -137,7 +139,7 @@ fn sell_test_pool_finalization_states() {
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(2, 3000, 2000, 1000000000000, 1976336046259)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000, 1976336046259).into(),
 		]);
 
 		// Check final account balances
@@ -181,14 +183,16 @@ fn sell_test_standard() {
 			asset_a,
 			asset_b,
 			2_000_000_000_000,
-			false
+			300_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::buy(
 			Origin::signed(user_3),
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			4_000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
@@ -228,7 +232,7 @@ fn sell_test_standard() {
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(2, 3000, 2000, 1000000000000, 1976336046259)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000, 1976336046259).into(),
 		]);
 	});
 }
@@ -253,14 +257,16 @@ fn sell_test_inverse_standard() {
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			100_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			4_000_000_000_000,
-			false
+			1_000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
@@ -298,10 +304,10 @@ fn sell_test_inverse_standard() {
 			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 1_000_000_000_000, IntentionType::SELL, 0).into(),
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 4_000_000_000_000, IntentionType::SELL, 1).into(),
 			TestEvent::amm(amm::RawEvent::Sell(3, 2000, 3000, 2000000000000, 988138378978)),
-			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 2000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 2000000000000, 988138378978).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_2, user_3, 0u128, 1u128, 1000000000000, 2000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
 		]);
 	});
 }
@@ -326,14 +332,16 @@ fn sell_test_exact_match() {
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			1_500_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			2_000_000_000_000,
-			false
+			200_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
@@ -368,8 +376,8 @@ fn sell_test_exact_match() {
 			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 1_000_000_000_000, IntentionType::SELL, 0).into(),
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 2_000_000_000_000, IntentionType::SELL, 1).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_2, user_3, 0u128, 1u128, 1000000000000, 2000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
 		]);
 	});
 }
@@ -394,14 +402,16 @@ fn sell_test_single_eth_sells() {
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			100_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_a,
 			asset_b,
 			2_000_000_000_000,
-			false
+			200_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
@@ -442,7 +452,7 @@ fn sell_test_single_eth_sells() {
 				2000000000000,
 				3913878975647,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 2000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 2000000000000, 3913878975647).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_2,
 				asset_a,
@@ -450,7 +460,7 @@ fn sell_test_single_eth_sells() {
 				1000000000000,
 				1899978143094,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000, 1899978143094).into(),
 		]);
 	});
 }
@@ -475,14 +485,16 @@ fn sell_test_single_dot_sells() {
 			asset_b,
 			asset_a,
 			1_000_000_000_000,
-			false
+			100_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			2_000_000_000_000,
-			false
+			200_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
@@ -522,7 +534,7 @@ fn sell_test_single_dot_sells() {
 				1000000000000,
 				496522353457,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000000000000, 496522353457).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_3,
 				asset_b,
@@ -530,7 +542,7 @@ fn sell_test_single_dot_sells() {
 				2000000000000,
 				978388447963,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 2000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 2000000000000, 978388447963).into(),
 		]);
 	});
 }
@@ -559,35 +571,40 @@ fn sell_test_single_multiple_sells() {
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			100_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			1_000_000_000_000,
-			false
+			100_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_4),
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			100_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_5),
 			asset_b,
 			asset_a,
 			1_000_000_000_000,
-			false
+			100_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_6),
 			asset_b,
 			asset_a,
 			2_000_000_000_000,
-			false
+			200_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 5);
@@ -628,11 +645,11 @@ fn sell_test_single_multiple_sells() {
 			RawEvent::IntentionRegistered(user_5, asset_b, asset_a, 1_000_000_000_000, IntentionType::SELL, 3).into(),
 			RawEvent::IntentionRegistered(user_6, asset_b, asset_a, 2_000_000_000_000, IntentionType::SELL, 4).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_2, user_6, 0, 4, 1000000000000, 2000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_6, pair_account, asset_b, 4000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_6, pair_account, asset_a, 2000000000).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_4, user_3, 2, 1, 500000000000, 1000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_a, 1000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 2000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 2000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_4,
 				asset_a,
@@ -640,7 +657,7 @@ fn sell_test_single_multiple_sells() {
 				500000000000,
 				993044854829,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 5_000_000_000_00).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 5_000_000_000_00, 993044854829).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_5,
 				asset_b,
@@ -648,7 +665,7 @@ fn sell_test_single_multiple_sells() {
 				1000000000000,
 				501482500933,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_5, IntentionType::SELL, 3, 1000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_5, IntentionType::SELL, 3, 1000000000000, 501482500933).into(),
 		]);
 	});
 }
@@ -675,21 +692,24 @@ fn sell_test_group_sells() {
 			asset_b,
 			asset_a,
 			5_000_000_000_000,
-			false
+			200_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			false
+			200_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_4),
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			false
+			200_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
@@ -728,8 +748,8 @@ fn sell_test_group_sells() {
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 3_000_000_000_000, IntentionType::SELL, 1).into(),
 			RawEvent::IntentionRegistered(user_4, asset_a, asset_b, 10_000_000_000_000, IntentionType::SELL, 2).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_4, user_2, 2u128, 0u128, 2500000000000, 5000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_a, 5000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 10000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_4,
 				asset_a,
@@ -737,7 +757,7 @@ fn sell_test_group_sells() {
 				7500000000000,
 				13927573262630,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 7500000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 7500000000000, 13927573262630).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_3,
 				asset_b,
@@ -745,7 +765,7 @@ fn sell_test_group_sells() {
 				3000000000000,
 				1702327336909,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 3000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::SELL, 1, 3000000000000, 1702327336909).into(),
 		]);
 	});
 }
@@ -753,7 +773,7 @@ fn sell_test_group_sells() {
 fn sell_without_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 100, false),
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 100, 200, false),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -771,7 +791,7 @@ fn sell_more_than_owner_should_not_work() {
 		));
 
 		assert_noop!(
-			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000_000_000_000_000u128, false),
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000_000_000_000_000u128, 1, false),
 			Error::<Test>::InsufficientAssetBalance
 		);
 	});
@@ -799,21 +819,24 @@ fn sell_test_mixed_buy_sells() {
 			asset_b,
 			asset_a,
 			5_000_000_000_000,
-			false
+			20_000_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			false
+			1400_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_4),
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			false
+			2000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
@@ -852,8 +875,8 @@ fn sell_test_mixed_buy_sells() {
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 3_000_000_000_000, IntentionType::SELL, 1).into(),
 			RawEvent::IntentionRegistered(user_4, asset_a, asset_b, 10_000_000_000_000, IntentionType::SELL, 2).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_4, user_3, 2u128, 1u128, 1500000000000, 3000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_a, 3000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_4,
 				asset_a,
@@ -861,7 +884,7 @@ fn sell_test_mixed_buy_sells() {
 				8500000000000,
 				15639353446528,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 8500000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 8500000000000, 15639353446528).into(),
 			TestEvent::amm(amm::RawEvent::Buy(
 				user_2,
 				asset_b,
@@ -869,7 +892,7 @@ fn sell_test_mixed_buy_sells() {
 				5000000000000,
 				3030832926719,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 5000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 5000000000000, 3030832926719).into(),
 		]);
 	});
 }
@@ -896,21 +919,24 @@ fn discount_tests_no_discount() {
 			asset_b,
 			asset_a,
 			5_000_000_000_000,
-			false
+			20_000_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			false
+			1400_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_4),
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			false
+			2000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
@@ -949,8 +975,8 @@ fn discount_tests_no_discount() {
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 3_000_000_000_000, IntentionType::SELL, 1).into(),
 			RawEvent::IntentionRegistered(user_4, asset_a, asset_b, 10_000_000_000_000, IntentionType::SELL, 2).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_4, user_3, 2u128, 1u128, 1500000000000, 3000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_a, 3000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_4,
 				asset_a,
@@ -958,7 +984,7 @@ fn discount_tests_no_discount() {
 				8500000000000,
 				15639353446528,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 8500000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 8500000000000, 15639353446528).into(),
 			TestEvent::amm(amm::RawEvent::Buy(
 				user_2,
 				asset_b,
@@ -966,7 +992,7 @@ fn discount_tests_no_discount() {
 				5000000000000,
 				3030832926719,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 5000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 5000000000000, 3030832926719).into(),
 		]);
 	});
 }
@@ -995,21 +1021,24 @@ fn discount_tests_with_discount() {
 			asset_b,
 			asset_a,
 			5_000_000_000_000,
-			true
+			20_000_000_000_000,
+			true,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			true
+			1400_000_000_000,
+			true,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_4),
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			true
+			2000_000_000_000,
+			true,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
@@ -1052,8 +1081,8 @@ fn discount_tests_with_discount() {
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 3_000_000_000_000, IntentionType::SELL, 1).into(),
 			RawEvent::IntentionRegistered(user_4, asset_a, asset_b, 10_000_000_000_000, IntentionType::SELL, 2).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_4, user_3, 2u128, 1u128, 1500000000000, 3000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_a, 3000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_4,
 				asset_a,
@@ -1061,7 +1090,7 @@ fn discount_tests_with_discount() {
 				8500000000000,
 				15658130468064,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 8500000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::SELL, 2, 8500000000000, 15658130468064).into(),
 			TestEvent::amm(amm::RawEvent::Buy(
 				user_2,
 				asset_b,
@@ -1069,7 +1098,7 @@ fn discount_tests_with_discount() {
 				5000000000000,
 				3027107914884,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 5000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 5000000000000, 3027107914884).into(),
 		]);
 	});
 }
@@ -1094,14 +1123,16 @@ fn buy_test_exact_match() {
 			asset_a,
 			asset_b,
 			1_000_000_000_000,
-			false
+			4_000_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::buy(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			2_000_000_000_000,
-			false
+			4_000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
@@ -1164,21 +1195,24 @@ fn buy_test_group_buys() {
 			asset_b,
 			asset_a,
 			5_000_000_000_000,
-			false
+			20_000_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::buy(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			false
+			20_000_000_000_000,
+			false,
 		));
 		assert_ok!(Exchange::buy(
 			Origin::signed(user_4),
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			false
+			22_000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
@@ -1223,7 +1257,7 @@ fn buy_test_group_buys() {
 				7500000000000,
 				16251283991999,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::BUY, 2, 7500000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_4, IntentionType::BUY, 2, 7500000000000, 16251283991999).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_2, user_4, 0u128, 2u128, 2500000000000, 5000000000000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
@@ -1234,7 +1268,7 @@ fn buy_test_group_buys() {
 				3000000000000,
 				1303930316730,
 			)),
-			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::BUY, 1, 3000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_3, IntentionType::BUY, 1, 3000000000000, 1303930316730).into(),
 		]);
 	});
 }
@@ -1261,21 +1295,24 @@ fn discount_tests_with_error() {
 			asset_b,
 			asset_a,
 			5_000_000_000_000,
-			true
+			20_000_000_000_000,
+			true,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_3),
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			true
+			20_000_000_000_000,
+			true,
 		));
 		assert_ok!(Exchange::sell(
 			Origin::signed(user_4),
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			true
+			20_000_000_000_000,
+			true,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 3);
@@ -1287,15 +1324,15 @@ fn discount_tests_with_error() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001497000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_4), 998500000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 1002994000000000);
+		assert_eq!(Currency::free_balance(asset_a, &user_4), 1000000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1000000000000000);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100003000000000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200006000000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000000000);
 
 		assert_eq!(Currency::free_balance(HDX, &user_4), 1000000000000000);
 		assert_eq!(Currency::free_balance(HDX, &user_2), 1000000000000000);
@@ -1317,9 +1354,6 @@ fn discount_tests_with_error() {
 			RawEvent::IntentionRegistered(user_2, asset_b, asset_a, 5_000_000_000_000, IntentionType::BUY, 0).into(),
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 3_000_000_000_000, IntentionType::SELL, 1).into(),
 			RawEvent::IntentionRegistered(user_4, asset_a, asset_b, 10_000_000_000_000, IntentionType::SELL, 2).into(),
-			RawEvent::IntentionResolvedDirectTrade(user_4, user_3, 2u128, 1u128, 1500000000000, 3000000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_a, 3000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 6000000000).into(),
 			RawEvent::AMMSellErrorEvent(
 				user_4,
 				asset_a,
@@ -1328,7 +1362,7 @@ fn discount_tests_with_error() {
 				2,
 				DispatchError::Module {
 					index: 0,
-					error: 22,
+					error: 23,
 					message: None,
 				},
 			)
@@ -1341,7 +1375,20 @@ fn discount_tests_with_error() {
 				0,
 				DispatchError::Module {
 					index: 0,
-					error: 22,
+					error: 23,
+					message: None,
+				},
+			)
+			.into(),
+			RawEvent::IntentionResolveErrorEvent(
+				user_3,
+				asset_b,
+				asset_a,
+				IntentionType::SELL,
+				1,
+				DispatchError::Module {
+					index: 0,
+					error: 23,
 					message: None,
 				},
 			)
@@ -1365,8 +1412,22 @@ fn simple_sell_sell() {
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 2_000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_b, asset_a, 1_000, false));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			2_000,
+			400,
+			false,
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			1_000,
+			400,
+			false,
+		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
@@ -1396,10 +1457,10 @@ fn simple_sell_sell() {
 			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 2_000, IntentionType::SELL, 0).into(),
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 1_000, IntentionType::SELL, 1).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_2, user_3, 0u128, 1u128, 500, 1000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 1).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 2).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
 			TestEvent::amm(amm::RawEvent::Sell(2, 3000, 2000, 1500, 2994)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1500).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1500, 2994).into(),
 		]);
 	});
 }
@@ -1419,8 +1480,22 @@ fn simple_buy_buy() {
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
-		assert_ok!(Exchange::buy(Origin::signed(user_2), asset_a, asset_b, 2_000, false));
-		assert_ok!(Exchange::buy(Origin::signed(user_3), asset_b, asset_a, 1_000, false));
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			2_000,
+			5000,
+			false,
+		));
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			1_000,
+			5000,
+			false,
+		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
@@ -1450,7 +1525,7 @@ fn simple_buy_buy() {
 			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 2_000, IntentionType::BUY, 0).into(),
 			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 1_000, IntentionType::BUY, 1).into(),
 			TestEvent::amm(amm::RawEvent::Buy(2, 3000, 2000, 1500, 3007)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 1500).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 1500, 3007).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_3, user_2, 1u128, 0u128, 500, 1000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
@@ -1473,8 +1548,22 @@ fn simple_sell_buy() {
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
-		assert_ok!(Exchange::sell(Origin::signed(user_2), asset_a, asset_b, 2_000, false));
-		assert_ok!(Exchange::buy(Origin::signed(user_3), asset_a, asset_b, 1_000, false));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			2_000,
+			400,
+			false,
+		));
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_3),
+			asset_a,
+			asset_b,
+			1_000,
+			2_000,
+			false,
+		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
@@ -1507,7 +1596,7 @@ fn simple_sell_buy() {
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4).into(),
 			TestEvent::amm(amm::RawEvent::Sell(2, 3000, 2000, 1000, 1996)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 1000, 1996).into(),
 		]);
 	});
 }
@@ -1527,8 +1616,22 @@ fn simple_buy_sell() {
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
-		assert_ok!(Exchange::buy(Origin::signed(user_2), asset_a, asset_b, 2_000, false));
-		assert_ok!(Exchange::sell(Origin::signed(user_3), asset_a, asset_b, 1_000, false));
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			2_000,
+			5000,
+			false,
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_a,
+			asset_b,
+			1_000,
+			1500,
+			false,
+		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
@@ -1558,7 +1661,7 @@ fn simple_buy_sell() {
 			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 2_000, IntentionType::BUY, 0).into(),
 			RawEvent::IntentionRegistered(user_3, asset_a, asset_b, 1_000, IntentionType::SELL, 1).into(),
 			TestEvent::amm(amm::RawEvent::Buy(user_2, 3000, 2000, 1000, 2005)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 1000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 1000, 2005).into(),
 			RawEvent::IntentionResolvedDirectTrade(user_3, user_2, 1u128, 0u128, 1000, 2000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 2).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4).into(),
@@ -1585,7 +1688,8 @@ fn single_sell_intention_test() {
 			asset_a,
 			asset_b,
 			2_000_000_000_000,
-			false
+			400_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 1);
@@ -1616,7 +1720,7 @@ fn single_sell_intention_test() {
 			)),
 			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 2_000_000_000_000, IntentionType::SELL, 0).into(),
 			TestEvent::amm(amm::RawEvent::Sell(2, 3000, 2000, 2000000000000, 3913878975647)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 2000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, 0, 2000000000000, 3913878975647).into(),
 		]);
 	});
 }
@@ -1640,7 +1744,8 @@ fn single_buy_intention_test() {
 			asset_a,
 			asset_b,
 			2_000_000_000_000,
-			false
+			15000_000_000_000,
+			false,
 		));
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 1);
@@ -1671,7 +1776,96 @@ fn single_buy_intention_test() {
 			)),
 			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 2_000_000_000_000, IntentionType::BUY, 0).into(),
 			TestEvent::amm(amm::RawEvent::Buy(2, 3000, 2000, 2000000000000, 4089962855627)),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 2000000000000).into(),
+			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, 0, 2000000000000, 4089962855627).into(),
+		]);
+	});
+}
+
+#[test]
+fn simple_sell_sell_with_error_should_not_pass() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let user_2 = BOB;
+		let user_3 = CHARLIE;
+		let asset_a = ETH;
+		let asset_b = DOT;
+		let pool_amount = 100_000_000;
+		let initial_price = Price::from(2);
+
+		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
+
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			2_000,
+			5_000,
+			false,
+		));
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			1_000,
+			5_000,
+			false,
+		));
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
+
+		<Exchange as OnFinalize<u64>>::on_finalize(9);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000000);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000000000000000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 1000000000000000);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
+
+		expect_events(vec![
+			TestEvent::amm(amm::RawEvent::CreatePool(
+				user_1,
+				asset_a,
+				asset_b,
+				initial_price
+					.checked_mul_int(pool_amount)
+					.unwrap()
+					.checked_mul(pool_amount)
+					.unwrap(),
+			)),
+			RawEvent::IntentionRegistered(user_2, asset_a, asset_b, 2_000, IntentionType::SELL, 0).into(),
+			RawEvent::IntentionRegistered(user_3, asset_b, asset_a, 1_000, IntentionType::SELL, 1).into(),
+			RawEvent::AMMSellErrorEvent(
+				user_2,
+				asset_a,
+				asset_b,
+				IntentionType::SELL,
+				0,
+				DispatchError::Module {
+					index: 0,
+					error: 5,
+					message: None,
+				},
+			)
+			.into(),
+			RawEvent::IntentionResolveErrorEvent(
+				user_3,
+				asset_b,
+				asset_a,
+				IntentionType::SELL,
+				1,
+				DispatchError::Module {
+					index: 0,
+					error: 5,
+					message: None,
+				},
+			)
+			.into(),
 		]);
 	});
 }
