@@ -7,16 +7,20 @@ use sp_std::vec::Vec;
 
 use primitives::{
 	fee,
-	traits::{DirectTrade, Matcher, Resolver, AMM},
+	traits::{Resolver, AMM},
 	AssetId, Balance, ExchangeIntention, IntentionId, IntentionType,
 };
 use sp_std::cmp;
 
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
+
+use direct::{DirectTradeData, Transfer};
+use primitives::traits::AMMTransfer;
 
 #[cfg(test)]
 mod mock;
 
+mod direct;
 #[cfg(test)]
 mod tests;
 
@@ -26,24 +30,28 @@ pub trait Trait: system::Trait {
 
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
 
-	type DirectTrader: DirectTrade<Self::AccountId, AssetId, Balance>;
+	type Resolver: Resolver<Self::AccountId, ExchangeIntention<Self::AccountId, AssetId, Balance>, Error<Self>>;
 
-	type IntentionMatcher: Matcher<Self::AccountId, ExchangeIntention<Self::AccountId, AssetId, Balance>>;
-
-	type Resolver: Resolver<Self::AccountId, ExchangeIntention<Self::AccountId, AssetId, Balance>>;
-
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
+	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>
+		+ MultiReservableCurrency<Self::AccountId>;
 }
 
+/// Intention alias
 pub type Intention<T> = ExchangeIntention<<T as system::Trait>::AccountId, AssetId, Balance>;
 
 // This pallet's storage items.
 decl_storage! {
 	trait Store for Module<T: Trait> as Exchange {
+
+		/// Current intention count for current block
 		ExchangeAssetsIntentionCount get(fn get_intentions_count): map hasher(blake2_128_concat) (AssetId, AssetId) => u32;
+
+		/// Registered intentions for current block
+		/// Always stored for ( asset_a, asset_b ) combination where asset_a < asset_B
 		ExchangeAssetsIntentions get(fn get_intentions): map hasher(blake2_128_concat) (AssetId, AssetId) => Vec<Intention<T>>;
 
-		Nonce: u128; // Used as intention ids for now
+		/// Intention id
+		Nonce: u128;
 	}
 }
 
@@ -53,12 +61,28 @@ decl_event!(
 	where
 		AccountId = <T as system::Trait>::AccountId,
 	{
+		/// Intention registered event
+		/// who, asset a, asset b, amount, intention type, intention id
 		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionId),
-		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionId, Balance),
+
+		/// Intention resolved as AMM Trade
+		/// who, intention type, intention id, amount, amount sold/bought
+		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionId, Balance, Balance),
+
 		IntentionResolvedDirectTrade(AccountId, AccountId, IntentionId, IntentionId, Balance, Balance),
 		IntentionResolvedDirectTradeFees(AccountId, AccountId, AssetId, Balance),
 
 		InsufficientAssetBalanceEvent(AccountId, AssetId, IntentionType, IntentionId, dispatch::DispatchError),
+
+		//Note: This event can be used instead of AMMSellErrorEvent, AMMBuyErrorEvent
+		IntentionResolveErrorEvent(
+			AccountId,
+			AssetId,
+			AssetId,
+			IntentionType,
+			IntentionId,
+			dispatch::DispatchError,
+		),
 
 		AMMSellErrorEvent(
 			AccountId,
@@ -84,10 +108,18 @@ decl_error! {
 	pub enum Error for Module<T: Trait> {
 		/// Value was None
 		NoneValue,
+
 		/// Value reached maximum and cannot be incremented further
 		StorageOverflow,
+
+		///Token pool does not exists.
 		TokenPoolNotFound,
+
+		/// Insufficient balance
 		InsufficientAssetBalance,
+
+		/// Limit exceeded
+		AssetBalanceLimitExceeded,
 	}
 }
 
@@ -99,14 +131,16 @@ decl_module! {
 
 		fn deposit_event() = default;
 
-		/// Add new intention for new block
+		/// Create sell intention
+		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
 		#[weight = 10_000] // TODO: check correct weight
 		pub fn sell(
 			origin,
 			asset_sell: AssetId,
 			asset_buy: AssetId,
 			amount_sell: Balance,
-			discount: bool
+			min_bought: Balance,
+			discount: bool,
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -120,12 +154,7 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
-			//WE SHOULD ADD FEE ON TOP OF BUY ACTION -> WE MIGHT NEED TO USE FIXED FEE AT THIS TIME OF THE TX TO BE DETERMINISTIC
-
 			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
-
-			//CHECK IF POOL HAS ENOUGH -> STILL CAN FAIL
 
 			let intention = Intention::<T> {
 					who: who.clone(),
@@ -135,7 +164,8 @@ decl_module! {
 					amount_buy: amount_buy,
 					discount: discount,
 					sell_or_buy : IntentionType::SELL,
-					intention_id: Nonce::get()
+					intention_id: Nonce::get(),
+					trade_limit: min_bought
 			};
 
 			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
@@ -152,14 +182,16 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Add new intention for new block
+		/// Create buy intention
+		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
 		#[weight = 10_000] // TODO: check correct weight
 		pub fn buy(
 			origin,
 			asset_buy: AssetId,
 			asset_sell: AssetId,
 			amount_buy: Balance,
-			discount: bool
+			max_sold: Balance,
+			discount: bool,
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -168,11 +200,8 @@ decl_module! {
 				Error::<T>::TokenPoolNotFound
 			);
 
-			//CHECK IF POOL HAS ENOUGH
-
 			let amount_sell = T::AMMPool::get_spot_price_unchecked(asset_buy, asset_sell, amount_buy);
 
-			//THIS CAN STILL FAIL IF AMM PRICE > BALANCE
 			ensure!(
 				T::Currency::free_balance(asset_sell, &who) >= amount_sell,
 				Error::<T>::InsufficientAssetBalance
@@ -186,7 +215,8 @@ decl_module! {
 					amount_buy: amount_buy,
 					sell_or_buy: IntentionType::BUY,
 					discount: discount,
-					intention_id: Nonce::get()
+					intention_id: Nonce::get(),
+					trade_limit: max_sold
 			};
 
 			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
@@ -203,9 +233,12 @@ decl_module! {
 			Ok(())
 		}
 
+		/// Finalize and resolve all registered intentions.
+		/// Group/match intentions which can be directly traded.
 		fn on_finalize(){
 
 			for ((asset_1,asset_2), count) in ExchangeAssetsIntentionCount::iter() {
+				// If no intention registered for asset1/2, move onto next one
 				if count == 0u32 {
 					continue;
 				}
@@ -215,8 +248,9 @@ decl_module! {
 				let asset_a_sells = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
 				let asset_b_sells = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
 
-				Self::process_exchange_intentions(&pair_account, &asset_a_sells, &asset_b_sells);
+				//TODO: we can short circuit here if nothing in asset_b_sells and just resolve asset a sells.
 
+				Self::process_exchange_intentions(&pair_account, &asset_a_sells, &asset_b_sells);
 			}
 
 			ExchangeAssetsIntentionCount::remove_all();
@@ -227,367 +261,33 @@ decl_module! {
 
 // "Internal" functions, callable by code.
 impl<T: Trait> Module<T> {
+	/// Process intentions and attempt to match them so they can be direct traded.
+	/// ```sell_a_intentions``` are considered 'main' intentions.
+	///
+	/// This algorithm is quite simple at the moment and it tries to match as many intentions from ```sell_b_intentions``` as possible while
+	/// satisfying  that sum( sell_b_intentions.amount_sell ) <= sell_a_intention.amount_sell
+	///
+	/// Intention A must be valid - that means that it is verified first by validating if it was possible to do AMM trade.
 	fn process_exchange_intentions(
 		pair_account: &T::AccountId,
 		sell_a_intentions: &Vec<Intention<T>>,
 		sell_b_intentions: &Vec<Intention<T>>,
-	) -> bool {
-		T::IntentionMatcher::group(pair_account, sell_a_intentions, sell_b_intentions);
-		true
-	}
-
-	fn amm_exchange(
-		who: &T::AccountId,
-		exchange_type: &IntentionType,
-		intention_id: IntentionId,
-		asset_sell: AssetId,
-		asset_buy: AssetId,
-		amount_sell: Balance,
-		amount_buy: Balance,
-		discount: bool,
-	) -> bool {
-		match exchange_type {
-			IntentionType::SELL => match T::AMMPool::sell(who, asset_sell, asset_buy, amount_sell, discount) {
-				Ok(()) => {
-					Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
-						who.clone(),
-						exchange_type.clone(),
-						intention_id,
-						amount_sell,
-					));
-					true
-				}
-				Err(error) => {
-					Self::deposit_event(RawEvent::AMMSellErrorEvent(
-						who.clone(),
-						asset_sell,
-						asset_buy,
-						exchange_type.clone(),
-						intention_id,
-						error.into(),
-					));
-					false
-				}
-			},
-
-			IntentionType::BUY => match T::AMMPool::buy(who, asset_buy, asset_sell, amount_buy, discount) {
-				Ok(()) => {
-					Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
-						who.clone(),
-						exchange_type.clone(),
-						intention_id,
-						amount_buy,
-					));
-					true
-				}
-				Err(error) => {
-					Self::deposit_event(RawEvent::AMMBuyErrorEvent(
-						who.clone(),
-						asset_buy,
-						asset_sell,
-						exchange_type.clone(),
-						intention_id,
-						error.into(),
-					));
-					false
-				}
-			},
-		}
-	}
-
-	fn handle_direct_trades(
-		intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
-		matched_intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
-		amounts: (Balance, Balance),
-		pair_account: &T::AccountId,
 	) {
-		//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
-
-		let amount_a = amounts.0;
-		let amount_b = amounts.1;
-
-		let transfer_a_fee = fee::get_fee(amount_a).unwrap();
-		let transfer_b_fee = fee::get_fee(amount_b).unwrap();
-
-		//TODO: EVENT FOR BOTH -> HELPER FUNCTION -> DETERMINISTIC AMOUNTS
-		Self::deposit_event(RawEvent::IntentionResolvedDirectTrade(
-			intention.who.clone(),
-			matched_intention.who.clone(),
-			intention.intention_id,
-			matched_intention.intention_id,
-			amount_a,
-			amount_b,
-		));
-
-		// If ok , do direct transfer - this should not fail at this point
-		T::DirectTrader::transfer(&intention.who, &matched_intention.who, intention.asset_sell, amount_a)
-			.expect("Should not failed. Checks had been done.");
-
-		T::DirectTrader::transfer(&matched_intention.who, &intention.who, intention.asset_buy, amount_b)
-			.expect("Should not failed. Checks had been done.");
-
-		match (&intention.sell_or_buy, &matched_intention.sell_or_buy) {
-			(IntentionType::SELL, IntentionType::SELL) => {
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_buy, transfer_b_fee).unwrap();
-
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					intention.who.clone(),
-					pair_account.clone(),
-					intention.asset_sell,
-					transfer_a_fee,
-				));
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					matched_intention.asset_buy,
-					transfer_a_fee,
-				)
-				.unwrap();
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					matched_intention.who.clone(),
-					pair_account.clone(),
-					intention.asset_buy,
-					transfer_b_fee,
-				));
-			}
-			(IntentionType::BUY, IntentionType::BUY) => {
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee).unwrap();
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					intention.who.clone(),
-					pair_account.clone(),
-					intention.asset_sell,
-					transfer_a_fee,
-				));
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					matched_intention.asset_sell,
-					transfer_b_fee,
-				)
-				.unwrap();
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					matched_intention.who.clone(),
-					pair_account.clone(),
-					intention.asset_buy,
-					transfer_b_fee,
-				));
-			}
-			(IntentionType::BUY, IntentionType::SELL) => {
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_sell, transfer_a_fee).unwrap();
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					intention.who.clone(),
-					pair_account.clone(),
-					intention.asset_sell,
-					transfer_a_fee,
-				));
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					matched_intention.asset_buy,
-					transfer_b_fee,
-				)
-				.unwrap();
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					matched_intention.who.clone(),
-					pair_account.clone(),
-					matched_intention.asset_buy,
-					transfer_b_fee,
-				));
-			}
-			(IntentionType::SELL, IntentionType::BUY) => {
-				T::DirectTrader::transfer(&intention.who, &pair_account, intention.asset_buy, transfer_a_fee).unwrap();
-
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					intention.who.clone(),
-					pair_account.clone(),
-					intention.asset_buy,
-					transfer_a_fee,
-				));
-
-				T::DirectTrader::transfer(
-					&matched_intention.who,
-					&pair_account,
-					matched_intention.asset_sell,
-					transfer_b_fee,
-				)
-				.unwrap();
-				Self::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
-					matched_intention.who.clone(),
-					pair_account.clone(),
-					matched_intention.asset_sell,
-					transfer_b_fee,
-				));
-			}
-		}
-	}
-}
-
-impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Balance>> for Module<T> {
-	fn resolve_single_intention(intention: &ExchangeIntention<T::AccountId, AssetId, Balance>) {
-		Self::amm_exchange(
-			&intention.who,
-			&intention.sell_or_buy,
-			intention.intention_id,
-			intention.asset_sell,
-			intention.asset_buy,
-			intention.amount_sell,
-			intention.amount_buy,
-			intention.discount,
-		);
-	}
-
-	fn resolve_intention(
-		pair_account: &T::AccountId,
-		intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
-		matched: &Vec<ExchangeIntention<T::AccountId, AssetId, Balance>>,
-	) -> bool {
-		let mut intention_copy = intention.clone();
-
-		for matched_intention in matched.iter() {
-			let amount_a_sell = intention_copy.amount_sell;
-			let amount_a_buy = intention_copy.amount_buy;
-			let amount_b_sell = matched_intention.amount_sell;
-			let amount_b_buy = matched_intention.amount_buy;
-
-			if amount_a_sell > amount_b_buy {
-				//TODO: THIS IS NOT ENOUGH WE NEED TO CHECK BOTH PARTICIPANTS -> HELPER FUNCTION
-				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
-					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-						intention.who.clone(),
-						intention.asset_sell,
-						intention.sell_or_buy.clone(),
-						intention.intention_id,
-						Error::<T>::InsufficientAssetBalance.into(),
-					));
-					return false;
-				}
-
-				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_a_buy {
-					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-						matched_intention.who.clone(),
-						intention.asset_buy,
-						matched_intention.sell_or_buy.clone(),
-						matched_intention.intention_id,
-						Error::<T>::InsufficientAssetBalance.into(),
-					));
-					return false;
-				}
-
-				intention_copy.amount_sell = amount_a_sell - amount_b_buy;
-				intention_copy.amount_buy = amount_a_buy - amount_b_sell;
-
-				//TODO: FEE BASED ON SELL / BUY ACTION -> WE NEED DETERMINISTIC AMOUNT FOR SELL(A1, AMT) AND BUY(A1, AMT) -> HELPER
-
-				Self::handle_direct_trades(
-					intention,
-					matched_intention,
-					(amount_a_sell - intention_copy.amount_sell, amount_b_sell),
-					pair_account,
-				);
-			} else if amount_a_sell < amount_b_buy {
-				// TODO: HELPER for both sides of the trade
-				if T::Currency::free_balance(intention.asset_sell, &intention.who) < amount_a_sell {
-					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-						intention.who.clone(),
-						intention.asset_sell,
-						intention.sell_or_buy.clone(),
-						intention.intention_id,
-						Error::<T>::InsufficientAssetBalance.into(),
-					));
-					return false;
-				}
-
-				if T::Currency::free_balance(intention.asset_buy, &matched_intention.who) < amount_b_buy {
-					Self::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
-						matched_intention.who.clone(),
-						intention.asset_buy,
-						matched_intention.sell_or_buy.clone(),
-						matched_intention.intention_id,
-						Error::<T>::InsufficientAssetBalance.into(),
-					));
-					return false;
-				}
-
-				let rest_sell_amount = amount_b_sell - amount_a_buy;
-				let rest_buy_amount = amount_b_buy - amount_a_sell;
-
-				match Self::amm_exchange(
-					&matched_intention.who,
-					&matched_intention.sell_or_buy,
-					matched_intention.intention_id,
-					matched_intention.asset_sell,
-					matched_intention.asset_buy,
-					rest_sell_amount,
-					rest_buy_amount,
-					matched_intention.discount,
-				) {
-					true => {
-						Self::handle_direct_trades(
-							intention,
-							matched_intention,
-							(amount_a_sell, amount_b_sell - rest_sell_amount),
-							pair_account,
-						);
-
-						intention_copy.amount_sell = 0;
-					}
-					false => {
-						return false;
-					}
-				}
-			} else {
-				Self::handle_direct_trades(
-					intention,
-					matched_intention,
-					(amount_a_sell, amount_b_sell),
-					pair_account,
-				);
-
-				intention_copy.amount_sell = 0;
-			}
-		}
-
-		// If there is something left, just resolve as single intention
-		if intention_copy.amount_sell > 0 {
-			Self::resolve_single_intention(&intention_copy);
-		}
-
-		true
-	}
-}
-
-impl<T: Trait> DirectTrade<T::AccountId, AssetId, Balance> for Module<T> {
-	fn transfer(from: &T::AccountId, to: &T::AccountId, asset: u32, amount: u128) -> dispatch::DispatchResult {
-		T::Currency::transfer(asset, from, &to, amount)
-	}
-}
-
-impl<T: Trait> Matcher<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Balance>> for Module<T> {
-	fn group<'a>(
-		pair_account: &T::AccountId,
-		asset_a_sell: &'a Vec<ExchangeIntention<T::AccountId, AssetId, Balance>>,
-		asset_b_sell: &'a Vec<ExchangeIntention<T::AccountId, AssetId, Balance>>,
-	) -> Option<
-		Vec<(
-			ExchangeIntention<T::AccountId, AssetId, Balance>,
-			Vec<ExchangeIntention<T::AccountId, AssetId, Balance>>,
-		)>,
-	> {
-		let mut b_copy = asset_b_sell.clone();
-		let mut a_copy = asset_a_sell.clone();
+		let mut b_copy = sell_b_intentions.clone();
+		let mut a_copy = sell_a_intentions.clone();
 
 		b_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
 		a_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
 
 		for intention in a_copy {
+			if !Self::verify_intention(&intention) {
+				continue;
+			}
+
 			let mut bvec = Vec::<Intention<T>>::new();
 			let mut total = 0;
 			let mut idx: usize = 0;
 
-			// we can further optimize this loop!
 			loop {
 				let matched = match b_copy.get(idx) {
 					Some(x) => x,
@@ -599,19 +299,396 @@ impl<T: Trait> Matcher<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Ba
 				b_copy.remove(idx);
 				idx += 1;
 
-				//TODO: CHECK IF OK
 				if total >= intention.amount_sell {
 					break;
 				}
 			}
 
-			T::Resolver::resolve_intention(pair_account, &intention, &bvec);
+			T::Resolver::resolve_matched_intentions(pair_account, &intention, &bvec);
 		}
 
+		// If something left in sell_b_intentions, just run it throught AMM.
 		while let Some(b_intention) = b_copy.pop() {
 			T::Resolver::resolve_single_intention(&b_intention);
 		}
+	}
 
-		None
+	/// Execute AMM trade.
+	///
+	/// This performs AMM trade with given transfer details.
+	fn execute_amm_transfer(
+		amm_tranfer_type: IntentionType,
+		intention_id: IntentionId,
+		transfer: &AMMTransfer<T::AccountId, AssetId, Balance>,
+	) -> dispatch::DispatchResult {
+		match amm_tranfer_type {
+			IntentionType::SELL => {
+				T::AMMPool::execute_sell(transfer)?;
+
+				Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
+					transfer.origin.clone(),
+					IntentionType::SELL,
+					intention_id,
+					transfer.amount,
+					transfer.amount_out,
+				));
+			}
+			IntentionType::BUY => {
+				T::AMMPool::execute_buy(transfer)?;
+
+				Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
+					transfer.origin.clone(),
+					IntentionType::BUY,
+					intention_id,
+					transfer.amount,
+					transfer.amount_out,
+				));
+			}
+		};
+
+		Ok(())
+	}
+
+	/// Send intention resolve error event.
+	///
+	/// Sends event with error detail for intention that failed.
+	fn send_intention_error_event(intention: &Intention<T>, error: dispatch::DispatchError) {
+		Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
+			intention.who.clone(),
+			intention.asset_sell,
+			intention.asset_buy,
+			intention.sell_or_buy.clone(),
+			intention.intention_id,
+			error.into(),
+		));
+	}
+
+	/// Verify sell or buy intention.
+	/// Perform AMM validate for given intention.
+	fn verify_intention(intention: &Intention<T>) -> bool {
+		match intention.sell_or_buy {
+			IntentionType::SELL => {
+				match T::AMMPool::validate_sell(
+					&intention.who,
+					intention.asset_sell,
+					intention.asset_buy,
+					intention.amount_sell,
+					intention.trade_limit,
+					intention.discount,
+				) {
+					Err(error) => {
+						Self::deposit_event(RawEvent::AMMSellErrorEvent(
+							intention.who.clone(),
+							intention.asset_sell,
+							intention.asset_buy,
+							intention.sell_or_buy.clone(),
+							intention.intention_id,
+							error.into(),
+						));
+						false
+					}
+					_ => true,
+				}
+			}
+			IntentionType::BUY => {
+				match T::AMMPool::validate_buy(
+					&intention.who,
+					intention.asset_buy,
+					intention.asset_sell,
+					intention.amount_buy,
+					intention.trade_limit,
+					intention.discount,
+				) {
+					Err(error) => {
+						Self::deposit_event(RawEvent::AMMBuyErrorEvent(
+							intention.who.clone(),
+							intention.asset_buy,
+							intention.asset_sell,
+							intention.sell_or_buy.clone(),
+							intention.intention_id,
+							error.into(),
+						));
+						false
+					}
+					_ => true,
+				}
+			}
+		}
+	}
+}
+
+impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, Balance>, Error<T>> for Module<T> {
+	/// Resolve intention via AMM pool.
+	fn resolve_single_intention(intention: &ExchangeIntention<T::AccountId, AssetId, Balance>) {
+		let amm_transfer = match intention.sell_or_buy {
+			IntentionType::SELL => T::AMMPool::validate_sell(
+				&intention.who,
+				intention.asset_sell,
+				intention.asset_buy,
+				intention.amount_sell,
+				intention.trade_limit,
+				intention.discount,
+			),
+			IntentionType::BUY => T::AMMPool::validate_buy(
+				&intention.who,
+				intention.asset_buy,
+				intention.asset_sell,
+				intention.amount_buy,
+				intention.trade_limit,
+				intention.discount,
+			),
+		};
+
+		match amm_transfer {
+			Ok(x) => match Self::execute_amm_transfer(intention.sell_or_buy.clone(), intention.intention_id, &x) {
+				Ok(_) => {}
+				Err(error) => {
+					Self::send_intention_error_event(&intention, error);
+				}
+			},
+			Err(error) => {
+				Self::send_intention_error_event(&intention, error);
+			}
+		};
+	}
+
+	/// Resolve main intention and corresponding matched intention
+	///
+	/// For each matched intention - it works out how much can be traded directly and rest is AMM traded.
+	/// If there is anything left in the main intention - it is AMM traded.
+	fn resolve_matched_intentions(
+		pair_account: &T::AccountId,
+		intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
+		matched: &Vec<ExchangeIntention<T::AccountId, AssetId, Balance>>,
+	) {
+		let mut intention_copy = intention.clone();
+
+		for matched_intention in matched.iter() {
+			let amount_a_sell = intention_copy.amount_sell;
+			let amount_a_buy = intention_copy.amount_buy;
+			let amount_b_sell = matched_intention.amount_sell;
+			let amount_b_buy = matched_intention.amount_buy;
+
+			// There are multiple scenarios to handle
+			// !. Main intention amount left > matched intention amount
+			// 2. Main intention amount left < matched intention amount
+			// 3. Main intention amount left = matched intention amount
+
+			if amount_a_sell > amount_b_buy {
+				// Scenario 1: Matched intention can be completely directly traded
+				//
+				// 1. Prepare direct trade details - during preparation, direct amounts are reserved.
+				// 2. Execute if ok otherwise revert ( unreserve amounts if any ) .
+				// 3. Sets new amount (rest amount) and trade limit accordingly.
+				let mut dt = DirectTradeData::<T> {
+					intention_a: &intention_copy,
+					intention_b: &matched_intention,
+					amount_from_a: amount_a_sell - amount_a_sell + amount_b_buy,
+					amount_from_b: amount_b_sell,
+					transfers: Vec::<Transfer<T>>::new(),
+				};
+
+				// As we direct trading the total matched intention amount - we need to check the trade limit for the matched intention
+				match matched_intention.sell_or_buy {
+					IntentionType::SELL => {
+						if dt.amount_from_a < matched_intention.trade_limit {
+							Self::send_intention_error_event(
+								&matched_intention,
+								Error::<T>::AssetBalanceLimitExceeded.into(),
+							);
+							continue;
+						}
+					}
+					IntentionType::BUY => {
+						if dt.amount_from_a > matched_intention.trade_limit {
+							Self::send_intention_error_event(
+								&matched_intention,
+								Error::<T>::AssetBalanceLimitExceeded.into(),
+							);
+							continue;
+						}
+					}
+				};
+
+				match dt.prepare(pair_account) {
+					true => {
+						dt.execute();
+
+						intention_copy.amount_sell = amount_a_sell - amount_b_buy;
+						intention_copy.amount_buy = amount_a_buy - amount_b_sell;
+
+						intention_copy.trade_limit = match intention_copy.sell_or_buy {
+							IntentionType::SELL => intention_copy.trade_limit.saturating_sub(amount_b_sell),
+							IntentionType::BUY => intention_copy.trade_limit - amount_b_sell,
+						};
+					}
+					false => {
+						dt.revert();
+						continue;
+					}
+				}
+			} else if amount_a_sell < amount_b_buy {
+				// Scenario 2: Matched intention CANNOT be completely directly traded
+				//
+				// 1. Work out rest amount and rest trade limits for direct trades.
+				// 2. Verify if AMM transfer can be successfully performed
+				// 3. Verify if direct trade can be successfully performed
+				// 4. If both ok - execute
+				// 5. Main intention is emtpy at this point - just set amount to 0.
+				let rest_sell_amount = amount_b_sell - amount_a_buy;
+				let rest_buy_amount = amount_b_buy - amount_a_sell;
+
+				let rest_limit = match matched_intention.sell_or_buy {
+					IntentionType::SELL => matched_intention.trade_limit.saturating_sub(amount_a_sell),
+					IntentionType::BUY => matched_intention.trade_limit - amount_a_sell,
+				};
+
+				let mut dt = DirectTradeData::<T> {
+					intention_a: &intention_copy,
+					intention_b: &matched_intention,
+					amount_from_a: amount_a_sell,
+					amount_from_b: amount_b_sell - rest_sell_amount,
+					transfers: Vec::<Transfer<T>>::new(),
+				};
+
+				let amm_transfer_result = match matched_intention.sell_or_buy {
+					IntentionType::SELL => T::AMMPool::validate_sell(
+						&matched_intention.who,
+						matched_intention.asset_sell,
+						matched_intention.asset_buy,
+						rest_sell_amount,
+						rest_limit,
+						matched_intention.discount,
+					),
+					IntentionType::BUY => T::AMMPool::validate_buy(
+						&matched_intention.who,
+						matched_intention.asset_buy,
+						matched_intention.asset_sell,
+						rest_buy_amount,
+						rest_limit,
+						matched_intention.discount,
+					),
+				};
+
+				let amm_transfer = match amm_transfer_result {
+					Ok(x) => x,
+					Err(error) => {
+						Self::send_intention_error_event(&matched_intention, error);
+						continue;
+					}
+				};
+
+				match matched_intention.sell_or_buy {
+					IntentionType::SELL => {
+						if dt.amount_from_b < matched_intention.trade_limit - amm_transfer.amount_out {
+							Self::send_intention_error_event(
+								&matched_intention,
+								Error::<T>::AssetBalanceLimitExceeded.into(),
+							);
+							continue;
+						}
+					}
+					IntentionType::BUY => {
+						if dt.amount_from_b > matched_intention.trade_limit - amm_transfer.amount_out {
+							Self::send_intention_error_event(
+								&matched_intention,
+								Error::<T>::AssetBalanceLimitExceeded.into(),
+							);
+							continue;
+						}
+					}
+				};
+
+				match dt.prepare(pair_account) {
+					true => {
+						match Self::execute_amm_transfer(
+							matched_intention.sell_or_buy.clone(),
+							matched_intention.intention_id,
+							&amm_transfer,
+						) {
+							Ok(_) => {
+								dt.execute();
+								intention_copy.amount_sell = 0;
+							}
+							Err(error) => {
+								Self::send_intention_error_event(&matched_intention, error);
+								dt.revert();
+								continue;
+							}
+						}
+					}
+					false => {
+						dt.revert();
+						continue;
+					}
+				}
+			} else {
+				// Scenario 3: Exact match
+				//
+				// 1. Prepare direct trade
+				// 2. Verify and execute
+				// 3. Main intention is emtpy at this point -set amount to 0.
+				let mut dt = DirectTradeData::<T> {
+					intention_a: &intention_copy,
+					intention_b: &matched_intention,
+					amount_from_a: amount_a_sell,
+					amount_from_b: amount_b_sell,
+					transfers: Vec::<Transfer<T>>::new(),
+				};
+
+				// As we direct trading the total matched intention amount - we need to check the trade limit for the matched intention
+				match intention.sell_or_buy {
+					IntentionType::SELL => {
+						if dt.amount_from_b < intention.trade_limit {
+							Self::send_intention_error_event(&intention, Error::<T>::AssetBalanceLimitExceeded.into());
+							continue;
+						}
+					}
+					IntentionType::BUY => {
+						if dt.amount_from_b > intention.trade_limit {
+							Self::send_intention_error_event(&intention, Error::<T>::AssetBalanceLimitExceeded.into());
+							continue;
+						}
+					}
+				};
+
+				match matched_intention.sell_or_buy {
+					IntentionType::SELL => {
+						if dt.amount_from_a < matched_intention.trade_limit {
+							Self::send_intention_error_event(
+								&matched_intention,
+								Error::<T>::AssetBalanceLimitExceeded.into(),
+							);
+							continue;
+						}
+					}
+					IntentionType::BUY => {
+						if dt.amount_from_a > matched_intention.trade_limit {
+							Self::send_intention_error_event(
+								&matched_intention,
+								Error::<T>::AssetBalanceLimitExceeded.into(),
+							);
+							continue;
+						}
+					}
+				};
+
+				match dt.prepare(pair_account) {
+					true => {
+						dt.execute();
+						intention_copy.amount_sell = 0;
+					}
+					false => {
+						dt.revert();
+						continue;
+					}
+				}
+			}
+		}
+
+		// If there is something left, just resolve as single intention
+		if intention_copy.amount_sell > 0 {
+			Self::resolve_single_intention(&intention_copy);
+		}
 	}
 }

@@ -127,9 +127,7 @@ pub type System = system::Module<Test>;
 impl Trait for Test {
 	type Event = TestEvent;
 	type AMMPool = AMMModule;
-	type DirectTrader = exchange::Module<Test>;
 	type Currency = Currency;
-	type IntentionMatcher = exchange::Module<Test>;
 	type Resolver = exchange::Module<Test>;
 }
 pub type Exchange = Module<Test>;

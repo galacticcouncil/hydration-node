@@ -4,7 +4,6 @@ use super::*;
 use crate::{AssetPairAccountIdFor, Module, Trait};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
 use frame_system as system;
-
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -121,6 +120,8 @@ impl Trait for Test {
 	type HDXAssetId = HDXAssetId;
 }
 pub type AMM = Module<Test>;
+pub type System = system::Module<Test>;
+
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 }
