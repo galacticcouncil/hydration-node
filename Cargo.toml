@@ -1,10 +1,10 @@
 [patch.crates-io]
-frame-support = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc5', version = '2.0.0-rc5'}
-frame-system = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc5', version = '2.0.0-rc5'}
-sp-core = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc5', version = '2.0.0-rc5'}
-sp-io = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc5', version = '2.0.0-rc5'}
-sp-runtime = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc5', version = '2.0.0-rc5'}
-sp-std = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc5', version = '2.0.0-rc5'}
+frame-support = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
+frame-system = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
+sp-core = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
+sp-io = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
+sp-runtime = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
+sp-std = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
 
 
 [profile.release]
@@ -13,10 +13,6 @@ panic = 'unwind'
 [workspace]
 members = [
     'node',
-    'pallets/amm',
-    'pallets/exchange',
-    'pallets/asset-registry',
     'pallets/template',
-    'primitives',
     'runtime',
 ]
