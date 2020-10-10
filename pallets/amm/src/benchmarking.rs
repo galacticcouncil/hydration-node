@@ -96,10 +96,12 @@ benchmarks! {
 
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
-		let amount : Balance = 10;
+		let amount : Balance = 10 * 1_000_000_000;
 		let discount = false;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, Price::from(10))?;
+		let min_bought = 80 * 1_000_000_000;
 
-	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, discount)
+		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from(10))?;
+
+	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, min_bought, discount)
 }
