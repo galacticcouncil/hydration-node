@@ -1,66 +1,42 @@
-[dependencies.serde]
-optional = true
-version = '1.0.101'
-
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '1.3.1'
-
-[dependencies.frame-support]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.frame-system]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-core]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dev-dependencies.sp-io]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-runtime]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
 [package]
 authors = ['GalacticCouncil']
 description = 'FRAME Pallet for asset registry management'
 edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hydra-dx'
+homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
 license = 'Unlicense'
 name = 'pallet-asset-registry'
-repository = 'https://github.com/galacticcouncil/hydra-dx'
-version = '1.0.0'
+repository = 'https://github.com/galacticcouncil/hack.hydradx-node'
+version = '2.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dependencies.sp-std]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+[build-dependencies]
+wasm-builder-runner = {package = 'substrate-wasm-builder-runner', version = '1.0.5'}
 
-[dependencies.primitives]
+# alias "parity-scale-code" to "codec"
+[dependencies.codec]
 default-features = false
-package = 'primitives'
-path = '../../primitives'
+features = ['derive']
+package = 'parity-scale-codec'
+version = '1.3.4'
+
+[dependencies]
+primitive-types = {default-features = false, version = '0.7.2'}
+serde = {features = ['derive'], optional = true, version = '1.0.101'}
+
+# Local dependencies
+primitives = {path = '../../primitives', default-features = false, version = '2.0.0'}
+
+# Substrate dependencies
+frame-support = {default-features = false, version = '2.0.0'}
+frame-system = {default-features = false, version = '2.0.0'}
+sp-core = {default-features = false, version = '2.0.0'}
+sp-runtime = {default-features = false, version = '2.0.0'}
+sp-std = {default-features = false, version = '2.0.0'}
+
+[dev-dependencies]
+sp-io = {default-features = false, version = '2.0.0'}
 
 [features]
 default = ['std']

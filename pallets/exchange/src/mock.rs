@@ -10,7 +10,9 @@ use sp_runtime::{
 	Perbill,
 };
 
-use amm::AssetPairAccountIdFor;
+use pallet_amm as amm;
+
+use pallet_amm::AssetPairAccountIdFor;
 use primitives::{AssetId, Balance};
 
 pub type Amount = i128;
@@ -78,7 +80,7 @@ impl system::Trait for Test {
 	type MaximumBlockLength = MaximumBlockLength;
 	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
-	type ModuleToIndex = ();
+	type PalletInfo = ();
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
@@ -96,7 +98,7 @@ impl orml_tokens::Trait for Test {
 
 pub type Currency = orml_tokens::Module<Test>;
 
-impl asset_registry::Trait for Test {
+impl pallet_asset_registry::Trait for Test {
 	type AssetId = AssetId;
 }
 
@@ -120,6 +122,7 @@ impl amm::Trait for Test {
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
 	type HDXAssetId = HDXAssetId;
+	type WeightInfo = ();
 }
 
 pub type AMMModule = amm::Module<Test>;
@@ -130,6 +133,7 @@ impl Trait for Test {
 	type AMMPool = AMMModule;
 	type Currency = Currency;
 	type Resolver = exchange::Module<Test>;
+	type WeightInfo = ();
 }
 pub type Exchange = Module<Test>;
 

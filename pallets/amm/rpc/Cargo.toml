@@ -2,56 +2,43 @@
 authors = ['GalacticCouncil']
 edition = "2018"
 name = "module-amm-rpc"
-version = '1.0.0'
+version = '2.0.0'
 
 [dependencies.module-amm-rpc-runtime-api]
 default-features = false
 package = 'module-amm-rpc-runtime-api'
 path = 'runtime-api'
-version = '1.0.0'
+version = '2.0.0'
 
-[dependencies.serde]
-default-features = false
-features = ['derive']
-version = '1.0.101'
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
 
+[build-dependencies]
+wasm-builder-runner = {package = 'substrate-wasm-builder-runner', version = '1.0.5'}
+
+# alias "parity-scale-code" to "codec"
 [dependencies.codec]
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
-version = '1.3.1'
+version = '1.3.4'
 
-[dependencies.jsonrpc-core]
-default-features = false
-version = '14.0.3'
+[dependencies]
+jsonrpc-core = {default-features = false, version = '15.0.0'}
+jsonrpc-core-client = {default-features = false, version = '15.0.0'}
+jsonrpc-derive = {default-features = false, version = '15.0.0'}
+serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
-[dependencies.jsonrpc-core-client]
-default-features = false
-version = '14.0.3'
-
-[dependencies.jsonrpc-derive]
-default-features = false
-version = '14.0.3'
-
-[dependencies.sp-api]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-runtime]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-blockchain]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
+# Substrate dependencies
+sp-api = {default-features = false, version = '2.0.0'}
+sp-blockchain = {default-features = false, version = '2.0.0'}
+sp-runtime = {default-features = false, version = '2.0.0'}
+sp-std = {default-features = false, version = '2.0.0'}
 
 [features]
 default = ['std']
 std = [
+  'module-amm-rpc-runtime-api/std',
+  'serde',
   'codec/std',
 ]

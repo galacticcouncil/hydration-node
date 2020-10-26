@@ -1,8 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::sp_runtime::traits::{AtLeast32Bit, CheckedAdd, Member, One};
 use frame_support::{decl_error, decl_module, decl_storage, dispatch::DispatchError, Parameter};
 use frame_system::{self as system};
-use sp_runtime::traits::{AtLeast32Bit, CheckedAdd, Member, One};
 use sp_std::vec::Vec;
 
 #[cfg(test)]

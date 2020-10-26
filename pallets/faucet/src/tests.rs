@@ -1,6 +1,6 @@
 use super::*;
-use crate::mock::{Faucet, Currency, ExtBuilder, Origin, ALICE, HDX};
-use frame_support::{assert_ok};
+use crate::mock::{Currency, ExtBuilder, Faucet, Origin, ALICE, HDX};
+use frame_support::assert_ok;
 
 #[test]
 fn mints() {

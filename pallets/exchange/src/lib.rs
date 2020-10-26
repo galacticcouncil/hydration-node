@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::comparison_chain)]
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, storage::IterableStorageMap};
 use frame_system::{self as system, ensure_signed};
@@ -10,30 +11,54 @@ use primitives::{
 	traits::{Resolver, AMM},
 	AssetId, Balance, ExchangeIntention, IntentionId, IntentionType,
 };
+use sp_std::borrow::ToOwned;
 use sp_std::cmp;
 
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
 
 use direct::{DirectTradeData, Transfer};
+use frame_support::weights::Weight;
 use primitives::traits::AMMTransfer;
 
 #[cfg(test)]
 mod mock;
 
+mod default_weights;
+
 mod direct;
 #[cfg(test)]
 mod tests;
+
+pub trait WeightInfo {
+	fn known_overhead_for_on_finalize() -> Weight;
+	fn sell_intention() -> Weight;
+	fn buy_intention() -> Weight;
+
+	fn on_finalize(t: u32) -> Weight;
+	fn on_finalize_buys_no_matches(t: u32) -> Weight;
+	fn on_finalize_sells_no_matches(t: u32) -> Weight;
+	fn sell_extrinsic() -> Weight;
+	fn buy_extrinsic() -> Weight;
+	fn on_finalize_for_one_sell_extrinsic() -> Weight;
+	fn on_finalize_for_one_buy_extrinsic() -> Weight;
+}
 
 /// The pallet's configuration trait.
 pub trait Trait: system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
+	/// AMM pool implementation
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
 
+	/// Intention resolver
 	type Resolver: Resolver<Self::AccountId, ExchangeIntention<Self::AccountId, AssetId, Balance>, Error<Self>>;
 
+	/// Currecny for transfers
 	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>
 		+ MultiReservableCurrency<Self::AccountId>;
+
+	/// Weight information for the extrinsics.
+	type WeightInfo: WeightInfo;
 }
 
 /// Intention alias
@@ -133,7 +158,7 @@ decl_module! {
 
 		/// Create sell intention
 		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
-		#[weight = 10_000] // TODO: check correct weight
+		#[weight =  <T as Trait>::WeightInfo::sell_intention() + <T as Trait>::WeightInfo::on_finalize_for_one_sell_extrinsic() -  <T as Trait>::WeightInfo::known_overhead_for_on_finalize()]
 		pub fn sell(
 			origin,
 			asset_sell: AssetId,
@@ -158,11 +183,11 @@ decl_module! {
 
 			let intention = Intention::<T> {
 					who: who.clone(),
-					asset_sell: asset_sell,
-					asset_buy: asset_buy,
-					amount_sell: amount_sell,
-					amount_buy: amount_buy,
-					discount: discount,
+					asset_sell,
+					asset_buy,
+					amount_sell,
+					amount_buy,
+					discount,
 					sell_or_buy : IntentionType::SELL,
 					intention_id: Nonce::get(),
 					trade_limit: min_bought
@@ -173,7 +198,7 @@ decl_module! {
 			let asset_1 = cmp::min(intention.asset_sell, intention.asset_buy);
 			let asset_2 = cmp::max(intention.asset_sell, intention.asset_buy);
 
-			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total = *total + 1u32);
+			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total += 1u32);
 
 			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount_sell, IntentionType::SELL, intention.intention_id));
 
@@ -184,7 +209,7 @@ decl_module! {
 
 		/// Create buy intention
 		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
-		#[weight = 10_000] // TODO: check correct weight
+		#[weight =  <T as Trait>::WeightInfo::buy_intention() + <T as Trait>::WeightInfo::on_finalize_for_one_buy_extrinsic() -  <T as Trait>::WeightInfo::known_overhead_for_on_finalize()]
 		pub fn buy(
 			origin,
 			asset_buy: AssetId,
@@ -209,12 +234,12 @@ decl_module! {
 
 			let intention = Intention::<T> {
 					who: who.clone(),
-					asset_sell: asset_sell,
-					asset_buy: asset_buy,
-					amount_sell: amount_sell,
-					amount_buy: amount_buy,
+					asset_sell,
+					asset_buy,
+					amount_sell,
+					amount_buy,
 					sell_or_buy: IntentionType::BUY,
-					discount: discount,
+					discount,
 					intention_id: Nonce::get(),
 					trade_limit: max_sold
 			};
@@ -224,13 +249,17 @@ decl_module! {
 			let asset_1 = cmp::min(intention.asset_sell, intention.asset_buy);
 			let asset_2 = cmp::max(intention.asset_sell, intention.asset_buy);
 
-			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total = *total + 1u32);
+			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total += 1u32);
 
 			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_buy, asset_sell, amount_buy, IntentionType::BUY, intention.intention_id));
 
 			Nonce::mutate(|n| *n += 1);
 
 			Ok(())
+		}
+
+		fn on_initialize() -> Weight {
+			T::WeightInfo::known_overhead_for_on_finalize()
 		}
 
 		/// Finalize and resolve all registered intentions.
@@ -270,11 +299,11 @@ impl<T: Trait> Module<T> {
 	/// Intention A must be valid - that means that it is verified first by validating if it was possible to do AMM trade.
 	fn process_exchange_intentions(
 		pair_account: &T::AccountId,
-		sell_a_intentions: &Vec<Intention<T>>,
-		sell_b_intentions: &Vec<Intention<T>>,
+		sell_a_intentions: &[Intention<T>],
+		sell_b_intentions: &[Intention<T>],
 	) {
-		let mut b_copy = sell_b_intentions.clone();
-		let mut a_copy = sell_a_intentions.clone();
+		let mut b_copy = sell_b_intentions.to_owned();
+		let mut a_copy = sell_a_intentions.to_owned();
 
 		b_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
 		a_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
@@ -288,12 +317,7 @@ impl<T: Trait> Module<T> {
 			let mut total = 0;
 			let mut idx: usize = 0;
 
-			loop {
-				let matched = match b_copy.get(idx) {
-					Some(x) => x,
-					None => break,
-				};
-
+			while let Some(matched) = b_copy.get(idx) {
 				bvec.push(matched.clone());
 				total += matched.amount_sell;
 				b_copy.remove(idx);
@@ -359,7 +383,7 @@ impl<T: Trait> Module<T> {
 			intention.asset_buy,
 			intention.sell_or_buy.clone(),
 			intention.intention_id,
-			error.into(),
+			error,
 		));
 	}
 
@@ -383,7 +407,7 @@ impl<T: Trait> Module<T> {
 							intention.asset_buy,
 							intention.sell_or_buy.clone(),
 							intention.intention_id,
-							error.into(),
+							error,
 						));
 						false
 					}
@@ -406,7 +430,7 @@ impl<T: Trait> Module<T> {
 							intention.asset_sell,
 							intention.sell_or_buy.clone(),
 							intention.intention_id,
-							error.into(),
+							error,
 						));
 						false
 					}
@@ -459,7 +483,7 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 	fn resolve_matched_intentions(
 		pair_account: &T::AccountId,
 		intention: &ExchangeIntention<T::AccountId, AssetId, Balance>,
-		matched: &Vec<ExchangeIntention<T::AccountId, AssetId, Balance>>,
+		matched: &[ExchangeIntention<T::AccountId, AssetId, Balance>],
 	) {
 		let mut intention_copy = intention.clone();
 
@@ -483,7 +507,7 @@ impl<T: Trait> Resolver<T::AccountId, ExchangeIntention<T::AccountId, AssetId, B
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
 					intention_b: &matched_intention,
-					amount_from_a: amount_a_sell - amount_a_sell + amount_b_buy,
+					amount_from_a: amount_b_buy,
 					amount_from_b: amount_b_sell,
 					transfers: Vec::<Transfer<T>>::new(),
 				};

@@ -242,9 +242,6 @@ impl<'a, T: Trait> DirectTradeData<'a, T> {
 
 	/// Reserve amount.
 	fn reserve_if_can(asset: AssetId, who: &T::AccountId, amount: Balance) -> bool {
-		match T::Currency::reserve(asset, who, amount) {
-			Ok(_) => true,
-			Err(_) => false,
-		}
+		T::Currency::reserve(asset, who, amount).is_ok()
 	}
 }

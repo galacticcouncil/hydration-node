@@ -1,11 +1,11 @@
 use super::*;
-use crate::mock::{
+pub use crate::mock::{
 	calculate_sale_price, Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX,
 };
 use frame_support::{assert_noop, assert_ok};
 use primitives::traits::AMM as AMMPool;
 
-fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
 	ext.execute_with(|| System::set_block_number(1));
 	ext

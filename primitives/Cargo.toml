@@ -2,60 +2,38 @@
 authors = ['GalacticCouncil']
 edition = '2018'
 name = 'primitives'
-version = '1.0.0'
+version = '2.0.0'
 
-[dependencies.sp-std]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+[build-dependencies]
+wasm-builder-runner = {package = 'substrate-wasm-builder-runner', version = '1.0.5'}
 
+# alias "parity-scale-code" to "codec"
 [dependencies.codec]
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
 version = '1.3.4'
 
-[dependencies.frame-support]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+[dependencies]
+primitive-types = {default-features = false, version = '0.7.2'}
+serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
-[dependencies.sp-runtime]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+# Substrate dependencies
+frame-support = {default-features = false, version = '2.0.0'}
+frame-system = {default-features = false, version = '2.0.0'}
+sp-std = {default-features = false, version = '2.0.0'}
 
-[dependencies.frame-system]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.serde]
-features = ['derive']
-optional = true
-version = '1.0.101'
-
-[dependencies.primitive-types]
-default-features = false
-package = 'primitive-types'
-version = '0.7.2'
+[dev-dependencies]
+sp-core = {default-features = false, version = '2.0.0'}
+sp-io = {default-features = false, version = '2.0.0'}
+sp-runtime = {default-features = false, version = '2.0.0'}
 
 [features]
 default = ['std']
 std = [
-  'frame-support/std',
   'codec/std',
-  'serde',
-  'sp-std/std',
   'primitive-types/std',
+  'serde',
+  'frame-support/std',
+  'sp-std/std',
 ]
-
-[build-dependencies.wasm-builder-runner]
-git = 'https://github.com/paritytech/substrate.git'
-package = 'substrate-wasm-builder-runner'
-tag = 'v2.0.0-rc6'
-version = '1.0.5'

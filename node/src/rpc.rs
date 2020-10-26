@@ -7,14 +7,12 @@
 
 use std::sync::Arc;
 
-use hack_hydra_dx_runtime::{opaque::Block, AccountId, Index};
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
-use sp_block_builder::BlockBuilder;
+use hack_hydra_dx_runtime::{opaque::Block, AccountId, AssetId, Balance, Index};
 pub use sc_rpc_api::DenyUnsafe;
+use sp_api::ProvideRuntimeApi;
+use sp_block_builder::BlockBuilder;
+use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_transaction_pool::TransactionPool;
-use primitives::{AssetId, Balance};
-
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -27,21 +25,20 @@ pub struct FullDeps<C, P> {
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P>(
-	deps: FullDeps<C, P>,
-) -> jsonrpc_core::IoHandler<sc_rpc::Metadata> where
+pub fn create_full<C, P>(deps: FullDeps<C, P>) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
+where
 	C: ProvideRuntimeApi<Block>,
-	C: HeaderBackend<Block> + HeaderMetadata<Block, Error=BlockChainError> + 'static,
+	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-	C::Api: amm_rpc::AMMRuntimeApi<Block, AccountId, AssetId, Balance>,
+	C::Api: module_amm_rpc::AMMRuntimeApi<Block, AccountId, AssetId, Balance>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + 'static,
 {
-	use amm_rpc::{AMMApi, AMM};
-	use substrate_frame_rpc_system::{FullSystem, SystemApi};
+	use module_amm_rpc::{AMMApi, AMM};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
+	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 
 	let mut io = jsonrpc_core::IoHandler::default();
 	let FullDeps {
@@ -50,13 +47,15 @@ pub fn create_full<C, P>(
 		deny_unsafe,
 	} = deps;
 
-	io.extend_with(
-		SystemApi::to_delegate(FullSystem::new(client.clone(), pool, deny_unsafe))
-	);
+	io.extend_with(SystemApi::to_delegate(FullSystem::new(
+		client.clone(),
+		pool,
+		deny_unsafe,
+	)));
 
-	io.extend_with(
-		TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone()))
-	);
+	io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
+		client.clone(),
+	)));
 
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed

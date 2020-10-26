@@ -28,80 +28,121 @@ use crate::Module as AMM;
 use primitives::{AssetId, Balance, Price};
 
 const SEED: u32 = 1;
-const MAX_USER_INDEX: u32 = 1000;
-const MAX_AMOUNT: u32 = 1_000_000;
 
 fn funded_account<T: Trait>(name: &'static str, index: u32) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
-	match T::Currency::update_balance(1, &caller, 1_000_000_000_000_000) {
-		_ => {} // let's do nothing here if error, let's just fail the benchmark test ( very rare i would say )
-	}
-	match T::Currency::update_balance(2, &caller, 1_000_000_000_000_000) {
-		_ => {} // let's do nothing here if error, let's just fail the benchmark test ( very rare i would say )
-	}
+	T::Currency::update_balance(1, &caller, 1_000_000_000_000_000).unwrap();
+	T::Currency::update_balance(2, &caller, 1_000_000_000_000_000).unwrap();
 	caller
 }
 
 benchmarks! {
 	_ {
-		let u in 1 .. MAX_USER_INDEX => ();
-		let a in 1 .. MAX_AMOUNT=> ();
 	}
 
 	create_pool {
-		let u in ...;
-		let a in ...;
-
-		let caller = funded_account::<T>("caller", u);
-
-		let asset_a: AssetId = 1;
-		let asset_b: AssetId = 2;
-		let amount : Balance = a as u128;
-		let initial_price : Price = Price::from(10);
-
-	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, initial_price)
-
-
-	add_liquidity {
-		let u in ...;
-
-		let caller = funded_account::<T>("caller", u);
-
-		let asset_a: AssetId = 1;
-		let asset_b: AssetId = 2;
-		let amount : Balance = 100;
-		let max_limit : Balance = 10 * 1_000_000;
-
-		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, Price::from(10))?;
-
-	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, max_limit)
-
-	remove_liquidity {
-		let u in ...;
-
-		let caller = funded_account::<T>("caller", u);
-
-		let asset_a: AssetId = 1;
-		let asset_b: AssetId = 2;
-		let amount : Balance = 10;
-
-		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), 1,2, 1000, Price::from(10))?;
-
-	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount)
-
-	sell {
-		let u in ...;
-
-		let caller = funded_account::<T>("caller", u);
+		let caller = funded_account::<T>("caller", 0);
 
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
 		let amount : Balance = 10 * 1_000_000_000;
+		let initial_price : Price = Price::from(2);
+
+	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, initial_price)
+	verify {
+		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999990000000000);
+	}
+
+	add_liquidity {
+		let maker = funded_account::<T>("maker", 0);
+		let caller = funded_account::<T>("caller", 0);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 10 * 1_000_000_000;
+		let max_limit : Balance = 10 * 1_000_000_000_000;
+
+		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a,asset_b, 1_000_000_000, Price::from(1))?;
+
+	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, max_limit)
+	verify {
+		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999990000000000);
+		assert_eq!(T::Currency::free_balance(asset_b, &caller), 999990000000000);
+	}
+
+	remove_liquidity {
+		let maker = funded_account::<T>("maker", 0);
+		let caller = funded_account::<T>("caller", 0);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 1_000_000_000;
+
+		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), 1,2, 10_000_000_000, Price::from(2))?;
+		AMM::<T>::add_liquidity(RawOrigin::Signed(caller.clone()).into(), 1,2, 5_000_000_000, 10_000_000_000)?;
+
+		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999995000000000);
+		assert_eq!(T::Currency::free_balance(asset_b, &caller), 999990000000000);
+
+	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount)
+	verify {
+		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999995000000000);
+		assert_eq!(T::Currency::free_balance(asset_b, &caller), 999990000000000);
+	}
+
+	sell {
+		let maker = funded_account::<T>("maker", 0);
+		let caller = funded_account::<T>("caller", 0);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 1 * 1_000_000_000;
 		let discount = false;
 
-		let min_bought = 80 * 1_000_000_000;
+		let min_bought: Balance = 10 * 1_000;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(caller.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from(10))?;
+		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from(3))?;
 
-	}: _(RawOrigin::Signed(caller), asset_a, asset_b, amount, min_bought, discount)
+	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, min_bought, discount)
+	verify{
+		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999999000000000);
+		assert_eq!(T::Currency::free_balance(asset_b, &caller), 1000002991014968);
+	}
+
+	buy {
+		let maker = funded_account::<T>("maker", 0);
+		let caller = funded_account::<T>("caller", 0);
+
+		let asset_a: AssetId = 1;
+		let asset_b: AssetId = 2;
+		let amount : Balance = 1 * 1_000_000_000;
+		let discount = false;
+
+		let max_sold: Balance = 6_000_000_000;
+
+		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from(3))?;
+
+	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, max_sold, discount)
+	verify{
+		assert_eq!(T::Currency::free_balance(asset_a, &caller), 1000001000000000);
+		assert_eq!(T::Currency::free_balance(asset_b, &caller), 999996990984966);
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::tests::{new_test_ext, Test};
+	use frame_support::assert_ok;
+
+	#[test]
+	fn test_benchmarks() {
+		new_test_ext().execute_with(|| {
+			assert_ok!(test_benchmark_create_pool::<Test>());
+			assert_ok!(test_benchmark_add_liquidity::<Test>());
+			assert_ok!(test_benchmark_remove_liquidity::<Test>());
+			assert_ok!(test_benchmark_sell::<Test>());
+			assert_ok!(test_benchmark_buy::<Test>());
+		});
+	}
 }
