@@ -47,7 +47,7 @@ fn initialize_pool<T: Trait>(
 	price: Price,
 ) -> Result<(), DispatchError> {
 	ammpool::Module::<T>::create_pool(
-		RawOrigin::Signed(caller.clone()).into(),
+		RawOrigin::Signed(caller).into(),
 		asset_a,
 		asset_b,
 		amount,
