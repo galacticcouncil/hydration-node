@@ -1,11 +1,13 @@
 use crate::{Module, Trait};
-use sp_core::H256;
 use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
-};
 use frame_system as system;
 use primitives::{AssetId, Balance};
+use sp_core::H256;
+use sp_runtime::{
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
+	Perbill,
+};
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -43,7 +45,7 @@ impl system::Trait for Test {
 	type MaximumBlockLength = MaximumBlockLength;
 	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
-	type ModuleToIndex = ();
+	type PalletInfo = ();
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
@@ -84,9 +86,7 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![
-				(ALICE, HDX, 1000u128),
-			],
+			endowed_accounts: vec![(ALICE, HDX, 1000u128)],
 		}
 	}
 }
@@ -98,8 +98,8 @@ impl ExtBuilder {
 		orml_tokens::GenesisConfig::<Test> {
 			endowed_accounts: self.endowed_accounts,
 		}
-			.assimilate_storage(&mut t)
-			.unwrap();
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		t.into()
 	}

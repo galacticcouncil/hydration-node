@@ -1,10 +1,12 @@
 use crate::{Module, Trait};
-use sp_core::H256;
 use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
-use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
-};
 use frame_system as system;
+use sp_core::H256;
+use sp_runtime::{
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
+	Perbill,
+};
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -42,7 +44,7 @@ impl system::Trait for Test {
 	type MaximumBlockLength = MaximumBlockLength;
 	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
-	type ModuleToIndex = ();
+	type PalletInfo = ();
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();

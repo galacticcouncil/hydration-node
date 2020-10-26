@@ -1,8 +1,7 @@
-// Creating mock runtime here
+#![cfg(test)]
 
 use super::*;
-use crate::{AssetPairAccountIdFor, Module, Trait};
-use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
+use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -11,33 +10,31 @@ use sp_runtime::{
 	Perbill,
 };
 
-use primitives::{fee, AssetId, Balance};
+use pallet_amm::AssetPairAccountIdFor;
+use primitives::{AssetId, Balance};
 
+pub type Amount = i128;
 pub type AccountId = u64;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const CHARLIE: AccountId = 3;
+pub const DAVE: AccountId = 4;
+pub const FERDIE: AccountId = 5;
+pub const GEORGE: AccountId = 6;
 
 pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
-pub const ACA: AssetId = 3000;
+pub const ETH: AssetId = 3000;
 
-pub const FEE_RATE: u128 = fee::FEE_RATE;
-
-mod amm {
-	pub use super::super::*;
-}
-
-impl_outer_event! {
-	pub enum TestEvent for Test{
-		system<T>,
-		amm<T>,
-		orml_tokens<T>,
+/*impl_outer_dispatch! {
+	pub enum Call for Test where origin: Origin {
+		exchange::ExchangeModule,
 	}
-}
+}*/
 
 impl_outer_origin! {
-	pub enum Origin for Test {}
+	pub enum Origin for Test where system = frame_system {}
 }
 
 // For testing the pallet, we construct most of a mock runtime. This means
@@ -45,6 +42,7 @@ impl_outer_origin! {
 // configuration traits of pallets we want to use.
 #[derive(Clone, Eq, PartialEq)]
 pub struct Test;
+
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const MaximumBlockWeight: Weight = 1024;
@@ -53,11 +51,6 @@ parameter_types! {
 
 	pub const HDXAssetId: AssetId = HDX;
 }
-
-impl pallet_asset_registry::Trait for Test {
-	type AssetId = AssetId;
-}
-
 impl system::Trait for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
@@ -69,27 +62,25 @@ impl system::Trait for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = TestEvent;
+	type Event = ();
 	type BlockHashCount = BlockHashCount;
 	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
 	type BlockExecutionWeight = ();
 	type ExtrinsicBaseWeight = ();
-	type MaximumBlockLength = MaximumBlockLength;
 	type MaximumExtrinsicWeight = MaximumBlockWeight;
+	type MaximumBlockLength = MaximumBlockLength;
 	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
+	type PalletInfo = ();
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type PalletInfo = ();
 }
 
-pub type Amount = i128;
-
 impl orml_tokens::Trait for Test {
-	type Event = TestEvent;
+	type Event = ();
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -114,31 +105,57 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl Trait for Test {
-	type Event = TestEvent;
+impl pallet_asset_registry::Trait for Test {
+	type AssetId = AssetId;
+}
+
+impl pallet_amm::Trait for Test {
+	type Event = ();
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
 	type HDXAssetId = HDXAssetId;
 	type WeightInfo = ();
 }
-pub type AMM = Module<Test>;
+
+pub type AMMModule = pallet_amm::Module<Test>;
 pub type System = system::Module<Test>;
+
+impl pallet_exchange::Trait for Test {
+	type Event = ();
+	type AMMPool = AMMModule;
+	type Currency = Currency;
+	type Resolver = pallet_exchange::Module<Test>;
+	type WeightInfo = ();
+}
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 }
 
-// Returns default values for genesis config
+impl crate::Trait for Test {}
+
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![
 				(ALICE, HDX, 1000_000_000_000_000u128),
 				(BOB, HDX, 1000_000_000_000_000u128),
-				(ALICE, ACA, 1000_000_000_000_000u128),
-				(BOB, ACA, 1000_000_000_000_000u128),
+				(CHARLIE, HDX, 1000_000_000_000_000u128),
+				(DAVE, HDX, 1000_000_000_000_000u128),
+				(FERDIE, HDX, 1000_000_000_000_000u128),
+				(GEORGE, HDX, 1000_000_000_000_000u128),
+				(ALICE, ETH, 1000_000_000_000_000u128),
+				(BOB, ETH, 1000_000_000_000_000u128),
+				(CHARLIE, ETH, 1000_000_000_000_000u128),
+				(DAVE, ETH, 1000_000_000_000_000u128),
+				(FERDIE, ETH, 1000_000_000_000_000u128),
+				(GEORGE, ETH, 1000_000_000_000_000u128),
 				(ALICE, DOT, 1000_000_000_000_000u128),
 				(BOB, DOT, 1000_000_000_000_000u128),
+				(CHARLIE, DOT, 1000_000_000_000_000u128),
+				(DAVE, DOT, 1000_000_000_000_000u128),
+				(FERDIE, DOT, 1000_000_000_000_000u128),
+				(GEORGE, DOT, 1000_000_000_000_000u128),
 			],
 		}
 	}
@@ -146,11 +163,6 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	// builds genesis config
-
-	pub fn with_accounts(mut self, accounts: Vec<(AccountId, AssetId, Balance)>) -> Self {
-		self.endowed_accounts = accounts;
-		self
-	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
@@ -165,8 +177,8 @@ impl ExtBuilder {
 	}
 }
 
-pub fn calculate_sale_price(sell_total: u128, buy_total: u128, amount: u128) -> u128 {
-	let amount_sell_fee = amount * FEE_RATE;
-	let sell_reserve = sell_total * 1000u128;
-	return ((buy_total * amount_sell_fee) / (sell_reserve + amount_sell_fee)) + 1;
+pub fn new_test_ext() -> sp_io::TestExternalities {
+	let mut ext = ExtBuilder::default().build();
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }

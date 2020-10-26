@@ -1,18 +1,14 @@
-[patch.crates-io]
-frame-support = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
-frame-system = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
-sp-core = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
-sp-io = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
-sp-runtime = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
-sp-std = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'v2.0.0-rc6', version = '2.0.0-rc6'}
-
-
 [profile.release]
 panic = 'unwind'
 
 [workspace]
 members = [
-    'node',
-    'pallets/template',
-    'runtime',
+  # 'pallets/proposal', Update this
+  'node',
+  'pallets/amm',
+  'pallets/asset-registry',
+  'pallets/exchange',
+  'pallets/template',
+  'primitives',
+  'runtime',
 ]

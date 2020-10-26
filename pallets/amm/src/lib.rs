@@ -1,40 +1,50 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use frame_support::sp_runtime::{
+	traits::{Hash, Zero},
+	DispatchError, FixedPointNumber,
+};
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
 use primitives::{fee, traits::AMM, AssetId, Balance, Price};
-use sp_core::crypto::UncheckedFrom;
-use sp_runtime::{
-	traits::{Hash, Zero},
-	DispatchError, FixedPointNumber,
-};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use primitives::{HighPrecisionBalance, LowPrecisionBalance};
 
-use asset_registry;
-
 use core::convert::TryFrom;
+use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
+use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::AMMTransfer;
 
 #[cfg(test)]
 mod mock;
 
+mod benchmarking;
+mod default_weights;
 #[cfg(test)]
 mod tests;
 
-mod benchmarking;
+pub trait WeightInfo {
+	fn create_pool() -> Weight;
+	fn add_liquidity() -> Weight;
+	fn remove_liquidity() -> Weight;
+	fn sell() -> Weight;
+	fn buy() -> Weight;
+}
 
 /// The pallet's configuration trait.
-pub trait Trait: frame_system::Trait + asset_registry::Trait {
+pub trait Trait: frame_system::Trait + pallet_asset_registry::Trait {
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 	type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
 	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
 
 	type HDXAssetId: Get<AssetId>;
+
+	/// Weight information for the extrinsics.
+	type WeightInfo: WeightInfo;
 }
 
 pub trait AssetPairAccountIdFor<AssetId: Sized, AccountId: Sized> {
@@ -169,7 +179,7 @@ decl_module! {
 		// this is needed only if you are using events in your pallet
 		fn deposit_event() = default;
 
-		#[weight = 10_000]
+		#[weight =  <T as Trait>::WeightInfo::create_pool()]
 		pub fn create_pool(
 			origin,
 			asset_a: AssetId,
@@ -220,7 +230,7 @@ decl_module! {
 				false => {
 					let token_name = Self::get_token_name(asset_a, asset_b);
 
-					let share_token = <asset_registry::Module<T>>::create_asset(token_name)?.into();
+					let share_token = <pallet_asset_registry::Module<T>>::create_asset(token_name)?.into();
 
 					<ShareToken<T>>::insert(&pair_account, &share_token);
 					<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
@@ -240,7 +250,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight = 10_000]
+		#[weight =  <T as Trait>::WeightInfo::add_liquidity()]
 		pub fn add_liquidity(
 			origin,
 			asset_a: AssetId,
@@ -283,10 +293,10 @@ decl_module! {
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 			let total_liquidity = Self::total_liquidity(&pair_account);
 
-			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount_a).into();
-			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve).into();
-			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve).into();
-			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_liquidity).into();
+			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount_a);
+			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
+			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
+			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_liquidity);
 
 			let b_required_hp = amount_hp.checked_mul( b_reserve_hp).expect("Cannot overflow").checked_div( a_reserve_hp).expect("Cannot panic as reserve cannot be 0");
 
@@ -331,7 +341,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight = 10_000]
+		#[weight =  <T as Trait>::WeightInfo::remove_liquidity()]
 		pub fn remove_liquidity(
 			origin,
 			asset_a: AssetId,
@@ -374,10 +384,10 @@ decl_module! {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount).into();
-			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve).into();
-			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve).into();
-			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_shares).into();
+			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
+			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
+			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
+			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_shares);
 
 			let remove_amount_a_hp = amount_hp.checked_mul( a_reserve_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
 
@@ -424,7 +434,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight = 10_000]
+		#[weight =  <T as Trait>::WeightInfo::sell()]
 		pub fn sell(
 			origin,
 			asset_sell: AssetId,
@@ -438,7 +448,7 @@ decl_module! {
 			<Self as AMM<_,_,_>>::sell(&who, asset_sell, asset_buy, amount_sell, max_limit, discount)
 		}
 
-		#[weight = 10_000]
+		#[weight =  <T as Trait>::WeightInfo::buy()]
 		pub fn buy(
 			origin,
 			asset_buy: AssetId,
@@ -502,7 +512,7 @@ impl<T: Trait> Module<T> {
 		if let Some(assets) = Self::get_pool_assets(&pool_address) {
 			for item in &assets {
 				let reserve = T::Currency::free_balance(*item, &pool_address);
-				balances.push((item.clone(), reserve));
+				balances.push((*item, reserve));
 			}
 		}
 		Some(balances)
@@ -513,9 +523,9 @@ impl<T: Trait> Module<T> {
 		buy_reserve: Balance,
 		sell_amount: Balance,
 	) -> Result<Balance, dispatch::DispatchError> {
-		let sell_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_amount).into();
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve).into();
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve).into();
+		let sell_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_amount);
+		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
+		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
 
 		let numerator = buy_reserve_hp.checked_mul(sell_amount_hp).unwrap();
 		let denominator = sell_reserve_hp.checked_add(sell_amount_hp).unwrap();
@@ -536,9 +546,9 @@ impl<T: Trait> Module<T> {
 		buy_reserve: Balance,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount).into();
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve).into();
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve).into();
+		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
+		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
+		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
 
 		let numerator = sell_reserve_hp.checked_mul(amount_hp).unwrap();
 		let denominator = buy_reserve_hp.checked_sub(amount_hp).unwrap();
@@ -550,7 +560,7 @@ impl<T: Trait> Module<T> {
 		let buy_price = buy_price_lp.unwrap();
 
 		let buy_price_round_up = buy_price
-			.checked_add(Balance::from(1u128))
+			.checked_add(1u128)
 			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
 
 		Ok(buy_price_round_up)
@@ -608,9 +618,9 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		buy_reserve: Balance,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount).into();
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve).into();
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve).into();
+		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
+		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
+		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
 
 		let spot_price_hp = buy_reserve_hp
 			.checked_mul(amount_hp)
@@ -684,11 +694,11 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer = AMMTransfer {
 			origin: who.clone(),
-			asset_sell: asset_sell,
-			asset_buy: asset_buy,
+			asset_sell,
+			asset_buy,
 			amount: amount_sell,
 			amount_out: sale_price,
-			discount: discount,
+			discount,
 			discount_amount: discount_fee,
 		};
 
@@ -776,11 +786,11 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer = AMMTransfer {
 			origin: who.clone(),
-			asset_sell: asset_sell,
-			asset_buy: asset_buy,
+			asset_sell,
+			asset_buy,
 			amount: amount_buy,
 			amount_out: buy_price,
-			discount: discount,
+			discount,
 			discount_amount: discount_fee,
 		};
 

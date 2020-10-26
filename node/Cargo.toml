@@ -1,191 +1,60 @@
 [package]
 authors = ['GalacticCouncil']
 build = 'build.rs'
-description = 'Hydra DX'
+description = 'Hack Hydra DX'
 edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hack-hydra-dx'
+homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
 license = 'Unlicense'
 name = 'hack-hydra-dx'
-repository = 'https://github.com/galacticcouncil/hack-hydra-dx'
-version = '2.0.0-rc6'
-
-[package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+repository = 'https://github.com/galacticcouncil/hack.hydradx-node'
+version = '2.0.0'
 
 [[bin]]
 name = 'hack-hydra-dx'
 
-[dependencies.hack-hydra-dx-runtime]
-path = '../runtime'
-version = '2.0.0-rc6'
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
 
-[dependencies.pallet-transaction-payment-rpc]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sc-basic-authorship]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sc-cli]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-optional = true
-
-[dependencies.sc-client-api]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sc-consensus]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sc-consensus-aura]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sc-executor]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sc-finality-grandpa]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sc-rpc]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sc-rpc-api]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sc-service]
-features = ['wasmtime']
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sc-transaction-pool]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-api]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-block-builder]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-blockchain]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-consensus]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sp-consensus-aura]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '0.8.0-rc6'
-
-[dependencies.sp-core]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-finality-grandpa]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-inherents]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-runtime]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.sp-transaction-pool]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.substrate-frame-rpc-system]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
+[build-dependencies]
+substrate-build-script-utils = '2.0.0'
 
 [dependencies]
-jsonrpc-core = '14.0.5'
+jsonrpc-core = '15.0.0'
 structopt = '0.3.8'
+serde_json = "1.0.44"
 
-[dependencies.serde_json]
-default-features = false
-version = '1.0.41'
+# local dependencies
+hack-hydra-dx-runtime = { path = '../runtime', version = '2.0.0' }
+primitives = { path = '../primitives', version = '2.0.0' }
+module-amm-rpc = { path = '../pallets/amm/rpc', version = '2.0.0' }
 
-[dependencies.primitives]
-default-features = false
-package = 'primitives'
-path = '../primitives'
-
-[build-dependencies.substrate-build-script-utils]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.frame-benchmarking-cli]
-git = 'https://github.com/paritytech/substrate.git'
-optional = true
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.frame-benchmarking]
-git = 'https://github.com/paritytech/substrate.git'
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[build-dependencies.frame-benchmarking-cli]
-git = 'https://github.com/paritytech/substrate.git'
-optional = true
-tag = 'v2.0.0-rc6'
-version = '2.0.0-rc6'
-
-[dependencies.amm-rpc]
-default-features = false
-package = 'module-amm-rpc'
-path = '../pallets/amm/rpc'
-version = '1.0.0'
+# Substrate dependencies
+frame-benchmarking = '2.0.0'
+frame-benchmarking-cli = '2.0.0'
+pallet-transaction-payment-rpc = '2.0.0'
+sc-basic-authorship = '0.8.0'
+sc-cli = { features = ['wasmtime'], version = '0.8.0' }
+sc-client-api = '2.0.0'
+sc-consensus = '0.8.0'
+sc-consensus-aura = '0.8.0'
+sc-executor = { features = ['wasmtime'], version = '0.8.0' }
+sc-finality-grandpa = '0.8.0'
+sc-rpc = '2.0.0'
+sc-rpc-api = '0.8.0'
+sc-service = { features = ['wasmtime'], version = '0.8.0' }
+sc-transaction-pool = '2.0.0'
+sp-api = '2.0.0'
+sp-block-builder = '2.0.0'
+sp-blockchain = '2.0.0'
+sp-consensus = '0.8.0'
+sp-consensus-aura = '0.8.0'
+sp-core = '2.0.0'
+sp-finality-grandpa = '2.0.0'
+sp-inherents = '2.0.0'
+sp-runtime = '2.0.0'
+sp-transaction-pool = '2.0.0'
+substrate-frame-rpc-system = '2.0.0'
 
 [features]
-cli = [
-  "sc-cli",
-  "frame-benchmarking-cli",
-]
-default = ["cli"]
-runtime-benchmarks = [
-  "hack-hydra-dx-runtime/runtime-benchmarks",
-  "frame-benchmarking-cli",
-]
+default = []
+runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks']

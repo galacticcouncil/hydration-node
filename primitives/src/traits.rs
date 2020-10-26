@@ -42,7 +42,7 @@ pub trait AMM<AccountId, AssetId, Amount> {
 		amount_buy: Amount,
 		min_bought: Amount,
 		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, Amount>, sp_runtime::DispatchError>;
+	) -> Result<AMMTransfer<AccountId, AssetId, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
 	fn execute_sell(transfer: &AMMTransfer<AccountId, AssetId, Amount>) -> dispatch::DispatchResult;
@@ -77,7 +77,7 @@ pub trait AMM<AccountId, AssetId, Amount> {
 		amount_buy: Amount,
 		max_limit: Amount,
 		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, Amount>, sp_runtime::DispatchError>;
+	) -> Result<AMMTransfer<AccountId, AssetId, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
 	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetId, Amount>) -> dispatch::DispatchResult;
@@ -104,5 +104,5 @@ pub trait Resolver<AccountId, Intention, E> {
 
 	/// Resolve intentions by either directly trading with each other or via AMM pool.
 	/// Intention ```intention``` must be validated prior to call this function.
-	fn resolve_matched_intentions(pair_account: &AccountId, intention: &Intention, matched: &Vec<Intention>);
+	fn resolve_matched_intentions(pair_account: &AccountId, intention: &Intention, matched: &[Intention]);
 }

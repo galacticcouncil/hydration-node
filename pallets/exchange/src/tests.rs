@@ -5,6 +5,8 @@ use frame_support::{assert_noop, assert_ok};
 use primitives::Price;
 use sp_runtime::{DispatchError, FixedPointNumber};
 
+use pallet_amm as amm;
+
 const ENDOWED_AMOUNT: u128 = 1_000_000_000_000_000;
 
 fn new_test_ext() -> sp_io::TestExternalities {

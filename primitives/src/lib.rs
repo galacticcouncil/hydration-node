@@ -2,10 +2,10 @@
 
 use codec::{Decode, Encode};
 
+use frame_support::sp_runtime::FixedU128;
 use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_runtime::FixedU128;
 
 pub mod traits;
 
@@ -92,6 +92,6 @@ pub mod fee {
 
 	// Round up
 	pub fn fixed_fee(amount: Balance) -> Option<Balance> {
-		return amount.checked_add(FIXED_ROUND_UP);
+		amount.checked_add(FIXED_ROUND_UP)
 	}
 }
