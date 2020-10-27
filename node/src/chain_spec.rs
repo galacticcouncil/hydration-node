@@ -35,13 +35,8 @@ where
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, GrandpaId, AuraId) {
-	(
-		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
-		get_account_id_from_seed::<sr25519::Public>(seed),
-		get_from_seed::<GrandpaId>(seed),
-		get_from_seed::<AuraId>(seed),
-	)
+pub fn authority_keys_from_seed(seed: &str) -> (AuraId, GrandpaId) {
+	(get_from_seed::<AuraId>(seed), get_from_seed::<GrandpaId>(seed))
 }
 
 pub fn development_config() -> Result<ChainSpec, String> {
@@ -138,7 +133,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
 	wasm_binary: &[u8],
-	_initial_authorities: Vec<(AccountId, AccountId, GrandpaId, AuraId)>,
+	initial_authorities: Vec<(AuraId, GrandpaId)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
@@ -153,8 +148,12 @@ fn testnet_genesis(
 			// Configure endowed accounts with initial balance of 1 << 60.
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
 		}),
-		pallet_aura: Some(AuraConfig { authorities: vec![] }),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
+		pallet_aura: Some(AuraConfig {
+			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
+		}),
+		pallet_grandpa: Some(GrandpaConfig {
+			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
+		}),
 		pallet_sudo: Some(SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
