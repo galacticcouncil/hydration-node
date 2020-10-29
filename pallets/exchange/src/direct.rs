@@ -12,8 +12,8 @@ pub struct Transfer<'a, T: Trait> {
 /// Hold info about a direct trade between two intentions.
 /// After a direct trade is prepared - ```transfers``` contains all necessary transfers to complete the trade.
 pub struct DirectTradeData<'a, T: Trait> {
-	pub intention_a: &'a ExchangeIntention<T::AccountId, AssetId, Balance>,
-	pub intention_b: &'a ExchangeIntention<T::AccountId, AssetId, Balance>,
+	pub intention_a: &'a Intention<T>,
+	pub intention_b: &'a Intention<T>,
 	pub amount_from_a: Balance,
 	pub amount_from_b: Balance,
 	pub transfers: Vec<Transfer<'a, T>>,
