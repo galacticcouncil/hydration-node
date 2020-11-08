@@ -527,10 +527,16 @@ impl<T: Trait> Module<T> {
 		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
 		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
 
-		let numerator = buy_reserve_hp.checked_mul(sell_amount_hp).unwrap();
-		let denominator = sell_reserve_hp.checked_add(sell_amount_hp).unwrap();
+		let numerator = buy_reserve_hp
+			.checked_mul(sell_amount_hp)
+			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
+		let denominator = sell_reserve_hp
+			.checked_add(sell_amount_hp)
+			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
 
-		let sale_price_hp = numerator.checked_div(denominator).unwrap();
+		let sale_price_hp = numerator
+			.checked_div(denominator)
+			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
 
 		let sale_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(sale_price_hp);
 		ensure!(sale_price_lp.is_ok(), Error::<T>::SellAssetAmountInvalid);
@@ -546,14 +552,21 @@ impl<T: Trait> Module<T> {
 		buy_reserve: Balance,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
+		ensure!(amount <= buy_reserve, Error::<T>::InsufficientPoolAssetBalance);
+
 		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
 		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
 		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
 
-		let numerator = sell_reserve_hp.checked_mul(amount_hp).unwrap();
-		let denominator = buy_reserve_hp.checked_sub(amount_hp).unwrap();
-
-		let buy_price_hp = numerator.checked_div(denominator).unwrap();
+		let numerator = sell_reserve_hp
+			.checked_mul(amount_hp)
+			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
+		let denominator = buy_reserve_hp
+			.checked_sub(amount_hp)
+			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
+		let buy_price_hp = numerator
+			.checked_div(denominator)
+			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
 
 		let buy_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(buy_price_hp);
 		ensure!(buy_price_lp.is_ok(), Error::<T>::BuyAssetAmountInvalid);

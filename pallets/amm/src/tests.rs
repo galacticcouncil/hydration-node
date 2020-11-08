@@ -1050,3 +1050,49 @@ fn buy_test_exceeding_max_limit() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
 	});
 }
+
+#[test]
+fn test_calculate_sell_price() {
+	ExtBuilder::default().build().execute_with(|| {
+		let sell_reserve: Balance = 10000000000000;
+		let buy_reserve: Balance = 100000;
+		let sell_amount: Balance = 100000000000;
+		let result = AMM::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
+		assert_ok!(result);
+		assert_eq!(result.unwrap(), 991);
+	});
+}
+
+#[test]
+fn test_calculate_sell_price_invalid() {
+	ExtBuilder::default().build().execute_with(|| {
+		let sell_reserve: Balance = 0;
+		let buy_reserve: Balance = 1000;
+		let sell_amount: Balance = 0;
+		let result = AMM::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
+		assert_noop!(result, Error::<Test>::SellAssetAmountInvalid);
+	});
+}
+
+#[test]
+fn test_calculate_buy_price_insufficient_pool_balance() {
+	ExtBuilder::default().build().execute_with(|| {
+		let sell_reserve: Balance = 10000000000000;
+		let buy_reserve: Balance = 100000;
+		let buy_amount: Balance = 100000000000;
+		let result = AMM::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
+		assert_noop!(result, Error::<Test>::InsufficientPoolAssetBalance);
+	});
+}
+
+#[test]
+fn test_calculate_buy_price() {
+	ExtBuilder::default().build().execute_with(|| {
+		let sell_reserve: Balance = 10000000000000;
+		let buy_reserve: Balance = 10000000;
+		let buy_amount: Balance = 1000000;
+		let result = AMM::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
+		assert_ok!(result);
+		assert_eq!(result.unwrap(), 1111111111112);
+	});
+}
