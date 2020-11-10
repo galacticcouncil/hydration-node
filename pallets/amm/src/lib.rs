@@ -8,7 +8,7 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{fee, traits::AMM, AssetId, Balance, Price};
+use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use primitives::{HighPrecisionBalance, LowPrecisionBalance};
@@ -163,6 +163,10 @@ decl_error! {
 		CannotApplyDiscount,
 
 		InvalidLiquidityAmount,
+
+		MaxOutRatioExceeded,
+
+		MaxInRatioExceeded,
 	}
 }
 
@@ -675,6 +679,11 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let asset_sell_total = T::Currency::free_balance(asset_sell, &pair_account);
 		let asset_buy_total = T::Currency::free_balance(asset_buy, &pair_account);
 
+		ensure!(
+			amount_sell <= asset_sell_total / MAX_IN_RATIO,
+			Error::<T>::MaxInRatioExceeded
+		);
+
 		let mut hdx_amount = 0;
 
 		let transfer_fee = Self::calculate_fees(amount_sell, discount, &mut hdx_amount)?;
@@ -756,6 +765,11 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let asset_sell_reserve = T::Currency::free_balance(asset_sell, &pair_account);
 
 		ensure!(asset_buy_reserve > amount_buy, Error::<T>::InsufficientPoolAssetBalance);
+
+		ensure!(
+			amount_buy <= asset_buy_reserve / MAX_OUT_RATIO,
+			Error::<T>::MaxOutRatioExceeded
+		);
 
 		// If discount, pool for Sell asset and HDX must exist
 		if discount {
