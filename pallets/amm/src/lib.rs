@@ -208,8 +208,8 @@ decl_module! {
 				Error::<T>::TokenPoolAlreadyExists
 			);
 
-			let asset_b_amount= initial_price.checked_mul_int(amount).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
-			let shares_added = amount.checked_mul(asset_b_amount).ok_or(Error::<T>::CreatePoolSharesAmountInvalid)?;
+			let asset_b_amount = initial_price.checked_mul_int(amount).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
+			let shares_added = if asset_a < asset_b { amount } else { asset_b_amount };
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &who) >= amount,
@@ -221,8 +221,7 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			// Create pool only if amounts dont overflow
-
+			// Create pool only if amounts don't overflow
 			let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
 			let share_token = match Self::exists(asset_a, asset_b) {
@@ -285,7 +284,7 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			let pair_account = Self::get_pair_id(&asset_a , &asset_b );
+			let pair_account = Self::get_pair_id(&asset_a , &asset_b);
 
 			let share_token = Self::share_token(&pair_account);
 
@@ -296,19 +295,14 @@ decl_module! {
 			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount_a);
 			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
 			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
-			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_liquidity);
 
-			let b_required_hp = amount_hp.checked_mul( b_reserve_hp).expect("Cannot overflow").checked_div( a_reserve_hp).expect("Cannot panic as reserve cannot be 0");
+			let b_required_hp = amount_hp.checked_mul(b_reserve_hp).expect("Cannot overflow").checked_div(a_reserve_hp).expect("Cannot panic as reserve cannot be 0");
 
 			let b_required_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(b_required_hp);
 			ensure!(b_required_lp.is_ok(), Error::<T>::AddAssetAmountInvalid);
 			let amount_b_required = b_required_lp.unwrap();
 
-			let l_minted = amount_hp.checked_mul(liquidity_hp).expect("Cannot overflow").checked_div(a_reserve_hp).expect("Cannot panic as asset reserve cannot be 0");
-
-			let l_minted_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(l_minted);
-			ensure!(l_minted_lp.is_ok(), Error::<T>::AddAssetAmountInvalid);
-			let shares = l_minted_lp.unwrap();
+			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
 
 			ensure!(
 				amount_b_required <= amount_b_max_limit,
@@ -316,11 +310,11 @@ decl_module! {
 			);
 
 			ensure!(
-				shares >= amount_a,
+				shares_added >= Zero::zero(),
 				Error::<T>::InvalidMintedLiquidity
 			);
 
-			let liquidity_amount = total_liquidity.checked_add(shares).ok_or(Error::<T>::InvalidLiquidityAmount)?;
+			let liquidity_amount = total_liquidity.checked_add(shares_added).ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
 			let asset_b_balance = T::Currency::free_balance(asset_b, &who);
 
@@ -332,7 +326,7 @@ decl_module! {
 			T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
 			T::Currency::transfer(asset_b, &who, &pair_account, amount_b_required)?;
 
-			T::Currency::deposit(share_token, &who, shares)?;
+			T::Currency::deposit(share_token, &who, shares_added)?;
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
 
@@ -346,12 +340,12 @@ decl_module! {
 			origin,
 			asset_a: AssetId,
 			asset_b: AssetId,
-			amount: Balance
+			liquidity_amount: Balance
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
-				!amount.is_zero(),
+				!liquidity_amount.is_zero(),
 				Error::<T>::CannotRemoveLiquidityWithZero
 			);
 
@@ -367,12 +361,12 @@ decl_module! {
 			let total_shares = Self::total_liquidity(&pair_account);
 
 			ensure!(
-				total_shares >= amount,
+				total_shares >= liquidity_amount,
 				Error::<T>::InsufficientAssetBalance
 			);
 
 			ensure!(
-				T::Currency::free_balance(share_token, &who) >= amount,
+				T::Currency::free_balance(share_token, &who) >= liquidity_amount,
 				Error::<T>::InsufficientAssetBalance
 			);
 
@@ -384,19 +378,17 @@ decl_module! {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
+			let liquidity_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(liquidity_amount);
 			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
 			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
 			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_shares);
 
-			let remove_amount_a_hp = amount_hp.checked_mul( a_reserve_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
-
+			let remove_amount_a_hp = liquidity_amount_hp.checked_mul(a_reserve_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
 			let remove_amount_a_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_a_hp);
 			ensure!(remove_amount_a_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
 			let remove_amount_a = remove_amount_a_lp.unwrap();
 
-			let remove_amount_b_hp = b_reserve_hp.checked_mul(amount_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
-
+			let remove_amount_b_hp = b_reserve_hp.checked_mul(liquidity_amount_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
 			let remove_amount_b_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_b_hp);
 			ensure!(remove_amount_b_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
 			let remove_amount_b = remove_amount_b_lp.unwrap();
@@ -411,20 +403,18 @@ decl_module! {
 			);
 
 			// Note: this check is not really needed as we already check if amount to remove >= liquidity in pool
-			let liquidity_amount = total_shares.checked_sub(amount).ok_or(Error::<T>::InvalidLiquidityAmount)?;
+			let liquidity_left = total_shares.checked_sub(liquidity_amount).ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
 			T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
 			T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
 
-			T::Currency::withdraw(share_token, &who, amount)?;
+			T::Currency::withdraw(share_token, &who, liquidity_amount)?;
 
-			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
+			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
-			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, amount));
+			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
 
-			let total_liquidity_left = Self::total_liquidity(&pair_account);
-
-			if total_liquidity_left == 0 {
+			if liquidity_left == 0 {
 				<ShareToken<T>>::remove(&pair_account);
 				<PoolAssets<T>>::remove(&pair_account);
 

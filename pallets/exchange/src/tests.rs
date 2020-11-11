@@ -3,6 +3,7 @@ use crate::mock::*;
 use frame_support::sp_runtime::traits::Hash;
 use frame_support::traits::OnFinalize;
 use frame_support::{assert_noop, assert_ok};
+use frame_system::InitKind;
 use primitives::Price;
 use sp_runtime::{DispatchError, FixedPointNumber};
 
@@ -16,12 +17,12 @@ fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-fn _last_event() -> TestEvent {
+fn last_event() -> TestEvent {
 	system::Module::<Test>::events().pop().expect("Event expected").event
 }
 
-fn _expect_event<E: Into<TestEvent>>(e: E) {
-	assert_eq!(_last_event(), e.into());
+fn expect_event<E: Into<TestEvent>>(e: E) {
+	assert_eq!(last_event(), e.into());
 }
 
 fn last_events(n: usize) -> Vec<TestEvent> {
@@ -53,12 +54,15 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 		price
 	));
 
-	expect_events(vec![TestEvent::amm(amm::RawEvent::CreatePool(
-		user,
-		asset_a,
-		asset_b,
-		price.checked_mul_int(amount).unwrap().checked_mul(amount).unwrap(),
-	))]);
+	let shares = if asset_a <= asset_b {
+		amount
+	} else {
+		price.checked_mul_int(amount).unwrap()
+	};
+
+	expect_event(TestEvent::amm(amm::RawEvent::CreatePool(
+		user, asset_a, asset_b, shares,
+	)));
 
 	let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
 	let share_token = AMMModule::share_token(pair_account);
@@ -74,7 +78,16 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	assert_eq!(Currency::free_balance(asset_b, &pair_account), amount_b);
 
 	// Check pool shares
-	assert_eq!(Currency::free_balance(share_token, &user), amount * amount_b);
+	assert_eq!(Currency::free_balance(share_token, &user), shares);
+
+	// Advance blockchain so that we kill old events
+	System::initialize(
+		&1,
+		&[0u8; 32].into(),
+		&[0u8; 32].into(),
+		&Default::default(),
+		InitKind::Full,
+	);
 }
 
 #[test]
@@ -89,7 +102,6 @@ fn sell_test_pool_finalization_states() {
 		let initial_price = Price::from(2);
 
 		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
-		let share_token = AMMModule::share_token(pair_account);
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -117,11 +129,6 @@ fn sell_test_pool_finalization_states() {
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 2);
 
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			20_000_000_000_000_000_000_000_000_000
-		);
-
 		// Balance should not change yet
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000_000_000_000_000u128);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000_000_000_000_000u128);
@@ -135,16 +142,6 @@ fn sell_test_pool_finalization_states() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -196,11 +193,6 @@ fn sell_test_pool_finalization_states() {
 		// TODO: CHECK IF RIGHT
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 101000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 198029663953741);
-
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			20_000_000_000_000_000_000_000_000_000
-		);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 	});
@@ -263,16 +255,6 @@ fn sell_test_standard() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -374,16 +356,6 @@ fn sell_test_inverse_standard() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -482,16 +454,6 @@ fn sell_test_exact_match() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -579,16 +541,6 @@ fn sell_test_single_eth_sells() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -695,16 +647,6 @@ fn sell_test_single_dot_sells() {
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_b,
@@ -844,16 +786,6 @@ fn sell_test_single_multiple_sells() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -1022,16 +954,6 @@ fn sell_test_group_sells() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_b,
@@ -1198,16 +1120,6 @@ fn sell_test_mixed_buy_sells() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_b,
@@ -1347,16 +1259,6 @@ fn discount_tests_no_discount() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_b,
@@ -1502,16 +1404,6 @@ fn discount_tests_with_discount() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_3,
-				asset_b,
-				HDX,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_b,
@@ -1637,16 +1529,6 @@ fn buy_test_exact_match() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -1747,16 +1629,6 @@ fn buy_test_group_buys() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_b,
@@ -1900,16 +1772,6 @@ fn discount_tests_with_error() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_b,
@@ -2029,16 +1891,6 @@ fn simple_sell_sell() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 199997008);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -2124,16 +1976,6 @@ fn simple_buy_buy() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200003009);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -2220,16 +2062,6 @@ fn simple_sell_buy() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 199998010);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -2316,16 +2148,6 @@ fn simple_buy_sell() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200002011);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -2402,16 +2224,6 @@ fn single_sell_intention_test() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -2475,16 +2287,6 @@ fn single_buy_intention_test() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
@@ -2559,16 +2361,6 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
 
 		expect_events(vec![
-			TestEvent::amm(amm::RawEvent::CreatePool(
-				user_1,
-				asset_a,
-				asset_b,
-				initial_price
-					.checked_mul_int(pool_amount)
-					.unwrap()
-					.checked_mul(pool_amount)
-					.unwrap(),
-			)),
 			RawEvent::IntentionRegistered(
 				user_2,
 				asset_a,
