@@ -45,19 +45,12 @@ fn create_pool_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000000000);
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 0);
-		assert_eq!(
-			Currency::free_balance(share_token, &ALICE),
-			100000000000000000000000000000
-		);
-		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000000000000000000);
+		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000);
 
-		expect_events(vec![RawEvent::CreatePool(
-			ALICE,
-			asset_a,
-			asset_b,
-			100000000000000000000000000000,
-		)
-		.into()]);
+		expect_events(vec![
+			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000000).into()
+		]);
 	});
 }
 
@@ -65,20 +58,21 @@ fn create_pool_should_work() {
 fn create_same_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
-		let asset_id = ACA;
+		let asset_a = HDX;
+		let asset_b = ACA;
 
 		assert_ok!(AMM::create_pool(
 			Origin::signed(user),
-			asset_id,
-			HDX,
+			asset_b,
+			asset_a,
 			100,
 			Price::from(2)
 		));
 		assert_noop!(
-			AMM::create_pool(Origin::signed(user), asset_id, HDX, 100, Price::from(2)),
+			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from(2)),
 			Error::<Test>::TokenPoolAlreadyExists
 		);
-		expect_events(vec![RawEvent::CreatePool(ALICE, asset_id, HDX, 20000).into()]);
+		expect_events(vec![RawEvent::CreatePool(ALICE, asset_b, asset_a, 200).into()]);
 	});
 }
 
@@ -86,8 +80,8 @@ fn create_same_pool_should_not_work() {
 fn add_liquidity_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
-		let asset_b = HDX;
 		let asset_a = DOT;
+		let asset_b = HDX;
 
 		assert_ok!(AMM::create_pool(
 			Origin::signed(user),
@@ -111,11 +105,11 @@ fn add_liquidity_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1004000000000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100400000);
 		assert_eq!(Currency::free_balance(asset_a, &user), 999999899600000);
-		assert_eq!(Currency::free_balance(share_token, &user), 100400000000000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 100400000000000000000);
+		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 1004000000000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000000000000).into(),
+			RawEvent::CreatePool(ALICE, asset_a, asset_b, 1000000000000).into(),
 			RawEvent::AddLiquidity(ALICE, asset_a, asset_b, 400000, 4000000000).into(),
 		]);
 	});
@@ -125,52 +119,52 @@ fn add_liquidity_should_work() {
 fn add_liquidity_as_another_user_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
-		let asset_hdx = HDX;
-		let asset_id = ACA;
+		let asset_a = HDX;
+		let asset_b = ACA;
 		assert_ok!(AMM::create_pool(
 			Origin::signed(user),
-			asset_id,
-			asset_hdx,
+			asset_b,
+			asset_a,
 			100_000_000,
 			Price::from(10_000)
 		));
 		assert_ok!(AMM::add_liquidity(
 			Origin::signed(user),
-			asset_id,
-			asset_hdx,
+			asset_b,
+			asset_a,
 			400_000,
 			1_000_000_000_000
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_hdx, &asset_id);
+		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
 		let share_token = AMM::share_token(pair_account);
 
-		assert_eq!(Currency::free_balance(asset_hdx, &pair_account), 1004000000000);
-		assert_eq!(Currency::free_balance(asset_id, &pair_account), 100400000);
-		assert_eq!(Currency::free_balance(asset_id, &user), 999999899600000);
-		assert_eq!(Currency::free_balance(share_token, &user), 100400000000000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 100400000000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1004000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 100400000);
+		assert_eq!(Currency::free_balance(asset_b, &user), 999999899600000);
+		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 1004000000000);
 
 		assert_ok!(AMM::add_liquidity(
 			Origin::signed(BOB),
-			asset_id,
-			asset_hdx,
+			asset_b,
+			asset_a,
 			1_000_000,
 			1_000_000_000_000
 		));
 
-		assert_eq!(Currency::free_balance(asset_hdx, &pair_account), 1014000000000);
-		assert_eq!(Currency::free_balance(asset_id, &pair_account), 101400000);
-		assert_eq!(Currency::free_balance(asset_id, &user), 999999899600000);
-		assert_eq!(Currency::free_balance(asset_id, &BOB), 999999999000000);
-		assert_eq!(Currency::free_balance(share_token, &user), 100400000000000000000);
-		assert_eq!(Currency::free_balance(share_token, &BOB), 1000000000000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 101400000000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1014000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 101400000);
+		assert_eq!(Currency::free_balance(asset_b, &user), 999999899600000);
+		assert_eq!(Currency::free_balance(asset_b, &BOB), 999999999000000);
+		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
+		assert_eq!(Currency::free_balance(share_token, &BOB), 10000000000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 1014000000000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_id, asset_hdx, 100000000000000000000).into(),
-			RawEvent::AddLiquidity(ALICE, asset_id, asset_hdx, 400000, 4000000000).into(),
-			RawEvent::AddLiquidity(BOB, asset_id, asset_hdx, 1000000, 10000000000).into(),
+			RawEvent::CreatePool(ALICE, asset_b, asset_a, 1000000000000).into(),
+			RawEvent::AddLiquidity(ALICE, asset_b, asset_a, 400000, 4000000000).into(),
+			RawEvent::AddLiquidity(BOB, asset_b, asset_a, 1000000, 10000000000).into(),
 		]);
 	});
 }
@@ -193,27 +187,22 @@ fn remove_liquidity_should_work() {
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
 		let share_token = AMM::share_token(pair_account);
 
-		assert_eq!(Currency::free_balance(share_token, &user), 100000000000000000000);
+		assert_eq!(Currency::free_balance(share_token, &user), 100000000);
 		assert_eq!(Currency::free_balance(asset_a, &user), 999999900000000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000000);
 
-		assert_ok!(AMM::remove_liquidity(
-			Origin::signed(user),
-			asset_a,
-			asset_b,
-			355_000_000_000
-		));
+		assert_ok!(AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 355_000));
 
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 999999996450);
-		assert_eq!(Currency::free_balance(asset_a, &user), 999999900000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 996450000000);
+		assert_eq!(Currency::free_balance(asset_a, &user), 999999900355000);
 
-		assert_eq!(Currency::free_balance(share_token, &user), 99999999645000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 99999999645000000000);
+		assert_eq!(Currency::free_balance(share_token, &user), 99645000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 99645000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000000000000).into(),
-			RawEvent::RemoveLiquidity(ALICE, asset_a, asset_b, 355000000000).into(),
+			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000).into(),
+			RawEvent::RemoveLiquidity(ALICE, asset_a, asset_b, 355_000).into(),
 		]);
 	});
 }
@@ -285,10 +274,7 @@ fn sell_test() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			120000000000000000000000000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
@@ -304,15 +290,12 @@ fn sell_test() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999799543555322);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 401363489802256);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			120000000000000000000000000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200456444678);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636510197744);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 120000000000000000000000000).into(),
+			RawEvent::CreatePool(ALICE, asset_a, asset_b, 600000000000000).into(),
 			RawEvent::Sell(ALICE, asset_a, asset_b, 456444678, 1363489802256).into(),
 		]);
 	});
@@ -344,12 +327,12 @@ fn work_flow_happy_path_should_work() {
 
 		// User 1 really tries!
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(user_1), asset_a, asset_b, 800_000_000_000_00_0000, 100),
+			AMM::add_liquidity(Origin::signed(user_1), asset_a, asset_b, 800_000_000_000_000_000, 100),
 			Error::<Test>::InsufficientAssetBalance
 		);
 
 		// Total liquidity
-		assert_eq!(AMM::total_liquidity(&pair_account), 4_900_000_000_000_000_000_000_000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 350_000_000_000);
 
 		let share_token = AMM::share_token(pair_account);
 
@@ -361,10 +344,7 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 1_000_000_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_000_000_000_000_000);
 
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			4_900_000_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 350_000_000_000);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 0);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 350_000_000_000);
@@ -380,7 +360,7 @@ fn work_flow_happy_path_should_work() {
 			current_b_balance
 		));
 
-		assert_eq!(AMM::total_liquidity(&pair_account), 9_100_000_000_000_000_000_000_000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 650_000_000_000);
 
 		// Check balance after add liquidity for user 1 and user 2
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_650_000_000_000);
@@ -389,14 +369,8 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_700_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 988_000_000_000_000);
 
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			4_900_000_000_000_000_000_000_000
-		);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_2),
-			4_200_000_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 350_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_2), 300_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 650_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 26_000_000_000_000);
@@ -417,17 +391,10 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_483_333_333_334);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 994_490_245_122_554);
 
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			4_900_000_000_000_000_000_000_000
-		);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_2),
-			4_200_000_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 350_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_2), 300_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 866_666_666_666);
-
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 195_09_754_877_446);
 
 		// User 1 SELLs
@@ -443,68 +410,61 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_361_111_111_112);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 990_870_118_901_375);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_483_333_333_334);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 994_490_245_122_554);
+		let user_2_original_balance_1 = Currency::free_balance(asset_a, &user_2);
+		let user_2_original_balance_2 = Currency::free_balance(asset_b, &user_2);
 
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1_155_555_555_554);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 14_639_635_976_071);
+		assert_eq!(user_2_original_balance_1, 999_483_333_333_334);
+		assert_eq!(user_2_original_balance_2, 994_490_245_122_554);
 
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			4_900_000_000_000_000_000_000_000
-		);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_2),
-			4_200_000_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 350_000_000_000);
+		assert_eq!(Currency::free_balance(share_token, &user_2), 300_000_000_000);
 
 		// User 2 removes liquidity
 
-		assert_ok!(AMM::remove_liquidity(
-			Origin::signed(user_2),
-			asset_a,
-			asset_b,
-			120_000_000_000_000_000
-		));
+		assert_ok!(AMM::remove_liquidity(Origin::signed(user_2), asset_a, asset_b, 10_000));
 
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_483_333_348_572);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 994_490_245_315_604);
+		let user_2_remove_1_balance_1 = Currency::free_balance(asset_a, &user_2);
+		let user_2_remove_1_balance_2 = Currency::free_balance(asset_b, &user_2);
+
+		assert_eq!(user_2_remove_1_balance_1, 999_483_333_351_111);
+		assert_eq!(user_2_remove_1_balance_2, 994_490_245_347_779);
+		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_990_000);
+
+		assert_ok!(AMM::remove_liquidity(Origin::signed(user_2), asset_b, asset_a, 10_000));
+
+		let user_2_remove_2_balance_1 = Currency::free_balance(asset_a, &user_2);
+		let user_2_remove_2_balance_2 = Currency::free_balance(asset_b, &user_2);
+
+		assert_eq!(user_2_remove_2_balance_1, 999_483_333_368_888);
+		assert_eq!(user_2_remove_2_balance_2, 994_490_245_573_004);
+		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_980_000);
+
+		// The two removes should be equal (this could slip by 1 because of rounding error)
+
 		assert_eq!(
-			Currency::free_balance(share_token, &user_2),
-			4_199_999_880_000_000_000_000_000
+			user_2_remove_1_balance_1 - user_2_original_balance_1,
+			user_2_remove_2_balance_1 - user_2_remove_1_balance_1
 		);
 
-		assert_ok!(AMM::remove_liquidity(
-			Origin::signed(user_2),
-			asset_b,
-			asset_a,
-			11_999_998_8000_000_000_000_000
-		));
-
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_498_571_442_286);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 994_683_295_441_038);
 		assert_eq!(
-			Currency::free_balance(share_token, &user_2),
-			4_079_999_892_000_000_000_000_000
+			user_2_remove_1_balance_2 - user_2_original_balance_2,
+			user_2_remove_2_balance_2 - user_2_remove_1_balance_2
 		);
 
-		assert_eq!(AMM::total_liquidity(&pair_account), 8_979_999_892_000_000_000_000_000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 649_999_980_000);
 
-		assert_ok!(AMM::remove_liquidity(Origin::signed(user_2), asset_a, asset_b, 18000));
-		assert_eq!(
-			Currency::free_balance(share_token, &user_2),
-			4_079_999_891_999_999_999_982_000
-		);
+		assert_ok!(AMM::remove_liquidity(Origin::signed(user_2), asset_a, asset_b, 18_000));
+		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_962_000);
 
-		assert_eq!(AMM::total_liquidity(&pair_account), 8_979_999_891_999_999_999_982_000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 649_999_962_000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 4_900_000_000_000_000_000_000_000).into(),
+			RawEvent::CreatePool(user_1, asset_a, asset_b, 350_000_000_000).into(),
 			RawEvent::AddLiquidity(user_2, asset_a, asset_b, 300_000_000_000, 12_000_000_000_000).into(),
 			RawEvent::Sell(user_2, asset_a, asset_b, 216_666_666_666, 6_490_245_122_554).into(),
 			RawEvent::Sell(ALICE, asset_a, asset_b, 288_888_888_888, 4_870_118_901_375).into(),
-			RawEvent::RemoveLiquidity(user_2, asset_a, asset_b, 120_000_000_000_000_000).into(),
-			RawEvent::RemoveLiquidity(user_2, asset_b, asset_a, 119_999_988_000_000_000_000_000).into(),
+			RawEvent::RemoveLiquidity(user_2, asset_a, asset_b, 10_000).into(),
+			RawEvent::RemoveLiquidity(user_2, asset_b, asset_a, 10_000).into(),
 			RawEvent::RemoveLiquidity(user_2, asset_a, asset_b, 18_000).into(),
 		]);
 	});
@@ -557,7 +517,7 @@ fn sell_with_correct_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 10000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 2000000000);
 
-		assert_eq!(Currency::free_balance(share_token, &user_1), 20000000000000000);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 2000000000);
 
 		assert_ok!(AMM::sell(
 			Origin::signed(user_1),
@@ -580,7 +540,7 @@ fn sell_with_correct_fees_should_work() {
 			user_asset_b_amount + calculate_sale_price(asset_a_reserve, asset_b_reserve, 100_000)
 		);
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 20000000000000000).into(),
+			RawEvent::CreatePool(user_1, asset_a, asset_b, 2000000000).into(),
 			RawEvent::Sell(user_1, asset_a, asset_b, 100000, 19762768).into(),
 		]);
 	});
@@ -642,8 +602,8 @@ fn discount_sell_fees_should_work() {
 		assert_eq!(Currency::free_balance(HDX, &user_1), 989_986);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, HDX, 50_000_000).into(),
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 1_800_000_000).into(),
+			RawEvent::CreatePool(user_1, asset_a, HDX, 10_000).into(),
+			RawEvent::CreatePool(user_1, asset_a, asset_b, 60_000).into(),
 			RawEvent::Sell(user_1, asset_a, asset_b, 10_000, 14_993).into(),
 		]);
 	});
@@ -669,10 +629,7 @@ fn single_buy_should_work() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			128_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
@@ -687,17 +644,14 @@ fn single_buy_should_work() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_866_666_666);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999039039046253);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			128_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_039_039_046_253);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 133_333_334);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_960_953_747);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 128_000_000_000_000_000_000).into(),
-			RawEvent::Buy(user_1, asset_a, asset_b, 66_666_666, 320_960_953_747).into(),
+			RawEvent::CreatePool(user_1, asset_a, asset_b, 640000000000).into(),
+			RawEvent::Buy(user_1, asset_a, asset_b, 66666666, 320960953747).into(),
 		]);
 	});
 }
@@ -730,11 +684,10 @@ fn single_buy_with_discount_should_work() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_949_800_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
+
 		assert_eq!(Currency::free_balance(HDX, &user_1), 999_900_000_000_000);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			128_000_000_000_000_000_000
-		);
+
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
@@ -750,17 +703,16 @@ fn single_buy_with_discount_should_work() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_949_866_666_666);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_039_663_891_965); // compare to values in previous test to see difference!
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			128_000_000_000_000_000_000
-		);
+
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
+
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 133_333_334);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_336_108_035);
 		assert_eq!(Currency::free_balance(HDX, &user_1), 999_899_999_906_668);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 128_000_000_000_000_000_000).into(),
-			RawEvent::CreatePool(user_1, asset_a, HDX, 5_000_000_000_000_000_000_000).into(),
+			RawEvent::CreatePool(user_1, asset_a, asset_b, 640_000_000_000).into(),
+			RawEvent::CreatePool(user_1, asset_a, HDX, 100_000_000_000).into(),
 			RawEvent::Buy(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
 		]);
 	});
@@ -877,16 +829,12 @@ fn create_pool_small_fixed_point_amount_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000);
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 999999000000000);
-		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000000000000);
+		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000);
 
-		expect_events(vec![RawEvent::CreatePool(
-			ALICE,
-			asset_a,
-			asset_b,
-			100000000000000000000000,
-		)
-		.into()]);
+		expect_events(vec![
+			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000000).into()
+		]);
 	});
 }
 
@@ -910,16 +858,10 @@ fn create_pool_fixed_point_amount_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 456023454299999);
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 999900000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 543976545700001);
-		assert_eq!(Currency::free_balance(share_token, &ALICE), 45602345429999900000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 45602345429999900000000000);
+		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000);
+		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000);
 
-		expect_events(vec![RawEvent::CreatePool(
-			ALICE,
-			asset_a,
-			asset_b,
-			45602345429999900000000000,
-		)
-		.into()]);
+		expect_events(vec![RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000).into()]);
 	});
 }
 
@@ -945,7 +887,7 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 			Origin::signed(user),
 			asset_a,
 			asset_b,
-			100000000000000000000
+			100_000_000
 		));
 
 		assert_eq!(AMM::total_liquidity(&pair_account), 0);
@@ -963,10 +905,10 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 		));
 
 		expect_events(vec![
-			RawEvent::CreatePool(user, asset_a, asset_b, 100000000000000000000).into(),
-			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100000000000000000000).into(),
+			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
 			RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
-			RawEvent::CreatePool(user, asset_a, asset_b, 100000000000000000000).into(),
+			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
 		]);
 	});
 }
@@ -1004,10 +946,7 @@ fn sell_test_exceeding_max_limit() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			120000000000000000000000000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
@@ -1052,10 +991,7 @@ fn buy_test_exceeding_max_limit() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			120000000000000000000000000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
@@ -1100,10 +1036,7 @@ fn single_buy_more_than_ratio_out_should_not_work() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			128_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
@@ -1142,10 +1075,7 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_800_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400_000_000_000_000);
-		assert_eq!(
-			Currency::free_balance(share_token, &user_1),
-			120_000_000_000_000_000_000_000_000
-		);
+		assert_eq!(Currency::free_balance(share_token, &user_1), 600_000_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600_000_000_000_000);
