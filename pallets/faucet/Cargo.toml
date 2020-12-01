@@ -29,8 +29,8 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 primitives = {path = '../../primitives', default-features = false, version = '2.0.0'}
 
 # ORML dependencies
-orml-tokens = {default-features = false, version = "0.3.0"}
-orml-traits = {default-features = false, version = "0.3.0"}
+orml-tokens = {default-features = false, version = "0.3.2"}
+orml-traits = {default-features = false, version = "0.3.2"}
 
 # Substrate dependencies
 frame-support = {default-features = false, version = '2.0.0'}
