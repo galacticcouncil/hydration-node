@@ -22,6 +22,7 @@ version = '1.3.4'
 
 [dependencies]
 hex-literal = { optional = true, version = '0.3.1' }
+tracing-core = { optional = true, version = '0.1.17' }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 # local dependencies
@@ -35,9 +36,9 @@ primitives = { path = '../primitives', default-features = false, version = '2.0.
 module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0' }
 
 # ORML dependencies
-orml-currencies = { default-features = false, version = "0.3.0" }
-orml-tokens = { default-features = false, version = "0.3.0" }
-orml-traits = { default-features = false, version = "0.3.0" }
+orml-currencies = { default-features = false, version = "0.3.2" }
+orml-tokens = { default-features = false, version = "0.3.2" }
+orml-traits = { default-features = false, version = "0.3.2" }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
