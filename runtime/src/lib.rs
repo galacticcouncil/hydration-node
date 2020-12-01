@@ -56,6 +56,7 @@ pub use pallet_faucet;
 
 /// Import the template pallet.
 pub use pallet_template;
+use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -239,7 +240,7 @@ impl pallet_timestamp::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
+	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
 }
 
@@ -256,15 +257,25 @@ impl pallet_balances::Trait for Runtime {
 }
 
 parameter_types! {
+	pub NonNativeAssets: Vec<AssetId> = vec![1,2,3,4,5,6,7]; // Note: this is currently hard-coded here, probably should be config option for tx pallet ?!
 	pub const TransactionByteFee: Balance = 1;
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
+	type OnChargeTransaction = MultiCurrencyAdapter<Balances, ()>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
 }
+
+impl pallet_transaction_multi_payment::Trait for Runtime {
+	type Currency = Balances;
+	type MultiCurrency = Currencies;
+	type AMMPool = AMM;
+	type NonNativeAcceptedAssetId = NonNativeAssets;
+	type WeightInfo = ();
+}
+
 
 impl pallet_sudo::Trait for Runtime {
 	type Event = Event;
@@ -347,6 +358,7 @@ construct_runtime!(
 		AMM: pallet_amm::{Module, Call, Storage, Event<T>},
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Event<T>},
+		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage},
 
 		// Include the custom logic from the template pallet in the runtime.
 		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
