@@ -1,4 +1,4 @@
-name: Tests
+name: Build
 
 on:
   push:
@@ -11,27 +11,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly-2020-06-04
-        target: wasm32-unknown-unknown
-        default: true
-    - name: Cache Rust dependencies
-      uses: actions/cache@v1.1.2
-      with:
-        path: target
-        key: build-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          build-
-    - run: ./scripts/init.sh
-    - name: Install clippy
-      run: rustup component add clippy
-    - name: Run clippy
-      run: cargo clippy --release -- -D warnings
-    - run: time cargo test --all --release --verbose --locked 
-    - run: time cargo build --release --verbose
-    - name: Run benchmarking tests
-      run: cd node && cargo test --release --features runtime-benchmarks -p pallet-exchange-benchmarking -p pallet-amm
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2020-09-27
+          target: wasm32-unknown-unknown
+          override: true
+          default: true
+      - run: ./scripts/init.sh
+      - name: Install clippy
+        run: rustup component add clippy
+      - name: Run clippy
+        run: cargo clippy --release -- -D warnings
+      - name: Tests
+        run: time cargo test --all --release --verbose --locked
+      - name: Benchmarking tests
+        run: cd node && cargo test --release --features runtime-benchmarks -p pallet-exchange-benchmarking -p pallet-amm
+      - name: Build release
+        run: time cargo build --release --verbose
+      - name: Upload release
+        uses: actions/upload-artifact@v2
+        with:
+          name: hack-hydra-dx
+          path: target/release/hack-hydra-dx
