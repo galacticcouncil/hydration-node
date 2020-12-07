@@ -34,6 +34,7 @@ pallet-faucet = { path = '../pallets/faucet', default-features = false, version 
 pallet-template = { path = '../pallets/template', default-features = false, version = '2.0.0' }
 primitives = { path = '../primitives', default-features = false, version = '2.0.0' }
 module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0' }
+pallet-price-fetch = { path = '../pallets/price-fetch', default-features = false, version = '2.0.0' }
 
 # ORML dependencies
 orml-currencies = { default-features = false, version = "0.3.2" }
@@ -94,6 +95,7 @@ std = [
     'orml-tokens/std',
     'orml-traits/std',
     'pallet-amm/std',
+'pallet-price-fetch/std',
     'pallet-asset-registry/std',
     'pallet-exchange/std',
     'pallet-faucet/std',
