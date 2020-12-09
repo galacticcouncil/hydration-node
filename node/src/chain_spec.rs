@@ -145,8 +145,12 @@ fn testnet_genesis(
 			changes_trie_config: Default::default(),
 		}),
 		pallet_balances: Some(BalancesConfig {
-			// Configure endowed accounts with initial balance of 1 << 60.
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+			// Configure endowed accounts with initial balance of 1_000_000 Units.
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, 1_000_000_000_000_000_000u128))
+				.collect(),
 		}),
 		pallet_aura: Some(AuraConfig {
 			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
@@ -182,9 +186,19 @@ fn testnet_genesis(
 				.iter()
 				.flat_map(|x| {
 					vec![
-						(x.clone(), 1, 1_000_000_000_000_000u128),
-						(x.clone(), 2, 1_000_000_000_000_000u128),
-						(x.clone(), 3, 1_000_000_000_000_000u128),
+						(x.clone(), 1, 1_000_000_000_000_000_000u128),
+						(x.clone(), 2, 1_000_000_000_000_000_000u128),
+						(x.clone(), 3, 1_000_000_000_000_000_000u128),
+						(x.clone(), 4, 1_000_000_000_000_000_000u128),
+						(x.clone(), 5, 1_000_000_000_000_000_000u128),
+						(x.clone(), 6, 1_000_000_000_000_000_000u128),
+						(x.clone(), 7, 1_000_000_000_000_000_000u128),
+						(x.clone(), 8, 1_000_000_000_000_000_000u128),
+						(x.clone(), 9, 1_000_000_000_000_000_000u128),
+						(x.clone(), 10, 1_000_000_000_000_000_000u128),
+						(x.clone(), 11, 1_000_000_000_000_000_000u128),
+						(x.clone(), 12, 1_000_000_000_000_000_000u128),
+						(x.clone(), 13, 1_000_000_000_000_000_000u128),
 					]
 				})
 				.collect(),
