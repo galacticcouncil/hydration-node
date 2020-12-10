@@ -19,8 +19,6 @@ use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::AMMTransfer;
 
-use hydra_dx_math;
-
 #[cfg(test)]
 mod mock;
 

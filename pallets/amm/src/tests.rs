@@ -3,7 +3,6 @@ pub use crate::mock::{
 	calculate_sale_price, Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX,
 };
 use frame_support::{assert_noop, assert_ok};
-use hydra_dx_math;
 use primitives::traits::AMM as AMMPool;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
