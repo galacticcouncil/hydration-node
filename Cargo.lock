@@ -2142,6 +2142,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hydra-dx-math"
+version = "0.1.0"
+source = "git+https://github.com/galacticcouncil/hack.hydraDX-math?branch=main#5ee6dbc90fd196f9d45e2e542bad70290c46463a"
+dependencies = [
+ "primitive-types",
+]
+
+[[package]]
 name = "hyper"
 version = "0.12.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3674,6 +3682,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frame-system-benchmarking",
+ "hydra-dx-math",
  "orml-tokens",
  "orml-traits",
  "pallet-asset-registry",
@@ -3681,6 +3690,7 @@ dependencies = [
  "primitive-types",
  "primitives",
  "serde",
+ "sp-application-crypto",
  "sp-core",
  "sp-io",
  "sp-runtime",
