@@ -1100,9 +1100,8 @@ fn test_calculate_sell_price() {
 		let sell_reserve: Balance = 10000000000000;
 		let buy_reserve: Balance = 100000;
 		let sell_amount: Balance = 100000000000;
-		let result = AMM::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_ok!(result);
-		assert_eq!(result.unwrap(), 991);
+		let result = hack_hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
+		assert_eq!(result, Some(991));
 	});
 }
 
@@ -1112,8 +1111,8 @@ fn test_calculate_sell_price_invalid() {
 		let sell_reserve: Balance = 0;
 		let buy_reserve: Balance = 1000;
 		let sell_amount: Balance = 0;
-		let result = AMM::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_noop!(result, Error::<Test>::SellAssetAmountInvalid);
+		let result = hack_hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
+		assert_eq!(result, None);
 	});
 }
 
@@ -1123,8 +1122,8 @@ fn test_calculate_buy_price_insufficient_pool_balance() {
 		let sell_reserve: Balance = 10000000000000;
 		let buy_reserve: Balance = 100000;
 		let buy_amount: Balance = 100000000000;
-		let result = AMM::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_noop!(result, Error::<Test>::InsufficientPoolAssetBalance);
+		let result = hack_hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
+		assert_eq!(result, None);
 	});
 }
 
@@ -1134,8 +1133,7 @@ fn test_calculate_buy_price() {
 		let sell_reserve: Balance = 10000000000000;
 		let buy_reserve: Balance = 10000000;
 		let buy_amount: Balance = 1000000;
-		let result = AMM::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_ok!(result);
-		assert_eq!(result.unwrap(), 1111111111112);
+		let result = hack_hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
+		assert_eq!(result, Some(1111111111112));
 	});
 }

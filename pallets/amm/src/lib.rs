@@ -474,10 +474,9 @@ impl<T: Trait> Module<T> {
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-				match Self::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount) {
-					Result::Ok(v) => v,
-					_ => 0,
-				}
+				hack_hydra_dx_math::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount)
+					.or(Some(0))
+					.unwrap()
 			}
 			false => 0,
 		}
@@ -490,11 +489,9 @@ impl<T: Trait> Module<T> {
 
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-
-				match Self::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount) {
-					Result::Ok(v) => v,
-					_ => 0,
-				}
+				hack_hydra_dx_math::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount)
+					.or(Some(0))
+					.unwrap()
 			}
 			false => 0,
 		}
@@ -510,67 +507,6 @@ impl<T: Trait> Module<T> {
 			}
 		}
 		Some(balances)
-	}
-
-	pub fn calculate_sell_price(
-		sell_reserve: Balance,
-		buy_reserve: Balance,
-		sell_amount: Balance,
-	) -> Result<Balance, dispatch::DispatchError> {
-		let sell_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_amount);
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
-
-		let numerator = buy_reserve_hp
-			.checked_mul(sell_amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-		let denominator = sell_reserve_hp
-			.checked_add(sell_amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-
-		let sale_price_hp = numerator
-			.checked_div(denominator)
-			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-
-		let sale_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(sale_price_hp);
-		ensure!(sale_price_lp.is_ok(), Error::<T>::SellAssetAmountInvalid);
-		let sale_price = sale_price_lp.unwrap();
-
-		let sale_price_round_up = fee::fixed_fee(sale_price).ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-
-		Ok(sale_price_round_up)
-	}
-
-	pub fn calculate_buy_price(
-		sell_reserve: Balance,
-		buy_reserve: Balance,
-		amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		ensure!(amount <= buy_reserve, Error::<T>::InsufficientPoolAssetBalance);
-
-		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
-
-		let numerator = sell_reserve_hp
-			.checked_mul(amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-		let denominator = buy_reserve_hp
-			.checked_sub(amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-		let buy_price_hp = numerator
-			.checked_div(denominator)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-
-		let buy_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(buy_price_hp);
-		ensure!(buy_price_lp.is_ok(), Error::<T>::BuyAssetAmountInvalid);
-		let buy_price = buy_price_lp.unwrap();
-
-		let buy_price_round_up = buy_price
-			.checked_add(1u128)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-
-		Ok(buy_price_round_up)
 	}
 
 	fn calculate_fees(amount: Balance, discount: bool, hdx_fee: &mut Balance) -> Result<Balance, DispatchError> {
@@ -678,7 +614,13 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer_fee = Self::calculate_fees(amount_sell, discount, &mut hdx_amount)?;
 
-		let sale_price = Self::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee)?;
+		let sale_price =
+			match hack_hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee) {
+				Some(x) => x,
+				None => {
+					return Err(Error::<T>::SellAssetAmountInvalid.into());
+				}
+			};
 
 		ensure!(asset_buy_total >= sale_price, Error::<T>::InsufficientAssetBalance);
 
@@ -773,7 +715,21 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer_fee = Self::calculate_fees(amount_buy, discount, &mut hdx_amount)?;
 
-		let buy_price = Self::calculate_buy_price(asset_sell_reserve, asset_buy_reserve, amount_buy + transfer_fee)?;
+		ensure!(
+			amount_buy + transfer_fee <= asset_buy_reserve,
+			Error::<T>::InsufficientPoolAssetBalance
+		);
+
+		let buy_price = match hack_hydra_dx_math::calculate_buy_price(
+			asset_sell_reserve,
+			asset_buy_reserve,
+			amount_buy + transfer_fee,
+		) {
+			Some(x) => x,
+			None => {
+				return Err(Error::<T>::BuyAssetAmountInvalid.into());
+			}
+		};
 
 		ensure!(
 			T::Currency::free_balance(asset_sell, who) >= buy_price,
