@@ -1918,6 +1918,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hack-hydra-dx-math"
+version = "0.1.0"
+source = "git+https://github.com/galacticcouncil/hack.hydraDX-math?branch=main#8b596c301ac01ab97fe99deb47eb677baa65a65b"
+dependencies = [
+ "primitive-types",
+]
+
+[[package]]
 name = "hack-hydra-dx-runtime"
 version = "2.0.0"
 dependencies = [
@@ -2139,14 +2147,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
 dependencies = [
  "quick-error 1.2.3",
-]
-
-[[package]]
-name = "hydra-dx-math"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/hack.hydraDX-math?branch=main#5ee6dbc90fd196f9d45e2e542bad70290c46463a"
-dependencies = [
- "primitive-types",
 ]
 
 [[package]]
@@ -3682,7 +3682,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "frame-system-benchmarking",
- "hydra-dx-math",
+ "hack-hydra-dx-math",
  "orml-tokens",
  "orml-traits",
  "pallet-asset-registry",
@@ -7694,7 +7694,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bfd5b7557925ce778ff9b9ef90e3ade34c524b5ff10e239c69a42d546d2af56"
 dependencies = [
- "rand 0.7.3",
+ "rand 0.3.23",
 ]
 
 [[package]]

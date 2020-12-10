@@ -474,7 +474,7 @@ impl<T: Trait> Module<T> {
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-				hydra_dx_math::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount)
+				hack_hydra_dx_math::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount)
 					.or(Some(0))
 					.unwrap()
 			}
@@ -489,7 +489,7 @@ impl<T: Trait> Module<T> {
 
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-				hydra_dx_math::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount)
+				hack_hydra_dx_math::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount)
 					.or(Some(0))
 					.unwrap()
 			}
@@ -615,7 +615,7 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let transfer_fee = Self::calculate_fees(amount_sell, discount, &mut hdx_amount)?;
 
 		let sale_price =
-			match hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee) {
+			match hack_hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee) {
 				Some(x) => x,
 				None => {
 					return Err(Error::<T>::SellAssetAmountInvalid.into());
@@ -720,7 +720,7 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			Error::<T>::InsufficientPoolAssetBalance
 		);
 
-		let buy_price = match hydra_dx_math::calculate_buy_price(
+		let buy_price = match hack_hydra_dx_math::calculate_buy_price(
 			asset_sell_reserve,
 			asset_buy_reserve,
 			amount_buy + transfer_fee,
