@@ -3690,7 +3690,6 @@ dependencies = [
  "primitive-types",
  "primitives",
  "serde",
- "sp-application-crypto",
  "sp-core",
  "sp-io",
  "sp-runtime",
