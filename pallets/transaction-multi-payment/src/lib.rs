@@ -2,8 +2,14 @@
 
 mod default_weights;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 use frame_support::{
-	decl_error, decl_module, decl_storage,
+	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
 	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
 };
@@ -20,16 +26,20 @@ use sp_std::marker::PhantomData;
 use frame_support::weights::Pays;
 use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use primitives::traits::AMM;
+use primitives::traits::{CurrencySwap, AMM};
 use primitives::{AssetId, Balance, CORE_ASSET_ID};
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait WeightInfo {
 	fn set_currency() -> Weight;
+	fn swap_currency() -> Weight;
 }
 
 pub trait Trait: frame_system::Trait + pallet_transaction_payment::Trait {
+	/// Because this pallet emits events, it depends on the runtime's definition of an event.
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+
 	/// The currency type in which fees will be paid.
 	type Currency: Currency<Self::AccountId> + Send + Sync;
 
@@ -47,13 +57,24 @@ pub trait Trait: frame_system::Trait + pallet_transaction_payment::Trait {
 	type WeightInfo: WeightInfo;
 }
 
+decl_event!(
+	pub enum Event<T>
+	where
+		AccountId = <T as frame_system::Trait>::AccountId,
+	{
+		/// CurrencySet
+		/// [who, currency]
+		CurrectSet(AccountId, AssetId),
+	}
+);
+
 // The pallet's errors
 decl_error! {
 	pub enum Error for Module<T: Trait> {
-		/// Value was None
+		/// Selected currency is not supported
 		UnsupportedCurrency,
 
-		/// Zero Balance
+		/// Zero Balance of selected currency
 		ZeroBalance,
 	}
 }
@@ -67,7 +88,15 @@ decl_storage! {
 
 decl_module! {
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+		// Errors must be initialized if they are used by the pallet.
+		type Error = Error<T>;
 
+		// Events must be initialized if they are used by the pallet.
+		fn deposit_event() = default;
+
+		/// Set currency in which transaction fees are paid.
+		/// This is feeless transaction.
+		/// Selected currency must have non-zero balance otherwise is not allowed to be set.
 		#[weight = (<T as Trait>::WeightInfo::set_currency(), Pays::No)]
 		pub fn set_currency(
 			origin,
@@ -81,7 +110,10 @@ decl_module! {
 						return Err(Error::<T>::ZeroBalance.into());
 					}
 
-					<AccountCurrencyMap<T>>::insert(who, currency);
+					<AccountCurrencyMap<T>>::insert(who.clone(), currency);
+
+					Self::deposit_event(RawEvent::CurrectSet(who, currency));
+
 					Ok(())
 				},
 				false => Err(Error::<T>::UnsupportedCurrency.into())
@@ -89,10 +121,33 @@ decl_module! {
 		}
 	}
 }
+impl<T: Trait> Module<T> {
+	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
+		// Let's determine currency in which user would like to pay the fee
+		let fee_currency = match Module::<T>::get_currency(who) {
+			Some(c) => c,
+			_ => CORE_ASSET_ID,
+		};
 
-pub struct MultiCurrencyAdapter<C, OU>(PhantomData<(C, OU)>);
+		// If not native currency, let's buy CORE asset first and then pay with that.
+		if fee_currency != CORE_ASSET_ID {
+			T::AMMPool::buy(&who, CORE_ASSET_ID, fee_currency, fee, 2u128 * fee, false)?;
+		}
 
-impl<T, C, OU> OnChargeTransaction<T> for MultiCurrencyAdapter<C, OU>
+		Ok(())
+	}
+}
+
+impl<T: Trait> CurrencySwap<<T as frame_system::Trait>::AccountId, Balance> for Module<T> {
+	fn swap_currency(who: &T::AccountId, fee: u128) -> DispatchResult {
+		Self::swap_currency(who, fee)
+	}
+}
+
+/// Implements the transaction payment for native as well as non-native currencies
+pub struct MultiCurrencyAdapter<C, OU, SW>(PhantomData<(C, OU, SW)>);
+
+impl<T, C, OU, SW> OnChargeTransaction<T> for MultiCurrencyAdapter<C, OU, SW>
 where
 	T: Trait,
 	T::TransactionByteFee: Get<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance>,
@@ -103,6 +158,7 @@ where
 		Imbalance<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance, Opposite = C::PositiveImbalance>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
 	C::Balance: Into<Balance>,
+	SW: CurrencySwap<T::AccountId, Balance>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
 	type Balance = <C as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -127,19 +183,8 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		// Let's determine currency in which user would like to pay the fee
-		let fee_currency = match Module::<T>::get_currency(who) {
-			Some(c) => c,
-			_ => CORE_ASSET_ID,
-		};
-		// If not native currency, let's buy CORE asset first and then pay with that.
-		if fee_currency != CORE_ASSET_ID {
-			match T::AMMPool::buy(&who, CORE_ASSET_ID, fee_currency, fee.into(), 2u128 * fee.into(), false) {
-				Ok(_) => {}
-				Err(_) => {
-					return Err(InvalidTransaction::Payment.into());
-				}
-			}
+		if SW::swap_currency(&who, fee.into()).is_err() {
+			return Err(InvalidTransaction::Payment.into());
 		}
 
 		match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {

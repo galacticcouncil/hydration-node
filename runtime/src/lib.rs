@@ -31,7 +31,7 @@ pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
 	},
 	StorageValue,
@@ -141,6 +141,9 @@ parameter_types! {
 		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
+
+	pub const ExtrinsicPaymentExtraWeight: Weight = 307_000_000; //TODO: we need somehow to integrate total swap currency weight here!
+	pub const ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -260,20 +263,20 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-	type OnChargeTransaction = MultiCurrencyAdapter<Balances, ()>;
+	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), MultiTransactionPayment>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
 }
 
 impl pallet_transaction_multi_payment::Trait for Runtime {
+	type Event = Event;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMM;
 	type NonNativeAcceptedAssetId = NonNativeAssets;
 	type WeightInfo = ();
 }
-
 
 impl pallet_sudo::Trait for Runtime {
 	type Event = Event;
@@ -356,7 +359,7 @@ construct_runtime!(
 		AMM: pallet_amm::{Module, Call, Storage, Event<T>},
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Event<T>},
-		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage},
+		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
 
 		// Include the custom logic from the template pallet in the runtime.
 		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
@@ -584,9 +587,11 @@ impl_runtime_apis! {
 
 			use pallet_exchange_benchmarking::Module as ExchangeBench;
 			use frame_system_benchmarking::Module as SystemBench;
+			use pallet_multi_payment_benchmarking::Module as MultiBench;
 
 			impl frame_system_benchmarking::Trait for Runtime {}
 			impl pallet_exchange_benchmarking::Trait for Runtime {};
+			impl pallet_multi_payment_benchmarking::Trait for Runtime {};
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -605,6 +610,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, amm, AMM);
+			add_benchmark!(params, batches, pallet_transaction_multi_payment, MultiBench::<Runtime>);
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, exchange, ExchangeBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);

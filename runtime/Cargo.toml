@@ -33,6 +33,7 @@ pallet-exchange-benchmarking = { path = '../pallets/exchange/benchmarking', defa
 pallet-faucet = { path = '../pallets/faucet', default-features = false, version = '2.0.0' }
 pallet-template = { path = '../pallets/template', default-features = false, version = '2.0.0' }
 pallet-transaction-multi-payment = { path = '../pallets/transaction-multi-payment', default-features = false, version = '2.0.0' }
+pallet-multi-payment-benchmarking = { path = '../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true, version = '2.0.0' }
 primitives = { path = '../primitives', default-features = false, version = '2.0.0' }
 module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0' }
 
