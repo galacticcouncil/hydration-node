@@ -1948,11 +1948,13 @@ dependencies = [
  "pallet-exchange-benchmarking",
  "pallet-faucet",
  "pallet-grandpa",
+ "pallet-multi-payment-benchmarking",
  "pallet-randomness-collective-flip",
  "pallet-session",
  "pallet-sudo",
  "pallet-template",
  "pallet-timestamp",
+ "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
@@ -3847,6 +3849,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-multi-payment-benchmarking"
+version = "2.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-amm",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-transaction-multi-payment",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "primitives",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder-runner",
+]
+
+[[package]]
 name = "pallet-randomness-collective-flip"
 version = "2.0.0"
 source = "git+https://github.com/paritytech/substrate.git?rev=b7712fed2c58a898f7706e16861d7109c8f585a5#b7712fed2c58a898f7706e16861d7109c8f585a5"
@@ -3921,6 +3949,33 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "pallet-transaction-multi-payment"
+version = "2.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-amm",
+ "pallet-asset-registry",
+ "pallet-balances",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "primitive-types",
+ "primitives",
+ "serde",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
