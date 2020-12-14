@@ -296,15 +296,9 @@ decl_module! {
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 			let total_liquidity = Self::total_liquidity(&pair_account);
 
-			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount_a);
-			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
-			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
-
-			let b_required_hp = amount_hp.checked_mul(b_reserve_hp).expect("Cannot overflow").checked_div(a_reserve_hp).expect("Cannot panic as reserve cannot be 0");
-
-			let b_required_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(b_required_hp);
-			ensure!(b_required_lp.is_ok(), Error::<T>::AddAssetAmountInvalid);
-			let amount_b_required = b_required_lp.unwrap();
+			let amount_b_required = hack_hydra_dx_math::calculate_liquidity_in(asset_a_reserve,
+				asset_b_reserve,
+				amount_a).ok_or(Error::<T>::AddAssetAmountInvalid)?;
 
 			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
 
@@ -382,20 +376,12 @@ decl_module! {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let liquidity_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(liquidity_amount);
-			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
-			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
-			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_shares);
+			let liquidity_out = hack_hydra_dx_math::calculate_liquidity_out(asset_a_reserve,
+				asset_b_reserve,
+				liquidity_amount,
+				total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
 
-			let remove_amount_a_hp = liquidity_amount_hp.checked_mul(a_reserve_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
-			let remove_amount_a_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_a_hp);
-			ensure!(remove_amount_a_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
-			let remove_amount_a = remove_amount_a_lp.unwrap();
-
-			let remove_amount_b_hp = b_reserve_hp.checked_mul(liquidity_amount_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
-			let remove_amount_b_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_b_hp);
-			ensure!(remove_amount_b_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
-			let remove_amount_b = remove_amount_b_lp.unwrap();
+			let (remove_amount_a, remove_amount_b) = liquidity_out;
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
@@ -614,13 +600,16 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer_fee = Self::calculate_fees(amount_sell, discount, &mut hdx_amount)?;
 
-		let sale_price =
-			match hack_hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee) {
-				Some(x) => x,
-				None => {
-					return Err(Error::<T>::SellAssetAmountInvalid.into());
-				}
-			};
+		let sale_price = match hack_hydra_dx_math::calculate_sell_price(
+			asset_sell_total,
+			asset_buy_total,
+			amount_sell - transfer_fee,
+		) {
+			Some(x) => x,
+			None => {
+				return Err(Error::<T>::SellAssetAmountInvalid.into());
+			}
+		};
 
 		ensure!(asset_buy_total >= sale_price, Error::<T>::InsufficientAssetBalance);
 
