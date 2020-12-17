@@ -1,4 +1,5 @@
 use super::*;
+use frame_support::traits::BalanceStatus;
 
 /// Hold info about each transfer which has to be made to resolve a direct trade.
 pub struct Transfer<'a, T: Trait> {
@@ -186,12 +187,14 @@ impl<'a, T: Trait> DirectTradeData<'a, T> {
 	pub fn execute(&self) -> bool {
 		self.send_direct_trade_resolve_event();
 		for transfer in &self.transfers {
-			//TODO: check method to just moved already reserved ( and not do unreserve -> transfer )
-
-			T::Currency::unreserve(transfer.asset, transfer.from, transfer.amount);
-			T::Currency::transfer(transfer.asset, transfer.from, transfer.to, transfer.amount)
-				.expect("Cannot fail. Checks should have been done prior to this.");
-
+			T::Currency::repatriate_reserved(
+				transfer.asset,
+				transfer.from,
+				transfer.to,
+				transfer.amount,
+				BalanceStatus::Free,
+			)
+			.expect("Cannot fail. Checks should have been done prior to this.");
 			if transfer.fee_transfer {
 				Self::send_trade_fee_event(transfer.from, transfer.to, transfer.asset, transfer.amount);
 			}
