@@ -54,7 +54,7 @@ pub use pallet_faucet;
 
 /// Import the template pallet.
 pub use pallet_template;
-use pallet_transaction_multi_payment::MultiCurrencyAdapter;
+use pallet_transaction_multi_payment::{MultiCurrencyAdapter, WeightInfo};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -142,8 +142,8 @@ parameter_types! {
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
 
-	pub const ExtrinsicPaymentExtraWeight: Weight = 307_000_000; //TODO: we need somehow to integrate total swap currency weight here!
-	pub const ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
+	pub ExtrinsicPaymentExtraWeight: Weight =  <Runtime as pallet_transaction_multi_payment::Trait>::WeightInfo::swap_currency();
+	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
 }
 
 // Configure FRAME pallets to include in runtime.
