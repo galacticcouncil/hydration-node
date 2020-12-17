@@ -218,7 +218,7 @@ decl_module! {
 		pub fn submit_new_price(origin, price_record: DiaPriceRecord) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(!<Fetchers<T>>::contains_key(&price_record.symbol), Error::<T>::FetcherNotFound);
+			ensure!(<Fetchers<T>>::contains_key(&price_record.symbol), Error::<T>::FetcherNotFound);
 
 			let new_price = FetchedPrice {
 				price: price_record.price,
