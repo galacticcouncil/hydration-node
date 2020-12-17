@@ -1,7 +1,6 @@
 use super::*;
 use crate::{mock::*, DiaPriceRecord};
 
-use std::sync::Arc;
 use crate as price_fetch;
 use frame_support::{assert_noop, assert_ok};
 use primitives::Price;
@@ -11,6 +10,7 @@ use sp_runtime::offchain::{
 	OffchainExt, TransactionPoolExt,
 };
 use sp_std::vec::Vec;
+use std::sync::Arc;
 
 #[test]
 fn parse_res_from_dia_should_work() {
@@ -21,6 +21,10 @@ fn parse_res_from_dia_should_work() {
 	assert_eq!(p.price, Price::from_fraction(17202.936692749197));
 	assert_eq!(p.time, "2020-11-26T20:02:19.699386233Z".as_bytes());
 	assert_eq!(p.symbol, "BTC".as_bytes());
+
+	//Failed parse should return None
+	let invalid_data = "";
+	assert_eq!(PriceFetch::parse_dia_res(invalid_data), None);
 }
 
 #[test]
@@ -130,18 +134,14 @@ fn add_new_price_to_storage_should_work() {
 
 #[test]
 fn cal_avg_price_and_submit_should_work() {
-	let mut ext = new_test_ext();
+	let mut _ext = new_test_ext();
 	let (offchain, _state) = TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 
 	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 
 	let keystore = KeyStore::new();
-    SyncCryptoStore::sr25519_generate_new(
-		&keystore,
-		KEY_TYPE,
-		Some(&format!("{}/hunter1", PHRASE))
-	).unwrap();
+	SyncCryptoStore::sr25519_generate_new(&keystore, KEY_TYPE, Some(&format!("{}/hunter1", PHRASE))).unwrap();
 
 	let mut t = sp_io::TestExternalities::default();
 	t.register_extension(OffchainExt::new(offchain));

@@ -3,8 +3,9 @@
 use super::*;
 use crate::Trait;
 use frame_support::{
-	impl_outer_origin, parameter_types,
-	traits::{OnFinalize, OnInitialize},
+	impl_outer_origin,
+	parameter_types,
+	//traits::{OnFinalize, OnInitialize},
 	weights::Weight,
 };
 use frame_system as system;
@@ -109,6 +110,7 @@ impl pallet_timestamp::Trait for Test {
 	type WeightInfo = ();
 }
 
+/*
 pub fn run_to_block(n: u64) {
 	while System::block_number() < n {
 		PriceFetch::on_finalize(System::block_number());
@@ -118,6 +120,7 @@ pub fn run_to_block(n: u64) {
 		PriceFetch::on_initialize(System::block_number());
 	}
 }
+*/
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
@@ -125,4 +128,4 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 pub type PriceFetch = Module<Test>;
-pub type System = system::Module<Test>;
+//pub type System = system::Module<Test>;

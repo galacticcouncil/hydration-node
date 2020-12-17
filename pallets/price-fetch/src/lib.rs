@@ -386,8 +386,9 @@ impl<T: Trait> Module<T> {
 	///
 	/// Returns `None` when parsing failed or `Some(DiaPriceRecord)` when parsing is successful.
 	fn parse_dia_res(body: &str) -> Option<DiaPriceRecord> {
-		let p: DiaPriceRecord = serde_json::from_str(&body).unwrap();
-
-		Some(p)
+		match serde_json::from_str(&body) {
+			Ok(p) => Some(p),
+			Err(_) => None,
+		}
 	}
 }
