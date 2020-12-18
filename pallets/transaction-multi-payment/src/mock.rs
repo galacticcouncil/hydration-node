@@ -1,12 +1,15 @@
 use super::*;
-use crate::{Module, MultiCurrencyAdapter, Config};
-use frame_support::{impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types};
+use crate::{Config, Module, MultiCurrencyAdapter};
+use frame_support::{
+	impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types, weights::DispatchClass,
+};
 use frame_system as system;
-use sp_core::H256;
 use orml_traits::parameter_type_with_key;
+use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, Zero},
+	Perbill,
 };
 
 use frame_support::weights::IdentityFee;
@@ -27,6 +30,9 @@ pub const HDX: AssetId = 0;
 pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_BALANCE: AssetId = 3000;
 pub const NOT_SUPPORTED_CURRENCY: AssetId = 4000;
+
+const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+const MAX_BLOCK_WEIGHT: Weight = 1024;
 
 thread_local! {
 		static EXTRINSIC_BASE_WEIGHT: RefCell<u64> = RefCell::new(0);
@@ -74,11 +80,28 @@ parameter_types! {
 	pub const MaxLocks: u32 = 50;
 	pub const TransactionByteFee: Balance = 1;
 	pub NonNativeAssets: Vec<AssetId> = vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE];
+
+	pub RuntimeBlockWeights: system::limits::BlockWeights = system::limits::BlockWeights::builder()
+		.base_block(10)
+		.for_class(DispatchClass::all(), |weights| {
+			weights.base_extrinsic = ExtrinsicBaseWeight::get();
+		})
+		.for_class(DispatchClass::Normal, |weights| {
+			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT);
+		})
+		.for_class(DispatchClass::Operational, |weights| {
+			weights.max_total = Some(MAX_BLOCK_WEIGHT);
+			weights.reserved = Some(
+				MAX_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT
+			);
+		})
+		.avg_block_initialization(Perbill::from_percent(0))
+		.build_or_panic();
 }
 
 impl system::Config for Test {
 	type BaseCallFilter = ();
-	type BlockWeights = ();
+	type BlockWeights = RuntimeBlockWeights;
 	type BlockLength = ();
 	type Origin = Origin;
 	type Call = Call;
