@@ -24,7 +24,7 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
 	type Call = ();
@@ -54,7 +54,7 @@ impl system::Trait for Test {
 
 pub type Amount = i128;
 
-impl orml_tokens::Trait for Test {
+impl orml_tokens::Config for Test {
 	type Event = ();
 	type Balance = Balance;
 	type Amount = Amount;

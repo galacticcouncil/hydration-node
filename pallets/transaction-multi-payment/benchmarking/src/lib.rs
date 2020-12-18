@@ -14,15 +14,15 @@ use sp_runtime::DispatchError;
 
 use pallet_amm as ammpool;
 
-pub struct Module<T: Trait>(pallet_transaction_multi_payment::Module<T>);
+pub struct Module<T: Config>(pallet_transaction_multi_payment::Module<T>);
 
-pub trait Trait: pallet_transaction_payment::Trait + pallet_transaction_multi_payment::Trait + ammpool::Trait {}
+pub trait Config: pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + ammpool::Config {}
 
 const SEED: u32 = 0;
 const ASSET_ID: u32 = 3;
 const HDX : u32 = 0;
 
-fn funded_account<T: Trait>(name: &'static str, index: u32) -> T::AccountId
+fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId
 where
 	T::MultiCurrency: MultiCurrencyExtended<T::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>,
 {
@@ -34,7 +34,7 @@ where
 	caller
 }
 
-fn initialize_pool<T: Trait>(
+fn initialize_pool<T: Config>(
 	caller: T::AccountId,
 	asset: AssetId,
 	amount: Balance,

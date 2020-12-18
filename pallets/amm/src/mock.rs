@@ -54,11 +54,11 @@ parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 }
 
-impl pallet_asset_registry::Trait for Test {
+impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
 	type Call = ();
@@ -71,13 +71,7 @@ impl system::Trait for Test {
 	type Header = Header;
 	type Event = TestEvent;
 	type BlockHashCount = BlockHashCount;
-	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
-	type BlockExecutionWeight = ();
-	type ExtrinsicBaseWeight = ();
-	type MaximumBlockLength = MaximumBlockLength;
-	type MaximumExtrinsicWeight = MaximumBlockWeight;
-	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
 	type AccountData = ();
 	type OnNewAccount = ();
@@ -88,12 +82,11 @@ impl system::Trait for Test {
 
 pub type Amount = i128;
 
-impl orml_tokens::Trait for Test {
+impl orml_tokens::Config for Test {
 	type Event = TestEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type OnReceived = ();
 	type WeightInfo = ();
 }
 

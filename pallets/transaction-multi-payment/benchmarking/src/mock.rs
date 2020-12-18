@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::Trait;
+use crate::Config;
 use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
@@ -64,7 +64,7 @@ parameter_types! {
 	pub NonNativeAssets: Vec<AssetId> = vec![SUPPORTED_CURRENCY];
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
 	type Call = Call;
@@ -93,7 +93,7 @@ impl system::Trait for Test {
 }
 impl Trait for Test {}
 
-impl pallet_transaction_multi_payment::Trait for Test {
+impl pallet_transaction_multi_payment::Config for Test {
 	type Event = ();
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
@@ -102,11 +102,11 @@ impl pallet_transaction_multi_payment::Trait for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_asset_registry::Trait for Test {
+impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 }
 
-impl pallet_balances::Trait for Test {
+impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
@@ -118,7 +118,7 @@ impl pallet_balances::Trait for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_transaction_payment::Trait for Test {
+impl pallet_transaction_payment::Config for Test {
 	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), PaymentModule>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
@@ -140,7 +140,7 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl pallet_amm::Trait for Test {
+impl pallet_amm::Config for Test {
 	type Event = ();
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
@@ -148,7 +148,7 @@ impl pallet_amm::Trait for Test {
 	type WeightInfo = ();
 }
 
-impl orml_tokens::Trait for Test {
+impl orml_tokens::Config for Test {
 	type Event = ();
 	type Balance = Balance;
 	type Amount = Amount;
@@ -157,7 +157,7 @@ impl orml_tokens::Trait for Test {
 	type WeightInfo = ();
 }
 
-impl orml_currencies::Trait for Test {
+impl orml_currencies::Config for Test {
 	type Event = ();
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;

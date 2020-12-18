@@ -2,7 +2,7 @@ use super::*;
 use frame_support::traits::BalanceStatus;
 
 /// Hold info about each transfer which has to be made to resolve a direct trade.
-pub struct Transfer<'a, T: Trait> {
+pub struct Transfer<'a, T: Config> {
 	pub from: &'a T::AccountId,
 	pub to: &'a T::AccountId,
 	pub asset: AssetId,
@@ -12,7 +12,7 @@ pub struct Transfer<'a, T: Trait> {
 
 /// Hold info about a direct trade between two intentions.
 /// After a direct trade is prepared - ```transfers``` contains all necessary transfers to complete the trade.
-pub struct DirectTradeData<'a, T: Trait> {
+pub struct DirectTradeData<'a, T: Config> {
 	pub intention_a: &'a Intention<T>,
 	pub intention_b: &'a Intention<T>,
 	pub amount_from_a: Balance,
@@ -21,7 +21,7 @@ pub struct DirectTradeData<'a, T: Trait> {
 }
 
 /// Direct trading implementaton
-impl<'a, T: Trait> DirectTradeData<'a, T> {
+impl<'a, T: Config> DirectTradeData<'a, T> {
 	/// Prepare direct trade
 	/// 1. Validate balances
 	/// 2. Calculate fees

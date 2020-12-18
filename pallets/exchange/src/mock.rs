@@ -59,7 +59,7 @@ parameter_types! {
 
 	pub const HDXAssetId: AssetId = HDX;
 }
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
 	type Call = ();
@@ -87,7 +87,7 @@ impl system::Trait for Test {
 	type SystemWeightInfo = ();
 }
 
-impl orml_tokens::Trait for Test {
+impl orml_tokens::Config for Test {
 	type Event = TestEvent;
 	type Balance = Balance;
 	type Amount = Amount;
@@ -98,7 +98,7 @@ impl orml_tokens::Trait for Test {
 
 pub type Currency = orml_tokens::Module<Test>;
 
-impl pallet_asset_registry::Trait for Test {
+impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 }
 
@@ -117,7 +117,7 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl amm::Trait for Test {
+impl amm::Config for Test {
 	type Event = TestEvent;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;

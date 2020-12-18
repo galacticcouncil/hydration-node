@@ -38,9 +38,9 @@ primitives = { path = '../primitives', default-features = false, version = '2.0.
 module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0' }
 
 # ORML dependencies
-orml-currencies = { default-features = false, version = "0.3.2" }
-orml-tokens = { default-features = false, version = "0.3.2" }
-orml-traits = { default-features = false, version = "0.3.2" }
+orml-currencies = { default-features = false, version = "0.3.3-dev" }
+orml-tokens = { default-features = false, version = "0.3.3-dev" }
+orml-traits = { default-features = false, version = "0.3.3-dev" }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }

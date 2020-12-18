@@ -31,9 +31,9 @@ pallet-amm = { path = '../../amm', default-features = false, version = '2.0.0' }
 pallet-transaction-multi-payment = { path = '../../transaction-multi-payment', default-features = false, version = '2.0.0' }
 
 # ORML dependencies
-orml-traits = { default-features = false, version = "0.3.2" }
-orml-tokens = { default-features = false, version = "0.3.2" }
-orml-currencies= { default-features = false, version = "0.3.2" }
+orml-traits = { default-features = false, version = "0.3.3-dev" }
+orml-tokens = { default-features = false, version = "0.3.3-dev" }
+orml-currencies= { default-features = false, version = "0.3.3-dev" }
 
 # Substrate dependencies
 frame-system = { default-features = false, version = '2.0.0' }

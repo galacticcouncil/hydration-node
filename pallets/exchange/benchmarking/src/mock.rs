@@ -51,7 +51,7 @@ parameter_types! {
 
 	pub const HDXAssetId: AssetId = HDX;
 }
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
 	type Origin = Origin;
 	type Call = ();
@@ -64,13 +64,7 @@ impl system::Trait for Test {
 	type Header = Header;
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
-	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
-	type BlockExecutionWeight = ();
-	type ExtrinsicBaseWeight = ();
-	type MaximumExtrinsicWeight = MaximumBlockWeight;
-	type MaximumBlockLength = MaximumBlockLength;
-	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
 	type PalletInfo = ();
 	type AccountData = ();
@@ -79,12 +73,11 @@ impl system::Trait for Test {
 	type SystemWeightInfo = ();
 }
 
-impl orml_tokens::Trait for Test {
+impl orml_tokens::Config for Test {
 	type Event = ();
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type OnReceived = ();
 	type WeightInfo = ();
 }
 
@@ -105,11 +98,11 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl pallet_asset_registry::Trait for Test {
+impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 }
 
-impl pallet_amm::Trait for Test {
+impl pallet_amm::Config for Test {
 	type Event = ();
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
@@ -120,7 +113,7 @@ impl pallet_amm::Trait for Test {
 pub type AMMModule = pallet_amm::Module<Test>;
 pub type System = system::Module<Test>;
 
-impl pallet_exchange::Trait for Test {
+impl pallet_exchange::Config for Test {
 	type Event = ();
 	type AMMPool = AMMModule;
 	type Currency = Currency;
@@ -132,7 +125,7 @@ pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 }
 
-impl crate::Trait for Test {}
+impl crate::Config for Test {}
 
 impl Default for ExtBuilder {
 	fn default() -> Self {

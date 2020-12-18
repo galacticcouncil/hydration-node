@@ -8,7 +8,7 @@ use orml_traits::MultiCurrency;
 use pallet_balances::Call as BalancesCall;
 use primitives::Price;
 
-const CALL: &<Test as frame_system::Trait>::Call = &Call::Balances(BalancesCall::transfer(2, 69));
+const CALL: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer(2, 69));
 
 #[test]
 fn set_unsupported_currency() {
