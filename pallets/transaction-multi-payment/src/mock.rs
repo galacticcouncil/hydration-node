@@ -1,11 +1,14 @@
 use super::*;
-use crate::{Module, MultiCurrencyAdapter, Trait};
-use frame_support::{impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
+use crate::{Config, Module, MultiCurrencyAdapter};
+use frame_support::{
+	impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types, weights::DispatchClass,
+};
 use frame_system as system;
+use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup, Zero},
 	Perbill,
 };
 
@@ -18,8 +21,6 @@ use std::cell::RefCell;
 
 pub type AccountId = u64;
 
-pub const POOL_ADDRESS: AccountId = 100;
-
 pub const INITIAL_BALANCE: Balance = 1000_000_000_000_000u128;
 
 pub const ALICE: AccountId = 1;
@@ -29,6 +30,9 @@ pub const HDX: AssetId = 0;
 pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 2000;
 pub const SUPPORTED_CURRENCY_WITH_BALANCE: AssetId = 3000;
 pub const NOT_SUPPORTED_CURRENCY: AssetId = 4000;
+
+const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+const MAX_BLOCK_WEIGHT: Weight = 1024;
 
 thread_local! {
 		static EXTRINSIC_BASE_WEIGHT: RefCell<u64> = RefCell::new(0);
@@ -70,19 +74,35 @@ impl_outer_dispatch! {
 pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub const MaximumBlockWeight: Weight = 1024;
-	pub const MaximumBlockLength: u32 = 2 * 1024;
-	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 
 	pub const HdxAssetId: u32 = 0;
 	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
 	pub const TransactionByteFee: Balance = 1;
 	pub NonNativeAssets: Vec<AssetId> = vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE];
+
+	pub RuntimeBlockWeights: system::limits::BlockWeights = system::limits::BlockWeights::builder()
+		.base_block(10)
+		.for_class(DispatchClass::all(), |weights| {
+			weights.base_extrinsic = ExtrinsicBaseWeight::get();
+		})
+		.for_class(DispatchClass::Normal, |weights| {
+			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT);
+		})
+		.for_class(DispatchClass::Operational, |weights| {
+			weights.max_total = Some(MAX_BLOCK_WEIGHT);
+			weights.reserved = Some(
+				MAX_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT
+			);
+		})
+		.avg_block_initialization(Perbill::from_percent(0))
+		.build_or_panic();
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
+	type BlockWeights = RuntimeBlockWeights;
+	type BlockLength = ();
 	type Origin = Origin;
 	type Call = Call;
 	type Index = u64;
@@ -94,13 +114,7 @@ impl system::Trait for Test {
 	type Header = Header;
 	type Event = TestEvent;
 	type BlockHashCount = BlockHashCount;
-	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
-	type BlockExecutionWeight = ();
-	type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
-	type MaximumExtrinsicWeight = MaximumBlockWeight;
-	type MaximumBlockLength = MaximumBlockLength;
-	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
 	type PalletInfo = ();
 	type AccountData = pallet_balances::AccountData<u128>;
@@ -109,7 +123,7 @@ impl system::Trait for Test {
 	type SystemWeightInfo = ();
 }
 
-impl Trait for Test {
+impl Config for Test {
 	type Event = TestEvent;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
@@ -118,11 +132,11 @@ impl Trait for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_asset_registry::Trait for Test {
+impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 }
 
-impl pallet_balances::Trait for Test {
+impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	/// The type for recording an account's balance.
 	type Balance = Balance;
@@ -134,7 +148,7 @@ impl pallet_balances::Trait for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_transaction_payment::Trait for Test {
+impl pallet_transaction_payment::Config for Test {
 	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), PaymentModule>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
@@ -155,7 +169,7 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl pallet_amm::Trait for Test {
+impl pallet_amm::Config for Test {
 	type Event = TestEvent;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
@@ -163,16 +177,23 @@ impl pallet_amm::Trait for Test {
 	type WeightInfo = ();
 }
 
-impl orml_tokens::Trait for Test {
+parameter_type_with_key! {
+	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+		Zero::zero()
+	};
+}
+
+impl orml_tokens::Config for Test {
 	type Event = TestEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type OnReceived = ();
 	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
 }
 
-impl orml_currencies::Trait for Test {
+impl orml_currencies::Config for Test {
 	type Event = TestEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;

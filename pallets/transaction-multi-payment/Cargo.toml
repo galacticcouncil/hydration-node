@@ -29,8 +29,8 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 primitives = {path = '../../primitives', default-features = false, version = '2.0.0'}
 
 # ORML dependencies
-orml-tokens = {default-features = false, version = "0.3.2"}
-orml-traits = {default-features = false, version = "0.3.2"}
+orml-tokens = {default-features = false, version = "0.3.3-dev"}
+orml-traits = {default-features = false, version = "0.3.3-dev"}
 
 # Substrate dependencies
 frame-benchmarking = {default-features = false, optional = true, version = '2.0.0'}
@@ -50,7 +50,7 @@ pallet-amm = {path = '../amm', default-features = false, version = '2.0.0'}
 [dev-dependencies]
 sp-io = {default-features = false, version = '2.0.0'}
 pallet-transaction-payment = {default-features = false, version = '2.0.0' }
-orml-currencies = {default-features = false, version = "0.3.2"}
+orml-currencies = {default-features = false, version = "0.3.3-dev"}
 
 [features]
 default = ['std']

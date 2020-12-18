@@ -36,8 +36,8 @@ pub trait WeightInfo {
 }
 
 /// The pallet's configuration trait.
-pub trait Trait: frame_system::Trait + pallet_asset_registry::Trait {
-	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+pub trait Config: frame_system::Config + pallet_asset_registry::Config {
+	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
 	type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
 	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
 
@@ -51,9 +51,9 @@ pub trait AssetPairAccountIdFor<AssetId: Sized, AccountId: Sized> {
 	fn from_assets(asset_a: AssetId, asset_b: AssetId) -> AccountId;
 }
 
-pub struct AssetPairAccountId<T: Trait>(PhantomData<T>);
+pub struct AssetPairAccountId<T: Config>(PhantomData<T>);
 
-impl<T: Trait> AssetPairAccountIdFor<AssetId, T::AccountId> for AssetPairAccountId<T>
+impl<T: Config> AssetPairAccountIdFor<AssetId, T::AccountId> for AssetPairAccountId<T>
 where
 	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
 {
@@ -71,7 +71,7 @@ where
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	fn get_token_name(asset_a: AssetId, asset_b: AssetId) -> Vec<u8> {
 		let mut buf: Vec<u8> = Vec::new();
 		if asset_a < asset_b {
@@ -89,7 +89,7 @@ impl<T: Trait> Module<T> {
 
 // This pallet's storage items.
 decl_storage! {
-	trait Store for Module<T: Trait> as AMM {
+	trait Store for Module<T: Config> as AMM {
 		ShareToken get(fn share_token): map hasher(blake2_128_concat) T::AccountId => AssetId;
 		TotalLiquidity get(fn total_liquidity): map hasher(blake2_128_concat) T::AccountId => Balance;
 
@@ -101,7 +101,7 @@ decl_storage! {
 decl_event!(
 	pub enum Event<T>
 	where
-		AccountId = <T as system::Trait>::AccountId,
+		AccountId = <T as system::Config>::AccountId,
 		AssetId = AssetId,
 		Balance = Balance,
 	{
@@ -127,7 +127,7 @@ decl_event!(
 
 // The pallet's errors
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 
 		CannotCreatePoolWithSameAssets,
 
@@ -173,7 +173,7 @@ decl_error! {
 // The pallet's dispatchable functions.
 decl_module! {
 	/// The module declaration.
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Initializing errors
 		// this includes information about your errors in the node's metadata.
 		// it is needed only if you are using errors in your pallet
@@ -183,7 +183,7 @@ decl_module! {
 		// this is needed only if you are using events in your pallet
 		fn deposit_event() = default;
 
-		#[weight =  <T as Trait>::WeightInfo::create_pool()]
+		#[weight =  <T as Config>::WeightInfo::create_pool()]
 		pub fn create_pool(
 			origin,
 			asset_a: AssetId,
@@ -253,7 +253,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::add_liquidity()]
+		#[weight =  <T as Config>::WeightInfo::add_liquidity()]
 		pub fn add_liquidity(
 			origin,
 			asset_a: AssetId,
@@ -333,7 +333,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::remove_liquidity()]
+		#[weight =  <T as Config>::WeightInfo::remove_liquidity()]
 		pub fn remove_liquidity(
 			origin,
 			asset_a: AssetId,
@@ -414,7 +414,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::sell()]
+		#[weight =  <T as Config>::WeightInfo::sell()]
 		pub fn sell(
 			origin,
 			asset_sell: AssetId,
@@ -428,7 +428,7 @@ decl_module! {
 			<Self as AMM<_,_,_>>::sell(&who, asset_sell, asset_buy, amount_sell, max_limit, discount)
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::buy()]
+		#[weight =  <T as Config>::WeightInfo::buy()]
 		pub fn buy(
 			origin,
 			asset_buy: AssetId,
@@ -444,7 +444,7 @@ decl_module! {
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	pub fn get_spot_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
 		match Self::exists(asset_a, asset_b) {
 			true => Self::get_spot_price_unchecked(asset_a, asset_b, amount),
@@ -510,7 +510,7 @@ impl<T: Trait> Module<T> {
 	}
 }
 
-impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
+impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn exists(asset_a: AssetId, asset_b: AssetId) -> bool {
 		let pair_account = T::AssetPairAccountId::from_assets(asset_a, asset_b);
 		<ShareToken<T>>::contains_key(&pair_account)

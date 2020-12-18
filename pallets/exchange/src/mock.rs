@@ -1,13 +1,13 @@
 // Creating mock runtime here
 
-use crate::{Module, Trait};
-use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
+use crate::{Module, Config};
+use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system as system;
 use sp_core::H256;
+use orml_traits::parameter_type_with_key;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
-	Perbill,
+	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
 use pallet_amm as amm;
@@ -53,14 +53,13 @@ impl_outer_origin! {
 pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub const MaximumBlockWeight: Weight = 1024;
-	pub const MaximumBlockLength: u32 = 2 * 1024;
-	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 
 	pub const HDXAssetId: AssetId = HDX;
 }
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
+	type BlockWeights = ();
+	type BlockLength = ();
 	type Origin = Origin;
 	type Call = ();
 	type Index = u64;
@@ -72,13 +71,7 @@ impl system::Trait for Test {
 	type Header = Header;
 	type Event = TestEvent;
 	type BlockHashCount = BlockHashCount;
-	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
-	type BlockExecutionWeight = ();
-	type ExtrinsicBaseWeight = ();
-	type MaximumExtrinsicWeight = MaximumBlockWeight;
-	type MaximumBlockLength = MaximumBlockLength;
-	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
 	type PalletInfo = ();
 	type AccountData = ();
@@ -87,18 +80,25 @@ impl system::Trait for Test {
 	type SystemWeightInfo = ();
 }
 
-impl orml_tokens::Trait for Test {
+parameter_type_with_key! {
+	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+		Zero::zero()
+	};
+}
+
+impl orml_tokens::Config for Test {
 	type Event = TestEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type OnReceived = ();
 	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
 }
 
 pub type Currency = orml_tokens::Module<Test>;
 
-impl pallet_asset_registry::Trait for Test {
+impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 }
 
@@ -117,7 +117,7 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl amm::Trait for Test {
+impl amm::Config for Test {
 	type Event = TestEvent;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
@@ -128,7 +128,7 @@ impl amm::Trait for Test {
 pub type AMMModule = amm::Module<Test>;
 pub type System = system::Module<Test>;
 
-impl Trait for Test {
+impl Config for Test {
 	type Event = TestEvent;
 	type AMMPool = AMMModule;
 	type Currency = Currency;

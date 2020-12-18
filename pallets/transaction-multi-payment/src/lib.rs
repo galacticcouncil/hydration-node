@@ -29,16 +29,16 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::{CurrencySwap, AMM};
 use primitives::{AssetId, Balance, CORE_ASSET_ID};
 
-type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
+type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 pub trait WeightInfo {
 	fn set_currency() -> Weight;
 	fn swap_currency() -> Weight;
 }
 
-pub trait Trait: frame_system::Trait + pallet_transaction_payment::Trait {
+pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 	/// Because this pallet emits events, it depends on the runtime's definition of an event.
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
 	/// The currency type in which fees will be paid.
 	type Currency: Currency<Self::AccountId> + Send + Sync;
@@ -60,7 +60,7 @@ pub trait Trait: frame_system::Trait + pallet_transaction_payment::Trait {
 decl_event!(
 	pub enum Event<T>
 	where
-		AccountId = <T as frame_system::Trait>::AccountId,
+		AccountId = <T as frame_system::Config>::AccountId,
 	{
 		/// CurrencySet
 		/// [who, currency]
@@ -70,7 +70,7 @@ decl_event!(
 
 // The pallet's errors
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Selected currency is not supported
 		UnsupportedCurrency,
 
@@ -80,14 +80,14 @@ decl_error! {
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as TransactionPayment {
+	trait Store for Module<T: Config> as TransactionPayment {
 		/// Account currency map
 		pub AccountCurrencyMap get(fn get_currency): map hasher(blake2_128_concat) T::AccountId => Option<AssetId>;
 	}
 }
 
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
 
@@ -97,7 +97,7 @@ decl_module! {
 		/// Set currency in which transaction fees are paid.
 		/// This is feeless transaction.
 		/// Selected currency must have non-zero balance otherwise is not allowed to be set.
-		#[weight = (<T as Trait>::WeightInfo::set_currency(), Pays::No)]
+		#[weight = (<T as Config>::WeightInfo::set_currency(), Pays::No)]
 		pub fn set_currency(
 			origin,
 			currency: AssetId,
@@ -121,7 +121,7 @@ decl_module! {
 		}
 	}
 }
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
 		let fee_currency = match Module::<T>::get_currency(who) {
@@ -138,7 +138,7 @@ impl<T: Trait> Module<T> {
 	}
 }
 
-impl<T: Trait> CurrencySwap<<T as frame_system::Trait>::AccountId, Balance> for Module<T> {
+impl<T: Config> CurrencySwap<<T as frame_system::Config>::AccountId, Balance> for Module<T> {
 	fn swap_currency(who: &T::AccountId, fee: u128) -> DispatchResult {
 		Self::swap_currency(who, fee)
 	}
@@ -149,19 +149,19 @@ pub struct MultiCurrencyAdapter<C, OU, SW>(PhantomData<(C, OU, SW)>);
 
 impl<T, C, OU, SW> OnChargeTransaction<T> for MultiCurrencyAdapter<C, OU, SW>
 where
-	T: Trait,
-	T::TransactionByteFee: Get<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance>,
-	C: Currency<<T as frame_system::Trait>::AccountId>,
+	T: Config,
+	T::TransactionByteFee: Get<<C as Currency<<T as frame_system::Config>::AccountId>>::Balance>,
+	C: Currency<<T as frame_system::Config>::AccountId>,
 	C::PositiveImbalance:
-		Imbalance<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance, Opposite = C::NegativeImbalance>,
+		Imbalance<<C as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = C::NegativeImbalance>,
 	C::NegativeImbalance:
-		Imbalance<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance, Opposite = C::PositiveImbalance>,
+		Imbalance<<C as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = C::PositiveImbalance>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
 	C::Balance: Into<Balance>,
 	SW: CurrencySwap<T::AccountId, Balance>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
-	type Balance = <C as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Withdraw the predicted fee from the transaction origin.
 	///
