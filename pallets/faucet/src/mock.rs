@@ -1,12 +1,12 @@
-use crate::{Module, Trait};
-use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
+use crate::{Module, Config};
+use frame_support::{impl_outer_origin, parameter_types};
 use frame_system as system;
 use primitives::{AssetId, Balance};
 use sp_core::H256;
+use orml_traits::parameter_type_with_key;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
-	Perbill,
+	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
 impl_outer_origin! {
@@ -19,13 +19,12 @@ impl_outer_origin! {
 pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub const MaximumBlockWeight: Weight = 1024;
-	pub const MaximumBlockLength: u32 = 2 * 1024;
-	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 
 impl system::Config for Test {
 	type BaseCallFilter = ();
+	type BlockWeights = ();
+	type BlockLength = ();
 	type Origin = Origin;
 	type Call = ();
 	type Index = u64;
@@ -37,13 +36,7 @@ impl system::Config for Test {
 	type Header = Header;
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
-	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
-	type BlockExecutionWeight = ();
-	type ExtrinsicBaseWeight = ();
-	type MaximumExtrinsicWeight = MaximumBlockWeight;
-	type MaximumBlockLength = MaximumBlockLength;
-	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
 	type PalletInfo = ();
 	type AccountData = ();
@@ -54,18 +47,25 @@ impl system::Config for Test {
 
 pub type Amount = i128;
 
+parameter_type_with_key! {
+	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+		Zero::zero()
+	};
+}
+
 impl orml_tokens::Config for Test {
 	type Event = ();
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type OnReceived = ();
 	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
 }
 
 pub type Currency = orml_tokens::Module<Test>;
 
-impl Trait for Test {
+impl Config for Test {
 	type Event = ();
 	type Currency = Currency;
 }
