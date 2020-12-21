@@ -1,21 +1,38 @@
 #![allow(clippy::or_fun_call)]
 
+use cumulus_primitives::ParaId;
 use hack_hydra_dx_runtime::{
-	AccountId, AssetRegistryConfig, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-	SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	AccountId, AssetRegistryConfig, BalancesConfig, GenesisConfig, Signature, SudoConfig,
+	SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY, ParachainInfoConfig
 };
+use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde_json::map::Map;
+use serde::{Deserialize, Serialize};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
-// The URL for the telemetry server.
-// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+/// The extensions for the [`ChainSpec`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
+#[serde(deny_unknown_fields)]
+pub struct Extensions {
+	/// The relay chain of the Parachain.
+	pub relay_chain: String,
+	/// The id of the Parachain.
+	pub para_id: u32,
+}
+
+impl Extensions {
+	/// Try to get the extension from the given `ChainSpec`.
+	pub fn try_get(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Option<&Self> {
+		sc_chain_spec::get_extension(chain_spec.extensions())
+	}
+}
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
+pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -39,7 +56,7 @@ pub fn authority_keys_from_seed(seed: &str) -> (AuraId, GrandpaId) {
 	(get_from_seed::<AuraId>(seed), get_from_seed::<GrandpaId>(seed))
 }
 
-pub fn development_config() -> Result<ChainSpec, String> {
+pub fn development_config(para_id: ParaId) -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
@@ -65,6 +82,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
 				],
 				true,
+				para_id,
 			)
 		},
 		// Bootnodes
@@ -76,11 +94,14 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// Properties
 		Some(properties),
 		// Extensions
-		None,
+		Extensions {
+			relay_chain: "local_testnet".into(),
+			para_id: para_id.into(),
+		},
 	))
 }
 
-pub fn local_testnet_config() -> Result<ChainSpec, String> {
+pub fn local_testnet_config(para_id: ParaId) -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
@@ -115,6 +136,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
 				true,
+				para_id,
 			)
 		},
 		// Bootnodes
@@ -126,7 +148,10 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Properties
 		Some(properties),
 		// Extensions
-		None,
+		Extensions {
+			relay_chain: "local_testnet".into(),
+			para_id: para_id.into(),
+		},
 	))
 }
 
@@ -137,6 +162,7 @@ fn testnet_genesis(
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
+	parachain_id: ParaId,
 ) -> GenesisConfig {
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
@@ -147,12 +173,6 @@ fn testnet_genesis(
 		pallet_balances: Some(BalancesConfig {
 			// Configure endowed accounts with initial balance of 1 << 60.
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
-		}),
-		pallet_aura: Some(AuraConfig {
-			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
-		}),
-		pallet_grandpa: Some(GrandpaConfig {
-			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
 		}),
 		pallet_sudo: Some(SudoConfig {
 			// Assign network admin rights.
@@ -189,5 +209,6 @@ fn testnet_genesis(
 				})
 				.collect(),
 		}),
+		parachain_info: Some(ParachainInfoConfig { parachain_id }),
 	}
 }

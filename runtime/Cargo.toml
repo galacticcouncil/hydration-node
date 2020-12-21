@@ -11,7 +11,7 @@ version = '2.0.0'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '1.0.5' }
+wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '2.0.0' }
 
 # alias "parity-scale-code" to "codec"
 [dependencies.codec]
@@ -71,6 +71,12 @@ sp-transaction-pool = { default-features = false, version = '2.0.0' }
 sp-version = { default-features = false, version = '2.0.0' }
 sp-staking = { default-features = false, version = '2.0.0' }
 
+# Cumulus dependencies
+cumulus-runtime = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+cumulus-parachain-upgrade = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+cumulus-primitives = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+parachain-info = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+
 [features]
 default = ['std']
 runtime-benchmarks = [
@@ -95,6 +101,10 @@ std = [
     'orml-currencies/std',
     'orml-tokens/std',
     'orml-traits/std',
+    'cumulus-runtime/std',
+    'cumulus-parachain-upgrade/std',
+    'cumulus-primitives/std',
+    'parachain-info/std',
     'pallet-amm/std',
     'pallet-asset-registry/std',
     'pallet-exchange/std',
