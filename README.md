@@ -30,30 +30,41 @@ Once the development environment is set up, build the node template. This comman
 [Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
 [native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
 
+Build Standalone
+
+```bash
+cd node/standalone
+cargo build --release
+```
+
+Build Parachain
 ```bash
 cargo build --release
 ```
 
 ## Run
 
-### Single Node Development Chain
+### Standalone Node in dev mode
+```bash
+./node/standalone/target/release/hack-hydra-dx-standalone --dev
+```
 
 Purge any existing dev chain state:
 
 ```bash
-./target/release/hack-hydra-dx purge-chain --dev
+./node/standalone/target/release/hack-hydra-dx-standalone purge-chain --dev
 ```
 
 Start a dev chain:
 
 ```bash
-./target/release/hack-hydra-dx --dev
+./node/standalone/target/release/hack-hydra-dx-standalone --dev
 ```
 
 Or, start a dev chain with detailed logging:
 
 ```bash
-RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hack-hydra-dx -lruntime=debug --dev
+RUST_LOG=debug RUST_BACKTRACE=1 ./node/standalone/target/release/hack-hydra-dx-standalone -lruntime=debug --dev
 ```
 
 ### Interaction with the node
