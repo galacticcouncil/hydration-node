@@ -55,8 +55,6 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 pub use pallet_asset_registry;
 pub use pallet_faucet;
 
-/// Import the template pallet.
-pub use pallet_template;
 use pallet_transaction_multi_payment::{MultiCurrencyAdapter, WeightInfo};
 
 /// An index to a block.
@@ -298,11 +296,6 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-/// Configure the template pallet in pallets/template.
-impl pallet_template::Config for Runtime {
-	type Event = Event;
-}
-
 parameter_type_with_key! {
 	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
 		Zero::zero()
@@ -381,9 +374,6 @@ construct_runtime!(
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
-
-		// Include the custom logic from the template pallet in the runtime.
-		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
 	}
 );
 
