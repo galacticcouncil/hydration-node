@@ -2,7 +2,7 @@
 
 set -e
 
-echo "*** Start Substrate node template ***"
+echo "*** Start HydraDX node ***"
 
 cd $(dirname ${BASH_SOURCE[0]})/..
 
