@@ -4,21 +4,29 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::large_enum_variant)]
 
+#[cfg(not(feature = "standalone"))]
+mod parachain;
+
+#[cfg(not(feature = "standalone"))]
+use parachain::*;
+
+#[cfg(feature = "standalone")]
+mod standalone;
+
+#[cfg(feature = "standalone")]
+use standalone::*;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use pallet_grandpa::fg_primitives;
-use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, NumberFor, Verify,
-};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, NumberFor, Verify};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{Zero},
+	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -34,7 +42,7 @@ pub use frame_support::{
 	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		IdentityFee, Weight, DispatchClass
+		DispatchClass, IdentityFee, Weight,
 	},
 	StorageValue,
 };
@@ -47,7 +55,7 @@ pub use sp_runtime::{Perbill, Permill};
 use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key};
+use orml_traits::parameter_type_with_key;
 
 pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
@@ -98,6 +106,12 @@ pub mod opaque {
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
 
+	#[cfg(not(feature = "standalone"))]
+	impl_opaque_keys! {
+		pub struct SessionKeys {}
+	}
+
+	#[cfg(feature = "standalone")]
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
@@ -105,16 +119,6 @@ pub mod opaque {
 		}
 	}
 }
-
-pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-template"),
-	impl_name: create_runtime_str!("node-template"),
-	authoring_version: 1,
-	spec_version: 1,
-	impl_version: 1,
-	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
-};
 
 pub const MILLISECS_PER_BLOCK: u64 = 6000;
 
@@ -222,37 +226,9 @@ impl frame_system::Config for Runtime {
 	type SystemWeightInfo = ();
 }
 
-impl pallet_aura::Config for Runtime {
-	type AuthorityId = AuraId;
-}
-
-impl pallet_grandpa::Config for Runtime {
-	type Event = Event;
-	type Call = Call;
-
-	type KeyOwnerProofSystem = ();
-
-	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
-
-	type KeyOwnerIdentification =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::IdentificationTuple;
-
-	type HandleEquivocation = ();
-
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 	pub const HDXAssetId: AssetId = CORE_ASSET_ID;
-}
-
-impl pallet_timestamp::Config for Runtime {
-	/// A timestamp: milliseconds since the unix epoch.
-	type Moment = u64;
-	type OnTimestampSet = Aura;
-	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -354,38 +330,11 @@ impl pallet_faucet::Config for Runtime {
 	type Event = Event;
 	type Currency = Currencies;
 }
+#[cfg(feature = "standalone")]
+runtime_standalone!();
 
-// Create the runtime by composing the FRAME pallets that were previously configured.
-construct_runtime!(
-	pub enum Runtime where
-		Block = Block,
-		NodeBlock = opaque::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
-	{
-		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-		Aura: pallet_aura::{Module, Config<T>, Inherent},
-		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
-		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: pallet_transaction_payment::{Module, Storage},
-		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
-
-		// ORML related modules
-		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
-		Currencies: orml_currencies::{Module, Call, Event<T>},
-
-		// HydraDX related modules
-		AssetRegistry: pallet_asset_registry::{Module, Call, Storage, Config<T>},
-		AMM: pallet_amm::{Module, Call, Storage, Event<T>},
-		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
-		Faucet: pallet_faucet::{Module, Call, Storage, Event<T>},
-		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
-
-		// Include the custom logic from the template pallet in the runtime.
-		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
-	}
-);
+#[cfg(not(feature = "standalone"))]
+runtime_parachain!();
 
 /// The address format for describing accounts.
 pub type Address = AccountId;
