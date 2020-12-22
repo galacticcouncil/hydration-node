@@ -80,7 +80,6 @@ members = [
   'pallets/amm',
   'pallets/asset-registry',
   'pallets/exchange',
-  'pallets/template',
   'pallets/transaction-multi-payment',
   'primitives',
   'runtime',
