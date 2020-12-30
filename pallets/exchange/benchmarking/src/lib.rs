@@ -114,7 +114,7 @@ benchmarks! {
 	_ { }
 
 	known_overhead_for_on_finalize {
-		let t in 0 .. 10;
+		let t: u32 = 5;
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
 	}
@@ -305,7 +305,7 @@ benchmarks! {
 	}
 
 	on_finalize_for_one_buy_extrinsic {
-		let t = 5;
+		let t:u32 = 5;
 
 		let creator = funded_account::<T>("creator", 100);
 		let buyer = funded_account::<T>("seller", 101);
