@@ -1,6 +1,8 @@
 use super::*;
 use frame_support::traits::BalanceStatus;
 
+use primitives::fee::{Fee, WithFee};
+
 /// Hold info about each transfer which has to be made to resolve a direct trade.
 pub struct Transfer<'a, T: Config> {
 	pub from: &'a T::AccountId,
@@ -62,8 +64,15 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 
 		// Let's handle the fees now for registered transfers.
 
-		let transfer_a_fee = fee::get_fee(self.amount_from_a).unwrap();
-		let transfer_b_fee = fee::get_fee(self.amount_from_b).unwrap();
+		let fee_a = self.amount_from_a.just_fee(Fee::default());
+		let fee_b = self.amount_from_b.just_fee(Fee::default());
+
+		if fee_a.is_none() || fee_b.is_none() {
+			return false;
+		}
+
+		let transfer_a_fee = fee_a.unwrap();
+		let transfer_b_fee = fee_b.unwrap();
 
 		// Work out where to a fee from.
 		// There are multiple possible scenarios to consider

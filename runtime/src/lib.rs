@@ -13,12 +13,10 @@ use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthority
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, NumberFor, Verify,
-};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, NumberFor, Verify};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{Zero},
+	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -34,7 +32,7 @@ pub use frame_support::{
 	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		IdentityFee, Weight, DispatchClass
+		DispatchClass, IdentityFee, Weight,
 	},
 	StorageValue,
 };
@@ -44,10 +42,12 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
+use primitives::fee;
+
 use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key};
+use orml_traits::parameter_type_with_key;
 
 pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
@@ -327,12 +327,17 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetId = AssetId;
 }
 
+parameter_types! {
+	pub ExchangeFee: fee::Fee = fee::Fee::default();
+}
+
 impl pallet_amm::Config for Runtime {
 	type Event = Event;
 	type AssetPairAccountId = pallet_amm::AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type HDXAssetId = HDXAssetId;
 	type WeightInfo = ();
+	type GetExchangeFee = ExchangeFee;
 }
 
 impl pallet_exchange::Config for Runtime {

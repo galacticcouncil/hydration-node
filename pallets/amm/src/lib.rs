@@ -17,6 +17,7 @@ use core::convert::TryFrom;
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
 use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 
 #[cfg(test)]
@@ -45,6 +46,9 @@ pub trait Config: frame_system::Config + pallet_asset_registry::Config {
 
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
+
+	/// Trading fee rate
+	type GetExchangeFee: Get<fee::Fee>;
 }
 
 pub trait AssetPairAccountIdFor<AssetId: Sized, AccountId: Sized> {
@@ -498,13 +502,17 @@ impl<T: Config> Module<T> {
 	fn calculate_fees(amount: Balance, discount: bool, hdx_fee: &mut Balance) -> Result<Balance, DispatchError> {
 		match discount {
 			true => {
-				let transfer_fee = fee::get_discounted_fee(amount).ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?;
+				let transfer_fee = amount
+					.discounted_fee()
+					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?;
 				*hdx_fee = transfer_fee;
 				Ok(transfer_fee)
 			}
 			false => {
 				*hdx_fee = 0;
-				Ok(fee::get_fee(amount).ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
+				Ok(amount
+					.just_fee(T::GetExchangeFee::get())
+					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
 			}
 		}
 	}
@@ -536,7 +544,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount) {
+		match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, 0, 0, amount) {
 			Result::Ok(v) => v,
 			_ => 0,
 		}
@@ -545,6 +553,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn calculate_spot_price(
 		sell_reserve: Balance,
 		buy_reserve: Balance,
+		_w1: Balance,
+		_w2: Balance,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
 		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
@@ -623,7 +633,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_sell, &hdx_pair_account);
 
-			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)?;
+			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, 0, 0, hdx_amount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,
@@ -735,7 +745,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_buy, &hdx_pair_account);
 
-			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)?;
+			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, 0, 0, hdx_amount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,

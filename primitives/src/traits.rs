@@ -1,6 +1,6 @@
 use frame_support::dispatch;
-use sp_std::vec::Vec;
 use frame_support::dispatch::DispatchResult;
+use sp_std::vec::Vec;
 
 /// Hold information to perform amm transfer
 /// Contains also exact amount which will be sold/bought
@@ -31,7 +31,9 @@ pub trait AMM<AccountId, AssetId, Amount> {
 	fn calculate_spot_price(
 		sell_reserve: Amount,
 		buy_reserve: Amount,
-		sell_amount: Amount,
+		sell_weight: Amount,
+		buy_weight: Amount,
+		amount: Amount,
 	) -> Result<Amount, dispatch::DispatchError>;
 
 	/// SELL
@@ -109,5 +111,5 @@ pub trait Resolver<AccountId, Intention, E> {
 }
 
 pub trait CurrencySwap<AccountId, Balance> {
-	fn swap_currency(who: &AccountId, fee: Balance) -> DispatchResult ;
+	fn swap_currency(who: &AccountId, fee: Balance) -> DispatchResult;
 }

@@ -11,7 +11,7 @@ use sp_runtime::{
 };
 
 use pallet_amm::AssetPairAccountIdFor;
-use primitives::{AssetId, Balance};
+use primitives::{fee, AssetId, Balance};
 
 pub type Amount = i128;
 pub type AccountId = u64;
@@ -27,12 +27,6 @@ pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ETH: AssetId = 3000;
 
-/*impl_outer_dispatch! {
-	pub enum Call for Test where origin: Origin {
-		exchange::ExchangeModule,
-	}
-}*/
-
 impl_outer_origin! {
 	pub enum Origin for Test where system = frame_system {}
 }
@@ -47,6 +41,8 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 
 	pub const HDXAssetId: AssetId = HDX;
+
+	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
 impl system::Config for Test {
 	type BaseCallFilter = ();
@@ -115,6 +111,7 @@ impl pallet_amm::Config for Test {
 	type Currency = Currency;
 	type HDXAssetId = HDXAssetId;
 	type WeightInfo = ();
+	type GetExchangeFee = ExchangeFeeRate;
 }
 
 pub type AMMModule = pallet_amm::Module<Test>;

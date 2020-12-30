@@ -8,7 +8,6 @@ use codec::Encode;
 use sp_std::vec::Vec;
 
 use primitives::{
-	fee,
 	traits::{Resolver, AMM},
 	AssetId, Balance, ExchangeIntention, IntentionType,
 };
