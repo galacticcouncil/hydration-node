@@ -28,14 +28,6 @@ pub trait AMM<AccountId, AssetId, Amount> {
 	/// Calculate spot price for asset a and b.
 	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Amount) -> Amount;
 
-	fn calculate_spot_price(
-		sell_reserve: Amount,
-		buy_reserve: Amount,
-		sell_weight: Amount,
-		buy_weight: Amount,
-		amount: Amount,
-	) -> Result<Amount, dispatch::DispatchError>;
-
 	/// SELL
 	/// Perform all necessary checks to validate an intended sale.
 	fn validate_sell(
