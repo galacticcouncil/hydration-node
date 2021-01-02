@@ -22,7 +22,7 @@ pub trait Config: frame_system::Config {
 }
 
 decl_storage! {
-	trait Store for Module<T: Config> as TemplateModule {
+	trait Store for Module<T: Config> as Faucet {
 	}
 }
 
