@@ -61,11 +61,11 @@ sp-transaction-pool = '2.0.0'
 substrate-frame-rpc-system = '2.0.0'
 
 # Cumulus dependencies
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus", rev = '09b27cec90276348cc292a7b4180d90255b1b52c' }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus", rev = '09b27cec90276348cc292a7b4180d90255b1b52c' }
-cumulus-network = { git = "https://github.com/paritytech/cumulus", rev = '09b27cec90276348cc292a7b4180d90255b1b52c' }
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus", rev = '09b27cec90276348cc292a7b4180d90255b1b52c' }
-cumulus-service = { git = "https://github.com/paritytech/cumulus", rev = '09b27cec90276348cc292a7b4180d90255b1b52c' }
+cumulus-consensus = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
+cumulus-collator = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
+cumulus-network = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
+cumulus-primitives = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
+cumulus-service = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
 
 # Polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
