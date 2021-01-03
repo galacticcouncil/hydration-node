@@ -28,12 +28,13 @@ use sc_service::{
 	config::{BasePath, PrometheusConfig},
 	PartialComponents,
 };
+use sp_core::hexdisplay::HexDisplay;
 use std::{io::Write, net::SocketAddr};
 use hack_hydra_dx_runtime::Block;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"hack hydra dx Node".into()
+		"hack hydra dx Collator".into()
 	}
 
 	fn impl_version() -> String {
@@ -56,7 +57,7 @@ impl SubstrateCli for Cli {
 		2017
 	}
 
-	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let para_id: ParaId = self.run.parachain_id.unwrap_or(200).into();
 		Ok(match id {
 			"dev" => Box::new(chain_spec::development_config(para_id)?),

@@ -68,11 +68,11 @@ cumulus-primitives = { git = "https://github.com/lumir-mrkva/cumulus", branch = 
 cumulus-service = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
 
 # Polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
-polkadot-test-service = { git = "https://github.com/paritytech/polkadot", rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
+polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
+polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
 
 [features]
 default = []
@@ -80,12 +80,12 @@ runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks']
 
 [dev-dependencies]
 # Polkadot dependencies
-polkadot-runtime-common = { git = 'https://github.com/paritytech/polkadot', rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
-polkadot-test-runtime = { git = 'https://github.com/paritytech/polkadot', rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
-polkadot-test-client = { git = 'https://github.com/paritytech/polkadot', rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
-polkadot-test-service = { git = 'https://github.com/paritytech/polkadot', rev = '184a4b1a05a6cc2c64547f3811af1be2ab8f70b2' }
+polkadot-runtime-common = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
+polkadot-test-runtime = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
+polkadot-test-client = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
+polkadot-test-service = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
 
 # Substrate dependencies
-pallet-sudo = { git = 'https://github.com/paritytech/substrate', rev = '5c70d7bb2b78d4ed5e3aa4fd0449cc6c81d3db98' }
-substrate-test-client = { git = 'https://github.com/paritytech/substrate', rev = '5c70d7bb2b78d4ed5e3aa4fd0449cc6c81d3db98' }
-substrate-test-runtime-client = { git = 'https://github.com/paritytech/substrate', rev = '5c70d7bb2b78d4ed5e3aa4fd0449cc6c81d3db98' }
+pallet-sudo = { git = 'https://github.com/paritytech/substrate', branch = 'master' }
+substrate-test-client = { git = 'https://github.com/paritytech/substrate', branch = 'master' }
+substrate-test-runtime-client = { git = 'https://github.com/paritytech/substrate', branch = 'master' }

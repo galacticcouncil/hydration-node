@@ -74,7 +74,15 @@ sp-staking = { default-features = false, version = '2.0.0' }
 cumulus-runtime = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
 cumulus-parachain-upgrade = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
 cumulus-primitives = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
+cumulus-message-broker = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
+xcm-handler = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
 parachain-info = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
+
+# Polkadot dependencies
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = 'master' }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = 'master' }
+xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = 'master' }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = 'master' }
 
 [features]
 default = ['std']
@@ -102,7 +110,12 @@ std = [
     'orml-traits/std',
     'cumulus-runtime/std',
     'cumulus-parachain-upgrade/std',
+    "cumulus-message-broker/std",
     'cumulus-primitives/std',
+    "xcm/std",
+    "xcm-builder/std",
+    "xcm-executor/std",
+    "xcm-handler/std",
     'parachain-info/std',
     'pallet-amm/std',
     'pallet-asset-registry/std',
