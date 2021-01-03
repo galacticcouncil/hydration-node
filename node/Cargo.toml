@@ -23,6 +23,8 @@ jsonrpc-core = '15.0.0'
 structopt = '0.3.8'
 serde_json = '1.0.44'
 serde = { version = '1.0.101', features = ['derive'] }
+log = '0.4.8'
+codec = { package = 'parity-scale-codec', version = '1.0.0' }
 
 # local dependencies
 hack-hydra-dx-runtime = { path = '../runtime', version = '2.0.0' }
@@ -45,6 +47,7 @@ sc-rpc-api = '0.8.0'
 sc-service = { features = ['wasmtime'], version = '0.8.0' }
 sc-keystore = '2.0.0'
 sc-transaction-pool = '2.0.0'
+sc-tracing = '2.0.0'
 sp-api = '2.0.0'
 sp-block-builder = '2.0.0'
 sp-blockchain = '2.0.0'

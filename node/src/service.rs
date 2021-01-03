@@ -3,15 +3,10 @@
 #![allow(clippy::all)]
 
 use hack_hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
-use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
-use sc_finality_grandpa::SharedVoterState;
-use sc_service::{error::Error as ServiceError, Configuration, TaskManager, PartialComponents, Role, TFullBackend, TFullClient};
-use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
-use sp_inherents::InherentDataProviders;
+use sc_service::{error::Error as ServiceError, Configuration, TaskManager, PartialComponents, Role};
 use std::sync::Arc;
-use std::time::Duration;
 use sp_core::Pair;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
@@ -92,7 +87,7 @@ async fn start_node_impl<RB>(
 ) -> sc_service::error::Result<(TaskManager,Arc<FullClient>)>
 	where
 		RB: Fn(
-			Arc<TFullClient<Block, RuntimeApi, Executor>>,
+			Arc<FullClient>,
 		) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
 		+ Send
 		+ 'static,
@@ -104,9 +99,14 @@ async fn start_node_impl<RB>(
 	let parachain_config = prepare_node_config(parachain_config);
 
 	let polkadot_full_node =
-		cumulus_service::build_polkadot_full_node(polkadot_config, collator_key.public())?;
+		cumulus_service::build_polkadot_full_node(polkadot_config, collator_key.public()).map_err(
+			|e| match e {
+				polkadot_service::Error::Sub(x) => x,
+				s => format!("{}", s).into(),
+			},
+		)?;
 
-	let mut params = new_partial(&parachain_config)?;
+	let params = new_partial(&parachain_config)?;
 	params
 		.inherent_data_providers
 		.register_provider(sp_timestamp::InherentDataProvider)
@@ -181,6 +181,8 @@ async fn start_node_impl<RB>(
 		);
 		let spawner = task_manager.spawn_handle();
 
+		let polkadot_backend = polkadot_full_node.backend.clone();
+
 		let params = StartCollatorParams {
 			para_id,
 			block_import: client.clone(),
@@ -194,6 +196,7 @@ async fn start_node_impl<RB>(
 			polkadot_full_node,
 			spawner,
 			backend,
+			polkadot_backend,
 		};
 
 		start_collator(params).await?;
