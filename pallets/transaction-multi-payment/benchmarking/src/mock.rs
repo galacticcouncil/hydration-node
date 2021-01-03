@@ -53,6 +53,7 @@ impl_outer_dispatch! {
 pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
+	pub const SS58Prefix: u8 = 42;
 
 	pub const HdxAssetId: u32 = 0;
 	pub const ExistentialDeposit: u128 = 0;
@@ -83,6 +84,7 @@ impl system::Config for Test {
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
+	type SS58Prefix = SS58Prefix;
 }
 impl Config for Test {}
 

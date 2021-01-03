@@ -84,7 +84,6 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	System::initialize(
 		&1,
 		&[0u8; 32].into(),
-		&[0u8; 32].into(),
 		&Default::default(),
 		InitKind::Full,
 	);

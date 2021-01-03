@@ -53,6 +53,7 @@ impl_outer_origin! {
 pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
+	pub const SS58Prefix: u8 = 42;
 
 	pub const HDXAssetId: AssetId = HDX;
 }
@@ -78,6 +79,7 @@ impl system::Config for Test {
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
+	type SS58Prefix = SS58Prefix;
 }
 
 parameter_type_with_key! {
