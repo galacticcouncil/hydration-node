@@ -72,12 +72,12 @@ sp-version = { default-features = false, version = '2.0.0' }
 sp-staking = { default-features = false, version = '2.0.0' }
 
 # Cumulus dependencies
-cumulus-runtime = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
-cumulus-parachain-upgrade = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
-cumulus-primitives = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
-cumulus-message-broker = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
-xcm-handler = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
-parachain-info = { git = 'https://github.com/lumir-mrkva/cumulus',  default-features = false, branch = 'master' }
+cumulus-runtime = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+cumulus-parachain-upgrade = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+cumulus-primitives = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+cumulus-message-broker = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+xcm-handler = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
+parachain-info = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = 'master' }
 
 # Polkadot dependencies
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = 'master' }

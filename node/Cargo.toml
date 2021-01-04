@@ -64,11 +64,11 @@ sp-transaction-pool = '2.0.0'
 substrate-frame-rpc-system = '2.0.0'
 
 # Cumulus dependencies
-cumulus-consensus = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
-cumulus-collator = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
-cumulus-network = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
-cumulus-primitives = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
-cumulus-service = { git = "https://github.com/lumir-mrkva/cumulus", branch = 'master' }
+cumulus-consensus = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
+cumulus-collator = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
+cumulus-network = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
+cumulus-primitives = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
+cumulus-service = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
 
 # Polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
