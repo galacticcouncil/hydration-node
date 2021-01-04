@@ -2206,6 +2206,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
+ "substrate-build-script-utils 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "substrate-wasm-builder-runner 2.0.0",
  "tracing-core",
  "xcm",
