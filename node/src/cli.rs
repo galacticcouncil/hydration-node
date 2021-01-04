@@ -1,5 +1,4 @@
 use structopt::StructOpt;
-use sc_cli;
 use std::path::PathBuf;
 
 #[derive(Debug, StructOpt)]
