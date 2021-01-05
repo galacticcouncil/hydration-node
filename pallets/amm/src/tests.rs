@@ -1,7 +1,5 @@
 use super::*;
-pub use crate::mock::{
-	calculate_sale_price, Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX,
-};
+pub use crate::mock::{Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
 use primitives::traits::AMM as AMMPool;
 
@@ -507,10 +505,6 @@ fn sell_with_correct_fees_should_work() {
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
 		let share_token = AMM::share_token(pair_account);
 
-		let asset_a_reserve = Currency::free_balance(asset_a, &pair_account);
-		let asset_b_reserve = Currency::free_balance(asset_b, &pair_account);
-		let user_asset_b_amount = Currency::free_balance(asset_b, &user_1);
-
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999990000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998000000000);
 
@@ -529,16 +523,10 @@ fn sell_with_correct_fees_should_work() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 10100000);
-		assert_eq!(
-			Currency::free_balance(asset_b, &pair_account),
-			asset_b_reserve - calculate_sale_price(asset_a_reserve, asset_b_reserve, 100_000)
-		);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1980237232,);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999989900000);
-		assert_eq!(
-			Currency::free_balance(asset_b, &user_1),
-			user_asset_b_amount + calculate_sale_price(asset_a_reserve, asset_b_reserve, 100_000)
-		);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998019762768,);
 		expect_events(vec![
 			RawEvent::CreatePool(user_1, asset_a, asset_b, 2000000000).into(),
 			RawEvent::Sell(user_1, asset_a, asset_b, 100000, 19762768).into(),
