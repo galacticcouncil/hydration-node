@@ -57,7 +57,9 @@ sp-transaction-pool = '2.0.0'
 substrate-frame-rpc-system = '2.0.0'
 
 [features]
-default = []
+default = [
+    "frame-benchmarking-cli",
+]
 runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks',
     "frame-benchmarking-cli",
 ]
