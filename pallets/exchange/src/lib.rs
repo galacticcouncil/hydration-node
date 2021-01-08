@@ -26,7 +26,9 @@ use frame_support::sp_runtime::traits::Hash;
 #[cfg(test)]
 mod mock;
 
-mod default_weights;
+pub mod weights;
+
+use weights::WeightInfo;
 
 mod direct;
 #[cfg(test)]
@@ -35,20 +37,6 @@ mod tests;
 /// Intention alias
 type IntentionId<T> = <T as system::Config>::Hash;
 pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, AssetId, Balance, IntentionId<T>>;
-
-pub trait WeightInfo {
-	fn known_overhead_for_on_finalize() -> Weight;
-	fn sell_intention() -> Weight;
-	fn buy_intention() -> Weight;
-
-	fn on_finalize(t: u32) -> Weight;
-	fn on_finalize_buys_no_matches(t: u32) -> Weight;
-	fn on_finalize_sells_no_matches(t: u32) -> Weight;
-	fn sell_extrinsic() -> Weight;
-	fn buy_extrinsic() -> Weight;
-	fn on_finalize_for_one_sell_extrinsic() -> Weight;
-	fn on_finalize_for_one_buy_extrinsic() -> Weight;
-}
 
 /// The pallet's configuration trait.
 pub trait Config: system::Config {
