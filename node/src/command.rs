@@ -15,35 +15,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{chain_spec, service};
 use crate::cli::{Cli, RelayChainCli, Subcommand};
+use crate::{chain_spec, service};
 use codec::Encode;
-use log::info;
-use hack_hydra_dx_runtime::Block;
 use cumulus_primitives::{genesis::generate_genesis_block, ParaId};
+use hack_hydra_dx_runtime::Block;
+use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
-	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, InitLoggerParams,
-	KeystoreParams, NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
+	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, InitLoggerParams, KeystoreParams,
+	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
 use sc_service::{
 	config::{BasePath, PrometheusConfig},
 	PartialComponents,
 };
 use sp_core::hexdisplay::HexDisplay;
-use std::{io::Write, net::SocketAddr};
 use sp_runtime::traits::Block as BlockT;
+use std::{io::Write, net::SocketAddr};
 
-fn load_spec(
-	id: &str,
-	para_id: ParaId,
-) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+fn load_spec(id: &str, para_id: ParaId) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
-		"dev" => Box::new(chain_spec::development_config(para_id)?),
-		"" | "local" => Box::new(chain_spec::local_testnet_config(para_id)?),
-		path => Box::new(chain_spec::ChainSpec::from_json_file(
-			std::path::PathBuf::from(path),
-		)?),
+		"dev" => Box::new(chain_spec::parachain_development_config(para_id)?),
+		"" => Box::new(chain_spec::roccocco_parachain_config(para_id)?),
+		"local" => Box::new(chain_spec::local_parachain_config(para_id)?),
+		path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 	})
 }
 
@@ -75,11 +71,10 @@ impl SubstrateCli for Cli {
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let para_id: ParaId = self.run.parachain_id.unwrap_or(200).into();
 		Ok(match id {
-			"dev" => Box::new(chain_spec::development_config(para_id)?),
-			"" | "local" => Box::new(chain_spec::local_testnet_config(para_id)?),
-			path => Box::new(chain_spec::ChainSpec::from_json_file(
-				std::path::PathBuf::from(path),
-			)?),
+			"dev" => Box::new(chain_spec::parachain_development_config(para_id)?),
+			"" => Box::new(chain_spec::roccocco_parachain_config(para_id)?),
+			"local" => Box::new(chain_spec::local_parachain_config(para_id)?),
+			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
 
@@ -114,8 +109,7 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter())
-			.load_spec(id)
+		polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
 	}
 
 	fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
@@ -141,51 +135,65 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
-		},
+		}
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, ..}
-					= service::new_partial(&config)?;
+				let PartialComponents {
+					client,
+					task_manager,
+					import_queue,
+					..
+				} = service::new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
-		},
+		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, ..}
-					= service::new_partial(&config)?;
+				let PartialComponents {
+					client, task_manager, ..
+				} = service::new_partial(&config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
-		},
+		}
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, ..}
-					= service::new_partial(&config)?;
+				let PartialComponents {
+					client, task_manager, ..
+				} = service::new_partial(&config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
-		},
+		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, ..}
-					= service::new_partial(&config)?;
+				let PartialComponents {
+					client,
+					task_manager,
+					import_queue,
+					..
+				} = service::new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
-		},
+		}
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.database))
-		},
+		}
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, backend, ..}
-					= service::new_partial(&config)?;
+				let PartialComponents {
+					client,
+					task_manager,
+					backend,
+					..
+				} = service::new_partial(&config)?;
 				Ok((cmd.run(client, backend), task_manager))
 			})
-		},
+		}
 		Some(Subcommand::Benchmark(cmd)) => {
 			if cfg!(feature = "runtime-benchmarks") {
 				let runner = cli.create_runner(cmd)?;
@@ -193,9 +201,10 @@ pub fn run() -> sc_cli::Result<()> {
 				runner.sync_run(|config| cmd.run::<Block, service::Executor>(config))
 			} else {
 				Err("Benchmarking wasn't enabled when building the node. \
-				You can enable it with `--features runtime-benchmarks`.".into())
+				You can enable it with `--features runtime-benchmarks`."
+					.into())
 			}
-		},
+		}
 		Some(Subcommand::ExportGenesisState(params)) => {
 			sc_cli::init_logger(InitLoggerParams {
 				tracing_receiver: sc_tracing::TracingReceiver::Log,
@@ -215,15 +224,14 @@ pub fn run() -> sc_cli::Result<()> {
 			}
 
 			Ok(())
-		},
+		}
 		Some(Subcommand::ExportGenesisWasm(params)) => {
 			sc_cli::init_logger(InitLoggerParams {
 				tracing_receiver: sc_tracing::TracingReceiver::Log,
 				..Default::default()
 			})?;
 
-			let raw_wasm_blob =
-				extract_genesis_wasm(&cli.load_spec(&params.chain.clone().unwrap_or_default())?)?;
+			let raw_wasm_blob = extract_genesis_wasm(&cli.load_spec(&params.chain.clone().unwrap_or_default())?)?;
 			let output_buf = if params.raw {
 				raw_wasm_blob
 			} else {
@@ -237,7 +245,7 @@ pub fn run() -> sc_cli::Result<()> {
 			}
 
 			Ok(())
-		},
+		}
 		None => {
 			let runner = cli.create_runner(&*cli.run)?;
 
@@ -259,17 +267,14 @@ pub fn run() -> sc_cli::Result<()> {
 
 				let id = ParaId::from(cli.run.parachain_id.or(para_id).unwrap_or(200));
 
-				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&id);
+				let parachain_account = AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&id);
 
-				let block: Block =
-					generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
+				let block: Block = generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
 				let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
 
 				let task_executor = config.task_executor.clone();
-				let polkadot_config =
-					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
-						.map_err(|err| format!("Relay chain argument error: {}", err))?;
+				let polkadot_config = SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
+					.map_err(|err| format!("Relay chain argument error: {}", err))?;
 				let collator = cli.run.base.validator || cli.collator;
 
 				info!("Parachain id: {:?}", id);

@@ -19,80 +19,82 @@ targets = ['x86_64-unknown-linux-gnu']
 substrate-build-script-utils = '2.0.0'
 
 [dependencies]
+codec = {package = 'parity-scale-codec', version = '1.0.0'}
+hex-literal = "0.3.1"
 jsonrpc-core = '15.0.0'
-structopt = '0.3.8'
-serde_json = '1.0.44'
-serde = { version = '1.0.101', features = ['derive'] }
 log = '0.4.8'
-codec = { package = 'parity-scale-codec', version = '1.0.0' }
+serde = {version = '1.0.101', features = ['derive']}
+serde_json = '1.0.44'
+structopt = '0.3.8'
 
 # local dependencies
-hack-hydra-dx-runtime = { path = '../runtime', version = '2.0.0' }
-primitives = { path = '../primitives', version = '2.0.0' }
-module-amm-rpc = { path = '../pallets/amm/rpc', version = '2.0.0' }
+hack-hydra-dx-runtime = {path = '../runtime', version = '2.0.0'}
+module-amm-rpc = {path = '../pallets/amm/rpc', version = '2.0.0'}
+primitives = {path = '../primitives', version = '2.0.0'}
 
 # Substrate dependencies
 frame-benchmarking = '2.0.0'
-frame-benchmarking-cli = { version = '2.0.0', optional = true }
+frame-benchmarking-cli = {version = '2.0.0', optional = true}
 pallet-transaction-payment-rpc = '2.0.0'
 sc-basic-authorship = '0.8.0'
-sc-cli = { features = ['wasmtime'], version = '0.8.0' }
+sc-chain-spec = '2.0.0'
+sc-cli = {features = ['wasmtime'], version = '0.8.0'}
 sc-client-api = '2.0.0'
 sc-consensus = '0.8.0'
 sc-consensus-aura = '0.8.0'
-sc-executor = { features = ['wasmtime'], version = '0.8.0' }
+sc-executor = {features = ['wasmtime'], version = '0.8.0'}
 sc-finality-grandpa = '0.8.0'
+sc-keystore = '2.0.0'
 sc-rpc = '2.0.0'
 sc-rpc-api = '0.8.0'
-sc-service = { features = ['wasmtime'], version = '0.8.0' }
-sc-keystore = '2.0.0'
-sc-transaction-pool = '2.0.0'
+sc-service = {features = ['wasmtime'], version = '0.8.0'}
 sc-tracing = '2.0.0'
+sc-transaction-pool = '2.0.0'
 sp-api = '2.0.0'
 sp-block-builder = '2.0.0'
 sp-blockchain = '2.0.0'
 sp-consensus = '0.8.0'
 sp-consensus-aura = '0.8.0'
-sc-chain-spec = '2.0.0'
-sp-timestamp = '2.0.0'
-sp-trie = '2.0.0'
 sp-core = '2.0.0'
 sp-finality-grandpa = '2.0.0'
 sp-inherents = '2.0.0'
 sp-runtime = '2.0.0'
+sp-timestamp = '2.0.0'
 sp-transaction-pool = '2.0.0'
+sp-trie = '2.0.0'
 substrate-frame-rpc-system = '2.0.0'
 
 # Cumulus dependencies
-cumulus-consensus = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
-cumulus-collator = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
-cumulus-network = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
-cumulus-service = { git = "https://github.com/paritytech/cumulus", branch = 'master' }
+cumulus-collator = {git = "https://github.com/paritytech/cumulus", branch = 'master'}
+cumulus-consensus = {git = "https://github.com/paritytech/cumulus", branch = 'master'}
+cumulus-network = {git = "https://github.com/paritytech/cumulus", branch = 'master'}
+cumulus-primitives = {git = "https://github.com/paritytech/cumulus", branch = 'master'}
+cumulus-service = {git = "https://github.com/paritytech/cumulus", branch = 'master'}
 
 # Polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
-polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
+polkadot-cli = {git = "https://github.com/paritytech/polkadot", branch = 'master'}
+polkadot-parachain = {git = "https://github.com/paritytech/polkadot", branch = 'master'}
+polkadot-primitives = {git = "https://github.com/paritytech/polkadot", branch = 'master'}
+polkadot-service = {git = "https://github.com/paritytech/polkadot", branch = 'master'}
+polkadot-test-service = {git = "https://github.com/paritytech/polkadot", branch = 'master'}
 
 [features]
 default = [
-    "frame-benchmarking-cli",
+  "frame-benchmarking-cli",
 ]
-runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks',
-    "frame-benchmarking-cli",
+runtime-benchmarks = [
+  'hack-hydra-dx-runtime/runtime-benchmarks',
+  "frame-benchmarking-cli",
 ]
 
 [dev-dependencies]
 # Polkadot dependencies
-polkadot-runtime-common = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
-polkadot-test-runtime = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
-polkadot-test-client = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
-polkadot-test-service = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
+polkadot-runtime-common = {git = 'https://github.com/paritytech/polkadot', branch = 'master'}
+polkadot-test-client = {git = 'https://github.com/paritytech/polkadot', branch = 'master'}
+polkadot-test-runtime = {git = 'https://github.com/paritytech/polkadot', branch = 'master'}
+polkadot-test-service = {git = 'https://github.com/paritytech/polkadot', branch = 'master'}
 
 # Substrate dependencies
-pallet-sudo = { git = 'https://github.com/paritytech/substrate', branch = 'master' }
-substrate-test-client = { git = 'https://github.com/paritytech/substrate', branch = 'master' }
-substrate-test-runtime-client = { git = 'https://github.com/paritytech/substrate', branch = 'master' }
+pallet-sudo = {git = 'https://github.com/paritytech/substrate', branch = 'master'}
+substrate-test-client = {git = 'https://github.com/paritytech/substrate', branch = 'master'}
+substrate-test-runtime-client = {git = 'https://github.com/paritytech/substrate', branch = 'master'}
