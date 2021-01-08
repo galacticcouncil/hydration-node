@@ -1,6 +1,6 @@
 // This file is part of hack.HydraDX-node.
 
-// Copyright (C) 2021 Parity Technologies (UK) Ltd.
+// Copyright (C) 2021 Intergalactic Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,13 +37,11 @@
 // --output=./pallets/transaction-multi-payment/src/weights.rs
 // --template=./.maintain/pallet-weight-template.hbs
 
+
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
-};
+use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for transaction_multi_payment.
@@ -56,12 +54,12 @@ pub trait WeightInfo {
 pub struct HackHydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HackHydraWeight<T> {
 	fn swap_currency() -> Weight {
-		(324_000_000 as Weight)
+		(270_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(6 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
 	fn set_currency() -> Weight {
-		(73_000_000 as Weight)
+		(61_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
@@ -70,12 +68,12 @@ impl<T: frame_system::Config> WeightInfo for HackHydraWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn swap_currency() -> Weight {
-		(324_000_000 as Weight)
+		(270_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
 	}
 	fn set_currency() -> Weight {
-		(73_000_000 as Weight)
+		(61_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
