@@ -33,10 +33,8 @@ orml-tokens = {default-features = false, version = "0.3.3-dev"}
 orml-traits = {default-features = false, version = "0.3.3-dev"}
 
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, version = '2.0.0'}
 frame-support = {default-features = false, version = '2.0.0'}
 frame-system = {default-features = false, version = '2.0.0'}
-frame-system-benchmarking = {default-features = false, optional = true, version = '2.0.0'}
 sp-std = {default-features = false, version = '2.0.0'}
 pallet-transaction-payment = {default-features = false, version = '2.0.0'}
 
@@ -67,10 +65,5 @@ std = [
     'pallet-balances/std',
     'pallet-asset-registry/std',
     'pallet-amm/std',
-]
-runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-system/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
 ]
 

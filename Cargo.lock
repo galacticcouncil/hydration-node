@@ -3971,10 +3971,8 @@ dependencies = [
 name = "pallet-transaction-multi-payment"
 version = "2.0.0"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
- "frame-system-benchmarking",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
