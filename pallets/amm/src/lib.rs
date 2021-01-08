@@ -12,7 +12,6 @@ use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OU
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
-use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
@@ -21,17 +20,12 @@ use primitives::traits::AMMTransfer;
 mod mock;
 
 mod benchmarking;
-mod default_weights;
 #[cfg(test)]
 mod tests;
 
-pub trait WeightInfo {
-	fn create_pool() -> Weight;
-	fn add_liquidity() -> Weight;
-	fn remove_liquidity() -> Weight;
-	fn sell() -> Weight;
-	fn buy() -> Weight;
-}
+pub mod weights;
+
+use weights::WeightInfo;
 
 /// The pallet's configuration trait.
 pub trait Config: frame_system::Config + pallet_asset_registry::Config {
