@@ -2096,6 +2096,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "hack-hydra-dx-runtime",
+ "hex-literal",
  "jsonrpc-core",
  "log",
  "module-amm-rpc",
