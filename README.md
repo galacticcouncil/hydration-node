@@ -56,6 +56,28 @@ Or, start a dev chain with detailed logging:
 RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hack-hydra-dx -lruntime=debug --dev
 ```
 
+### Rococo local testnet
+
+Relay chain (polkadot) has to be built in `../polkadot` with `--features=real-overseer` 
+Uses `polkadot-launch` utility
+
+```
+npm i -g polkadot-lauch
+```
+
+Starts local testnet with 4 relay chain validators and 2 separate hydra parachains
+
+```
+cd rococo-local
+polkadot-launch config.json
+```
+
+Observe logs
+
+```
+multitail *.log
+```
+
 ### Interaction with the node
 
 Go to the polkadot apps at https://dotapps.io
