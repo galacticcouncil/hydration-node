@@ -11,12 +11,10 @@ use frame_system::{self as system, ensure_signed};
 use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
-use primitives::{HighPrecisionBalance, LowPrecisionBalance};
-
-use core::convert::TryFrom;
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
 use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 
 #[cfg(test)]
@@ -45,6 +43,9 @@ pub trait Config: frame_system::Config + pallet_asset_registry::Config {
 
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
+
+	/// Trading fee rate
+	type GetExchangeFee: Get<fee::Fee>;
 }
 
 pub trait AssetPairAccountIdFor<AssetId: Sized, AccountId: Sized> {
@@ -498,13 +499,17 @@ impl<T: Config> Module<T> {
 	fn calculate_fees(amount: Balance, discount: bool, hdx_fee: &mut Balance) -> Result<Balance, DispatchError> {
 		match discount {
 			true => {
-				let transfer_fee = fee::get_discounted_fee(amount).ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?;
+				let transfer_fee = amount
+					.discounted_fee()
+					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?;
 				*hdx_fee = transfer_fee;
 				Ok(transfer_fee)
 			}
 			false => {
 				*hdx_fee = 0;
-				Ok(fee::get_fee(amount).ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
+				Ok(amount
+					.just_fee(T::GetExchangeFee::get())
+					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
 			}
 		}
 	}
@@ -536,31 +541,9 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount) {
-			Result::Ok(v) => v,
-			_ => 0,
-		}
-	}
-
-	fn calculate_spot_price(
-		sell_reserve: Balance,
-		buy_reserve: Balance,
-		amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
-
-		let spot_price_hp = buy_reserve_hp
-			.checked_mul(amount_hp)
-			.expect("Cannot overflow")
-			.checked_div(sell_reserve_hp)
-			.unwrap();
-
-		let spot_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(spot_price_hp);
-		ensure!(spot_price_lp.is_ok(), Error::<T>::SpotPriceInvalid);
-
-		Ok(spot_price_lp.unwrap())
+		hack_hydra_dx_math::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount)
+			.or(Some(0))
+			.unwrap()
 	}
 
 	fn validate_sell(
@@ -623,7 +606,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_sell, &hdx_pair_account);
 
-			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)?;
+			let hdx_fee_spot_price = hack_hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
+				.ok_or(Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,
@@ -735,7 +719,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_buy, &hdx_pair_account);
 
-			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)?;
+			let hdx_fee_spot_price = hack_hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
+				.ok_or(Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,

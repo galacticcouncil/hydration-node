@@ -1,10 +1,10 @@
 // Creating mock runtime here
 
-use crate::{Module, Config};
+use crate::{Config, Module};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system as system;
-use sp_core::H256;
 use orml_traits::parameter_type_with_key;
+use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, Zero},
@@ -13,7 +13,7 @@ use sp_runtime::{
 use pallet_amm as amm;
 
 use pallet_amm::AssetPairAccountIdFor;
-use primitives::{AssetId, Balance};
+use primitives::{fee, AssetId, Balance};
 
 pub type Amount = i128;
 pub type AccountId = u64;
@@ -56,6 +56,8 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 
 	pub const HDXAssetId: AssetId = HDX;
+
+	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
 impl system::Config for Test {
 	type BaseCallFilter = ();
@@ -125,6 +127,7 @@ impl amm::Config for Test {
 	type Currency = Currency;
 	type HDXAssetId = HDXAssetId;
 	type WeightInfo = ();
+	type GetExchangeFee = ExchangeFeeRate;
 }
 
 pub type AMMModule = amm::Module<Test>;

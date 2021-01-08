@@ -1,7 +1,7 @@
 // Creating mock runtime here
 
 use super::*;
-use crate::{AssetPairAccountIdFor, Module, Config};
+use crate::{AssetPairAccountIdFor, Config, Module};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
@@ -21,8 +21,6 @@ pub const BOB: AccountId = 2;
 pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ACA: AssetId = 3000;
-
-pub const FEE_RATE: u128 = fee::FEE_RATE;
 
 mod amm {
 	pub use super::super::*;
@@ -50,6 +48,8 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 
 	pub const HDXAssetId: AssetId = HDX;
+
+	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
 
 impl pallet_asset_registry::Config for Test {
@@ -122,6 +122,7 @@ impl Config for Test {
 	type Currency = Currency;
 	type HDXAssetId = HDXAssetId;
 	type WeightInfo = ();
+	type GetExchangeFee = ExchangeFeeRate;
 }
 pub type AMM = Module<Test>;
 pub type System = system::Module<Test>;
@@ -165,10 +166,4 @@ impl ExtBuilder {
 
 		t.into()
 	}
-}
-
-pub fn calculate_sale_price(sell_total: u128, buy_total: u128, amount: u128) -> u128 {
-	let amount_sell_fee = amount * FEE_RATE;
-	let sell_reserve = sell_total * 1000u128;
-	return ((buy_total * amount_sell_fee) / (sell_reserve + amount_sell_fee)) + 1;
 }

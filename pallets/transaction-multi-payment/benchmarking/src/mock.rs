@@ -19,6 +19,8 @@ use frame_support::traits::Get;
 use std::cell::RefCell;
 use pallet_amm::AssetPairAccountIdFor;
 
+use primitives::fee;
+
 pub type AccountId = u64;
 
 pub const SUPPORTED_CURRENCY: AssetId = 3;
@@ -60,6 +62,7 @@ parameter_types! {
 	pub const MaxLocks: u32 = 50;
 	pub const TransactionByteFee: Balance = 1;
 	pub NonNativeAssets: Vec<AssetId> = vec![SUPPORTED_CURRENCY];
+	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
 
 impl system::Config for Test {
@@ -141,6 +144,7 @@ impl pallet_amm::Config for Test {
 	type Currency = Currencies;
 	type HDXAssetId = HdxAssetId;
 	type WeightInfo = ();
+	type GetExchangeFee = ExchangeFeeRate;
 }
 
 parameter_type_with_key! {

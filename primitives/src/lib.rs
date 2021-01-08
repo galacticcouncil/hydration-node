@@ -67,35 +67,50 @@ pub struct ExchangeIntention<AccountId, AssetId, Balance, IntentionID> {
 	pub intention_id: IntentionID,
 }
 
-// FIXME: removed once HDX pallet updated to use fee::apply_fee
-pub const DEFAULT_FEE_RATE: u128 = 998;
-
 pub mod fee {
 	use crate::Balance;
 
-	pub const FEE_RATE: Balance = 998;
-	pub const FEE_RATE_M: Balance = 1000;
-	const FIXED_ROUND_UP: Balance = 1;
-
-	pub const DISCOUNT_FEE_RATE: Balance = 9993;
-	pub const DISCOUNT_FEE_RATE_M: Balance = 10000;
-
-	pub fn apply_fee(amount: Balance) -> Option<Balance> {
-		amount.checked_mul(FEE_RATE)?.checked_div(FEE_RATE_M)
+	#[derive(Clone, Copy, Eq, PartialEq)]
+	pub struct Fee {
+		pub numerator: u32,
+		pub denominator: u32,
 	}
 
-	pub fn get_fee(amount: Balance) -> Option<Balance> {
-		amount.checked_mul(FEE_RATE_M - FEE_RATE)?.checked_div(FEE_RATE_M)
+	impl Default for Fee {
+		fn default() -> Self {
+			Fee {
+				numerator: 2,
+				denominator: 1000,
+			} // 0.2%
+		}
 	}
 
-	pub fn get_discounted_fee(amount: Balance) -> Option<Balance> {
-		amount
-			.checked_mul(DISCOUNT_FEE_RATE_M - DISCOUNT_FEE_RATE)?
-			.checked_div(DISCOUNT_FEE_RATE_M)
+	pub trait WithFee
+	where
+		Self: Sized,
+	{
+		fn with_fee(&self, fee: Fee) -> Option<Self>;
+		fn just_fee(&self, fee: Fee) -> Option<Self>;
+		fn discounted_fee(&self) -> Option<Self>;
 	}
 
-	// Round up
-	pub fn fixed_fee(amount: Balance) -> Option<Balance> {
-		amount.checked_add(FIXED_ROUND_UP)
+	impl WithFee for Balance {
+		fn with_fee(&self, fee: Fee) -> Option<Self> {
+			self.checked_mul(fee.denominator as Self - fee.numerator as Self)?
+				.checked_div(fee.denominator as Self)
+		}
+
+		fn just_fee(&self, fee: Fee) -> Option<Self> {
+			self.checked_mul(fee.numerator as Self)?
+				.checked_div(fee.denominator as Self)
+		}
+
+		fn discounted_fee(&self) -> Option<Self> {
+			let fee = Fee {
+				numerator: 7,
+				denominator: 10000,
+			};
+			self.just_fee(fee)
+		}
 	}
 }

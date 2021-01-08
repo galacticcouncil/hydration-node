@@ -33,7 +33,7 @@ module-amm-rpc = { path = '../pallets/amm/rpc', version = '2.0.0' }
 
 # Substrate dependencies
 frame-benchmarking = '2.0.0'
-frame-benchmarking-cli = '2.0.0'
+frame-benchmarking-cli = { version = '2.0.0', optional = true }
 pallet-transaction-payment-rpc = '2.0.0'
 sc-basic-authorship = '0.8.0'
 sc-cli = { features = ['wasmtime'], version = '0.8.0' }
@@ -78,8 +78,12 @@ polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 'master' }
 
 [features]
-default = []
-runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks']
+default = [
+    "frame-benchmarking-cli",
+]
+runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks',
+    "frame-benchmarking-cli",
+]
 
 [dev-dependencies]
 # Polkadot dependencies

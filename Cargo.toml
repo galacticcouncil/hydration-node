@@ -81,6 +81,8 @@ polkadot-runtime-common = { git = 'https://github.com/paritytech/polkadot', bran
 polkadot-test-runtime = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
 polkadot-test-client = { git = 'https://github.com/paritytech/polkadot', branch = 'master' }
 
+librocksdb-sys = { git = "https://github.com/hdevalence/rust-rocksdb", branch = "master" }
+
 [profile.release]
 panic = 'unwind'
 

@@ -19,6 +19,8 @@ use primitives::{Amount, AssetId, Balance};
 use pallet_amm::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
+use primitives::fee;
+
 pub type AccountId = u64;
 
 pub const INITIAL_BALANCE: Balance = 1000_000_000_000_000u128;
@@ -98,6 +100,8 @@ parameter_types! {
 		})
 		.avg_block_initialization(Perbill::from_percent(0))
 		.build_or_panic();
+
+	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
 
 impl system::Config for Test {
@@ -177,6 +181,7 @@ impl pallet_amm::Config for Test {
 	type Currency = Currencies;
 	type HDXAssetId = HdxAssetId;
 	type WeightInfo = ();
+	type GetExchangeFee = ExchangeFeeRate;
 }
 
 parameter_type_with_key! {

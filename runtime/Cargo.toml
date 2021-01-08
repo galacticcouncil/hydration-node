@@ -95,6 +95,7 @@ runtime-benchmarks = [
     'frame-system/runtime-benchmarks',
     'pallet-balances/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
+    'pallet-multi-payment-benchmarking',
     "pallet-amm/runtime-benchmarks",
     "pallet-exchange-benchmarking",
     'sp-runtime/runtime-benchmarks',
