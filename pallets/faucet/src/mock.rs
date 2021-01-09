@@ -1,9 +1,9 @@
-use crate::{Module, Config};
+use crate::{Config, Module};
 use frame_support::{impl_outer_origin, parameter_types};
 use frame_system as system;
+use orml_traits::parameter_type_with_key;
 use primitives::{AssetId, Balance};
 use sp_core::H256;
-use orml_traits::parameter_type_with_key;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, Zero},
@@ -92,8 +92,36 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn build(self) -> sp_io::TestExternalities {
+	pub fn build_rampage(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+		orml_tokens::GenesisConfig::<Test> {
+			endowed_accounts: self.endowed_accounts,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		crate::GenesisConfig {
+			rampage: true,
+			mintable_currencies: vec![2000, 3000],
+			mint_limit: 5,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		t.into()
+	}
+
+	pub fn build_live(self) -> sp_io::TestExternalities {
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+		crate::GenesisConfig {
+			rampage: false,
+			mintable_currencies: vec![2000, 3000],
+			mint_limit: 5,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			endowed_accounts: self.endowed_accounts,
