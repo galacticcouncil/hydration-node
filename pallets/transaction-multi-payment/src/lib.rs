@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod default_weights;
+pub mod weights;
+
+use weights::WeightInfo;
 
 #[cfg(test)]
 mod mock;
@@ -24,17 +26,11 @@ use pallet_transaction_payment::OnChargeTransaction;
 use sp_std::marker::PhantomData;
 
 use frame_support::weights::Pays;
-use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::{CurrencySwap, AMM};
 use primitives::{AssetId, Balance, CORE_ASSET_ID};
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
-
-pub trait WeightInfo {
-	fn set_currency() -> Weight;
-	fn swap_currency() -> Weight;
-}
 
 pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 	/// Because this pallet emits events, it depends on the runtime's definition of an event.

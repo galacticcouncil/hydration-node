@@ -13,6 +13,7 @@ use sp_runtime::{
 };
 
 use frame_support::weights::IdentityFee;
+use frame_support::weights::Weight;
 use orml_currencies::BasicCurrencyAdapter;
 use primitives::{Amount, AssetId, Balance};
 

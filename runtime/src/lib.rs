@@ -67,7 +67,7 @@ use xcm_executor::{
 pub use pallet_asset_registry;
 pub use pallet_faucet;
 
-use pallet_transaction_multi_payment::{MultiCurrencyAdapter, WeightInfo};
+use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -278,7 +278,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type MultiCurrency = Currencies;
 	type AMMPool = AMM;
 	type NonNativeAcceptedAssetId = NonNativeAssets;
-	type WeightInfo = ();
+	type WeightInfo = pallet_transaction_multi_payment::weights::HackHydraWeight<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -326,7 +326,7 @@ impl pallet_amm::Config for Runtime {
 	type AssetPairAccountId = pallet_amm::AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type HDXAssetId = HDXAssetId;
-	type WeightInfo = ();
+	type WeightInfo = pallet_amm::weights::HackHydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
 }
 
@@ -335,7 +335,7 @@ impl pallet_exchange::Config for Runtime {
 	type AMMPool = AMM;
 	type Resolver = Exchange;
 	type Currency = Currencies;
-	type WeightInfo = ();
+	type WeightInfo = pallet_exchange::weights::HackHydraWeight<Runtime>;
 }
 
 impl pallet_faucet::Config for Runtime {
@@ -651,7 +651,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, amm, AMM);
-			add_benchmark!(params, batches, pallet_transaction_multi_payment, MultiBench::<Runtime>);
+			add_benchmark!(params, batches, transaction_multi_payment, MultiBench::<Runtime>);
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, exchange, ExchangeBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
