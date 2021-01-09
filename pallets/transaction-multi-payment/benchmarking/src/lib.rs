@@ -2,9 +2,6 @@
 
 mod mock;
 
-use sp_std::prelude::*;
-use sp_std::vec;
-
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
@@ -45,8 +42,6 @@ fn initialize_pool<T: Config>(
 }
 
 benchmarks! {
-	_ { }
-
 	swap_currency {
 		let maker = funded_account::<T>("maker", 1);
 		initialize_pool::<T>(maker, ASSET_ID, 1000, Price::from(1))?;

@@ -3,7 +3,6 @@
 mod mock;
 
 use sp_std::prelude::*;
-use sp_std::vec;
 
 use pallet_exchange::Module as Exchange;
 
@@ -111,8 +110,6 @@ fn validate_finalize<T: Config>(asset_a: AssetId, _asset_b: AssetId, number: u32
 }
 
 benchmarks! {
-	_ { }
-
 	known_overhead_for_on_finalize {
 		let t: u32 = 5;
 	}: {  Exchange::<T>::on_finalize(t.into()); }
