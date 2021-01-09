@@ -1,8 +1,8 @@
 #![allow(clippy::or_fun_call)]
 
 use hack_hydra_dx_runtime::{
-	AccountId, AssetRegistryConfig, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
-	SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	AccountId, AssetRegistryConfig, AuraConfig, BalancesConfig, FaucetConfig, GenesisConfig, GrandpaConfig, Signature,
+	SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use sc_service::ChainType;
 use serde_json::map::Map;
@@ -188,6 +188,11 @@ fn testnet_genesis(
 					]
 				})
 				.collect(),
+		}),
+		pallet_faucet: Some(FaucetConfig {
+			rampage: true,
+			mint_limit: 5,
+			mintable_currencies: vec![0, 1, 2],
 		}),
 	}
 }
