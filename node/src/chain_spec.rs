@@ -2,8 +2,8 @@
 
 use cumulus_primitives::ParaId;
 use hack_hydra_dx_runtime::{
-	AccountId, AssetRegistryConfig, BalancesConfig, GenesisConfig, ParachainInfoConfig, Signature, SudoConfig,
-	SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	AccountId, AssetRegistryConfig, BalancesConfig, FaucetConfig, GenesisConfig, ParachainInfoConfig, Signature,
+	SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use hex_literal::hex;
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
@@ -234,5 +234,10 @@ fn parachain_genesis(
 				.collect(),
 		}),
 		parachain_info: Some(ParachainInfoConfig { parachain_id }),
+		pallet_faucet: Some(FaucetConfig {
+			rampage: false,
+			mint_limit: 5,
+			mintable_currencies: vec![0, 1, 2],
+		}),
 	}
 }
