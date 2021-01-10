@@ -261,7 +261,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub NonNativeAssets: Vec<AssetId> = vec![1,2,3,4,5,6,7]; // Note: this is currently hard-coded here, probably should be config option for tx pallet ?!
+	pub NonNativeAssets: Vec<AssetId> = vec![1,2,3,4];
 	pub const TransactionByteFee: Balance = 1;
 }
 
