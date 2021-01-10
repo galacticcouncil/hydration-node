@@ -32,7 +32,7 @@
       "wsPort": 9977,
       "port": 31100,
       "balance": "1000000000000000000000",
-      "flags": ["--", "--execution=wasm"]
+      "flags": ["--chain=local", "--", "--execution=wasm"]
     },
     {
       "bin": "../target/release/hack-hydra-dx",
@@ -40,7 +40,7 @@
       "wsPort": 9988,
       "port": 31200,
       "balance": "1000000000000000000000",
-      "flags": ["--", "--execution=wasm"]
+      "flags": ["--chain=local", "--", "--execution=wasm"]
     }
   ],
   "types": {

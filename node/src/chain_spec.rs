@@ -84,7 +84,7 @@ pub fn roccocco_parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: "local_testnet".into(),
+			relay_chain: "rococo".into(),
 			para_id: para_id.into(),
 		},
 	))
