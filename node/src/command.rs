@@ -45,7 +45,7 @@ fn load_spec(id: &str, para_id: ParaId) -> std::result::Result<Box<dyn sc_servic
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"hack hydra dx Collator".into()
+		"hydra-dx hydrate collator".into()
 	}
 
 	fn impl_version() -> String {
@@ -85,7 +85,7 @@ impl SubstrateCli for Cli {
 
 impl SubstrateCli for RelayChainCli {
 	fn impl_name() -> String {
-		"hack hydra dx relay Node".into()
+		"hydra-dx rococo relay node".into()
 	}
 
 	fn impl_version() -> String {
