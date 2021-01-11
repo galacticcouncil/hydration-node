@@ -217,12 +217,14 @@ pub struct ExtBuilder {
 	base_weight: u64,
 	native_balances: Vec<(AccountId, Balance)>,
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+	payment_authority: AccountId,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			base_weight: 0,
+			payment_authority: BOB,
 			native_balances: vec![(ALICE, INITIAL_BALANCE), (BOB, 0)],
 			endowed_accounts: vec![
 				(ALICE, HDX, INITIAL_BALANCE),
@@ -280,8 +282,9 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		crate::GenesisConfig {
+		crate::GenesisConfig::<Test> {
 			currencies: vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE],
+			authorities: vec![self.payment_authority],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

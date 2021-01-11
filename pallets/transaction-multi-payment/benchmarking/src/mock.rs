@@ -23,8 +23,6 @@ use primitives::fee;
 
 pub type AccountId = u64;
 
-pub const SUPPORTED_CURRENCY: AssetId = 3;
-
 thread_local! {
 		static EXTRINSIC_BASE_WEIGHT: RefCell<u64> = RefCell::new(0);
 }
@@ -230,8 +228,9 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		pallet_transaction_multi_payment::GenesisConfig {
-			currencies: vec![SUPPORTED_CURRENCY],
+		pallet_transaction_multi_payment::GenesisConfig::<Test> {
+			currencies: vec![],
+			authorities: vec![],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
