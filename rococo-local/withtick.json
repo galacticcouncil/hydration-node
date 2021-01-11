@@ -22,23 +22,33 @@
         "name": "dave",
         "wsPort": 9977,
         "port": 30777
+      },
+      {
+        "name": "eve",
+        "wsPort": 9978,
+        "port": 30778
+      },
+      {
+        "name": "ferdie",
+        "wsPort": 9979,
+        "port": 30779
       }
     ]
   },
   "parachains": [
     {
-      "bin": "../target/release/hack-hydra-dx",
-      "id": "200",
-      "wsPort": 9988,
-      "port": 31200,
+      "bin": "../../cumulus/target/release/rococo-collator",
+      "id": "100",
+      "wsPort": 9977,
+      "port": 31100,
       "balance": "1000000000000000000000",
       "flags": ["--chain=local", "--", "--execution=wasm"]
     },
     {
       "bin": "../target/release/hack-hydra-dx",
-      "id": "300",
-      "wsPort": 9999,
-      "port": 31300,
+      "id": "200",
+      "wsPort": 9988,
+      "port": 31200,
       "balance": "1000000000000000000000",
       "flags": ["--chain=local", "--", "--execution=wasm"]
     }
