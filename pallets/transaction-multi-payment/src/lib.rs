@@ -46,9 +46,6 @@ pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 	/// AMM pool to swap for native currency
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
 
-	/// Accepted Non native list of currencies
-	type NonNativeAcceptedAssetId: Get<Vec<AssetId>>;
-
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
 }
@@ -60,7 +57,7 @@ decl_event!(
 	{
 		/// CurrencySet
 		/// [who, currency]
-		CurrectSet(AccountId, AssetId),
+		CurrencySet(AccountId, AssetId),
 	}
 );
 
@@ -79,6 +76,7 @@ decl_storage! {
 	trait Store for Module<T: Config> as TransactionPayment {
 		/// Account currency map
 		pub AccountCurrencyMap get(fn get_currency): map hasher(blake2_128_concat) T::AccountId => Option<AssetId>;
+		pub AcceptedCurrencies get(fn currencies) config(): Vec<AssetId>;
 	}
 }
 
@@ -100,7 +98,7 @@ decl_module! {
 		)  -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			match currency == CORE_ASSET_ID || T::NonNativeAcceptedAssetId::get().contains(&currency){
+			match currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
 				true =>	{
 					if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
 						return Err(Error::<T>::ZeroBalance.into());
@@ -108,7 +106,7 @@ decl_module! {
 
 					<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
-					Self::deposit_event(RawEvent::CurrectSet(who, currency));
+					Self::deposit_event(RawEvent::CurrencySet(who, currency));
 
 					Ok(())
 				},

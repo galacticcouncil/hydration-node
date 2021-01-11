@@ -82,7 +82,6 @@ parameter_types! {
 	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
 	pub const TransactionByteFee: Balance = 1;
-	pub NonNativeAssets: Vec<AssetId> = vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE];
 
 	pub RuntimeBlockWeights: system::limits::BlockWeights = system::limits::BlockWeights::builder()
 		.base_block(10)
@@ -133,7 +132,6 @@ impl Config for Test {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMMModule;
-	type NonNativeAcceptedAssetId = NonNativeAssets;
 	type WeightInfo = ();
 }
 
@@ -278,6 +276,12 @@ impl ExtBuilder {
 			core_asset_id: 0,
 			next_asset_id: 2,
 			asset_ids: vec![(buf.to_vec(), 1)],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		crate::GenesisConfig {
+			currencies: vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
