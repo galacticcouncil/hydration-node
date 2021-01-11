@@ -29,16 +29,16 @@
     {
       "bin": "../target/release/hack-hydra-dx",
       "id": "200",
-      "wsPort": 9977,
-      "port": 31100,
+      "wsPort": 9988,
+      "port": 31200,
       "balance": "1000000000000000000000",
       "flags": ["--chain=local", "--", "--execution=wasm"]
     },
     {
       "bin": "../target/release/hack-hydra-dx",
-      "id": "200",
-      "wsPort": 9988,
-      "port": 31200,
+      "id": "300",
+      "wsPort": 9999,
+      "port": 31300,
       "balance": "1000000000000000000000",
       "flags": ["--chain=local", "--", "--execution=wasm"]
     }
