@@ -13,6 +13,7 @@ mod tests;
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
+	ensure,
 	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
 };
 use frame_system::ensure_signed;
@@ -46,9 +47,6 @@ pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 	/// AMM pool to swap for native currency
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
 
-	/// Accepted Non native list of currencies
-	type NonNativeAcceptedAssetId: Get<Vec<AssetId>>;
-
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
 }
@@ -60,7 +58,15 @@ decl_event!(
 	{
 		/// CurrencySet
 		/// [who, currency]
-		CurrectSet(AccountId, AssetId),
+		CurrencySet(AccountId, AssetId),
+
+		/// New accepted currency added
+		/// [who, currency]
+		CurrencyAdded(AccountId, AssetId),
+
+		/// Accepted currency removed
+		/// [who, currency]
+		CurrencyRemoved(AccountId, AssetId),
 	}
 );
 
@@ -72,6 +78,15 @@ decl_error! {
 
 		/// Zero Balance of selected currency
 		ZeroBalance,
+
+		/// Not allowed to add or remove accepted currency
+		NotAllowed,
+
+		/// Currency being added is already in the list of accpeted currencies
+		AlreadyAccepted,
+
+		/// Currency being added is already in the list of accpeted currencies
+		CoreAssetNotAllowed,
 	}
 }
 
@@ -79,6 +94,8 @@ decl_storage! {
 	trait Store for Module<T: Config> as TransactionPayment {
 		/// Account currency map
 		pub AccountCurrencyMap get(fn get_currency): map hasher(blake2_128_concat) T::AccountId => Option<AssetId>;
+		pub AcceptedCurrencies get(fn currencies) config(): Vec<AssetId>;
+		pub Authorities get(fn authorities) config(): Vec<T::AccountId>;
 	}
 }
 
@@ -100,7 +117,7 @@ decl_module! {
 		)  -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			match currency == CORE_ASSET_ID || T::NonNativeAcceptedAssetId::get().contains(&currency){
+			match currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
 				true =>	{
 					if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
 						return Err(Error::<T>::ZeroBalance.into());
@@ -108,11 +125,69 @@ decl_module! {
 
 					<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
-					Self::deposit_event(RawEvent::CurrectSet(who, currency));
+					Self::deposit_event(RawEvent::CurrencySet(who, currency));
 
 					Ok(())
 				},
 				false => Err(Error::<T>::UnsupportedCurrency.into())
+			}
+		}
+
+		#[weight = (<T as Config>::WeightInfo::add_currency(), Pays::No)]
+		pub fn add_currency(origin, currency: AssetId) -> DispatchResult{
+
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				currency != CORE_ASSET_ID,
+				Error::<T>::CoreAssetNotAllowed
+			);
+
+			// Only selected accounts can perform this action
+			ensure!(
+				Self::authorities().contains(&who),
+				Error::<T>::NotAllowed
+			);
+
+			match Self::currencies().contains(&currency) {
+				false => {
+					AcceptedCurrencies::mutate(|x| x.push(currency));
+
+					Self::deposit_event(RawEvent::CurrencyAdded(who, currency));
+
+					Ok(())
+				},
+				true => {
+					Err(Error::<T>::AlreadyAccepted.into())
+				}
+			}
+		}
+
+		#[weight = (<T as Config>::WeightInfo::remove_currency(), Pays::No)]
+		pub fn remove_currency(origin, currency: AssetId) -> DispatchResult{
+
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				currency != CORE_ASSET_ID,
+				Error::<T>::CoreAssetNotAllowed
+			);
+
+			// Only selected accounts can perform this action
+			ensure!(
+				Self::authorities().contains(&who),
+				Error::<T>::NotAllowed
+			);
+
+			match Self::currencies().contains(&currency) {
+				true => {
+					AcceptedCurrencies::mutate(|x| x.retain( |&val| val != currency));
+					Self::deposit_event(RawEvent::CurrencyRemoved(who, currency));
+					Ok(())
+				},
+				false => {
+					Err(Error::<T>::UnsupportedCurrency.into())
+				}
 			}
 		}
 	}
@@ -131,6 +206,10 @@ impl<T: Config> Module<T> {
 		}
 
 		Ok(())
+	}
+
+	pub fn add_member(who: &T::AccountId) {
+		Authorities::<T>::mutate(|x| x.push(who.clone()));
 	}
 }
 

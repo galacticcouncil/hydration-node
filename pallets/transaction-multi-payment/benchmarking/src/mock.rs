@@ -3,8 +3,8 @@
 use crate::Config;
 use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types};
 use frame_system as system;
-use sp_core::H256;
 use orml_traits::parameter_type_with_key;
+use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, Zero},
@@ -16,14 +16,12 @@ use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 use primitives::{Amount, AssetId, Balance};
 
 use frame_support::traits::Get;
-use std::cell::RefCell;
 use pallet_amm::AssetPairAccountIdFor;
+use std::cell::RefCell;
 
 use primitives::fee;
 
 pub type AccountId = u64;
-
-pub const SUPPORTED_CURRENCY: AssetId = 3;
 
 thread_local! {
 		static EXTRINSIC_BASE_WEIGHT: RefCell<u64> = RefCell::new(0);
@@ -60,7 +58,6 @@ parameter_types! {
 	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
 	pub const TransactionByteFee: Balance = 1;
-	pub NonNativeAssets: Vec<AssetId> = vec![SUPPORTED_CURRENCY];
 	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
 
@@ -94,7 +91,6 @@ impl pallet_transaction_multi_payment::Config for Test {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMMModule;
-	type NonNativeAcceptedAssetId = NonNativeAssets;
 	type WeightInfo = ();
 }
 
@@ -169,7 +165,7 @@ impl orml_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-pub type AMMModule= pallet_amm::Module<Test>;
+pub type AMMModule = pallet_amm::Module<Test>;
 pub type Tokens = orml_tokens::Module<Test>;
 pub type Currencies = orml_currencies::Module<Test>;
 pub type Balances = pallet_balances::Module<Test>;
@@ -187,7 +183,7 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			base_weight: 0,
-			native_balances: vec![(1,100_000)],
+			native_balances: vec![(1, 100_000)],
 			endowed_accounts: vec![],
 		}
 	}
@@ -228,6 +224,13 @@ impl ExtBuilder {
 			core_asset_id: 0,
 			next_asset_id: 2,
 			asset_ids: vec![(buf.to_vec(), 1)],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		pallet_transaction_multi_payment::GenesisConfig::<Test> {
+			currencies: vec![],
+			authorities: vec![],
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

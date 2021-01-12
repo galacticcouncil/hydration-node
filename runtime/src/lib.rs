@@ -271,7 +271,6 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub NonNativeAssets: Vec<AssetId> = vec![1,2,3,4,5,6,7]; // Note: this is currently hard-coded here, probably should be config option for tx pallet ?!
 	pub const TransactionByteFee: Balance = 1;
 }
 
@@ -287,7 +286,6 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMM;
-	type NonNativeAcceptedAssetId = NonNativeAssets;
 	type WeightInfo = pallet_transaction_multi_payment::weights::HackHydraWeight<Runtime>;
 }
 
