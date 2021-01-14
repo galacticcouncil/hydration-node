@@ -11,12 +11,6 @@ The current spot price of the pair is used. Other transactions can be traded dir
 Fee will still be sent to the pool as Liquidity provisioning reward. Completely matched transactions will have 0 slippage (excluding fee). 
 This pallet is pool design agnostic. If the AMM pallet implements required API, it can be connected.
 
-### Terminology
-
-- **Intention** : _describe_
-- **AMM Module**: _describe_
-
-
 ### Implementation details
 
 #### Dispatchable functions
