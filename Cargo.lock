@@ -1896,7 +1896,7 @@ dependencies = [
 [[package]]
 name = "hack-hydra-dx-math"
 version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/hack.hydraDX-math?branch=main#cf6ce83e85e4443799c74bfa7cd9cf05aeed1fba"
+source = "git+https://github.com/galacticcouncil/hack.hydraDX-math?branch=main#14612c2de6bd7f8b6837d1087313a96b95b99430"
 dependencies = [
  "primitive-types",
 ]
