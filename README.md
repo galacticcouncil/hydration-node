@@ -100,3 +100,7 @@ Then open settings screen -> developer and paste
 
 Connect to the `wss://hack.hydradx.io:9944` or local node.
 
+
+
+
+just testing 
