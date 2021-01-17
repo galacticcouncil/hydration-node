@@ -285,6 +285,7 @@ pub fn run() -> sc_cli::Result<()> {
 				crate::service::start_node(config, key, polkadot_config, id, collator)
 					.await
 					.map(|r| r.0)
+					.map_err(Into::into)
 			})
 		}
 	}

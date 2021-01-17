@@ -67,9 +67,9 @@ substrate-frame-rpc-system = { git = 'https://github.com/paritytech/substrate', 
 pallet-transaction-payment = { git = 'https://github.com/paritytech/substrate', branch = "rococo-v1" }
 
 # ORML dependencies
-orml-currencies = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
-orml-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
-orml-traits = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
+orml-currencies = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
+orml-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
+orml-traits = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
 
 # Polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
