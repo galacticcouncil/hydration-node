@@ -91,7 +91,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(13 as Weight))
 	}
 	fn add_liquidity() -> Weight {
-		(501_000_000 as Weight)
+		(502_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(9 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(8 as Weight))
 	}
