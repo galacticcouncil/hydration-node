@@ -72,14 +72,14 @@ if __name__ == '__main__':
 
     print("\nResults:\n\n")
 
-    print(f"{'Pallet':^25}|{'Time comparison':^27}|{'diff*':^15}|")
+    print(f"{'Pallet':^25}|{'Time comparison (µs)':^27}|{'diff*':^15}|")
 
     for pallet, details in results.items():
         show_pallet_result(pallet, s[pallet], details)
 
     print("\nNotes:")
-    print("* - diff means the difference between HydraDX reference total time and total benchamrk time of current machine")
-    print("* - If diff => 0 - performance is same or better")
+    print("* - diff means the difference between HydraDX reference total time and total benchmark time of current machine")
+    print("* - If diff >= 0 - performance is same or better")
     print("* - If diff < 0 - performance is worse and might not be suitable to run HydraDX node ( You may ask HydraDX devs for further clarifications)")
 
     #write_hydra_results(results, "scripts/h.json")
