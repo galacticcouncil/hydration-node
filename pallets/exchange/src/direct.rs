@@ -28,6 +28,8 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 	/// 1. Validate balances
 	/// 2. Calculate fees
 	/// 3. Reserve amounts for each transfer ( including fee transfers )
+	// REVIEW: I would investigate using storage transactions instead of keeping track of all the
+	// transfers here.
 	pub fn prepare(&mut self, pool_account: &'a T::AccountId) -> bool {
 		if T::Currency::free_balance(self.intention_a.asset_sell, &self.intention_a.who) < self.amount_from_a {
 			Self::send_insufficient_balance_event(self.intention_a, self.intention_a.asset_sell);
@@ -71,6 +73,8 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 			return false;
 		}
 
+		// REVIEW: You will want to add a comment here explaining why this is safe so the assumption
+		// is kept in case the code is refactored.
 		let transfer_a_fee = fee_a.unwrap();
 		let transfer_b_fee = fee_b.unwrap();
 
@@ -211,7 +215,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 		true
 	}
 
-	/// Revert all reserverd amounts.
+	/// Revert all reserved amounts.
 	/// This does NOT revert transfers, only reserved amounts. So it can be only called if a preparation fails.
 	pub fn revert(&mut self) {
 		for transfer in &self.transfers {

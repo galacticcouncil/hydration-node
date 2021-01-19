@@ -9,7 +9,7 @@ use sp_std::vec::Vec;
 
 use primitives::{
 	traits::{Resolver, AMM},
-	AssetId, Balance, ExchangeIntention, IntentionType,
+	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
 };
 use sp_std::borrow::ToOwned;
 use sp_std::cmp;
@@ -49,7 +49,7 @@ pub trait Config: system::Config {
 	type Resolver: Resolver<Self::AccountId, Intention<Self>, Error<Self>>;
 
 	/// Currecny for transfers
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>
+	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>
 		+ MultiReservableCurrency<Self::AccountId>;
 
 	/// Weight information for the extrinsics.
@@ -64,7 +64,8 @@ decl_storage! {
 		ExchangeAssetsIntentionCount get(fn get_intentions_count): map hasher(blake2_128_concat) (AssetId, AssetId) => u32;
 
 		/// Registered intentions for current block
-		/// Always stored for ( asset_a, asset_b ) combination where asset_a < asset_B
+		/// Always stored for ( asset_a, asset_b ) combination where asset_a is meant to be
+		/// exchanged for asset_b.
 		ExchangeAssetsIntentions get(fn get_intentions): map hasher(blake2_128_concat) (AssetId, AssetId) => Vec<Intention<T>>;
 	}
 }
@@ -122,9 +123,11 @@ decl_event!(
 decl_error! {
 	pub enum Error for Module<T: Config> {
 		/// Value was None
+		// REVIEW: No tests
 		NoneValue,
 
 		/// Value reached maximum and cannot be incremented further
+		// REVIEW: No tests
 		StorageOverflow,
 
 		///Token pool does not exists.
@@ -134,12 +137,12 @@ decl_error! {
 		InsufficientAssetBalance,
 
 		/// Limit exceeded
+		// REVIEW: No tests
 		AssetBalanceLimitExceeded,
 	}
 }
 
 decl_module! {
-	/// The module declaration.
 	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 
 		type Error = Error<T>;
@@ -155,6 +158,7 @@ decl_module! {
 			asset_buy: AssetId,
 			amount_sell: Balance,
 			min_bought: Balance,
+			// REVIEW: I don't understand this and can thus not verify.
 			discount: bool,
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -169,8 +173,16 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
+			// REVIEW: This can be 0; a buy intention with value 0 does not make sense to me.
+			// From a cursory look it seems that you would want to bubble up a `None` value returned
+			// by `hack_hydra_dx_math::calculate_spot_price` and error out of this extrinsic.
 			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
 
+			// REVIEW: Seems to me you want to settle on one way of representing an asset pair:
+			// + ordered tuple like here
+			// + hash like in the AMM
+			// + my tentative favorite: new type that orders on construction, thus ensuring
+			//   the invariant
 			let asset_1 = cmp::min(asset_sell, asset_buy);
 			let asset_2 = cmp::max(asset_sell, asset_buy);
 
@@ -190,8 +202,16 @@ decl_module! {
 					trade_limit: min_bought
 			};
 
+			// REVIEW: This conflicts with your stated invariant `asset_a < asset_b`. Updated the doc comment above.
+			// Also the clone seems unnecessary (can be optimized by
+			// reordering the code).
+			// REVIEW: This is an unbounded append. There is nothing
+			// keeping users from inserting a lot of items here. You will want to
+			// make sure that the maximum amount of items appended in a block is ok.
+			// It's probably generally ok as the item is removed in `on_finalize`.
 			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
 
+			// REVIEW: This seems redundant as it is the same as above.
 			let asset_1 = cmp::min(intention.asset_sell, intention.asset_buy);
 			let asset_2 = cmp::max(intention.asset_sell, intention.asset_buy);
 
@@ -246,6 +266,7 @@ decl_module! {
 					trade_limit: max_sold
 			};
 
+			// REVIEW: Same as in `sell`.
 			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
 
 			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total += 1u32);
@@ -294,6 +315,7 @@ impl<T: Config> Module<T> {
 	/// satisfying  that sum( sell_b_intentions.amount_sell ) <= sell_a_intention.amount_sell
 	///
 	/// Intention A must be valid - that means that it is verified first by validating if it was possible to do AMM trade.
+	// REVIEW: this function does not have tests
 	fn process_exchange_intentions(
 		pair_account: &T::AccountId,
 		sell_a_intentions: &[Intention<T>],
@@ -312,13 +334,17 @@ impl<T: Config> Module<T> {
 
 			let mut bvec = Vec::<Intention<T>>::new();
 			let mut total = 0;
-			let mut idx: usize = 0;
 
-			while let Some(matched) = b_copy.get(idx) {
+			// REVIEW: This does not seem to have the effect that you would want? `remove` shifts all
+			// elements to the left. Meaning that you would take the first, third, fifth etc. element.
+			// You probably want to do something like the proposed changes.
+			// You might also consider sorting the vector in the reverse order and just using `pop`
+			// which would avoid a lot of allocations induced by shifting elements.
+			while let Some(matched) = b_copy.get(0) {
 				bvec.push(matched.clone());
+				// REVIEW: Shouldn't b's `amount_buy` be matched to a's `amount_sell`?
 				total += matched.amount_sell;
-				b_copy.remove(idx);
-				idx += 1;
+				b_copy.remove(0);
 
 				if total >= intention.amount_sell {
 					break;
@@ -478,10 +504,15 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 		};
 	}
 
-	/// Resolve main intention and corresponding matched intention
+	/// Resolve main intention and corresponding matched intentions
 	///
 	/// For each matched intention - it works out how much can be traded directly and rest is AMM traded.
 	/// If there is anything left in the main intention - it is AMM traded.
+	// REVIEW: This function is not tested.
+	// REVIEW: My impression is that your distinction between buy and sell leads to lots of duplicated code here.
+	// REVIEW: My guess is that this function is supposed to be
+	// atomic. It should be verified by either using storage
+	// transactions or thorough testing.
 	fn resolve_matched_intentions(pair_account: &T::AccountId, intention: &Intention<T>, matched: &[Intention<T>]) {
 		let mut intention_copy = intention.clone();
 
@@ -492,7 +523,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 			let amount_b_buy = matched_intention.amount_buy;
 
 			// There are multiple scenarios to handle
-			// !. Main intention amount left > matched intention amount
+			// 1. Main intention amount left > matched intention amount
 			// 2. Main intention amount left < matched intention amount
 			// 3. Main intention amount left = matched intention amount
 
@@ -513,6 +544,8 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				// As we direct trading the total matched intention amount - we need to check the trade limit for the matched intention
 				match matched_intention.sell_or_buy {
 					IntentionType::SELL => {
+						// REVIEW: Above in `sell` the trade limit is named `min_bought`, so wouldn't
+						// the amount need to *exceed* that amount?
 						if dt.amount_from_a < matched_intention.trade_limit {
 							Self::send_intention_error_event(
 								&matched_intention,
@@ -522,6 +555,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 						}
 					}
 					IntentionType::BUY => {
+						// REVIEW: Correspoding question here about `max_sold` for a buy.
 						if dt.amount_from_a > matched_intention.trade_limit {
 							Self::send_intention_error_event(
 								&matched_intention,
@@ -536,6 +570,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 					true => {
 						dt.execute();
 
+						// REVIEW: Use `checked_sub` or `saturating_sub` or explain why this is safe.
 						intention_copy.amount_sell = amount_a_sell - amount_b_buy;
 						intention_copy.amount_buy = amount_a_buy - amount_b_sell;
 
@@ -556,10 +591,13 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				// 2. Verify if AMM transfer can be successfully performed
 				// 3. Verify if direct trade can be successfully performed
 				// 4. If both ok - execute
-				// 5. Main intention is emtpy at this point - just set amount to 0.
+				// 5. Main intention is empty at this point - just set amount to 0.
+				// REVIEW: same note about saturating/checked math or comments explaining why this
+				// is safe
 				let rest_sell_amount = amount_b_sell - amount_a_buy;
 				let rest_buy_amount = amount_b_buy - amount_a_sell;
 
+				// REVIEW: nitpick: seems like the match makes no difference?
 				let rest_limit = match matched_intention.sell_or_buy {
 					IntentionType::SELL => matched_intention.trade_limit.saturating_sub(amount_a_sell),
 					IntentionType::BUY => matched_intention.trade_limit - amount_a_sell,
@@ -602,6 +640,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 
 				match matched_intention.sell_or_buy {
 					IntentionType::SELL => {
+						// REVIEW: same note about saturating/checked math
 						if dt.amount_from_b < matched_intention.trade_limit - amm_transfer.amount_out {
 							Self::send_intention_error_event(
 								&matched_intention,

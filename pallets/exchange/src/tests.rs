@@ -98,6 +98,7 @@ fn sell_test_pool_finalization_states() {
 		let user_3 = CHARLIE;
 		let asset_a = ETH;
 		let asset_b = DOT;
+		// REVIEW: You never test with an empty pool.
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 

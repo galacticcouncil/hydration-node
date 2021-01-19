@@ -119,6 +119,8 @@ benchmarks! {
 	verify {
 	}
 
+	// REVIEW: This is not testing the worst case. The worst case is
+	// when appending to a long list of intentions.
 	sell_intention {
 		let caller = funded_account::<T>("caller", 1);
 
@@ -136,6 +138,7 @@ benchmarks! {
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 1);
 	}
 
+	// REVIEW: Same note about worst case as in `sell_intention`.
 	buy_intention {
 		let caller = funded_account::<T>("caller", 1);
 
@@ -154,6 +157,8 @@ benchmarks! {
 	}
 
 	on_finalize {
+		// REVIEW: This is not the worst case, except if you limit
+		// your chain to 100 transactions per block.
 		let t in 0 .. 100; // Intention component
 		let caller = funded_account::<T>("caller", 1);
 
@@ -163,9 +168,27 @@ benchmarks! {
 
 		initialize_pool::<T>(caller, asset_a, asset_b, amount, Price::from(1))?;
 
+		// REVIEW: `process_exchange_intentions` sorts the inputs so
+		// you will want to construct something very unsorted.
+		// It also produces more transfers when the values are
+		// mismatched (with B being greater AFAICT), so you'll want that as well.
+		// (In general: figure out the highest complexity branch.)
 		feed_intentions::<T>(asset_a, asset_b, t)?;
 
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), t);
+
+		// REVIEW: As you add and remove the intentions entry within one block, you can mark it
+		// as whitelisted with something like this:
+		// macro_rules! whitelist_asset_pair {
+		// 	($asset_a:ident, $asset_b:ident) => {
+		// 		frame_benchmarking::benchmarking::add_to_whitelist(
+		// 			ExchangeIntentions::<T>::hashed_key_for((&$asset_a, &$asset_b)).into()
+		// 		);
+		// 		frame_benchmarking::benchmarking::add_to_whitelist(
+		// 			ExchangeIntentions::<T>::hashed_key_for((&$asset_b, &$asset_a)).into()
+		// 		);
+		// 	}
+		// }
 
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
@@ -206,6 +229,12 @@ benchmarks! {
 		}
 	}
 
+	// REVIEW: FYI you can mark these as "extra" if you don't want to
+	// run them on every weight generation run.
+	// Thought you might want to use them for weights by determining
+	// the maximum of all the different scenarios as the basis for
+	// weights.
+	#[extra]
 	on_finalize_sells_no_matches {
 		let t in 0 .. 100; // Intention component
 		let caller = funded_account::<T>("caller", 1);

@@ -629,6 +629,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(&transfer.asset_sell, &transfer.asset_buy);
 
+		// REVIEW: I don't think you want to do a partial execution of these transfers. It will lead
+		// to inconsistent state if e.g. the last of these fails.
 		if transfer.discount && transfer.discount_amount > 0u128 {
 			let hdx_asset = T::HDXAssetId::get();
 			T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
@@ -741,6 +743,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(&transfer.asset_sell, &transfer.asset_buy);
 
+		// REVIEW: same note as above re atomicity
 		if transfer.discount && transfer.discount_amount > 0 {
 			let hdx_asset = T::HDXAssetId::get();
 			T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
