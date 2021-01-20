@@ -37,10 +37,13 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
+	// REVIEW: nitpick: This is `get_or_create`.
 	pub fn create_asset(name: Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		match <AssetIds<T>>::contains_key(&name) {
 			true => Ok(<AssetIds<T>>::get(&name).unwrap()),
 			false => {
+				// REVIEW: This will only work if `NextAssetId` is initialized >= to `CoreAssetId`.
+				// Might want to document that in the storage and/or genesis config.
 				let asset_id = Self::next_asset_id();
 				let next_id = asset_id.checked_add(&One::one()).ok_or(Error::<T>::NoIdAvailable)?;
 				<NextAssetId<T>>::put(next_id);

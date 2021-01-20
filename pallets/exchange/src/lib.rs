@@ -315,7 +315,7 @@ impl<T: Config> Module<T> {
 	/// satisfying  that sum( sell_b_intentions.amount_sell ) <= sell_a_intention.amount_sell
 	///
 	/// Intention A must be valid - that means that it is verified first by validating if it was possible to do AMM trade.
-	// REVIEW: this function does not have tests
+	// REVIEW: this function does not have tests, but should
 	fn process_exchange_intentions(
 		pair_account: &T::AccountId,
 		sell_a_intentions: &[Intention<T>],
@@ -509,7 +509,8 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 	/// For each matched intention - it works out how much can be traded directly and rest is AMM traded.
 	/// If there is anything left in the main intention - it is AMM traded.
 	// REVIEW: This function is not tested.
-	// REVIEW: My impression is that your distinction between buy and sell leads to lots of duplicated code here.
+	// REVIEW: My impression is that your distinction between buy and sell
+	// leads to lots of duplicated code here.
 	// REVIEW: My guess is that this function is supposed to be
 	// atomic. It should be verified by either using storage
 	// transactions or thorough testing.

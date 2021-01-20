@@ -8,7 +8,7 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
+use primitives::{fee, traits::AMM, Amount, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
@@ -31,7 +31,7 @@ use weights::WeightInfo;
 pub trait Config: frame_system::Config + pallet_asset_registry::Config {
 	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
 	type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
+	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
 
 	type HDXAssetId: Get<AssetId>;
 
@@ -85,6 +85,7 @@ impl<T: Config> Module<T> {
 // This pallet's storage items.
 decl_storage! {
 	trait Store for Module<T: Config> as AMM {
+		// REVIEW: You can probably bundle these together to save on storage accesses.
 		ShareToken get(fn share_token): map hasher(blake2_128_concat) T::AccountId => AssetId;
 		TotalLiquidity get(fn total_liquidity): map hasher(blake2_128_concat) T::AccountId => Balance;
 
@@ -134,6 +135,7 @@ decl_error! {
 
 		AssetBalanceLimitExceeded,
 		InsufficientAssetBalance,
+		// REVIEW: no tests for following errors
 		InsufficientPoolAssetBalance,
 		InsufficientHDXBalance,
 
@@ -141,10 +143,12 @@ decl_error! {
 		InvalidMintedLiquidity,
 
 		NextAssetIdUnavailable,
+		// REVIEW: </no tests>
 
 		TokenPoolNotFound,
 		TokenPoolAlreadyExists,
 
+		// REVIEW: no tests for following errors
 		CreatePoolAssetAmountInvalid,
 		CreatePoolSharesAmountInvalid,
 
@@ -155,8 +159,10 @@ decl_error! {
 		BuyAssetAmountInvalid,
 		SpotPriceInvalid,
 		FeeAmountInvalid,
+		// REVIEW: </no tests>
 		CannotApplyDiscount,
 
+		// REVIEW: no tests
 		InvalidLiquidityAmount,
 
 		MaxOutRatioExceeded,
@@ -178,6 +184,8 @@ decl_module! {
 		// this is needed only if you are using events in your pallet
 		fn deposit_event() = default;
 
+		// REVIEW: Based on the intro blog posts I am surprised that you have dedicated pools per
+		// token pair.
 		#[weight =  <T as Config>::WeightInfo::create_pool()]
 		pub fn create_pool(
 			origin,
@@ -223,6 +231,7 @@ decl_module! {
 			// Create pool only if amounts don't overflow
 			let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
+			// REVIEW: This seems redundant because of the `exists` check above?
 			let share_token = match Self::exists(asset_a, asset_b) {
 				true => Self::share_token(&pair_account),
 				false => {
@@ -231,6 +240,8 @@ decl_module! {
 					let share_token = <pallet_asset_registry::Module<T>>::create_asset(token_name)?.into();
 
 					<ShareToken<T>>::insert(&pair_account, &share_token);
+					// REVIEW: This is unordered. Seems like an easy oversight to assume that they
+					// are because it's a common assumption you make in parts of the code.
 					<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
 					share_token
 				}
@@ -295,6 +306,7 @@ decl_module! {
 				asset_b_reserve,
 				amount_a).ok_or(Error::<T>::AddAssetAmountInvalid)?;
 
+			// REVIEW: I am confused by this.
 			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
 
 			ensure!(
@@ -302,6 +314,7 @@ decl_module! {
 				Error::<T>::AssetBalanceLimitExceeded
 			);
 
+			// REVIEW: This check seems superfluous because `u128` is always >= 0.
 			ensure!(
 				shares_added >= Zero::zero(),
 				Error::<T>::InvalidMintedLiquidity
@@ -519,6 +532,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		T::AssetPairAccountId::from_assets(*asset_a, *asset_b)
 	}
 
+	// REVIEW: This could be simpler if you stored `Option<(AssetId, AssetId)>`.
 	fn get_pool_assets(pool_account_id: &T::AccountId) -> Option<Vec<AssetId>> {
 		match <PoolAssets<T>>::contains_key(pool_account_id) {
 			true => {
