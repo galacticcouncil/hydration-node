@@ -41,14 +41,13 @@ cargo build --release
 Purge any existing dev chain state:
 
 ```bash
-./target/release/hack-hydra-dx purge-chain --alice
+./target/release/hack-hydra-dx purge-chain --dev
 ```
 
-Start a dev chain(you have to run 2 validators):
+Start a dev chain:
 
 ```bash
-./target/release/hack-hydra-dx --alice --tmp --discover-local
-./target/release/hack-hydra-dx --bob --tmp --discover-local
+./target/release/hack-hydra-dx --dev
 ```
 
 Or, start a dev chain with detailed logging:
