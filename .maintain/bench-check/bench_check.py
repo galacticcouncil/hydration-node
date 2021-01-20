@@ -5,6 +5,8 @@ from collections import defaultdict
 
 HYDRA_REF_VALUES_LOCATION = ".maintain/bench-check/hydradx-bench-data.json"
 
+DIFF_MARGIN = 10 # percent
+
 COMMAND = [
     'cargo', 'run', '--release',
     '--features=runtime-benchmarks',
@@ -54,10 +56,16 @@ def run_benchmarks():
 def show_pallet_result(pallet, hydra_data, current_data):
     hydra = sum(list(map(lambda x:float(x), hydra_data.values())))
     current = sum(list(map(lambda x:float(x), current_data.values())))
+
+    hydra_margin = int(hydra * DIFF_MARGIN / 100)
+
     diff = int(hydra - current)
-    note = "OK" if diff >=0 else "FAILED"
+
+    note = "OK" if diff >= -hydra_margin else "FAILED"
+
     diff = f"{diff}"
     times = f"{hydra} vs {current}"
+
     print(f"{pallet:<25}| {times:^25} | {diff:^13} | {note:^10}")
 
 def write_hydra_results(data,location):
@@ -79,8 +87,8 @@ if __name__ == '__main__':
 
     print("\nNotes:")
     print("* - diff means the difference between HydraDX reference total time and total benchmark time of current machine")
-    print("* - If diff >= 0 - performance is same or better")
-    print("* - If diff < 0 - performance is worse and might not be suitable to run HydraDX node ( You may ask HydraDX devs for further clarifications)")
+    print("* - If diff >= 0 - ( 10% of ref value) -> performance is same or better")
+    print("* - If diff < 0 - ( 10% of ref value) -> performance is worse and might not be suitable to run HydraDX node ( You may ask HydraDX devs for further clarifications)")
 
     #write_hydra_results(results, "scripts/h.json")
 
