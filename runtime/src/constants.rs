@@ -31,7 +31,7 @@ pub mod time {
 	///
 	/// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
 
-	pub const MILLISECS_PER_BLOCK: Moment = 10000;
+	pub const MILLISECS_PER_BLOCK: Moment = 6_000;
 	pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
 	pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);

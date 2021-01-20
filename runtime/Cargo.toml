@@ -42,19 +42,19 @@ orml-tokens = {default-features = false, version = "0.3.3-dev"}
 orml-traits = {default-features = false, version = "0.3.3-dev"}
 
 # Staking dependencies
-pallet-authority-discovery = {default-features = false, version = '=2.0.0'}
-pallet-authorship = {default-features = false, version = '=2.0.0'}
-pallet-babe = {default-features = false, version = '=2.0.0'}
-pallet-collective = {default-features = false, version = '=2.0.0'}
-pallet-elections-phragmen = {default-features = false, version = '=2.0.0'}
-pallet-im-online = {default-features = false, version = '=2.0.0'}
-pallet-offences = {default-features = false, version = '=2.0.0'}
-pallet-session = {default-features = false, version = '=2.0.0'}
-pallet-staking = {default-features = false, version = '=2.0.0'}
-pallet-staking-reward-curve = {default-features = false, version = '=2.0.0'}
-pallet-treasury = {default-features = false, version = '=2.0.0'}
-sp-authority-discovery = {default-features = false, version = '=2.0.0'}
-sp-consensus-babe = {default-features = false, version = '=0.8.0'}
+pallet-authority-discovery = {default-features = false, version = '2.0.0'}
+pallet-authorship = {default-features = false, version = '2.0.0'}
+pallet-babe = {default-features = false, version = '2.0.0'}
+pallet-collective = {default-features = false, version = '2.0.0'}
+pallet-elections-phragmen = {default-features = false, version = '2.0.0'}
+pallet-im-online = {default-features = false, version = '2.0.0'}
+pallet-offences = {default-features = false, version = '2.0.0'}
+pallet-session = {default-features = false, version = '2.0.0'}
+pallet-staking = {default-features = false, version = '2.0.0'}
+pallet-staking-reward-curve = {default-features = false, version = '2.0.0'}
+pallet-treasury = {default-features = false, version = '2.0.0'}
+sp-authority-discovery = {default-features = false, version = '2.0.0'}
+sp-consensus-babe = {default-features = false, version = '0.8.0'}
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
