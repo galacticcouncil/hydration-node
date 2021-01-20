@@ -158,7 +158,6 @@ decl_module! {
 			asset_buy: AssetId,
 			amount_sell: Balance,
 			min_bought: Balance,
-			// REVIEW: I don't understand this and can thus not verify.
 			discount: bool,
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
