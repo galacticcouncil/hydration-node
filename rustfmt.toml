@@ -1,3 +1,4 @@
+edition = "2018"
 reorder_imports = true
 hard_tabs = true
 max_width = 120
