@@ -103,6 +103,8 @@ Connect to the `wss://hack.hydradx.io:9944` or local node.
 
 ### Performance check
 
+Prerequisites: rust/cargo, python 3.8+
+
 With the following script it is possible to run a simple performance check. It might be useful
 to determine whether your machine is suitable to run HydraDX node.
 
