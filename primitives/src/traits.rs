@@ -44,8 +44,6 @@ pub trait AMM<AccountId, AssetId, Amount> {
 
 	/// Perform asset swap.
 	/// Call execute following the validation.
-	// REVIEW: The necessity for the distinction between buy and sell is unclear to me. Isn't it a
-	// swap either way?
 	fn sell(
 		origin: &AccountId,
 		asset_sell: AssetId,
