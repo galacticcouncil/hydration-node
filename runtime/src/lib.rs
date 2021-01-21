@@ -10,12 +10,10 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, Verify,
-};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, Verify};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{Zero},
+	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -28,10 +26,10 @@ use frame_system::limits;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness, Convert},
+	traits::{Convert, KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		IdentityFee, Weight, DispatchClass
+		DispatchClass, IdentityFee, Weight,
 	},
 	StorageValue,
 };
@@ -55,15 +53,14 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 // XCM imports
 use polkadot_parachain::primitives::Sibling;
-use xcm::v0::{MultiLocation, NetworkId, Junction};
+use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
-	ParentIsDefault, SiblingParachainConvertsVia, AccountId32Aliases, LocationInverter,
-	SovereignSignedViaLocation, SiblingParachainAsNative,
-	RelayChainAsNative, SignedAccountId32AsNative, CurrencyAdapter
+	AccountId32Aliases, CurrencyAdapter, LocationInverter, ParentIsDefault, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SovereignSignedViaLocation,
 };
 use xcm_executor::{
-	XcmExecutor, Config,
-	traits::{NativeAsset, IsConcrete},
+	traits::{IsConcrete, NativeAsset},
+	Config, XcmExecutor,
 };
 
 /// Import HydraDX pallets
@@ -374,8 +371,7 @@ type LocationConverter = (
 	AccountId32Aliases<RococoNetwork, AccountId>,
 );
 
-type LocalAssetTransactor =
-CurrencyAdapter<
+type LocalAssetTransactor = CurrencyAdapter<
 	// Use this currency:
 	Balances,
 	IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
