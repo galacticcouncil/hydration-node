@@ -12,7 +12,7 @@ mod tests;
 
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
-	dispatch::DispatchResult,
+	dispatch::{DispatchResult, DispatchResultWithPostInfo},
 	ensure,
 	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
 };
@@ -29,7 +29,7 @@ use sp_std::marker::PhantomData;
 use frame_support::weights::Pays;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::{CurrencySwap, AMM};
-use primitives::{AssetId, Balance, CORE_ASSET_ID};
+use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
@@ -42,7 +42,7 @@ pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 
 	/// Multi Currency
 	type MultiCurrency: MultiCurrency<Self::AccountId>
-		+ MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
+		+ MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
 
 	/// AMM pool to swap for native currency
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
@@ -110,13 +110,16 @@ decl_module! {
 		/// Set currency in which transaction fees are paid.
 		/// This is feeless transaction.
 		/// Selected currency must have non-zero balance otherwise is not allowed to be set.
-		#[weight = (<T as Config>::WeightInfo::set_currency(), Pays::No)]
+		// REVIEW: You might want to only make the transaction free if it goes through successfully.
+		// Makes it harder to DoS the chain.
+		#[weight = (<T as Config>::WeightInfo::set_currency())]
 		pub fn set_currency(
 			origin,
 			currency: AssetId,
-		)  -> DispatchResult {
+		)  -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
+			// REVIEW: nitpick: I'd use an `if` for this.
 			match currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
 				true =>	{
 					if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
@@ -127,12 +130,14 @@ decl_module! {
 
 					Self::deposit_event(RawEvent::CurrencySet(who, currency));
 
-					Ok(())
+					Ok(Pays::No.into())
 				},
 				false => Err(Error::<T>::UnsupportedCurrency.into())
 			}
 		}
 
+		// REVIEW: add docs
+		// REVIEW: Same here: I would waive fees on success.
 		#[weight = (<T as Config>::WeightInfo::add_currency(), Pays::No)]
 		pub fn add_currency(origin, currency: AssetId) -> DispatchResult{
 
@@ -149,6 +154,7 @@ decl_module! {
 				Error::<T>::NotAllowed
 			);
 
+			// REVIEW: This will lead to two DB accesses. Consider only reading and writing once.
 			match Self::currencies().contains(&currency) {
 				false => {
 					AcceptedCurrencies::mutate(|x| x.push(currency));
@@ -163,6 +169,8 @@ decl_module! {
 			}
 		}
 
+		// REVIEW: add docs
+		// REVIEW: Same here: I would waive fees on success.
 		#[weight = (<T as Config>::WeightInfo::remove_currency(), Pays::No)]
 		pub fn remove_currency(origin, currency: AssetId) -> DispatchResult{
 
@@ -202,6 +210,9 @@ impl<T: Config> Module<T> {
 
 		// If not native currency, let's buy CORE asset first and then pay with that.
 		if fee_currency != CORE_ASSET_ID {
+			// REVIEW: Won't this fail systematically if the fee currency is cheap/the core
+			// asset is expensive? Also: How do you know that `fee` is valid for the core asset?
+			// I.e. in terms of precision etc.
 			T::AMMPool::buy(&who, CORE_ASSET_ID, fee_currency, fee, 2u128 * fee, false)?;
 		}
 
@@ -209,6 +220,7 @@ impl<T: Config> Module<T> {
 	}
 
 	pub fn add_member(who: &T::AccountId) {
+		// REVIEW: You probably want a set here. ORML has one based on a vec I think.
 		Authorities::<T>::mutate(|x| x.push(who.clone()));
 	}
 }
@@ -258,10 +270,14 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
+		// REVIEW: I would predict that if someone does not have any HDX before this swap that it
+		// 1. might fail because the fee is smaller than the existential deposit or ...
 		if SW::swap_currency(&who, fee.into()).is_err() {
 			return Err(InvalidTransaction::Payment.into());
 		}
 
+		// REVIEW: ... 2. that this withdraw will fail because of existence requirements.
+		// Might work with your runtime where the ED is 0.
 		match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
 			Ok(imbalance) => Ok(Some(imbalance)),
 			Err(_) => Err(InvalidTransaction::Payment.into()),
