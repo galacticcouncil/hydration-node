@@ -41,6 +41,8 @@ module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-
 orml-currencies = { default-features = false, version = "0.3.3-dev" }
 orml-tokens = { default-features = false, version = "0.3.3-dev" }
 orml-traits = { default-features = false, version = "0.3.3-dev" }
+orml-xtokens = { default-features = false, version = "0.3.3-dev" }
+orml-xcm-support = { default-features = false, version = "0.3.3-dev" }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
@@ -110,6 +112,8 @@ std = [
     'orml-currencies/std',
     'orml-tokens/std',
     'orml-traits/std',
+    "orml-xtokens/std",
+    "orml-xcm-support/std",
     'cumulus-runtime/std',
     'cumulus-parachain-upgrade/std',
     "cumulus-message-broker/std",

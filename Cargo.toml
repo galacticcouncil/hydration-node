@@ -70,6 +70,8 @@ pallet-transaction-payment = { git = 'https://github.com/paritytech/substrate', 
 orml-currencies = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
 orml-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
 orml-traits = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
+orml-xtokens= { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
+orml-xcm-support = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'sw/rococo-v1' }
 
 # Polkadot dependencies
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
