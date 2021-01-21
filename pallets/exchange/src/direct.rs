@@ -22,8 +22,10 @@ pub struct DirectTradeData<'a, T: Config> {
 	pub transfers: Vec<Transfer<'a, T>>,
 }
 
-/// Direct trading implementaton
+/// Direct trade implementation
+/// Represents direct trade between two accounts
 impl<'a, T: Config> DirectTradeData<'a, T> {
+
 	/// Prepare direct trade
 	/// 1. Validate balances
 	/// 2. Calculate fees
@@ -71,10 +73,11 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 			return false;
 		}
 
+		// Unwrapping is correct as None case is handled in previous statement.
 		let transfer_a_fee = fee_a.unwrap();
 		let transfer_b_fee = fee_b.unwrap();
 
-		// Work out where to a fee from.
+		// Work out where to take a fee from.
 		// There are multiple possible scenarios to consider
 		// 1. SELL - SELL
 		// 2. SELL - BUY
@@ -194,7 +197,9 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 	/// Execute direct trade.
 	/// Trade must be prepared first. Execute all transfers.
 	pub fn execute(&self) -> bool {
+
 		self.send_direct_trade_resolve_event();
+
 		for transfer in &self.transfers {
 			T::Currency::repatriate_reserved(
 				transfer.asset,
@@ -204,6 +209,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 				BalanceStatus::Free,
 			)
 			.expect("Cannot fail. Checks should have been done prior to this.");
+
 			if transfer.fee_transfer {
 				Self::send_trade_fee_event(transfer.from, transfer.to, transfer.asset, transfer.amount);
 			}
