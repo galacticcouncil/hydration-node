@@ -7,6 +7,7 @@ use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+pub mod asset;
 pub mod traits;
 
 /// An index to a block.
@@ -55,10 +56,9 @@ impl Default for IntentionType {
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
-pub struct ExchangeIntention<AccountId, AssetId, Balance, IntentionID> {
+pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 	pub who: AccountId,
-	pub asset_sell: AssetId,
-	pub asset_buy: AssetId,
+	pub assets: asset::AssetPairType,
 	pub amount_sell: Balance,
 	pub amount_buy: Balance,
 	pub trade_limit: Balance,

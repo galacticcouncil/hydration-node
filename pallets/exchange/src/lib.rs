@@ -8,11 +8,11 @@ use codec::Encode;
 use sp_std::vec::Vec;
 
 use primitives::{
+	asset::AssetPair,
 	traits::{Resolver, AMM},
 	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
 };
 use sp_std::borrow::ToOwned;
-use sp_std::cmp;
 
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
 
@@ -36,7 +36,7 @@ mod tests;
 
 /// Intention alias
 type IntentionId<T> = <T as system::Config>::Hash;
-pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, AssetId, Balance, IntentionId<T>>;
+pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, Balance, IntentionId<T>>;
 
 /// The pallet's configuration trait.
 pub trait Config: system::Config {
@@ -167,19 +167,17 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
+			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
+
 			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
 
-			let asset_1 = cmp::min(asset_sell, asset_buy);
-			let asset_2 = cmp::max(asset_sell, asset_buy);
+			let intention_count = ExchangeAssetsIntentionCount::get(assets.pair());
 
-			let intention_count = ExchangeAssetsIntentionCount::get((asset_1, asset_2));
-
-			let intention_id = Self::generate_intention_id(&who, intention_count, asset_1, asset_2);
+			let intention_id = Self::generate_intention_id(&who, intention_count, &assets);
 
 			let intention = Intention::<T> {
 					who: who.clone(),
-					asset_sell,
-					asset_buy,
+					assets: assets.clone(),
 					amount_sell,
 					amount_buy,
 					discount,
@@ -187,13 +185,10 @@ decl_module! {
 					intention_id,
 					trade_limit: min_bought
 			};
+			// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
+			<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention.clone());
 
-			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
-
-			let asset_1 = cmp::min(intention.asset_sell, intention.asset_buy);
-			let asset_2 = cmp::max(intention.asset_sell, intention.asset_buy);
-
-			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total += 1u32);
+			ExchangeAssetsIntentionCount::mutate(assets.pair(), |total| *total += 1u32);
 
 			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount_sell, IntentionType::SELL, intention.intention_id));
 
@@ -225,17 +220,15 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			let asset_1 = cmp::min(asset_sell, asset_buy);
-			let asset_2 = cmp::max(asset_sell, asset_buy);
+			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
 
-			let intention_count = ExchangeAssetsIntentionCount::get((asset_1, asset_2));
+			let intention_count = ExchangeAssetsIntentionCount::get(assets.pair());
 
-			let intention_id = Self::generate_intention_id(&who, intention_count, asset_1, asset_2);
+			let intention_id = Self::generate_intention_id(&who, intention_count, &assets);
 
 			let intention = Intention::<T> {
 					who: who.clone(),
-					asset_sell,
-					asset_buy,
+					assets: assets.clone(),
 					amount_sell,
 					amount_buy,
 					sell_or_buy: IntentionType::BUY,
@@ -244,9 +237,10 @@ decl_module! {
 					trade_limit: max_sold
 			};
 
-			<ExchangeAssetsIntentions<T>>::append((intention.asset_sell, intention.asset_buy), intention.clone());
+			// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
+			<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention.clone());
 
-			ExchangeAssetsIntentionCount::mutate((asset_1,asset_2), |total| *total += 1u32);
+			ExchangeAssetsIntentionCount::mutate(assets.pair(), |total| *total += 1u32);
 
 			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_buy, asset_sell, amount_buy, IntentionType::BUY, intention.intention_id));
 
@@ -374,8 +368,8 @@ impl<T: Config> Module<T> {
 	fn send_intention_error_event(intention: &Intention<T>, error: dispatch::DispatchError) {
 		Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
 			intention.who.clone(),
-			intention.asset_sell,
-			intention.asset_buy,
+			intention.assets.asset_in,
+			intention.assets.asset_out,
 			intention.sell_or_buy.clone(),
 			intention.intention_id,
 			error,
@@ -389,8 +383,8 @@ impl<T: Config> Module<T> {
 			IntentionType::SELL => {
 				match T::AMMPool::validate_sell(
 					&intention.who,
-					intention.asset_sell,
-					intention.asset_buy,
+					intention.assets.asset_in,
+					intention.assets.asset_out,
 					intention.amount_sell,
 					intention.trade_limit,
 					intention.discount,
@@ -398,8 +392,8 @@ impl<T: Config> Module<T> {
 					Err(error) => {
 						Self::deposit_event(RawEvent::AMMSellErrorEvent(
 							intention.who.clone(),
-							intention.asset_sell,
-							intention.asset_buy,
+							intention.assets.asset_in,
+							intention.assets.asset_out,
 							intention.sell_or_buy.clone(),
 							intention.intention_id,
 							error,
@@ -412,8 +406,8 @@ impl<T: Config> Module<T> {
 			IntentionType::BUY => {
 				match T::AMMPool::validate_buy(
 					&intention.who,
-					intention.asset_buy,
-					intention.asset_sell,
+					intention.assets.asset_out,
+					intention.assets.asset_in,
 					intention.amount_buy,
 					intention.trade_limit,
 					intention.discount,
@@ -421,8 +415,8 @@ impl<T: Config> Module<T> {
 					Err(error) => {
 						Self::deposit_event(RawEvent::AMMBuyErrorEvent(
 							intention.who.clone(),
-							intention.asset_buy,
-							intention.asset_sell,
+							intention.assets.asset_out,
+							intention.assets.asset_in,
 							intention.sell_or_buy.clone(),
 							intention.intention_id,
 							error,
@@ -435,9 +429,9 @@ impl<T: Config> Module<T> {
 		}
 	}
 
-	fn generate_intention_id(account: &T::AccountId, c: u32, a1: AssetId, a2: AssetId) -> IntentionId<T> {
+	fn generate_intention_id(account: &T::AccountId, c: u32, assets: &AssetPair) -> IntentionId<T> {
 		let b = <system::Module<T>>::current_block_number();
-		(c, &account, b, a1, a2).using_encoded(T::Hashing::hash)
+		(c, &account, b, assets.pair().0, assets.pair().1).using_encoded(T::Hashing::hash)
 	}
 }
 
@@ -447,16 +441,16 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 		let amm_transfer = match intention.sell_or_buy {
 			IntentionType::SELL => T::AMMPool::validate_sell(
 				&intention.who,
-				intention.asset_sell,
-				intention.asset_buy,
+				intention.assets.asset_in,
+				intention.assets.asset_out,
 				intention.amount_sell,
 				intention.trade_limit,
 				intention.discount,
 			),
 			IntentionType::BUY => T::AMMPool::validate_buy(
 				&intention.who,
-				intention.asset_buy,
-				intention.asset_sell,
+				intention.assets.asset_out,
+				intention.assets.asset_in,
 				intention.amount_buy,
 				intention.trade_limit,
 				intention.discount,
@@ -574,16 +568,16 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				let amm_transfer_result = match matched_intention.sell_or_buy {
 					IntentionType::SELL => T::AMMPool::validate_sell(
 						&matched_intention.who,
-						matched_intention.asset_sell,
-						matched_intention.asset_buy,
+						matched_intention.assets.asset_in,
+						matched_intention.assets.asset_out,
 						rest_sell_amount,
 						rest_limit,
 						matched_intention.discount,
 					),
 					IntentionType::BUY => T::AMMPool::validate_buy(
 						&matched_intention.who,
-						matched_intention.asset_buy,
-						matched_intention.asset_sell,
+						matched_intention.assets.asset_out,
+						matched_intention.assets.asset_in,
 						rest_buy_amount,
 						rest_limit,
 						matched_intention.discount,
