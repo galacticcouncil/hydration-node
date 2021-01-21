@@ -11,33 +11,25 @@ use frame_system::{self as system, ensure_signed};
 use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
-use primitives::{HighPrecisionBalance, LowPrecisionBalance};
-
-use core::convert::TryFrom;
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
-use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 
 #[cfg(test)]
 mod mock;
 
 mod benchmarking;
-mod default_weights;
 #[cfg(test)]
 mod tests;
 
-pub trait WeightInfo {
-	fn create_pool() -> Weight;
-	fn add_liquidity() -> Weight;
-	fn remove_liquidity() -> Weight;
-	fn sell() -> Weight;
-	fn buy() -> Weight;
-}
+pub mod weights;
+
+use weights::WeightInfo;
 
 /// The pallet's configuration trait.
-pub trait Trait: frame_system::Trait + pallet_asset_registry::Trait {
-	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+pub trait Config: frame_system::Config + pallet_asset_registry::Config {
+	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
 	type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
 	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
 
@@ -45,15 +37,18 @@ pub trait Trait: frame_system::Trait + pallet_asset_registry::Trait {
 
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
+
+	/// Trading fee rate
+	type GetExchangeFee: Get<fee::Fee>;
 }
 
 pub trait AssetPairAccountIdFor<AssetId: Sized, AccountId: Sized> {
 	fn from_assets(asset_a: AssetId, asset_b: AssetId) -> AccountId;
 }
 
-pub struct AssetPairAccountId<T: Trait>(PhantomData<T>);
+pub struct AssetPairAccountId<T: Config>(PhantomData<T>);
 
-impl<T: Trait> AssetPairAccountIdFor<AssetId, T::AccountId> for AssetPairAccountId<T>
+impl<T: Config> AssetPairAccountIdFor<AssetId, T::AccountId> for AssetPairAccountId<T>
 where
 	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
 {
@@ -71,7 +66,7 @@ where
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	fn get_token_name(asset_a: AssetId, asset_b: AssetId) -> Vec<u8> {
 		let mut buf: Vec<u8> = Vec::new();
 		if asset_a < asset_b {
@@ -89,7 +84,7 @@ impl<T: Trait> Module<T> {
 
 // This pallet's storage items.
 decl_storage! {
-	trait Store for Module<T: Trait> as AMM {
+	trait Store for Module<T: Config> as AMM {
 		ShareToken get(fn share_token): map hasher(blake2_128_concat) T::AccountId => AssetId;
 		TotalLiquidity get(fn total_liquidity): map hasher(blake2_128_concat) T::AccountId => Balance;
 
@@ -101,7 +96,7 @@ decl_storage! {
 decl_event!(
 	pub enum Event<T>
 	where
-		AccountId = <T as system::Trait>::AccountId,
+		AccountId = <T as system::Config>::AccountId,
 		AssetId = AssetId,
 		Balance = Balance,
 	{
@@ -127,7 +122,7 @@ decl_event!(
 
 // The pallet's errors
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 
 		CannotCreatePoolWithSameAssets,
 
@@ -173,7 +168,7 @@ decl_error! {
 // The pallet's dispatchable functions.
 decl_module! {
 	/// The module declaration.
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Initializing errors
 		// this includes information about your errors in the node's metadata.
 		// it is needed only if you are using errors in your pallet
@@ -183,7 +178,7 @@ decl_module! {
 		// this is needed only if you are using events in your pallet
 		fn deposit_event() = default;
 
-		#[weight =  <T as Trait>::WeightInfo::create_pool()]
+		#[weight =  <T as Config>::WeightInfo::create_pool()]
 		pub fn create_pool(
 			origin,
 			asset_a: AssetId,
@@ -253,7 +248,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::add_liquidity()]
+		#[weight =  <T as Config>::WeightInfo::add_liquidity()]
 		pub fn add_liquidity(
 			origin,
 			asset_a: AssetId,
@@ -296,15 +291,9 @@ decl_module! {
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 			let total_liquidity = Self::total_liquidity(&pair_account);
 
-			let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount_a);
-			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
-			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
-
-			let b_required_hp = amount_hp.checked_mul(b_reserve_hp).expect("Cannot overflow").checked_div(a_reserve_hp).expect("Cannot panic as reserve cannot be 0");
-
-			let b_required_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(b_required_hp);
-			ensure!(b_required_lp.is_ok(), Error::<T>::AddAssetAmountInvalid);
-			let amount_b_required = b_required_lp.unwrap();
+			let amount_b_required = hack_hydra_dx_math::calculate_liquidity_in(asset_a_reserve,
+				asset_b_reserve,
+				amount_a).ok_or(Error::<T>::AddAssetAmountInvalid)?;
 
 			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
 
@@ -339,7 +328,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::remove_liquidity()]
+		#[weight =  <T as Config>::WeightInfo::remove_liquidity()]
 		pub fn remove_liquidity(
 			origin,
 			asset_a: AssetId,
@@ -382,20 +371,12 @@ decl_module! {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let liquidity_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(liquidity_amount);
-			let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
-			let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
-			let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_shares);
+			let liquidity_out = hack_hydra_dx_math::calculate_liquidity_out(asset_a_reserve,
+				asset_b_reserve,
+				liquidity_amount,
+				total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
 
-			let remove_amount_a_hp = liquidity_amount_hp.checked_mul(a_reserve_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
-			let remove_amount_a_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_a_hp);
-			ensure!(remove_amount_a_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
-			let remove_amount_a = remove_amount_a_lp.unwrap();
-
-			let remove_amount_b_hp = b_reserve_hp.checked_mul(liquidity_amount_hp).expect("Cannot overflow").checked_div(liquidity_hp).expect("Cannot panic as liquidity cannot be 0");
-			let remove_amount_b_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(remove_amount_b_hp);
-			ensure!(remove_amount_b_lp.is_ok(), Error::<T>::RemoveAssetAmountInvalid);
-			let remove_amount_b = remove_amount_b_lp.unwrap();
+			let (remove_amount_a, remove_amount_b) = liquidity_out;
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
@@ -428,7 +409,7 @@ decl_module! {
 			Ok(())
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::sell()]
+		#[weight =  <T as Config>::WeightInfo::sell()]
 		pub fn sell(
 			origin,
 			asset_sell: AssetId,
@@ -442,7 +423,7 @@ decl_module! {
 			<Self as AMM<_,_,_>>::sell(&who, asset_sell, asset_buy, amount_sell, max_limit, discount)
 		}
 
-		#[weight =  <T as Trait>::WeightInfo::buy()]
+		#[weight =  <T as Config>::WeightInfo::buy()]
 		pub fn buy(
 			origin,
 			asset_buy: AssetId,
@@ -458,7 +439,7 @@ decl_module! {
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	pub fn get_spot_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
 		match Self::exists(asset_a, asset_b) {
 			true => Self::get_spot_price_unchecked(asset_a, asset_b, amount),
@@ -474,10 +455,9 @@ impl<T: Trait> Module<T> {
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-				match Self::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount) {
-					Result::Ok(v) => v,
-					_ => 0,
-				}
+				hack_hydra_dx_math::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount)
+					.or(Some(0))
+					.unwrap()
 			}
 			false => 0,
 		}
@@ -490,11 +470,9 @@ impl<T: Trait> Module<T> {
 
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-
-				match Self::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount) {
-					Result::Ok(v) => v,
-					_ => 0,
-				}
+				hack_hydra_dx_math::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount)
+					.or(Some(0))
+					.unwrap()
 			}
 			false => 0,
 		}
@@ -512,83 +490,26 @@ impl<T: Trait> Module<T> {
 		Some(balances)
 	}
 
-	pub fn calculate_sell_price(
-		sell_reserve: Balance,
-		buy_reserve: Balance,
-		sell_amount: Balance,
-	) -> Result<Balance, dispatch::DispatchError> {
-		let sell_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_amount);
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
-
-		let numerator = buy_reserve_hp
-			.checked_mul(sell_amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-		let denominator = sell_reserve_hp
-			.checked_add(sell_amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-
-		let sale_price_hp = numerator
-			.checked_div(denominator)
-			.ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-
-		let sale_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(sale_price_hp);
-		ensure!(sale_price_lp.is_ok(), Error::<T>::SellAssetAmountInvalid);
-		let sale_price = sale_price_lp.unwrap();
-
-		let sale_price_round_up = fee::fixed_fee(sale_price).ok_or::<Error<T>>(Error::<T>::SellAssetAmountInvalid)?;
-
-		Ok(sale_price_round_up)
-	}
-
-	pub fn calculate_buy_price(
-		sell_reserve: Balance,
-		buy_reserve: Balance,
-		amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		ensure!(amount <= buy_reserve, Error::<T>::InsufficientPoolAssetBalance);
-
-		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
-
-		let numerator = sell_reserve_hp
-			.checked_mul(amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-		let denominator = buy_reserve_hp
-			.checked_sub(amount_hp)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-		let buy_price_hp = numerator
-			.checked_div(denominator)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-
-		let buy_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(buy_price_hp);
-		ensure!(buy_price_lp.is_ok(), Error::<T>::BuyAssetAmountInvalid);
-		let buy_price = buy_price_lp.unwrap();
-
-		let buy_price_round_up = buy_price
-			.checked_add(1u128)
-			.ok_or::<Error<T>>(Error::<T>::BuyAssetAmountInvalid)?;
-
-		Ok(buy_price_round_up)
-	}
-
 	fn calculate_fees(amount: Balance, discount: bool, hdx_fee: &mut Balance) -> Result<Balance, DispatchError> {
 		match discount {
 			true => {
-				let transfer_fee = fee::get_discounted_fee(amount).ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?;
+				let transfer_fee = amount
+					.discounted_fee()
+					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?;
 				*hdx_fee = transfer_fee;
 				Ok(transfer_fee)
 			}
 			false => {
 				*hdx_fee = 0;
-				Ok(fee::get_fee(amount).ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
+				Ok(amount
+					.just_fee(T::GetExchangeFee::get())
+					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
 			}
 		}
 	}
 }
 
-impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
+impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn exists(asset_a: AssetId, asset_b: AssetId) -> bool {
 		let pair_account = T::AssetPairAccountId::from_assets(asset_a, asset_b);
 		<ShareToken<T>>::contains_key(&pair_account)
@@ -614,31 +535,9 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		match Self::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount) {
-			Result::Ok(v) => v,
-			_ => 0,
-		}
-	}
-
-	fn calculate_spot_price(
-		sell_reserve: Balance,
-		buy_reserve: Balance,
-		amount: Balance,
-	) -> Result<Balance, DispatchError> {
-		let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
-		let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
-		let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
-
-		let spot_price_hp = buy_reserve_hp
-			.checked_mul(amount_hp)
-			.expect("Cannot overflow")
-			.checked_div(sell_reserve_hp)
-			.unwrap();
-
-		let spot_price_lp: Result<LowPrecisionBalance, &'static str> = LowPrecisionBalance::try_from(spot_price_hp);
-		ensure!(spot_price_lp.is_ok(), Error::<T>::SpotPriceInvalid);
-
-		Ok(spot_price_lp.unwrap())
+		hack_hydra_dx_math::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount)
+			.or(Some(0))
+			.unwrap()
 	}
 
 	fn validate_sell(
@@ -678,7 +577,16 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer_fee = Self::calculate_fees(amount_sell, discount, &mut hdx_amount)?;
 
-		let sale_price = Self::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee)?;
+		let sale_price = match hack_hydra_dx_math::calculate_sell_price(
+			asset_sell_total,
+			asset_buy_total,
+			amount_sell - transfer_fee,
+		) {
+			Some(x) => x,
+			None => {
+				return Err(Error::<T>::SellAssetAmountInvalid.into());
+			}
+		};
 
 		ensure!(asset_buy_total >= sale_price, Error::<T>::InsufficientAssetBalance);
 
@@ -692,7 +600,8 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_sell, &hdx_pair_account);
 
-			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)?;
+			let hdx_fee_spot_price = hack_hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
+				.ok_or(Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,
@@ -773,7 +682,21 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer_fee = Self::calculate_fees(amount_buy, discount, &mut hdx_amount)?;
 
-		let buy_price = Self::calculate_buy_price(asset_sell_reserve, asset_buy_reserve, amount_buy + transfer_fee)?;
+		ensure!(
+			amount_buy + transfer_fee <= asset_buy_reserve,
+			Error::<T>::InsufficientPoolAssetBalance
+		);
+
+		let buy_price = match hack_hydra_dx_math::calculate_buy_price(
+			asset_sell_reserve,
+			asset_buy_reserve,
+			amount_buy + transfer_fee,
+		) {
+			Some(x) => x,
+			None => {
+				return Err(Error::<T>::BuyAssetAmountInvalid.into());
+			}
+		};
 
 		ensure!(
 			T::Currency::free_balance(asset_sell, who) >= buy_price,
@@ -790,7 +713,8 @@ impl<T: Trait> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_buy, &hdx_pair_account);
 
-			let hdx_fee_spot_price = Self::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)?;
+			let hdx_fee_spot_price = hack_hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
+				.ok_or(Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,

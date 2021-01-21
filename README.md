@@ -26,7 +26,7 @@ Find manual setup instructions at the
 
 ### Build
 
-Once the development environment is set up, build the node template. This command will build the
+Once the development environment is set up, build the node. This command will build the
 [Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
 [native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
 
@@ -99,4 +99,26 @@ Then open settings screen -> developer and paste
 ```
 
 Connect to the `wss://hack.hydradx.io:9944` or local node.
+
+
+### Performance check
+
+Prerequisites: rust/cargo, python 3.8+
+
+With the following script it is possible to run a simple performance check. It might be useful
+to determine whether your machine is suitable to run HydraDX node.
+
+From the top-level node directory:
+
+```bash
+./scripts/check_performance.sh
+```
+
+This will run series of benchmarks ( which may take a while). 
+The output will show benchmark results of HydraDX pallets and comparison against reference values.
+
+The most interesting information would be the difference between the HydraDx benchmark value and the local machine's benchmark.
+
+If the difference is >= 0, performance is similar or better.
+However, if the difference < 0 - your machine might not suitable to run HydraDX node. Contact HydraDX devs to discuss the results.
 

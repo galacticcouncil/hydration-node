@@ -122,12 +122,12 @@ pub mod crypto {
 }
 
 /// This pallet's configuration trait
-pub trait Trait: CreateSignedTransaction<Call<Self>> + pallet_timestamp::Trait + system::Trait {
+pub trait Config: CreateSignedTransaction<Call<Self>> + pallet_timestamp::Config + system::Config {
 	/// The identifier type for an offchain worker.
 	type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 
 	/// The overarching event type.
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
 	/// The overarching dispatch call type.
 	type Call: From<Call<Self>>;
@@ -137,7 +137,7 @@ pub trait Trait: CreateSignedTransaction<Call<Self>> + pallet_timestamp::Trait +
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as PriceFetch {
+	trait Store for Module<T: Config> as PriceFetch {
 		///Map of currently running fetchers
 		Fetchers get(fn fetcher): map hasher(identity) Vec<u8> => Fetcher<T::BlockNumber>;
 
@@ -150,7 +150,7 @@ decl_storage! {
 }
 
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		//Fetcher for required symbol is already running
 		FetcherAlreadyExist,
 		//start fetcher for unsupported symbol (currency/token, e.g ETH
@@ -163,8 +163,8 @@ decl_error! {
 decl_event!(
 	pub enum Event<T>
 	where
-		Moment = <T as pallet_timestamp::Trait>::Moment,
-		AccountId = <T as frame_system::Trait>::AccountId,
+		Moment = <T as pallet_timestamp::Config>::Moment,
+		AccountId = <T as frame_system::Config>::AccountId,
 		Price = Price,
 		Symbol = Symbol,
 	{
@@ -181,7 +181,7 @@ decl_event!(
 
 decl_module! {
 	/// A public part of the pallet.
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 
 		type Error = Error<T>;
 
@@ -196,7 +196,7 @@ decl_module! {
 			ensure!(!<Fetchers<T>>::contains_key(&SYM.to_vec()), Error::<T>::FetcherAlreadyExist);
 
 			//TODO: duration should be param of function
-			let end_at = <system::Module<T>>::block_number() + T::BlockNumber::from(600); //600 blocs is 1hour at 1 block/6s
+			let end_at = <system::Module<T>>::block_number() + T::BlockNumber::from(600u32); //600 blocs is 1hour at 1 block/6s
 			let url = match SYMBOLS.iter().find(|(s, _)| s == SYM) {
 				Some (p) => Ok(p.1),
 				None => Err(Error::<T>::SymbolNotFound)
@@ -264,7 +264,7 @@ decl_module! {
 					if let Err(e) = Self::calc_and_submit_avg_price(f) {
 						debug::error!("Error: {}", e);
 					}
-				} else if block_number % T::GracePeriod::get() == 0.into() {
+				} else if block_number % T::GracePeriod::get() == 0u32.into() {
 					//TASK II.: Fetch and submit price
 					if let Err(e) = Self::fetch_price_and_submit(f) {
 						debug::error!("Error: {}", e);
@@ -279,7 +279,7 @@ decl_module! {
 ///
 /// This greatly helps with error messages, as the ones inside the macro
 /// can sometimes be hard to debug.
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	fn add_new_price_to_list(price: FetchedPrice<T::AccountId>) {
 		<FetchedPrices<T>>::mutate(price.symbol.clone(), |prices| {
 			prices.push(price);

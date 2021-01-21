@@ -1,7 +1,10 @@
 use super::*;
+use frame_support::traits::BalanceStatus;
+
+use primitives::fee::{Fee, WithFee};
 
 /// Hold info about each transfer which has to be made to resolve a direct trade.
-pub struct Transfer<'a, T: Trait> {
+pub struct Transfer<'a, T: Config> {
 	pub from: &'a T::AccountId,
 	pub to: &'a T::AccountId,
 	pub asset: AssetId,
@@ -11,7 +14,7 @@ pub struct Transfer<'a, T: Trait> {
 
 /// Hold info about a direct trade between two intentions.
 /// After a direct trade is prepared - ```transfers``` contains all necessary transfers to complete the trade.
-pub struct DirectTradeData<'a, T: Trait> {
+pub struct DirectTradeData<'a, T: Config> {
 	pub intention_a: &'a Intention<T>,
 	pub intention_b: &'a Intention<T>,
 	pub amount_from_a: Balance,
@@ -20,7 +23,7 @@ pub struct DirectTradeData<'a, T: Trait> {
 }
 
 /// Direct trading implementaton
-impl<'a, T: Trait> DirectTradeData<'a, T> {
+impl<'a, T: Config> DirectTradeData<'a, T> {
 	/// Prepare direct trade
 	/// 1. Validate balances
 	/// 2. Calculate fees
@@ -61,8 +64,15 @@ impl<'a, T: Trait> DirectTradeData<'a, T> {
 
 		// Let's handle the fees now for registered transfers.
 
-		let transfer_a_fee = fee::get_fee(self.amount_from_a).unwrap();
-		let transfer_b_fee = fee::get_fee(self.amount_from_b).unwrap();
+		let fee_a = self.amount_from_a.just_fee(Fee::default());
+		let fee_b = self.amount_from_b.just_fee(Fee::default());
+
+		if fee_a.is_none() || fee_b.is_none() {
+			return false;
+		}
+
+		let transfer_a_fee = fee_a.unwrap();
+		let transfer_b_fee = fee_b.unwrap();
 
 		// Work out where to a fee from.
 		// There are multiple possible scenarios to consider
@@ -186,12 +196,14 @@ impl<'a, T: Trait> DirectTradeData<'a, T> {
 	pub fn execute(&self) -> bool {
 		self.send_direct_trade_resolve_event();
 		for transfer in &self.transfers {
-			//TODO: check method to just moved already reserved ( and not do unreserve -> transfer )
-
-			T::Currency::unreserve(transfer.asset, transfer.from, transfer.amount);
-			T::Currency::transfer(transfer.asset, transfer.from, transfer.to, transfer.amount)
-				.expect("Cannot fail. Checks should have been done prior to this.");
-
+			T::Currency::repatriate_reserved(
+				transfer.asset,
+				transfer.from,
+				transfer.to,
+				transfer.amount,
+				BalanceStatus::Free,
+			)
+			.expect("Cannot fail. Checks should have been done prior to this.");
 			if transfer.fee_transfer {
 				Self::send_trade_fee_event(transfer.from, transfer.to, transfer.asset, transfer.amount);
 			}

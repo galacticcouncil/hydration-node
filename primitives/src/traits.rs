@@ -1,4 +1,5 @@
 use frame_support::dispatch;
+use frame_support::dispatch::DispatchResult;
 use sp_std::vec::Vec;
 
 /// Hold information to perform amm transfer
@@ -26,12 +27,6 @@ pub trait AMM<AccountId, AssetId, Amount> {
 
 	/// Calculate spot price for asset a and b.
 	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Amount) -> Amount;
-
-	fn calculate_spot_price(
-		sell_reserve: Amount,
-		buy_reserve: Amount,
-		sell_amount: Amount,
-	) -> Result<Amount, dispatch::DispatchError>;
 
 	/// SELL
 	/// Perform all necessary checks to validate an intended sale.
@@ -105,4 +100,8 @@ pub trait Resolver<AccountId, Intention, E> {
 	/// Resolve intentions by either directly trading with each other or via AMM pool.
 	/// Intention ```intention``` must be validated prior to call this function.
 	fn resolve_matched_intentions(pair_account: &AccountId, intention: &Intention, matched: &[Intention]);
+}
+
+pub trait CurrencySwap<AccountId, Balance> {
+	fn swap_currency(who: &AccountId, fee: Balance) -> DispatchResult;
 }

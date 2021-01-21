@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use crate::Trait;
+use crate::Config;
 use frame_support::{
 	impl_outer_origin,
 	parameter_types,
@@ -31,8 +31,10 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::one();
 }
 
-impl system::Trait for Test {
+impl system::Config for Test {
 	type BaseCallFilter = ();
+	type BlockWeights = ();
+	type BlockLength = ();
 	type Origin = Origin;
 	type Call = ();
 	type Index = u64;
@@ -44,13 +46,7 @@ impl system::Trait for Test {
 	type Header = Header;
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
-	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
-	type BlockExecutionWeight = ();
-	type ExtrinsicBaseWeight = ();
-	type MaximumExtrinsicWeight = MaximumBlockWeight;
-	type MaximumBlockLength = MaximumBlockLength;
-	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();
 	type PalletInfo = ();
 	type AccountData = ();
@@ -95,7 +91,7 @@ parameter_types! {
 	pub const UnsignedPriority: u64 = 1 << 20;
 }
 
-impl Trait for Test {
+impl Config for Test {
 	type Event = ();
 	type AuthorityId = crypto::TestAuthId;
 	type Call = Call<Test>;
@@ -103,7 +99,7 @@ impl Trait for Test {
 	type GracePeriod = GracePeriod;
 }
 
-impl pallet_timestamp::Trait for Test {
+impl pallet_timestamp::Config for Test {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = ();

@@ -1,7 +1,5 @@
 use super::*;
-pub use crate::mock::{
-	calculate_sale_price, Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX,
-};
+pub use crate::mock::{Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
 use primitives::traits::AMM as AMMPool;
 
@@ -507,10 +505,6 @@ fn sell_with_correct_fees_should_work() {
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
 		let share_token = AMM::share_token(pair_account);
 
-		let asset_a_reserve = Currency::free_balance(asset_a, &pair_account);
-		let asset_b_reserve = Currency::free_balance(asset_b, &pair_account);
-		let user_asset_b_amount = Currency::free_balance(asset_b, &user_1);
-
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999990000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998000000000);
 
@@ -529,16 +523,10 @@ fn sell_with_correct_fees_should_work() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 10100000);
-		assert_eq!(
-			Currency::free_balance(asset_b, &pair_account),
-			asset_b_reserve - calculate_sale_price(asset_a_reserve, asset_b_reserve, 100_000)
-		);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1980237232,);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999989900000);
-		assert_eq!(
-			Currency::free_balance(asset_b, &user_1),
-			user_asset_b_amount + calculate_sale_price(asset_a_reserve, asset_b_reserve, 100_000)
-		);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998019762768,);
 		expect_events(vec![
 			RawEvent::CreatePool(user_1, asset_a, asset_b, 2000000000).into(),
 			RawEvent::Sell(user_1, asset_a, asset_b, 100000, 19762768).into(),
@@ -1100,9 +1088,8 @@ fn test_calculate_sell_price() {
 		let sell_reserve: Balance = 10000000000000;
 		let buy_reserve: Balance = 100000;
 		let sell_amount: Balance = 100000000000;
-		let result = AMM::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_ok!(result);
-		assert_eq!(result.unwrap(), 991);
+		let result = hack_hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
+		assert_eq!(result, Some(991));
 	});
 }
 
@@ -1112,8 +1099,8 @@ fn test_calculate_sell_price_invalid() {
 		let sell_reserve: Balance = 0;
 		let buy_reserve: Balance = 1000;
 		let sell_amount: Balance = 0;
-		let result = AMM::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_noop!(result, Error::<Test>::SellAssetAmountInvalid);
+		let result = hack_hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
+		assert_eq!(result, None);
 	});
 }
 
@@ -1123,8 +1110,8 @@ fn test_calculate_buy_price_insufficient_pool_balance() {
 		let sell_reserve: Balance = 10000000000000;
 		let buy_reserve: Balance = 100000;
 		let buy_amount: Balance = 100000000000;
-		let result = AMM::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_noop!(result, Error::<Test>::InsufficientPoolAssetBalance);
+		let result = hack_hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
+		assert_eq!(result, None);
 	});
 }
 
@@ -1134,8 +1121,7 @@ fn test_calculate_buy_price() {
 		let sell_reserve: Balance = 10000000000000;
 		let buy_reserve: Balance = 10000000;
 		let buy_amount: Balance = 1000000;
-		let result = AMM::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_ok!(result);
-		assert_eq!(result.unwrap(), 1111111111112);
+		let result = hack_hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
+		assert_eq!(result, Some(1111111111112));
 	});
 }

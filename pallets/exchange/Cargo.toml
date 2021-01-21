@@ -31,8 +31,8 @@ pallet-asset-registry = {path = '../asset-registry', default-features = false, v
 primitives = {path = '../../primitives', default-features = false, version = '2.0.0'}
 
 # ORML dependencies
-orml-tokens = {default-features = false, version = "0.3.2"}
-orml-traits = {default-features = false, version = "0.3.2"}
+orml-tokens = {default-features = false, version = "0.3.3-dev"}
+orml-traits = {default-features = false, version = "0.3.3-dev"}
 
 # Substrate dependencies
 frame-support = {default-features = false, version = '2.0.0'}
