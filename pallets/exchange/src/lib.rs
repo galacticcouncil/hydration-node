@@ -9,7 +9,7 @@ use sp_std::vec::Vec;
 
 use primitives::{
 	traits::{Resolver, AMM},
-	AssetId, Balance, ExchangeIntention, IntentionType,
+	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
 };
 use sp_std::borrow::ToOwned;
 use sp_std::cmp;
@@ -48,8 +48,8 @@ pub trait Config: system::Config {
 	/// Intention resolver
 	type Resolver: Resolver<Self::AccountId, Intention<Self>, Error<Self>>;
 
-	/// Currecny for transfers
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>
+	/// Currency for transfers
+	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>
 		+ MultiReservableCurrency<Self::AccountId>;
 
 	/// Weight information for the extrinsics.
@@ -60,11 +60,11 @@ pub trait Config: system::Config {
 decl_storage! {
 	trait Store for Module<T: Config> as Exchange {
 
-		/// Current intention count for current block
+		/// Intention count for current block
 		ExchangeAssetsIntentionCount get(fn get_intentions_count): map hasher(blake2_128_concat) (AssetId, AssetId) => u32;
 
 		/// Registered intentions for current block
-		/// Always stored for ( asset_a, asset_b ) combination where asset_a < asset_B
+		/// Stored as ( asset_a, asset_b ) combination where asset_a is meant to be exchanged for asset_b ( asset_a < asset_b)
 		ExchangeAssetsIntentions get(fn get_intentions): map hasher(blake2_128_concat) (AssetId, AssetId) => Vec<Intention<T>>;
 	}
 }
@@ -118,7 +118,6 @@ decl_event!(
 	}
 );
 
-// The pallet's errors
 decl_error! {
 	pub enum Error for Module<T: Config> {
 		/// Value was None
@@ -127,7 +126,7 @@ decl_error! {
 		/// Value reached maximum and cannot be incremented further
 		StorageOverflow,
 
-		///Token pool does not exists.
+		///Token pool does not exist.
 		TokenPoolNotFound,
 
 		/// Insufficient balance
@@ -139,7 +138,6 @@ decl_error! {
 }
 
 decl_module! {
-	/// The module declaration.
 	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 
 		type Error = Error<T>;
@@ -274,7 +272,7 @@ decl_module! {
 				let asset_a_sells = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
 				let asset_b_sells = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
 
-				//TODO: we can short circuit here if nothing in asset_b_sells and just resolve asset a sells.
+				//TODO: we can short circuit here if nothing in asset_b_sells and just resolve asset_a sells.
 
 				Self::process_exchange_intentions(&pair_account, &asset_a_sells, &asset_b_sells);
 			}
@@ -328,7 +326,7 @@ impl<T: Config> Module<T> {
 			T::Resolver::resolve_matched_intentions(pair_account, &intention, &bvec);
 		}
 
-		// If something left in sell_b_intentions, just run it throught AMM.
+		// If something left in sell_b_intentions, just run it through AMM.
 		while let Some(b_intention) = b_copy.pop() {
 			T::Resolver::resolve_single_intention(&b_intention);
 		}
@@ -336,7 +334,7 @@ impl<T: Config> Module<T> {
 
 	/// Execute AMM trade.
 	///
-	/// This performs AMM trade with given transfer details.
+	/// Perform AMM trade with given transfer details.
 	fn execute_amm_transfer(
 		amm_tranfer_type: IntentionType,
 		intention_id: IntentionId<T>,
@@ -372,7 +370,7 @@ impl<T: Config> Module<T> {
 
 	/// Send intention resolve error event.
 	///
-	/// Sends event with error detail for intention that failed.
+	/// Send event with error detail for intention that failed.
 	fn send_intention_error_event(intention: &Intention<T>, error: dispatch::DispatchError) {
 		Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
 			intention.who.clone(),
@@ -478,9 +476,9 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 		};
 	}
 
-	/// Resolve main intention and corresponding matched intention
+	/// Resolve main intention and corresponding matched intentions
 	///
-	/// For each matched intention - it works out how much can be traded directly and rest is AMM traded.
+	/// For each matched intention - work out how much can be traded directly and rest is AMM traded.
 	/// If there is anything left in the main intention - it is AMM traded.
 	fn resolve_matched_intentions(pair_account: &T::AccountId, intention: &Intention<T>, matched: &[Intention<T>]) {
 		let mut intention_copy = intention.clone();
@@ -497,7 +495,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 			// 3. Main intention amount left = matched intention amount
 
 			if amount_a_sell > amount_b_buy {
-				// Scenario 1: Matched intention can be completely directly traded
+				// Scenario 1: Matched intention can be completely direct traded
 				//
 				// 1. Prepare direct trade details - during preparation, direct amounts are reserved.
 				// 2. Execute if ok otherwise revert ( unreserve amounts if any ) .
@@ -708,7 +706,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 			}
 		}
 
-		// If there is something left, just resolve as single intention
+		// If there is something left, just resolve as a single intention
 		if intention_copy.amount_sell > 0 {
 			Self::resolve_single_intention(&intention_copy);
 		}
