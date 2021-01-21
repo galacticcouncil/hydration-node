@@ -211,7 +211,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 		true
 	}
 
-	/// Revert all reserverd amounts.
+	/// Revert all reserved amounts.
 	/// This does NOT revert transfers, only reserved amounts. So it can be only called if a preparation fails.
 	pub fn revert(&mut self) {
 		for transfer in &self.transfers {
@@ -230,7 +230,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 		));
 	}
 
-	/// Send pallet event after a free is transferred.
+	/// Send pallet event after a fee is transferred.
 	fn send_trade_fee_event(from: &T::AccountId, to: &T::AccountId, asset: AssetId, amount: Balance) {
 		Module::<T>::deposit_event(RawEvent::IntentionResolvedDirectTradeFees(
 			from.clone(),
