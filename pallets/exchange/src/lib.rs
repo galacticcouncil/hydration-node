@@ -325,6 +325,8 @@ impl<T: Config> Module<T> {
 		b_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
 		a_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
 
+		b_copy.reverse();
+
 		for intention in a_copy {
 			if !Self::verify_intention(&intention) {
 				continue;
@@ -333,10 +335,9 @@ impl<T: Config> Module<T> {
 			let mut bvec = Vec::<Intention<T>>::new();
 			let mut total = 0;
 
-			while let Some(matched) = b_copy.get(0) {
+			while let Some(matched) = b_copy.pop() {
 				bvec.push(matched.clone());
 				total += matched.amount_sell;
-				b_copy.remove(0);
 
 				if total >= intention.amount_sell {
 					break;

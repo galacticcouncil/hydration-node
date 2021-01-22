@@ -635,14 +635,14 @@ fn sell_test_single_dot_sells() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances -> SEEMS LEGIT
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1_000_496_522_353_457);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000486772470162);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 999_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_000_978_388_447_963);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000988138378978);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 998_000_000_000_000);
 
 		// Check final pool balances -> SEEMS LEGIT
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 98_525_089_198_580);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 98525089150860);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 203_000_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
@@ -666,33 +666,33 @@ fn sell_test_single_dot_sells() {
 			)
 			.into(),
 			TestEvent::amm(amm::RawEvent::Sell(
-				user_2,
-				asset_b,
-				asset_a,
-				1000000000000,
-				496522353457,
-			)),
-			RawEvent::IntentionResolvedAMMTrade(
-				user_2,
-				IntentionType::SELL,
-				user_2_sell_intention_id,
-				1000000000000,
-				496522353457,
-			)
-			.into(),
-			TestEvent::amm(amm::RawEvent::Sell(
 				user_3,
 				asset_b,
 				asset_a,
 				2000000000000,
-				978388447963,
+				988138378978,
 			)),
 			RawEvent::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				2000000000000,
-				978388447963,
+				988138378978,
+			)
+			.into(),
+			TestEvent::amm(amm::RawEvent::Sell(
+				user_2,
+				asset_b,
+				asset_a,
+				1000000000000,
+				486772470162,
+			)),
+			RawEvent::IntentionResolvedAMMTrade(
+				user_2,
+				IntentionType::SELL,
+				user_2_sell_intention_id,
+				1000000000000,
+				486772470162,
 			)
 			.into(),
 		]);
