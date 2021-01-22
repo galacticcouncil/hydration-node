@@ -332,13 +332,11 @@ impl<T: Config> Module<T> {
 
 			let mut bvec = Vec::<Intention<T>>::new();
 			let mut total = 0;
-			let mut idx: usize = 0;
 
-			while let Some(matched) = b_copy.get(idx) {
+			while let Some(matched) = b_copy.get(0) {
 				bvec.push(matched.clone());
 				total += matched.amount_sell;
-				b_copy.remove(idx);
-				idx += 1;
+				b_copy.remove(0);
 
 				if total >= intention.amount_sell {
 					break;

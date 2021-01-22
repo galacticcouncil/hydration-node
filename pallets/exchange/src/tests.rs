@@ -941,15 +941,15 @@ fn sell_test_group_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 1002495000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 995000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001702327336909);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001497000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_4), 990000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 1018917573262630);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1019283443450697);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 105802672663091);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 189082426737370);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 106008000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 188716556549303);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
@@ -992,34 +992,30 @@ fn sell_test_group_sells() {
 			.into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
+			RawEvent::IntentionResolvedDirectTrade(
+				user_4,
+				user_3,
+				user_4_sell_intention_id,
+				user_3_sell_intention_id,
+				1500000000000,
+				3000000000000,
+			)
+			.into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_4,
 				asset_a,
 				asset_b,
-				7500000000000,
-				13927573262630,
+				6000000000000,
+				11299443450697,
 			)),
 			RawEvent::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
 				user_4_sell_intention_id,
-				7500000000000,
-				13927573262630,
-			)
-			.into(),
-			TestEvent::amm(amm::RawEvent::Sell(
-				user_3,
-				asset_b,
-				asset_a,
-				3000000000000,
-				1702327336909,
-			)),
-			RawEvent::IntentionResolvedAMMTrade(
-				user_3,
-				IntentionType::SELL,
-				user_3_sell_intention_id,
-				3000000000000,
-				1702327336909,
+				6000000000000,
+				11299443450697,
 			)
 			.into(),
 		]);
