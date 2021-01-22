@@ -157,6 +157,8 @@ decl_module! {
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
+
 			ensure!(
 				T::AMMPool::exists(asset_sell, asset_buy),
 				Error::<T>::TokenPoolNotFound
@@ -167,32 +169,17 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
-
 			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
 
-			let intention_count = ExchangeAssetsIntentionCount::get(assets.pair());
-
-			let intention_id = Self::generate_intention_id(&who, intention_count, &assets);
-
-			let intention = Intention::<T> {
-					who: who.clone(),
-					assets: assets.clone(),
+			Self::register_intention(
+					&who,
+					IntentionType::SELL,
+					assets.clone(),
 					amount_sell,
 					amount_buy,
-					discount,
-					sell_or_buy : IntentionType::SELL,
-					intention_id,
-					trade_limit: min_bought
-			};
-			// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
-			<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention.clone());
-
-			ExchangeAssetsIntentionCount::mutate(assets.pair(), |total| *total += 1u32);
-
-			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_sell, asset_buy, amount_sell, IntentionType::SELL, intention.intention_id));
-
-			Ok(())
+					min_bought,
+					discount
+			)
 		}
 
 		/// Create buy intention
@@ -208,6 +195,8 @@ decl_module! {
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
+
 			ensure!(
 				T::AMMPool::exists(asset_sell, asset_buy),
 				Error::<T>::TokenPoolNotFound
@@ -220,31 +209,15 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
-
-			let intention_count = ExchangeAssetsIntentionCount::get(assets.pair());
-
-			let intention_id = Self::generate_intention_id(&who, intention_count, &assets);
-
-			let intention = Intention::<T> {
-					who: who.clone(),
-					assets: assets.clone(),
+			Self::register_intention(
+					&who,
+					IntentionType::BUY,
+					assets.clone(),
 					amount_sell,
 					amount_buy,
-					sell_or_buy: IntentionType::BUY,
-					discount,
-					intention_id,
-					trade_limit: max_sold
-			};
-
-			// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
-			<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention.clone());
-
-			ExchangeAssetsIntentionCount::mutate(assets.pair(), |total| *total += 1u32);
-
-			Self::deposit_event(RawEvent::IntentionRegistered(who, asset_buy, asset_sell, amount_buy, IntentionType::BUY, intention.intention_id));
-
-			Ok(())
+					max_sold,
+					discount
+			)
 		}
 
 		fn on_initialize() -> Weight {
@@ -279,6 +252,61 @@ decl_module! {
 
 // "Internal" functions, callable by code.
 impl<T: Config> Module<T> {
+    /// Register SELL or BUY intention
+	fn register_intention(
+		who: &T::AccountId,
+		intention_type: IntentionType,
+		assets: AssetPair,
+		amount_in: Balance,
+		amount_out: Balance,
+		limit: Balance,
+		discount: bool,
+	) -> dispatch::DispatchResult {
+		let intention_count = ExchangeAssetsIntentionCount::get(assets.pair());
+
+		let intention_id = Self::generate_intention_id(who, intention_count, &assets);
+
+		let intention = Intention::<T> {
+			who: who.clone(),
+			assets: assets.clone(),
+			amount_sell: amount_in,
+			amount_buy: amount_out,
+			discount,
+			sell_or_buy: intention_type.clone(),
+			intention_id,
+			trade_limit: limit,
+		};
+		// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
+		<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention.clone());
+
+		ExchangeAssetsIntentionCount::mutate(assets.pair(), |total| *total += 1u32);
+
+		match intention_type {
+			IntentionType::SELL => {
+				Self::deposit_event(RawEvent::IntentionRegistered(
+					who.clone(),
+					assets.asset_in,
+					assets.asset_out,
+					amount_in,
+					intention_type,
+					intention.intention_id,
+				));
+			}
+			IntentionType::BUY => {
+				Self::deposit_event(RawEvent::IntentionRegistered(
+					who.clone(),
+					assets.asset_out,
+					assets.asset_in,
+					amount_out,
+					intention_type,
+					intention.intention_id,
+				));
+			}
+		}
+
+		Ok(())
+	}
+
 	/// Process intentions and attempt to match them so they can be direct traded.
 	/// ```sell_a_intentions``` are considered 'main' intentions.
 	///
