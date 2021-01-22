@@ -42,7 +42,7 @@ pub type HighPrecisionBalance = U256;
 pub type LowPrecisionBalance = u128;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]
 pub enum IntentionType {
 	SELL,
 	BUY,

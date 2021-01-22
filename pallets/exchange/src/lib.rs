@@ -174,7 +174,7 @@ decl_module! {
 			Self::register_intention(
 					&who,
 					IntentionType::SELL,
-					assets.clone(),
+					assets,
 					amount_sell,
 					amount_buy,
 					min_bought,
@@ -212,7 +212,7 @@ decl_module! {
 			Self::register_intention(
 					&who,
 					IntentionType::BUY,
-					assets.clone(),
+					assets,
 					amount_sell,
 					amount_buy,
 					max_sold,
@@ -252,7 +252,7 @@ decl_module! {
 
 // "Internal" functions, callable by code.
 impl<T: Config> Module<T> {
-    /// Register SELL or BUY intention
+	/// Register SELL or BUY intention
 	fn register_intention(
 		who: &T::AccountId,
 		intention_type: IntentionType,
@@ -268,16 +268,16 @@ impl<T: Config> Module<T> {
 
 		let intention = Intention::<T> {
 			who: who.clone(),
-			assets: assets.clone(),
+			assets,
 			amount_sell: amount_in,
 			amount_buy: amount_out,
 			discount,
-			sell_or_buy: intention_type.clone(),
+			sell_or_buy: intention_type,
 			intention_id,
 			trade_limit: limit,
 		};
 		// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
-		<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention.clone());
+		<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention);
 
 		ExchangeAssetsIntentionCount::mutate(assets.pair(), |total| *total += 1u32);
 
@@ -289,7 +289,7 @@ impl<T: Config> Module<T> {
 					assets.asset_out,
 					amount_in,
 					intention_type,
-					intention.intention_id,
+					intention_id,
 				));
 			}
 			IntentionType::BUY => {
@@ -299,7 +299,7 @@ impl<T: Config> Module<T> {
 					assets.asset_in,
 					amount_out,
 					intention_type,
-					intention.intention_id,
+					intention_id,
 				));
 			}
 		}
@@ -398,7 +398,7 @@ impl<T: Config> Module<T> {
 			intention.who.clone(),
 			intention.assets.asset_in,
 			intention.assets.asset_out,
-			intention.sell_or_buy.clone(),
+			intention.sell_or_buy,
 			intention.intention_id,
 			error,
 		));
@@ -422,7 +422,7 @@ impl<T: Config> Module<T> {
 							intention.who.clone(),
 							intention.assets.asset_in,
 							intention.assets.asset_out,
-							intention.sell_or_buy.clone(),
+							intention.sell_or_buy,
 							intention.intention_id,
 							error,
 						));
@@ -445,7 +445,7 @@ impl<T: Config> Module<T> {
 							intention.who.clone(),
 							intention.assets.asset_out,
 							intention.assets.asset_in,
-							intention.sell_or_buy.clone(),
+							intention.sell_or_buy,
 							intention.intention_id,
 							error,
 						));
@@ -486,7 +486,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 		};
 
 		match amm_transfer {
-			Ok(x) => match Self::execute_amm_transfer(intention.sell_or_buy.clone(), intention.intention_id, &x) {
+			Ok(x) => match Self::execute_amm_transfer(intention.sell_or_buy, intention.intention_id, &x) {
 				Ok(_) => {}
 				Err(error) => {
 					Self::send_intention_error_event(&intention, error);
@@ -644,7 +644,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				match dt.prepare(pair_account) {
 					true => {
 						match Self::execute_amm_transfer(
-							matched_intention.sell_or_buy.clone(),
+							matched_intention.sell_or_buy,
 							matched_intention.intention_id,
 							&amm_transfer,
 						) {

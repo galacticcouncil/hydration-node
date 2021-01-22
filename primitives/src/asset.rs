@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Asset Pair representation
 /// ( asset_a, asset_b ) combination where asset_a is meant to be exchanged for asset_b
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Encode, Decode, Copy, Clone, PartialEq, Eq, Default)]
 pub struct AssetPair {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
