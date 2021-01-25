@@ -84,33 +84,25 @@ decl_event!(
 		/// who, intention type, intention id, amount, amount sold/bought
 		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionID, Balance, Balance),
 
+		/// Intention resolved as Direct Trade
+		/// who, who - account between which direct trade happens
+		/// intention id, intention id - intentions which are being resolved ( fully or partially )
+		/// Balance, Balance  - corresponding amounts
 		IntentionResolvedDirectTrade(AccountId, AccountId, IntentionID, IntentionID, Balance, Balance),
+
+		/// Paid fees event
+		/// who, account paid to, asset, amount
 		IntentionResolvedDirectTradeFees(AccountId, AccountId, AssetId, Balance),
 
+		/// Error event - insuficient balance of specified asset
+		/// who, asset, intention type, intention id, error detail
 		InsufficientAssetBalanceEvent(AccountId, AssetId, IntentionType, IntentionID, dispatch::DispatchError),
 
-		//Note: This event can be used instead of AMMSellErrorEvent, AMMBuyErrorEvent
+		/// Intetion Error Event
+		/// who, assets, sell or buy, intention id, error detail
 		IntentionResolveErrorEvent(
 			AccountId,
-			AssetId,
-			AssetId,
-			IntentionType,
-			IntentionID,
-			dispatch::DispatchError,
-		),
-
-		AMMSellErrorEvent(
-			AccountId,
-			AssetId,
-			AssetId,
-			IntentionType,
-			IntentionID,
-			dispatch::DispatchError,
-		),
-		AMMBuyErrorEvent(
-			AccountId,
-			AssetId,
-			AssetId,
+			AssetPair,
 			IntentionType,
 			IntentionID,
 			dispatch::DispatchError,
@@ -395,8 +387,7 @@ impl<T: Config> Module<T> {
 	fn send_intention_error_event(intention: &Intention<T>, error: dispatch::DispatchError) {
 		Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
 			intention.who.clone(),
-			intention.assets.asset_in,
-			intention.assets.asset_out,
+			intention.assets,
 			intention.sell_or_buy,
 			intention.intention_id,
 			error,
@@ -417,10 +408,9 @@ impl<T: Config> Module<T> {
 					intention.discount,
 				) {
 					Err(error) => {
-						Self::deposit_event(RawEvent::AMMSellErrorEvent(
+						Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
 							intention.who.clone(),
-							intention.assets.asset_in,
-							intention.assets.asset_out,
+							intention.assets,
 							intention.sell_or_buy,
 							intention.intention_id,
 							error,
@@ -440,10 +430,9 @@ impl<T: Config> Module<T> {
 					intention.discount,
 				) {
 					Err(error) => {
-						Self::deposit_event(RawEvent::AMMBuyErrorEvent(
+						Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
 							intention.who.clone(),
-							intention.assets.asset_out,
-							intention.assets.asset_in,
+							intention.assets,
 							intention.sell_or_buy,
 							intention.intention_id,
 							error,

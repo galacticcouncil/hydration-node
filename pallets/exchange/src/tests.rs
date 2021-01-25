@@ -1795,10 +1795,12 @@ fn discount_tests_with_error() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::AMMSellErrorEvent(
+			RawEvent::IntentionResolveErrorEvent(
 				user_4,
-				asset_a,
-				asset_b,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::SELL,
 				user_4_sell_intention_id,
 				DispatchError::Module {
@@ -1808,10 +1810,12 @@ fn discount_tests_with_error() {
 				},
 			)
 			.into(),
-			RawEvent::AMMBuyErrorEvent(
+			RawEvent::IntentionResolveErrorEvent(
 				user_2,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::BUY,
 				user_2_sell_intention_id,
 				DispatchError::Module {
@@ -1823,8 +1827,10 @@ fn discount_tests_with_error() {
 			.into(),
 			RawEvent::IntentionResolveErrorEvent(
 				user_3,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				DispatchError::Module {
@@ -2375,10 +2381,12 @@ fn simple_sell_sell_with_error_should_not_pass() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::AMMSellErrorEvent(
+			RawEvent::IntentionResolveErrorEvent(
 				user_2,
-				asset_a,
-				asset_b,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::SELL,
 				user_2_sell_intention_id,
 				DispatchError::Module {
@@ -2390,8 +2398,10 @@ fn simple_sell_sell_with_error_should_not_pass() {
 			.into(),
 			RawEvent::IntentionResolveErrorEvent(
 				user_3,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				DispatchError::Module {
