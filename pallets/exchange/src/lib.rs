@@ -254,7 +254,7 @@ impl<T: Config> Module<T> {
 		limit: Balance,
 		discount: bool,
 	) -> dispatch::DispatchResult {
-		let intention_count = ExchangeAssetsIntentionCount::get(assets.pair());
+		let intention_count = ExchangeAssetsIntentionCount::get(assets.ordered_pair());
 
 		let intention_id = Self::generate_intention_id(who, intention_count, &assets);
 
@@ -271,7 +271,7 @@ impl<T: Config> Module<T> {
 		// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
 		<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention);
 
-		ExchangeAssetsIntentionCount::mutate(assets.pair(), |total| *total += 1u32);
+		ExchangeAssetsIntentionCount::mutate(assets.ordered_pair(), |total| *total += 1u32);
 
 		match intention_type {
 			IntentionType::SELL => {
@@ -447,7 +447,7 @@ impl<T: Config> Module<T> {
 
 	fn generate_intention_id(account: &T::AccountId, c: u32, assets: &AssetPair) -> IntentionId<T> {
 		let b = <system::Module<T>>::current_block_number();
-		(c, &account, b, assets.pair().0, assets.pair().1).using_encoded(T::Hashing::hash)
+		(c, &account, b, assets.ordered_pair().0, assets.ordered_pair().1).using_encoded(T::Hashing::hash)
 	}
 }
 
