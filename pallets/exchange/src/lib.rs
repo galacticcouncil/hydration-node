@@ -564,14 +564,22 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				// 2. Verify if AMM transfer can be successfully performed
 				// 3. Verify if direct trade can be successfully performed
 				// 4. If both ok - execute
-				// 5. Main intention is emtpy at this point - just set amount to 0.
-				let rest_sell_amount = amount_b_sell - amount_a_buy;
-				let rest_buy_amount = amount_b_buy - amount_a_sell;
+				// 5. Main intention is empty at this point - just set amount to 0.
+				let rest_sell_diff = amount_b_sell.checked_sub(amount_a_buy);
+				let rest_buy_diff = amount_b_buy.checked_sub(amount_a_sell);
 
-				let rest_limit = match matched_intention.sell_or_buy {
-					IntentionType::SELL => matched_intention.trade_limit.saturating_sub(amount_a_sell),
-					IntentionType::BUY => matched_intention.trade_limit - amount_a_sell,
-				};
+				if rest_sell_diff.is_none() || rest_buy_diff.is_none() {
+					Self::send_intention_error_event(
+						&matched_intention,
+						Error::<T>::AssetBalanceLimitExceeded.into(), // TODO: better error here ?!
+					);
+					continue;
+				}
+
+				let rest_sell_amount = rest_sell_diff.unwrap();
+				let rest_buy_amount = rest_buy_diff.unwrap();
+
+				let rest_limit = matched_intention.trade_limit.saturating_sub(amount_a_sell);
 
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
