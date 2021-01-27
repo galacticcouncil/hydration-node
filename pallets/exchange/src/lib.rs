@@ -112,12 +112,6 @@ decl_event!(
 
 decl_error! {
 	pub enum Error for Module<T: Config> {
-		/// Value was None
-		NoneValue,
-
-		/// Value reached maximum and cannot be incremented further
-		StorageOverflow,
-
 		///Token pool does not exist.
 		TokenPoolNotFound,
 

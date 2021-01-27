@@ -1042,8 +1042,15 @@ fn sell_more_than_owner_should_not_work() {
 			Price::from(2)
 		));
 
+		// With SELL
 		assert_noop!(
 			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000_000_000_000_000u128, 1, false),
+			Error::<Test>::InsufficientAssetBalance
+		);
+
+		// With BUY
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), ETH, HDX, 3000_000_000_000_000u128, 1, false),
 			Error::<Test>::InsufficientAssetBalance
 		);
 	});
