@@ -346,13 +346,10 @@ impl pallet_faucet::Config for Runtime {
 
 /// Parachain Config
 
-impl cumulus_parachain_upgrade::Config for Runtime {
+impl cumulus_parachain_system::Config for Runtime {
 	type Event = Event;
 	type OnValidationData = ();
 	type SelfParaId = parachain_info::Module<Runtime>;
-}
-
-impl cumulus_message_broker::Config for Runtime {
 	type DownwardMessageHandlers = ();
 	type HrmpMessageHandlers = ();
 }
@@ -406,8 +403,8 @@ impl Config for XcmConfig {
 impl xcm_handler::Config for Runtime {
 	type Event = Event;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type UpwardMessageSender = MessageBroker;
-	type HrmpMessageSender = MessageBroker;
+	type UpwardMessageSender = ParachainSystem;
+	type HrmpMessageSender = ParachainSystem;
 }
 
 /// Xtokens config
@@ -459,9 +456,8 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 
 		// Parachain
-		ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
+		ParachainSystem: cumulus_parachain_system::{Module, Call, Storage, Inherent, Event},
 		ParachainInfo: parachain_info::{Module, Storage, Config},
-		MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
 		XcmHandler: xcm_handler::{Module, Event<T>, Origin},
 		XTokens: orml_xtokens::{Module, Storage, Call, Event<T>},
 
