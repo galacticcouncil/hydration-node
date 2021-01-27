@@ -4,7 +4,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::large_enum_variant)]
 
-mod currency;// Make the WASM binary available.
+mod currency; // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -13,8 +13,8 @@ use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, Verify};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::Zero,
 	traits::Convert,
+	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -23,7 +23,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use currency::CurrencyId;
+use currency::SupportedAssetIds;
 
 use frame_system::limits;
 // A few exports that help ease life for downstream crates.
@@ -48,7 +48,7 @@ use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
-use orml_xcm_support::{CurrencyIdConverter, IsConcreteWithGeneralKey};
+use orml_xcm_support::IsConcreteWithGeneralKey;
 
 use cumulus_primitives::relay_chain::Balance as RelayChainBalance;
 
@@ -61,10 +61,7 @@ use xcm_builder::{
 	AccountId32Aliases, CurrencyAdapter, LocationInverter, ParentIsDefault, RelayChainAsNative,
 	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SovereignSignedViaLocation,
 };
-use xcm_executor::{
-	traits::{IsConcrete, NativeAsset},
-	Config, XcmExecutor,
-};
+use xcm_executor::{traits::NativeAsset, Config, XcmExecutor};
 
 /// Import HydraDX pallets
 pub use pallet_asset_registry;
@@ -374,7 +371,7 @@ type LocationConverter = (
 type LocalAssetTransactor = CurrencyAdapter<
 	// Use this currency:
 	Balances,
-	IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
+	IsConcreteWithGeneralKey<SupportedAssetIds, RelayToNative>,
 	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
 	LocationConverter,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
