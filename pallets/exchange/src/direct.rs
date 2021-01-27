@@ -236,7 +236,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 		Module::<T>::deposit_event(RawEvent::InsufficientAssetBalanceEvent(
 			intention.who.clone(),
 			asset,
-			intention.sell_or_buy.clone(),
+			intention.sell_or_buy,
 			intention.intention_id,
 			Error::<T>::InsufficientAssetBalance.into(),
 		));
