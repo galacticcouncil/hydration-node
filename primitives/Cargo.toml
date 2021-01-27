@@ -15,7 +15,7 @@ package = 'parity-scale-codec'
 version = '1.3.4'
 
 [dependencies]
-primitive-types = {default-features = false, version = '0.7.2'}
+primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Substrate dependencies
