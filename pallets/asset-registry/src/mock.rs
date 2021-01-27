@@ -1,4 +1,4 @@
-use crate::{Module, Config};
+use crate::{Config, Module};
 use frame_support::{impl_outer_origin, parameter_types};
 use frame_system as system;
 use sp_core::H256;
@@ -6,6 +6,8 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+
+use frame_support::traits::GenesisBuild;
 
 impl_outer_origin! {
 	pub enum Origin for Test {}

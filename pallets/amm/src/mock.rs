@@ -11,6 +11,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
+use frame_support::traits::GenesisBuild;
 use primitives::{fee, AssetId, Balance};
 
 pub type AccountId = u64;

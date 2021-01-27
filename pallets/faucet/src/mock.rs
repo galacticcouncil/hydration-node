@@ -9,6 +9,8 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
+use frame_support::traits::GenesisBuild;
+
 impl_outer_origin! {
 	pub enum Origin for Test {}
 }

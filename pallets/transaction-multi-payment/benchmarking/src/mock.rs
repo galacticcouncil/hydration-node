@@ -10,6 +10,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
+use frame_support::traits::GenesisBuild;
 use frame_support::weights::IdentityFee;
 use orml_currencies::BasicCurrencyAdapter;
 use pallet_transaction_multi_payment::MultiCurrencyAdapter;
