@@ -12,6 +12,7 @@ use sp_runtime::{
 
 use pallet_amm as amm;
 
+use frame_support::traits::GenesisBuild;
 use pallet_amm::AssetPairAccountIdFor;
 use primitives::{fee, AssetId, Balance};
 

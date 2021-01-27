@@ -10,6 +10,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
+use frame_support::traits::GenesisBuild;
 use pallet_amm::AssetPairAccountIdFor;
 use primitives::{fee, AssetId, Balance};
 
