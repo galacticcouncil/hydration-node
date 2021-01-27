@@ -4,7 +4,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::large_enum_variant)]
 
-// Make the WASM binary available.
+mod currency;// Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -14,6 +14,7 @@ use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, Identity
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::Zero,
+	traits::Convert,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -22,11 +23,13 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use currency::CurrencyId;
+
 use frame_system::limits;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Convert, KeyOwnerProofSystem, LockIdentifier, Randomness},
+	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Weight,
@@ -45,7 +48,7 @@ use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
-use orml_xcm_support::{CurrencyIdConverter, IsConcreteWithGeneralKey, MultiCurrencyAdapter};
+use orml_xcm_support::{CurrencyIdConverter, IsConcreteWithGeneralKey};
 
 use cumulus_primitives::relay_chain::Balance as RelayChainBalance;
 
