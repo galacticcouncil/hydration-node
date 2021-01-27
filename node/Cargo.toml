@@ -16,7 +16,7 @@ name = 'hack-hydra-dx'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-build-script-utils = '2.0.0'
+substrate-build-script-utils = '2.0.1'
 
 [dependencies]
 jsonrpc-core = '15.0.0'
