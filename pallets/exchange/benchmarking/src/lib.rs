@@ -14,6 +14,9 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::{AssetId, Balance, Price};
 use sp_runtime::DispatchError;
 
+use sp_runtime::traits::{BlakeTwo256, Hash};
+use sp_runtime::RandomNumberGenerator;
+
 use pallet_amm as ammpool;
 
 pub struct Module<T: Config>(pallet_exchange::Module<T>);
@@ -22,7 +25,7 @@ pub trait Config: pallet_exchange::Config + ammpool::Config {}
 
 const INITIAL_ASSET_BALANCE: Balance = 1_000_000_000_000_000;
 
-const MAX_INTENTIONS_IN_BLOCK: u32 = 1000;
+const MAX_INTENTIONS_IN_BLOCK: u32 = 100;
 
 const SEED: u32 = 0;
 pub const MILLICENTS: Balance = 1_000_000_000;
@@ -58,27 +61,30 @@ const SELL_INTENTION_LIMIT: Balance = 1;
 const BUY_INTENTION_AMOUNT: Balance = 1_000_000_000;
 const BUY_INTENTION_LIMIT: Balance = 2_000_000_000;
 
-fn feed_intentions<T: Config>(asset_a: AssetId, asset_b: AssetId, number: u32) -> Result<(), DispatchError> {
+fn feed_intentions<T: Config>(
+	asset_a: AssetId,
+	asset_b: AssetId,
+	number: u32,
+	amounts: &[u32],
+) -> Result<(), DispatchError> {
 	for idx in 0..number / 2 {
-		let user = funded_account::<T>("user", idx + 100);
+		let user = funded_account::<T>("user", idx + 2);
 		pallet_exchange::Module::<T>::sell(
 			RawOrigin::Signed(user.clone()).into(),
 			asset_a,
 			asset_b,
-			SELL_INTENTION_AMOUNT,
+			amounts[idx as usize] as u128,
 			SELL_INTENTION_LIMIT,
 			false,
 		)?;
-	}
 
-	for idx in (number / 2)..number {
-		let user = funded_account::<T>("user", idx + 1000);
+		let buyer = funded_account::<T>("user", idx + number + 1);
 		pallet_exchange::Module::<T>::buy(
-			RawOrigin::Signed(user.clone()).into(),
+			RawOrigin::Signed(buyer.clone()).into(),
 			asset_a,
 			asset_b,
-			BUY_INTENTION_AMOUNT,
-			BUY_INTENTION_LIMIT,
+			amounts[idx as usize] as u128,
+			amounts[idx as usize] as u128 * 2u128,
 			false,
 		)?;
 	}
@@ -86,20 +92,23 @@ fn feed_intentions<T: Config>(asset_a: AssetId, asset_b: AssetId, number: u32) -
 	Ok(())
 }
 
-fn validate_finalize<T: Config>(asset_a: AssetId, _asset_b: AssetId, number: u32) -> Result<(), DispatchError> {
+fn validate_finalize<T: Config>(
+	asset_a: AssetId,
+	_asset_b: AssetId,
+	number: u32,
+	amounts: &[u32],
+) -> Result<(), DispatchError> {
 	for idx in 0..number / 2 {
-		let user: T::AccountId = account("user", idx + 100, SEED);
+		let user: T::AccountId = account("user", idx + 2, SEED);
 		assert_eq!(
 			<T as ammpool::Config>::Currency::free_balance(asset_a, &user),
-			INITIAL_ASSET_BALANCE - SELL_INTENTION_AMOUNT
+			INITIAL_ASSET_BALANCE - amounts[idx as usize] as u128
 		);
-	}
 
-	for idx in (number / 2)..number {
-		let user: T::AccountId = account("user", idx + 1000, SEED);
+		let buyer: T::AccountId = account("user", idx + number + 1, SEED);
 		assert_eq!(
-			<T as ammpool::Config>::Currency::free_balance(asset_a, &user),
-			INITIAL_ASSET_BALANCE + BUY_INTENTION_AMOUNT
+			<T as ammpool::Config>::Currency::free_balance(asset_a, &buyer),
+			INITIAL_ASSET_BALANCE + amounts[idx as usize] as u128
 		);
 	}
 
@@ -127,7 +136,14 @@ benchmarks! {
 
 		initialize_pool::<T>(caller.clone(), asset_a, asset_b, amount, Price::from(10))?;
 
-		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended)?;
+		let random_seed = BlakeTwo256::hash(b"Sixty-nine");
+		let mut rng = <RandomNumberGenerator<BlakeTwo256>>::new(random_seed);
+		let mut amounts: Vec<u32> = Vec::with_capacity(nbr_intentions_appended as usize);
+		for idx in 0 .. nbr_intentions_appended {
+			amounts.push(rng.pick_u32(100_000) + 1000);
+		}
+
+		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &amounts)?;
 
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
@@ -148,7 +164,14 @@ benchmarks! {
 
 		initialize_pool::<T>(caller.clone(), asset_a, asset_b, amount, Price::from(1))?;
 
-		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended)?;
+		let random_seed = BlakeTwo256::hash(b"Sixty-nine");
+		let mut rng = <RandomNumberGenerator<BlakeTwo256>>::new(random_seed);
+		let mut amounts: Vec<u32> = Vec::with_capacity(nbr_intentions_appended as usize);
+		for idx in 0 .. nbr_intentions_appended {
+			amounts.push(rng.pick_u32(100_000) + 1000);
+		}
+
+		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &amounts)?;
 
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
@@ -165,16 +188,27 @@ benchmarks! {
 		let asset_b: AssetId = 2;
 		let amount : Balance = 100_000_000_000_000;
 
+		// First generate random amounts
+		// This is basically used to generate intentions with different amounts
+		// it is because algorithm does sort the intention by amount, so we need something not sorted./
+		let random_seed = BlakeTwo256::hash(b"Sixty-nine");
+		let mut rng = <RandomNumberGenerator<BlakeTwo256>>::new(random_seed);
+
+		let mut amounts: Vec<u32> = Vec::with_capacity(t as usize);
+		for idx in 0 .. t {
+			amounts.push(rng.pick_u32(100_000) + 1000);
+		}
+
 		initialize_pool::<T>(caller, asset_a, asset_b, amount, Price::from(1))?;
 
-		feed_intentions::<T>(asset_a, asset_b, t)?;
+		feed_intentions::<T>(asset_a, asset_b, t, &amounts)?;
 
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), t);
 
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
-		validate_finalize::<T>(asset_a, asset_b, t)?;
+		validate_finalize::<T>(asset_a, asset_b, t, &amounts)?;
 	}
 
 	on_finalize_buys_no_matches {
