@@ -22,6 +22,8 @@ pub trait Config: pallet_exchange::Config + ammpool::Config {}
 
 const INITIAL_ASSET_BALANCE: Balance = 1_000_000_000_000_000;
 
+const MAX_INTENTIONS_IN_BLOCK: u32 = 1000;
+
 const SEED: u32 = 0;
 pub const MILLICENTS: Balance = 1_000_000_000;
 pub const CENTS: Balance = 1_000 * MILLICENTS;
@@ -46,13 +48,7 @@ fn initialize_pool<T: Config>(
 	amount: Balance,
 	price: Price,
 ) -> Result<(), DispatchError> {
-	ammpool::Module::<T>::create_pool(
-		RawOrigin::Signed(caller).into(),
-		asset_a,
-		asset_b,
-		amount,
-		price,
-	)?;
+	ammpool::Module::<T>::create_pool(RawOrigin::Signed(caller).into(), asset_a, asset_b, amount, price)?;
 
 	Ok(())
 }
@@ -122,6 +118,8 @@ benchmarks! {
 	sell_intention {
 		let caller = funded_account::<T>("caller", 1);
 
+		let nbr_intentions_appended: u32  = MAX_INTENTIONS_IN_BLOCK;
+
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
 		let amount : Balance =  DOLLARS;
@@ -129,11 +127,13 @@ benchmarks! {
 
 		initialize_pool::<T>(caller.clone(), asset_a, asset_b, amount, Price::from(10))?;
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
+		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended)?;
+
+		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
 	}: {  Exchange::<T>::sell(RawOrigin::Signed(caller.clone()).into(), asset_a, asset_b, amount ,limit, false)? }
 	verify{
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 1);
+		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended + 1);
 	}
 
 	buy_intention {
@@ -144,17 +144,21 @@ benchmarks! {
 		let amount : Balance = DOLLARS;
 		let limit : Balance = DOLLARS;
 
+		let nbr_intentions_appended: u32  = MAX_INTENTIONS_IN_BLOCK;
+
 		initialize_pool::<T>(caller.clone(), asset_a, asset_b, amount, Price::from(1))?;
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
+		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended)?;
+
+		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
 	}: {  Exchange::<T>::buy(RawOrigin::Signed(caller.clone()).into(), asset_a, asset_b, amount / 10 ,limit, false)? }
 	verify{
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 1);
+		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended + 1);
 	}
 
 	on_finalize {
-		let t in 0 .. 100; // Intention component
+		let t in 0 .. MAX_INTENTIONS_IN_BLOCK; // Intention component
 		let caller = funded_account::<T>("caller", 1);
 
 		let asset_a: AssetId = 1;
