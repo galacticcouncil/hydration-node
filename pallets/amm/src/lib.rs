@@ -13,6 +13,7 @@ use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_utilities::with_transaction_result;
 use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 
@@ -758,27 +759,29 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let pair_account = Self::get_pair_id(&transfer.asset_sell, &transfer.asset_buy);
 
 		// REVIEW: same note as above re atomicity
-		if transfer.discount && transfer.discount_amount > 0 {
-			let hdx_asset = T::HDXAssetId::get();
-			T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
-		}
+		with_transaction_result(|| {
+			if transfer.discount && transfer.discount_amount > 0 {
+				let hdx_asset = T::HDXAssetId::get();
+				T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
+			}
 
-		T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount)?;
-		T::Currency::transfer(
-			transfer.asset_sell,
-			&transfer.origin,
-			&pair_account,
-			transfer.amount_out,
-		)?;
+			T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount)?;
+			T::Currency::transfer(
+				transfer.asset_sell,
+				&transfer.origin,
+				&pair_account,
+				transfer.amount_out,
+			)?;
 
-		Self::deposit_event(Event::<T>::Buy(
-			transfer.origin.clone(),
-			transfer.asset_buy,
-			transfer.asset_sell,
-			transfer.amount,
-			transfer.amount_out,
-		));
+			Self::deposit_event(Event::<T>::Buy(
+				transfer.origin.clone(),
+				transfer.asset_buy,
+				transfer.asset_sell,
+				transfer.amount,
+				transfer.amount_out,
+			));
 
-		Ok(())
+			Ok(())
+		})
 	}
 }
