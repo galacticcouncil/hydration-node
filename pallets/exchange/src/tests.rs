@@ -1021,12 +1021,33 @@ fn sell_test_group_sells() {
 		]);
 	});
 }
+
 #[test]
-fn sell_without_pool_should_not_work() {
+fn trades_without_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 100, 200, false),
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000, 200, false),
 			Error::<Test>::TokenPoolNotFound
+		);
+
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), HDX, ETH, 1000, 200, false),
+			Error::<Test>::TokenPoolNotFound
+		);
+	});
+}
+
+#[test]
+fn trade_min_limit() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Error::<Test>::MinimumTradeLimitNotReached
+		);
+
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Error::<Test>::MinimumTradeLimitNotReached
 		);
 	});
 }

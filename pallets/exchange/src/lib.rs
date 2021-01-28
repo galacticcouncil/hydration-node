@@ -38,6 +38,9 @@ mod tests;
 type IntentionId<T> = <T as system::Config>::Hash;
 pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, Balance, IntentionId<T>>;
 
+/// Trading limit
+const MIN_TRADING_LIMIT: Balance = 1000;
+
 /// The pallet's configuration trait.
 pub trait Config: system::Config {
 	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
@@ -120,6 +123,12 @@ decl_error! {
 
 		/// Limit exceeded
 		AssetBalanceLimitExceeded,
+
+		/// Invalid amount
+		ZeroSpotPrice,
+
+		/// Minimum trading limit is not enough
+		MinimumTradeLimitNotReached
 	}
 }
 
@@ -143,6 +152,11 @@ decl_module! {
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!{
+				amount_sell >= MIN_TRADING_LIMIT,
+				Error::<T>::MinimumTradeLimitNotReached
+			};
+
 			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
 
 			ensure!(
@@ -156,6 +170,11 @@ decl_module! {
 			);
 
 			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
+
+			ensure!(
+				amount_buy != 0,
+				Error::<T>::ZeroSpotPrice
+			);
 
 			Self::register_intention(
 					&who,
@@ -181,6 +200,11 @@ decl_module! {
 		)  -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!{
+				amount_buy >= MIN_TRADING_LIMIT,
+				Error::<T>::MinimumTradeLimitNotReached
+			};
+
 			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
 
 			ensure!(
@@ -189,6 +213,11 @@ decl_module! {
 			);
 
 			let amount_sell = T::AMMPool::get_spot_price_unchecked(asset_buy, asset_sell, amount_buy);
+
+			ensure!(
+				amount_sell != 0,
+				Error::<T>::ZeroSpotPrice
+			);
 
 			ensure!(
 				T::Currency::free_balance(asset_sell, &who) >= amount_sell,
