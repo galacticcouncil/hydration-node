@@ -2,7 +2,7 @@
 
 #![allow(clippy::all)]
 
-use hack_hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
+use hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
@@ -16,8 +16,8 @@ use std::time::Duration;
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
-	hack_hydra_dx_runtime::api::dispatch,
-	hack_hydra_dx_runtime::native_version,
+	hydra_dx_runtime::api::dispatch,
+	hydra_dx_runtime::native_version,
 	frame_benchmarking::benchmarking::HostFunctions,
 );
 

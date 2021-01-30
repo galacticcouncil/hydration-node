@@ -17,7 +17,7 @@
 
 use crate::cli::{Cli, Subcommand};
 use crate::{chain_spec, service};
-use hack_hydra_dx_runtime::Block;
+use hydra_dx_runtime::Block;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 
@@ -49,13 +49,14 @@ impl SubstrateCli for Cli {
 	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
 			"dev" => Box::new(chain_spec::development_config()?),
-			"" | "local" => Box::new(chain_spec::local_testnet_config()?),
+			"lerna" => Box::new(chain_spec::lerna_config()?),
+			"local" => Box::new(chain_spec::local_testnet_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&hack_hydra_dx_runtime::VERSION
+		&hydra_dx_runtime::VERSION
 	}
 }
 

@@ -1,16 +1,16 @@
 [package]
 authors = ['GalacticCouncil']
 build = 'build.rs'
-description = 'Hack Hydra DX'
+description = 'Hydra DX'
 edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Unlicense'
-name = 'hack-hydra-dx'
-repository = 'https://github.com/galacticcouncil/hack.hydradx-node'
+name = 'hydra-dx'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
 version = '2.0.0'
 
 [[bin]]
-name = 'hack-hydra-dx'
+name = 'hydra-dx'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -19,29 +19,30 @@ targets = ['x86_64-unknown-linux-gnu']
 substrate-build-script-utils = '2.0.1'
 
 [dependencies]
+hex-literal = "0.3.1"
 jsonrpc-core = '15.0.0'
-structopt = '0.3.8'
 serde_json = "1.0.61"
+structopt = '0.3.8'
 
 # local dependencies
-hack-hydra-dx-runtime = { path = '../runtime', version = '2.0.0' }
-primitives = { path = '../primitives', version = '2.0.0' }
-module-amm-rpc = { path = '../pallets/amm/rpc', version = '2.0.0' }
+hydra-dx-runtime = {path = '../runtime', version = '2.0.0'}
+module-amm-rpc = {path = '../pallets/amm/rpc', version = '2.0.0'}
+primitives = {path = '../primitives', version = '2.0.0'}
 
 # Substrate dependencies
 frame-benchmarking = '2.0.0'
-pallet-im-online = "2.0.0"
-frame-benchmarking-cli = { version = '2.0.0', optional = true }
-pallet-transaction-payment-rpc = '2.0.0'
-sc-basic-authorship = '0.8.0'
-sc-cli = { features = ['wasmtime'], version = '0.8.0' }
+frame-benchmarking-cli = {version = '2.0.0', optional = true}
 futures = '0.3.4'
+pallet-im-online = "2.0.0"
+pallet-transaction-payment-rpc = '2.0.0'
+sc-authority-discovery = '0.8.0'
+sc-basic-authorship = '0.8.0'
+sc-cli = {features = ['wasmtime'], version = '0.8.0'}
 sc-client-api = '2.0.0'
 sc-consensus = '0.8.0'
 sc-consensus-babe = '0.8.0'
 sc-consensus-babe-rpc = '0.8.0'
 sc-consensus-epochs = '0.8.0'
-sc-authority-discovery = '0.8.0'
 sc-consensus-slots = '0.8.0'
 sc-executor = {features = ['wasmtime'], version = '0.8.0'}
 sc-finality-grandpa = '0.8.0'
@@ -61,15 +62,16 @@ sp-consensus-babe = '0.8.0'
 sp-core = '2.0.0'
 sp-finality-grandpa = '2.0.0'
 sp-inherents = '2.0.0'
+sp-keystore = '0.8.0'
 sp-runtime = '2.0.0'
 sp-transaction-pool = '2.0.0'
-sp-keystore = '0.8.0'
 substrate-frame-rpc-system = '2.0.0'
 
 [features]
 default = [
-    "frame-benchmarking-cli",
+  "frame-benchmarking-cli",
 ]
-runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks',
-    "frame-benchmarking-cli",
+runtime-benchmarks = [
+  'hydra-dx-runtime/runtime-benchmarks',
+  "frame-benchmarking-cli",
 ]

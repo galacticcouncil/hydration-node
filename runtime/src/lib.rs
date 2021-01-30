@@ -125,8 +125,8 @@ impl_opaque_keys! {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("hack-hydra-dx"),
-	impl_name: create_runtime_str!("hack-hydra-dx"),
+	spec_name: create_runtime_str!("hydra-dx"),
+	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
@@ -293,7 +293,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMM;
-	type WeightInfo = pallet_transaction_multi_payment::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -341,7 +341,7 @@ impl pallet_amm::Config for Runtime {
 	type AssetPairAccountId = pallet_amm::AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type HDXAssetId = HDXAssetId;
-	type WeightInfo = pallet_amm::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_amm::weights::HydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
 }
 
@@ -350,7 +350,7 @@ impl pallet_exchange::Config for Runtime {
 	type AMMPool = AMM;
 	type Resolver = Exchange;
 	type Currency = Currencies;
-	type WeightInfo = pallet_exchange::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_exchange::weights::HydraWeight<Runtime>;
 }
 
 impl pallet_faucet::Config for Runtime {

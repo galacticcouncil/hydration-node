@@ -1,8 +1,9 @@
 #![allow(clippy::or_fun_call)]
 
-use hack_hydra_dx_runtime::constants::currency::{Balance, DOLLARS};
-use hack_hydra_dx_runtime::opaque::SessionKeys;
-use hack_hydra_dx_runtime::{
+use hex_literal::hex;
+use hydra_dx_runtime::constants::currency::{Balance, DOLLARS};
+use hydra_dx_runtime::opaque::SessionKeys;
+use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
 	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
@@ -84,7 +85,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"Development",
+		"HydraDX Development chain",
 		// ID
 		"dev",
 		ChainType::Development,
@@ -118,6 +119,42 @@ pub fn development_config() -> Result<ChainSpec, String> {
 	))
 }
 
+pub fn lerna_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Stakenet wasm binary not available".to_string())?;
+	let mut properties = Map::new();
+	properties.insert("tokenDecimals".into(), 12.into());
+
+	Ok(ChainSpec::from_genesis(
+		// Name
+		"HydraDX Snakenet",
+		// ID
+		"lerna",
+		ChainType::Live,
+		move || {
+			lerna_genesis(
+				wasm_binary,
+				// TODO: KEYS
+				vec![authority_keys_from_seed("Alice")],
+				// Sudo account
+				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+				// Pre-funded accounts
+				vec![hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into()],
+				true,
+			)
+		},
+		// Bootnodes TODO: BOOT NODES
+		vec![],
+		// Telemetry
+		None,
+		// Protocol ID
+		None,
+		// Properties
+		Some(properties),
+		// Extensions
+		None,
+	))
+}
+
 pub fn local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
@@ -126,7 +163,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"Local Testnet",
+		"HydraDX Local Testnet",
 		// ID
 		"local_testnet",
 		ChainType::Local,
@@ -190,8 +227,12 @@ fn testnet_genesis(
 			changes_trie_config: Default::default(),
 		}),
 		pallet_balances: Some(BalancesConfig {
-			// Configure endowed accounts with initial balance of 1 << 60.
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+			// Configure endowed accounts with initial balance of 1_000_000.
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, 1_000_000u128 * DOLLARS))
+				.collect(),
 		}),
 		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
 		pallet_sudo: Some(SudoConfig {
@@ -201,30 +242,27 @@ fn testnet_genesis(
 		pallet_asset_registry: Some(AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![
-				(b"KSM".to_vec(), 1),
-				(b"DOT".to_vec(), 2),
-				(b"ETH".to_vec(), 3),
-				(b"ACA".to_vec(), 4),
-				(b"EDG".to_vec(), 5),
-				(b"aUSD".to_vec(), 6),
-				(b"PLM".to_vec(), 7),
-				(b"FIS".to_vec(), 8),
-				(b"rXTZ".to_vec(), 9),
-				(b"rDOT".to_vec(), 10),
-				(b"rEDG".to_vec(), 11),
-				(b"PHA".to_vec(), 12),
-				(b"USDT".to_vec(), 13),
+				(b"tKSM".to_vec(), 1),
+				(b"tDOT".to_vec(), 2),
+				(b"tETH".to_vec(), 3),
+				(b"tACA".to_vec(), 4),
+				(b"tEDG".to_vec(), 5),
+				(b"tUSD".to_vec(), 6),
+				(b"tPLM".to_vec(), 7),
+				(b"tFIS".to_vec(), 8),
+				(b"tPHA".to_vec(), 9),
+				(b"tUSDT".to_vec(), 10),
 			],
-			next_asset_id: 14,
+			next_asset_id: 11,
 		}),
 		orml_tokens: Some(TokensConfig {
 			endowed_accounts: endowed_accounts
 				.iter()
 				.flat_map(|x| {
 					vec![
-						(x.clone(), 1, 1_000_000_000_000_000u128),
-						(x.clone(), 2, 1_000_000_000_000_000u128),
-						(x.clone(), 3, 1_000_000_000_000_000u128),
+						(x.clone(), 1, 100_000u128 * DOLLARS),
+						(x.clone(), 2, 100_000u128 * DOLLARS),
+						(x.clone(), 3, 100_000u128 * DOLLARS),
 					]
 				})
 				.collect(),
@@ -233,6 +271,101 @@ fn testnet_genesis(
 			rampage: true,
 			mint_limit: 5,
 			mintable_currencies: vec![0, 1, 2],
+		}),
+		pallet_babe: Some(BabeConfig { authorities: vec![] }),
+		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
+		pallet_treasury: Some(Default::default()),
+		pallet_session: Some(SessionConfig {
+			keys: initial_authorities
+				.iter()
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+					)
+				})
+				.collect::<Vec<_>>(),
+		}),
+		pallet_staking: Some(StakingConfig {
+			validator_count: initial_authorities.len() as u32 * 2,
+			minimum_validator_count: initial_authorities.len() as u32,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.collect(),
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			slash_reward_fraction: Perbill::from_percent(10),
+			..Default::default()
+		}),
+		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
+		pallet_collective_Instance1: Some(CouncilConfig::default()),
+	}
+}
+
+fn lerna_genesis(
+	wasm_binary: &[u8],
+	initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		GrandpaId,
+		BabeId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+	)>,
+	root_key: AccountId,
+	endowed_accounts: Vec<AccountId>,
+	_enable_println: bool,
+) -> GenesisConfig {
+	GenesisConfig {
+		frame_system: Some(SystemConfig {
+			// Add Wasm runtime to storage.
+			code: wasm_binary.to_vec(),
+			changes_trie_config: Default::default(),
+		}),
+		pallet_balances: Some(BalancesConfig {
+			// Intergalactic initial supply
+			balances: vec![
+				(
+					// Intergalactic HDX Tokens
+					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					1_499_997_000u128 * DOLLARS,
+				),
+				(
+					// TODO: Keys Intergalactic Validator01
+					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					1_000u128 * DOLLARS,
+				),
+				(
+					// TODO: Keys Intergalactic Validator02
+					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					1_000u128 * DOLLARS,
+				),
+				(
+					// TODO: Keys Intergalactic Validator03
+					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					1_000u128 * DOLLARS,
+				),
+			],
+		}),
+		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
+		pallet_sudo: Some(SudoConfig {
+			// Assign network admin rights.
+			key: root_key,
+		}),
+		pallet_asset_registry: Some(AssetRegistryConfig {
+			core_asset_id: CORE_ASSET_ID,
+			asset_ids: vec![],
+			next_asset_id: 1,
+		}),
+		orml_tokens: Some(TokensConfig {
+			endowed_accounts: endowed_accounts.iter().flat_map(|_x| vec![]).collect(),
+		}),
+		pallet_faucet: Some(FaucetConfig {
+			rampage: false,
+			mint_limit: 5,
+			mintable_currencies: vec![],
 		}),
 		pallet_babe: Some(BabeConfig { authorities: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
