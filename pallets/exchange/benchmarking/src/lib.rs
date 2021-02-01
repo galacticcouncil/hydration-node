@@ -25,7 +25,7 @@ pub trait Config: pallet_exchange::Config + ammpool::Config {}
 
 const INITIAL_ASSET_BALANCE: Balance = 1_000_000_000_000_000;
 
-const MAX_INTENTIONS_IN_BLOCK: u32 = 100;
+const MAX_INTENTIONS_IN_BLOCK: u32 = 1000;
 
 const SEED: u32 = 0;
 pub const MILLICENTS: Balance = 1_000_000_000;
