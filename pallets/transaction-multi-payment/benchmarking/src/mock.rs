@@ -16,7 +16,7 @@ use orml_currencies::BasicCurrencyAdapter;
 use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 use primitives::{Amount, AssetId, Balance};
 
-use frame_support::traits::Get;
+use frame_support::traits::{GenesisBuild, Get};
 use pallet_amm::AssetPairAccountIdFor;
 use std::cell::RefCell;
 

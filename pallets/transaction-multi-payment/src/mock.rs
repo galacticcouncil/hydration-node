@@ -21,6 +21,7 @@ use primitives::{Amount, AssetId, Balance};
 use pallet_amm::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
+use frame_support::traits::GenesisBuild;
 use primitives::fee;
 
 pub type AccountId = u64;
