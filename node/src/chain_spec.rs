@@ -180,7 +180,7 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 				// Sudo account
 				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
 				// Pre-funded accounts
-				vec![hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into()],
+				vec![],
 				true,
 			)
 		},
