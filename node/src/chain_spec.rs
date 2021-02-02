@@ -10,7 +10,7 @@ use hydra_dx_runtime::{
 };
 use sc_service::ChainType;
 use serde_json::map::Map;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
@@ -134,7 +134,50 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 			lerna_genesis(
 				wasm_binary,
 				// TODO: KEYS
-				vec![authority_keys_from_seed("Alice")],
+				vec![
+					(
+						//5DvaWvPYpPo6aMKBZhCTtCmfbZntA9y5tmsMvVg5sD75aPRQ
+						hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
+						//5DvaWvPYpPo6aMKBZhCTtCmfbZntA9y5tmsMvVg5sD75aPRQ
+						hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
+						//5DdKFiVQx8R7cNW5FckvftE7NfQCPW1GF9p8FUKnB3o6AvMu
+						hex!["451b3e9b67ffea5e90b61e23396451a336e1449620bba3e13fbb96e187007c1a"].unchecked_into(),
+						//5GTyALyDv9EFARPWrotf8yBJ3F3zSyk8NtUqcrtiBDVkbFLb
+						hex!["c2af193a251dee1765136b0ae47647c110ac1225b23a157d6ef6629b1c93fe39"].unchecked_into(),
+						//5GTyALyDv9EFARPWrotf8yBJ3F3zSyk8NtUqcrtiBDVkbFLb
+						hex!["c2af193a251dee1765136b0ae47647c110ac1225b23a157d6ef6629b1c93fe39"].unchecked_into(),
+						//5GTyALyDv9EFARPWrotf8yBJ3F3zSyk8NtUqcrtiBDVkbFLb
+						hex!["c2af193a251dee1765136b0ae47647c110ac1225b23a157d6ef6629b1c93fe39"].unchecked_into(),
+					),
+					(
+						//5GNR5oNz2ouy3vpKvfb79u9yZ5WW1fpX9aS9vMHbqcuhUkDC
+						hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
+						//5GNR5oNz2ouy3vpKvfb79u9yZ5WW1fpX9aS9vMHbqcuhUkDC
+						hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
+						//5HWDxcXHPxSowKDXSSKLEkUxXymXw2FA9zKyAwYw7nJ8KpYL
+						hex!["f0a3a2eab48b0e51e8d89732d15da0164eb36951c4db3bd33879b0b343619ba7"].unchecked_into(),
+						//5Fgn5eu1dhHemGLbHRgFuhdjjTHPuGt6UbLmwd2bi7JonwAG
+						hex!["a037c0f83b7ebea2179165f987c6094d5b39e7addc1d2e09edf4a5fa6ebcac32"].unchecked_into(),
+						//5Fgn5eu1dhHemGLbHRgFuhdjjTHPuGt6UbLmwd2bi7JonwAG
+						hex!["a037c0f83b7ebea2179165f987c6094d5b39e7addc1d2e09edf4a5fa6ebcac32"].unchecked_into(),
+						//5Fgn5eu1dhHemGLbHRgFuhdjjTHPuGt6UbLmwd2bi7JonwAG
+						hex!["a037c0f83b7ebea2179165f987c6094d5b39e7addc1d2e09edf4a5fa6ebcac32"].unchecked_into(),
+					),
+					(
+						//5Hiqm2wJATfFWdq9oDzQXBA7LhPbBNPRz4axdg4APjcRhUdQ
+						hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
+						//5Hiqm2wJATfFWdq9oDzQXBA7LhPbBNPRz4axdg4APjcRhUdQ
+						hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
+						//5H1TccKGpCsVM4STCELgHQAq5cMXXXBRSnJETy7hiZAUGZav
+						hex!["dab37ca3624720b03aa2fdf4f2b436041ff151f0e3975f7b9c79e52030ae781e"].unchecked_into(),
+						////5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
+						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
+						////5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
+						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
+						////5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
+						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
+					),
+				],
 				// Sudo account
 				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
 				// Pre-funded accounts
@@ -334,17 +377,17 @@ fn lerna_genesis(
 				),
 				(
 					// TODO: Keys Intergalactic Validator01
-					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
 					1_000u128 * DOLLARS,
 				),
 				(
 					// TODO: Keys Intergalactic Validator02
-					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
 					1_000u128 * DOLLARS,
 				),
 				(
 					// TODO: Keys Intergalactic Validator03
-					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
 					1_000u128 * DOLLARS,
 				),
 			],
