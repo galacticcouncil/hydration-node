@@ -2077,6 +2077,7 @@ dependencies = [
  "jsonrpc-core",
  "module-amm-rpc",
  "pallet-im-online",
+ "pallet-staking",
  "pallet-transaction-payment-rpc",
  "primitives",
  "sc-authority-discovery",
