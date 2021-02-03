@@ -133,7 +133,6 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 		move || {
 			lerna_genesis(
 				wasm_binary,
-				// TODO: KEYS
 				vec![
 					(
 						//5DvaWvPYpPo6aMKBZhCTtCmfbZntA9y5tmsMvVg5sD75aPRQ
@@ -170,18 +169,18 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 						hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
 						//5H1TccKGpCsVM4STCELgHQAq5cMXXXBRSnJETy7hiZAUGZav
 						hex!["dab37ca3624720b03aa2fdf4f2b436041ff151f0e3975f7b9c79e52030ae781e"].unchecked_into(),
-						////5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
+						//5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
 						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
-						////5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
+						//5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
 						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
-						////5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
+						//5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
 						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
 					),
 				],
 				// Sudo account
 				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
 				// Pre-funded accounts
-				vec![hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into()],
+				vec![],
 				true,
 			)
 		},
@@ -381,24 +380,29 @@ fn lerna_genesis(
 			// Intergalactic initial supply
 			balances: vec![
 				(
-					// Intergalactic HDX Tokens
+					// Intergalactic HDX Tokens 15%
 					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
-					1_499_997_000u128 * DOLLARS,
+					1_499_999_700u128 * DOLLARS,
 				),
 				(
-					// TODO: Keys Intergalactic Validator01
+					// Treasury for rewards 3%
+					hex!["84d0959b84b3b12013430ea136b0c26e83412ea3bc46a8620abb8c8db7e53d0c"].into(),
+					300_000_000 * DOLLARS,
+				),
+				(
+					// Intergalactic Validator01
 					hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
-					1_000u128 * DOLLARS,
+					100u128 * DOLLARS,
 				),
 				(
-					// TODO: Keys Intergalactic Validator02
+					// Intergalactic Validator02
 					hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
-					1_000u128 * DOLLARS,
+					100u128 * DOLLARS,
 				),
 				(
-					// TODO: Keys Intergalactic Validator03
+					// Intergalactic Validator03
 					hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
-					1_000u128 * DOLLARS,
+					100u128 * DOLLARS,
 				),
 			],
 		}),
