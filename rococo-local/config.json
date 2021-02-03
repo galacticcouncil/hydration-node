@@ -43,6 +43,20 @@
       "flags": ["--", "--execution=wasm"]
     }
   ],
+  "hrmpChannels": [
+    {
+      "sender": "200",
+      "recipient": "300",
+      "maxCapacity": 8,
+      "maxMessageSize": 512
+    },
+    {
+      "sender": "300",
+      "recipient": "200",
+      "maxCapacity": 8,
+      "maxMessageSize": 512
+    }
+  ],
   "types": {
     "Address": "MultiAddress",
     "LookupSource": "MultiAddress"
