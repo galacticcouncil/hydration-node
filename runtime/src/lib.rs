@@ -35,7 +35,7 @@ use frame_system::limits;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
+	traits::{Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Weight,
@@ -152,6 +152,35 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
+pub struct BaseFilter;
+impl Filter<Call> for BaseFilter {
+	fn filter(call: &Call) -> bool {
+		match call {
+			Call::Council(_) | Call::Treasury(_) | Call::Faucet(_) | Call::Balances(_) => false,
+
+			Call::System(_)
+			| Call::RandomnessCollectiveFlip(_)
+			| Call::Elections(_)
+			| Call::Currencies(_)
+			| Call::Tokens(_)
+			| Call::AssetRegistry(_)
+			| Call::Exchange(_)
+			| Call::MultiTransactionPayment(_)
+			| Call::Babe(_)
+			| Call::Timestamp(_)
+			| Call::Authorship(_)
+			| Call::Staking(_)
+			| Call::Offences(_)
+			| Call::Session(_)
+			| Call::Grandpa(_)
+			| Call::AuthorityDiscovery(_)
+			| Call::AMM(_)
+			| Call::ImOnline(_)
+			| Call::Sudo(_) => true,
+		}
+	}
+}
+
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
 	pub const Version: RuntimeVersion = VERSION;
@@ -186,7 +215,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = ();
+	type BaseCallFilter = BaseFilter;
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
