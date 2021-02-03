@@ -179,7 +179,7 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 					),
 				],
 				// Sudo account
-				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 				// Pre-funded accounts
 				vec![],
 				true,
@@ -383,7 +383,7 @@ fn lerna_genesis(
 			balances: vec![
 				(
 					// Intergalactic HDX Tokens 15%
-					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 					1_499_999_700u128 * DOLLARS,
 				),
 				(
