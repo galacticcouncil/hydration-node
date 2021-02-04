@@ -385,7 +385,7 @@ fn lerna_genesis(
 				(
 					// Intergalactic HDX Tokens 15%
 					hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
-					1_499_999_700u128 * DOLLARS,
+					(1_500_000_000u128 * DOLLARS) - (3 * STASH),
 				),
 				(
 					// Treasury for rewards 3%
@@ -395,17 +395,17 @@ fn lerna_genesis(
 				(
 					// Intergalactic Validator01
 					hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
-					100u128 * DOLLARS,
+					STASH,
 				),
 				(
 					// Intergalactic Validator02
 					hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
-					100u128 * DOLLARS,
+					STASH,
 				),
 				(
 					// Intergalactic Validator03
 					hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
-					100u128 * DOLLARS,
+					STASH,
 				),
 			],
 		}),
@@ -444,13 +444,14 @@ fn lerna_genesis(
 				.collect::<Vec<_>>(),
 		}),
 		pallet_staking: Some(StakingConfig {
-			validator_count: initial_authorities.len() as u32 * 2,
-			minimum_validator_count: initial_authorities.len() as u32,
+			validator_count: 3,
+			minimum_validator_count: 3,
 			stakers: initial_authorities
 				.iter()
 				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
