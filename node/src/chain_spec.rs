@@ -124,6 +124,7 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Stakenet wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenSymbol".into(), "HDX".into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
