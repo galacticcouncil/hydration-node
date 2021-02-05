@@ -60,9 +60,15 @@ impl SubstrateCli for Cli {
 	}
 }
 
+fn set_ss58() {
+	use sp_core::crypto::Ss58AddressFormat;
+	sp_core::crypto::set_default_ss58_version(Ss58AddressFormat::HydraDXAccount);
+}
+
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
+	set_ss58();
 
 	match &cli.subcommand {
 		Some(Subcommand::BuildSpec(cmd)) => {
