@@ -154,7 +154,7 @@ pub fn new_partial(
 
 /// Builds a new service for a full client.
 pub fn new_full(
-	config: Configuration,
+	mut config: Configuration,
 ) -> Result<
 	(
 		TaskManager,
@@ -181,6 +181,11 @@ pub fn new_full(
 	let backoff_authoring_blocks = Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
 
 	let shared_voter_state = rpc_setup;
+
+	config
+		.network
+		.notifications_protocols
+		.push(sc_finality_grandpa::GRANDPA_PROTOCOL_NAME.into());
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
