@@ -156,25 +156,28 @@ pub struct BaseFilter;
 impl Filter<Call> for BaseFilter {
 	fn filter(call: &Call) -> bool {
 		match call {
-			Call::Council(_) | Call::Treasury(_) | Call::Faucet(_) | Call::Balances(_) => false,
+			Call::Council(_)
+			| Call::Treasury(_)
+			| Call::Faucet(_)
+			| Call::Balances(_)
+			| Call::Currencies(_)
+			| Call::Tokens(_)
+			| Call::AssetRegistry(_)
+			| Call::Offences(_)
+			| Call::AMM(_)
+			| Call::Exchange(_) => false,
 
 			Call::System(_)
 			| Call::RandomnessCollectiveFlip(_)
 			| Call::Elections(_)
-			| Call::Currencies(_)
-			| Call::Tokens(_)
-			| Call::AssetRegistry(_)
-			| Call::Exchange(_)
 			| Call::MultiTransactionPayment(_)
 			| Call::Babe(_)
 			| Call::Timestamp(_)
 			| Call::Authorship(_)
 			| Call::Staking(_)
-			| Call::Offences(_)
 			| Call::Session(_)
 			| Call::Grandpa(_)
 			| Call::AuthorityDiscovery(_)
-			| Call::AMM(_)
 			| Call::ImOnline(_)
 			| Call::Sudo(_) => true,
 		}
