@@ -1887,6 +1887,7 @@ dependencies = [
  "hack-hydra-dx-runtime",
  "jsonrpc-core",
  "module-amm-rpc",
+ "pallet-claims",
  "pallet-im-online",
  "pallet-transaction-payment-rpc",
  "primitives",
@@ -1955,6 +1956,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
+ "pallet-claims",
  "pallet-collective",
  "pallet-elections-phragmen",
  "pallet-exchange",
@@ -3853,6 +3855,23 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "serde",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-claims"
+version = "2.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitives",
+ "rustc-hex",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]

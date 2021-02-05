@@ -28,6 +28,7 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 # local dependencies
 pallet-asset-registry = { path = '../pallets/asset-registry', default-features = false, version = '2.0.0' }
 pallet-amm = { path = '../pallets/amm', default-features = false, version = '2.0.0' }
+pallet-claims = { path = '../pallets/claims', default-features = false, version = '2.0.0' }
 pallet-exchange = { path = '../pallets/exchange', default-features = false, version = '2.0.0' }
 pallet-exchange-benchmarking = { path = '../pallets/exchange/benchmarking', default-features = false, optional = true, version = '2.0.0' }
 pallet-faucet = { path = '../pallets/faucet', default-features = false, version = '2.0.0' }

@@ -27,6 +27,7 @@ serde_json = "1.0.61"
 hack-hydra-dx-runtime = { path = '../runtime', version = '2.0.0' }
 primitives = { path = '../primitives', version = '2.0.0' }
 module-amm-rpc = { path = '../pallets/amm/rpc', version = '2.0.0' }
+pallet-claims = { path = '../pallets/claims', version = '2.0.0' }
 
 # Substrate dependencies
 frame-benchmarking = '2.0.0'

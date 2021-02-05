@@ -3,7 +3,7 @@
 use hack_hydra_dx_runtime::constants::currency::{Balance, DOLLARS};
 use hack_hydra_dx_runtime::opaque::SessionKeys;
 use hack_hydra_dx_runtime::{
-	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
+	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
 	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
@@ -16,7 +16,7 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-
+use pallet_claims::EthereumAddress;
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -263,5 +263,18 @@ fn testnet_genesis(
 		}),
 		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
 		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_claims: Some(ClaimsConfig {
+			claims: create_testnet_claims(&endowed_accounts),
+		}),
 	}
+}
+
+fn create_testnet_claims(accounts: &Vec<AccountId>) -> Vec<(EthereumAddress, Balance)> {
+	// for each account create one claim
+	let mut claims = Vec::<(EthereumAddress, Balance)>::new();
+	accounts.iter().for_each(|_account| {
+		let tuple = (EthereumAddress([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 66);
+		claims.push(tuple);
+	});
+	claims
 }

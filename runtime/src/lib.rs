@@ -62,6 +62,7 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 /// Import HydraDX pallets
 pub use pallet_asset_registry;
+pub use pallet_claims;
 pub use pallet_faucet;
 
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
@@ -343,6 +344,18 @@ impl pallet_amm::Config for Runtime {
 	type HDXAssetId = HDXAssetId;
 	type WeightInfo = pallet_amm::weights::HackHydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
+}
+
+parameter_types! {
+	pub Prefix: &'static [u8] = b"Pay HDXs to the HydraDX account:";
+}
+
+impl pallet_claims::Config for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type Prefix = Prefix;
+/*	type WeightInfo = pallet_amm::weights::HackHydraWeight<Runtime>;
+	type GetExchangeFee = ExchangeFee; */
 }
 
 impl pallet_exchange::Config for Runtime {
@@ -632,6 +645,7 @@ construct_runtime!(
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Module, Call, Storage, Config<T>},
 		AMM: pallet_amm::{Module, Call, Storage, Event<T>},
+		Claims: pallet_claims::{Module, Call, Storage, Event<T>, Config},
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Config, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
