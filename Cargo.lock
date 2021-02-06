@@ -2097,6 +2097,7 @@ dependencies = [
  "sc-rpc",
  "sc-rpc-api",
  "sc-service",
+ "sc-telemetry",
  "sc-transaction-pool",
  "serde_json",
  "sp-api",
