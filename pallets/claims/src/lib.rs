@@ -72,9 +72,17 @@ impl sp_std::fmt::Debug for EcdsaSignature {
 	}
 }
 
+#[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
+pub enum StorageVersion {
+	V1EmptyBalances,
+	V2AddClaimData,
+}
+
 decl_storage! {
 	trait Store for Module<T: Config> as Claims {
 		HDXClaims get(fn hdxclaims): map hasher(blake2_128_concat) EthereumAddress => Balance;
+
+		PalletVersion: StorageVersion = StorageVersion::V1EmptyBalances;
     }
     
     add_extra_genesis {
@@ -173,4 +181,21 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 		push_nibble(b % 16);
 	}
 	r
+}
+
+pub mod migration {
+	use super::*;
+
+	pub fn migrate_to_v2<T: Config>() -> frame_support::weights::Weight {
+		if PalletVersion::get() == StorageVersion::V1EmptyBalances {
+			frame_support::debug::info!(" >>> Adding xHDX claims to the storage");
+			// put code inserting the struct data here
+			PalletVersion::put(StorageVersion::V2AddClaimData);
+			T::DbWeight::get().reads_writes(2, 3)
+		} else {
+			frame_support::debug::info!(" >>> Unused migration");
+			0
+		}
+	}
+
 }
