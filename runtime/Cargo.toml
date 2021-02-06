@@ -52,6 +52,7 @@ pallet-offences = {default-features = false, version = '2.0.0'}
 pallet-session = {default-features = false, version = '2.0.0'}
 pallet-staking = {default-features = false, version = '2.0.0'}
 pallet-staking-reward-curve = {default-features = false, version = '2.0.0'}
+pallet-tips = {default-features = false, version = '=2.0.0'}
 pallet-treasury = {default-features = false, version = '2.0.0'}
 sp-authority-discovery = {default-features = false, version = '2.0.0'}
 sp-consensus-babe = {default-features = false, version = '0.8.0'}
@@ -117,6 +118,7 @@ std = [
   'pallet-randomness-collective-flip/std',
   'pallet-sudo/std',
   'pallet-timestamp/std',
+  'pallet-tips/std',
   'pallet-transaction-payment/std',
   'pallet-transaction-payment-rpc-runtime-api/std',
   'sp-api/std',

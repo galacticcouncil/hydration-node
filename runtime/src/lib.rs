@@ -157,7 +157,6 @@ impl Filter<Call> for BaseFilter {
 	fn filter(call: &Call) -> bool {
 		match call {
 			Call::Council(_)
-			| Call::Treasury(_)
 			| Call::Faucet(_)
 			| Call::Balances(_)
 			| Call::Currencies(_)
@@ -165,13 +164,15 @@ impl Filter<Call> for BaseFilter {
 			| Call::AssetRegistry(_)
 			| Call::Offences(_)
 			| Call::AMM(_)
+			| Call::MultiTransactionPayment(_)
 			| Call::Exchange(_) => false,
 
 			Call::System(_)
 			| Call::RandomnessCollectiveFlip(_)
 			| Call::Elections(_)
-			| Call::MultiTransactionPayment(_)
 			| Call::Babe(_)
+			| Call::Treasury(_)
+			| Call::Tips(_)
 			| Call::Timestamp(_)
 			| Call::Authorship(_)
 			| Call::Staking(_)
@@ -463,10 +464,12 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = DOLLARS;
 	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(50);
+	pub const DataDepositPerByte: Balance = 1 * CENTS;
 	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
 	pub const TipReportDepositBase: Balance = DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
+	pub const MaximumReasonLength: u32 = 16384;
 	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
 	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
 				  .saturating_sub(BlockExecutionWeight::get())
@@ -497,6 +500,17 @@ impl pallet_treasury::Config for Runtime {
 	type BurnDestination = ();
 	type WeightInfo = ();
 	type SpendFunds = ();
+}
+
+impl pallet_tips::Config for Runtime {
+	type Event = Event;
+	type DataDepositPerByte = DataDepositPerByte;
+	type MaximumReasonLength = MaximumReasonLength;
+	type Tippers = Elections;
+	type TipCountdown = TipCountdown;
+	type TipFindersFee = TipFindersFee;
+	type TipReportDepositBase = TipReportDepositBase;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -655,6 +669,7 @@ construct_runtime!(
 		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
 		Offences: pallet_offences::{Module, Call, Storage, Event},
 		Historical: session_historical::{Module},
+		Tips: pallet_tips::{Module, Call, Storage, Event<T>},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
