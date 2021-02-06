@@ -78,11 +78,14 @@ fn session_keys(
 }
 
 const STASH: Balance = 100 * DOLLARS;
+const DEFAULT_PROTOCOL_ID: &str = "hdx";
 
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenSymbol".into(), "HDX".into());
+	properties.insert("ss58Format".into(), 63.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
@@ -112,7 +115,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// Telemetry
 		None,
 		// Protocol ID
-		None,
+		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
 		Some(properties),
 		// Extensions
@@ -125,6 +128,7 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
+	properties.insert("ss58Format".into(), 63.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
@@ -201,7 +205,7 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 		// Telemetry
 		None,
 		// Protocol ID
-		None,
+		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
 		Some(properties),
 		// Extensions
@@ -214,6 +218,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenSymbol".into(), "HDX".into());
+	properties.insert("ss58Format".into(), 63.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
@@ -251,7 +257,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Telemetry
 		None,
 		// Protocol ID
-		None,
+		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
 		Some(properties),
 		// Extensions

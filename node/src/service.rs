@@ -46,15 +46,7 @@ pub fn new_partial(
 				sc_consensus_babe::BabeLink<Block>,
 			),
 			sc_finality_grandpa::SharedVoterState,
-		),
-		/*(
-			sc_consensus_babe::BabeBlockImport<
-				Block,
-				FullClient,
-				sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
-			>,
-			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
-		),*/
+		)
 	>,
 	ServiceError,
 > {
