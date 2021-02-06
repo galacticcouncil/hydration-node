@@ -101,7 +101,7 @@ Then open settings screen -> developer and paste
 
 Connect to the 
 - Hacknet: `wss://hack.hydradx.io:9944` 
-- Stakenet: `wss://rpc.hydradx.io:9944`
+- [Stakenet](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-01.snakenet.hydradx.io): `wss://rpc-01.snakenet.hydradx.io`
 - or local node.
 
 ### Performance check
