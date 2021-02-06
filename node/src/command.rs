@@ -23,7 +23,7 @@ use sc_service::PartialComponents;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Substrate Node".into()
+		"hydra-dx snakenet".into()
 	}
 
 	fn impl_version() -> String {
