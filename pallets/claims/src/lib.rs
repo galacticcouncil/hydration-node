@@ -2,12 +2,12 @@
 use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, 
     dispatch::DispatchResult, ensure,
-    traits::{Get, Currency},
+    traits::Get,
     weights::Pays
 };
 use frame_system::ensure_signed;
-use orml_traits::MultiCurrencyExtended;
-use primitives::{AssetId, Balance};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use primitives::{AssetId, Balance, CORE_ASSET_ID};
 use sp_io::{hashing::keccak_256, crypto::secp256k1_ecdsa_recover};
 use sp_std::vec::Vec;
 use sp_runtime::{traits::Zero};
@@ -21,7 +21,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type BalanceOf<T> = <<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
 
 pub trait Config: frame_system::Config {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
@@ -97,8 +97,12 @@ decl_storage! {
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Config>::AccountId {
-		HDXClaimed(AccountId),
+	pub enum Event<T>
+	where
+		AccountId = <T as frame_system::Config>::AccountId,
+		Balance = Balance,
+	{
+		HDXClaimed(AccountId, Balance),
 	}
 );
 
@@ -106,7 +110,7 @@ decl_error! {
 	pub enum Error for Module<T: Config> {
         InvalidEthereumSignature,
         InvalidStatement,
-        SignerHasNoClaim
+        NoClaimOrAlreadyClaimed,
 	}
 }
 
@@ -120,14 +124,14 @@ decl_module! {
         const Prefix: &[u8] = T::Prefix::get();
 
 		#[weight = (0, Pays::No)]
-		fn claim(origin, dest: T::AccountId, ethereum_signature: EcdsaSignature)  {
-            ensure_signed(origin)?;
+		fn claim(origin, ethereum_signature: EcdsaSignature)  {
+            let sender = ensure_signed(origin)?;
 
-            let data = dest.using_encoded(to_ascii_hex);
-			let signer = Self::eth_recover(&ethereum_signature, &data, &[][..])
-				.ok_or(Error::<T>::InvalidEthereumSignature)?;
+            let sender_hex = sender.using_encoded(to_ascii_hex);
+
+			let signer = Self::eth_recover(&ethereum_signature, &sender_hex).ok_or(Error::<T>::InvalidEthereumSignature)?;
             
-            Self::process_claim(signer, dest)?;
+            Self::process_claim(signer, sender)?;
 		}
 	}
 }
@@ -135,20 +139,23 @@ decl_module! {
 impl<T: Config> Module<T> {
     fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
         
-        let balance_due = Self::hdxclaims(signer);
+		// TODO: Fix multicurrency support and separate checks for not matching addresses and already claimed
+        let balance_due = HDXClaims::get(&signer);
 
-        ensure!(balance_due != Zero::zero(), Error::<T>::SignerHasNoClaim);
+        ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
 
         HDXClaims::insert(signer, 0);
-        
-        Self::deposit_event(RawEvent::HDXClaimed(dest));
+
+		T::Currency::deposit(CORE_ASSET_ID, &dest, balance_due)?;
+
+        Self::deposit_event(RawEvent::HDXClaimed(dest, balance_due));
         Ok(())
     }
 
     // Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
-	fn ethereum_signable_message(what: &[u8], extra: &[u8]) -> Vec<u8> {
+	fn ethereum_signable_message(what: &[u8]) -> Vec<u8> {
 		let prefix = T::Prefix::get();
-		let mut l = prefix.len() + what.len() + extra.len();
+		let mut l = prefix.len() + what.len();
 		let mut rev = Vec::new();
 		while l > 0 {
 			rev.push(b'0' + (l % 10) as u8);
@@ -158,14 +165,13 @@ impl<T: Config> Module<T> {
 		v.extend(rev.into_iter().rev());
 		v.extend_from_slice(&prefix[..]);
 		v.extend_from_slice(what);
-		v.extend_from_slice(extra);
 		v
 	}
 
     // Attempts to recover the Ethereum address from a message signature signed by using
 	// the Ethereum RPC's `personal_sign` and `eth_sign`.
-	fn eth_recover(s: &EcdsaSignature, what: &[u8], extra: &[u8]) -> Option<EthereumAddress> {
-		let msg = keccak_256(&Self::ethereum_signable_message(what, extra));
+	fn eth_recover(s: &EcdsaSignature, what: &[u8]) -> Option<EthereumAddress> {
+		let msg = keccak_256(&Self::ethereum_signable_message(what));
 		let mut res = EthereumAddress::default();
 		res.0.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..])[12..]);
 		Some(res)

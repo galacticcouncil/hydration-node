@@ -347,15 +347,13 @@ impl pallet_amm::Config for Runtime {
 }
 
 parameter_types! {
-	pub Prefix: &'static [u8] = b"Pay HDXs to the HydraDX account:";
+	pub Prefix: &'static [u8] = b"I hereby claim all my xHDX tokens to wallet:";
 }
 
 impl pallet_claims::Config for Runtime {
 	type Event = Event;
 	type Currency = Currencies;
 	type Prefix = Prefix;
-/*	type WeightInfo = pallet_amm::weights::HackHydraWeight<Runtime>;
-	type GetExchangeFee = ExchangeFee; */
 }
 
 impl pallet_exchange::Config for Runtime {
