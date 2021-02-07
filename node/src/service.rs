@@ -46,7 +46,7 @@ pub fn new_partial(
 				sc_consensus_babe::BabeLink<Block>,
 			),
 			sc_finality_grandpa::SharedVoterState,
-		)
+		),
 	>,
 	ServiceError,
 > {

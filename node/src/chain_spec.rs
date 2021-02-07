@@ -125,6 +125,10 @@ pub fn development_config() -> Result<ChainSpec, String> {
 }
 
 pub fn lerna_config() -> Result<ChainSpec, String> {
+	ChainSpec::from_json_bytes(&include_bytes!("../res/lerna.json")[..])
+}
+
+pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Stakenet wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
