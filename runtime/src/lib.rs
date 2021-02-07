@@ -35,7 +35,7 @@ use frame_system::limits;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
+	traits::{Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Weight,
@@ -125,8 +125,8 @@ impl_opaque_keys! {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("hack-hydra-dx"),
-	impl_name: create_runtime_str!("hack-hydra-dx"),
+	spec_name: create_runtime_str!("hydra-dx"),
+	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 1,
@@ -149,6 +149,39 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion {
 		runtime_version: VERSION,
 		can_author_with: Default::default(),
+	}
+}
+
+pub struct BaseFilter;
+impl Filter<Call> for BaseFilter {
+	fn filter(call: &Call) -> bool {
+		match call {
+			Call::Council(_)
+			| Call::Faucet(_)
+			| Call::Balances(_)
+			| Call::Currencies(_)
+			| Call::Tokens(_)
+			| Call::AssetRegistry(_)
+			| Call::Offences(_)
+			| Call::AMM(_)
+			| Call::MultiTransactionPayment(_)
+			| Call::Exchange(_) => false,
+
+			Call::System(_)
+			| Call::RandomnessCollectiveFlip(_)
+			| Call::Elections(_)
+			| Call::Babe(_)
+			| Call::Treasury(_)
+			| Call::Tips(_)
+			| Call::Timestamp(_)
+			| Call::Authorship(_)
+			| Call::Staking(_)
+			| Call::Session(_)
+			| Call::Grandpa(_)
+			| Call::AuthorityDiscovery(_)
+			| Call::ImOnline(_)
+			| Call::Sudo(_) => true,
+		}
 	}
 }
 
@@ -186,7 +219,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = ();
+	type BaseCallFilter = BaseFilter;
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -293,7 +326,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMM;
-	type WeightInfo = pallet_transaction_multi_payment::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -341,7 +374,7 @@ impl pallet_amm::Config for Runtime {
 	type AssetPairAccountId = pallet_amm::AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type HDXAssetId = HDXAssetId;
-	type WeightInfo = pallet_amm::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_amm::weights::HydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
 }
 
@@ -350,7 +383,7 @@ impl pallet_exchange::Config for Runtime {
 	type AMMPool = AMM;
 	type Resolver = Exchange;
 	type Currency = Currencies;
-	type WeightInfo = pallet_exchange::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_exchange::weights::HydraWeight<Runtime>;
 }
 
 impl pallet_faucet::Config for Runtime {
@@ -379,10 +412,10 @@ impl pallet_authorship::Config for Runtime {
 
 pallet_staking_reward_curve::build! {
 	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		ideal_stake: 0_500_000,
-		falloff: 0_050_000,
+		min_inflation: 0_040_000,
+		max_inflation: 0_120_000,
+		ideal_stake: 0_900_000,
+		falloff: 1_000_000,
 		max_piece_count: 40,
 		test_precision: 0_005_000,
 	);
@@ -398,7 +431,6 @@ parameter_types! {
 	pub const MaxIterations: u32 = 10;
 	// 0.05%. The higher the value, the more strict solution acceptance becomes.
 	pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
-
 }
 
 impl pallet_staking::Config for Runtime {
@@ -432,10 +464,12 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = DOLLARS;
 	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(50);
+	pub const DataDepositPerByte: Balance = CENTS;
 	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
 	pub const TipReportDepositBase: Balance = DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
+	pub const MaximumReasonLength: u32 = 16384;
 	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
 	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
 				  .saturating_sub(BlockExecutionWeight::get())
@@ -466,6 +500,17 @@ impl pallet_treasury::Config for Runtime {
 	type BurnDestination = ();
 	type WeightInfo = ();
 	type SpendFunds = ();
+}
+
+impl pallet_tips::Config for Runtime {
+	type Event = Event;
+	type DataDepositPerByte = DataDepositPerByte;
+	type MaximumReasonLength = MaximumReasonLength;
+	type Tippers = Elections;
+	type TipCountdown = TipCountdown;
+	type TipFindersFee = TipFindersFee;
+	type TipReportDepositBase = TipReportDepositBase;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -624,6 +669,7 @@ construct_runtime!(
 		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
 		Offences: pallet_offences::{Module, Call, Storage, Event},
 		Historical: session_historical::{Module},
+		Tips: pallet_tips::{Module, Call, Storage, Event<T>},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},

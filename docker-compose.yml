@@ -14,4 +14,4 @@ services:
       - type: bind
         source: ./.local
         target: /root/.local
-    command: bash -c "cargo build --release && ./target/release/hack-hydra-dx --dev --ws-external"
+    command: bash -c "cargo build --release && ./target/release/hydra-dx --dev --ws-external"

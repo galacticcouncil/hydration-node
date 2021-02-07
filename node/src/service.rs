@@ -2,7 +2,7 @@
 
 #![allow(clippy::all)]
 
-use hack_hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
+use hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
@@ -16,8 +16,8 @@ use std::time::Duration;
 // Our native executor instance.
 native_executor_instance!(
 	pub Executor,
-	hack_hydra_dx_runtime::api::dispatch,
-	hack_hydra_dx_runtime::native_version,
+	hydra_dx_runtime::api::dispatch,
+	hydra_dx_runtime::native_version,
 	frame_benchmarking::benchmarking::HostFunctions,
 );
 
@@ -46,15 +46,7 @@ pub fn new_partial(
 				sc_consensus_babe::BabeLink<Block>,
 			),
 			sc_finality_grandpa::SharedVoterState,
-		),
-		/*(
-			sc_consensus_babe::BabeBlockImport<
-				Block,
-				FullClient,
-				sc_finality_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
-			>,
-			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
-		),*/
+		)
 	>,
 	ServiceError,
 > {
@@ -154,7 +146,7 @@ pub fn new_partial(
 
 /// Builds a new service for a full client.
 pub fn new_full(
-	config: Configuration,
+	mut config: Configuration,
 ) -> Result<
 	(
 		TaskManager,
@@ -181,6 +173,11 @@ pub fn new_full(
 	let backoff_authoring_blocks = Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
 
 	let shared_voter_state = rpc_setup;
+
+	config
+		.network
+		.notifications_protocols
+		.push(sc_finality_grandpa::GRANDPA_PROTOCOL_NAME.into());
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {

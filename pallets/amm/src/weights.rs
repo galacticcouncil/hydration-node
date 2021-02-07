@@ -1,4 +1,4 @@
-// This file is part of hack.HydraDX-node.
+// This file is part of HydraDX-node.
 
 // Copyright (C) 2021 Intergalactic Ltd.
 // SPDX-License-Identifier: Apache-2.0
@@ -22,7 +22,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 128
 
 // Executed Command:
-// target/release/hack-hydra-dx
+// target/release/hydra-dx
 // benchmark
 // --chain=dev
 // --steps=50
@@ -35,11 +35,13 @@
 // --output=weights.rs
 // --template=.maintain/pallet-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for amm.
@@ -51,9 +53,9 @@ pub trait WeightInfo {
 	fn buy() -> Weight;
 }
 
-/// Weights for amm using the hack.hydraDX node and recommended hardware.
-pub struct HackHydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for HackHydraWeight<T> {
+/// Weights for amm using the hydraDX node and recommended hardware.
+pub struct HydraWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn create_pool() -> Weight {
 		(244_321_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(11 as Weight))
