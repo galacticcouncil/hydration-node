@@ -33,11 +33,11 @@ primitives = {path = '../../primitives', default-features = false, version = '2.
 
 # ORML dependencies
 orml-traits = {default-features = false, version = '0.3.3-dev'}
+orml-tokens = {default-features = false, version = "0.3.3-dev"}
 
 [dev-dependencies]
 sp-core = { default-features = false, version = '2.0.0' }
-sp-io = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
+hex-literal = "0.3.1"
 
 [features]
 default = ['std']
@@ -46,6 +46,7 @@ std = [
     'frame-support/std',
     'frame-system/std',
     'orml-traits/std',
+    'orml-tokens/std',
     'primitives/std',
     'rustc-hex/std',
     'serde/std',

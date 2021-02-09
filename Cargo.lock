@@ -1885,6 +1885,7 @@ dependencies = [
  "frame-benchmarking-cli",
  "futures 0.3.8",
  "hack-hydra-dx-runtime",
+ "hex-literal",
  "jsonrpc-core",
  "module-amm-rpc",
  "pallet-claims",
@@ -3865,6 +3866,8 @@ version = "2.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hex-literal",
+ "orml-tokens",
  "orml-traits",
  "parity-scale-codec",
  "primitives",

@@ -17,6 +17,7 @@ use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use pallet_claims::EthereumAddress;
+use hex_literal::hex;
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -273,13 +274,12 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 	let mut claims = Vec::<(EthereumAddress, Balance)>::new();
 
 	// Alice's claim
-	// ETH address: 0xf24ff3a9cf04c71dbc94d0b566f7a27b94566cac
-	// Signature: xef9816023122208983c11e596446874df3d400d2f9e380a831206d0e91bfb96d54db352fbd62d3cfa8d8674cf63e6a32052ef3cab038e1e7398eac3d048ed5181c
+	// Signature: 0xef9816023122208983c11e596446874df3d400d2f9e380a831206d0e91bfb96d54db352fbd62d3cfa8d8674cf63e6a32052ef3cab038e1e7398eac3d048ed5181c
 	// Message: "I hereby claim all my xHDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
-	let claim_address_1 = (EthereumAddress([130, 2, 192, 175, 89, 98, 183, 80, 18, 60, 225, 169, 177, 46, 28, 48, 164, 151, 53, 87]), 50_000_000);
-
-	// ETH address: 0xa62d135aa5605658d778f4ea82b300ea0f97416c
-	let claim_address_2 = (EthereumAddress([166, 45, 19, 90, 165, 96, 86, 88, 215, 120, 244, 234, 130, 179, 0, 234, 15, 151, 65, 108]), 666_000_000);
+	let claim_address_1 = (EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]), 50_000_000);
+	
+	// Another claim
+	let claim_address_2 = (EthereumAddress(hex!["a62d135aa5605658d778f4ea82b300ea0f97416c"]), 666_000_000);
 	
 	claims.push(claim_address_1);
 	claims.push(claim_address_2);

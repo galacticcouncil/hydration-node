@@ -3,7 +3,7 @@ use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, 
     dispatch::DispatchResult, ensure,
     traits::Get,
-    weights::Pays
+    weights::{DispatchClass, Pays}
 };
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
@@ -29,7 +29,7 @@ pub trait Config: frame_system::Config {
     type Prefix: Get<&'static [u8]>;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, Debug)]
 pub struct EthereumAddress(pub [u8; 20]);
 
 #[cfg(feature = "std")]
@@ -47,7 +47,7 @@ impl<'de> Deserialize<'de> for EthereumAddress {
 		let offset = if base_string.starts_with("0x") { 2 } else { 0 };
 		let s = &base_string[offset..];
 		if s.len() != 40 {
-			Err(serde::de::Error::custom("Bad length of Ethereum address (should be 42 including '0x')"))?;
+			return Err(serde::de::Error::custom("Bad length of Ethereum address (should be 42 including '0x')"))?;
 		}
 		let raw: Vec<u8> = rustc_hex::FromHex::from_hex(s)
 			.map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
@@ -62,7 +62,7 @@ pub struct EcdsaSignature(pub [u8; 65]);
 
 impl PartialEq for EcdsaSignature {
 	fn eq(&self, other: &Self) -> bool {
-		&self.0[..] == &other.0[..]
+		&self.0 == &other.0
 	}
 }
 
@@ -123,7 +123,7 @@ decl_module! {
         /// The Prefix that is used in signed Ethereum messages for this network
         const Prefix: &[u8] = T::Prefix::get();
 
-		#[weight = (0, Pays::No)]
+		#[weight = (0, DispatchClass::Normal, Pays::No)]
 		fn claim(origin, ethereum_signature: EcdsaSignature)  {
             let sender = ensure_signed(origin)?;
 
