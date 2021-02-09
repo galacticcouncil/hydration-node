@@ -23,7 +23,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use sp_std::collections::btree_map::BTreeMap;
+use sp_std::collections::btree_set::BTreeSet;
 
 use frame_system::limits;
 // A few exports that help ease life for downstream crates.
@@ -52,7 +52,7 @@ use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
-use orml_xcm_support::IsConcreteWithGeneralKey;
+use orml_xcm_support::{IsConcreteWithGeneralKey, NativePalletAssetOr};
 
 use cumulus_primitives::relay_chain::Balance as RelayChainBalance;
 pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
@@ -71,7 +71,6 @@ use xcm_executor::{Config, XcmExecutor};
 pub use pallet_asset_registry;
 pub use pallet_faucet;
 
-use crate::xcm_support::NativePalletAssetOr;
 use cumulus_primitives::ParaId;
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
 
@@ -361,21 +360,22 @@ impl parachain_info::Config for Runtime {}
 
 parameter_types! {
 	pub const PolkadotNetworkId: NetworkId = NetworkId::Polkadot;
-	pub RelayChainOrigin: Origin = xcm_handler::Origin::Relay.into();
 
-	pub const RococoLocation: MultiLocation = MultiLocation::X1(Junction::Parent);
-	pub const RococoNetwork: NetworkId = NetworkId::Polkadot;
+	pub HydrateNetwork: NetworkId = NetworkId::Named("hydrate".into());
+	pub RelayChainOrigin: Origin = xcm_handler::Origin::Relay.into();
 
 	pub Ancestry: MultiLocation = MultiLocation::X1(Junction::Parachain {
 		id: ParachainInfo::parachain_id().into(),
 	});
+
+	pub const RelayChainCurrencyId: CurrencyId = CurrencyId::DOT;
 }
 
 type LocationConverter = (
 	ParentIsDefault<AccountId>,
 	ChildParachainConvertsVia<ParaId, AccountId>,
 	SiblingParachainConvertsVia<Sibling, AccountId>,
-	AccountId32Aliases<RococoNetwork, AccountId>,
+	AccountId32Aliases<HydrateNetwork, AccountId>,
 );
 
 type LocalAssetTransactor = CurrencyAdapter<
@@ -392,14 +392,14 @@ type LocalOriginConverter = (
 	SovereignSignedViaLocation<LocationConverter, Origin>,
 	RelayChainAsNative<RelayChainOrigin, Origin>,
 	SiblingParachainAsNative<xcm_handler::Origin, Origin>,
-	SignedAccountId32AsNative<RococoNetwork, Origin>,
+	SignedAccountId32AsNative<HydrateNetwork, Origin>,
 );
 
 parameter_types! {
-	pub NativeTokens: BTreeMap<Vec<u8>, MultiLocation> = {
-		let mut t = BTreeMap::new();
-		t.insert("ACA".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 5000 }));
-		t.insert("HDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 200}));
+	pub NativeTokens: BTreeSet<(Vec<u8>, MultiLocation)> = {
+		let mut t = BTreeSet::new();
+		t.insert(("ACA".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 5000 })));
+		t.insert(("HDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 200})));
 		t
 	};
 }
