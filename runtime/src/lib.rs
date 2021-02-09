@@ -4,7 +4,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::large_enum_variant)]
 
-mod currency; // Make the WASM binary available.
+// Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -23,7 +23,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use currency::SupportedAssetIds;
+use sp_std::collections::btree_map::BTreeMap;
 
 use frame_system::limits;
 // A few exports that help ease life for downstream crates.
@@ -44,6 +44,10 @@ pub use sp_runtime::{Perbill, Permill};
 
 use primitives::fee;
 
+mod xcm_support;
+
+use xcm_support::CurrencyId;
+
 use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
@@ -51,22 +55,24 @@ use orml_traits::parameter_type_with_key;
 use orml_xcm_support::IsConcreteWithGeneralKey;
 
 use cumulus_primitives::relay_chain::Balance as RelayChainBalance;
-
 pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 // XCM imports
 use polkadot_parachain::primitives::Sibling;
 use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
-	AccountId32Aliases, CurrencyAdapter, LocationInverter, ParentIsDefault, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SovereignSignedViaLocation,
+	AccountId32Aliases, ChildParachainConvertsVia, CurrencyAdapter, LocationInverter, ParentIsDefault,
+	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SovereignSignedViaLocation,
 };
-use xcm_executor::{traits::NativeAsset, Config, XcmExecutor};
+use xcm_executor::{Config, XcmExecutor};
 
 /// Import HydraDX pallets
 pub use pallet_asset_registry;
 pub use pallet_faucet;
 
+use crate::xcm_support::NativePalletAssetOr;
+use cumulus_primitives::ParaId;
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
 
 /// An index to a block.
@@ -346,24 +352,28 @@ impl pallet_faucet::Config for Runtime {
 impl cumulus_parachain_system::Config for Runtime {
 	type Event = Event;
 	type OnValidationData = ();
-	type SelfParaId = parachain_info::Module<Runtime>;
-	type DownwardMessageHandlers = ();
-	type HrmpMessageHandlers = ();
+	type SelfParaId = ParachainInfo;
+	type DownwardMessageHandlers = XcmHandler;
+	type HrmpMessageHandlers = XcmHandler;
 }
 
 impl parachain_info::Config for Runtime {}
 
 parameter_types! {
+	pub const PolkadotNetworkId: NetworkId = NetworkId::Polkadot;
+	pub RelayChainOrigin: Origin = xcm_handler::Origin::Relay.into();
+
 	pub const RococoLocation: MultiLocation = MultiLocation::X1(Junction::Parent);
 	pub const RococoNetwork: NetworkId = NetworkId::Polkadot;
-	pub RelayChainOrigin: Origin = xcm_handler::Origin::Relay.into();
-	pub Ancestry: MultiLocation = Junction::Parachain {
-		id: ParachainInfo::parachain_id().into()
-	}.into();
+
+	pub Ancestry: MultiLocation = MultiLocation::X1(Junction::Parachain {
+		id: ParachainInfo::parachain_id().into(),
+	});
 }
 
 type LocationConverter = (
 	ParentIsDefault<AccountId>,
+	ChildParachainConvertsVia<ParaId, AccountId>,
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	AccountId32Aliases<RococoNetwork, AccountId>,
 );
@@ -371,7 +381,7 @@ type LocationConverter = (
 type LocalAssetTransactor = CurrencyAdapter<
 	// Use this currency:
 	Balances,
-	IsConcreteWithGeneralKey<SupportedAssetIds, RelayToNative>,
+	IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
 	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
 	LocationConverter,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -385,6 +395,15 @@ type LocalOriginConverter = (
 	SignedAccountId32AsNative<RococoNetwork, Origin>,
 );
 
+parameter_types! {
+	pub NativeTokens: BTreeMap<Vec<u8>, MultiLocation> = {
+		let mut t = BTreeMap::new();
+		t.insert("ACA".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 5000 }));
+		t.insert("HDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 200}));
+		t
+	};
+}
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type Call = Call;
@@ -392,7 +411,7 @@ impl Config for XcmConfig {
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = LocalOriginConverter;
-	type IsReserve = NativeAsset;
+	type IsReserve = NativePalletAssetOr<NativeTokens>;
 	type IsTeleporter = ();
 	type LocationInverter = LocationInverter<Ancestry>;
 }
@@ -432,7 +451,7 @@ impl orml_xtokens::Config for Runtime {
 	type Balance = Balance;
 	type ToRelayChainBalance = NativeToRelay;
 	type AccountId32Convert = AccountId32Convert;
-	type RelayChainNetworkId = RococoNetwork;
+	type RelayChainNetworkId = PolkadotNetworkId;
 	type ParaId = ParachainInfo;
 	type AccountIdConverter = LocationConverter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
