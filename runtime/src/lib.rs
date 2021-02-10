@@ -18,7 +18,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
-use sp_std::convert::{From, TryFrom, TryInto};
+use sp_std::convert::{From, TryFrom};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -52,7 +52,7 @@ use module_amm_rpc_runtime_api as amm_rpc;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use orml_xcm_support::{
-	CurrencyIdConversion, CurrencyIdConverter, IsConcreteWithGeneralKey,
+	CurrencyIdConversion, IsConcreteWithGeneralKey,
 	MultiCurrencyAdapter as XCMMultiCurrencyAdapter, NativePalletAssetOr,
 };
 
@@ -63,7 +63,7 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 use polkadot_parachain::primitives::Sibling;
 use xcm::v0::{Junction, MultiAsset, MultiLocation, NetworkId};
 use xcm_builder::{
-	AccountId32Aliases, ChildParachainConvertsVia, CurrencyAdapter, LocationInverter, ParentIsDefault,
+	AccountId32Aliases, ChildParachainConvertsVia, LocationInverter, ParentIsDefault,
 	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
 	SovereignSignedViaLocation,
 };
@@ -75,7 +75,6 @@ pub use pallet_faucet;
 
 use cumulus_primitives::ParaId;
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
-use sp_std::marker::PhantomData;
 
 /// An index to a block.
 pub type BlockNumber = u32;
