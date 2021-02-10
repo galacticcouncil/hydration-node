@@ -1,17 +1,11 @@
-version: "3.2"
-
+version: "3.4"
 services:
-  dev:
-    container_name: hydra-dx-node
-    image: paritytech/ci-linux:production
-    working_dir: /hydra-dx-node
-    ports:
-      - "9944:9944"
-    environment:
-      - CARGO_HOME=/hydra-dx-node/.cargo
-    volumes:
-      - .:/hydra-dx-node
-      - type: bind
-        source: ./.local
-        target: /root/.local
-    command: bash -c "cargo build --release && ./target/release/hydra-dx --dev --ws-external"
+  hydradx-node.public.dappnode.eth:
+    build:
+      context: ./build
+      args:
+        UPSTREAM_VERSION: master
+    image: "hydradx-node.public.dappnode.eth:0.1.1"
+    restart: unless-stopped
+volumes:
+  hydra: {}

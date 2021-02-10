@@ -25,3 +25,5 @@
 
 .idea/
 
+# DAppNodeSDK release directories
+build_*
