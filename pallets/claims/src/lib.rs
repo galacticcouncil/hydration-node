@@ -1,19 +1,23 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::{Decode, Encode};
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, 
-    dispatch::DispatchResult, ensure,
-    traits::Get,
-    weights::{DispatchClass, Pays}
+use codec::Encode;
+use frame_support::{
+	decl_error, decl_event, decl_module, decl_storage,
+	dispatch::DispatchResult,
+	ensure,
+	traits::Get,
+	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use primitives::{AssetId, Balance, CORE_ASSET_ID};
-use sp_io::{hashing::keccak_256, crypto::secp256k1_ecdsa_recover};
-use sp_std::vec::Vec;
-use sp_runtime::{traits::Zero};
+use orml_utilities::with_transaction_result;
+use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
+use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
+use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
-#[cfg(feature = "std")]
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use sp_std::vec::Vec;
+pub use traits::*;
+
+mod traits;
 
 #[cfg(test)]
 mod mock;
@@ -21,61 +25,10 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub type BalanceOf<T> = <<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
-
 pub trait Config: frame_system::Config {
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-    type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
-    type Prefix: Get<&'static [u8]>;
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Encode, Decode, Default, Debug)]
-pub struct EthereumAddress(pub [u8; 20]);
-
-#[cfg(feature = "std")]
-impl Serialize for EthereumAddress {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let hex: String = rustc_hex::ToHex::to_hex(&self.0[..]);
-		serializer.serialize_str(&format!("0x{}", hex))
-	}
-}
-
-#[cfg(feature = "std")]
-impl<'de> Deserialize<'de> for EthereumAddress {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-		let base_string = String::deserialize(deserializer)?;
-		let offset = if base_string.starts_with("0x") { 2 } else { 0 };
-		let s = &base_string[offset..];
-		if s.len() != 40 {
-			return Err(serde::de::Error::custom("Bad length of Ethereum address (should be 42 including '0x')"))?;
-		}
-		let raw: Vec<u8> = rustc_hex::FromHex::from_hex(s)
-			.map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
-		let mut r = Self::default();
-		r.0.copy_from_slice(&raw);
-		Ok(r)
-	}
-}
-
-#[derive(Encode, Decode, Clone)]
-pub struct EcdsaSignature(pub [u8; 65]);
-
-impl PartialEq for EcdsaSignature {
-	fn eq(&self, other: &Self) -> bool {
-		&self.0 == &other.0
-	}
-}
-
-impl sp_std::fmt::Debug for EcdsaSignature {
-	fn fmt(&self, f: &mut sp_std::fmt::Formatter<'_>) -> sp_std::fmt::Result {
-		write!(f, "EcdsaSignature({:?})", &self.0[..])
-	}
-}
-
-#[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
-pub enum StorageVersion {
-	V1EmptyBalances,
-	V2AddClaimData,
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
+	type Prefix: Get<&'static [u8]>;
 }
 
 decl_storage! {
@@ -83,17 +36,17 @@ decl_storage! {
 		HDXClaims get(fn hdxclaims): map hasher(blake2_128_concat) EthereumAddress => Balance;
 
 		PalletVersion: StorageVersion = StorageVersion::V1EmptyBalances;
-    }
-    
-    add_extra_genesis {
+	}
+
+	add_extra_genesis {
 		config(claims): Vec<(EthereumAddress, Balance)>;
 
 		build(|config: &GenesisConfig| {
 			config.claims.iter().for_each(|(eth_address, initial_balance)| {
 				HDXClaims::mutate(eth_address, | amount | *amount += *initial_balance)
 			})
-        })
-    }
+		})
+	}
 }
 
 decl_event!(
@@ -108,9 +61,9 @@ decl_event!(
 
 decl_error! {
 	pub enum Error for Module<T: Config> {
-        InvalidEthereumSignature,
-        InvalidStatement,
-        NoClaimOrAlreadyClaimed,
+		InvalidEthereumSignature,
+		InvalidStatement,
+		NoClaimOrAlreadyClaimed,
 	}
 }
 
@@ -120,39 +73,40 @@ decl_module! {
 
 		fn deposit_event() = default;
 
-        /// The Prefix that is used in signed Ethereum messages for this network
-        const Prefix: &[u8] = T::Prefix::get();
+		/// The Prefix that is used in signed Ethereum messages for this network
+		const Prefix: &[u8] = T::Prefix::get();
 
 		#[weight = (0, DispatchClass::Normal, Pays::No)]
 		fn claim(origin, ethereum_signature: EcdsaSignature)  {
-            let sender = ensure_signed(origin)?;
+			let sender = ensure_signed(origin)?;
 
-            let sender_hex = sender.using_encoded(to_ascii_hex);
+			let sender_hex = sender.using_encoded(to_ascii_hex);
 
 			let signer = Self::eth_recover(&ethereum_signature, &sender_hex).ok_or(Error::<T>::InvalidEthereumSignature)?;
-            
-            Self::process_claim(signer, sender)?;
+
+			Self::process_claim(signer, sender)?;
 		}
 	}
 }
 
 impl<T: Config> Module<T> {
-    fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
-        
+	fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
 		// TODO: Fix multicurrency support and separate checks for not matching addresses and already claimed
-        let balance_due = HDXClaims::get(&signer);
+		let balance_due = HDXClaims::get(&signer);
 
-        ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
+		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
 
-        HDXClaims::insert(signer, 0);
+		with_transaction_result(|| {
+			HDXClaims::insert(signer, 0);
+			T::Currency::deposit(CORE_ASSET_ID, &dest, balance_due)?;
+			Ok(())
+		})?;
 
-		T::Currency::deposit(CORE_ASSET_ID, &dest, balance_due)?;
+		Self::deposit_event(RawEvent::HDXClaimed(dest, balance_due));
+		Ok(())
+	}
 
-        Self::deposit_event(RawEvent::HDXClaimed(dest, balance_due));
-        Ok(())
-    }
-
-    // Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
+	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
 	fn ethereum_signable_message(what: &[u8]) -> Vec<u8> {
 		let prefix = T::Prefix::get();
 		let mut l = prefix.len() + what.len();
@@ -168,12 +122,13 @@ impl<T: Config> Module<T> {
 		v
 	}
 
-    // Attempts to recover the Ethereum address from a message signature signed by using
+	// Attempts to recover the Ethereum address from a message signature signed by using
 	// the Ethereum RPC's `personal_sign` and `eth_sign`.
 	fn eth_recover(s: &EcdsaSignature, what: &[u8]) -> Option<EthereumAddress> {
 		let msg = keccak_256(&Self::ethereum_signable_message(what));
 		let mut res = EthereumAddress::default();
-		res.0.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..])[12..]);
+		res.0
+			.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..])[12..]);
 		Some(res)
 	}
 }
@@ -203,5 +158,4 @@ pub mod migration {
 			0
 		}
 	}
-
 }

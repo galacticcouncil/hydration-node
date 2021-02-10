@@ -1,9 +1,9 @@
-use crate::{Config, EthereumAddress, Module, GenesisConfig};
+use crate::{Config, EthereumAddress, GenesisConfig, Module};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system;
 use orml_traits::parameter_type_with_key;
 use primitives::{AssetId, Balance};
-use sp_core::{H256};
+use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, Zero},
@@ -64,7 +64,7 @@ impl orml_tokens::Config for Test {
 
 pub type Currency = orml_tokens::Module<Test>;
 
-parameter_types!{
+parameter_types! {
 	pub Prefix: &'static [u8] = b"I hereby claim all my xHDX tokens to wallet:";
 }
 
@@ -98,10 +98,15 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		GenesisConfig {
-			claims: vec![
-				(EthereumAddress([130, 2, 192, 175, 89, 98, 183, 80, 18, 60, 225, 169, 177, 46, 28, 48, 164, 151, 53, 87]), 50_000),
-			],
-		}.assimilate_storage(&mut t).unwrap();
+			claims: vec![(
+				EthereumAddress([
+					130, 2, 192, 175, 89, 98, 183, 80, 18, 60, 225, 169, 177, 46, 28, 48, 164, 151, 53, 87,
+				]),
+				50_000,
+			)],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			endowed_accounts: self.endowed_accounts,
@@ -116,9 +121,7 @@ impl ExtBuilder {
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![
-				(ALICE, HDX, 1000u128),
-			],
+			endowed_accounts: vec![(ALICE, HDX, 1000u128)],
 		}
 	}
 }
