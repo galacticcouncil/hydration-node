@@ -64,7 +64,7 @@ def show_pallet_result(pallet, hydra_data, current_data):
     note = "OK" if diff >= -hydra_margin else "FAILED"
 
     diff = f"{diff}"
-    times = f"{hydra} vs {current}"
+    times = f"{hydra:.2f} vs {current:.2f}"
 
     print(f"{pallet:<25}| {times:^25} | {diff:^13} | {note:^10}")
 
