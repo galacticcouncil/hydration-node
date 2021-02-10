@@ -13,11 +13,11 @@ use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
+use hex_literal::hex;
+use pallet_claims::EthereumAddress;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use pallet_claims::EthereumAddress;
-use hex_literal::hex;
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -276,11 +276,17 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 	// Alice's claim
 	// Signature: 0xef9816023122208983c11e596446874df3d400d2f9e380a831206d0e91bfb96d54db352fbd62d3cfa8d8674cf63e6a32052ef3cab038e1e7398eac3d048ed5181c
 	// Message: "I hereby claim all my xHDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
-	let claim_address_1 = (EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]), 50_000_000);
-	
+	let claim_address_1 = (
+		EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
+		50_000_000,
+	);
+
 	// Another claim
-	let claim_address_2 = (EthereumAddress(hex!["a62d135aa5605658d778f4ea82b300ea0f97416c"]), 666_000_000);
-	
+	let claim_address_2 = (
+		EthereumAddress(hex!["a62d135aa5605658d778f4ea82b300ea0f97416c"]),
+		666_000_000,
+	);
+
 	claims.push(claim_address_1);
 	claims.push(claim_address_2);
 	claims

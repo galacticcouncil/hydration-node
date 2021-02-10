@@ -27,6 +27,8 @@ serde = { optional = true, version = '1.0.101', features = ['derive'] }
 sp-io = { default-features = false, version = '2.0.0' }
 sp-runtime = { default-features = false, version = '2.0.0' }
 sp-std = { default-features = false, version = '2.0.0' }
+hex = {default-features = false, version = "0.4.2"}
+lazy_static = {features = ['spin_no_std'], version = "1.4.0"}
 
 # Local dependencies
 primitives = {path = '../../primitives', default-features = false, version = '2.0.0'}

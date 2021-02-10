@@ -8,6 +8,7 @@ use frame_support::{
 	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
+use hex::FromHex;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use orml_utilities::with_transaction_result;
 use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
@@ -17,6 +18,7 @@ use sp_std::prelude::*;
 use sp_std::vec::Vec;
 pub use traits::*;
 
+mod claims_data;
 mod traits;
 
 #[cfg(test)]
@@ -86,6 +88,10 @@ decl_module! {
 
 			Self::process_claim(signer, sender)?;
 		}
+
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			migration::migrate_to_v2::<T>()
+		}
 	}
 }
 
@@ -150,7 +156,15 @@ pub mod migration {
 	pub fn migrate_to_v2<T: Config>() -> frame_support::weights::Weight {
 		if PalletVersion::get() == StorageVersion::V1EmptyBalances {
 			frame_support::debug::info!(" >>> Adding xHDX claims to the storage");
-			// put code inserting the struct data here
+			for (addr, amount) in claims_data::CLAIMS_DATA.iter() {
+				HDXClaims::insert(
+					EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
+						frame_support::debug::warn!("Error encountered while migrating Ethereum address: {}", addr);
+						EthereumAddress::default().0
+					})),
+					amount,
+				);
+			}
 			PalletVersion::put(StorageVersion::V2AddClaimData);
 			T::DbWeight::get().reads_writes(2, 3)
 		} else {
