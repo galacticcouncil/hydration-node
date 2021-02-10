@@ -5,7 +5,7 @@ from collections import defaultdict
 
 HYDRA_REF_VALUES_LOCATION = ".maintain/bench-check/hydradx-bench-data.json"
 
-DIFF_MARGIN = 10 # percent
+DIFF_MARGIN = 15 # percent
 
 COMMAND = [
     'cargo', 'run', '--release',
@@ -14,7 +14,7 @@ COMMAND = [
     '--',
     'benchmark',
     '--chain=dev',
-    '--steps=50',
+    '--steps=5',
     '--repeat=20',
     '--extrinsic=*',
     '--execution=wasm',
