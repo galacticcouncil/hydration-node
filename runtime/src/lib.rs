@@ -18,6 +18,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
+use sp_std::convert::{From, TryFrom, TryInto};
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -29,7 +30,7 @@ use frame_system::limits;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness},
+	traits::{Get, KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Weight,
@@ -44,22 +45,23 @@ pub use sp_runtime::{Perbill, Permill};
 
 use primitives::fee;
 
-mod xcm_support;
-
-use xcm_support::CurrencyId;
+use primitives::currency::CurrencyId;
 
 use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
-use orml_xcm_support::{IsConcreteWithGeneralKey, NativePalletAssetOr};
+use orml_xcm_support::{
+	CurrencyIdConversion, CurrencyIdConverter, IsConcreteWithGeneralKey,
+	MultiCurrencyAdapter as XCMMultiCurrencyAdapter, NativePalletAssetOr,
+};
 
 use cumulus_primitives::relay_chain::Balance as RelayChainBalance;
 pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 // XCM imports
 use polkadot_parachain::primitives::Sibling;
-use xcm::v0::{Junction, MultiLocation, NetworkId};
+use xcm::v0::{Junction, MultiAsset, MultiLocation, NetworkId};
 use xcm_builder::{
 	AccountId32Aliases, ChildParachainConvertsVia, CurrencyAdapter, LocationInverter, ParentIsDefault,
 	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
@@ -73,6 +75,7 @@ pub use pallet_faucet;
 
 use cumulus_primitives::ParaId;
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
+use sp_std::marker::PhantomData;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -378,14 +381,34 @@ type LocationConverter = (
 	AccountId32Aliases<HydrateNetwork, AccountId>,
 );
 
-type LocalAssetTransactor = CurrencyAdapter<
-	// Use this currency:
-	Balances,
+pub struct AssetCurrencyConverter;
+
+impl CurrencyIdConversion<AssetId> for AssetCurrencyConverter {
+	fn from_asset(asset: &MultiAsset) -> Option<AssetId> {
+		if let MultiAsset::ConcreteFungible { id: location, .. } = asset {
+			if location == &MultiLocation::X1(Junction::Parent) {
+				return Some(CurrencyId::DOT as u32);
+			}
+			if let Some(Junction::GeneralKey(key)) = location.last() {
+				let r = match CurrencyId::try_from(key.clone()).ok() {
+					Some(val) => Some(val as u32),
+					None => None,
+				};
+
+				return r;
+			}
+		}
+		None
+	}
+}
+
+pub type LocalAssetTransactor = XCMMultiCurrencyAdapter<
+	Currencies,
 	IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
-	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
 	LocationConverter,
-	// Our chain's account ID type (we can't get away without mentioning it explicitly):
 	AccountId,
+	AssetCurrencyConverter,
+	AssetId,
 >;
 
 type LocalOriginConverter = (
@@ -398,8 +421,8 @@ type LocalOriginConverter = (
 parameter_types! {
 	pub NativeTokens: BTreeSet<(Vec<u8>, MultiLocation)> = {
 		let mut t = BTreeSet::new();
-		t.insert(("ACA".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 5000 })));
 		t.insert(("HDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 200})));
+		t.insert(("xHDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 300})));
 		t
 	};
 }
