@@ -22,7 +22,7 @@ COMMAND = [
     '--heap-pages=4096',
 ]
 
-PALLETs = ["amm", "exchange", "transaction_multi_payment"]
+PALLETS = ["amm", "exchange", "transaction_multi_payment"]
 
 def load_hydra_values(filename):
     with open(filename,"r") as f:
@@ -37,7 +37,7 @@ def run_benchmarks():
     print("Running benchmarks - this may take a while...")
 
     results = defaultdict(dict)
-    for pallet in PALLETs:
+    for pallet in PALLETS:
         command = COMMAND + [f"--pallet={pallet}"]
 
         result = subprocess.run(command, capture_output=True)
@@ -47,9 +47,9 @@ def run_benchmarks():
         for idx, line in enumerate(lines):
             if line.startswith("Pallet:"):
                 info = line.split(",")
-                pallet = info[0].split(":")[1].strip()[1:-1]
+                pallet_name = info[0].split(":")[1].strip()[1:-1]
                 extrinsic = info[1].split(":")[1].strip()[1:-1]
-                results[pallet][extrinsic] = process_extrinsic(lines[idx+1:idx+21])
+                results[pallet_name][extrinsic] = process_extrinsic(lines[idx+1:idx+21])
 
     return results
 
@@ -87,8 +87,8 @@ if __name__ == '__main__':
 
     print("\nNotes:")
     print("* - diff means the difference between HydraDX reference total time and total benchmark time of current machine")
-    print("* - If diff >= 0 - ( 10% of ref value) -> performance is same or better")
-    print("* - If diff < 0 - ( 10% of ref value) -> performance is worse and might not be suitable to run HydraDX node ( You may ask HydraDX devs for further clarifications)")
+    print(f"* - If diff >= 0 - ( {DIFF_MARGIN} of ref value) -> performance is same or better")
+    print(f"* - If diff < 0 - ( {DIFF_MARGIN} of ref value) -> performance is worse and might not be suitable to run HydraDX node ( You may ask HydraDX devs for further clarifications)")
 
     #write_hydra_results(results, "scripts/h.json")
 
