@@ -1,4 +1,4 @@
-// This file is part of hack.HydraDX-node.
+// This file is part of HydraDX-node.
 
 // Copyright (C) 2021 Intergalactic Ltd.
 // SPDX-License-Identifier: Apache-2.0
@@ -22,7 +22,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 128
 
 // Executed Command:
-// target/release/hack-hydra-dx
+// target/release/hydra-dx
 // benchmark
 // --chain=dev
 // --steps=5
@@ -35,11 +35,13 @@
 // --output=weights.rs
 // --template=.maintain/pallet-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for exchange.
@@ -47,21 +49,20 @@ pub trait WeightInfo {
 	fn known_overhead_for_on_finalize() -> Weight;
 	fn sell_intention() -> Weight;
 	fn buy_intention() -> Weight;
-	fn on_finalize(t: u32, ) -> Weight;
-	fn on_finalize_buys_no_matches(t: u32, ) -> Weight;
-	fn on_finalize_sells_no_matches(t: u32, ) -> Weight;
+	fn on_finalize(t: u32) -> Weight;
+	fn on_finalize_buys_no_matches(t: u32) -> Weight;
+	fn on_finalize_sells_no_matches(t: u32) -> Weight;
 	fn sell_extrinsic() -> Weight;
 	fn on_finalize_for_one_sell_extrinsic() -> Weight;
 	fn buy_extrinsic() -> Weight;
 	fn on_finalize_for_one_buy_extrinsic() -> Weight;
 }
 
-/// Weights for exchange using the hack.hydraDX node and recommended hardware.
-pub struct HackHydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for HackHydraWeight<T> {
+/// Weights for exchange using the hydraDX node and recommended hardware.
+pub struct HydraWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn known_overhead_for_on_finalize() -> Weight {
-		(14_497_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(13_726_000 as Weight).saturating_add(T::DbWeight::get().reads(1 as Weight))
 	}
 	fn sell_intention() -> Weight {
 		(131_805_000 as Weight)
@@ -73,29 +74,30 @@ impl<T: frame_system::Config> WeightInfo for HackHydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(6 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
-	fn on_finalize(t: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 133_000
-			.saturating_add((168_130_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
+
+	fn on_finalize(t: u32) -> Weight {
+		(21_475_000 as Weight)
+			// Standard Error: 36_000
+			.saturating_add((156_991_000 as Weight).saturating_mul(t as Weight))
+			.saturating_add(T::DbWeight::get().reads(7 as Weight))
 			.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
 	}
-	fn on_finalize_buys_no_matches(t: u32, ) -> Weight {
-		(44_972_000 as Weight)
-			// Standard Error: 91_000
-			.saturating_add((184_636_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
+	fn on_finalize_buys_no_matches(t: u32) -> Weight {
+		(60_923_000 as Weight)
+			// Standard Error: 23_000
+			.saturating_add((174_428_000 as Weight).saturating_mul(t as Weight))
+			.saturating_add(T::DbWeight::get().reads(7 as Weight))
 			.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
 	}
-	fn on_finalize_sells_no_matches(t: u32, ) -> Weight {
-		(42_674_000 as Weight)
-			// Standard Error: 95_000
-			.saturating_add((161_618_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
+	fn on_finalize_sells_no_matches(t: u32) -> Weight {
+		(58_150_000 as Weight)
+			// Standard Error: 20_000
+			.saturating_add((151_583_000 as Weight).saturating_mul(t as Weight))
+			.saturating_add(T::DbWeight::get().reads(7 as Weight))
 			.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
@@ -125,8 +127,7 @@ impl<T: frame_system::Config> WeightInfo for HackHydraWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn known_overhead_for_on_finalize() -> Weight {
-		(14_497_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		(13_726_000 as Weight).saturating_add(RocksDbWeight::get().reads(1 as Weight))
 	}
 	fn sell_intention() -> Weight {
 		(131_805_000 as Weight)
@@ -138,29 +139,33 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
-	fn on_finalize(t: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 133_000
-			.saturating_add((168_130_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+
+	fn on_finalize(t: u32) -> Weight {
+		(21_475_000 as Weight)
+			// Standard Error: 36_000
+			.saturating_add((156_991_000 as Weight).saturating_mul(t as Weight))
+			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
 			.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
 	}
-	fn on_finalize_buys_no_matches(t: u32, ) -> Weight {
-		(44_972_000 as Weight)
-			// Standard Error: 91_000
-			.saturating_add((184_636_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+
+	fn on_finalize_buys_no_matches(t: u32) -> Weight {
+		(60_923_000 as Weight)
+			// Standard Error: 23_000
+			.saturating_add((174_428_000 as Weight).saturating_mul(t as Weight))
+			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
+
 			.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
 	}
-	fn on_finalize_sells_no_matches(t: u32, ) -> Weight {
-		(42_674_000 as Weight)
-			// Standard Error: 95_000
-			.saturating_add((161_618_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+
+	fn on_finalize_sells_no_matches(t: u32) -> Weight {
+		(58_150_000 as Weight)
+			// Standard Error: 20_000
+			.saturating_add((151_583_000 as Weight).saturating_mul(t as Weight))
+			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
 			.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))

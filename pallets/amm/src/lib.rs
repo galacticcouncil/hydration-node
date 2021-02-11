@@ -17,6 +17,8 @@ use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 use primitives::Amount;
 
+use hack_hydra_dx_math as hydra_dx_math;
+
 #[cfg(test)]
 mod mock;
 
@@ -294,7 +296,7 @@ decl_module! {
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 			let total_liquidity = Self::total_liquidity(&pair_account);
 
-			let amount_b_required = hack_hydra_dx_math::calculate_liquidity_in(asset_a_reserve,
+			let amount_b_required = hydra_dx_math::calculate_liquidity_in(asset_a_reserve,
 				asset_b_reserve,
 				amount_a).ok_or(Error::<T>::AddAssetAmountInvalid)?;
 
@@ -374,7 +376,7 @@ decl_module! {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let liquidity_out = hack_hydra_dx_math::calculate_liquidity_out(asset_a_reserve,
+			let liquidity_out = hydra_dx_math::calculate_liquidity_out(asset_a_reserve,
 				asset_b_reserve,
 				liquidity_amount,
 				total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
@@ -458,7 +460,7 @@ impl<T: Config> Module<T> {
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-				hack_hydra_dx_math::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount)
+				hydra_dx_math::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount)
 					.or(Some(0))
 					.unwrap()
 			}
@@ -473,7 +475,7 @@ impl<T: Config> Module<T> {
 
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-				hack_hydra_dx_math::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount)
+				hydra_dx_math::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount)
 					.or(Some(0))
 					.unwrap()
 			}
@@ -538,7 +540,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-		hack_hydra_dx_math::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount)
+		hydra_dx_math::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount)
 			.or(Some(0))
 			.unwrap()
 	}
@@ -580,16 +582,13 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer_fee = Self::calculate_fees(amount_sell, discount, &mut hdx_amount)?;
 
-		let sale_price = match hack_hydra_dx_math::calculate_sell_price(
-			asset_sell_total,
-			asset_buy_total,
-			amount_sell - transfer_fee,
-		) {
-			Some(x) => x,
-			None => {
-				return Err(Error::<T>::SellAssetAmountInvalid.into());
-			}
-		};
+		let sale_price =
+			match hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee) {
+				Some(x) => x,
+				None => {
+					return Err(Error::<T>::SellAssetAmountInvalid.into());
+				}
+			};
 
 		ensure!(asset_buy_total >= sale_price, Error::<T>::InsufficientAssetBalance);
 
@@ -603,7 +602,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_sell, &hdx_pair_account);
 
-			let hdx_fee_spot_price = hack_hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
+			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
 				.ok_or(Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
@@ -690,7 +689,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			Error::<T>::InsufficientPoolAssetBalance
 		);
 
-		let buy_price = match hack_hydra_dx_math::calculate_buy_price(
+		let buy_price = match hydra_dx_math::calculate_buy_price(
 			asset_sell_reserve,
 			asset_buy_reserve,
 			amount_buy + transfer_fee,
@@ -716,7 +715,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
 			let asset_reserve = T::Currency::free_balance(asset_buy, &hdx_pair_account);
 
-			let hdx_fee_spot_price = hack_hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
+			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
 				.ok_or(Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(

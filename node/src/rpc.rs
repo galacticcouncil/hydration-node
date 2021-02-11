@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use hack_hydra_dx_runtime::{opaque::Block, AccountId, AssetId, Balance, BlockNumber, Hash, Index};
+use hydra_dx_runtime::{opaque::Block, AccountId, AssetId, Balance, BlockNumber, Hash, Index};
 use sc_consensus_babe::Epoch;
 use sc_consensus_babe_rpc::BabeRpcHandler;
 use sc_finality_grandpa::FinalityProofProvider;

@@ -2,10 +2,10 @@
 authors = ['GalacticCouncil']
 description = 'HydraDX Exchange Module'
 edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Unlicense'
 name = 'pallet-faucet'
-repository = 'https://github.com/galacticcouncil/hack.hydradx-node'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
 version = '2.0.0'
 
 [package.metadata.docs.rs]
