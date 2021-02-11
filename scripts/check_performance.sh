@@ -21,7 +21,7 @@ fi
 
 echo "OK"
 
-echo -n "Toolchain ,,,,,,, "
+echo -n "Toolchain ...... "
 TOOLCHAIN=`rustup default`
 
 if [[ $TOOLCHAIN = "nightly"* ]]

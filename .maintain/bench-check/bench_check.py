@@ -55,7 +55,12 @@ def run_benchmarks():
 
 def show_pallet_result(pallet, hydra_data, current_data):
     hydra = sum(list(map(lambda x:float(x), hydra_data.values())))
-    current = sum(list(map(lambda x:float(x), current_data.values())))
+
+    c = []
+    for key in hydra_data.keys():
+        c.append(current_data[key])
+
+    current = sum(list(map(lambda x:float(x), c)))
 
     hydra_margin = int(hydra * DIFF_MARGIN / 100)
 
