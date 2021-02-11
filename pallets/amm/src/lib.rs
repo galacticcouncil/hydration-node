@@ -15,6 +15,7 @@ use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
+use primitives::Amount;
 
 #[cfg(test)]
 mod mock;
@@ -30,9 +31,14 @@ use weights::WeightInfo;
 /// The pallet's configuration trait.
 pub trait Config: frame_system::Config + pallet_asset_registry::Config {
 	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
-	type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
 
+	/// Share token support
+	type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
+
+	/// Multi currency for transfer of currencies
+	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
+
+	/// Native Asset Id
 	type HDXAssetId: Get<AssetId>;
 
 	/// Weight information for the extrinsics.
@@ -85,9 +91,13 @@ impl<T: Config> Module<T> {
 // This pallet's storage items.
 decl_storage! {
 	trait Store for Module<T: Config> as AMM {
+		/// Asset id storage for each shared token
 		ShareToken get(fn share_token): map hasher(blake2_128_concat) T::AccountId => AssetId;
+
+		/// Total liquidity for shared token
 		TotalLiquidity get(fn total_liquidity): map hasher(blake2_128_concat) T::AccountId => Balance;
 
+		/// Assair pair for each shared token in the pool
 		PoolAssets get(fn pool_assets): map hasher(blake2_128_concat) T::AccountId => (AssetId, AssetId);
 	}
 }
@@ -124,43 +134,38 @@ decl_event!(
 decl_error! {
 	pub enum Error for Module<T: Config> {
 
+		/// Create pool errors
 		CannotCreatePoolWithSameAssets,
-
 		CannotCreatePoolWithZeroLiquidity,
 		CannotCreatePoolWithZeroInitialPrice,
+		CreatePoolAssetAmountInvalid,
+
+		/// Add / Remove liquidity errors
 		CannotRemoveLiquidityWithZero,
-
 		CannotAddZeroLiquidity,
+		InvalidMintedLiquidity,
+		InvalidLiquidityAmount,
 
+		/// Balance errors
 		AssetBalanceLimitExceeded,
 		InsufficientAssetBalance,
 		InsufficientPoolAssetBalance,
 		InsufficientHDXBalance,
 
-		InvalidSharesDivResult,
-		InvalidMintedLiquidity,
-
-		NextAssetIdUnavailable,
-
+		/// Pool existence errors
 		TokenPoolNotFound,
 		TokenPoolAlreadyExists,
 
-		CreatePoolAssetAmountInvalid,
-		CreatePoolSharesAmountInvalid,
-
+		/// Calculation errors
 		AddAssetAmountInvalid,
-		AddSharesAmountInvalid,
 		RemoveAssetAmountInvalid,
 		SellAssetAmountInvalid,
 		BuyAssetAmountInvalid,
-		SpotPriceInvalid,
 		FeeAmountInvalid,
 		CannotApplyDiscount,
 
-		InvalidLiquidityAmount,
-
+		/// Trading Limit errors
 		MaxOutRatioExceeded,
-
 		MaxInRatioExceeded,
 	}
 }
@@ -171,11 +176,9 @@ decl_module! {
 	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Initializing errors
 		// this includes information about your errors in the node's metadata.
-		// it is needed only if you are using errors in your pallet
 		type Error = Error<T>;
 
 		// Initializing events
-		// this is needed only if you are using events in your pallet
 		fn deposit_event() = default;
 
 		#[weight =  <T as Config>::WeightInfo::create_pool()]
@@ -303,7 +306,7 @@ decl_module! {
 			);
 
 			ensure!(
-				shares_added >= Zero::zero(),
+				shares_added > Zero::zero(),
 				Error::<T>::InvalidMintedLiquidity
 			);
 
