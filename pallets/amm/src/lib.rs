@@ -17,6 +17,8 @@ use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 use primitives::Amount;
 
+use orml_utilities::with_transaction_result;
+
 use hack_hydra_dx_math as hydra_dx_math;
 
 #[cfg(test)]
@@ -225,32 +227,27 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			// Create pool only if amounts don't overflow
 			let pair_account = Self::get_pair_id(&asset_a, &asset_b);
 
-			let share_token = match Self::exists(asset_a, asset_b) {
-				true => Self::share_token(&pair_account),
-				false => {
-					let token_name = Self::get_token_name(asset_a, asset_b);
+			let token_name = Self::get_token_name(asset_a, asset_b);
 
-					let share_token = <pallet_asset_registry::Module<T>>::create_asset(token_name)?.into();
+			with_transaction_result(|| {
+				let share_token = <pallet_asset_registry::Module<T>>::create_asset(token_name)?.into();
 
-					<ShareToken<T>>::insert(&pair_account, &share_token);
-					<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
-					share_token
-				}
-			};
+				<ShareToken<T>>::insert(&pair_account, &share_token);
+				<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
 
-			T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
+				T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
+				T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
 
-			T::Currency::deposit(share_token, &who, shares_added)?;
+				T::Currency::deposit(share_token, &who, shares_added)?;
 
-			<TotalLiquidity<T>>::insert(&pair_account, shares_added);
+				<TotalLiquidity<T>>::insert(&pair_account, shares_added);
 
-			Self::deposit_event(RawEvent::CreatePool(who, asset_a, asset_b, shares_added));
+				Self::deposit_event(RawEvent::CreatePool(who, asset_a, asset_b, shares_added));
 
-			Ok(())
+				Ok(())
+			})
 		}
 
 		#[weight =  <T as Config>::WeightInfo::add_liquidity()]
@@ -321,16 +318,20 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, amount_b_required)?;
+			with_transaction_result(|| {
 
-			T::Currency::deposit(share_token, &who, shares_added)?;
+				T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
+				T::Currency::transfer(asset_b, &who, &pair_account, amount_b_required)?;
 
-			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
+				T::Currency::deposit(share_token, &who, shares_added)?;
 
-			Self::deposit_event(RawEvent::AddLiquidity(who, asset_a, asset_b, amount_a, amount_b_required));
+				<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
 
-			Ok(())
+				Self::deposit_event(RawEvent::AddLiquidity(who, asset_a, asset_b, amount_a, amount_b_required));
+
+				Ok(())
+
+			})
 		}
 
 		#[weight =  <T as Config>::WeightInfo::remove_liquidity()]
@@ -395,23 +396,26 @@ decl_module! {
 			// Note: this check is not really needed as we already check if amount to remove >= liquidity in pool
 			let liquidity_left = total_shares.checked_sub(liquidity_amount).ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
-			T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
-			T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
 
-			T::Currency::withdraw(share_token, &who, liquidity_amount)?;
+			with_transaction_result( || {
+				T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
+				T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
 
-			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
+				T::Currency::withdraw(share_token, &who, liquidity_amount)?;
 
-			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
+				<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
-			if liquidity_left == 0 {
-				<ShareToken<T>>::remove(&pair_account);
-				<PoolAssets<T>>::remove(&pair_account);
+				Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
 
-				Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
-			}
+				if liquidity_left == 0 {
+					<ShareToken<T>>::remove(&pair_account);
+					<PoolAssets<T>>::remove(&pair_account);
 
-			Ok(())
+					Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
+				}
+
+				Ok(())
+			})
 		}
 
 		#[weight =  <T as Config>::WeightInfo::sell()]
@@ -631,23 +635,25 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(&transfer.asset_sell, &transfer.asset_buy);
 
-		if transfer.discount && transfer.discount_amount > 0u128 {
-			let hdx_asset = T::HDXAssetId::get();
-			T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
-		}
+		with_transaction_result(|| {
+			if transfer.discount && transfer.discount_amount > 0u128 {
+				let hdx_asset = T::HDXAssetId::get();
+				T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
+			}
 
-		T::Currency::transfer(transfer.asset_sell, &transfer.origin, &pair_account, transfer.amount)?;
-		T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount_out)?;
+			T::Currency::transfer(transfer.asset_sell, &transfer.origin, &pair_account, transfer.amount)?;
+			T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount_out)?;
 
-		Self::deposit_event(Event::<T>::Sell(
-			transfer.origin.clone(),
-			transfer.asset_sell,
-			transfer.asset_buy,
-			transfer.amount,
-			transfer.amount_out,
-		));
+			Self::deposit_event(Event::<T>::Sell(
+				transfer.origin.clone(),
+				transfer.asset_sell,
+				transfer.asset_buy,
+				transfer.amount,
+				transfer.amount_out,
+			));
 
-		Ok(())
+			Ok(())
+		})
 	}
 
 	fn validate_buy(
@@ -743,27 +749,29 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(&transfer.asset_sell, &transfer.asset_buy);
 
-		if transfer.discount && transfer.discount_amount > 0 {
-			let hdx_asset = T::HDXAssetId::get();
-			T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
-		}
+		with_transaction_result(|| {
+			if transfer.discount && transfer.discount_amount > 0 {
+				let hdx_asset = T::HDXAssetId::get();
+				T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
+			}
 
-		T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount)?;
-		T::Currency::transfer(
-			transfer.asset_sell,
-			&transfer.origin,
-			&pair_account,
-			transfer.amount_out,
-		)?;
+			T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount)?;
+			T::Currency::transfer(
+				transfer.asset_sell,
+				&transfer.origin,
+				&pair_account,
+				transfer.amount_out,
+			)?;
 
-		Self::deposit_event(Event::<T>::Buy(
-			transfer.origin.clone(),
-			transfer.asset_buy,
-			transfer.asset_sell,
-			transfer.amount,
-			transfer.amount_out,
-		));
+			Self::deposit_event(Event::<T>::Buy(
+				transfer.origin.clone(),
+				transfer.asset_buy,
+				transfer.asset_sell,
+				transfer.amount,
+				transfer.amount_out,
+			));
 
-		Ok(())
+			Ok(())
+		})
 	}
 }
