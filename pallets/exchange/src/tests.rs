@@ -64,7 +64,7 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 		user, asset_a, asset_b, shares,
 	)));
 
-	let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+	let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 	let share_token = AMMModule::share_token(pair_account);
 
 	let amount_b = price.saturating_mul_int(amount);
@@ -101,7 +101,7 @@ fn sell_test_pool_finalization_states() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -209,7 +209,7 @@ fn sell_test_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -308,7 +308,7 @@ fn sell_test_inverse_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -409,7 +409,7 @@ fn sell_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -498,7 +498,7 @@ fn sell_test_single_eth_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -604,7 +604,7 @@ fn sell_test_single_dot_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -805,7 +805,7 @@ fn sell_test_single_multiple_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -991,7 +991,7 @@ fn sell_test_group_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1181,7 +1181,7 @@ fn sell_test_mixed_buy_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1320,7 +1320,7 @@ fn discount_tests_no_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1459,7 +1459,7 @@ fn discount_tests_with_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 		initialize_pool(asset_a, HDX, user_2, pool_amount, initial_price);
@@ -1602,7 +1602,7 @@ fn buy_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1690,7 +1690,7 @@ fn buy_test_group_buys() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1829,7 +1829,7 @@ fn discount_tests_with_error() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1974,7 +1974,7 @@ fn simple_sell_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2059,7 +2059,7 @@ fn simple_buy_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2144,7 +2144,7 @@ fn simple_sell_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2230,7 +2230,7 @@ fn simple_buy_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2315,7 +2315,7 @@ fn single_sell_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2377,7 +2377,7 @@ fn single_buy_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2441,7 +2441,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 

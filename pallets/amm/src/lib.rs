@@ -8,7 +8,7 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
+use primitives::{asset::AssetPair, fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
@@ -209,8 +209,10 @@ decl_module! {
 				Error::<T>::CannotCreatePoolWithSameAssets
 			);
 
+			let asset_pair = AssetPair{asset_in: asset_a, asset_out: asset_b};
+
 			ensure!(
-				!Self::exists(asset_a, asset_b),
+				!Self::exists(asset_pair),
 				Error::<T>::TokenPoolAlreadyExists
 			);
 
@@ -227,7 +229,7 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			let pair_account = Self::get_pair_id(&asset_a, &asset_b);
+			let pair_account = Self::get_pair_id(asset_pair);
 
 			let token_name = Self::get_token_name(asset_a, asset_b);
 
@@ -260,8 +262,10 @@ decl_module! {
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let asset_pair = AssetPair{asset_in: asset_a, asset_out: asset_b};
+
 			ensure!(
-				Self::exists(asset_a, asset_b),
+				Self::exists(asset_pair),
 				Error::<T>::TokenPoolNotFound
 			);
 
@@ -285,7 +289,7 @@ decl_module! {
 				Error::<T>::InsufficientAssetBalance
 			);
 
-			let pair_account = Self::get_pair_id(&asset_a , &asset_b);
+			let pair_account = Self::get_pair_id(asset_pair);
 
 			let share_token = Self::share_token(&pair_account);
 
@@ -343,17 +347,19 @@ decl_module! {
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let asset_pair = AssetPair{asset_in: asset_a, asset_out: asset_b};
+
 			ensure!(
 				!liquidity_amount.is_zero(),
 				Error::<T>::CannotRemoveLiquidityWithZero
 			);
 
 			ensure!(
-				Self::exists(asset_a, asset_b),
+				Self::exists(asset_pair),
 				Error::<T>::TokenPoolNotFound
 			);
 
-			let pair_account = Self::get_pair_id(&asset_a , &asset_b );
+			let pair_account = Self::get_pair_id(asset_pair);
 
 			let share_token = Self::share_token(&pair_account);
 
@@ -429,7 +435,7 @@ decl_module! {
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_,_,_>>::sell(&who, asset_sell, asset_buy, amount_sell, max_limit, discount)
+			<Self as AMM<_,_,_,_>>::sell(&who, AssetPair{asset_in:asset_sell, asset_out: asset_buy}, amount_sell, max_limit, discount)
 		}
 
 		#[weight =  <T as Config>::WeightInfo::buy()]
@@ -443,23 +449,30 @@ decl_module! {
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_,_,_>>::buy(&who, asset_buy, asset_sell, amount_buy, max_limit, discount)
+			<Self as AMM<_,_,_,_>>::buy(&who, AssetPair{asset_in:asset_sell, asset_out: asset_buy}, amount_buy, max_limit, discount)
 		}
 	}
 }
 
 impl<T: Config> Module<T> {
 	pub fn get_spot_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		match Self::exists(asset_a, asset_b) {
+		match Self::exists(AssetPair {
+			asset_out: asset_a,
+			asset_in: asset_b,
+		}) {
 			true => Self::get_spot_price_unchecked(asset_a, asset_b, amount),
 			false => 0,
 		}
 	}
 
 	pub fn get_sell_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		match Self::exists(asset_a, asset_b) {
+		let pair = AssetPair {
+			asset_out: asset_a,
+			asset_in: asset_b,
+		};
+		match Self::exists(pair) {
 			true => {
-				let pair_account = Self::get_pair_id(&asset_a, &asset_b);
+				let pair_account = Self::get_pair_id(pair);
 
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
@@ -473,9 +486,13 @@ impl<T: Config> Module<T> {
 	}
 
 	pub fn get_buy_price(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		match Self::exists(asset_a, asset_b) {
+		let pair = AssetPair {
+			asset_out: asset_a,
+			asset_in: asset_b,
+		};
+		match Self::exists(pair) {
 			true => {
-				let pair_account = Self::get_pair_id(&asset_a, &asset_b);
+				let pair_account = Self::get_pair_id(pair);
 
 				let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 				let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
@@ -518,14 +535,14 @@ impl<T: Config> Module<T> {
 	}
 }
 
-impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
-	fn exists(asset_a: AssetId, asset_b: AssetId) -> bool {
-		let pair_account = T::AssetPairAccountId::from_assets(asset_a, asset_b);
+impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
+	fn exists(assets: AssetPair) -> bool {
+		let pair_account = T::AssetPairAccountId::from_assets(assets.asset_in, assets.asset_out);
 		<ShareToken<T>>::contains_key(&pair_account)
 	}
 
-	fn get_pair_id(asset_a: &AssetId, asset_b: &AssetId) -> T::AccountId {
-		T::AssetPairAccountId::from_assets(*asset_a, *asset_b)
+	fn get_pair_id(assets: AssetPair) -> T::AccountId {
+		T::AssetPairAccountId::from_assets(assets.asset_in, assets.asset_out)
 	}
 
 	fn get_pool_assets(pool_account_id: &T::AccountId) -> Option<Vec<AssetId>> {
@@ -539,7 +556,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 	}
 
 	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Balance) -> Balance {
-		let pair_account = Self::get_pair_id(&asset_a, &asset_b);
+		let pair_account = Self::get_pair_id(AssetPair {
+			asset_out: asset_a,
+			asset_in: asset_b,
+		});
 
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
@@ -551,43 +571,45 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 	fn validate_sell(
 		who: &T::AccountId,
-		asset_sell: AssetId,
-		asset_buy: AssetId,
-		amount_sell: Balance,
+		assets: AssetPair,
+		amount: Balance,
 		min_bought: Balance,
 		discount: bool,
-	) -> Result<AMMTransfer<T::AccountId, AssetId, Balance>, sp_runtime::DispatchError> {
+	) -> Result<AMMTransfer<T::AccountId, AssetPair, Balance>, sp_runtime::DispatchError> {
 		ensure!(
-			T::Currency::free_balance(asset_sell, who) >= amount_sell,
+			T::Currency::free_balance(assets.asset_in, who) >= amount,
 			Error::<T>::InsufficientAssetBalance
 		);
 
-		ensure!(Self::exists(asset_sell, asset_buy), Error::<T>::TokenPoolNotFound);
+		ensure!(Self::exists(assets), Error::<T>::TokenPoolNotFound);
 
 		// If discount, pool for Sell asset and HDX must exist
 		if discount {
 			ensure!(
-				Self::exists(asset_sell, T::HDXAssetId::get()),
+				Self::exists(AssetPair {
+					asset_in: assets.asset_in,
+					asset_out: T::HDXAssetId::get()
+				}),
 				Error::<T>::CannotApplyDiscount
 			);
 		}
 
-		let pair_account = Self::get_pair_id(&asset_sell, &asset_buy);
+		let pair_account = Self::get_pair_id(assets);
 
-		let asset_sell_total = T::Currency::free_balance(asset_sell, &pair_account);
-		let asset_buy_total = T::Currency::free_balance(asset_buy, &pair_account);
+		let asset_sell_total = T::Currency::free_balance(assets.asset_in, &pair_account);
+		let asset_buy_total = T::Currency::free_balance(assets.asset_out, &pair_account);
 
 		ensure!(
-			amount_sell <= asset_sell_total / MAX_IN_RATIO,
+			amount <= asset_sell_total / MAX_IN_RATIO,
 			Error::<T>::MaxInRatioExceeded
 		);
 
 		let mut hdx_amount = 0;
 
-		let transfer_fee = Self::calculate_fees(amount_sell, discount, &mut hdx_amount)?;
+		let transfer_fee = Self::calculate_fees(amount, discount, &mut hdx_amount)?;
 
 		let sale_price =
-			match hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount_sell - transfer_fee) {
+			match hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount - transfer_fee) {
 				Some(x) => x,
 				None => {
 					return Err(Error::<T>::SellAssetAmountInvalid.into());
@@ -601,10 +623,13 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let discount_fee = if discount && hdx_amount > 0 {
 			let hdx_asset = T::HDXAssetId::get();
 
-			let hdx_pair_account = Self::get_pair_id(&asset_sell, &hdx_asset);
+			let hdx_pair_account = Self::get_pair_id(AssetPair {
+				asset_in: assets.asset_in,
+				asset_out: hdx_asset,
+			});
 
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
-			let asset_reserve = T::Currency::free_balance(asset_sell, &hdx_pair_account);
+			let asset_reserve = T::Currency::free_balance(assets.asset_in, &hdx_pair_account);
 
 			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
 				.ok_or(Error::<T>::CannotApplyDiscount)?;
@@ -621,9 +646,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer = AMMTransfer {
 			origin: who.clone(),
-			asset_sell,
-			asset_buy,
-			amount: amount_sell,
+			assets,
+			amount,
 			amount_out: sale_price,
 			discount,
 			discount_amount: discount_fee,
@@ -632,8 +656,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		Ok(transfer)
 	}
 
-	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, Balance>) -> DispatchResult {
-		let pair_account = Self::get_pair_id(&transfer.asset_sell, &transfer.asset_buy);
+	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
+		let pair_account = Self::get_pair_id(transfer.assets);
 
 		with_transaction_result(|| {
 			if transfer.discount && transfer.discount_amount > 0u128 {
@@ -641,13 +665,23 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 				T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
 			}
 
-			T::Currency::transfer(transfer.asset_sell, &transfer.origin, &pair_account, transfer.amount)?;
-			T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount_out)?;
+			T::Currency::transfer(
+				transfer.assets.asset_in,
+				&transfer.origin,
+				&pair_account,
+				transfer.amount,
+			)?;
+			T::Currency::transfer(
+				transfer.assets.asset_out,
+				&pair_account,
+				&transfer.origin,
+				transfer.amount_out,
+			)?;
 
 			Self::deposit_event(Event::<T>::Sell(
 				transfer.origin.clone(),
-				transfer.asset_sell,
-				transfer.asset_buy,
+				transfer.assets.asset_in,
+				transfer.assets.asset_out,
 				transfer.amount,
 				transfer.amount_out,
 			));
@@ -658,18 +692,17 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 	fn validate_buy(
 		who: &T::AccountId,
-		asset_buy: AssetId,
-		asset_sell: AssetId,
+		assets: AssetPair,
 		amount_buy: Balance,
 		max_limit: Balance,
 		discount: bool,
-	) -> Result<AMMTransfer<T::AccountId, AssetId, Balance>, DispatchError> {
-		ensure!(Self::exists(asset_sell, asset_buy), Error::<T>::TokenPoolNotFound);
+	) -> Result<AMMTransfer<T::AccountId, AssetPair, Balance>, DispatchError> {
+		ensure!(Self::exists(assets), Error::<T>::TokenPoolNotFound);
 
-		let pair_account = Self::get_pair_id(&asset_buy, &asset_sell);
+		let pair_account = Self::get_pair_id(assets);
 
-		let asset_buy_reserve = T::Currency::free_balance(asset_buy, &pair_account);
-		let asset_sell_reserve = T::Currency::free_balance(asset_sell, &pair_account);
+		let asset_buy_reserve = T::Currency::free_balance(assets.asset_out, &pair_account);
+		let asset_sell_reserve = T::Currency::free_balance(assets.asset_in, &pair_account);
 
 		ensure!(asset_buy_reserve > amount_buy, Error::<T>::InsufficientPoolAssetBalance);
 
@@ -681,7 +714,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		// If discount, pool for Sell asset and HDX must exist
 		if discount {
 			ensure!(
-				Self::exists(asset_buy, T::HDXAssetId::get()),
+				Self::exists(AssetPair {
+					asset_in: assets.asset_out,
+					asset_out: T::HDXAssetId::get()
+				}),
 				Error::<T>::CannotApplyDiscount
 			);
 		}
@@ -707,7 +743,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		};
 
 		ensure!(
-			T::Currency::free_balance(asset_sell, who) >= buy_price,
+			T::Currency::free_balance(assets.asset_in, who) >= buy_price,
 			Error::<T>::InsufficientAssetBalance
 		);
 
@@ -716,10 +752,13 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		let discount_fee = if discount && hdx_amount > 0 {
 			let hdx_asset = T::HDXAssetId::get();
 
-			let hdx_pair_account = Self::get_pair_id(&asset_buy, &hdx_asset);
+			let hdx_pair_account = Self::get_pair_id(AssetPair {
+				asset_in: assets.asset_out,
+				asset_out: hdx_asset,
+			});
 
 			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
-			let asset_reserve = T::Currency::free_balance(asset_buy, &hdx_pair_account);
+			let asset_reserve = T::Currency::free_balance(assets.asset_out, &hdx_pair_account);
 
 			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
 				.ok_or(Error::<T>::CannotApplyDiscount)?;
@@ -735,8 +774,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 		let transfer = AMMTransfer {
 			origin: who.clone(),
-			asset_sell,
-			asset_buy,
+			assets,
 			amount: amount_buy,
 			amount_out: buy_price,
 			discount,
@@ -746,8 +784,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 		Ok(transfer)
 	}
 
-	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, Balance>) -> DispatchResult {
-		let pair_account = Self::get_pair_id(&transfer.asset_sell, &transfer.asset_buy);
+	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
+		let pair_account = Self::get_pair_id(transfer.assets);
 
 		with_transaction_result(|| {
 			if transfer.discount && transfer.discount_amount > 0 {
@@ -755,9 +793,14 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 				T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
 			}
 
-			T::Currency::transfer(transfer.asset_buy, &pair_account, &transfer.origin, transfer.amount)?;
 			T::Currency::transfer(
-				transfer.asset_sell,
+				transfer.assets.asset_out,
+				&pair_account,
+				&transfer.origin,
+				transfer.amount,
+			)?;
+			T::Currency::transfer(
+				transfer.assets.asset_in,
 				&transfer.origin,
 				&pair_account,
 				transfer.amount_out,
@@ -765,8 +808,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, Balance> for Module<T> {
 
 			Self::deposit_event(Event::<T>::Buy(
 				transfer.origin.clone(),
-				transfer.asset_buy,
-				transfer.asset_sell,
+				transfer.assets.asset_out,
+				transfer.assets.asset_in,
 				transfer.amount,
 				transfer.amount_out,
 			));

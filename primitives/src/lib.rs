@@ -58,7 +58,7 @@ impl Default for IntentionType {
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 	pub who: AccountId,
-	pub assets: asset::AssetPairType,
+	pub assets: asset::AssetPair,
 	pub amount_sell: Balance,
 	pub amount_buy: Balance,
 	pub trade_limit: Balance,

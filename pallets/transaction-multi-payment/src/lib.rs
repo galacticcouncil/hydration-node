@@ -28,6 +28,7 @@ use sp_std::marker::PhantomData;
 
 use frame_support::weights::Pays;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use primitives::asset::AssetPair;
 use primitives::traits::{CurrencySwap, AMM};
 use primitives::{AssetId, Balance, CORE_ASSET_ID};
 
@@ -45,7 +46,7 @@ pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 		+ MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
 
 	/// AMM pool to swap for native currency
-	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
+	type AMMPool: AMM<Self::AccountId, AssetId, AssetPair, Balance>;
 
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
@@ -202,7 +203,7 @@ impl<T: Config> Module<T> {
 
 		// If not native currency, let's buy CORE asset first and then pay with that.
 		if fee_currency != CORE_ASSET_ID {
-			T::AMMPool::buy(&who, CORE_ASSET_ID, fee_currency, fee, 2u128 * fee, false)?;
+			T::AMMPool::buy(&who, AssetPair{asset_out: CORE_ASSET_ID, asset_in: fee_currency}, fee, 2u128 * fee, false)?;
 		}
 
 		Ok(())

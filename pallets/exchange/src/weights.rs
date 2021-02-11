@@ -155,7 +155,6 @@ impl WeightInfo for () {
 			// Standard Error: 23_000
 			.saturating_add((174_428_000 as Weight).saturating_mul(t as Weight))
 			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
-
 			.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
