@@ -278,7 +278,7 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 	// Message: "I hereby claim all my xHDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
 	let claim_address_1 = (
 		EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
-		50_000_000,
+		50_000_000_000_000_000,
 	);
 
 	// Another claim

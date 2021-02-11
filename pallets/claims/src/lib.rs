@@ -33,19 +33,21 @@ pub trait Config: frame_system::Config {
 	type Prefix: Get<&'static [u8]>;
 }
 
+type BalanceOf<T> = <<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+
 decl_storage! {
 	trait Store for Module<T: Config> as Claims {
-		HDXClaims get(fn hdxclaims): map hasher(blake2_128_concat) EthereumAddress => Balance;
+		HDXClaims get(fn hdxclaims): map hasher(blake2_128_concat) EthereumAddress => BalanceOf<T>;
 
 		PalletVersion: StorageVersion = StorageVersion::V1EmptyBalances;
 	}
 
 	add_extra_genesis {
-		config(claims): Vec<(EthereumAddress, Balance)>;
+		config(claims): Vec<(EthereumAddress, BalanceOf<T>)>;
 
-		build(|config: &GenesisConfig| {
+		build(|config: &GenesisConfig<T>| {
 			config.claims.iter().for_each(|(eth_address, initial_balance)| {
-				HDXClaims::mutate(eth_address, | amount | *amount += *initial_balance)
+				HDXClaims::<T>::mutate(eth_address, | amount | *amount += *initial_balance)
 			})
 		})
 	}
@@ -98,18 +100,18 @@ decl_module! {
 impl<T: Config> Module<T> {
 	fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
 		// TODO: Fix multicurrency support and separate checks for not matching addresses and already claimed
-		let balance_due = HDXClaims::get(&signer);
+		let balance_due = HDXClaims::<T>::get(&signer);
 
 		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
 
 		with_transaction_result(|| {
-			HDXClaims::insert(signer, 0);
-			T::Currency::deposit(CORE_ASSET_ID, &dest, balance_due)?;
-			Ok(())
-		})?;
+			HDXClaims::<T>::insert(signer, 0);
+			<T::Currency as MultiCurrency<T::AccountId>>::deposit(CORE_ASSET_ID, &dest, balance_due)?;
 
-		Self::deposit_event(RawEvent::HDXClaimed(dest, balance_due));
-		Ok(())
+			Self::deposit_event(RawEvent::HDXClaimed(dest, balance_due));
+
+			Ok(())
+		})
 	}
 
 	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
@@ -157,7 +159,7 @@ pub mod migration {
 		if PalletVersion::get() == StorageVersion::V1EmptyBalances {
 			frame_support::debug::info!(" >>> Adding xHDX claims to the storage");
 			for (addr, amount) in claims_data::CLAIMS_DATA.iter() {
-				HDXClaims::insert(
+				HDXClaims::<T>::insert(
 					EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
 						frame_support::debug::warn!("Error encountered while migrating Ethereum address: {}", addr);
 						EthereumAddress::default().0

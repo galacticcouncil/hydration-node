@@ -643,7 +643,7 @@ construct_runtime!(
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Module, Call, Storage, Config<T>},
 		AMM: pallet_amm::{Module, Call, Storage, Event<T>},
-		Claims: pallet_claims::{Module, Call, Storage, Event<T>, Config},
+		Claims: pallet_claims::{Module, Call, Storage, Event<T>, Config<T>},
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Config, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},

@@ -85,7 +85,8 @@ pub type System = frame_system::Module<Test>;
 pub type Claims = Module<Test>;
 pub type AccountId = u64;
 
-pub const ALICE: AccountId = 1;
+pub const ALICE: AccountId = 42;
+pub const BOB: AccountId = 142;
 pub const HDX: AssetId = 1000;
 
 pub struct ExtBuilder {
@@ -97,7 +98,7 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		GenesisConfig {
+ 		GenesisConfig::<Test> {
 			claims: vec![(
 				EthereumAddress([
 					130, 2, 192, 175, 89, 98, 183, 80, 18, 60, 225, 169, 177, 46, 28, 48, 164, 151, 53, 87,
