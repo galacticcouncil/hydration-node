@@ -16,6 +16,7 @@ use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 use sp_std::vec::Vec;
+
 pub use traits::*;
 
 mod claims_data;
@@ -27,10 +28,16 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+
+use weights::WeightInfo;
+pub mod weights;
+
 pub trait Config: frame_system::Config {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
 	type Prefix: Get<&'static [u8]>;
+	type WeightInfo: WeightInfo;
 }
 
 type BalanceOf<T> = <<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -80,7 +87,7 @@ decl_module! {
 		/// The Prefix that is used in signed Ethereum messages for this network
 		const Prefix: &[u8] = T::Prefix::get();
 
-		#[weight = (0, DispatchClass::Normal, Pays::No)]
+		#[weight = (<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No)]
 		fn claim(origin, ethereum_signature: EcdsaSignature)  {
 			let sender = ensure_signed(origin)?;
 

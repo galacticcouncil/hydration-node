@@ -72,6 +72,7 @@ impl Config for Test {
 	type Event = ();
 	type Currency = Currency;
 	type Prefix = Prefix;
+	type WeightInfo = ();
 }
 
 impl_outer_event! {
@@ -98,7 +99,7 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
- 		GenesisConfig::<Test> {
+		GenesisConfig::<Test> {
 			claims: vec![(
 				EthereumAddress([
 					130, 2, 192, 175, 89, 98, 183, 80, 18, 60, 225, 169, 177, 46, 28, 48, 164, 151, 53, 87,

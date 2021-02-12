@@ -354,6 +354,7 @@ impl pallet_claims::Config for Runtime {
 	type Event = Event;
 	type Currency = Currencies;
 	type Prefix = Prefix;
+	type WeightInfo = pallet_claims::weights::HackHydraWeight<Runtime>;
 }
 
 impl pallet_exchange::Config for Runtime {
@@ -936,6 +937,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, amm, AMM);
+			add_benchmark!(params, batches, claims, Claims);
 			add_benchmark!(params, batches, transaction_multi_payment, MultiBench::<Runtime>);
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, exchange, ExchangeBench::<Runtime>);

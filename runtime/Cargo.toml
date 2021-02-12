@@ -13,7 +13,7 @@ targets = ['x86_64-unknown-linux-gnu']
 [build-dependencies]
 wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '1.0.5' }
 
-# alias "parity-scale-code" to "codec"
+# alias 'parity-scale-code' to 'codec'
 [dependencies.codec]
 default-features = false
 features = ['derive']
@@ -38,9 +38,9 @@ primitives = { path = '../primitives', default-features = false, version = '2.0.
 module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0' }
 
 # ORML dependencies
-orml-currencies = {default-features = false, version = "0.3.3-dev"}
-orml-tokens = {default-features = false, version = "0.3.3-dev"}
-orml-traits = {default-features = false, version = "0.3.3-dev"}
+orml-currencies = {default-features = false, version = '0.3.3-dev'}
+orml-tokens = {default-features = false, version = '0.3.3-dev'}
+orml-traits = {default-features = false, version = '0.3.3-dev'}
 
 # Staking dependencies
 pallet-authority-discovery = {default-features = false, version = '2.0.0'}
@@ -94,10 +94,11 @@ runtime-benchmarks = [
     'pallet-balances/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'pallet-multi-payment-benchmarking',
-    "pallet-amm/runtime-benchmarks",
-    "pallet-exchange-benchmarking",
+    'pallet-amm/runtime-benchmarks',
+    'pallet-exchange-benchmarking',
     'pallet-collective/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
+    'pallet-claims/runtime-benchmarks',
 ]
 std = [
     'codec/std',
@@ -130,16 +131,16 @@ std = [
     'sp-std/std',
     'sp-transaction-pool/std',
     'sp-version/std',
-  'pallet-staking/std',
-  'sp-staking/std',
-  'pallet-treasury/std',
-  'pallet-offences/std',
-  'sp-authority-discovery/std',
-  'pallet-authority-discovery/std',
-  'pallet-elections-phragmen/std',
-  'pallet-collective/std',
-  'pallet-session/std',
-  'pallet-babe/std',
-  'sp-consensus-babe/std',
-  'pallet-im-online/std',
+    'pallet-staking/std',
+    'sp-staking/std',
+    'pallet-treasury/std',
+    'pallet-offences/std',
+    'sp-authority-discovery/std',
+    'pallet-authority-discovery/std',
+    'pallet-elections-phragmen/std',
+    'pallet-collective/std',
+    'pallet-session/std',
+    'pallet-babe/std',
+    'sp-consensus-babe/std',
+    'pallet-im-online/std',
 ]
