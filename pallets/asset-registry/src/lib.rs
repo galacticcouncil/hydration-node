@@ -12,19 +12,26 @@ mod mock;
 mod tests;
 
 pub trait Config: system::Config {
+	/// Asset type
 	type AssetId: Parameter + Member + Into<u32> + AtLeast32Bit + Default + Copy;
 }
 
 decl_storage! {
 	trait Store for Module<T: Config> as AssetRegistry {
+		/// Core Asset Id
 		pub CoreAssetId get(fn core_asset_id) config(): T::AssetId;
+
+		/// Current asset id. Note: This must set so it does not clash with the CoreAssetId!
 		pub NextAssetId get(fn next_asset_id) config(): T::AssetId;
+
+		/// Created assets
 		pub AssetIds get(fn asset_ids) config(): map hasher(twox_64_concat) Vec<u8> => Option<T::AssetId>;
 	}
 }
 
 decl_error! {
 	pub enum Error for Module<T: Config> {
+		/// Next Asset ID is not available. Happens when it reaches the MAX of given id type.
 		NoIdAvailable
 	}
 }
@@ -32,12 +39,12 @@ decl_error! {
 decl_module! {
 	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		type Error = Error<T>;
-
 	}
 }
 
 impl<T: Config> Module<T> {
-	pub fn create_asset(name: Vec<u8>) -> Result<T::AssetId, DispatchError> {
+	/// Create assset for given name or return existing AssetId if already exists.
+	pub fn get_or_create_asset(name: Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		match <AssetIds<T>>::contains_key(&name) {
 			true => Ok(<AssetIds<T>>::get(&name).unwrap()),
 			false => {

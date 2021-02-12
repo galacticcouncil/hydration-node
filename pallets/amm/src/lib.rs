@@ -234,7 +234,7 @@ decl_module! {
 			let token_name = Self::get_token_name(asset_a, asset_b);
 
 			with_transaction_result(|| {
-				let share_token = <pallet_asset_registry::Module<T>>::create_asset(token_name)?.into();
+				let share_token = <pallet_asset_registry::Module<T>>::get_or_create_asset(token_name)?.into();
 
 				<ShareToken<T>>::insert(&pair_account, &share_token);
 				<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
