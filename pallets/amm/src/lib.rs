@@ -399,9 +399,7 @@ decl_module! {
 				Error::<T>::InsufficientPoolAssetBalance
 			);
 
-			// Note: this check is not really needed as we already check if amount to remove >= liquidity in pool
 			let liquidity_left = total_shares.checked_sub(liquidity_amount).ok_or(Error::<T>::InvalidLiquidityAmount)?;
-
 
 			with_transaction_result( || {
 				T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
