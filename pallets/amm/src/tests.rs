@@ -78,6 +78,26 @@ fn create_same_pool_should_not_work() {
 }
 
 #[test]
+fn create_pool_overflowing_amount_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = ACA;
+
+		assert_noop!(
+			AMM::create_pool(
+				Origin::signed(user),
+				asset_b,
+				asset_a,
+				u128::MAX as u128,
+				Price::from(2)
+			),
+			Error::<Test>::CreatePoolAssetAmountInvalid
+		);
+	});
+}
+
+#[test]
 fn add_liquidity_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;

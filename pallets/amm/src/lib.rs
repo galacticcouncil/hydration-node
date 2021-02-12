@@ -147,25 +147,25 @@ decl_error! {
 		/// Add / Remove liquidity errors
 		CannotRemoveLiquidityWithZero,
 		CannotAddZeroLiquidity,
-		InvalidMintedLiquidity,
-		InvalidLiquidityAmount,
+		InvalidMintedLiquidity, // No tests - but it is currently not possible this error to occur due to previous checks in the code.
+		InvalidLiquidityAmount, // no tests
 
 		/// Balance errors
 		AssetBalanceLimitExceeded,
 		InsufficientAssetBalance,
-		InsufficientPoolAssetBalance,
-		InsufficientHDXBalance,
+		InsufficientPoolAssetBalance, // No tests
+		InsufficientHDXBalance, // No tests
 
 		/// Pool existence errors
 		TokenPoolNotFound,
 		TokenPoolAlreadyExists,
 
 		/// Calculation errors
-		AddAssetAmountInvalid,
-		RemoveAssetAmountInvalid,
-		SellAssetAmountInvalid,
-		BuyAssetAmountInvalid,
-		FeeAmountInvalid,
+		AddAssetAmountInvalid, // no tests
+		RemoveAssetAmountInvalid, // no tests
+		SellAssetAmountInvalid, // no tests
+		BuyAssetAmountInvalid, // no tests
+		FeeAmountInvalid, // no tests
 		CannotApplyDiscount,
 
 		/// Trading Limit errors
