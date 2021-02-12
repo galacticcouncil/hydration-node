@@ -126,10 +126,10 @@ decl_event!(
 		/// Pool destroyed - who, asset a, asset b
 		PoolDestroyed(AccountId, AssetId, AssetId),
 
-		/// Sell token - who, asset sell, asset buy, amount, sale price
+		/// Sell token - who, asset in, asset out, amount, sale price
 		Sell(AccountId, AssetId, AssetId, Balance, Balance),
 
-		/// Buy token - who, asset buy, asset sell, amount, buy price
+		/// Buy token - who, asset out, asset in, amount, buy price
 		Buy(AccountId, AssetId, AssetId, Balance, Balance),
 	}
 );
@@ -427,29 +427,29 @@ decl_module! {
 		#[weight =  <T as Config>::WeightInfo::sell()]
 		pub fn sell(
 			origin,
-			asset_sell: AssetId,
-			asset_buy: AssetId,
-			amount_sell: Balance,
+			asset_in: AssetId,
+			asset_out: AssetId,
+			amount: Balance,
 			max_limit: Balance,
 			discount: bool,
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_,_,_,_>>::sell(&who, AssetPair{asset_in:asset_sell, asset_out: asset_buy}, amount_sell, max_limit, discount)
+			<Self as AMM<_,_,_,_>>::sell(&who, AssetPair{asset_in:asset_in, asset_out: asset_out}, amount, max_limit, discount)
 		}
 
 		#[weight =  <T as Config>::WeightInfo::buy()]
 		pub fn buy(
 			origin,
-			asset_buy: AssetId,
-			asset_sell: AssetId,
-			amount_buy: Balance,
+			asset_out: AssetId,
+			asset_in: AssetId,
+			amount: Balance,
 			max_limit: Balance,
 			discount: bool,
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Self as AMM<_,_,_,_>>::buy(&who, AssetPair{asset_in:asset_sell, asset_out: asset_buy}, amount_buy, max_limit, discount)
+			<Self as AMM<_,_,_,_>>::buy(&who, AssetPair{asset_in:asset_in, asset_out: asset_out}, amount, max_limit, discount)
 		}
 	}
 }
@@ -596,27 +596,24 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 
 		let pair_account = Self::get_pair_id(assets);
 
-		let asset_sell_total = T::Currency::free_balance(assets.asset_in, &pair_account);
-		let asset_buy_total = T::Currency::free_balance(assets.asset_out, &pair_account);
+		let asset_in_total = T::Currency::free_balance(assets.asset_in, &pair_account);
+		let asset_out_total = T::Currency::free_balance(assets.asset_out, &pair_account);
 
-		ensure!(
-			amount <= asset_sell_total / MAX_IN_RATIO,
-			Error::<T>::MaxInRatioExceeded
-		);
+		ensure!(amount <= asset_in_total / MAX_IN_RATIO, Error::<T>::MaxInRatioExceeded);
 
 		let mut hdx_amount = 0;
 
 		let transfer_fee = Self::calculate_fees(amount, discount, &mut hdx_amount)?;
 
 		let sale_price =
-			match hydra_dx_math::calculate_sell_price(asset_sell_total, asset_buy_total, amount - transfer_fee) {
+			match hydra_dx_math::calculate_sell_price(asset_in_total, asset_out_total, amount - transfer_fee) {
 				Some(x) => x,
 				None => {
 					return Err(Error::<T>::SellAssetAmountInvalid.into());
 				}
 			};
 
-		ensure!(asset_buy_total >= sale_price, Error::<T>::InsufficientAssetBalance);
+		ensure!(asset_out_total >= sale_price, Error::<T>::InsufficientAssetBalance);
 
 		ensure!(min_bought <= sale_price, Error::<T>::AssetBalanceLimitExceeded);
 
@@ -693,7 +690,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 	fn validate_buy(
 		who: &T::AccountId,
 		assets: AssetPair,
-		amount_buy: Balance,
+		amount: Balance,
 		max_limit: Balance,
 		discount: bool,
 	) -> Result<AMMTransfer<T::AccountId, AssetPair, Balance>, DispatchError> {
@@ -701,13 +698,13 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 
 		let pair_account = Self::get_pair_id(assets);
 
-		let asset_buy_reserve = T::Currency::free_balance(assets.asset_out, &pair_account);
-		let asset_sell_reserve = T::Currency::free_balance(assets.asset_in, &pair_account);
+		let asset_out_reserve = T::Currency::free_balance(assets.asset_out, &pair_account);
+		let asset_in_reserve = T::Currency::free_balance(assets.asset_in, &pair_account);
 
-		ensure!(asset_buy_reserve > amount_buy, Error::<T>::InsufficientPoolAssetBalance);
+		ensure!(asset_out_reserve > amount, Error::<T>::InsufficientPoolAssetBalance);
 
 		ensure!(
-			amount_buy <= asset_buy_reserve / MAX_OUT_RATIO,
+			amount <= asset_out_reserve / MAX_OUT_RATIO,
 			Error::<T>::MaxOutRatioExceeded
 		);
 
@@ -724,23 +721,20 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 
 		let mut hdx_amount = 0;
 
-		let transfer_fee = Self::calculate_fees(amount_buy, discount, &mut hdx_amount)?;
+		let transfer_fee = Self::calculate_fees(amount, discount, &mut hdx_amount)?;
 
 		ensure!(
-			amount_buy + transfer_fee <= asset_buy_reserve,
+			amount + transfer_fee <= asset_out_reserve,
 			Error::<T>::InsufficientPoolAssetBalance
 		);
 
-		let buy_price = match hydra_dx_math::calculate_buy_price(
-			asset_sell_reserve,
-			asset_buy_reserve,
-			amount_buy + transfer_fee,
-		) {
-			Some(x) => x,
-			None => {
-				return Err(Error::<T>::BuyAssetAmountInvalid.into());
-			}
-		};
+		let buy_price =
+			match hydra_dx_math::calculate_buy_price(asset_in_reserve, asset_out_reserve, amount + transfer_fee) {
+				Some(x) => x,
+				None => {
+					return Err(Error::<T>::BuyAssetAmountInvalid.into());
+				}
+			};
 
 		ensure!(
 			T::Currency::free_balance(assets.asset_in, who) >= buy_price,
@@ -775,7 +769,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 		let transfer = AMMTransfer {
 			origin: who.clone(),
 			assets,
-			amount: amount_buy,
+			amount: amount,
 			amount_out: buy_price,
 			discount,
 			discount_amount: discount_fee,
