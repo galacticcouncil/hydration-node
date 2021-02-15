@@ -20,6 +20,7 @@ use pallet_amm::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
 use primitives::fee;
+use orml_utilities::OrderedSet;
 
 pub type AccountId = u64;
 
@@ -229,7 +230,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		pallet_transaction_multi_payment::GenesisConfig::<Test> {
-			currencies: vec![],
+			currencies: OrderedSet::from(vec![]),
 			authorities: vec![],
 		}
 		.assimilate_storage(&mut t)

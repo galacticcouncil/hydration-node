@@ -283,7 +283,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		crate::GenesisConfig::<Test> {
-			currencies: vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE],
+			currencies: OrderedSet::from(vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE]),
 			authorities: vec![self.payment_authority],
 		}
 		.assimilate_storage(&mut t)

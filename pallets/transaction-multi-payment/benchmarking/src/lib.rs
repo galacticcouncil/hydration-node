@@ -8,6 +8,7 @@ use sp_std::vec;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use orml_utilities::OrderedSet;
 use pallet_transaction_multi_payment::Module as MultiPaymentModule;
 use primitives::{Amount, AssetId, Balance, Price};
 use sp_runtime::DispatchError;
@@ -84,7 +85,7 @@ benchmarks! {
 		MultiPaymentModule::<T>::add_member(&caller);
 	}: { MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10)? }
 	verify {
-		assert_eq!(MultiPaymentModule::<T>::currencies(), vec![10]);
+		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::from(vec![10]));
 	}
 
 	remove_currency {
@@ -92,11 +93,11 @@ benchmarks! {
 		MultiPaymentModule::<T>::add_member(&caller);
 		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10)?;
 
-		assert_eq!(MultiPaymentModule::<T>::currencies(), vec![10]);
+		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::from(vec![10]));
 
 	}: { MultiPaymentModule::<T>::remove_currency(RawOrigin::Signed(caller.clone()).into(), 10)? }
 	verify {
-		assert_eq!(MultiPaymentModule::<T>::currencies(), Vec::<AssetId>::new())
+		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::<AssetId>::new())
 	}
 }
 

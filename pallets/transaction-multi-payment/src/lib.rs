@@ -31,6 +31,8 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::{CurrencySwap, AMM};
 use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
+use orml_utilities::OrderedSet;
+
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
@@ -94,7 +96,7 @@ decl_storage! {
 	trait Store for Module<T: Config> as TransactionPayment {
 		/// Account currency map
 		pub AccountCurrencyMap get(fn get_currency): map hasher(blake2_128_concat) T::AccountId => Option<AssetId>;
-		pub AcceptedCurrencies get(fn currencies) config(): Vec<AssetId>;
+		pub AcceptedCurrencies get(fn currencies) config(): OrderedSet<AssetId>;
 		pub Authorities get(fn authorities) config(): Vec<T::AccountId>;
 	}
 }
@@ -149,18 +151,11 @@ decl_module! {
 				Error::<T>::NotAllowed
 			);
 
-			match Self::currencies().contains(&currency) {
-				false => {
-					AcceptedCurrencies::mutate(|x| x.push(currency));
-
-					Self::deposit_event(RawEvent::CurrencyAdded(who, currency));
-
-					Ok(())
-				},
-				true => {
-					Err(Error::<T>::AlreadyAccepted.into())
-				}
+			if AcceptedCurrencies::mutate(|x| x.insert(currency)) {
+				Self::deposit_event(RawEvent::CurrencyAdded(who, currency));
+				return Ok(());
 			}
+			Err(Error::<T>::AlreadyAccepted.into())
 		}
 
 		/// Remove currency from the list of supported currencies
@@ -181,16 +176,12 @@ decl_module! {
 				Error::<T>::NotAllowed
 			);
 
-			match Self::currencies().contains(&currency) {
-				true => {
-					AcceptedCurrencies::mutate(|x| x.retain( |&val| val != currency));
-					Self::deposit_event(RawEvent::CurrencyRemoved(who, currency));
-					Ok(())
-				},
-				false => {
-					Err(Error::<T>::UnsupportedCurrency.into())
-				}
+			if AcceptedCurrencies::mutate(|x| x.remove(&currency)) {
+				Self::deposit_event(RawEvent::CurrencyRemoved(who, currency));
+				return Ok(());
 			}
+
+			Err(Error::<T>::UnsupportedCurrency.into())
 		}
 	}
 }
