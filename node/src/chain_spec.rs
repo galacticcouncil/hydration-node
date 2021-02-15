@@ -286,8 +286,15 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 		EthereumAddress(hex!["a62d135aa5605658d778f4ea82b300ea0f97416c"]),
 		666_000_000,
 	);
+	
+	// Another claim
+	let claim_address_3 = (
+		EthereumAddress(hex!["19ad3978b233a91a30f9ddda6c6f6c92ba97b8f2"]),
+		666_000_000,
+	)
 
 	claims.push(claim_address_1);
 	claims.push(claim_address_2);
+	claims.push(claim_address_3);
 	claims
 }
