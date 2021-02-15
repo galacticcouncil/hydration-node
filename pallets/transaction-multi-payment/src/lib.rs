@@ -29,7 +29,7 @@ use sp_std::marker::PhantomData;
 use frame_support::weights::Pays;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::{CurrencySwap, AMM};
-use primitives::{AssetId, Balance, CORE_ASSET_ID};
+use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
@@ -42,7 +42,7 @@ pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 
 	/// Multi Currency
 	type MultiCurrency: MultiCurrency<Self::AccountId>
-		+ MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
+		+ MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
 
 	/// AMM pool to swap for native currency
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
@@ -117,25 +117,25 @@ decl_module! {
 		)  -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			match currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
-				true =>	{
-					if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
-						return Err(Error::<T>::ZeroBalance.into());
-					}
+			if currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
+				if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
+					return Err(Error::<T>::ZeroBalance.into());
+				}
 
-					<AccountCurrencyMap<T>>::insert(who.clone(), currency);
+				<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
-					Self::deposit_event(RawEvent::CurrencySet(who, currency));
+				Self::deposit_event(RawEvent::CurrencySet(who, currency));
 
-					Ok(())
-				},
-				false => Err(Error::<T>::UnsupportedCurrency.into())
+				return Ok(());
 			}
+
+			Err(Error::<T>::UnsupportedCurrency.into())
 		}
 
+		/// Add additional currency to the list of supported currencies which fees can be paid in
+		/// Only selected members can perform this action
 		#[weight = (<T as Config>::WeightInfo::add_currency(), Pays::No)]
 		pub fn add_currency(origin, currency: AssetId) -> DispatchResult{
-
 			let who = ensure_signed(origin)?;
 
 			ensure!(
@@ -163,6 +163,8 @@ decl_module! {
 			}
 		}
 
+		/// Remove currency from the list of supported currencies
+		/// Only selected members can perform this action
 		#[weight = (<T as Config>::WeightInfo::remove_currency(), Pays::No)]
 		pub fn remove_currency(origin, currency: AssetId) -> DispatchResult{
 
