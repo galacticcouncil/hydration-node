@@ -54,7 +54,7 @@ decl_storage! {
 
 		build(|config: &GenesisConfig<T>| {
 			config.claims.iter().for_each(|(eth_address, initial_balance)| {
-				HDXClaims::<T>::mutate(eth_address, | amount | *amount += *initial_balance)
+				HDXClaims::<T>::mutate(eth_address, |amount| *amount += *initial_balance)
 			})
 		})
 	}
@@ -73,7 +73,6 @@ decl_event!(
 decl_error! {
 	pub enum Error for Module<T: Config> {
 		InvalidEthereumSignature,
-		InvalidStatement,
 		NoClaimOrAlreadyClaimed,
 	}
 }
@@ -106,7 +105,6 @@ decl_module! {
 
 impl<T: Config> Module<T> {
 	fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
-		// TODO: Fix multicurrency support and separate checks for not matching addresses and already claimed
 		let balance_due = HDXClaims::<T>::get(&signer);
 
 		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);

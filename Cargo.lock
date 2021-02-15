@@ -3692,7 +3692,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "orml-traits",
- "orml-utilities 0.3.3-dev",
+ "orml-utilities",
  "parity-scale-codec",
  "serde",
  "sp-io",
@@ -3723,21 +3723,7 @@ dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
  "num-traits",
- "orml-utilities 0.3.3-dev",
- "parity-scale-codec",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "orml-utilities"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12b86e9fe38ffd16632353a497483fc76692999ee0b5216152e70773e7f108dd"
-dependencies = [
- "frame-support",
+ "orml-utilities",
  "parity-scale-codec",
  "serde",
  "sp-io",
@@ -3889,7 +3875,7 @@ dependencies = [
  "lazy_static",
  "orml-tokens",
  "orml-traits",
- "orml-utilities 0.3.2",
+ "orml-utilities",
  "parity-scale-codec",
  "primitives",
  "rustc-hex",
