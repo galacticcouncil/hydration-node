@@ -1,4 +1,4 @@
-use crate::{Module, Config};
+use crate::{Config, Module};
 use frame_support::{impl_outer_origin, parameter_types};
 use frame_system as system;
 use sp_core::H256;
@@ -35,7 +35,7 @@ impl system::Config for Test {
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
-	type PalletInfo = ();
+	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();

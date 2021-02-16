@@ -122,7 +122,7 @@ impl system::Config for Test {
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
-	type PalletInfo = ();
+	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<u128>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();

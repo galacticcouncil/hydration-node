@@ -10,12 +10,10 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, Verify,
-};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, Verify};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{Zero},
+	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -31,7 +29,7 @@ pub use frame_support::{
 	traits::{KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		IdentityFee, Weight, DispatchClass
+		DispatchClass, IdentityFee, Weight,
 	},
 	StorageValue,
 };
@@ -52,15 +50,14 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 // XCM imports
 use polkadot_parachain::primitives::Sibling;
-use xcm::v0::{MultiLocation, NetworkId, Junction};
+use xcm::v0::{Junction, MultiLocation, NetworkId};
 use xcm_builder::{
-	ParentIsDefault, SiblingParachainConvertsVia, AccountId32Aliases, LocationInverter,
-	SovereignSignedViaLocation, SiblingParachainAsNative,
-	RelayChainAsNative, SignedAccountId32AsNative, CurrencyAdapter
+	AccountId32Aliases, CurrencyAdapter, LocationInverter, ParentIsDefault, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SovereignSignedViaLocation,
 };
 use xcm_executor::{
-	XcmExecutor, Config,
-	traits::{NativeAsset, IsConcrete},
+	traits::{IsConcrete, NativeAsset},
+	Config, XcmExecutor,
 };
 
 /// Import HydraDX pallets
@@ -343,7 +340,7 @@ impl pallet_faucet::Config for Runtime {
 
 /// Parachain Config
 
-impl cumulus_parachain_system::Config for Runtime {
+impl cumulus_pallet_parachain_system::Config for Runtime {
 	type Event = Event;
 	type OnValidationData = ();
 	type SelfParaId = parachain_info::Module<Runtime>;
@@ -356,7 +353,7 @@ impl parachain_info::Config for Runtime {}
 parameter_types! {
 	pub const RococoLocation: MultiLocation = MultiLocation::X1(Junction::Parent);
 	pub const RococoNetwork: NetworkId = NetworkId::Polkadot;
-	pub RelayChainOrigin: Origin = xcm_handler::Origin::Relay.into();
+	pub RelayChainOrigin: Origin = cumulus_pallet_xcm_handler::Origin::Relay.into();
 	pub Ancestry: MultiLocation = Junction::Parachain {
 		id: ParachainInfo::parachain_id().into()
 	}.into();
@@ -368,8 +365,7 @@ type LocationConverter = (
 	AccountId32Aliases<RococoNetwork, AccountId>,
 );
 
-type LocalAssetTransactor =
-CurrencyAdapter<
+type LocalAssetTransactor = CurrencyAdapter<
 	// Use this currency:
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
@@ -383,7 +379,7 @@ CurrencyAdapter<
 type LocalOriginConverter = (
 	SovereignSignedViaLocation<LocationConverter, Origin>,
 	RelayChainAsNative<RelayChainOrigin, Origin>,
-	SiblingParachainAsNative<xcm_handler::Origin, Origin>,
+	SiblingParachainAsNative<cumulus_pallet_xcm_handler::Origin, Origin>,
 	SignedAccountId32AsNative<RococoNetwork, Origin>,
 );
 
@@ -399,7 +395,7 @@ impl Config for XcmConfig {
 	type LocationInverter = LocationInverter<Ancestry>;
 }
 
-impl xcm_handler::Config for Runtime {
+impl cumulus_pallet_xcm_handler::Config for Runtime {
 	type Event = Event;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type UpwardMessageSender = ParachainSystem;
@@ -421,9 +417,9 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 
 		// Parachain
-		ParachainSystem: cumulus_parachain_system::{Module, Call, Storage, Inherent, Event},
+		ParachainSystem: cumulus_pallet_parachain_system::{Module, Call, Storage, Inherent, Event},
 		ParachainInfo: parachain_info::{Module, Storage, Config},
-		XcmHandler: xcm_handler::{Module, Event<T>, Origin},
+		XcmHandler: cumulus_pallet_xcm_handler::{Module, Event<T>, Origin},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
@@ -665,4 +661,4 @@ impl_runtime_apis! {
 	}
 }
 
-cumulus_runtime::register_validate_block!(Block, Executive);
+cumulus_pallet_parachain_system::register_validate_block!(Block, Executive);

@@ -1,6 +1,6 @@
 #![allow(clippy::or_fun_call)]
 
-use cumulus_primitives::ParaId;
+use cumulus_primitives_core::ParaId;
 use hack_hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, BalancesConfig, FaucetConfig, GenesisConfig, ParachainInfoConfig, Signature,
 	SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
