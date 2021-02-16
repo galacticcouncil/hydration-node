@@ -38,7 +38,7 @@ pub use frame_support::{
 	traits::{Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass, IdentityFee, Weight,
+		DispatchClass, IdentityFee, Pays, Weight,
 	},
 	StorageValue,
 };
@@ -165,7 +165,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Offences(_)
 			| Call::AMM(_)
 			| Call::MultiTransactionPayment(_)
-			| Call::Exchange(_) => false,
+			| Call::Exchange(_) => true,
 
 			Call::System(_)
 			| Call::RandomnessCollectiveFlip(_)
@@ -312,6 +312,7 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
+	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -327,6 +328,8 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type MultiCurrency = Currencies;
 	type AMMPool = AMM;
 	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
+	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
+	type WeightToFee = IdentityFee<Balance>;
 }
 
 impl pallet_sudo::Config for Runtime {

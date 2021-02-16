@@ -15,6 +15,8 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
+	weights::DispatchClass,
+	weights::WeightToFeePolynomial,
 };
 use frame_system::ensure_signed;
 use sp_runtime::{
@@ -26,11 +28,12 @@ use sp_std::prelude::*;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_std::marker::PhantomData;
 
-use frame_support::weights::Pays;
+use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::{CurrencySwap, AMM};
 use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
+use orml_utilities::with_transaction_result;
 use orml_utilities::OrderedSet;
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
@@ -51,6 +54,12 @@ pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
+
+	/// Should fee be paid for setting a currency
+	type WithdrawFeeForSetCurrency: Get<Pays>;
+
+	/// Convert a weight value into a deductible fee based on the currency type.
+	type WeightToFee: WeightToFeePolynomial<Balance = Balance>;
 }
 
 decl_event!(
@@ -116,7 +125,7 @@ decl_module! {
 		pub fn set_currency(
 			origin,
 			currency: AssetId,
-		)  -> DispatchResult {
+		)  -> DispatchResult{
 			let who = ensure_signed(origin)?;
 
 			if currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
@@ -124,11 +133,17 @@ decl_module! {
 					return Err(Error::<T>::ZeroBalance.into());
 				}
 
-				<AccountCurrencyMap<T>>::insert(who.clone(), currency);
+				return with_transaction_result(|| {
+					<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
-				Self::deposit_event(RawEvent::CurrencySet(who, currency));
+					if T::WithdrawFeeForSetCurrency::get() == Pays::Yes{
+						Self::withdraw_set_fee(&who, currency)?;
+					}
 
-				return Ok(());
+					Self::deposit_event(RawEvent::CurrencySet(who, currency));
+
+					Ok(())
+				});
 			}
 
 			Err(Error::<T>::UnsupportedCurrency.into())
@@ -203,6 +218,24 @@ impl<T: Config> Module<T> {
 
 	pub fn add_member(who: &T::AccountId) {
 		Authorities::<T>::mutate(|x| x.push(who.clone()));
+	}
+
+	pub fn withdraw_set_fee(who: &T::AccountId, currency: AssetId) -> DispatchResult {
+		let base_fee = Self::weight_to_fee(T::BlockWeights::get().get(DispatchClass::Normal).base_extrinsic);
+		let adjusted_weight_fee = Self::weight_to_fee(T::WeightInfo::set_currency());
+		let fee = base_fee.saturating_add(adjusted_weight_fee);
+
+		Self::swap_currency(who, fee)?;
+		T::MultiCurrency::withdraw(currency, who, fee)?;
+
+		Ok(())
+	}
+
+	fn weight_to_fee(weight: Weight) -> Balance {
+		// cap the weight to the maximum defined in runtime, otherwise it will be the
+		// `Bounded` maximum of its data type, which is not desired.
+		let capped_weight: Weight = weight.min(T::BlockWeights::get().max_block);
+		<T as Config>::WeightToFee::calc(&capped_weight).into()
 	}
 }
 

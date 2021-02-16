@@ -101,6 +101,8 @@ parameter_types! {
 		.build_or_panic();
 
 	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
+
+	pub PayForSetCurrency : Pays = Pays::No;
 }
 
 impl system::Config for Test {
@@ -133,6 +135,8 @@ impl Config for Test {
 	type MultiCurrency = Currencies;
 	type AMMPool = AMMModule;
 	type WeightInfo = ();
+	type WithdrawFeeForSetCurrency = PayForSetCurrency;
+	type WeightToFee = IdentityFee<Balance>;
 }
 
 impl pallet_asset_registry::Config for Test {
