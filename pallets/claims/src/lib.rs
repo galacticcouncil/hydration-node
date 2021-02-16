@@ -20,6 +20,7 @@ use sp_std::vec::Vec;
 pub use traits::*;
 
 mod claims_data;
+mod migration;
 mod traits;
 
 #[cfg(test)]
@@ -155,28 +156,4 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 		push_nibble(b % 16);
 	}
 	r
-}
-
-pub mod migration {
-	use super::*;
-
-	pub fn migrate_to_v2<T: Config>() -> frame_support::weights::Weight {
-		if PalletVersion::get() == StorageVersion::V1EmptyBalances {
-			frame_support::debug::info!(" >>> Adding claims to the storage");
-			for (addr, amount) in claims_data::CLAIMS_DATA.iter() {
-				Claims::<T>::insert(
-					EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
-						frame_support::debug::warn!("Error encountered while migrating Ethereum address: {}", addr);
-						EthereumAddress::default().0
-					})),
-					amount,
-				);
-			}
-			PalletVersion::put(StorageVersion::V2AddClaimData);
-			T::DbWeight::get().reads_writes(2, 3)
-		} else {
-			frame_support::debug::info!(" >>> Unused migration");
-			0
-		}
-	}
 }
