@@ -44,7 +44,7 @@ type BalanceOf<T> = <<T as Config>::Currency as MultiCurrency<<T as frame_system
 
 decl_storage! {
 	trait Store for Module<T: Config> as Claims {
-		HDXClaims get(fn hdxclaims): map hasher(blake2_128_concat) EthereumAddress => BalanceOf<T>;
+		Claims get(fn claims): map hasher(blake2_128_concat) EthereumAddress => BalanceOf<T>;
 
 		PalletVersion: StorageVersion = StorageVersion::V1EmptyBalances;
 	}
@@ -54,7 +54,7 @@ decl_storage! {
 
 		build(|config: &GenesisConfig<T>| {
 			config.claims.iter().for_each(|(eth_address, initial_balance)| {
-				HDXClaims::<T>::mutate(eth_address, |amount| *amount += *initial_balance)
+				Claims::<T>::mutate(eth_address, |amount| *amount += *initial_balance)
 			})
 		})
 	}
@@ -66,7 +66,7 @@ decl_event!(
 		AccountId = <T as frame_system::Config>::AccountId,
 		Balance = Balance,
 	{
-		HDXClaimed(AccountId, Balance),
+		Claimed(AccountId, Balance),
 	}
 );
 
@@ -105,15 +105,15 @@ decl_module! {
 
 impl<T: Config> Module<T> {
 	fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
-		let balance_due = HDXClaims::<T>::get(&signer);
+		let balance_due = Claims::<T>::get(&signer);
 
 		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
 
 		with_transaction_result(|| {
-			HDXClaims::<T>::insert(signer, 0);
+			Claims::<T>::insert(signer, 0);
 			<T::Currency as MultiCurrency<T::AccountId>>::deposit(CORE_ASSET_ID, &dest, balance_due)?;
 
-			Self::deposit_event(RawEvent::HDXClaimed(dest, balance_due));
+			Self::deposit_event(RawEvent::Claimed(dest, balance_due));
 
 			Ok(())
 		})
@@ -162,9 +162,9 @@ pub mod migration {
 
 	pub fn migrate_to_v2<T: Config>() -> frame_support::weights::Weight {
 		if PalletVersion::get() == StorageVersion::V1EmptyBalances {
-			frame_support::debug::info!(" >>> Adding xHDX claims to the storage");
+			frame_support::debug::info!(" >>> Adding claims to the storage");
 			for (addr, amount) in claims_data::CLAIMS_DATA.iter() {
-				HDXClaims::<T>::insert(
+				Claims::<T>::insert(
 					EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
 						frame_support::debug::warn!("Error encountered while migrating Ethereum address: {}", addr);
 						EthereumAddress::default().0

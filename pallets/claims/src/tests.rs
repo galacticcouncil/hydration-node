@@ -19,11 +19,11 @@ fn claiming_works() {
 		assert_eq!(Currency::free_balance(0, &ALICE), 0);
 		assert_eq!(Currency::free_balance(0, &BOB), 0);
 
-		assert_noop!(Claims::claim(Origin::signed(BOB), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
+		assert_noop!(ClaimsModule::claim(Origin::signed(BOB), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 
-		assert_ok!(Claims::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
+		assert_ok!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
 		assert_eq!(Currency::free_balance(0, &ALICE), 50_000);
-		assert_noop!(Claims::claim(Origin::signed(ALICE), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
+		assert_noop!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 
 		assert_eq!(Currency::free_balance(0, &ALICE), 50_000);
 		assert_eq!(Currency::free_balance(0, &BOB), 0);
@@ -34,6 +34,6 @@ fn claiming_works() {
 fn invalid_signature() {
 	new_test_ext().execute_with(|| {
 		let invalid_signature = hex!["a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"];
-		assert_noop!(Claims::claim(Origin::signed(ALICE), EcdsaSignature(invalid_signature)), Error::<Test>::InvalidEthereumSignature);
+		assert_noop!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(invalid_signature)), Error::<Test>::InvalidEthereumSignature);
 	})
 }

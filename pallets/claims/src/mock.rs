@@ -83,7 +83,7 @@ impl_outer_event! {
 }
 
 pub type System = frame_system::Module<Test>;
-pub type Claims = Module<Test>;
+pub type ClaimsModule = Module<Test>;
 pub type AccountId = u64;
 
 pub const ALICE: AccountId = 42;
