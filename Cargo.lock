@@ -1942,9 +1942,9 @@ checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 
 [[package]]
 name = "funty"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed34cd105917e91daa4da6b3728c47b068749d6a62c59811f06ed2ac71d9da7"
+checksum = "1847abb9cb65d566acd5942e94aea9c8f547ad02c98e1649326fc0e8910b8b1e"
 
 [[package]]
 name = "futures"
@@ -4270,11 +4270,11 @@ dependencies = [
 [[package]]
 name = "orml-xcm-support"
 version = "0.3.3-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=sw/rococo-v1#ef36c82771f79a002aad42ac05e5968e0ea68ed8"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=sw/rococo-v1#06d37423846b986c2fc4880c2427bd2a0e71137d"
 dependencies = [
  "frame-support",
  "orml-traits",
- "parity-scale-codec",
+ "parity-scale-codec 2.0.0",
  "sp-runtime",
  "sp-std",
  "xcm",
@@ -4284,12 +4284,12 @@ dependencies = [
 [[package]]
 name = "orml-xtokens"
 version = "0.3.3-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=sw/rococo-v1#ef36c82771f79a002aad42ac05e5968e0ea68ed8"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=sw/rococo-v1#06d37423846b986c2fc4880c2427bd2a0e71137d"
 dependencies = [
- "cumulus-primitives",
+ "cumulus-primitives-core",
  "frame-support",
  "frame-system",
- "parity-scale-codec",
+ "parity-scale-codec 2.0.0",
  "serde",
  "sp-io",
  "sp-runtime",
@@ -9983,11 +9983,11 @@ dependencies = [
 
 [[package]]
 name = "tracing-futures"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab7bb6f14721aa00656086e9335d363c5c8747bae02ebe32ea2c7dece5689b4c"
+checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
- "pin-project 0.4.27",
+ "pin-project 1.0.5",
  "tracing",
 ]
 
@@ -10874,9 +10874,9 @@ dependencies = [
 
 [[package]]
 name = "yamux"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9aeb8c4043cac71c3c299dff107171c220d179492350ea198e109a414981b83c"
+checksum = "1cc7bd8c983209ed5d527f44b01c41b7dc146fd960c61cf9e1d25399841dc271"
 dependencies = [
  "futures 0.3.12",
  "log",
