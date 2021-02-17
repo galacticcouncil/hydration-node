@@ -39,6 +39,19 @@ orml-currencies = { default-features = false, version = "=0.4.0-dev" }
 orml-tokens = { default-features = false, version = "=0.4.0-dev" }
 orml-traits = { default-features = false, version = "=0.4.0-dev" }
 
+# Cumulus dependencies
+cumulus-pallet-parachain-system = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
+cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
+cumulus-primitives-parachain-inherent = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
+cumulus-pallet-xcm-handler = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
+parachain-info = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
+
+# Polkadot dependencies
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, features = ["wasm-api"], branch = "rococo-v1" }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
+xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
+
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
 frame-executive = { default-features = false, version = '3.0.0' }
@@ -60,6 +73,7 @@ sp-block-builder = { default-features = false, version = '3.0.0' }
 sp-consensus-aura = { default-features = false, version = '0.9.0' }
 sp-core = { default-features = false, version = '3.0.0' }
 sp-inherents = { default-features = false, version = '3.0.0' }
+sp-externalities = { default-features = false, version = '0.9.0' }
 sp-offchain = { default-features = false, version = '3.0.0' }
 sp-runtime = { default-features = false, version = '3.0.0' }
 sp-session = { default-features = false, version = '3.0.0' }
@@ -68,18 +82,6 @@ sp-transaction-pool = { default-features = false, version = '3.0.0' }
 sp-version = { default-features = false, version = '3.0.0' }
 sp-staking = { default-features = false, version = '3.0.0' }
 sp-trie = { default-features = false, version = '3.0.0' }
-
-# Cumulus dependencies
-cumulus-pallet-parachain-system = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
-cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
-cumulus-pallet-xcm-handler = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
-parachain-info = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
-
-# Polkadot dependencies
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
 
 [features]
 default = ['std']
@@ -109,6 +111,7 @@ std = [
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-xcm-handler/std",
     "cumulus-primitives-core/std",
+    "cumulus-primitives-parachain-inherent/std",
     "xcm/std",
     "xcm-builder/std",
     "xcm-executor/std",
@@ -131,6 +134,7 @@ std = [
     'sp-consensus-aura/std',
     'sp-core/std',
     'sp-inherents/std',
+    'sp-externalities/std',
     'sp-offchain/std',
     'sp-runtime/std',
     'sp-session/std',
