@@ -81,22 +81,6 @@ xcm = { git = "https://github.com/paritytech/polkadot", default-features = false
 xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
 
-[dev-dependencies]
-assert_cmd = "0.12"
-nix = "0.17"
-rand = "0.7.3"
-tokio = { version = "0.2.13", features = ["macros"] }
-
-# Polkadot dependencies
-polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
-polkadot-test-runtime = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
-polkadot-test-client = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
-polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
-
-# Substrate dependencies
-substrate-test-client = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
-substrate-test-runtime-client = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
-
 [features]
 default = ['std']
 runtime-benchmarks = [
