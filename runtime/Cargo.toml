@@ -38,6 +38,8 @@ module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-
 orml-currencies = { default-features = false, version = "=0.4.0-dev" }
 orml-tokens = { default-features = false, version = "=0.4.0-dev" }
 orml-traits = { default-features = false, version = "=0.4.0-dev" }
+orml-xtokens = { default-features = false, version = "0.3.3-dev" }
+orml-xcm-support = { default-features = false, version = "0.3.3-dev" }
 
 # Cumulus dependencies
 cumulus-pallet-parachain-system = { git = 'https://github.com/paritytech/cumulus',  default-features = false, branch = "rococo-v1" }
@@ -108,6 +110,8 @@ std = [
     'orml-currencies/std',
     'orml-tokens/std',
     'orml-traits/std',
+    "orml-xtokens/std",
+    "orml-xcm-support/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-xcm-handler/std",
     "cumulus-primitives-core/std",

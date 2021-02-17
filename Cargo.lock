@@ -2355,6 +2355,8 @@ dependencies = [
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
+ "orml-xcm-support",
+ "orml-xtokens",
  "pallet-amm",
  "pallet-asset-registry",
  "pallet-aura",
@@ -4267,6 +4269,37 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "orml-xcm-support"
+version = "0.3.3-dev"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=sw/rococo-v1#06d37423846b986c2fc4880c2427bd2a0e71137d"
+dependencies = [
+ "frame-support",
+ "orml-traits",
+ "parity-scale-codec 2.0.0",
+ "sp-runtime",
+ "sp-std",
+ "xcm",
+ "xcm-executor",
+]
+
+[[package]]
+name = "orml-xtokens"
+version = "0.3.3-dev"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=sw/rococo-v1#06d37423846b986c2fc4880c2427bd2a0e71137d"
+dependencies = [
+ "cumulus-primitives-core",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.0.0",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "xcm",
+ "xcm-executor",
 ]
 
 [[package]]

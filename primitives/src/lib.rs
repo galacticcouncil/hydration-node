@@ -7,6 +7,7 @@ use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+pub mod currency;
 pub mod traits;
 
 /// An index to a block.
