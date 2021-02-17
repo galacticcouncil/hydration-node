@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use frame_support::{impl_outer_origin, parameter_types};
+use frame_support::parameter_types;
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -27,16 +27,22 @@ pub const GEORGE: AccountId = 6;
 pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ETH: AssetId = 3000;
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-impl_outer_origin! {
-	pub enum Origin for Test where system = frame_system {}
-}
+frame_support::construct_runtime!(
+	pub enum Test where
+	 Block = Block,
+	 NodeBlock = Block,
+	 UncheckedExtrinsic = UncheckedExtrinsic,
+	 {
+		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		 Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
+		 AMM: pallet_amm::{Module, Call, Storage, Event<T>},
+		 Currency: orml_tokens::{Module, Event<T>},
+	 }
 
-// For testing the pallet, we construct most of a mock runtime. This means
-// first constructing a configuration type (`Test`) which `impl`s each of the
-// configuration traits of pallets we want to use.
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
+);
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -51,7 +57,7 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -87,8 +93,6 @@ impl orml_tokens::Config for Test {
 	type OnDust = ();
 }
 
-pub type Currency = orml_tokens::Module<Test>;
-
 pub struct AssetPairAccountIdTest();
 
 impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
@@ -117,12 +121,9 @@ impl pallet_amm::Config for Test {
 	type GetExchangeFee = ExchangeFeeRate;
 }
 
-pub type AMMModule = pallet_amm::Module<Test>;
-pub type System = system::Module<Test>;
-
 impl pallet_exchange::Config for Test {
 	type Event = ();
-	type AMMPool = AMMModule;
+	type AMMPool = AMM;
 	type Currency = Currency;
 	type Resolver = pallet_exchange::Module<Test>;
 	type WeightInfo = ();

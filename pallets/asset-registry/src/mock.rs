@@ -1,5 +1,6 @@
+use crate as asset_registry;
 use crate::{Config, Module};
-use frame_support::{impl_outer_origin, parameter_types};
+use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -7,14 +8,21 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use frame_support::traits::GenesisBuild;
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+frame_support::construct_runtime!(
+	pub enum Test where
+	 Block = Block,
+	 NodeBlock = Block,
+	 UncheckedExtrinsic = UncheckedExtrinsic,
+	 {
+		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		 Registry: asset_registry::{Module, Call, Storage},
+	 }
 
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
+);
+
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 42;
@@ -25,7 +33,7 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;

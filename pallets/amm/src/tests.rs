@@ -1,5 +1,5 @@
 use super::*;
-pub use crate::mock::{Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX};
+pub use crate::mock::{Currency, Event as TestEvent, ExtBuilder, Origin, System, Test, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
 use primitives::traits::AMM as AMMPool;
 

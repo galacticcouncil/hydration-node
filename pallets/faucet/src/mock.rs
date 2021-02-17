@@ -1,6 +1,7 @@
-use crate::{Config, Module};
+use crate as faucet;
+use crate::Config;
+use frame_support::parameter_types;
 use frame_support::traits::GenesisBuild;
-use frame_support::{impl_outer_origin, parameter_types};
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use primitives::{AssetId, Balance};
@@ -10,14 +11,21 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-// Configure a mock runtime to test the pallet.
+frame_support::construct_runtime!(
+	pub enum Test where
+	 Block = Block,
+	 NodeBlock = Block,
+	 UncheckedExtrinsic = UncheckedExtrinsic,
+	 {
+		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		 Faucet: faucet::{Module, Call,Config, Storage, Event<T>},
+		 Currency: orml_tokens::{Module, Event<T>},
+	 }
+);
 
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 42;
@@ -28,7 +36,7 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -66,14 +74,10 @@ impl orml_tokens::Config for Test {
 	type OnDust = ();
 }
 
-pub type Currency = orml_tokens::Module<Test>;
-
 impl Config for Test {
 	type Event = ();
 	type Currency = Currency;
 }
-
-pub type Faucet = Module<Test>;
 
 pub type AccountId = u64;
 
