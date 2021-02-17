@@ -35,9 +35,9 @@ primitives = { path = '../primitives', default-features = false, version = '3.0.
 module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '3.0.0' }
 
 # ORML dependencies
-orml-currencies = { default-features = false, version = "0.4.0-dev" }
-orml-tokens = { default-features = false, version = "0.4.0-dev" }
-orml-traits = { default-features = false, version = "0.4.0-dev" }
+orml-currencies = { default-features = false, version = "=0.4.0-dev" }
+orml-tokens = { default-features = false, version = "=0.4.0-dev" }
+orml-traits = { default-features = false, version = "=0.4.0-dev" }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
@@ -80,6 +80,23 @@ polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-f
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
 xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false , branch = "rococo-v1" }
+
+[dev-dependencies]
+assert_cmd = "0.12"
+nix = "0.17"
+rand = "0.7.3"
+tokio = { version = "0.2.13", features = ["macros"] }
+
+# Polkadot dependencies
+polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
+polkadot-test-runtime = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
+polkadot-test-client = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
+polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "rococo-v1" }
+
+# Substrate dependencies
+pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+substrate-test-client = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
+substrate-test-runtime-client = { git = "https://github.com/paritytech/substrate", branch = "rococo-v1" }
 
 [features]
 default = ['std']
