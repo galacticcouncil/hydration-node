@@ -47,6 +47,8 @@ use primitives::fee;
 
 use primitives::currency::CurrencyId;
 
+use cumulus_pallet_xcm_handler as xcm_handler;
+
 use module_amm_rpc_runtime_api as amm_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
@@ -56,7 +58,7 @@ use orml_xcm_support::{
 	MultiCurrencyAdapter as XCMMultiCurrencyAdapter, NativePalletAssetOr,
 };
 
-use cumulus_primitives::relay_chain::Balance as RelayChainBalance;
+use cumulus_primitives_core::relay_chain::Balance as RelayChainBalance;
 pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 // XCM imports
@@ -72,7 +74,7 @@ use xcm_executor::{Config, XcmExecutor};
 pub use pallet_asset_registry;
 pub use pallet_faucet;
 
-use cumulus_primitives::ParaId;
+use cumulus_primitives_core::ParaId;
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
 
 /// An index to a block.
