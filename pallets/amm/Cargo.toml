@@ -46,6 +46,7 @@ runtime-benchmarks = [
   "frame-support/runtime-benchmarks",
 ]
 std = [
+  'serde',
   'codec/std',
   'frame-support/std',
   'frame-system/std',

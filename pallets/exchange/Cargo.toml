@@ -39,6 +39,7 @@ sp-io = {default-features = false, version = '3.0.0'}
 [features]
 default = ['std']
 std = [
+  'serde',
   'codec/std',
   'frame-support/std',
   'frame-system/std',
@@ -47,4 +48,6 @@ std = [
   'primitives/std',
   'orml-tokens/std',
   'orml-traits/std',
+  'pallet-asset-registry/std',
+  'pallet-amm/std',
 ]
