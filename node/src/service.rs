@@ -2,19 +2,20 @@
 
 #![allow(clippy::all)]
 
+use cumulus_client_network::build_block_announce_validator;
+use cumulus_client_service::{
+	prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
+};
+use cumulus_primitives_core::ParaId;
 use hack_hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
+use polkadot_primitives::v0::CollatorPair;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
-use sc_service::{error::Error as ServiceError, Configuration, TaskManager, PartialComponents, Role};
-use std::sync::Arc;
+use sc_service::{error::Error as ServiceError, Configuration, PartialComponents, Role, TaskManager};
 use sp_core::Pair;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
-use cumulus_network::build_block_announce_validator;
-use cumulus_service::{
-	prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
-};
-use polkadot_primitives::v0::CollatorPair;
+use std::sync::Arc;
 
 // Our native executor instance.
 native_executor_instance!(
@@ -36,24 +37,25 @@ pub fn new_partial(
 		(),
 		sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
 		sc_transaction_pool::FullPool<Block, FullClient>,
-		Option<sc_telemetry::TelemetrySpan>,
+		(),
 	>,
 	ServiceError,
 > {
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-	let (client, backend, keystore_container, task_manager, telemetry_span) =
+	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
 	let client = Arc::new(client);
 
 	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
 		config.transaction_pool.clone(),
+		config.role.is_authority().into(),
 		config.prometheus_registry(),
 		task_manager.spawn_handle(),
 		client.clone(),
 	);
 
-	let import_queue = cumulus_consensus::import_queue::import_queue(
+	let import_queue = cumulus_client_consensus::import_queue::import_queue(
 		client.clone(),
 		client.clone(),
 		inherent_data_providers.clone(),
@@ -70,7 +72,7 @@ pub fn new_partial(
 		transaction_pool,
 		inherent_data_providers,
 		select_chain: (),
-		other: telemetry_span,
+		other: (),
 	})
 }
 
@@ -81,16 +83,12 @@ async fn start_node_impl<RB>(
 	parachain_config: Configuration,
 	collator_key: CollatorPair,
 	polkadot_config: Configuration,
-	para_id: polkadot_primitives::v0::Id,
+	para_id: ParaId,
 	validator: bool,
 	_rpc_ext_builder: RB,
-) -> sc_service::error::Result<(TaskManager,Arc<FullClient>)>
-	where
-		RB: Fn(
-			Arc<FullClient>,
-		) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
-		+ Send
-		+ 'static,
+) -> sc_service::error::Result<(TaskManager, Arc<FullClient>)>
+where
+	RB: Fn(Arc<FullClient>) -> jsonrpc_core::IoHandler<sc_rpc::Metadata> + Send + 'static,
 {
 	if matches!(parachain_config.role, Role::Light) {
 		return Err("Light client not supported!".into());
@@ -98,16 +96,13 @@ async fn start_node_impl<RB>(
 
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let polkadot_full_node =
-		cumulus_service::build_polkadot_full_node(polkadot_config, collator_key.public()).map_err(
-			|e| match e {
-				polkadot_service::Error::Sub(x) => x,
-				s => format!("{}", s).into(),
-			},
-		)?;
+	let polkadot_full_node = cumulus_client_service::build_polkadot_full_node(polkadot_config, collator_key.public())
+		.map_err(|e| match e {
+		polkadot_service::Error::Sub(x) => x,
+		s => format!("{}", s).into(),
+	})?;
 
 	let params = new_partial(&parachain_config)?;
-	let telemetry_span = params.other;
 	params
 		.inherent_data_providers
 		.register_provider(sp_timestamp::InherentDataProvider)
@@ -165,7 +160,6 @@ async fn start_node_impl<RB>(
 		network: network.clone(),
 		network_status_sinks,
 		system_rpc_tx,
-		telemetry_span,
 	})?;
 
 	let announce_block = {
@@ -224,7 +218,7 @@ pub async fn start_node(
 	parachain_config: Configuration,
 	collator_key: CollatorPair,
 	polkadot_config: Configuration,
-	para_id: polkadot_primitives::v0::Id,
+	para_id: ParaId,
 	validator: bool,
 ) -> sc_service::error::Result<(TaskManager, Arc<FullClient>)> {
 	start_node_impl(
@@ -234,5 +228,6 @@ pub async fn start_node(
 		para_id,
 		validator,
 		|_| Default::default(),
-	).await
+	)
+	.await
 }
