@@ -2,6 +2,9 @@ name: Build
 
 on:
   push:
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   build:
@@ -31,5 +34,5 @@ jobs:
       - name: Upload release
         uses: actions/upload-artifact@v2
         with:
-          name: hack-hydra-dx
-          path: target/release/hack-hydra-dx
+          name: hydra-dx
+          path: target/release/hydra-dx

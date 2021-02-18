@@ -1,92 +1,93 @@
 [patch.crates-io]
-frame-benchmarking = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-frame-executive = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-frame-support = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-frame-system = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-frame-system-benchmarking = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-frame-system-rpc-runtime-api = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-balances = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-grandpa = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-randomness-collective-flip = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-sudo = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-timestamp = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-transaction-payment-rpc-runtime-api = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-basic-authorship = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-chain-spec = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-cli = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-client-api = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-client-db = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-consensus = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-consensus-epochs = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-executor = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-finality-grandpa = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-informant = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-keystore = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-network = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-offchain = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-rpc = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-rpc-api = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-service = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-telemetry = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-transaction-pool = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-api = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-application-crypto = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-arithmetic = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-block-builder = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-blockchain = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-consensus = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-core = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-externalities = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-finality-grandpa = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-inherents = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-io = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-offchain = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-rpc = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-runtime = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-runtime-interface = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-session = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-std = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-staking = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-storage = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-state-machine = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-timestamp = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-tracing = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-transaction-pool = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-trie = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-version = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-substrate-frame-rpc-system = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
+frame-benchmarking = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+frame-benchmarking-cli = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+frame-executive = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+frame-support = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+frame-system = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+frame-system-benchmarking = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+frame-system-rpc-runtime-api = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-balances = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-grandpa = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-randomness-collective-flip = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-sudo = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-timestamp = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-tips = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-transaction-payment-rpc = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-transaction-payment-rpc-runtime-api = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-basic-authorship = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-chain-spec = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-cli = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-client-api = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-client-db = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-consensus = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-consensus-epochs = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-executor = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-finality-grandpa = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-informant = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-keystore = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-network = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-offchain = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-rpc = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-rpc-api = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-service = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-telemetry = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-transaction-pool = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-api = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-application-crypto = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-arithmetic = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-block-builder = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-blockchain = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-consensus = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-core = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-externalities = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-finality-grandpa = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-inherents = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-io = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-offchain = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-rpc = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-runtime = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-runtime-interface = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-session = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-staking = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-state-machine = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-std = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-storage = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-timestamp = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-tracing = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-transaction-pool = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-trie = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-version = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+substrate-frame-rpc-system = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
 
-pallet-transaction-payment = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
+pallet-transaction-payment = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
 
 #staking
-pallet-authority-discovery = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-authorship = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-collective = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-elections-phragmen = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-im-online = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-offences = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-session = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-staking = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-treasury = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-authority-discovery = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-consensus-babe = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-pallet-babe = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-consensus-babe = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sc-consensus-babe-rpc = { git = 'https://github.com/paritytech/substrate', rev = '330f5c0dbfdf4ffbb891251e90880757687a8a72' }
-sp-keystore = { git = "https://github.com/paritytech/substrate.git", rev = "330f5c0dbfdf4ffbb891251e90880757687a8a72" }
-sc-consensus-slots = { git = "https://github.com/paritytech/substrate.git", rev = "330f5c0dbfdf4ffbb891251e90880757687a8a72" }
-sc-authority-discovery = { git = "https://github.com/paritytech/substrate.git", rev = "330f5c0dbfdf4ffbb891251e90880757687a8a72" }
+pallet-authority-discovery = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-authorship = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-babe = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-collective = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-elections-phragmen = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-im-online = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-offences = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-session = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-staking = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-staking-reward-curve = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+pallet-treasury = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-authority-discovery = {git = "https://github.com/galacticcouncil/substrate.git", branch = 'ss58'}
+sc-consensus-babe = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-consensus-babe-rpc = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sc-consensus-slots = {git = "https://github.com/galacticcouncil/substrate.git", branch = 'ss58'}
+sp-authority-discovery = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-consensus-babe = {git = 'https://github.com/galacticcouncil/substrate', branch = 'ss58'}
+sp-keystore = {git = "https://github.com/galacticcouncil/substrate.git", branch = 'ss58'}
 
 # ORML dependencies
-orml-currencies = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
-orml-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
-orml-traits = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
-orml-utilities = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
+orml-currencies = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
+orml-tokens = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
+orml-traits = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
+orml-utilities = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
 
-librocksdb-sys = { git = "https://github.com/hdevalence/rust-rocksdb", branch = "master" }
+librocksdb-sys = {git = "https://github.com/hdevalence/rust-rocksdb", branch = "master"}
 
 [profile.release]
 panic = 'unwind'
