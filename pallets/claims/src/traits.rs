@@ -28,7 +28,7 @@ impl<'de> Deserialize<'de> for EthereumAddress {
 		if s.len() != 40 {
 			return Err(serde::de::Error::custom(
 				"Bad length of Ethereum address (should be 42 including '0x')",
-			))?;
+			));
 		}
 		let raw: Vec<u8> = rustc_hex::FromHex::from_hex(s).map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
 		let mut r = Self::default();
@@ -42,7 +42,7 @@ pub struct EcdsaSignature(pub [u8; 65]);
 
 impl PartialEq for EcdsaSignature {
 	fn eq(&self, other: &Self) -> bool {
-		&self.0 == &other.0
+		self.0 == other.0
 	}
 }
 
