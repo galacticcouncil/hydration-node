@@ -18,7 +18,7 @@ use frame_support::{
 	weights::DispatchClass,
 	weights::WeightToFeePolynomial,
 };
-use frame_system::ensure_signed;
+use frame_system::{ensure_root, ensure_signed};
 use sp_runtime::{
 	traits::{DispatchInfoOf, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
@@ -78,6 +78,14 @@ decl_event!(
 		/// Accepted currency removed
 		/// [who, currency]
 		CurrencyRemoved(AccountId, AssetId),
+
+		/// Member added
+		/// [who]
+		MemberAdded(AccountId),
+
+		/// Member removed
+		/// [who]
+		MemberRemoved(AccountId),
 	}
 );
 
@@ -98,6 +106,13 @@ decl_error! {
 
 		/// Currency being added is already in the list of accpeted currencies
 		CoreAssetNotAllowed,
+
+		/// Account is already a member of authorities
+		AlreadyMember,
+
+		/// Account is not a member of authorities
+		NotAMember,
+
 	}
 }
 
@@ -198,6 +213,40 @@ decl_module! {
 
 			Err(Error::<T>::UnsupportedCurrency.into())
 		}
+
+		/// Add an account as member to list of authorities who can manage list of accepted currencies
+		#[weight = (<T as Config>::WeightInfo::add_member(), Pays::No)]
+		pub fn add_member(origin, member: T::AccountId) -> DispatchResult{
+			ensure_root(origin)?;
+
+			ensure!(
+				! Self::authorities().contains(&member),
+				Error::<T>::AlreadyMember
+			);
+
+			Self::add_new_member(&member);
+
+			Self::deposit_event(RawEvent::MemberAdded(member));
+
+			return Ok(());
+		}
+
+		/// Add an account as member to list of authorities who can manage list of accepted currencies
+		#[weight = (<T as Config>::WeightInfo::remove_member(), Pays::No)]
+		pub fn remove_member(origin, member: T::AccountId) -> DispatchResult{
+			ensure_root(origin)?;
+
+			ensure!(
+				Self::authorities().contains(&member),
+				Error::<T>::NotAMember
+			);
+
+			Authorities::<T>::mutate(|x| x.retain(|val| *val != member));
+
+			Self::deposit_event(RawEvent::MemberRemoved(member));
+
+			return Ok(());
+		}
 	}
 }
 impl<T: Config> Module<T> {
@@ -216,7 +265,7 @@ impl<T: Config> Module<T> {
 		Ok(())
 	}
 
-	pub fn add_member(who: &T::AccountId) {
+	pub fn add_new_member(who: &T::AccountId) {
 		Authorities::<T>::mutate(|x| x.push(who.clone()));
 	}
 

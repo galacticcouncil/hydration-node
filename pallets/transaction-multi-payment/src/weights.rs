@@ -52,6 +52,8 @@ pub trait WeightInfo {
 	fn set_currency() -> Weight;
 	fn add_currency() -> Weight;
 	fn remove_currency() -> Weight;
+	fn add_member() -> Weight;
+	fn remove_member() -> Weight;
 }
 
 /// Weights for transaction_multi_payment using the hydraDX node and recommended hardware.
@@ -77,6 +79,14 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
+
+	fn add_member() -> u64 {
+		0
+	}
+
+	fn remove_member() -> u64 {
+		0
+	}
 }
 
 // For backwards compatibility and tests
@@ -100,5 +110,13 @@ impl WeightInfo for () {
 		(37_437_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+
+	fn add_member() -> u64 {
+		0
+	}
+
+	fn remove_member() -> u64 {
+		0
 	}
 }

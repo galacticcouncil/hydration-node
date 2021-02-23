@@ -54,7 +54,7 @@ benchmarks! {
 	swap_currency {
 		let maker = funded_account::<T>("maker", 1);
 		initialize_pool::<T>(maker.clone(), ASSET_ID, 1000, Price::from(1))?;
-		MultiPaymentModule::<T>::add_member(&maker);
+		MultiPaymentModule::<T>::add_new_member(&maker);
 		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID)?;
 
 		let caller = funded_account::<T>("caller", 2);
@@ -68,7 +68,7 @@ benchmarks! {
 
 	set_currency {
 		let maker = funded_account::<T>("maker", 1);
-		MultiPaymentModule::<T>::add_member(&maker);
+		MultiPaymentModule::<T>::add_new_member(&maker);
 		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID)?;
 
 		let caller = funded_account::<T>("caller", 123);
@@ -82,7 +82,7 @@ benchmarks! {
 
 	add_currency {
 		let caller = funded_account::<T>("maker", 1);
-		MultiPaymentModule::<T>::add_member(&caller);
+		MultiPaymentModule::<T>::add_new_member(&caller);
 	}: { MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10)? }
 	verify {
 		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::from(vec![10]));
@@ -90,7 +90,7 @@ benchmarks! {
 
 	remove_currency {
 		let caller = funded_account::<T>("maker", 1);
-		MultiPaymentModule::<T>::add_member(&caller);
+		MultiPaymentModule::<T>::add_new_member(&caller);
 		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10)?;
 
 		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::from(vec![10]));
