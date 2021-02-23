@@ -8,7 +8,7 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
 };
 use frame_system::{self as system, ensure_signed};
-use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
+use primitives::{fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO, MIN_POOL_LIMIT, MIN_TRADE_LIMIT};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
@@ -189,8 +189,8 @@ decl_module! {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
-				!amount.is_zero(),
-				Error::<T>::CannotCreatePoolWithZeroLiquidity
+				amount >= MIN_POOL_LIMIT,
+				Error::<T>::InsufficientPoolAssetBalance
 			);
 			ensure!(
 				!initial_price.is_zero(),
@@ -399,7 +399,7 @@ decl_module! {
 
 			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
 
-			if liquidity_left == 0 {
+			if liquidity_left < MIN_POOL_LIMIT {
 				<ShareToken<T>>::remove(&pair_account);
 				<PoolAssets<T>>::remove(&pair_account);
 
@@ -420,6 +420,11 @@ decl_module! {
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(
+				amount_sell >= MIN_TRADE_LIMIT,
+				Error::<T>::InsufficientAssetBalance
+			);
+
 			<Self as AMM<_,_,_>>::sell(&who, asset_sell, asset_buy, amount_sell, max_limit, discount)
 		}
 
@@ -433,6 +438,11 @@ decl_module! {
 			discount: bool,
 		) -> dispatch::DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(
+				amount_buy >= MIN_TRADE_LIMIT,
+				Error::<T>::InsufficientAssetBalance
+			);
 
 			<Self as AMM<_,_,_>>::buy(&who, asset_buy, asset_sell, amount_buy, max_limit, discount)
 		}

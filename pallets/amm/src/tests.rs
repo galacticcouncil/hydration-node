@@ -63,14 +63,14 @@ fn create_same_pool_should_not_work() {
 			Origin::signed(user),
 			asset_b,
 			asset_a,
-			100,
+			1000,
 			Price::from(2)
 		));
 		assert_noop!(
-			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from(2)),
+			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 1000, Price::from(2)),
 			Error::<Test>::TokenPoolAlreadyExists
 		);
-		expect_events(vec![RawEvent::CreatePool(ALICE, asset_b, asset_a, 200).into()]);
+		expect_events(vec![RawEvent::CreatePool(ALICE, asset_b, asset_a, 2000).into()]);
 	});
 }
 
@@ -228,7 +228,7 @@ fn add_liquidity_more_than_owner_should_not_work() {
 #[test]
 fn add_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 100, Price::from(1)));
+		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 1000, Price::from(1)));
 
 		assert_noop!(
 			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 0, 0),
@@ -236,7 +236,7 @@ fn add_zero_liquidity_should_not_work() {
 		);
 
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 100, 0),
+			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 1000, 0),
 			Error::<Test>::CannotAddZeroLiquidity
 		);
 	});
@@ -711,11 +711,11 @@ fn create_pool_with_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 0, Price::from(3200)),
-			Error::<Test>::CannotCreatePoolWithZeroLiquidity
+			Error::<Test>::InsufficientPoolAssetBalance
 		);
 
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 10, Price::from(0)),
+			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 1000, Price::from(0)),
 			Error::<Test>::CannotCreatePoolWithZeroInitialPrice
 		);
 	});
@@ -752,13 +752,33 @@ fn sell_with_non_existing_pool_should_not_work() {
 }
 
 #[test]
+fn sell_with_low_amount_should_not_work() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			AMM::sell(Origin::signed(ALICE), HDX, DOT, 1, 1_000_000, false),
+			Error::<Test>::InsufficientAssetBalance
+		);
+	});
+}
+
+#[test]
+fn buy_with_low_amount_should_not_work() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			AMM::buy(Origin::signed(ALICE), HDX, DOT, 1, 1_000_000, false),
+			Error::<Test>::InsufficientAssetBalance
+		);
+	});
+}
+
+#[test]
 fn discount_sell_with_no_hdx_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(AMM::create_pool(
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
-			100,
+			1000,
 			Price::from(3200)
 		));
 
@@ -786,7 +806,7 @@ fn discount_buy_with_no_hdx_pool_should_not_work() {
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
-			100,
+			1000,
 			Price::from(3200)
 		));
 

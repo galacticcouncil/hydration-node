@@ -33,8 +33,12 @@ pub type Price = FixedU128;
 /// Max fraction of pool to buy in single transaction
 pub const MAX_OUT_RATIO: u128 = 3;
 
-// Max fraction of pool to sell in single transaction
+/// Max fraction of pool to sell in single transaction
 pub const MAX_IN_RATIO: u128 = 3;
+
+/// Pool Creation/Existence & Trade Limits
+pub const MIN_POOL_LIMIT: u128 = 1000;
+pub const MIN_TRADE_LIMIT: u128 = 10;
 
 /// Scaled Unsigned of Balance
 pub type HighPrecisionBalance = U256;
