@@ -11,8 +11,9 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CurrencyId {
 	HDT = 0,
-	XHDT = 1,
 	DOT = 2,
+	ACA = 5,
+	AUSD = 6,
 }
 
 impl Into<Vec<u8>> for CurrencyId {
@@ -21,7 +22,8 @@ impl Into<Vec<u8>> for CurrencyId {
 		match self {
 			HDT => b"HDT".to_vec(),
 			DOT => b"DOT".to_vec(),
-			XHDT => b"xHDT".to_vec(),
+			ACA => b"ACA".to_vec(),
+			AUSD => b"AUSD".to_vec(),
 		}
 	}
 }
@@ -32,7 +34,8 @@ impl TryFrom<Vec<u8>> for CurrencyId {
 		match v.as_slice() {
 			b"HDT" => Ok(CurrencyId::HDT),
 			b"DOT" => Ok(CurrencyId::DOT),
-			b"xHDT" => Ok(CurrencyId::XHDT),
+			b"ACA" => Ok(CurrencyId::ACA),
+			b"AUSD" => Ok(CurrencyId::AUSD),
 			_ => Err(()),
 		}
 	}

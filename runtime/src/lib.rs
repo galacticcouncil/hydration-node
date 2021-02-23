@@ -424,7 +424,8 @@ parameter_types! {
 	pub NativeTokens: BTreeSet<(Vec<u8>, MultiLocation)> = {
 		let mut t = BTreeSet::new();
 		t.insert(("HDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 200})));
-		t.insert(("xHDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 300})));
+		t.insert(("AUSD".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
+		t.insert(("ACA".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
 		t
 	};
 }
