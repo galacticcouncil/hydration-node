@@ -16,7 +16,7 @@ primitive-types = {default-features = false, version = '0.7.2'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 codec = {package = 'parity-scale-codec', version = '2.0.0', default-features = false, features = ['derive']}
 
-hack-hydra-dx-math = { default-features = false, version = "0.1.0", git = "https://github.com/galacticcouncil/hack.hydraDX-math", branch="main"}
+hydra-dx-math = { default-features = false, version = "0.1.0", git = "https://github.com/galacticcouncil/hydraDX-math", branch="main"}
 
 # Local dependencies
 pallet-asset-registry = {path = '../asset-registry', default-features = false, version = '3.0.0'}
