@@ -1,12 +1,10 @@
 use crate::{Config, EthereumAddress, GenesisConfig, Module};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system;
-use orml_traits::parameter_type_with_key;
-use primitives::{AssetId, Balance};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup, Zero},
+	traits::{BlakeTwo256, IdentityLookup},
 };
 
 impl_outer_origin! {
@@ -38,31 +36,21 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = ();
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u64>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 }
 
-pub type Amount = i128;
-
-parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
-		Zero::zero()
-	};
-}
-
-impl orml_tokens::Config for Test {
+impl pallet_balances::Config for Test {
+	type MaxLocks = ();
+	type Balance = u64;
 	type Event = ();
-	type Balance = Balance;
-	type Amount = Amount;
-	type CurrencyId = AssetId;
+	type DustRemoval = ();
+	type ExistentialDeposit = ();
+	type AccountStore = System;
 	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 }
-
-pub type Currency = orml_tokens::Module<Test>;
 
 parameter_types! {
 	pub Prefix: &'static [u8] = b"I hereby claim all my xHDX tokens to wallet:";
@@ -70,29 +58,27 @@ parameter_types! {
 
 impl Config for Test {
 	type Event = ();
-	type Currency = Currency;
+	type Currency = Balances;
 	type Prefix = Prefix;
 	type WeightInfo = ();
 }
 
 impl_outer_event! {
-	pub enum TestEvent for Test{
+	pub enum Event for Test{
 		frame_system<T>,
-		orml_tokens<T>,
+		pallet_balances<T>,
 	}
 }
 
 pub type System = frame_system::Module<Test>;
 pub type ClaimsModule = Module<Test>;
-pub type AccountId = u64;
+pub type Balances = pallet_balances::Module<Test>;
 
+pub type AccountId = u64;
 pub const ALICE: AccountId = 42;
 pub const BOB: AccountId = 142;
-pub const HDX: AssetId = 1000;
 
-pub struct ExtBuilder {
-	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
-}
+pub struct ExtBuilder;
 
 impl ExtBuilder {
 	// builds genesis config
@@ -110,20 +96,12 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		orml_tokens::GenesisConfig::<Test> {
-			endowed_accounts: self.endowed_accounts,
-		}
-		.assimilate_storage(&mut t)
-		.unwrap();
-
 		t.into()
 	}
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self {
-			endowed_accounts: vec![(ALICE, HDX, 1000u128)],
-		}
+		Self {}
 	}
 }

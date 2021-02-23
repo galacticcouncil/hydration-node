@@ -381,13 +381,13 @@ impl pallet_amm::Config for Runtime {
 }
 
 parameter_types! {
-	pub Prefix: &'static [u8] = b"I hereby claim all my xHDX tokens to wallet:";
+	pub ClaimMessagePrefix: &'static [u8] = b"I hereby claim all my HDX tokens to wallet:";
 }
 
 impl pallet_claims::Config for Runtime {
 	type Event = Event;
-	type Currency = Currencies;
-	type Prefix = Prefix;
+	type Currency = Balances;
+	type Prefix = ClaimMessagePrefix;
 	type WeightInfo = pallet_claims::weights::HackHydraWeight<Runtime>;
 }
 

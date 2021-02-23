@@ -3878,6 +3878,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
+ "pallet-balances",
  "parity-scale-codec",
  "primitives",
  "rustc-hex",

@@ -4,14 +4,12 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
 	ensure,
-	traits::Get,
+	traits::{Currency, Get},
 	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
 use hex::FromHex;
-use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use orml_utilities::with_transaction_result;
-use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
@@ -36,12 +34,12 @@ pub mod weights;
 
 pub trait Config: frame_system::Config {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
+	type Currency: Currency<Self::AccountId>;
 	type Prefix: Get<&'static [u8]>;
 	type WeightInfo: WeightInfo;
 }
 
-type BalanceOf<T> = <<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 decl_storage! {
 	trait Store for Module<T: Config> as Claims {
@@ -65,7 +63,7 @@ decl_event!(
 	pub enum Event<T>
 	where
 		AccountId = <T as frame_system::Config>::AccountId,
-		Balance = Balance,
+		Balance = BalanceOf<T>,
 	{
 		Claimed(AccountId, Balance),
 	}
@@ -111,8 +109,8 @@ impl<T: Config> Module<T> {
 		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
 
 		with_transaction_result(|| {
-			Claims::<T>::insert(signer, 0);
-			<T::Currency as MultiCurrency<T::AccountId>>::deposit(CORE_ASSET_ID, &dest, balance_due)?;
+			Claims::<T>::mutate(signer, |bal| *bal = Zero::zero());
+			<T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
 
 			Self::deposit_event(RawEvent::Claimed(dest, balance_due));
 
