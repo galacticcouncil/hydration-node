@@ -19,8 +19,9 @@ use frame_support::traits::Get;
 use pallet_amm::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
-use primitives::fee;
+use frame_benchmarking::frame_support::weights::Pays;
 use orml_utilities::OrderedSet;
+use primitives::fee;
 
 pub type AccountId = u64;
 
@@ -60,6 +61,7 @@ parameter_types! {
 	pub const MaxLocks: u32 = 50;
 	pub const TransactionByteFee: Balance = 1;
 	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
+	pub PayForSetCurrency : Pays = Pays::No;
 }
 
 impl system::Config for Test {
@@ -93,6 +95,8 @@ impl pallet_transaction_multi_payment::Config for Test {
 	type MultiCurrency = Currencies;
 	type AMMPool = AMMModule;
 	type WeightInfo = ();
+	type WithdrawFeeForSetCurrency = PayForSetCurrency;
+	type WeightToFee = IdentityFee<Balance>;
 }
 
 impl pallet_asset_registry::Config for Test {

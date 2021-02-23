@@ -99,6 +99,21 @@ benchmarks! {
 	verify {
 		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::<AssetId>::new())
 	}
+
+	add_member{
+		let member = funded_account::<T>("newmember", 10);
+	}: { MultiPaymentModule::<T>::add_member(RawOrigin::Root.into(), member.clone())? }
+	verify {
+		assert_eq!(MultiPaymentModule::<T>::authorities(), vec![member]);
+	}
+
+	remove_member{
+		let member = funded_account::<T>("newmember", 10);
+		MultiPaymentModule::<T>::add_new_member(&member);
+	}: { MultiPaymentModule::<T>::remove_member(RawOrigin::Root.into(), member.clone())? }
+	verify {
+		assert_eq!(MultiPaymentModule::<T>::authorities(), vec![]);
+	}
 }
 
 #[cfg(test)]
@@ -114,6 +129,8 @@ mod tests {
 			assert_ok!(test_benchmark_set_currency::<Test>());
 			assert_ok!(test_benchmark_add_currency::<Test>());
 			assert_ok!(test_benchmark_remove_currency::<Test>());
+			assert_ok!(test_benchmark_add_member::<Test>());
+			assert_ok!(test_benchmark_remove_member::<Test>());
 		});
 	}
 }
