@@ -5,12 +5,15 @@ pub fn migrate_to_v2<T: Config>() -> frame_support::weights::Weight {
 	if PalletVersion::get() == StorageVersion::V1EmptyBalances {
 		frame_support::debug::info!(" >>> Adding claims to the storage");
 		for (addr, amount) in claims_data::CLAIMS_DATA.iter() {
+
+			let balance: BalanceOf<T> = T::IntoBalance::from(*amount).into();
+
 			Claims::<T>::insert(
 				EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
 					frame_support::debug::warn!("Error encountered while migrating Ethereum address: {}", addr);
 					EthereumAddress::default().0
 				})),
-				amount,
+				balance,
 			);
 		}
 		PalletVersion::put(StorageVersion::V2AddClaimData);

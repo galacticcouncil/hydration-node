@@ -1,6 +1,7 @@
 use crate::{Config, EthereumAddress, GenesisConfig, Module};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system;
+use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -28,7 +29,7 @@ impl frame_system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = ();
@@ -36,7 +37,7 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = ();
-	type AccountData = pallet_balances::AccountData<u64>;
+	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -44,11 +45,11 @@ impl frame_system::Config for Test {
 
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
-	type Balance = u64;
+	type Balance = Balance;
 	type Event = ();
 	type DustRemoval = ();
 	type ExistentialDeposit = ();
-	type AccountStore = System;
+	type AccountStore = frame_system::Module<Test>;
 	type WeightInfo = ();
 }
 
@@ -61,6 +62,7 @@ impl Config for Test {
 	type Currency = Balances;
 	type Prefix = Prefix;
 	type WeightInfo = ();
+	type IntoBalance = Balance;
 }
 
 impl_outer_event! {

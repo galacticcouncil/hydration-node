@@ -8,7 +8,6 @@ use frame_support::{
 	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
-use hex::FromHex;
 use orml_utilities::with_transaction_result;
 use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_runtime::traits::Zero;
@@ -37,6 +36,7 @@ pub trait Config: frame_system::Config {
 	type Currency: Currency<Self::AccountId>;
 	type Prefix: Get<&'static [u8]>;
 	type WeightInfo: WeightInfo;
+	type IntoBalance: From<u128> + Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
 }
 
 pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
