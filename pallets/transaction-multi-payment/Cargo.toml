@@ -22,21 +22,19 @@ package = 'parity-scale-codec'
 version = '1.3.4'
 
 [dependencies]
-primitive-types = {default-features = false, version = '0.7.2'}
+primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependecies
 primitives = {path = '../../primitives', default-features = false, version = '2.0.0'}
 
 # ORML dependencies
-orml-tokens = {default-features = false, version = "0.3.2"}
-orml-traits = {default-features = false, version = "0.3.2"}
+orml-tokens = {default-features = false, version = "0.3.3-dev"}
+orml-traits = {default-features = false, version = "0.3.3-dev"}
 
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, version = '2.0.0'}
 frame-support = {default-features = false, version = '2.0.0'}
 frame-system = {default-features = false, version = '2.0.0'}
-frame-system-benchmarking = {default-features = false, optional = true, version = '2.0.0'}
 sp-std = {default-features = false, version = '2.0.0'}
 pallet-transaction-payment = {default-features = false, version = '2.0.0'}
 
@@ -50,7 +48,7 @@ pallet-amm = {path = '../amm', default-features = false, version = '2.0.0'}
 [dev-dependencies]
 sp-io = {default-features = false, version = '2.0.0'}
 pallet-transaction-payment = {default-features = false, version = '2.0.0' }
-orml-currencies = {default-features = false, version = "0.3.2"}
+orml-currencies = {default-features = false, version = "0.3.3-dev"}
 
 [features]
 default = ['std']
@@ -67,10 +65,5 @@ std = [
     'pallet-balances/std',
     'pallet-asset-registry/std',
     'pallet-amm/std',
-]
-runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-system/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
 ]
 

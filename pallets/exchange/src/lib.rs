@@ -8,7 +8,6 @@ use codec::Encode;
 use sp_std::vec::Vec;
 
 use primitives::{
-	fee,
 	traits::{Resolver, AMM},
 	AssetId, Balance, ExchangeIntention, IntentionType,
 };
@@ -27,33 +26,21 @@ use frame_support::sp_runtime::traits::Hash;
 #[cfg(test)]
 mod mock;
 
-mod default_weights;
+pub mod weights;
+
+use weights::WeightInfo;
 
 mod direct;
 #[cfg(test)]
 mod tests;
 
 /// Intention alias
-type IntentionId<T> = <T as system::Trait>::Hash;
-pub type Intention<T> = ExchangeIntention<<T as system::Trait>::AccountId, AssetId, Balance, IntentionId<T>>;
-
-pub trait WeightInfo {
-	fn known_overhead_for_on_finalize() -> Weight;
-	fn sell_intention() -> Weight;
-	fn buy_intention() -> Weight;
-
-	fn on_finalize(t: u32) -> Weight;
-	fn on_finalize_buys_no_matches(t: u32) -> Weight;
-	fn on_finalize_sells_no_matches(t: u32) -> Weight;
-	fn sell_extrinsic() -> Weight;
-	fn buy_extrinsic() -> Weight;
-	fn on_finalize_for_one_sell_extrinsic() -> Weight;
-	fn on_finalize_for_one_buy_extrinsic() -> Weight;
-}
+type IntentionId<T> = <T as system::Config>::Hash;
+pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, AssetId, Balance, IntentionId<T>>;
 
 /// The pallet's configuration trait.
-pub trait Trait: system::Trait {
-	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+pub trait Config: system::Config {
+	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
 
 	/// AMM pool implementation
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
@@ -71,7 +58,7 @@ pub trait Trait: system::Trait {
 
 // This pallet's storage items.
 decl_storage! {
-	trait Store for Module<T: Trait> as Exchange {
+	trait Store for Module<T: Config> as Exchange {
 
 		/// Current intention count for current block
 		ExchangeAssetsIntentionCount get(fn get_intentions_count): map hasher(blake2_128_concat) (AssetId, AssetId) => u32;
@@ -86,7 +73,7 @@ decl_storage! {
 decl_event!(
 	pub enum Event<T>
 	where
-		AccountId = <T as system::Trait>::AccountId,
+		AccountId = <T as system::Config>::AccountId,
 		IntentionID = IntentionId<T>,
 	{
 		/// Intention registered event
@@ -133,7 +120,7 @@ decl_event!(
 
 // The pallet's errors
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Value was None
 		NoneValue,
 
@@ -153,7 +140,7 @@ decl_error! {
 
 decl_module! {
 	/// The module declaration.
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 
 		type Error = Error<T>;
 
@@ -161,7 +148,7 @@ decl_module! {
 
 		/// Create sell intention
 		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
-		#[weight =  <T as Trait>::WeightInfo::sell_intention() + <T as Trait>::WeightInfo::on_finalize_for_one_sell_extrinsic() -  <T as Trait>::WeightInfo::known_overhead_for_on_finalize()]
+		#[weight =  <T as Config>::WeightInfo::sell_intention() + <T as Config>::WeightInfo::on_finalize_for_one_sell_extrinsic() -  <T as Config>::WeightInfo::known_overhead_for_on_finalize()]
 		pub fn sell(
 			origin,
 			asset_sell: AssetId,
@@ -217,7 +204,7 @@ decl_module! {
 
 		/// Create buy intention
 		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
-		#[weight =  <T as Trait>::WeightInfo::buy_intention() + <T as Trait>::WeightInfo::on_finalize_for_one_buy_extrinsic() -  <T as Trait>::WeightInfo::known_overhead_for_on_finalize()]
+		#[weight =  <T as Config>::WeightInfo::buy_intention() + <T as Config>::WeightInfo::on_finalize_for_one_buy_extrinsic() -  <T as Config>::WeightInfo::known_overhead_for_on_finalize()]
 		pub fn buy(
 			origin,
 			asset_buy: AssetId,
@@ -299,7 +286,7 @@ decl_module! {
 }
 
 // "Internal" functions, callable by code.
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	/// Process intentions and attempt to match them so they can be direct traded.
 	/// ```sell_a_intentions``` are considered 'main' intentions.
 	///
@@ -456,7 +443,7 @@ impl<T: Trait> Module<T> {
 	}
 }
 
-impl<T: Trait> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
+impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 	/// Resolve intention via AMM pool.
 	fn resolve_single_intention(intention: &Intention<T>) {
 		let amm_transfer = match intention.sell_or_buy {

@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod default_weights;
+pub mod weights;
+
+use weights::WeightInfo;
 
 #[cfg(test)]
 mod mock;
@@ -11,6 +13,7 @@ mod tests;
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
+	ensure,
 	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
 };
 use frame_system::ensure_signed;
@@ -24,21 +27,15 @@ use pallet_transaction_payment::OnChargeTransaction;
 use sp_std::marker::PhantomData;
 
 use frame_support::weights::Pays;
-use frame_support::weights::Weight;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::traits::{CurrencySwap, AMM};
 use primitives::{AssetId, Balance, CORE_ASSET_ID};
 
-type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
+type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
-pub trait WeightInfo {
-	fn set_currency() -> Weight;
-	fn swap_currency() -> Weight;
-}
-
-pub trait Trait: frame_system::Trait + pallet_transaction_payment::Trait {
+pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 	/// Because this pallet emits events, it depends on the runtime's definition of an event.
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
 	/// The currency type in which fees will be paid.
 	type Currency: Currency<Self::AccountId> + Send + Sync;
@@ -50,9 +47,6 @@ pub trait Trait: frame_system::Trait + pallet_transaction_payment::Trait {
 	/// AMM pool to swap for native currency
 	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
 
-	/// Accepted Non native list of currencies
-	type NonNativeAcceptedAssetId: Get<Vec<AssetId>>;
-
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
 }
@@ -60,34 +54,53 @@ pub trait Trait: frame_system::Trait + pallet_transaction_payment::Trait {
 decl_event!(
 	pub enum Event<T>
 	where
-		AccountId = <T as frame_system::Trait>::AccountId,
+		AccountId = <T as frame_system::Config>::AccountId,
 	{
 		/// CurrencySet
 		/// [who, currency]
-		CurrectSet(AccountId, AssetId),
+		CurrencySet(AccountId, AssetId),
+
+		/// New accepted currency added
+		/// [who, currency]
+		CurrencyAdded(AccountId, AssetId),
+
+		/// Accepted currency removed
+		/// [who, currency]
+		CurrencyRemoved(AccountId, AssetId),
 	}
 );
 
 // The pallet's errors
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		/// Selected currency is not supported
 		UnsupportedCurrency,
 
 		/// Zero Balance of selected currency
 		ZeroBalance,
+
+		/// Not allowed to add or remove accepted currency
+		NotAllowed,
+
+		/// Currency being added is already in the list of accpeted currencies
+		AlreadyAccepted,
+
+		/// Currency being added is already in the list of accpeted currencies
+		CoreAssetNotAllowed,
 	}
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as TransactionPayment {
+	trait Store for Module<T: Config> as TransactionPayment {
 		/// Account currency map
 		pub AccountCurrencyMap get(fn get_currency): map hasher(blake2_128_concat) T::AccountId => Option<AssetId>;
+		pub AcceptedCurrencies get(fn currencies) config(): Vec<AssetId>;
+		pub Authorities get(fn authorities) config(): Vec<T::AccountId>;
 	}
 }
 
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		// Errors must be initialized if they are used by the pallet.
 		type Error = Error<T>;
 
@@ -97,14 +110,14 @@ decl_module! {
 		/// Set currency in which transaction fees are paid.
 		/// This is feeless transaction.
 		/// Selected currency must have non-zero balance otherwise is not allowed to be set.
-		#[weight = (<T as Trait>::WeightInfo::set_currency(), Pays::No)]
+		#[weight = (<T as Config>::WeightInfo::set_currency(), Pays::No)]
 		pub fn set_currency(
 			origin,
 			currency: AssetId,
 		)  -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			match currency == CORE_ASSET_ID || T::NonNativeAcceptedAssetId::get().contains(&currency){
+			match currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
 				true =>	{
 					if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
 						return Err(Error::<T>::ZeroBalance.into());
@@ -112,16 +125,74 @@ decl_module! {
 
 					<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
-					Self::deposit_event(RawEvent::CurrectSet(who, currency));
+					Self::deposit_event(RawEvent::CurrencySet(who, currency));
 
 					Ok(())
 				},
 				false => Err(Error::<T>::UnsupportedCurrency.into())
 			}
 		}
+
+		#[weight = (<T as Config>::WeightInfo::add_currency(), Pays::No)]
+		pub fn add_currency(origin, currency: AssetId) -> DispatchResult{
+
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				currency != CORE_ASSET_ID,
+				Error::<T>::CoreAssetNotAllowed
+			);
+
+			// Only selected accounts can perform this action
+			ensure!(
+				Self::authorities().contains(&who),
+				Error::<T>::NotAllowed
+			);
+
+			match Self::currencies().contains(&currency) {
+				false => {
+					AcceptedCurrencies::mutate(|x| x.push(currency));
+
+					Self::deposit_event(RawEvent::CurrencyAdded(who, currency));
+
+					Ok(())
+				},
+				true => {
+					Err(Error::<T>::AlreadyAccepted.into())
+				}
+			}
+		}
+
+		#[weight = (<T as Config>::WeightInfo::remove_currency(), Pays::No)]
+		pub fn remove_currency(origin, currency: AssetId) -> DispatchResult{
+
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				currency != CORE_ASSET_ID,
+				Error::<T>::CoreAssetNotAllowed
+			);
+
+			// Only selected accounts can perform this action
+			ensure!(
+				Self::authorities().contains(&who),
+				Error::<T>::NotAllowed
+			);
+
+			match Self::currencies().contains(&currency) {
+				true => {
+					AcceptedCurrencies::mutate(|x| x.retain( |&val| val != currency));
+					Self::deposit_event(RawEvent::CurrencyRemoved(who, currency));
+					Ok(())
+				},
+				false => {
+					Err(Error::<T>::UnsupportedCurrency.into())
+				}
+			}
+		}
 	}
 }
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
 		let fee_currency = match Module::<T>::get_currency(who) {
@@ -136,9 +207,13 @@ impl<T: Trait> Module<T> {
 
 		Ok(())
 	}
+
+	pub fn add_member(who: &T::AccountId) {
+		Authorities::<T>::mutate(|x| x.push(who.clone()));
+	}
 }
 
-impl<T: Trait> CurrencySwap<<T as frame_system::Trait>::AccountId, Balance> for Module<T> {
+impl<T: Config> CurrencySwap<<T as frame_system::Config>::AccountId, Balance> for Module<T> {
 	fn swap_currency(who: &T::AccountId, fee: u128) -> DispatchResult {
 		Self::swap_currency(who, fee)
 	}
@@ -149,19 +224,19 @@ pub struct MultiCurrencyAdapter<C, OU, SW>(PhantomData<(C, OU, SW)>);
 
 impl<T, C, OU, SW> OnChargeTransaction<T> for MultiCurrencyAdapter<C, OU, SW>
 where
-	T: Trait,
-	T::TransactionByteFee: Get<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance>,
-	C: Currency<<T as frame_system::Trait>::AccountId>,
+	T: Config,
+	T::TransactionByteFee: Get<<C as Currency<<T as frame_system::Config>::AccountId>>::Balance>,
+	C: Currency<<T as frame_system::Config>::AccountId>,
 	C::PositiveImbalance:
-		Imbalance<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance, Opposite = C::NegativeImbalance>,
+		Imbalance<<C as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = C::NegativeImbalance>,
 	C::NegativeImbalance:
-		Imbalance<<C as Currency<<T as frame_system::Trait>::AccountId>>::Balance, Opposite = C::PositiveImbalance>,
+		Imbalance<<C as Currency<<T as frame_system::Config>::AccountId>>::Balance, Opposite = C::PositiveImbalance>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
 	C::Balance: Into<Balance>,
 	SW: CurrencySwap<T::AccountId, Balance>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
-	type Balance = <C as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Withdraw the predicted fee from the transaction origin.
 	///

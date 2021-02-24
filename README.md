@@ -1,10 +1,11 @@
-# hack HydraDX node
+# HydraDX node
 
-XYK AMM + Exchange order matching blockchain built on substrate for Hackusama hackaton
+CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE
 
+## HACKNET
 - https://hack.hydradx.io/
+
 - [app source](https://github.com/galacticcouncil/hack.HydraDX-app)
-- [hack submission](https://devpost.com/software/hack-hydra-dx-io)
 
 ## Local Development
 
@@ -26,7 +27,7 @@ Find manual setup instructions at the
 
 ### Build
 
-Once the development environment is set up, build the node template. This command will build the
+Once the development environment is set up, build the node. This command will build the
 [Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
 [native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
 
@@ -41,19 +42,19 @@ cargo build --release
 Purge any existing dev chain state:
 
 ```bash
-./target/release/hack-hydra-dx purge-chain --dev
+./target/release/hydra-dx purge-chain --dev
 ```
 
 Start a dev chain:
 
 ```bash
-./target/release/hack-hydra-dx --dev
+./target/release/hydra-dx --dev
 ```
 
 Or, start a dev chain with detailed logging:
 
 ```bash
-RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hack-hydra-dx -lruntime=debug --dev
+RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hydra-dx -lruntime=debug --dev
 ```
 
 ### Interaction with the node
@@ -98,5 +99,34 @@ Then open settings screen -> developer and paste
 }
 ```
 
-Connect to the `wss://hack.hydradx.io:9944` or local node.
+Connect to the 
+- Hacknet: `wss://hack.hydradx.io:9944` 
+- [Stakenet](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-01.snakenet.hydradx.io): `wss://rpc-01.snakenet.hydradx.io`
+- or local node.
 
+### Performance check
+
+Prerequisites: rust/cargo, python 3.8+
+
+With the following script it is possible to run a simple performance check. It might be useful
+to determine whether your machine is suitable to run HydraDX node.
+
+From the top-level node directory:
+
+```bash
+./scripts/check_performance.sh
+```
+
+This will run series of benchmarks ( which may take a while). 
+The output will show benchmark results of HydraDX pallets and comparison against reference values.
+
+The most interesting information would be the difference between the HydraDx benchmark value and the local machine's benchmark.
+
+If the difference is >= 0, performance is similar or better.
+However, if the difference < 0 - your machine might not suitable to run HydraDX node. Contact HydraDX devs to discuss the results.
+
+### Running a stakenet node
+
+```bash
+./target/release/hydra-dx --chain lerna
+```

@@ -11,12 +11,12 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub trait Trait: system::Trait {
+pub trait Config: system::Config {
 	type AssetId: Parameter + Member + Into<u32> + AtLeast32Bit + Default + Copy;
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as AssetRegistry {
+	trait Store for Module<T: Config> as AssetRegistry {
 		pub CoreAssetId get(fn core_asset_id) config(): T::AssetId;
 		pub NextAssetId get(fn next_asset_id) config(): T::AssetId;
 		pub AssetIds get(fn asset_ids) config(): map hasher(twox_64_concat) Vec<u8> => Option<T::AssetId>;
@@ -24,19 +24,19 @@ decl_storage! {
 }
 
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		NoIdAvailable
 	}
 }
 
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		type Error = Error<T>;
 
 	}
 }
 
-impl<T: Trait> Module<T> {
+impl<T: Config> Module<T> {
 	pub fn create_asset(name: Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		match <AssetIds<T>>::contains_key(&name) {
 			true => Ok(<AssetIds<T>>::get(&name).unwrap()),

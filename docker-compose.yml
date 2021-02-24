@@ -2,16 +2,16 @@ version: "3.2"
 
 services:
   dev:
-    container_name: node-template
+    container_name: hydra-dx-node
     image: paritytech/ci-linux:production
-    working_dir: /var/www/node-template
+    working_dir: /hydra-dx-node
     ports:
       - "9944:9944"
     environment:
-      - CARGO_HOME=/var/www/node-template/.cargo
+      - CARGO_HOME=/hydra-dx-node/.cargo
     volumes:
-      - .:/var/www/node-template
+      - .:/hydra-dx-node
       - type: bind
         source: ./.local
         target: /root/.local
-    command: bash -c "cargo build --release && ./target/release/node-template --dev --ws-external"
+    command: bash -c "cargo build --release && ./target/release/hydra-dx --dev --ws-external"

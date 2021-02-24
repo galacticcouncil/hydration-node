@@ -1,5 +1,5 @@
 {
-  "name": "Substrate Node template",
+  "name": "HydraDX node",
   "dockerFile": "Dockerfile",
   "settings": {
     "terminal.integrated.shell.linux": "/bin/bash",

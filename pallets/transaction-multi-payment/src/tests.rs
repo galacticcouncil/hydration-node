@@ -8,7 +8,7 @@ use orml_traits::MultiCurrency;
 use pallet_balances::Call as BalancesCall;
 use primitives::Price;
 
-const CALL: &<Test as frame_system::Trait>::Call = &Call::Balances(BalancesCall::transfer(2, 69));
+const CALL: &<Test as frame_system::Config>::Call = &Call::Balances(BalancesCall::transfer(2, 69));
 
 #[test]
 fn set_unsupported_currency() {
@@ -193,4 +193,51 @@ fn fee_payment_non_native_insufficient_balance() {
 
 			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY_WITH_BALANCE, &CHARLIE), 10);
 		});
+}
+
+#[test]
+fn add_new_accepted_currency() {
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		assert_eq!(PaymentModule::currencies(), vec![2000, 3000]);
+
+		assert_ok!(PaymentModule::add_currency(Origin::signed(BOB), 100));
+		assert_eq!(PaymentModule::currencies(), vec![2000, 3000, 100]);
+		assert_noop!(
+			PaymentModule::add_currency(Origin::signed(ALICE), 1000),
+			Error::<Test>::NotAllowed
+		);
+		assert_noop!(
+			PaymentModule::add_currency(Origin::signed(BOB), 100),
+			Error::<Test>::AlreadyAccepted
+		);
+		assert_eq!(PaymentModule::currencies(), vec![2000, 3000, 100]);
+	});
+}
+
+#[test]
+fn removed_accepted_currency() {
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		assert_eq!(PaymentModule::currencies(), vec![2000, 3000]);
+
+		assert_ok!(PaymentModule::add_currency(Origin::signed(BOB), 100));
+		assert_eq!(PaymentModule::currencies(), vec![2000, 3000, 100]);
+
+		assert_noop!(
+			PaymentModule::remove_currency(Origin::signed(ALICE), 100),
+			Error::<Test>::NotAllowed
+		);
+
+		assert_noop!(
+			PaymentModule::remove_currency(Origin::signed(BOB), 1000),
+			Error::<Test>::UnsupportedCurrency
+		);
+
+		assert_ok!(PaymentModule::remove_currency(Origin::signed(BOB), 100));
+
+		assert_noop!(
+			PaymentModule::remove_currency(Origin::signed(BOB), 100),
+			Error::<Test>::UnsupportedCurrency
+		);
+		assert_eq!(PaymentModule::currencies(), vec![2000, 3000]);
+	});
 }

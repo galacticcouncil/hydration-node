@@ -39,9 +39,9 @@ fn expect_events(e: Vec<TestEvent>) {
 	assert_eq!(last_events(e.len()), e);
 }
 
-fn generate_intention_id(account: &<Test as system::Trait>::AccountId, c: u32) -> crate::IntentionId<Test> {
+fn generate_intention_id(account: &<Test as system::Config>::AccountId, c: u32) -> crate::IntentionId<Test> {
 	let b = <system::Module<Test>>::current_block_number();
-	(c, &account, b, DOT, ETH).using_encoded(<Test as system::Trait>::Hashing::hash)
+	(c, &account, b, DOT, ETH).using_encoded(<Test as system::Config>::Hashing::hash)
 }
 
 /// HELPER FOR INITIALIZING POOLS
