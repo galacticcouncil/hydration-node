@@ -62,8 +62,8 @@ impl Default for IntentionType {
 pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 	pub who: AccountId,
 	pub assets: asset::AssetPairType,
-	pub amount_sell: Balance,
-	pub amount_buy: Balance,
+	pub amount_in: Balance,
+	pub amount_out: Balance,
 	pub trade_limit: Balance,
 	pub discount: bool,
 	pub sell_or_buy: IntentionType,
