@@ -165,7 +165,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Offences(_)
 			| Call::AMM(_)
 			| Call::MultiTransactionPayment(_)
-			| Call::Exchange(_) => true,
+			| Call::Exchange(_) => false,
 
 			Call::System(_)
 			| Call::RandomnessCollectiveFlip(_)
