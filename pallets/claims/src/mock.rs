@@ -62,7 +62,7 @@ impl Config for Test {
 	type Currency = Balances;
 	type Prefix = Prefix;
 	type WeightInfo = ();
-	type IntoBalance = Balance;
+	type CurrencyBalance = Balance;
 }
 
 impl_outer_event! {

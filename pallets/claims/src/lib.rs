@@ -33,10 +33,11 @@ pub mod weights;
 
 pub trait Config: frame_system::Config {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Currency: Currency<Self::AccountId>;
 	type Prefix: Get<&'static [u8]>;
 	type WeightInfo: WeightInfo;
-	type IntoBalance: From<u128>
+	type Currency: Currency<Self::AccountId>;
+	// This type is needed to convert from Currency to Balance
+	type CurrencyBalance: From<u128>
 		+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
 }
 

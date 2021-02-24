@@ -389,7 +389,7 @@ impl pallet_claims::Config for Runtime {
 	type Currency = Balances;
 	type Prefix = ClaimMessagePrefix;
 	type WeightInfo = pallet_claims::weights::HackHydraWeight<Runtime>;
-	type IntoBalance = Balance;
+	type CurrencyBalance = Balance;
 }
 
 impl pallet_exchange::Config for Runtime {
