@@ -42,24 +42,6 @@ sp_api::decl_runtime_apis! {
 		AssetId: Codec,
 		Balance: Codec + MaybeDisplay + MaybeFromStr,
 	{
-		fn get_spot_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> BalanceInfo<AssetId, Balance>;
-
-		fn get_buy_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> BalanceInfo<AssetId, Balance>;
-
-		fn get_sell_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> BalanceInfo<AssetId, Balance>;
-
 		fn get_pool_balances(
 			pool_address: AccountId,
 		) -> Vec<BalanceInfo<AssetId, Balance>>;
