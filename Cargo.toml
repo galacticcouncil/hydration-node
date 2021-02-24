@@ -85,6 +85,7 @@ sp-keystore = {git = "https://github.com/galacticcouncil/substrate.git", branch 
 orml-currencies = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
 orml-tokens = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
 orml-traits = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
+orml-utilities = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
 
 librocksdb-sys = {git = "https://github.com/hdevalence/rust-rocksdb", branch = "master"}
 

@@ -16,8 +16,6 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 
-use hack_hydra_dx_math as hydra_dx_math;
-
 #[cfg(test)]
 mod mock;
 
