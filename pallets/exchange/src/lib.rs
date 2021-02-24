@@ -10,7 +10,7 @@ use sp_std::vec::Vec;
 use primitives::{
 	asset::AssetPair,
 	traits::{Resolver, AMM},
-	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
+	Amount, AssetId, Balance, ExchangeIntention, IntentionType, MIN_TRADING_LIMIT,
 };
 use sp_std::borrow::ToOwned;
 
@@ -37,9 +37,6 @@ mod tests;
 /// Intention alias
 type IntentionId<T> = <T as system::Config>::Hash;
 pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, Balance, IntentionId<T>>;
-
-/// Trading limit
-const MIN_TRADING_LIMIT: Balance = 1000;
 
 /// The pallet's configuration trait.
 pub trait Config: system::Config {
