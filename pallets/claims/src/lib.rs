@@ -36,7 +36,8 @@ pub trait Config: frame_system::Config {
 	type Currency: Currency<Self::AccountId>;
 	type Prefix: Get<&'static [u8]>;
 	type WeightInfo: WeightInfo;
-	type IntoBalance: From<u128> + Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
+	type IntoBalance: From<u128>
+		+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
 }
 
 pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;

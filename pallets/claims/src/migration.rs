@@ -5,7 +5,6 @@ pub fn migrate_to_v2<T: Config>() -> frame_support::weights::Weight {
 	if PalletVersion::get() == StorageVersion::V1EmptyBalances {
 		frame_support::debug::info!(" >>> Adding claims to the storage");
 		for (addr, amount) in claims_data::CLAIMS_DATA.iter() {
-
 			let balance: BalanceOf<T> = T::IntoBalance::from(*amount).into();
 
 			Claims::<T>::insert(
