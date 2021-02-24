@@ -228,7 +228,7 @@ decl_module! {
 
 			Self::deposit_event(RawEvent::MemberAdded(member));
 
-			return Ok(());
+			Ok(())
 		}
 
 		/// Add an account as member to list of authorities who can manage list of accepted currencies
@@ -245,7 +245,7 @@ decl_module! {
 
 			Self::deposit_event(RawEvent::MemberRemoved(member));
 
-			return Ok(());
+			Ok(())
 		}
 	}
 }
@@ -284,7 +284,7 @@ impl<T: Config> Module<T> {
 		// cap the weight to the maximum defined in runtime, otherwise it will be the
 		// `Bounded` maximum of its data type, which is not desired.
 		let capped_weight: Weight = weight.min(T::BlockWeights::get().max_block);
-		<T as Config>::WeightToFee::calc(&capped_weight).into()
+		<T as Config>::WeightToFee::calc(&capped_weight)
 	}
 }
 
