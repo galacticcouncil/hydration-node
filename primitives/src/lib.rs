@@ -36,8 +36,8 @@ pub const MAX_OUT_RATIO: u128 = 3;
 /// Max fraction of pool to sell in single transaction
 pub const MAX_IN_RATIO: u128 = 3;
 
-/// Pool Creation/Existence & Trade Limits
-pub const MIN_POOL_LIMIT: u128 = 1000;
+/// Pool Liquidity & Trade Limits
+pub const MIN_POOL_LIQUIDITY_LIMIT: u128 = 1000;
 pub const MIN_TRADE_LIMIT: u128 = 10;
 
 /// Scaled Unsigned of Balance

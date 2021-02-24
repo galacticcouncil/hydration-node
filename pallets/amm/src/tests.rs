@@ -711,7 +711,7 @@ fn create_pool_with_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 0, Price::from(3200)),
-			Error::<Test>::InsufficientPoolAssetBalance
+			Error::<Test>::MinimalPoolLiquidityRequirementNotMet
 		);
 
 		assert_noop!(
@@ -756,7 +756,7 @@ fn sell_with_low_amount_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AMM::sell(Origin::signed(ALICE), HDX, DOT, 1, 1_000_000, false),
-			Error::<Test>::InsufficientAssetBalance
+			Error::<Test>::MinimalTradeLimitRequirementNotMet
 		);
 	});
 }
@@ -766,7 +766,7 @@ fn buy_with_low_amount_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AMM::buy(Origin::signed(ALICE), HDX, DOT, 1, 1_000_000, false),
-			Error::<Test>::InsufficientAssetBalance
+			Error::<Test>::MinimalTradeLimitRequirementNotMet
 		);
 	});
 }
