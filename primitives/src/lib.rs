@@ -19,10 +19,10 @@ pub type Moment = u64;
 /// Core asset id
 pub const CORE_ASSET_ID: AssetId = 0;
 
-/// Balance of an account.
+/// Type for storing the id of an asset.
 pub type AssetId = u32;
 
-/// Balance of an account.
+/// Type for storing the balance of an account.
 pub type Balance = u128;
 
 /// Signed version of Balance
@@ -61,7 +61,7 @@ impl Default for IntentionType {
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 	pub who: AccountId,
-	pub assets: asset::AssetPairType,
+	pub assets: asset::AssetPair,
 	pub amount_in: Balance,
 	pub amount_out: Balance,
 	pub trade_limit: Balance,

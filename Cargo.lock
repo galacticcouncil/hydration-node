@@ -3764,6 +3764,7 @@ dependencies = [
  "hydra-dx-math",
  "orml-tokens",
  "orml-traits",
+ "orml-utilities",
  "pallet-asset-registry",
  "parity-scale-codec",
  "primitive-types 0.8.0",

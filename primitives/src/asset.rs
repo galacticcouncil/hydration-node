@@ -17,8 +17,6 @@ pub struct AssetPair {
 	pub asset_out: AssetId,
 }
 
-pub type AssetPairType = AssetPair;
-
 impl AssetPair {
 	pub fn new(asset_in: AssetId, asset_out: AssetId) -> Self {
 		Self { asset_in, asset_out }

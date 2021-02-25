@@ -43,7 +43,7 @@ pub trait Config: system::Config {
 	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
 
 	/// AMM pool implementation
-	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
+	type AMMPool: AMM<Self::AccountId, AssetId, AssetPair, Balance>;
 
 	/// Intention resolver
 	type Resolver: Resolver<Self::AccountId, Intention<Self>, Error<Self>>;
@@ -157,7 +157,7 @@ decl_module! {
 			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
 
 			ensure!(
-				T::AMMPool::exists(asset_sell, asset_buy),
+				T::AMMPool::exists(assets),
 				Error::<T>::TokenPoolNotFound
 			);
 
@@ -205,7 +205,7 @@ decl_module! {
 			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
 
 			ensure!(
-				T::AMMPool::exists(asset_sell, asset_buy),
+				T::AMMPool::exists(assets),
 				Error::<T>::TokenPoolNotFound
 			);
 
@@ -245,8 +245,9 @@ decl_module! {
 				if count == 0u32 {
 					continue;
 				}
+				let pair = AssetPair{asset_in: asset_1, asset_out: asset_2};
 
-				let pair_account = T::AMMPool::get_pair_id(&asset_1, &asset_2);
+				let pair_account = T::AMMPool::get_pair_id(pair);
 
 				let asset_a_ins = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
 				let asset_b_ins = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
@@ -371,7 +372,7 @@ impl<T: Config> Module<T> {
 	fn execute_amm_transfer(
 		amm_tranfer_type: IntentionType,
 		intention_id: IntentionId<T>,
-		transfer: &AMMTransfer<T::AccountId, AssetId, Balance>,
+		transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>,
 	) -> dispatch::DispatchResult {
 		match amm_tranfer_type {
 			IntentionType::SELL => {
@@ -421,8 +422,7 @@ impl<T: Config> Module<T> {
 			IntentionType::SELL => {
 				match T::AMMPool::validate_sell(
 					&intention.who,
-					intention.assets.asset_in,
-					intention.assets.asset_out,
+					intention.assets,
 					intention.amount_in,
 					intention.trade_limit,
 					intention.discount,
@@ -443,8 +443,7 @@ impl<T: Config> Module<T> {
 			IntentionType::BUY => {
 				match T::AMMPool::validate_buy(
 					&intention.who,
-					intention.assets.asset_out,
-					intention.assets.asset_in,
+					intention.assets,
 					intention.amount_out,
 					intention.trade_limit,
 					intention.discount,
@@ -477,16 +476,14 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 		let amm_transfer = match intention.sell_or_buy {
 			IntentionType::SELL => T::AMMPool::validate_sell(
 				&intention.who,
-				intention.assets.asset_in,
-				intention.assets.asset_out,
+				intention.assets,
 				intention.amount_in,
 				intention.trade_limit,
 				intention.discount,
 			),
 			IntentionType::BUY => T::AMMPool::validate_buy(
 				&intention.who,
-				intention.assets.asset_out,
-				intention.assets.asset_in,
+				intention.assets,
 				intention.amount_out,
 				intention.trade_limit,
 				intention.discount,
@@ -612,16 +609,14 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				let amm_transfer_result = match matched_intention.sell_or_buy {
 					IntentionType::SELL => T::AMMPool::validate_sell(
 						&matched_intention.who,
-						matched_intention.assets.asset_in,
-						matched_intention.assets.asset_out,
+						matched_intention.assets,
 						rest_in_amount,
 						rest_limit,
 						matched_intention.discount,
 					),
 					IntentionType::BUY => T::AMMPool::validate_buy(
 						&matched_intention.who,
-						matched_intention.assets.asset_out,
-						matched_intention.assets.asset_in,
+						matched_intention.assets,
 						rest_out_amount,
 						rest_limit,
 						matched_intention.discount,
