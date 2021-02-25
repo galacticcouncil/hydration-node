@@ -74,22 +74,6 @@ where
 	}
 }
 
-impl<T: Config> Module<T> {
-	fn get_token_name(asset_a: AssetId, asset_b: AssetId) -> Vec<u8> {
-		let mut buf: Vec<u8> = Vec::new();
-		if asset_a < asset_b {
-			buf.extend_from_slice(&asset_a.to_le_bytes());
-			buf.extend_from_slice(b"HDT");
-			buf.extend_from_slice(&asset_b.to_le_bytes());
-		} else {
-			buf.extend_from_slice(&asset_b.to_le_bytes());
-			buf.extend_from_slice(b"HDT");
-			buf.extend_from_slice(&asset_a.to_le_bytes());
-		}
-		buf
-	}
-}
-
 // This pallet's storage items.
 decl_storage! {
 	trait Store for Module<T: Config> as AMM {
@@ -229,7 +213,7 @@ decl_module! {
 
 			let pair_account = Self::get_pair_id(asset_pair);
 
-			let token_name = Self::get_token_name(asset_a, asset_b);
+			let token_name = asset_pair.name();
 
 			with_transaction_result(|| {
 				let share_token = <pallet_asset_registry::Module<T>>::get_or_create_asset(token_name)?.into();
