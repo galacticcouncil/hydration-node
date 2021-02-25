@@ -34,8 +34,11 @@ pub type Price = FixedU128;
 /// Max fraction of pool to buy in single transaction
 pub const MAX_OUT_RATIO: u128 = 3;
 
-// Max fraction of pool to sell in single transaction
+/// Max fraction of pool to sell in single transaction
 pub const MAX_IN_RATIO: u128 = 3;
+
+/// Trading limit
+pub const MIN_TRADING_LIMIT: Balance = 1000;
 
 /// Scaled Unsigned of Balance
 pub type HighPrecisionBalance = U256;
@@ -59,8 +62,8 @@ impl Default for IntentionType {
 pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 	pub who: AccountId,
 	pub assets: asset::AssetPair,
-	pub amount_sell: Balance,
-	pub amount_buy: Balance,
+	pub amount_in: Balance,
+	pub amount_out: Balance,
 	pub trade_limit: Balance,
 	pub discount: bool,
 	pub sell_or_buy: IntentionType,

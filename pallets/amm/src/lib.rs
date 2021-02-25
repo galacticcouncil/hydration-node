@@ -19,8 +19,6 @@ use primitives::Amount;
 
 use orml_utilities::with_transaction_result;
 
-use hack_hydra_dx_math as hydra_dx_math;
-
 #[cfg(test)]
 mod mock;
 

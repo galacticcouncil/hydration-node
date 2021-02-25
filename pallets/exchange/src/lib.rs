@@ -10,7 +10,7 @@ use sp_std::vec::Vec;
 use primitives::{
 	asset::AssetPair,
 	traits::{Resolver, AMM},
-	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
+	Amount, AssetId, Balance, ExchangeIntention, IntentionType, MIN_TRADING_LIMIT,
 };
 use sp_std::borrow::ToOwned;
 
@@ -37,9 +37,6 @@ mod tests;
 /// Intention alias
 type IntentionId<T> = <T as system::Config>::Hash;
 pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, Balance, IntentionId<T>>;
-
-/// Trading limit
-const MIN_TRADING_LIMIT: Balance = 1000;
 
 /// The pallet's configuration trait.
 pub trait Config: system::Config {
@@ -252,12 +249,12 @@ decl_module! {
 
 				let pair_account = T::AMMPool::get_pair_id(pair);
 
-				let asset_a_sells = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
-				let asset_b_sells = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
+				let asset_a_ins = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
+				let asset_b_ins = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
 
 				//TODO: we can short circuit here if nothing in asset_b_sells and just resolve asset_a sells.
 
-				Self::process_exchange_intentions(&pair_account, &asset_a_sells, &asset_b_sells);
+				Self::process_exchange_intentions(&pair_account, &asset_a_ins, &asset_b_ins);
 			}
 
 			ExchangeAssetsIntentionCount::remove_all();
@@ -285,8 +282,8 @@ impl<T: Config> Module<T> {
 		let intention = Intention::<T> {
 			who: who.clone(),
 			assets,
-			amount_sell: amount_in,
-			amount_buy: amount_out,
+			amount_in,
+			amount_out,
 			discount,
 			sell_or_buy: intention_type,
 			intention_id,
@@ -324,22 +321,22 @@ impl<T: Config> Module<T> {
 	}
 
 	/// Process intentions and attempt to match them so they can be direct traded.
-	/// ```sell_a_intentions``` are considered 'main' intentions.
+	/// ```a_in_intentions``` are considered 'main' intentions.
 	///
-	/// This algorithm is quite simple at the moment and it tries to match as many intentions from ```sell_b_intentions``` as possible while
-	/// satisfying  that sum( sell_b_intentions.amount_sell ) <= sell_a_intention.amount_sell
+	/// This algorithm is quite simple at the moment and it tries to match as many intentions from ```b_in_intentions``` as possible while
+	/// satisfying  that sum( b_in_intentions.amount_sell ) <= a_in_intention.amount_sell
 	///
 	/// Intention A must be valid - that means that it is verified first by validating if it was possible to do AMM trade.
 	fn process_exchange_intentions(
 		pair_account: &T::AccountId,
-		sell_a_intentions: &[Intention<T>],
-		sell_b_intentions: &[Intention<T>],
+		a_in_intentions: &[Intention<T>],
+		b_in_intentions: &[Intention<T>],
 	) {
-		let mut b_copy = sell_b_intentions.to_owned();
-		let mut a_copy = sell_a_intentions.to_owned();
+		let mut b_copy = b_in_intentions.to_owned();
+		let mut a_copy = a_in_intentions.to_owned();
 
-		b_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
-		a_copy.sort_by(|a, b| b.amount_sell.cmp(&a.amount_sell));
+		b_copy.sort_by(|a, b| b.amount_in.cmp(&a.amount_in));
+		a_copy.sort_by(|a, b| b.amount_in.cmp(&a.amount_in));
 
 		b_copy.reverse();
 
@@ -353,9 +350,9 @@ impl<T: Config> Module<T> {
 
 			while let Some(matched) = b_copy.pop() {
 				bvec.push(matched.clone());
-				total += matched.amount_sell;
+				total += matched.amount_in;
 
-				if total >= intention.amount_sell {
+				if total >= intention.amount_in {
 					break;
 				}
 			}
@@ -363,7 +360,7 @@ impl<T: Config> Module<T> {
 			T::Resolver::resolve_matched_intentions(pair_account, &intention, &bvec);
 		}
 
-		// If something left in sell_b_intentions, just run it through AMM.
+		// If something left in b_in_intentions, just run it through AMM.
 		while let Some(b_intention) = b_copy.pop() {
 			T::Resolver::resolve_single_intention(&b_intention);
 		}
@@ -426,7 +423,7 @@ impl<T: Config> Module<T> {
 				match T::AMMPool::validate_sell(
 					&intention.who,
 					intention.assets,
-					intention.amount_sell,
+					intention.amount_in,
 					intention.trade_limit,
 					intention.discount,
 				) {
@@ -447,7 +444,7 @@ impl<T: Config> Module<T> {
 				match T::AMMPool::validate_buy(
 					&intention.who,
 					intention.assets,
-					intention.amount_buy,
+					intention.amount_out,
 					intention.trade_limit,
 					intention.discount,
 				) {
@@ -480,14 +477,14 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 			IntentionType::SELL => T::AMMPool::validate_sell(
 				&intention.who,
 				intention.assets,
-				intention.amount_sell,
+				intention.amount_in,
 				intention.trade_limit,
 				intention.discount,
 			),
 			IntentionType::BUY => T::AMMPool::validate_buy(
 				&intention.who,
 				intention.assets,
-				intention.amount_buy,
+				intention.amount_out,
 				intention.trade_limit,
 				intention.discount,
 			),
@@ -514,17 +511,17 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 		let mut intention_copy = intention.clone();
 
 		for matched_intention in matched.iter() {
-			let amount_a_sell = intention_copy.amount_sell;
-			let amount_a_buy = intention_copy.amount_buy;
-			let amount_b_sell = matched_intention.amount_sell;
-			let amount_b_buy = matched_intention.amount_buy;
+			let amount_a_in = intention_copy.amount_in;
+			let amount_a_out = intention_copy.amount_out;
+			let amount_b_in = matched_intention.amount_in;
+			let amount_b_out = matched_intention.amount_out;
 
 			// There are multiple scenarios to handle
 			// !. Main intention amount left > matched intention amount
 			// 2. Main intention amount left < matched intention amount
 			// 3. Main intention amount left = matched intention amount
 
-			if amount_a_sell > amount_b_buy {
+			if amount_a_in > amount_b_out {
 				// Scenario 1: Matched intention can be completely direct traded
 				//
 				// 1. Prepare direct trade details - during preparation, direct amounts are reserved.
@@ -533,8 +530,8 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
 					intention_b: &matched_intention,
-					amount_from_a: amount_b_buy,
-					amount_from_b: amount_b_sell,
+					amount_from_a: amount_b_out,
+					amount_from_b: amount_b_in,
 					transfers: Vec::<Transfer<T>>::new(),
 				};
 
@@ -564,12 +561,12 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 					true => {
 						dt.execute();
 
-						intention_copy.amount_sell = amount_a_sell - amount_b_buy;
-						intention_copy.amount_buy = amount_a_buy - amount_b_sell;
+						intention_copy.amount_in = amount_a_in - amount_b_out;
+						intention_copy.amount_out = amount_a_out - amount_b_in;
 
 						intention_copy.trade_limit = match intention_copy.sell_or_buy {
-							IntentionType::SELL => intention_copy.trade_limit.saturating_sub(amount_b_sell),
-							IntentionType::BUY => intention_copy.trade_limit - amount_b_sell,
+							IntentionType::SELL => intention_copy.trade_limit.saturating_sub(amount_b_in),
+							IntentionType::BUY => intention_copy.trade_limit - amount_b_in,
 						};
 					}
 					false => {
@@ -577,7 +574,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 						continue;
 					}
 				}
-			} else if amount_a_sell < amount_b_buy {
+			} else if amount_a_in < amount_b_out {
 				// Scenario 2: Matched intention CANNOT be completely directly traded
 				//
 				// 1. Work out rest amount and rest trade limits for direct trades.
@@ -585,10 +582,10 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				// 3. Verify if direct trade can be successfully performed
 				// 4. If both ok - execute
 				// 5. Main intention is empty at this point - just set amount to 0.
-				let rest_sell_diff = amount_b_sell.checked_sub(amount_a_buy);
-				let rest_buy_diff = amount_b_buy.checked_sub(amount_a_sell);
+				let rest_in_diff = amount_b_in.checked_sub(amount_a_out);
+				let rest_out_diff = amount_b_out.checked_sub(amount_a_in);
 
-				if rest_sell_diff.is_none() || rest_buy_diff.is_none() {
+				if rest_in_diff.is_none() || rest_out_diff.is_none() {
 					Self::send_intention_error_event(
 						&matched_intention,
 						Error::<T>::AssetBalanceLimitExceeded.into(), // TODO: better error here ?!
@@ -596,16 +593,16 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 					continue;
 				}
 
-				let rest_sell_amount = rest_sell_diff.unwrap();
-				let rest_buy_amount = rest_buy_diff.unwrap();
+				let rest_in_amount = rest_in_diff.unwrap();
+				let rest_out_amount = rest_out_diff.unwrap();
 
-				let rest_limit = matched_intention.trade_limit.saturating_sub(amount_a_sell);
+				let rest_limit = matched_intention.trade_limit.saturating_sub(amount_a_in);
 
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
 					intention_b: &matched_intention,
-					amount_from_a: amount_a_sell,
-					amount_from_b: amount_b_sell - rest_sell_amount,
+					amount_from_a: amount_a_in,
+					amount_from_b: amount_b_in - rest_in_amount,
 					transfers: Vec::<Transfer<T>>::new(),
 				};
 
@@ -613,14 +610,14 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 					IntentionType::SELL => T::AMMPool::validate_sell(
 						&matched_intention.who,
 						matched_intention.assets,
-						rest_sell_amount,
+						rest_in_amount,
 						rest_limit,
 						matched_intention.discount,
 					),
 					IntentionType::BUY => T::AMMPool::validate_buy(
 						&matched_intention.who,
 						matched_intention.assets,
-						rest_buy_amount,
+						rest_out_amount,
 						rest_limit,
 						matched_intention.discount,
 					),
@@ -664,7 +661,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 						) {
 							Ok(_) => {
 								dt.execute();
-								intention_copy.amount_sell = 0;
+								intention_copy.amount_in = 0;
 							}
 							Err(error) => {
 								Self::send_intention_error_event(&matched_intention, error);
@@ -687,8 +684,8 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
 					intention_b: &matched_intention,
-					amount_from_a: amount_a_sell,
-					amount_from_b: amount_b_sell,
+					amount_from_a: amount_a_in,
+					amount_from_b: amount_b_in,
 					transfers: Vec::<Transfer<T>>::new(),
 				};
 
@@ -732,7 +729,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 				match dt.prepare(pair_account) {
 					true => {
 						dt.execute();
-						intention_copy.amount_sell = 0;
+						intention_copy.amount_in = 0;
 					}
 					false => {
 						dt.revert();
@@ -743,7 +740,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
 		}
 
 		// If there is something left, just resolve as a single intention
-		if intention_copy.amount_sell > 0 {
+		if intention_copy.amount_in > 0 {
 			Self::resolve_single_intention(&intention_copy);
 		}
 	}
