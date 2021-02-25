@@ -716,7 +716,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 		let transfer = AMMTransfer {
 			origin: who.clone(),
 			assets,
-			amount: amount,
+			amount,
 			amount_out: buy_price,
 			discount,
 			discount_amount: discount_fee,
