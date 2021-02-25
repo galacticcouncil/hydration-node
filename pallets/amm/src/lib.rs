@@ -451,46 +451,6 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-	pub fn get_spot_price(asset_out: AssetId, asset_in: AssetId, amount: Balance) -> Balance {
-		match Self::exists(AssetPair { asset_out, asset_in }) {
-			true => Self::get_spot_price_unchecked(asset_out, asset_in, amount),
-			false => 0,
-		}
-	}
-
-	pub fn get_sell_price(asset_out: AssetId, asset_in: AssetId, amount: Balance) -> Balance {
-		let pair = AssetPair { asset_out, asset_in };
-		match Self::exists(pair) {
-			true => {
-				let pair_account = Self::get_pair_id(pair);
-
-				let asset_a_reserve = T::Currency::free_balance(asset_out, &pair_account);
-				let asset_b_reserve = T::Currency::free_balance(asset_in, &pair_account);
-
-				hydra_dx_math::calculate_sell_price(asset_a_reserve, asset_b_reserve, amount)
-					.or(Some(0))
-					.unwrap()
-			}
-			false => 0,
-		}
-	}
-
-	pub fn get_buy_price(asset_out: AssetId, asset_in: AssetId, amount: Balance) -> Balance {
-		let pair = AssetPair { asset_out, asset_in };
-		match Self::exists(pair) {
-			true => {
-				let pair_account = Self::get_pair_id(pair);
-
-				let asset_a_reserve = T::Currency::free_balance(asset_out, &pair_account);
-				let asset_b_reserve = T::Currency::free_balance(asset_in, &pair_account);
-				hydra_dx_math::calculate_buy_price(asset_b_reserve, asset_a_reserve, amount)
-					.or(Some(0))
-					.unwrap()
-			}
-			false => 0,
-		}
-	}
-
 	pub fn get_pool_balances(pool_address: T::AccountId) -> Option<Vec<(AssetId, Balance)>> {
 		let mut balances = Vec::new();
 
