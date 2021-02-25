@@ -887,39 +887,6 @@ impl_runtime_apis! {
 		AssetId,
 		Balance,
 	> for Runtime {
-		fn get_spot_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_spot_price(asset_a,asset_b, amount)
-			}
-		}
-
-		fn get_sell_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_sell_price(asset_a,asset_b, amount)
-			}
-		}
-
-		fn get_buy_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_buy_price(asset_a,asset_b, amount)
-			}
-		}
-
 		fn get_pool_balances(
 			pool_address: AccountId,
 		) -> Vec<amm_rpc::BalanceInfo<AssetId, Balance>> {
