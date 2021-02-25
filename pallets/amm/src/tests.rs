@@ -253,6 +253,42 @@ fn remove_zero_liquidity_should_not_work() {
 }
 
 #[test]
+fn remove_liquidity_should_destroy_pool() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000,
+			Price::from(10_000)
+		));
+
+		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		assert_eq!(AMM::exists(asset_a, asset_b), true);
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1
+		));
+
+		assert_eq!(AMM::total_liquidity(&pair_account), MIN_POOL_LIQUIDITY_LIMIT - 1);
+		assert_eq!(AMM::exists(asset_a, asset_b), false);
+
+		expect_events(vec![
+			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1).into(),
+			RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
+		]);
+	});
+}
+
+#[test]
 fn sell_test() {
 	new_test_ext().execute_with(|| {
 		let user_1 = ALICE;
@@ -874,7 +910,7 @@ fn create_pool_fixed_point_amount_should_work() {
 }
 
 #[test]
-fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
+fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
 		let asset_a = HDX;
