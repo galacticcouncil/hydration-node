@@ -25,7 +25,7 @@ version = '1.3.4'
 primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
-hydra-dx-math = {default-features = false, version = "0.1.0", git = "https://github.com/galacticcouncil/hydraDX-math", branch = "main"}
+hydra-dx-math = {default-features = false, version = "0.1.0", git = "https://github.com/galacticcouncil/hydraDX-math", tag="v0.1.0"}
 
 # Local dependencies
 pallet-asset-registry = {path = '../asset-registry', default-features = false, version = '2.0.0'}
@@ -34,6 +34,7 @@ primitives = {path = '../../primitives', default-features = false, version = '2.
 # ORML dependencies
 orml-tokens = {default-features = false, version = "0.3.3-dev"}
 orml-traits = {default-features = false, version = "0.3.3-dev"}
+orml-utilities = {default-features = false, version = "0.3.3-dev"}
 
 # Substrate dependencies
 frame-benchmarking = {default-features = false, optional = true, version = '2.0.0'}

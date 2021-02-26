@@ -64,7 +64,7 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 		user, asset_a, asset_b, shares,
 	)));
 
-	let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+	let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 	let share_token = AMMModule::share_token(pair_account);
 
 	let amount_b = price.saturating_mul_int(amount);
@@ -101,7 +101,7 @@ fn sell_test_pool_finalization_states() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -209,7 +209,7 @@ fn sell_test_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -308,7 +308,7 @@ fn sell_test_inverse_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -409,7 +409,7 @@ fn sell_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -498,7 +498,7 @@ fn sell_test_single_eth_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -604,7 +604,7 @@ fn sell_test_single_dot_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -635,14 +635,14 @@ fn sell_test_single_dot_sells() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances -> SEEMS LEGIT
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1_000_496_522_353_457);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000486772470162);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 999_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_000_978_388_447_963);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000988138378978);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 998_000_000_000_000);
 
 		// Check final pool balances -> SEEMS LEGIT
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 98_525_089_198_580);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 98525089150860);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 203_000_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
@@ -666,33 +666,124 @@ fn sell_test_single_dot_sells() {
 			)
 			.into(),
 			TestEvent::amm(amm::RawEvent::Sell(
-				user_2,
-				asset_b,
-				asset_a,
-				1000000000000,
-				496522353457,
-			)),
-			RawEvent::IntentionResolvedAMMTrade(
-				user_2,
-				IntentionType::SELL,
-				user_2_sell_intention_id,
-				1000000000000,
-				496522353457,
-			)
-			.into(),
-			TestEvent::amm(amm::RawEvent::Sell(
 				user_3,
 				asset_b,
 				asset_a,
 				2000000000000,
-				978388447963,
+				988138378978,
 			)),
 			RawEvent::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				2000000000000,
-				978388447963,
+				988138378978,
+			)
+			.into(),
+			TestEvent::amm(amm::RawEvent::Sell(
+				user_2,
+				asset_b,
+				asset_a,
+				1000000000000,
+				486772470162,
+			)),
+			RawEvent::IntentionResolvedAMMTrade(
+				user_2,
+				IntentionType::SELL,
+				user_2_sell_intention_id,
+				1000000000000,
+				486772470162,
+			)
+			.into(),
+		]);
+	});
+}
+
+#[test]
+fn sell_trade_limits_respected_for_matched_intention() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let user_2 = BOB;
+		let user_3 = CHARLIE;
+		let asset_a = ETH;
+		let asset_b = DOT;
+
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
+
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
+
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			100_000_000_000,
+			false,
+		));
+
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			1_000_000_000_000,
+			100_000_000_000_000_000, // Limit set to absurd amount which can't go through
+			false,
+		));
+		let user_3_sell_intention_id = generate_intention_id(&user_3, 1);
+
+		let user_2_sell_intention_id = generate_intention_id(&user_2, 0);
+
+		// Finalize block
+		<Exchange as OnFinalize<u64>>::on_finalize(9);
+
+		expect_events(vec![
+			RawEvent::IntentionRegistered(
+				user_2,
+				asset_a,
+				asset_b,
+				1_000_000_000_000,
+				IntentionType::SELL,
+				user_2_sell_intention_id,
+			)
+			.into(),
+			RawEvent::IntentionRegistered(
+				user_3,
+				asset_b,
+				asset_a,
+				1_000_000_000_000,
+				IntentionType::SELL,
+				user_3_sell_intention_id,
+			)
+			.into(),
+			RawEvent::IntentionResolveErrorEvent(
+				user_3,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
+				IntentionType::SELL,
+				user_3_sell_intention_id,
+				DispatchError::Module {
+					index: 0,
+					error: 2,
+					message: None,
+				},
+			)
+			.into(),
+			TestEvent::amm(amm::RawEvent::Sell(
+				user_2,
+				asset_a,
+				asset_b,
+				1000000000000,
+				1976276757956,
+			)),
+			RawEvent::IntentionResolvedAMMTrade(
+				user_2,
+				IntentionType::SELL,
+				user_2_sell_intention_id,
+				1000000000000,
+				1976276757956,
 			)
 			.into(),
 		]);
@@ -714,7 +805,7 @@ fn sell_test_single_multiple_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -900,7 +991,7 @@ fn sell_test_group_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -941,15 +1032,15 @@ fn sell_test_group_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 1002495000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 995000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001702327336909);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001497000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_4), 990000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 1018917573262630);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1019283443450697);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 105802672663091);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 189082426737370);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 106008000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 188716556549303);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
@@ -992,45 +1083,62 @@ fn sell_test_group_sells() {
 			.into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
 			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
+			RawEvent::IntentionResolvedDirectTrade(
+				user_4,
+				user_3,
+				user_4_sell_intention_id,
+				user_3_sell_intention_id,
+				1500000000000,
+				3000000000000,
+			)
+			.into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
 			TestEvent::amm(amm::RawEvent::Sell(
 				user_4,
 				asset_a,
 				asset_b,
-				7500000000000,
-				13927573262630,
+				6000000000000,
+				11299443450697,
 			)),
 			RawEvent::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
 				user_4_sell_intention_id,
-				7500000000000,
-				13927573262630,
-			)
-			.into(),
-			TestEvent::amm(amm::RawEvent::Sell(
-				user_3,
-				asset_b,
-				asset_a,
-				3000000000000,
-				1702327336909,
-			)),
-			RawEvent::IntentionResolvedAMMTrade(
-				user_3,
-				IntentionType::SELL,
-				user_3_sell_intention_id,
-				3000000000000,
-				1702327336909,
+				6000000000000,
+				11299443450697,
 			)
 			.into(),
 		]);
 	});
 }
+
 #[test]
-fn sell_without_pool_should_not_work() {
+fn trades_without_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 100, 200, false),
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000, 200, false),
 			Error::<Test>::TokenPoolNotFound
+		);
+
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), HDX, ETH, 1000, 200, false),
+			Error::<Test>::TokenPoolNotFound
+		);
+	});
+}
+
+#[test]
+fn trade_min_limit() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Error::<Test>::MinimumTradeLimitNotReached
+		);
+
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Error::<Test>::MinimumTradeLimitNotReached
 		);
 	});
 }
@@ -1046,8 +1154,15 @@ fn sell_more_than_owner_should_not_work() {
 			Price::from(2)
 		));
 
+		// With SELL
 		assert_noop!(
 			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000_000_000_000_000u128, 1, false),
+			Error::<Test>::InsufficientAssetBalance
+		);
+
+		// With BUY
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), ETH, HDX, 3000_000_000_000_000u128, 1, false),
 			Error::<Test>::InsufficientAssetBalance
 		);
 	});
@@ -1066,7 +1181,7 @@ fn sell_test_mixed_buy_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1205,7 +1320,7 @@ fn discount_tests_no_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1344,7 +1459,7 @@ fn discount_tests_with_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 		initialize_pool(asset_a, HDX, user_2, pool_amount, initial_price);
@@ -1487,7 +1602,7 @@ fn buy_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1575,7 +1690,7 @@ fn buy_test_group_buys() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1714,7 +1829,7 @@ fn discount_tests_with_error() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1799,41 +1914,47 @@ fn discount_tests_with_error() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::AMMSellErrorEvent(
+			RawEvent::IntentionResolveErrorEvent(
 				user_4,
-				asset_a,
-				asset_b,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::SELL,
 				user_4_sell_intention_id,
 				DispatchError::Module {
 					index: 0,
-					error: 23,
+					error: 19,
 					message: None,
 				},
 			)
 			.into(),
-			RawEvent::AMMBuyErrorEvent(
+			RawEvent::IntentionResolveErrorEvent(
 				user_2,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::BUY,
 				user_2_sell_intention_id,
 				DispatchError::Module {
 					index: 0,
-					error: 23,
+					error: 19,
 					message: None,
 				},
 			)
 			.into(),
 			RawEvent::IntentionResolveErrorEvent(
 				user_3,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				DispatchError::Module {
 					index: 0,
-					error: 23,
+					error: 19,
 					message: None,
 				},
 			)
@@ -1853,7 +1974,7 @@ fn simple_sell_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1938,7 +2059,7 @@ fn simple_buy_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2023,7 +2144,7 @@ fn simple_sell_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2109,7 +2230,7 @@ fn simple_buy_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2194,7 +2315,7 @@ fn single_sell_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2256,7 +2377,7 @@ fn single_buy_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2320,7 +2441,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair{asset_in: asset_a, asset_out: asset_b});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2379,28 +2500,32 @@ fn simple_sell_sell_with_error_should_not_pass() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::AMMSellErrorEvent(
+			RawEvent::IntentionResolveErrorEvent(
 				user_2,
-				asset_a,
-				asset_b,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::SELL,
 				user_2_sell_intention_id,
 				DispatchError::Module {
 					index: 0,
-					error: 5,
+					error: 8,
 					message: None,
 				},
 			)
 			.into(),
 			RawEvent::IntentionResolveErrorEvent(
 				user_3,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				DispatchError::Module {
 					index: 0,
-					error: 5,
+					error: 8,
 					message: None,
 				},
 			)

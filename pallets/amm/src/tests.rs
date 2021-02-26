@@ -36,7 +36,10 @@ fn create_pool_should_work() {
 			Price::from(10)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
@@ -75,6 +78,26 @@ fn create_same_pool_should_not_work() {
 }
 
 #[test]
+fn create_pool_overflowing_amount_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = ACA;
+
+		assert_noop!(
+			AMM::create_pool(
+				Origin::signed(user),
+				asset_b,
+				asset_a,
+				u128::MAX as u128,
+				Price::from(2)
+			),
+			Error::<Test>::CreatePoolAssetAmountInvalid
+		);
+	});
+}
+
+#[test]
 fn add_liquidity_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
@@ -97,7 +120,10 @@ fn add_liquidity_should_work() {
 			1_000_000_000_000
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_b, &asset_a);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1004000000000);
@@ -134,7 +160,10 @@ fn add_liquidity_as_another_user_should_work() {
 			1_000_000_000_000
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1004000000000);
@@ -182,7 +211,10 @@ fn remove_liquidity_should_work() {
 			Price::from(10_000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(share_token, &user), 100000000);
@@ -267,7 +299,10 @@ fn sell_test() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -307,7 +342,10 @@ fn work_flow_happy_path_should_work() {
 		let asset_a = HDX;
 		let asset_b = ACA;
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		// Check initial balances
 
@@ -502,7 +540,10 @@ fn sell_with_correct_fees_should_work() {
 			Price::from(200)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999990000000);
@@ -566,8 +607,14 @@ fn discount_sell_fees_should_work() {
 			Price::from(2)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
-		let hdx_pair_account = AMM::get_pair_id(&asset_a, &HDX);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+		let hdx_pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: HDX,
+		});
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 30_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 60_000);
@@ -612,7 +659,10 @@ fn single_buy_should_work() {
 			Price::from(3200)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
@@ -667,7 +717,10 @@ fn single_buy_with_discount_should_work() {
 			Price::from(2)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_949_800_000_000);
@@ -810,7 +863,10 @@ fn create_pool_small_fixed_point_amount_should_work() {
 			Price::from_fraction(0.00001)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
@@ -839,7 +895,10 @@ fn create_pool_fixed_point_amount_should_work() {
 			Price::from_fraction(4560.234543)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000);
@@ -868,8 +927,14 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 			Price::from(10_000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
-		assert_eq!(AMM::exists(asset_a, asset_b), true);
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+
+		let pair_account = AMM::get_pair_id(asset_pair);
+
+		assert_eq!(AMM::exists(asset_pair), true);
 
 		assert_ok!(AMM::remove_liquidity(
 			Origin::signed(user),
@@ -880,7 +945,7 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 
 		assert_eq!(AMM::total_liquidity(&pair_account), 0);
 
-		assert_eq!(AMM::exists(asset_a, asset_b), false);
+		assert_eq!(AMM::exists(asset_pair), false);
 
 		// It should be possible to recreate the pool again
 
@@ -929,7 +994,10 @@ fn sell_test_exceeding_max_limit() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -974,7 +1042,10 @@ fn buy_test_exceeding_max_limit() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -1019,7 +1090,10 @@ fn single_buy_more_than_ratio_out_should_not_work() {
 			Price::from(3200)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
@@ -1058,7 +1132,10 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_800_000_000_000);
