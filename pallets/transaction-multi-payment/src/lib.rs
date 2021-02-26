@@ -15,8 +15,10 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
+	weights::DispatchClass,
+	weights::WeightToFeePolynomial,
 };
-use frame_system::ensure_signed;
+use frame_system::{ensure_root, ensure_signed};
 use sp_runtime::{
 	traits::{DispatchInfoOf, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
@@ -26,10 +28,14 @@ use sp_std::prelude::*;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_std::marker::PhantomData;
 
-use frame_support::weights::Pays;
+use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
+use primitives::asset::AssetPair;
 use primitives::traits::{CurrencySwap, AMM};
-use primitives::{AssetId, Balance, CORE_ASSET_ID};
+use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
+
+use orml_utilities::with_transaction_result;
+use orml_utilities::OrderedSet;
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
@@ -42,13 +48,19 @@ pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
 
 	/// Multi Currency
 	type MultiCurrency: MultiCurrency<Self::AccountId>
-		+ MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
+		+ MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
 
 	/// AMM pool to swap for native currency
-	type AMMPool: AMM<Self::AccountId, AssetId, Balance>;
+	type AMMPool: AMM<Self::AccountId, AssetId, AssetPair, Balance>;
 
 	/// Weight information for the extrinsics.
 	type WeightInfo: WeightInfo;
+
+	/// Should fee be paid for setting a currency
+	type WithdrawFeeForSetCurrency: Get<Pays>;
+
+	/// Convert a weight value into a deductible fee based on the currency type.
+	type WeightToFee: WeightToFeePolynomial<Balance = Balance>;
 }
 
 decl_event!(
@@ -67,6 +79,14 @@ decl_event!(
 		/// Accepted currency removed
 		/// [who, currency]
 		CurrencyRemoved(AccountId, AssetId),
+
+		/// Member added
+		/// [who]
+		MemberAdded(AccountId),
+
+		/// Member removed
+		/// [who]
+		MemberRemoved(AccountId),
 	}
 );
 
@@ -87,6 +107,13 @@ decl_error! {
 
 		/// Currency being added is already in the list of accpeted currencies
 		CoreAssetNotAllowed,
+
+		/// Account is already a member of authorities
+		AlreadyMember,
+
+		/// Account is not a member of authorities
+		NotAMember,
+
 	}
 }
 
@@ -94,7 +121,7 @@ decl_storage! {
 	trait Store for Module<T: Config> as TransactionPayment {
 		/// Account currency map
 		pub AccountCurrencyMap get(fn get_currency): map hasher(blake2_128_concat) T::AccountId => Option<AssetId>;
-		pub AcceptedCurrencies get(fn currencies) config(): Vec<AssetId>;
+		pub AcceptedCurrencies get(fn currencies) config(): OrderedSet<AssetId>;
 		pub Authorities get(fn authorities) config(): Vec<T::AccountId>;
 	}
 }
@@ -114,28 +141,34 @@ decl_module! {
 		pub fn set_currency(
 			origin,
 			currency: AssetId,
-		)  -> DispatchResult {
+		)  -> DispatchResult{
 			let who = ensure_signed(origin)?;
 
-			match currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
-				true =>	{
-					if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
-						return Err(Error::<T>::ZeroBalance.into());
-					}
+			if currency == CORE_ASSET_ID || Self::currencies().contains(&currency){
+				if T::MultiCurrency::free_balance(currency, &who) == Balance::zero(){
+					return Err(Error::<T>::ZeroBalance.into());
+				}
 
+				return with_transaction_result(|| {
 					<AccountCurrencyMap<T>>::insert(who.clone(), currency);
+
+					if T::WithdrawFeeForSetCurrency::get() == Pays::Yes{
+						Self::withdraw_set_fee(&who, currency)?;
+					}
 
 					Self::deposit_event(RawEvent::CurrencySet(who, currency));
 
 					Ok(())
-				},
-				false => Err(Error::<T>::UnsupportedCurrency.into())
+				});
 			}
+
+			Err(Error::<T>::UnsupportedCurrency.into())
 		}
 
+		/// Add additional currency to the list of supported currencies which fees can be paid in
+		/// Only selected members can perform this action
 		#[weight = (<T as Config>::WeightInfo::add_currency(), Pays::No)]
 		pub fn add_currency(origin, currency: AssetId) -> DispatchResult{
-
 			let who = ensure_signed(origin)?;
 
 			ensure!(
@@ -149,20 +182,15 @@ decl_module! {
 				Error::<T>::NotAllowed
 			);
 
-			match Self::currencies().contains(&currency) {
-				false => {
-					AcceptedCurrencies::mutate(|x| x.push(currency));
-
-					Self::deposit_event(RawEvent::CurrencyAdded(who, currency));
-
-					Ok(())
-				},
-				true => {
-					Err(Error::<T>::AlreadyAccepted.into())
-				}
+			if AcceptedCurrencies::mutate(|x| x.insert(currency)) {
+				Self::deposit_event(RawEvent::CurrencyAdded(who, currency));
+				return Ok(());
 			}
+			Err(Error::<T>::AlreadyAccepted.into())
 		}
 
+		/// Remove currency from the list of supported currencies
+		/// Only selected members can perform this action
 		#[weight = (<T as Config>::WeightInfo::remove_currency(), Pays::No)]
 		pub fn remove_currency(origin, currency: AssetId) -> DispatchResult{
 
@@ -179,16 +207,46 @@ decl_module! {
 				Error::<T>::NotAllowed
 			);
 
-			match Self::currencies().contains(&currency) {
-				true => {
-					AcceptedCurrencies::mutate(|x| x.retain( |&val| val != currency));
-					Self::deposit_event(RawEvent::CurrencyRemoved(who, currency));
-					Ok(())
-				},
-				false => {
-					Err(Error::<T>::UnsupportedCurrency.into())
-				}
+			if AcceptedCurrencies::mutate(|x| x.remove(&currency)) {
+				Self::deposit_event(RawEvent::CurrencyRemoved(who, currency));
+				return Ok(());
 			}
+
+			Err(Error::<T>::UnsupportedCurrency.into())
+		}
+
+		/// Add an account as member to list of authorities who can manage list of accepted currencies
+		#[weight = (<T as Config>::WeightInfo::add_member(), Pays::No)]
+		pub fn add_member(origin, member: T::AccountId) -> DispatchResult{
+			ensure_root(origin)?;
+
+			ensure!(
+				! Self::authorities().contains(&member),
+				Error::<T>::AlreadyMember
+			);
+
+			Self::add_new_member(&member);
+
+			Self::deposit_event(RawEvent::MemberAdded(member));
+
+			Ok(())
+		}
+
+		/// Add an account as member to list of authorities who can manage list of accepted currencies
+		#[weight = (<T as Config>::WeightInfo::remove_member(), Pays::No)]
+		pub fn remove_member(origin, member: T::AccountId) -> DispatchResult{
+			ensure_root(origin)?;
+
+			ensure!(
+				Self::authorities().contains(&member),
+				Error::<T>::NotAMember
+			);
+
+			Authorities::<T>::mutate(|x| x.retain(|val| *val != member));
+
+			Self::deposit_event(RawEvent::MemberRemoved(member));
+
+			Ok(())
 		}
 	}
 }
@@ -202,14 +260,32 @@ impl<T: Config> Module<T> {
 
 		// If not native currency, let's buy CORE asset first and then pay with that.
 		if fee_currency != CORE_ASSET_ID {
-			T::AMMPool::buy(&who, CORE_ASSET_ID, fee_currency, fee, 2u128 * fee, false)?;
+			T::AMMPool::buy(&who, AssetPair{asset_out: CORE_ASSET_ID, asset_in: fee_currency}, fee, 2u128 * fee, false)?;
 		}
 
 		Ok(())
 	}
 
-	pub fn add_member(who: &T::AccountId) {
+	pub fn add_new_member(who: &T::AccountId) {
 		Authorities::<T>::mutate(|x| x.push(who.clone()));
+	}
+
+	pub fn withdraw_set_fee(who: &T::AccountId, currency: AssetId) -> DispatchResult {
+		let base_fee = Self::weight_to_fee(T::BlockWeights::get().get(DispatchClass::Normal).base_extrinsic);
+		let adjusted_weight_fee = Self::weight_to_fee(T::WeightInfo::set_currency());
+		let fee = base_fee.saturating_add(adjusted_weight_fee);
+
+		Self::swap_currency(who, fee)?;
+		T::MultiCurrency::withdraw(currency, who, fee)?;
+
+		Ok(())
+	}
+
+	fn weight_to_fee(weight: Weight) -> Balance {
+		// cap the weight to the maximum defined in runtime, otherwise it will be the
+		// `Bounded` maximum of its data type, which is not desired.
+		let capped_weight: Weight = weight.min(T::BlockWeights::get().max_block);
+		<T as Config>::WeightToFee::calc(&capped_weight)
 	}
 }
 

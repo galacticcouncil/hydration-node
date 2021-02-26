@@ -19,7 +19,7 @@ This pallet is pool design agnostic. If the AMM pallet implements required API, 
 
 #### Handling and storing intention 
 
-Registering intention means storing the intention's info in substrate storage. All intentions withint current block are resolved prior to block finalization, 
+Registering intention means storing the intention's info in substrate storage. All intentions within the current block are resolved prior to block finalization, 
 therefore none is actually committed to the storage. 
 
 #### Resolving Intention 

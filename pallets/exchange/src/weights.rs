@@ -75,6 +75,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(6 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
+
 	fn on_finalize(t: u32) -> Weight {
 		(11_618_000 as Weight)
 			// Standard Error: 58_000
@@ -139,6 +140,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
+
 	fn on_finalize(t: u32) -> Weight {
 		(11_618_000 as Weight)
 			// Standard Error: 58_000
@@ -148,6 +150,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
 	}
+
 	fn on_finalize_buys_no_matches(t: u32) -> Weight {
 		(25_261_000 as Weight)
 			// Standard Error: 63_000
@@ -157,6 +160,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
 	}
+
 	fn on_finalize_sells_no_matches(t: u32) -> Weight {
 		(19_982_000 as Weight)
 			// Standard Error: 50_000
