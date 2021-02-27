@@ -1,10 +1,11 @@
 use super::*;
 use hex::FromHex;
+use primitives::Balance;
 
-pub fn migrate_to_v2<T: Config>() -> frame_support::weights::Weight {
+pub fn migrate_to_v2<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
 	if PalletVersion::get() == StorageVersion::V1EmptyBalances {
 		frame_support::debug::info!(" >>> Adding claims to the storage");
-		for (addr, amount) in claims_data::CLAIMS_DATA.iter() {
+		for (addr, amount) in claims_data.iter() {
 			let balance: BalanceOf<T> = T::CurrencyBalance::from(*amount).into();
 
 			Claims::<T>::insert(
@@ -31,11 +32,15 @@ mod tests {
 	#[test]
 	fn data_migration_should_work() {
 		sp_io::TestExternalities::default().execute_with(|| {
-			// we need testing data to prevent a false-positive test result
-			assert!(claims_data::CLAIMS_DATA.len() >= 3);
-			let (first_addr, first_balance) = claims_data::CLAIMS_DATA[0];
-			let (second_addr, second_balance) = claims_data::CLAIMS_DATA[1];
-			let (last_addr, last_balance) = claims_data::CLAIMS_DATA.last().copied().unwrap();
+			let claims_data: [(&'static str, Balance); 4] = [
+				("0x8202c0af5962b750123ce1a9b12e1c30a4973557", 555),
+				("0xb3e7104ea029874c36da42ca115c8c90b5938ef5", 666),
+				("0x30503adcd76c9bf9d068a15be4a8cf6e874fef6c", 777),
+				("0x19ad3978b233a91a30f9ddda6c6f6c92ba97b8f2", 888),
+			];
+			let (first_addr, first_balance) = claims_data[0];
+			let (second_addr, second_balance) = claims_data[1];
+			let (last_addr, last_balance) = claims_data.last().copied().unwrap();
 
 			let first_addr = EthereumAddress(<[u8; 20]>::from_hex(&first_addr[2..]).unwrap());
 			let second_addr = EthereumAddress(<[u8; 20]>::from_hex(&second_addr[2..]).unwrap());
@@ -45,7 +50,7 @@ mod tests {
 			assert_eq!(Claims::<Test>::get(last_addr), 0);
 
 			assert_eq!(PalletVersion::get(), StorageVersion::V1EmptyBalances);
-			migrate_to_v2::<Test>();
+			migrate_to_v2::<Test>(&claims_data);
 			assert_eq!(PalletVersion::get(), StorageVersion::V2AddClaimData);
 
 			assert_eq!(Claims::<Test>::get(first_addr), first_balance);

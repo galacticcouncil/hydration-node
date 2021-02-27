@@ -99,7 +99,7 @@ decl_module! {
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			migration::migrate_to_v2::<T>()
+			migration::migrate_to_v2::<T>(&claims_data::CLAIMS_DATA)
 		}
 	}
 }
