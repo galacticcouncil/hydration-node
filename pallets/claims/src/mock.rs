@@ -1,6 +1,7 @@
 use crate::{Config, EthereumAddress, GenesisConfig, Module};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system;
+use hex_literal::hex;
 use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::{
@@ -78,7 +79,8 @@ pub type Balances = pallet_balances::Module<Test>;
 
 pub type AccountId = u64;
 pub const ALICE: AccountId = 42;
-pub const BOB: AccountId = 142;
+pub const BOB: AccountId = 43;
+pub const CHARLIE: AccountId = 44;
 
 pub struct ExtBuilder;
 
@@ -87,11 +89,15 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
+		pallet_balances::GenesisConfig::<Test> {
+			balances: vec![(42, 0), (43, 0), (44, primitives::Balance::MAX - 1)],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
 		GenesisConfig::<Test> {
 			claims: vec![(
-				EthereumAddress([
-					130, 2, 192, 175, 89, 98, 183, 80, 18, 60, 225, 169, 177, 46, 28, 48, 164, 151, 53, 87,
-				]),
+				EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
 				50_000,
 			)],
 		}

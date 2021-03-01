@@ -4,11 +4,11 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
 	ensure,
-	traits::{Currency, Get},
+	traits::{Currency, Get, Imbalance},
 	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
-use orml_utilities::with_transaction_result;
+use primitives::Balance;
 use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
@@ -37,7 +37,7 @@ pub trait Config: frame_system::Config {
 	type WeightInfo: WeightInfo;
 	type Currency: Currency<Self::AccountId>;
 	// This type is needed to convert from Currency to Balance
-	type CurrencyBalance: From<u128>
+	type CurrencyBalance: From<Balance>
 		+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
 }
 
@@ -73,8 +73,12 @@ decl_event!(
 
 decl_error! {
 	pub enum Error for Module<T: Config> {
+		/// Ethereum signature is not valid
 		InvalidEthereumSignature,
+		/// Got an overflow after adding
 		NoClaimOrAlreadyClaimed,
+		/// Value reached maximum and cannot be incremented further
+		BalanceOverflow,
 	}
 }
 
@@ -87,6 +91,10 @@ decl_module! {
 		/// The Prefix that is used in signed Ethereum messages for this network
 		const Prefix: &[u8] = T::Prefix::get();
 
+		/// Claim a balance
+		/// Verify an Ethereum signature and deposit the corresponding balance into the account's free balance.
+		/// The dispatch origin of this call must match the address in the signed message.
+		/// This is feeless transaction.
 		#[weight = (<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No)]
 		fn claim(origin, ethereum_signature: EcdsaSignature)  {
 			let sender = ensure_signed(origin)?;
@@ -107,17 +115,19 @@ decl_module! {
 impl<T: Config> Module<T> {
 	fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
 		let balance_due = Claims::<T>::get(&signer);
-
 		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
 
-		with_transaction_result(|| {
-			Claims::<T>::mutate(signer, |bal| *bal = Zero::zero());
-			<T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
+		let p_imbal = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
+		ensure!(
+			p_imbal.peek() != <T::Currency as Currency<T::AccountId>>::PositiveImbalance::zero().peek(),
+			Error::<T>::BalanceOverflow
+		);
 
-			Self::deposit_event(RawEvent::Claimed(dest, balance_due));
+		Claims::<T>::mutate(signer, |bal| *bal = Zero::zero());
 
-			Ok(())
-		})
+		Self::deposit_event(RawEvent::Claimed(dest, balance_due));
+
+		Ok(())
 	}
 
 	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
