@@ -2,7 +2,7 @@ use super::*;
 use hex::FromHex;
 use primitives::Balance;
 
-pub fn migrate_to_v2<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
+pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
 	if PalletVersion::get() == StorageVersion::V1EmptyBalances {
 		frame_support::debug::info!(" >>> Adding claims to the storage");
 		for (addr, amount) in claims_data.iter() {
@@ -50,7 +50,7 @@ mod tests {
 			assert_eq!(Claims::<Test>::get(last_addr), 0);
 
 			assert_eq!(PalletVersion::get(), StorageVersion::V1EmptyBalances);
-			migrate_to_v2::<Test>(&claims_data);
+			import_initial_claims::<Test>(&claims_data);
 			assert_eq!(PalletVersion::get(), StorageVersion::V2AddClaimData);
 
 			assert_eq!(Claims::<Test>::get(first_addr), first_balance);

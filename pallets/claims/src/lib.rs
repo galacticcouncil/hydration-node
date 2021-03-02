@@ -74,7 +74,7 @@ decl_event!(
 		AccountId = <T as frame_system::Config>::AccountId,
 		Balance = BalanceOf<T>,
 	{
-		Claimed(AccountId, Balance),
+		Claim(AccountId, EthereumAddress, Balance),
 	}
 );
 
@@ -112,7 +112,7 @@ decl_module! {
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			migration::migrate_to_v2::<T>(&claims_data::CLAIMS_DATA)
+			migration::import_initial_claims::<T>(&claims_data::CLAIMS_DATA)
 		}
 	}
 }
@@ -148,7 +148,7 @@ impl<T: Config> Module<T> {
 
 		Claims::<T>::mutate(address, |bal| *bal = Zero::zero());
 
-		Self::deposit_event(RawEvent::Claimed(dest, balance_due));
+		Self::deposit_event(RawEvent::Claim(dest, address, balance_due));
 
 		Ok(())
 	}
