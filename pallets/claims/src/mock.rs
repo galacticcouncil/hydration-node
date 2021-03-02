@@ -105,6 +105,7 @@ impl ExtBuilder {
 		GenesisConfig::<Test> {
 			claims: vec![(
 				// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+				// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0
 				EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
 				50_000,
 			)],

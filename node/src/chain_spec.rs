@@ -481,21 +481,30 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 	// Alice's claim
 	// Signature: 0xbcae7d4f96f71cf974c173ae936a1a79083af7f76232efbf8a568b7f990eceed73c2465bba769de959b7f6ac5690162b61eb90949901464d0fa158a83022a0741c
 	// Message: "I hereby claim all my HDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
-	// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
 	let claim_address_1 = (
-		EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0
+		EthereumAddress(hex!["8202C0aF5962B750123CE1A9B12e1C30A4973557"]),
 		50_000_000_000_000_000,
 	);
 
-	// Another claim
+	// Bob's claim
+	// Signature: 0x60f3d2541b0ff09982f70844a7f645f4681cbbad2f138fee18404c932bd02cb738d577d53ce94cf067bae87a0b6fa1ec532ceea78d71f4e81a9c27193649c6291b
+	// Message: "I hereby claim all my HDX tokens to wallet:8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
 	let claim_address_2 = (
-		EthereumAddress(hex!["a62d135aa5605658d778f4ea82b300ea0f97416c"]),
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/1) : 0x9b5ef380c0a59008df32ba71ab3c7645950f986fc3f43fd4f9dffc8b2b4e7a5d
+		EthereumAddress(hex!["8aF7764663644989671A71Abe9738a3cF295f384"]),
 		666_000_000,
 	);
 
-	// Another claim
+	// Charlie's claim
+	// Signature: 0x52485aece74eb503fb998f0ca08bcc283fa731613db213af4e7fe153faed3de97ea0873d3889622b41d2d989a9e2a0bef160cff1ba8845875d4bc15431136a811c
+	// Message: "I hereby claim all my HDX tokens to wallet:90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
 	let claim_address_3 = (
-		EthereumAddress(hex!["19ad3978b233a91a30f9ddda6c6f6c92ba97b8f2"]),
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/2) : 0x653a29ac0c93de0e9f7d7ea2d60338e68f407b18d16d6ff84db996076424f8fa
+		EthereumAddress(hex!["C19A2970A13ac19898c47d59Cbd0278D428EBC7c"]),
 		666_000_000,
 	);
 

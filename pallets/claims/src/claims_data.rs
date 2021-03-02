@@ -2,9 +2,8 @@ use primitives::Balance;
 use sp_std::vec;
 lazy_static::lazy_static! {
 pub static ref CLAIMS_DATA: vec::Vec<(&'static str, Balance)> = vec![
-	("0x8202c0af5962b750123ce1a9b12e1c30a4973557", 555),
-	("0xb3e7104ea029874c36da42ca115c8c90b5938ef5", 666),
-	("0x30503adcd76c9bf9d068a15be4a8cf6e874fef6c", 777),
-	("0x19ad3978b233a91a30f9ddda6c6f6c92ba97b8f2", 888),
+	("0x8202C0aF5962B750123CE1A9B12e1C30A4973557", 555),
+	("0x8aF7764663644989671A71Abe9738a3cF295f384", 666),
+	("0xC19A2970A13ac19898c47d59Cbd0278D428EBC7c", 777),
 ];
 }
