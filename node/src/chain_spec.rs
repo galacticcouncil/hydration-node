@@ -481,6 +481,7 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 	// Alice's claim
 	// Signature: 0xbcae7d4f96f71cf974c173ae936a1a79083af7f76232efbf8a568b7f990eceed73c2465bba769de959b7f6ac5690162b61eb90949901464d0fa158a83022a0741c
 	// Message: "I hereby claim all my HDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
+	// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
 	let claim_address_1 = (
 		EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
 		50_000_000_000_000_000,
