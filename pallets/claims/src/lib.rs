@@ -4,39 +4,31 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
 	ensure,
-	traits::{Currency, Get, Imbalance},
+	sp_runtime::{
+		traits::{DispatchInfoOf, SignedExtension},
+		transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
+	},
+	traits::{Currency, Get, Imbalance, IsSubType},
 	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
 use primitives::Balance;
 use sp_runtime::traits::Zero;
-use sp_std::prelude::*;
-use sp_std::vec::Vec;
-
-use frame_support::sp_runtime::traits::{DispatchInfoOf, SignedExtension};
-use frame_support::sp_runtime::transaction_validity::{
-	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
-};
-use frame_support::traits::IsSubType;
-use sp_std::marker::PhantomData;
-
+use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
+use weights::WeightInfo;
 pub use traits::*;
 
+mod benchmarking;
 mod claims_data;
 mod migration;
 mod traits;
+pub mod weights;
 
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
-
-mod benchmarking;
-
-use weights::WeightInfo;
-
-pub mod weights;
 
 pub trait Config: frame_system::Config {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
