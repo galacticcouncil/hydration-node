@@ -1,5 +1,5 @@
 use crate::{Config, EthereumAddress, GenesisConfig, Module};
-use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
+use frame_support::{impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types};
 use frame_system;
 use hex_literal::hex;
 use primitives::Balance;
@@ -11,6 +11,13 @@ use sp_runtime::{
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
+}
+
+impl_outer_dispatch! {
+	pub enum Call for Test where origin: Origin {
+		pallet_claims::ClaimsModule,
+		frame_system::System,
+	}
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -25,7 +32,7 @@ impl frame_system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
