@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::Encode;
+use codec::{Decode, Encode};
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
@@ -12,6 +12,13 @@ use primitives::Balance;
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 use sp_std::vec::Vec;
+
+use frame_support::sp_runtime::traits::{DispatchInfoOf, SignedExtension};
+use frame_support::sp_runtime::transaction_validity::{
+	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
+};
+use frame_support::traits::IsSubType;
+use sp_std::marker::PhantomData;
 
 pub use traits::*;
 
@@ -156,4 +163,45 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 		push_nibble(b % 16);
 	}
 	r
+}
+
+/// Signed extension that checks for the `claim` call and in that case, it verifies an Ethereum signature
+#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+pub struct ValidateClaim<T: Config + Send + Sync>(PhantomData<T>);
+
+impl<T: Config + Send + Sync> sp_std::fmt::Debug for ValidateClaim<T> {
+	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		write!(f, "ValidateClaim")
+	}
+}
+
+impl<T: Config + Send + Sync> SignedExtension for ValidateClaim<T>
+where
+	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
+{
+	const IDENTIFIER: &'static str = "ValidateClaim";
+	type AccountId = T::AccountId;
+	type Call = <T as frame_system::Config>::Call;
+	type AdditionalSigned = ();
+	type Pre = ();
+
+	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
+		Ok(())
+	}
+
+	fn validate(
+		&self,
+		who: &Self::AccountId,
+		call: &Self::Call,
+		_info: &DispatchInfoOf<Self::Call>,
+		_len: usize,
+	) -> TransactionValidity {
+		match call.is_sub_type() {
+			Some(Call::claim(signature)) => match Module::<T>::validate_claim(who, &signature) {
+				Ok(_) => Ok(ValidTransaction::default()),
+				Err(error) => InvalidTransaction::Custom(error.as_u8()).into(),
+			},
+			_ => Ok(Default::default()),
+		}
+	}
 }
