@@ -99,11 +99,9 @@ decl_module! {
 		fn claim(origin, ethereum_signature: EcdsaSignature)  {
 			let sender = ensure_signed(origin)?;
 
-			let sender_hex = sender.using_encoded(to_ascii_hex);
+			let (balance_due, address) = Self::validate_claim(&sender, &ethereum_signature)?;
 
-			let signer = ethereum_signature.recover(&sender_hex, T::Prefix::get()).ok_or(Error::<T>::InvalidEthereumSignature)?;
-
-			Self::process_claim(signer, sender)?;
+			Self::process_claim(sender, balance_due, address)?;
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
@@ -113,17 +111,35 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-	fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
-		let balance_due = Claims::<T>::get(&signer);
-		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
+	fn validate_claim(
+		who: &T::AccountId,
+		signature: &EcdsaSignature,
+	) -> Result<(BalanceOf<T>, EthereumAddress), Error<T>> {
+		let sender_hex = who.using_encoded(to_ascii_hex);
 
+		let signer = signature.recover(&sender_hex, T::Prefix::get());
+
+		match signer {
+			Some(address) => {
+				let balance_due = Claims::<T>::get(&address);
+
+				if balance_due == Zero::zero() {
+					return Err(Error::<T>::NoClaimOrAlreadyClaimed);
+				};
+				Ok((balance_due, address))
+			}
+			None => Err(Error::<T>::InvalidEthereumSignature),
+		}
+	}
+
+	fn process_claim(dest: T::AccountId, balance_due: BalanceOf<T>, address: EthereumAddress) -> DispatchResult {
 		let imbalance = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
 		ensure!(
 			imbalance.peek() != <T::Currency as Currency<T::AccountId>>::PositiveImbalance::zero().peek(),
 			Error::<T>::BalanceOverflow
 		);
 
-		Claims::<T>::mutate(signer, |bal| *bal = Zero::zero());
+		Claims::<T>::mutate(address, |bal| *bal = Zero::zero());
 
 		Self::deposit_event(RawEvent::Claimed(dest, balance_due));
 
