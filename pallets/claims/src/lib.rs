@@ -9,7 +9,6 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 use primitives::Balance;
-use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 use sp_std::vec::Vec;
@@ -29,6 +28,7 @@ mod tests;
 mod benchmarking;
 
 use weights::WeightInfo;
+
 pub mod weights;
 
 pub trait Config: frame_system::Config {
@@ -101,7 +101,7 @@ decl_module! {
 
 			let sender_hex = sender.using_encoded(to_ascii_hex);
 
-			let signer = Self::eth_recover(&ethereum_signature, &sender_hex).ok_or(Error::<T>::InvalidEthereumSignature)?;
+			let signer = ethereum_signature.recover(&sender_hex, T::Prefix::get()).ok_or(Error::<T>::InvalidEthereumSignature)?;
 
 			Self::process_claim(signer, sender)?;
 		}
@@ -128,32 +128,6 @@ impl<T: Config> Module<T> {
 		Self::deposit_event(RawEvent::Claimed(dest, balance_due));
 
 		Ok(())
-	}
-
-	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
-	fn ethereum_signable_message(what: &[u8]) -> Vec<u8> {
-		let prefix = T::Prefix::get();
-		let mut l = prefix.len() + what.len();
-		let mut rev = Vec::new();
-		while l > 0 {
-			rev.push(b'0' + (l % 10) as u8);
-			l /= 10;
-		}
-		let mut v = b"\x19Ethereum Signed Message:\n".to_vec();
-		v.extend(rev.into_iter().rev());
-		v.extend_from_slice(&prefix[..]);
-		v.extend_from_slice(what);
-		v
-	}
-
-	// Attempts to recover the Ethereum address from a message signature signed by using
-	// the Ethereum RPC's `personal_sign` and `eth_sign`.
-	fn eth_recover(s: &EcdsaSignature, what: &[u8]) -> Option<EthereumAddress> {
-		let msg = keccak_256(&Self::ethereum_signable_message(what));
-		let mut res = EthereumAddress::default();
-		res.0
-			.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..])[12..]);
-		Some(res)
 	}
 }
 
