@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::Encode;
+use codec::{Decode, Encode};
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
@@ -9,10 +9,16 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 use primitives::Balance;
-use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
 use sp_runtime::traits::Zero;
 use sp_std::prelude::*;
 use sp_std::vec::Vec;
+
+use frame_support::sp_runtime::traits::{DispatchInfoOf, SignedExtension};
+use frame_support::sp_runtime::transaction_validity::{
+	InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
+};
+use frame_support::traits::IsSubType;
+use sp_std::marker::PhantomData;
 
 pub use traits::*;
 
@@ -29,6 +35,7 @@ mod tests;
 mod benchmarking;
 
 use weights::WeightInfo;
+
 pub mod weights;
 
 pub trait Config: frame_system::Config {
@@ -99,11 +106,9 @@ decl_module! {
 		fn claim(origin, ethereum_signature: EcdsaSignature)  {
 			let sender = ensure_signed(origin)?;
 
-			let sender_hex = sender.using_encoded(to_ascii_hex);
+			let (balance_due, address) = Self::validate_claim(&sender, &ethereum_signature)?;
 
-			let signer = Self::eth_recover(&ethereum_signature, &sender_hex).ok_or(Error::<T>::InvalidEthereumSignature)?;
-
-			Self::process_claim(signer, sender)?;
+			Self::process_claim(sender, balance_due, address)?;
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
@@ -113,47 +118,39 @@ decl_module! {
 }
 
 impl<T: Config> Module<T> {
-	fn process_claim(signer: EthereumAddress, dest: T::AccountId) -> DispatchResult {
-		let balance_due = Claims::<T>::get(&signer);
-		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
+	fn validate_claim(
+		who: &T::AccountId,
+		signature: &EcdsaSignature,
+	) -> Result<(BalanceOf<T>, EthereumAddress), Error<T>> {
+		let sender_hex = who.using_encoded(to_ascii_hex);
 
+		let signer = signature.recover(&sender_hex, T::Prefix::get());
+
+		match signer {
+			Some(address) => {
+				let balance_due = Claims::<T>::get(&address);
+
+				if balance_due == Zero::zero() {
+					return Err(Error::<T>::NoClaimOrAlreadyClaimed);
+				};
+				Ok((balance_due, address))
+			}
+			None => Err(Error::<T>::InvalidEthereumSignature),
+		}
+	}
+
+	fn process_claim(dest: T::AccountId, balance_due: BalanceOf<T>, address: EthereumAddress) -> DispatchResult {
 		let imbalance = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
 		ensure!(
 			imbalance.peek() != <T::Currency as Currency<T::AccountId>>::PositiveImbalance::zero().peek(),
 			Error::<T>::BalanceOverflow
 		);
 
-		Claims::<T>::mutate(signer, |bal| *bal = Zero::zero());
+		Claims::<T>::mutate(address, |bal| *bal = Zero::zero());
 
 		Self::deposit_event(RawEvent::Claimed(dest, balance_due));
 
 		Ok(())
-	}
-
-	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
-	fn ethereum_signable_message(what: &[u8]) -> Vec<u8> {
-		let prefix = T::Prefix::get();
-		let mut l = prefix.len() + what.len();
-		let mut rev = Vec::new();
-		while l > 0 {
-			rev.push(b'0' + (l % 10) as u8);
-			l /= 10;
-		}
-		let mut v = b"\x19Ethereum Signed Message:\n".to_vec();
-		v.extend(rev.into_iter().rev());
-		v.extend_from_slice(&prefix[..]);
-		v.extend_from_slice(what);
-		v
-	}
-
-	// Attempts to recover the Ethereum address from a message signature signed by using
-	// the Ethereum RPC's `personal_sign` and `eth_sign`.
-	fn eth_recover(s: &EcdsaSignature, what: &[u8]) -> Option<EthereumAddress> {
-		let msg = keccak_256(&Self::ethereum_signable_message(what));
-		let mut res = EthereumAddress::default();
-		res.0
-			.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&s.0, &msg).ok()?[..])[12..]);
-		Some(res)
 	}
 }
 
@@ -166,4 +163,45 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 		push_nibble(b % 16);
 	}
 	r
+}
+
+/// Signed extension that checks for the `claim` call and in that case, it verifies an Ethereum signature
+#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+pub struct ValidateClaim<T: Config + Send + Sync>(PhantomData<T>);
+
+impl<T: Config + Send + Sync> sp_std::fmt::Debug for ValidateClaim<T> {
+	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		write!(f, "ValidateClaim")
+	}
+}
+
+impl<T: Config + Send + Sync> SignedExtension for ValidateClaim<T>
+where
+	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
+{
+	const IDENTIFIER: &'static str = "ValidateClaim";
+	type AccountId = T::AccountId;
+	type Call = <T as frame_system::Config>::Call;
+	type AdditionalSigned = ();
+	type Pre = ();
+
+	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
+		Ok(())
+	}
+
+	fn validate(
+		&self,
+		who: &Self::AccountId,
+		call: &Self::Call,
+		_info: &DispatchInfoOf<Self::Call>,
+		_len: usize,
+	) -> TransactionValidity {
+		match call.is_sub_type() {
+			Some(Call::claim(signature)) => match Module::<T>::validate_claim(who, &signature) {
+				Ok(_) => Ok(ValidTransaction::default()),
+				Err(error) => InvalidTransaction::Custom(error.as_u8()).into(),
+			},
+			_ => Ok(Default::default()),
+		}
+	}
 }

@@ -1,4 +1,8 @@
 use codec::{Decode, Encode};
+
+use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};
+use sp_std::vec::Vec;
+
 #[cfg(feature = "std")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -49,6 +53,34 @@ impl PartialEq for EcdsaSignature {
 impl sp_std::fmt::Debug for EcdsaSignature {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter<'_>) -> sp_std::fmt::Result {
 		write!(f, "EcdsaSignature({:?})", &self.0[..])
+	}
+}
+
+impl EcdsaSignature {
+	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
+	fn ethereum_signable_message(what: &[u8], prefix: &'static [u8]) -> Vec<u8> {
+		//let prefix = T::Prefix::get();
+		let mut l = prefix.len() + what.len();
+		let mut rev = Vec::new();
+		while l > 0 {
+			rev.push(b'0' + (l % 10) as u8);
+			l /= 10;
+		}
+		let mut v = b"\x19Ethereum Signed Message:\n".to_vec();
+		v.extend(rev.into_iter().rev());
+		v.extend_from_slice(&prefix[..]);
+		v.extend_from_slice(what);
+		v
+	}
+
+	// Attempts to recover the Ethereum address from a message signature signed by using
+	// the Ethereum RPC's `personal_sign` and `eth_sign`.
+	pub fn recover(&self, what: &[u8], prefix: &'static [u8]) -> Option<EthereumAddress> {
+		let msg = keccak_256(&Self::ethereum_signable_message(what, prefix));
+		let mut res = EthereumAddress::default();
+		res.0
+			.copy_from_slice(&keccak_256(&secp256k1_ecdsa_recover(&self.0, &msg).ok()?[..])[12..]);
+		Some(res)
 	}
 }
 

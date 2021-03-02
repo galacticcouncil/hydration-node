@@ -1,5 +1,6 @@
 use super::*;
 use crate::mock::*;
+use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
 
@@ -85,6 +86,51 @@ fn unsigned_claim_fail() {
 		assert_err!(
 			ClaimsModule::claim(Origin::none(), EcdsaSignature(signature)),
 			sp_runtime::traits::BadOrigin,
+		);
+	});
+}
+
+#[test]
+fn signed_extention_success() {
+	new_test_ext().execute_with(|| {
+		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
+
+		let call = <crate::Call<Test>>::claim(EcdsaSignature(signature)).into();
+		let info = DispatchInfo::default();
+
+		assert_eq!(
+			ValidateClaim::<Test>(PhantomData).validate(&ALICE, &call, &info, 150),
+			Ok(ValidTransaction::default())
+		);
+	});
+}
+
+#[test]
+fn signed_extention_invalid_sig() {
+	new_test_ext().execute_with(|| {
+		let invalid_signature = hex!["a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"];
+
+		let call = <crate::Call<Test>>::claim(EcdsaSignature(invalid_signature)).into();
+		let info = DispatchInfo::default();
+
+		assert_eq!(
+			ValidateClaim::<Test>(PhantomData).validate(&ALICE, &call, &info, 150),
+			InvalidTransaction::Custom(Error::<Test>::InvalidEthereumSignature.as_u8()).into()
+		);
+	});
+}
+
+#[test]
+fn signed_extention_no_claim_error() {
+	new_test_ext().execute_with(|| {
+		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
+
+		let call = <crate::Call<Test>>::claim(EcdsaSignature(signature)).into();
+		let info = DispatchInfo::default();
+
+		assert_eq!(
+			ValidateClaim::<Test>(PhantomData).validate(&BOB, &call, &info, 150),
+			InvalidTransaction::Custom(Error::<Test>::NoClaimOrAlreadyClaimed.as_u8()).into()
 		);
 	});
 }
