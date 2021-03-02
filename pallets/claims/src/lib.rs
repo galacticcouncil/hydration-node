@@ -75,7 +75,7 @@ decl_error! {
 	pub enum Error for Module<T: Config> {
 		/// Ethereum signature is not valid
 		InvalidEthereumSignature,
-		/// Got an overflow after adding
+		/// Claim is not valid
 		NoClaimOrAlreadyClaimed,
 		/// Value reached maximum and cannot be incremented further
 		BalanceOverflow,
@@ -117,9 +117,9 @@ impl<T: Config> Module<T> {
 		let balance_due = Claims::<T>::get(&signer);
 		ensure!(balance_due != Zero::zero(), Error::<T>::NoClaimOrAlreadyClaimed);
 
-		let p_imbal = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
+		let imbalance = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
 		ensure!(
-			p_imbal.peek() != <T::Currency as Currency<T::AccountId>>::PositiveImbalance::zero().peek(),
+			imbalance.peek() != <T::Currency as Currency<T::AccountId>>::PositiveImbalance::zero().peek(),
 			Error::<T>::BalanceOverflow
 		);
 

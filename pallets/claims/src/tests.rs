@@ -1,6 +1,6 @@
 use super::*;
 use crate::mock::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -19,19 +19,17 @@ fn claiming_works() {
 		assert_eq!(Balances::free_balance(&ALICE), 0);
 		assert_eq!(Balances::free_balance(&BOB), 0);
 
+		// Signature not consistent with origin
 		assert_noop!(ClaimsModule::claim(Origin::signed(BOB), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 
 		assert_ok!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
-		assert_eq!(Balances::free_balance(&ALICE), 50_000);
-		assert_noop!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 
 		assert_eq!(Balances::free_balance(&ALICE), 50_000);
-		assert_eq!(Balances::free_balance(&BOB), 0);
 	})
 }
 
 #[test]
-fn invalid_signature() {
+fn invalid_signature_fail() {
 	new_test_ext().execute_with(|| {
 		let invalid_signature = hex!["a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"];
 		assert_noop!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(invalid_signature)), Error::<Test>::InvalidEthereumSignature);
@@ -39,7 +37,7 @@ fn invalid_signature() {
 }
 
 #[test]
-fn claim_overflow_works() {
+fn claim_cant_overflow() {
 	new_test_ext().execute_with(|| {
 		// Charlie (account id = 44) signs a msg:
 		// "I hereby claim all my HDX tokens to wallet:2c00000000000000"
@@ -68,4 +66,25 @@ fn zeroize_claimed_balance_works() {
 		assert_ok!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
 		assert_eq!(Claims::<Test>::get(&alice_eth_addr), 0);
 	})
+}
+
+#[test]
+fn double_claim_fail() {
+	new_test_ext().execute_with(|| {
+		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
+
+		assert_ok!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
+		assert_noop!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
+	})
+}
+
+#[test]
+fn unsigned_claim_fail() {
+	new_test_ext().execute_with(|| {
+		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
+		assert_err!(
+			ClaimsModule::claim(Origin::none(), EcdsaSignature(signature)),
+			sp_runtime::traits::BadOrigin,
+		);
+	});
 }
