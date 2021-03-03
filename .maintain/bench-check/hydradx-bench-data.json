@@ -1,10 +1,10 @@
 {
     "amm": {
-        "create_pool": 245.0,
-        "add_liquidity": 232.0,
-        "remove_liquidity": 231.0,
-        "sell": 163.0,
-        "buy": 162.0
+        "create_pool": 249.0,
+        "add_liquidity": 239.0,
+        "remove_liquidity": 240.0,
+        "sell": 170.0,
+        "buy": 168.0
     },
     "exchange": {
         "sell_intention": 130.0,
@@ -15,9 +15,9 @@
         "on_finalize_for_one_buy_extrinsic": 252.0
     },
     "transaction_multi_payment": {
-        "swap_currency": 166.0,
-        "set_currency": 41.0,
-        "add_currency": 36.0,
-        "remove_currency": 37.0
+        "swap_currency": 173.0,
+        "set_currency": 43.0,
+        "add_currency": 33.0,
+        "remove_currency": 34.0
     }
 }
