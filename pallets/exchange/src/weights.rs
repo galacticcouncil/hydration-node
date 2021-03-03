@@ -35,154 +35,166 @@
 // --output=weights.rs
 // --template=.maintain/pallet-weight-template.hbs
 
+
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
-};
+use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for exchange.
 pub trait WeightInfo {
-	fn known_overhead_for_on_finalize() -> Weight;
-	fn sell_intention() -> Weight;
-	fn buy_intention() -> Weight;
-	fn on_finalize(t: u32) -> Weight;
-	fn on_finalize_buys_no_matches(t: u32) -> Weight;
-	fn on_finalize_sells_no_matches(t: u32) -> Weight;
-	fn sell_extrinsic() -> Weight;
-	fn on_finalize_for_one_sell_extrinsic() -> Weight;
-	fn buy_extrinsic() -> Weight;
-	fn on_finalize_for_one_buy_extrinsic() -> Weight;
+fn known_overhead_for_on_finalize() -> Weight;
+fn sell_intention() -> Weight;
+fn buy_intention() -> Weight;
+fn on_finalize(t: u32, ) -> Weight;
+fn on_finalize_buys_no_matches(t: u32, ) -> Weight;
+fn on_finalize_sells_no_matches(t: u32, ) -> Weight;
+fn sell_extrinsic() -> Weight;
+fn on_finalize_for_one_sell_extrinsic() -> Weight;
+fn buy_extrinsic() -> Weight;
+fn on_finalize_for_one_buy_extrinsic() -> Weight;
 }
 
 /// Weights for exchange using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	fn known_overhead_for_on_finalize() -> Weight {
-		(13_973_000 as Weight).saturating_add(T::DbWeight::get().reads(1 as Weight))
-	}
-	fn sell_intention() -> Weight {
-		(130_035_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(6 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	fn buy_intention() -> Weight {
-		(131_588_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(6 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	fn on_finalize(t: u32) -> Weight {
-		(0 as Weight)
-			// Standard Error: 118_000
-			.saturating_add((165_150_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
-	}
-	fn on_finalize_buys_no_matches(t: u32) -> Weight {
-		(6_998_000 as Weight)
-			// Standard Error: 106_000
-			.saturating_add((187_033_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
-	}
-	fn on_finalize_sells_no_matches(t: u32) -> Weight {
-		(7_168_000 as Weight)
-			// Standard Error: 77_000
-			.saturating_add((163_477_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
-	}
-	fn sell_extrinsic() -> Weight {
-		(173_192_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
-	}
-	fn on_finalize_for_one_sell_extrinsic() -> Weight {
-		(228_238_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(9 as Weight))
-			.saturating_add(T::DbWeight::get().writes(6 as Weight))
-	}
-	fn buy_extrinsic() -> Weight {
-		(171_830_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
-	}
-	fn on_finalize_for_one_buy_extrinsic() -> Weight {
-		(252_453_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(9 as Weight))
-			.saturating_add(T::DbWeight::get().writes(6 as Weight))
-	}
-}
+		impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
+				fn known_overhead_for_on_finalize() -> Weight {
+				(14_283_000 as Weight)
+				.saturating_add(T::DbWeight::get().reads(1 as Weight))
+				}
+				fn sell_intention() -> Weight {
+				(132_316_000 as Weight)
+				.saturating_add(T::DbWeight::get().reads(6 as Weight))
+				.saturating_add(T::DbWeight::get().writes(2 as Weight))
+				}
+				fn buy_intention() -> Weight {
+				(131_863_000 as Weight)
+				.saturating_add(T::DbWeight::get().reads(6 as Weight))
+				.saturating_add(T::DbWeight::get().writes(2 as Weight))
+				}
+				fn on_finalize(t: u32, ) -> Weight {
+				(0 as Weight)
+				// Standard Error: 91_000
+				.saturating_add((168_120_000 as Weight).saturating_mul(t as Weight))
+				.saturating_add(T::DbWeight::get().reads(4 as Weight))
+				.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as
+				Weight)))
+				.saturating_add(T::DbWeight::get().writes(2 as Weight))
+				.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as
+				Weight)))
+				}
+				fn on_finalize_buys_no_matches(t: u32, ) -> Weight {
+				(8_505_000 as Weight)
+				// Standard Error: 92_000
+				.saturating_add((190_583_000 as Weight).saturating_mul(t as Weight))
+				.saturating_add(T::DbWeight::get().reads(4 as Weight))
+				.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as
+				Weight)))
+				.saturating_add(T::DbWeight::get().writes(2 as Weight))
+				.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as
+				Weight)))
+				}
+				fn on_finalize_sells_no_matches(t: u32, ) -> Weight {
+				(16_195_000 as Weight)
+				// Standard Error: 44_000
+				.saturating_add((166_063_000 as Weight).saturating_mul(t as Weight))
+				.saturating_add(T::DbWeight::get().reads(4 as Weight))
+				.saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(t as
+				Weight)))
+				.saturating_add(T::DbWeight::get().writes(2 as Weight))
+				.saturating_add(T::DbWeight::get().writes((2 as Weight).saturating_mul(t as
+				Weight)))
+				}
+				fn sell_extrinsic() -> Weight {
+				(177_280_000 as Weight)
+				.saturating_add(T::DbWeight::get().reads(5 as Weight))
+				.saturating_add(T::DbWeight::get().writes(4 as Weight))
+				}
+				fn on_finalize_for_one_sell_extrinsic() -> Weight {
+				(232_319_000 as Weight)
+				.saturating_add(T::DbWeight::get().reads(9 as Weight))
+				.saturating_add(T::DbWeight::get().writes(6 as Weight))
+				}
+				fn buy_extrinsic() -> Weight {
+				(176_376_000 as Weight)
+				.saturating_add(T::DbWeight::get().reads(5 as Weight))
+				.saturating_add(T::DbWeight::get().writes(4 as Weight))
+				}
+				fn on_finalize_for_one_buy_extrinsic() -> Weight {
+				(257_266_000 as Weight)
+				.saturating_add(T::DbWeight::get().reads(9 as Weight))
+				.saturating_add(T::DbWeight::get().writes(6 as Weight))
+				}
+				}
 
-// For backwards compatibility and tests
-impl WeightInfo for () {
-	fn known_overhead_for_on_finalize() -> Weight {
-		(13_973_000 as Weight).saturating_add(RocksDbWeight::get().reads(1 as Weight))
-	}
-	fn sell_intention() -> Weight {
-		(130_035_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	fn buy_intention() -> Weight {
-		(131_588_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	fn on_finalize(t: u32) -> Weight {
-		(0 as Weight)
-			// Standard Error: 118_000
-			.saturating_add((165_150_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
-	}
-	fn on_finalize_buys_no_matches(t: u32) -> Weight {
-		(6_998_000 as Weight)
-			// Standard Error: 106_000
-			.saturating_add((187_033_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
-	}
-	fn on_finalize_sells_no_matches(t: u32) -> Weight {
-		(7_168_000 as Weight)
-			// Standard Error: 77_000
-			.saturating_add((163_477_000 as Weight).saturating_mul(t as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as Weight)))
-	}
-	fn sell_extrinsic() -> Weight {
-		(173_192_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
-	}
-	fn on_finalize_for_one_sell_extrinsic() -> Weight {
-		(228_238_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(9 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(6 as Weight))
-	}
-	fn buy_extrinsic() -> Weight {
-		(171_830_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
-	}
-	fn on_finalize_for_one_buy_extrinsic() -> Weight {
-		(252_453_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(9 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(6 as Weight))
-	}
-}
+				// For backwards compatibility and tests
+				impl WeightInfo for () {
+				fn known_overhead_for_on_finalize() -> Weight {
+				(14_283_000 as Weight)
+				.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+				}
+				fn sell_intention() -> Weight {
+				(132_316_000 as Weight)
+				.saturating_add(RocksDbWeight::get().reads(6 as Weight))
+				.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+				}
+				fn buy_intention() -> Weight {
+				(131_863_000 as Weight)
+				.saturating_add(RocksDbWeight::get().reads(6 as Weight))
+				.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+				}
+				fn on_finalize(t: u32, ) -> Weight {
+				(0 as Weight)
+				// Standard Error: 91_000
+				.saturating_add((168_120_000 as Weight).saturating_mul(t as Weight))
+				.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+				.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as
+				Weight)))
+				.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+				.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as
+				Weight)))
+				}
+				fn on_finalize_buys_no_matches(t: u32, ) -> Weight {
+				(8_505_000 as Weight)
+				// Standard Error: 92_000
+				.saturating_add((190_583_000 as Weight).saturating_mul(t as Weight))
+				.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+				.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as
+				Weight)))
+				.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+				.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as
+				Weight)))
+				}
+				fn on_finalize_sells_no_matches(t: u32, ) -> Weight {
+				(16_195_000 as Weight)
+				// Standard Error: 44_000
+				.saturating_add((166_063_000 as Weight).saturating_mul(t as Weight))
+				.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+				.saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(t as
+				Weight)))
+				.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+				.saturating_add(RocksDbWeight::get().writes((2 as Weight).saturating_mul(t as
+				Weight)))
+				}
+				fn sell_extrinsic() -> Weight {
+				(177_280_000 as Weight)
+				.saturating_add(RocksDbWeight::get().reads(5 as Weight))
+				.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+				}
+				fn on_finalize_for_one_sell_extrinsic() -> Weight {
+				(232_319_000 as Weight)
+				.saturating_add(RocksDbWeight::get().reads(9 as Weight))
+				.saturating_add(RocksDbWeight::get().writes(6 as Weight))
+				}
+				fn buy_extrinsic() -> Weight {
+				(176_376_000 as Weight)
+				.saturating_add(RocksDbWeight::get().reads(5 as Weight))
+				.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+				}
+				fn on_finalize_for_one_buy_extrinsic() -> Weight {
+				(257_266_000 as Weight)
+				.saturating_add(RocksDbWeight::get().reads(9 as Weight))
+				.saturating_add(RocksDbWeight::get().writes(6 as Weight))
+				}
+				}
