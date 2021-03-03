@@ -125,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hack-hydra-dx"),
 	impl_name: create_runtime_str!("hack-hydra-dx"),
 	authoring_version: 1,
-	spec_version: 2,
+	spec_version: 3,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -423,7 +423,6 @@ type LocalOriginConverter = (
 parameter_types! {
 	pub NativeTokens: BTreeSet<(Vec<u8>, MultiLocation)> = {
 		let mut t = BTreeSet::new();
-		t.insert(("HDT".into(), MultiLocation::X2(Junction::Parent, Junction::Parachain { id: 200})));
 		t.insert(("AUSD".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
 		t.insert(("ACA".into(), (Junction::Parent, Junction::Parachain { id: 666 }).into()));
 		t
@@ -500,7 +499,7 @@ construct_runtime!(
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system::{Module, Call, Storage, Inherent, Event},
 		ParachainInfo: parachain_info::{Module, Storage, Config},
-		XcmHandler: xcm_handler::{Module, Event<T>, Origin},
+		XcmHandler: xcm_handler::{Module, Call, Event<T>, Origin},
 		XTokens: orml_xtokens::{Module, Storage, Call, Event<T>},
 
 		// ORML related modules
