@@ -401,12 +401,19 @@ decl_module! {
 
 			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
 
-			if liquidity_left < MIN_POOL_LIQUIDITY_LIMIT {
+			ensure!(
+				u128::from(share_token) < MIN_POOL_LIQUIDITY_LIMIT,
+				Error::<T>::MinimalPoolLiquidityRequirementNotMet
+			);
+
+			if liquidity_left >= MIN_POOL_LIQUIDITY_LIMIT || liquidity_left.is_zero() {
 				<ShareToken<T>>::remove(&pair_account);
 				<PoolAssets<T>>::remove(&pair_account);
-
-				Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
+				if liquidity_left.is_zero() {
+					Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
+				}
 			}
+
 
 			Ok(())
 		}
