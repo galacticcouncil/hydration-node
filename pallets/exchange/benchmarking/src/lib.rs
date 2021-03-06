@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+mod amounts;
 mod mock;
 
 use sp_std::prelude::*;
@@ -15,7 +16,8 @@ use primitives::{AssetId, Balance, Price};
 use sp_runtime::DispatchError;
 
 use sp_runtime::traits::{BlakeTwo256, Hash};
-use sp_runtime::RandomNumberGenerator;
+
+use amounts::INTENTION_AMOUNTS;
 
 use pallet_amm as ammpool;
 
@@ -136,14 +138,7 @@ benchmarks! {
 
 		initialize_pool::<T>(caller.clone(), asset_a, asset_b, amount, Price::from(10))?;
 
-		let random_seed = BlakeTwo256::hash(b"Sixty-nine");
-		let mut rng = <RandomNumberGenerator<BlakeTwo256>>::new(random_seed);
-		let mut amounts: Vec<u32> = Vec::with_capacity(nbr_intentions_appended as usize);
-		for idx in 0 .. nbr_intentions_appended {
-			amounts.push(rng.pick_u32(100_000) + 1000);
-		}
-
-		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &amounts)?;
+		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &INTENTION_AMOUNTS)?;
 
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
@@ -164,14 +159,7 @@ benchmarks! {
 
 		initialize_pool::<T>(caller.clone(), asset_a, asset_b, amount, Price::from(1))?;
 
-		let random_seed = BlakeTwo256::hash(b"Sixty-nine");
-		let mut rng = <RandomNumberGenerator<BlakeTwo256>>::new(random_seed);
-		let mut amounts: Vec<u32> = Vec::with_capacity(nbr_intentions_appended as usize);
-		for idx in 0 .. nbr_intentions_appended {
-			amounts.push(rng.pick_u32(100_000) + 1000);
-		}
-
-		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &amounts)?;
+		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &INTENTION_AMOUNTS)?;
 
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
@@ -192,23 +180,17 @@ benchmarks! {
 		// This is basically used to generate intentions with different amounts
 		// it is because algorithm does sort the intention by amount, so we need something not sorted./
 		let random_seed = BlakeTwo256::hash(b"Sixty-nine");
-		let mut rng = <RandomNumberGenerator<BlakeTwo256>>::new(random_seed);
-
-		let mut amounts: Vec<u32> = Vec::with_capacity(t as usize);
-		for idx in 0 .. t {
-			amounts.push(rng.pick_u32(100_000) + 1000);
-		}
 
 		initialize_pool::<T>(caller, asset_a, asset_b, amount, Price::from(1))?;
 
-		feed_intentions::<T>(asset_a, asset_b, t, &amounts)?;
+		feed_intentions::<T>(asset_a, asset_b, t, &INTENTION_AMOUNTS)?;
 
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), t);
 
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
 		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
-		validate_finalize::<T>(asset_a, asset_b, t, &amounts)?;
+		validate_finalize::<T>(asset_a, asset_b, t, &INTENTION_AMOUNTS)?;
 	}
 
 	on_finalize_buys_no_matches {
