@@ -7,6 +7,7 @@ use weights::WeightInfo;
 #[cfg(test)]
 mod mock;
 
+mod migrations;
 #[cfg(test)]
 mod tests;
 
@@ -14,7 +15,9 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
 	ensure,
-	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
+	traits::{
+		Currency, ExistenceRequirement, Get, GetPalletVersion, Imbalance, OnUnbalanced, PalletVersion, WithdrawReasons,
+	},
 	weights::DispatchClass,
 	weights::WeightToFeePolynomial,
 };
@@ -248,6 +251,20 @@ decl_module! {
 
 			Ok(())
 		}
+
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			let version_200 = PalletVersion::new(2, 0, 0);
+
+			match <Self as GetPalletVersion>::storage_version() {
+				None => migrations::migrate_to_2_0_1(),
+				Some(version) => {
+					if version == version_200 {
+						return migrations::migrate_to_2_0_1();
+					}
+					0
+				}
+			}
+		}
 	}
 }
 impl<T: Config> Module<T> {
@@ -260,7 +277,16 @@ impl<T: Config> Module<T> {
 
 		// If not native currency, let's buy CORE asset first and then pay with that.
 		if fee_currency != CORE_ASSET_ID {
-			T::AMMPool::buy(&who, AssetPair{asset_out: CORE_ASSET_ID, asset_in: fee_currency}, fee, 2u128 * fee, false)?;
+			T::AMMPool::buy(
+				&who,
+				AssetPair {
+					asset_out: CORE_ASSET_ID,
+					asset_in: fee_currency,
+				},
+				fee,
+				2u128 * fee,
+				false,
+			)?;
 		}
 
 		Ok(())
