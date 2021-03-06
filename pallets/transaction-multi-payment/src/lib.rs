@@ -255,7 +255,7 @@ decl_module! {
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
 			let version = <Self as GetPalletVersion>::storage_version();
 
-			if version == None || version == Some(PalletVersion::new(2, 0, 0)) {
+			if version == None || version == Some(PalletVersion::new(3, 0, 0)) {
 				migrations::migrate_ordered_set()
 			} else {
 				0
