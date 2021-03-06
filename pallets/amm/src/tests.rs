@@ -2,6 +2,7 @@ use super::*;
 pub use crate::mock::{Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
 use primitives::traits::AMM as AMMPool;
+use hydra_dx_math::MathError;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -1162,43 +1163,43 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 #[test]
 fn test_calculate_sell_price() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 100000;
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 100000;
 		let sell_amount: Balance = 100000000000;
-		let result = hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_eq!(result, Some(991));
+		let result = hydra_dx_math::calculate_out_given_in(in_reserve, out_reserve, sell_amount);
+		assert_eq!(result, Ok(991));
 	});
 }
 
 #[test]
 fn test_calculate_sell_price_invalid() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 0;
-		let buy_reserve: Balance = 1000;
+		let in_reserve: Balance = 0;
+		let out_reserve: Balance = 1000;
 		let sell_amount: Balance = 0;
-		let result = hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_eq!(result, None);
+		let result = hydra_dx_math::calculate_out_given_in(in_reserve, out_reserve, sell_amount);
+		assert_eq!(result, Err(MathError::ZeroInReserve));
 	});
 }
 
 #[test]
 fn test_calculate_buy_price_insufficient_pool_balance() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 100000;
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 100000;
 		let buy_amount: Balance = 100000000000;
-		let result = hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_eq!(result, None);
+		let result = hydra_dx_math::calculate_in_given_out(out_reserve, in_reserve, buy_amount);
+		assert_eq!(result, Err(MathError::InsufficientOutReserve));
 	});
 }
 
 #[test]
 fn test_calculate_buy_price() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 10000000;
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 10000000;
 		let buy_amount: Balance = 1000000;
-		let result = hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_eq!(result, Some(1111111111112));
+		let result = hydra_dx_math::calculate_in_given_out(out_reserve, in_reserve, buy_amount);
+		assert_eq!(result, Ok(1111111111112));
 	});
 }
