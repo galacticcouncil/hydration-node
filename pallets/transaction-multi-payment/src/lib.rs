@@ -253,16 +253,12 @@ decl_module! {
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			let version_200 = PalletVersion::new(2, 0, 0);
+			let version = <Self as GetPalletVersion>::storage_version();
 
-			match <Self as GetPalletVersion>::storage_version() {
-				None => migrations::migrate_to_2_0_1(),
-				Some(version) => {
-					if version == version_200 {
-						return migrations::migrate_to_2_0_1();
-					}
-					0
-				}
+			if version == None || version == Some(PalletVersion::new(2, 0, 0)) {
+				migrations::migrate_ordered_set()
+			} else {
+				0
 			}
 		}
 	}
