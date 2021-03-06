@@ -6,7 +6,8 @@ pub fn migrate_to_2_0_1() -> frame_support::weights::Weight {
 	// TODO: do the storage type change
 
 	// Not sure - this might be done automatically on upgrade?! to store the current crate version
-	version_201.put_into_storage();
+	// Needs Pallet trait - so make the migration func accept T
+	// version_201.put_into_storage();
 
 	0
 }
