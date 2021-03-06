@@ -262,7 +262,7 @@ decl_module! {
 			}
 			let version = <Self as GetPalletVersion>::storage_version();
 
-			if version == None || version == Some(PalletVersion::new(3, 0, 0)) {
+			if version == None || version == Some(PalletVersion::new(2, 0, 0)) {
 				previous::AcceptedCurrencies::kill();
 				AcceptedCurrencies::put(OrderedSet::<AssetId>::new());
 				T::BlockWeights::get().max_block
