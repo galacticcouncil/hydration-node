@@ -264,8 +264,8 @@ decl_module! {
 
 			if version == None || version == Some(PalletVersion::new(3, 0, 0)) {
 				previous::AcceptedCurrencies::kill();
-				// TODO create current key
-				0
+				AcceptedCurrencies::put(OrderedSet::<AssetId>::new());
+				T::BlockWeights::get().max_block
 			} else {
 				0
 			}
