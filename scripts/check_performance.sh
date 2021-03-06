@@ -12,7 +12,13 @@ echo "Prerequisites"
 echo -n "Python version >= 3.8 ..... "
 
 # Need python3
-command -v python3 >/dev/null 2>&1 || { echo "python3 required. Please install first"; exit 1; }
+if command -v python3.8 >/dev/null 2>&1
+then
+  PYTHON=python3.8
+else
+  PYTHON=python3
+fi
+command -v $PYTHON >/dev/null 2>&1 || { echo "python3 required. Please install first"; exit 1; }
 
 if ! $PYTHON -c 'import sys; assert sys.version_info >= (3,8)' > /dev/null 2>&1; then
   echo "Python version 3.8 or higher required."
