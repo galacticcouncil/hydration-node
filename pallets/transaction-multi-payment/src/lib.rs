@@ -7,7 +7,6 @@ use weights::WeightInfo;
 #[cfg(test)]
 mod mock;
 
-mod migrations;
 #[cfg(test)]
 mod tests;
 
@@ -253,10 +252,20 @@ decl_module! {
 		}
 
 		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			mod previous {
+				pub struct Module<T>(sp_std::marker::PhantomData<T>);
+				frame_support::decl_storage! {
+					trait Store for Module<T: super::Config> as TransactionPayment {
+						pub AcceptedCurrencies get(fn currencies) config(): super::Vec<super::AssetId>;
+					}
+				}
+			}
 			let version = <Self as GetPalletVersion>::storage_version();
 
 			if version == None || version == Some(PalletVersion::new(3, 0, 0)) {
-				migrations::migrate_ordered_set()
+				previous::AcceptedCurrencies::kill();
+				// TODO create current key
+				0
 			} else {
 				0
 			}
