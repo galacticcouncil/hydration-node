@@ -33,8 +33,8 @@ pallet-claims = {path = '../pallets/claims', default-features = false, version =
 pallet-exchange = {path = '../pallets/exchange', default-features = false, version = '2.0.0'}
 pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', default-features = false, optional = true, version = '2.0.0'}
 pallet-faucet = {path = '../pallets/faucet', default-features = false, version = '2.0.0'}
-pallet-multi-payment-benchmarking = {path = '../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true, version = '2.0.0'}
-pallet-transaction-multi-payment = {path = '../pallets/transaction-multi-payment', default-features = false, version = '2.0.0'}
+pallet-multi-payment-benchmarking = {path = '../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true, version = '3.0.0'}
+pallet-transaction-multi-payment = {path = '../pallets/transaction-multi-payment', default-features = false, version = '3.0.0'}
 primitives = {path = '../primitives', default-features = false, version = '2.0.0'}
 
 # ORML dependencies
