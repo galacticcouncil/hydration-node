@@ -83,9 +83,3 @@ impl EcdsaSignature {
 		Some(res)
 	}
 }
-
-#[derive(Encode, Decode, Clone, frame_support::RuntimeDebug, PartialEq)]
-pub enum StorageVersion {
-	V1EmptyBalances,
-	V2AddClaimData,
-}
