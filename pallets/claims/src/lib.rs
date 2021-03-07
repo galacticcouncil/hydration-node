@@ -45,8 +45,6 @@ pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system:
 decl_storage! {
 	trait Store for Module<T: Config> as Claims {
 		Claims get(fn claims): map hasher(blake2_128_concat) EthereumAddress => BalanceOf<T>;
-
-		PalletVersion: StorageVersion = StorageVersion::V1EmptyBalances;
 	}
 
 	add_extra_genesis {

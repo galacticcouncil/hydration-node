@@ -1,10 +1,11 @@
 use super::*;
 use hex::FromHex;
 use primitives::Balance;
+use frame_support::traits::GetPalletVersion;
 
 pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
-	if PalletVersion::get() == StorageVersion::V1EmptyBalances {
-		frame_support::debug::info!(" >>> Adding claims to the storage");
+	let version = <Module<T> as GetPalletVersion>::storage_version();
+	if version == None {
 		for (addr, amount) in claims_data.iter() {
 			let balance: BalanceOf<T> = T::CurrencyBalance::from(*amount).into();
 
@@ -16,10 +17,8 @@ pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)])
 				balance,
 			);
 		}
-		PalletVersion::put(StorageVersion::V2AddClaimData);
 		T::DbWeight::get().reads_writes(2, 3)
 	} else {
-		frame_support::debug::info!(" >>> Unused migration");
 		0
 	}
 }
@@ -49,9 +48,7 @@ mod tests {
 			assert_eq!(Claims::<Test>::get(second_addr), 0);
 			assert_eq!(Claims::<Test>::get(last_addr), 0);
 
-			assert_eq!(PalletVersion::get(), StorageVersion::V1EmptyBalances);
 			import_initial_claims::<Test>(&claims_data);
-			assert_eq!(PalletVersion::get(), StorageVersion::V2AddClaimData);
 
 			assert_eq!(Claims::<Test>::get(first_addr), first_balance);
 			assert_eq!(Claims::<Test>::get(second_addr), second_balance);
