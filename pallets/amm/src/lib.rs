@@ -29,7 +29,6 @@ mod tests;
 pub mod weights;
 
 use weights::WeightInfo;
-use hydra_dx_math::MathError;
 
 /// The pallet's configuration trait.
 pub trait Config: frame_system::Config + pallet_asset_registry::Config {
