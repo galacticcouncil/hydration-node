@@ -1,10 +1,10 @@
 #![allow(clippy::or_fun_call)]
 
-use hex_literal::hex;
-use hydra_dx_runtime::constants::currency::{Balance, DOLLARS};
+use hydra_dx_runtime::constants::currency::{Balance, DOLLARS, HDX};
 use hydra_dx_runtime::opaque::SessionKeys;
+use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
-	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
+	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
 	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
@@ -16,10 +16,10 @@ use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
+use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-
 // The URL for the telemetry server.
 const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -367,6 +367,9 @@ fn testnet_genesis(
 		}),
 		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
 		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_claims: Some(ClaimsConfig {
+			claims: create_testnet_claims(),
+		}),
 	}
 }
 
@@ -468,5 +471,45 @@ fn lerna_genesis(
 		}),
 		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
 		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
 	}
+}
+
+fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
+	let mut claims = Vec::<(EthereumAddress, Balance)>::new();
+
+	// Alice's claim
+	// Signature: 0xbcae7d4f96f71cf974c173ae936a1a79083af7f76232efbf8a568b7f990eceed73c2465bba769de959b7f6ac5690162b61eb90949901464d0fa158a83022a0741c
+	// Message: "I hereby claim all my HDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
+	let claim_address_1 = (
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0
+		EthereumAddress(hex!["8202C0aF5962B750123CE1A9B12e1C30A4973557"]),
+		HDX / 1_000,
+	);
+
+	// Bob's claim
+	// Signature: 0x60f3d2541b0ff09982f70844a7f645f4681cbbad2f138fee18404c932bd02cb738d577d53ce94cf067bae87a0b6fa1ec532ceea78d71f4e81a9c27193649c6291b
+	// Message: "I hereby claim all my HDX tokens to wallet:8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
+	let claim_address_2 = (
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/1) : 0x9b5ef380c0a59008df32ba71ab3c7645950f986fc3f43fd4f9dffc8b2b4e7a5d
+		EthereumAddress(hex!["8aF7764663644989671A71Abe9738a3cF295f384"]),
+		HDX,
+	);
+
+	// Charlie's claim
+	// Signature: 0x52485aece74eb503fb998f0ca08bcc283fa731613db213af4e7fe153faed3de97ea0873d3889622b41d2d989a9e2a0bef160cff1ba8845875d4bc15431136a811c
+	// Message: "I hereby claim all my HDX tokens to wallet:90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
+	let claim_address_3 = (
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/2) : 0x653a29ac0c93de0e9f7d7ea2d60338e68f407b18d16d6ff84db996076424f8fa
+		EthereumAddress(hex!["C19A2970A13ac19898c47d59Cbd0278D428EBC7c"]),
+		1_000 * HDX,
+	);
+
+	claims.push(claim_address_1);
+	claims.push(claim_address_2);
+	claims.push(claim_address_3);
+	claims
 }

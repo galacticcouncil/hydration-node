@@ -13,7 +13,7 @@ targets = ['x86_64-unknown-linux-gnu']
 [build-dependencies]
 wasm-builder-runner = {package = 'substrate-wasm-builder-runner', version = '1.0.5'}
 
-# alias "parity-scale-code" to "codec"
+# alias 'parity-scale-code' to 'codec'
 [dependencies.codec]
 default-features = false
 features = ['derive']
@@ -29,6 +29,7 @@ tracing-core = {optional = true, version = '0.1.17'}
 module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0'}
 pallet-amm = {path = '../pallets/amm', default-features = false, version = '2.0.0'}
 pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false, version = '2.0.0'}
+pallet-claims = {path = '../pallets/claims', default-features = false, version = '2.0.0'}
 pallet-exchange = {path = '../pallets/exchange', default-features = false, version = '2.0.0'}
 pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', default-features = false, optional = true, version = '2.0.0'}
 pallet-faucet = {path = '../pallets/faucet', default-features = false, version = '2.0.0'}
@@ -37,9 +38,9 @@ pallet-transaction-multi-payment = {path = '../pallets/transaction-multi-payment
 primitives = {path = '../primitives', default-features = false, version = '2.0.0'}
 
 # ORML dependencies
-orml-currencies = {default-features = false, version = "0.3.3-dev"}
-orml-tokens = {default-features = false, version = "0.3.3-dev"}
-orml-traits = {default-features = false, version = "0.3.3-dev"}
+orml-currencies = {default-features = false, version = '0.3.3-dev'}
+orml-tokens = {default-features = false, version = '0.3.3-dev'}
+orml-traits = {default-features = false, version = '0.3.3-dev'}
 
 # Staking dependencies
 pallet-authority-discovery = {default-features = false, version = '2.0.0'}
@@ -98,6 +99,7 @@ runtime-benchmarks = [
   "pallet-exchange-benchmarking",
   'pallet-collective/runtime-benchmarks',
   'sp-runtime/runtime-benchmarks',
+  'pallet-claims/runtime-benchmarks',
 ]
 std = [
   'codec/std',
@@ -110,6 +112,7 @@ std = [
   'orml-tokens/std',
   'orml-traits/std',
   'pallet-amm/std',
+  'pallet-claims/std',
   'pallet-asset-registry/std',
   'pallet-exchange/std',
   'pallet-faucet/std',
