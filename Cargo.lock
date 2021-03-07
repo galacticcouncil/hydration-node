@@ -3999,7 +3999,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-multi-payment-benchmarking"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4151,7 +4151,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
