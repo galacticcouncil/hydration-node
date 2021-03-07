@@ -1161,7 +1161,7 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 }
 
 #[test]
-fn test_calculate_sell_price() {
+fn test_calculate_out_given_in() {
 	ExtBuilder::default().build().execute_with(|| {
 		let in_reserve: Balance = 10000000000000;
 		let out_reserve: Balance = 100000;
@@ -1172,7 +1172,7 @@ fn test_calculate_sell_price() {
 }
 
 #[test]
-fn test_calculate_sell_price_invalid() {
+fn test_calculate_out_given_in_invalid() {
 	ExtBuilder::default().build().execute_with(|| {
 		let in_reserve: Balance = 0;
 		let out_reserve: Balance = 1000;
@@ -1183,7 +1183,7 @@ fn test_calculate_sell_price_invalid() {
 }
 
 #[test]
-fn test_calculate_buy_price_insufficient_pool_balance() {
+fn test_calculate_in_given_out_insufficient_pool_balance() {
 	ExtBuilder::default().build().execute_with(|| {
 		let in_reserve: Balance = 10000000000000;
 		let out_reserve: Balance = 100000;
@@ -1194,7 +1194,7 @@ fn test_calculate_buy_price_insufficient_pool_balance() {
 }
 
 #[test]
-fn test_calculate_buy_price() {
+fn test_calculate_in_given_out() {
 	ExtBuilder::default().build().execute_with(|| {
 		let in_reserve: Balance = 10000000000000;
 		let out_reserve: Balance = 10000000;
