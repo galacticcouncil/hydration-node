@@ -280,10 +280,11 @@ decl_module! {
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 			let total_liquidity = Self::total_liquidity(&pair_account);
 
-			let amount_b_required = hydra_dx_math::calculate_liquidity_in(asset_a_reserve,
-				asset_b_reserve,
-				amount_a).ok().unwrap();
-				//amount_a).ok_or(Error::<T>::AddAssetAmountInvalid)?;
+			let amount_b_required = hydra_dx_math::calculate_liquidity_in(asset_a_reserve, asset_b_reserve, amount_a)
+				// TODO: map errors correctly
+			    .map_err(|error| {
+			        Error::<T>::AddAssetAmountInvalid
+			    })?;
 
 			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
 
@@ -367,11 +368,11 @@ decl_module! {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let liquidity_out = hydra_dx_math::calculate_liquidity_out(asset_a_reserve,
-				asset_b_reserve,
-				liquidity_amount,
-				total_shares).ok().unwrap();
-				//total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let liquidity_out = hydra_dx_math::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, liquidity_amount, total_shares)
+				// TODO: map errors correctly
+			    .map_err(|error| {
+			        Error::<T>::RemoveAssetAmountInvalid
+			    })?;
 
 			let (remove_amount_a, remove_amount_b) = liquidity_out;
 
@@ -539,6 +540,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 		let transfer_fee = Self::calculate_fees(amount, discount, &mut hdx_amount)?;
 
         let sale_price = hydra_dx_math::calculate_out_given_in(asset_in_total, asset_out_total, amount - transfer_fee).map_err(|error| {
+			// TODO: map errors correctly
             Error::<T>::SellAssetAmountInvalid
         })?;
 
@@ -661,8 +663,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 		);
 
         let buy_price = hydra_dx_math::calculate_in_given_out(asset_out_reserve, asset_in_reserve, amount + transfer_fee)
+			// TODO: map errors correctly
             .map_err(|error| {
-                // TODO: map errors correctly
                 Error::<T>::BuyAssetAmountInvalid
             })?;
 
@@ -685,8 +687,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 			let asset_reserve = T::Currency::free_balance(assets.asset_out, &hdx_pair_account);
 
             let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
+				// TODO: map errors correctly
 				.map_err(|error| {
-                	// TODO: map errors correctly
                 	Error::<T>::CannotApplyDiscount
             	})?;
 
