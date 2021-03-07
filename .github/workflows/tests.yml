@@ -41,3 +41,4 @@ jobs:
         with:
           name: hydra_dx_runtime.wasm
           path: target/release/wbuild/hydra-dx-runtime/hydra_dx_runtime.compact.wasm
+
