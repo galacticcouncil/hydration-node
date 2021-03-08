@@ -33,7 +33,7 @@ else
         exit 1
 fi
 
-EXPECTED_BENCHWIZARD_VERSION="0.1.1"
+EXPECTED_BENCHWIZARD_VERSION="0.2.0"
 
 echo -n "benchwizard >= $EXPECTED_BENCHWIZARD_VERSION ..... "
 
@@ -55,4 +55,4 @@ echo
 echo
 
 # Run the check
-benchwizard benchmark $*
+benchwizard benchmark -pc $*
