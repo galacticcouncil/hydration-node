@@ -14,7 +14,9 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
 	ensure,
-	traits::{Currency, ExistenceRequirement, Get, Imbalance, OnUnbalanced, WithdrawReasons},
+	traits::{
+		Currency, ExistenceRequirement, Get, GetPalletVersion, Imbalance, OnUnbalanced, PalletVersion, WithdrawReasons,
+	},
 	weights::DispatchClass,
 	weights::WeightToFeePolynomial,
 };
@@ -248,6 +250,26 @@ decl_module! {
 
 			Ok(())
 		}
+
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			mod previous {
+				pub struct Module<T>(sp_std::marker::PhantomData<T>);
+				frame_support::decl_storage! {
+					trait Store for Module<T: super::Config> as TransactionPayment {
+						pub AcceptedCurrencies get(fn currencies) config(): super::Vec<super::AssetId>;
+					}
+				}
+			}
+			let version = <Self as GetPalletVersion>::storage_version();
+
+			if version == None || version == Some(PalletVersion::new(2, 0, 0)) {
+				previous::AcceptedCurrencies::kill();
+				AcceptedCurrencies::put(OrderedSet::<AssetId>::new());
+				T::BlockWeights::get().max_block
+			} else {
+				0
+			}
+		}
 	}
 }
 impl<T: Config> Module<T> {
@@ -260,7 +282,16 @@ impl<T: Config> Module<T> {
 
 		// If not native currency, let's buy CORE asset first and then pay with that.
 		if fee_currency != CORE_ASSET_ID {
-			T::AMMPool::buy(&who, AssetPair{asset_out: CORE_ASSET_ID, asset_in: fee_currency}, fee, 2u128 * fee, false)?;
+			T::AMMPool::buy(
+				&who,
+				AssetPair {
+					asset_out: CORE_ASSET_ID,
+					asset_in: fee_currency,
+				},
+				fee,
+				2u128 * fee,
+				false,
+			)?;
 		}
 
 		Ok(())

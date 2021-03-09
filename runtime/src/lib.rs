@@ -62,6 +62,7 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 /// Import HydraDX pallets
 pub use pallet_asset_registry;
+pub use pallet_claims;
 pub use pallet_faucet;
 
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
@@ -169,6 +170,7 @@ impl Filter<Call> for BaseFilter {
 
 			Call::System(_)
 			| Call::RandomnessCollectiveFlip(_)
+			| Call::Claims(_)
 			| Call::Elections(_)
 			| Call::Babe(_)
 			| Call::Treasury(_)
@@ -379,6 +381,18 @@ impl pallet_amm::Config for Runtime {
 	type HDXAssetId = HDXAssetId;
 	type WeightInfo = pallet_amm::weights::HydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
+}
+
+parameter_types! {
+	pub ClaimMessagePrefix: &'static [u8] = b"I hereby claim all my HDX tokens to wallet:";
+}
+
+impl pallet_claims::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type Prefix = ClaimMessagePrefix;
+	type WeightInfo = pallet_claims::weights::HackHydraWeight<Runtime>;
+	type CurrencyBalance = Balance;
 }
 
 impl pallet_exchange::Config for Runtime {
@@ -681,6 +695,7 @@ construct_runtime!(
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Module, Call, Storage, Config<T>},
 		AMM: pallet_amm::{Module, Call, Storage, Event<T>},
+		Claims: pallet_claims::{Module, Call, Storage, Event<T>, Config<T>},
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Config, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
@@ -706,6 +721,7 @@ pub type SignedExtra = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_claims::ValidateClaim<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
@@ -940,6 +956,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, amm, AMM);
+			add_benchmark!(params, batches, claims, Claims);
 			add_benchmark!(params, batches, transaction_multi_payment, MultiBench::<Runtime>);
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, exchange, ExchangeBench::<Runtime>);
