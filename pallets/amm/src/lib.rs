@@ -496,7 +496,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
 		let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-        hydra_dx_math::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount).unwrap_or(Balance::zero())
+        hydra_dx_math::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount).unwrap_or_else(|_| Balance::zero())
     }
 
 	fn validate_sell(
