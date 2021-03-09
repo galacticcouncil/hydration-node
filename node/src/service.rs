@@ -59,6 +59,7 @@ pub fn new_partial(
 
 	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
 		config.transaction_pool.clone(),
+		config.role.is_authority().into(),
 		config.prometheus_registry(),
 		task_manager.spawn_handle(),
 		client.clone(),
@@ -93,7 +94,7 @@ pub fn new_partial(
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
 		let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
-		let finality_proof_provider = GrandpaFinalityProofProvider::new_for_service(backend.clone(), client.clone());
+		let finality_proof_provider = GrandpaFinalityProofProvider::new_for_service(backend.clone(), Some(shared_authority_set.clone()),);
 
 		let rpc_setup = shared_voter_state.clone();
 
@@ -146,7 +147,7 @@ pub fn new_partial(
 
 /// Builds a new service for a full client.
 pub fn new_full(
-	mut config: Configuration,
+	config: Configuration,
 ) -> Result<
 	(
 		TaskManager,
@@ -174,10 +175,11 @@ pub fn new_full(
 
 	let shared_voter_state = rpc_setup;
 
-	config
+	/*config
 		.network
 		.notifications_protocols
 		.push(sc_finality_grandpa::GRANDPA_PROTOCOL_NAME.into());
+*/
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
@@ -205,7 +207,7 @@ pub fn new_full(
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
-	let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
+	//let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
 
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
@@ -218,7 +220,6 @@ pub fn new_full(
 		task_manager: &mut task_manager,
 		on_demand: None,
 		remote_blockchain: None,
-		telemetry_connection_sinks: telemetry_connection_sinks.clone(),
 		network_status_sinks: network_status_sinks.clone(),
 		system_rpc_tx,
 	})?;
@@ -301,7 +302,7 @@ pub fn new_full(
 		name: Some(name),
 		observer_enabled: false,
 		keystore,
-		is_authority: role.is_network_authority(),
+		is_authority: role.is_authority(),
 	};
 
 	if enable_grandpa {
@@ -315,7 +316,7 @@ pub fn new_full(
 			config: grandpa_config,
 			link: grandpa_link,
 			network: network.clone(),
-			telemetry_on_connect: Some(telemetry_connection_sinks.on_connect_stream()),
+			telemetry_on_connect: None,
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry: prometheus_registry,
 			shared_voter_state,
@@ -403,7 +404,6 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		task_manager: &mut task_manager,
 		on_demand: Some(on_demand),
 		rpc_extensions_builder: Box::new(|_, _| ()),
-		telemetry_connection_sinks: sc_service::TelemetryConnectionSinks::default(),
 		config,
 		client,
 		keystore: keystore_container.sync_keystore(),

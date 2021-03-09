@@ -118,8 +118,6 @@ fn validate_finalize<T: Config>(
 }
 
 benchmarks! {
-	_ { }
-
 	known_overhead_for_on_finalize {
 		let t: u32 = 5;
 	}: {  Exchange::<T>::on_finalize(t.into()); }

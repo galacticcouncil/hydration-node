@@ -49,8 +49,6 @@ fn initialize_pool<T: Config>(
 }
 
 benchmarks! {
-	_ { }
-
 	swap_currency {
 		let maker = funded_account::<T>("maker", 1);
 		initialize_pool::<T>(maker.clone(), ASSET_ID, 1000, Price::from(1))?;
