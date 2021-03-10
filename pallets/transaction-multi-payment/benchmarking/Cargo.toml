@@ -54,6 +54,7 @@ sp-io = { default-features = false, version = '3.0.0' }
 [features]
 default = ['std']
 std = [
+  'serde',
   'codec/std',
   'frame-support/std',
   'frame-system/std',
