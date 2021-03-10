@@ -1,8 +1,8 @@
 use super::*;
 pub use crate::mock::{Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
-use primitives::traits::AMM as AMMPool;
 use hydra_dx_math::MathError;
+use primitives::traits::AMM as AMMPool;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
