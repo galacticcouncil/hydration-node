@@ -94,7 +94,8 @@ pub fn new_partial(
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
 		let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
-		let finality_proof_provider = GrandpaFinalityProofProvider::new_for_service(backend.clone(), Some(shared_authority_set.clone()),);
+		let finality_proof_provider =
+			GrandpaFinalityProofProvider::new_for_service(backend.clone(), Some(shared_authority_set.clone()));
 
 		let rpc_setup = shared_voter_state.clone();
 
@@ -147,7 +148,7 @@ pub fn new_partial(
 
 /// Builds a new service for a full client.
 pub fn new_full(
-	config: Configuration,
+	mut config: Configuration,
 ) -> Result<
 	(
 		TaskManager,
@@ -175,11 +176,10 @@ pub fn new_full(
 
 	let shared_voter_state = rpc_setup;
 
-	/*config
+	config
 		.network
-		.notifications_protocols
-		.push(sc_finality_grandpa::GRANDPA_PROTOCOL_NAME.into());
-*/
+		.extra_sets
+		.push(sc_finality_grandpa::grandpa_peers_set_config());
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
@@ -209,7 +209,7 @@ pub fn new_full(
 	let prometheus_registry = config.prometheus_registry().cloned();
 	//let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
 
-	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+	let (_rpc_handlers, telemetry_connection_notifier) = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
 		backend: backend,
 		client: client.clone(),
@@ -316,7 +316,7 @@ pub fn new_full(
 			config: grandpa_config,
 			link: grandpa_link,
 			network: network.clone(),
-			telemetry_on_connect: None,
+			telemetry_on_connect: telemetry_connection_notifier.map(|x| x.on_connect_stream()),
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry: prometheus_registry,
 			shared_voter_state,
