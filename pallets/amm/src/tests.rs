@@ -1,5 +1,5 @@
 use super::*;
-pub use crate::mock::{Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX};
+pub use crate::mock::{Currency, Event as TestEvent, ExtBuilder, Origin, System, Test, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
 use primitives::traits::AMM as AMMPool;
 
@@ -638,6 +638,7 @@ fn discount_sell_fees_should_work() {
 
 		expect_events(vec![
 			RawEvent::CreatePool(user_1, asset_a, HDX, 10_000).into(),
+			frame_system::Event::NewAccount(2003000).into(),
 			RawEvent::CreatePool(user_1, asset_a, asset_b, 60_000).into(),
 			RawEvent::Sell(user_1, asset_a, asset_b, 10_000, 14_993).into(),
 		]);
@@ -753,6 +754,7 @@ fn single_buy_with_discount_should_work() {
 
 		expect_events(vec![
 			RawEvent::CreatePool(user_1, asset_a, asset_b, 640_000_000_000).into(),
+			frame_system::Event::NewAccount(1003000).into(),
 			RawEvent::CreatePool(user_1, asset_a, HDX, 100_000_000_000).into(),
 			RawEvent::Buy(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
 		]);
@@ -913,7 +915,7 @@ fn create_pool_fixed_point_amount_should_work() {
 }
 
 #[test]
-fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
+fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
 		let asset_a = HDX;
@@ -959,8 +961,10 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 
 		expect_events(vec![
 			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			frame_system::Event::KilledAccount(1002000).into(),
 			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
 			RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
+			frame_system::Event::NewAccount(1002000).into(),
 			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
 		]);
 	});
