@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydra-dx'
 license = 'Unlicense'
 name = 'pallet-multi-payment-benchmarking'
 repository = 'https://github.com/galacticcouncil/hydra-dx'
-version = '2.0.0'
+version = '3.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -28,7 +28,7 @@ serde = { features = ['derive'], optional = true, version = '1.0.101' }
 primitives = { path = '../../../primitives', default-features = false, version = '2.0.0' }
 pallet-asset-registry= { path = '../../asset-registry', default-features = false, version = '2.0.0' }
 pallet-amm = { path = '../../amm', default-features = false, version = '2.0.0' }
-pallet-transaction-multi-payment = { path = '../../transaction-multi-payment', default-features = false, version = '2.0.0' }
+pallet-transaction-multi-payment = { path = '../../transaction-multi-payment', default-features = false, version = '3.0.0' }
 
 # ORML dependencies
 orml-traits = { default-features = false, version = "0.3.3-dev" }

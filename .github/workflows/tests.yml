@@ -31,8 +31,14 @@ jobs:
         run: cd node && cargo test --release --features runtime-benchmarks -p pallet-exchange-benchmarking -p pallet-amm -p pallet-multi-payment-benchmarking
       - name: Build release
         run: time cargo build --release --verbose
-      - name: Upload release
+      - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
           name: hydra-dx
           path: target/release/hydra-dx
+      - name: Upload release wasm
+        uses: actions/upload-artifact@v2
+        with:
+          name: hydra_dx_runtime.wasm
+          path: target/release/wbuild/hydra-dx-runtime/hydra_dx_runtime.compact.wasm
+
