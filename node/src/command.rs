@@ -62,8 +62,8 @@ impl SubstrateCli for Cli {
 }
 
 fn set_ss58() {
-	use sp_core::crypto::Ss58AddressFormat;
 	// TODO: not yet avaiable in this Subsrate version
+	//use sp_core::crypto::Ss58AddressFormat;
 	//sp_core::crypto::set_default_ss58_version(Ss58AddressFormat::HydraDXAccount);
 }
 
