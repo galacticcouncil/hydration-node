@@ -66,8 +66,9 @@ sp-trie = '3.0.0'
 substrate-frame-rpc-system = '3.0.0'
 
 # Cumulus dependencies
+cumulus-cli = {git = "https://github.com/paritytech/cumulus", branch = "rococo-v1"}
 cumulus-client-collator = {git = "https://github.com/paritytech/cumulus", branch = "rococo-v1"}
-cumulus-client-consensus = {git = "https://github.com/paritytech/cumulus", branch = "rococo-v1"}
+cumulus-client-consensus-relay-chain = {git = "https://github.com/paritytech/cumulus", branch = "rococo-v1"}
 cumulus-client-network = {git = "https://github.com/paritytech/cumulus", branch = "rococo-v1"}
 cumulus-client-service = {git = "https://github.com/paritytech/cumulus", branch = "rococo-v1"}
 cumulus-primitives-core = {git = "https://github.com/paritytech/cumulus", branch = "rococo-v1"}

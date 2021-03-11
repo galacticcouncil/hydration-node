@@ -26,7 +26,8 @@ use sp_version::RuntimeVersion;
 
 use sp_std::collections::btree_set::BTreeSet;
 
-use frame_system::limits;
+use frame_system::{limits, EnsureRoot};
+
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
@@ -54,8 +55,8 @@ use module_amm_rpc_runtime_api as amm_rpc;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use orml_xcm_support::{
-	CurrencyIdConversion, IsConcreteWithGeneralKey,
-	MultiCurrencyAdapter as XCMMultiCurrencyAdapter, NativePalletAssetOr,
+	CurrencyIdConversion, IsConcreteWithGeneralKey, MultiCurrencyAdapter as XCMMultiCurrencyAdapter,
+	NativePalletAssetOr,
 };
 
 use cumulus_primitives_core::relay_chain::Balance as RelayChainBalance;
@@ -293,7 +294,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
 }
@@ -382,7 +383,6 @@ type LocationConverter = (
 	AccountId32Aliases<HydrateNetwork, AccountId>,
 );
 
-
 pub struct AssetCurrencyConverter;
 
 impl CurrencyIdConversion<AssetId> for AssetCurrencyConverter {
@@ -446,6 +446,8 @@ impl cumulus_pallet_xcm_handler::Config for Runtime {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type UpwardMessageSender = ParachainSystem;
 	type HrmpMessageSender = ParachainSystem;
+	type SendXcmOrigin = EnsureRoot<AccountId>;
+	type AccountIdConverter = LocationConverter;
 }
 
 /// Xtokens config
@@ -742,4 +744,4 @@ impl_runtime_apis! {
 	}
 }
 
-cumulus_pallet_parachain_system::register_validate_block!(Block, Executive);
+cumulus_pallet_parachain_system::register_validate_block!(Runtime, Executive);

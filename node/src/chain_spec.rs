@@ -194,24 +194,24 @@ fn parachain_genesis(
 	parachain_id: ParaId,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		frame_system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		pallet_balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of a lot.
 			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, 1_000_000_000_000_000_000_000u128))
 				.collect(),
-		}),
-		pallet_sudo: Some(SudoConfig {
+		},
+		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
-		}),
-		pallet_asset_registry: Some(AssetRegistryConfig {
+		},
+		pallet_asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![
 				(b"hKSM".to_vec(), 1),
@@ -220,8 +220,8 @@ fn parachain_genesis(
 				(b"hUSDT".to_vec(), 4),
 			],
 			next_asset_id: 5,
-		}),
-		orml_tokens: Some(TokensConfig {
+		},
+		orml_tokens: TokensConfig {
 			endowed_accounts: endowed_accounts
 				.iter()
 				.flat_map(|x| {
@@ -233,12 +233,12 @@ fn parachain_genesis(
 					]
 				})
 				.collect(),
-		}),
-		parachain_info: Some(ParachainInfoConfig { parachain_id }),
-		pallet_faucet: Some(FaucetConfig {
+		},
+		parachain_info: ParachainInfoConfig { parachain_id },
+		pallet_faucet: FaucetConfig {
 			rampage: false,
 			mint_limit: 5,
 			mintable_currencies: vec![0, 1, 2],
-		}),
+		},
 	}
 }

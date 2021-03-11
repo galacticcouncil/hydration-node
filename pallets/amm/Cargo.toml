@@ -16,15 +16,15 @@ primitive-types = {default-features = false, version = '0.7.2'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 codec = {package = 'parity-scale-codec', version = '2.0.0', default-features = false, features = ['derive']}
 
-hydra-dx-math = { default-features = false, version = "0.1.0", git = "https://github.com/galacticcouncil/hydraDX-math", branch="main"}
+hydra-dx-math = { default-features = false, version = "0.1.0", git = "https://github.com/galacticcouncil/hydraDX-math", branch="cumulus"}
 
 # Local dependencies
 pallet-asset-registry = {path = '../asset-registry', default-features = false, version = '3.0.0'}
 primitives = {path = '../../primitives', default-features = false, version = '3.0.0'}
 
 # ORML dependencies
-orml-tokens = {default-features = false, version = "0.4.0-dev"}
-orml-traits = {default-features = false, version = "0.4.0-dev"}
+orml-tokens = {default-features = false, version = "0.4.1-dev"}
+orml-traits = {default-features = false, version = "0.4.1-dev"}
 
 # Substrate dependencies
 frame-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
