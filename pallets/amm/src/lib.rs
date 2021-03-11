@@ -4,10 +4,8 @@ use frame_support::sp_runtime::{
 	traits::{Hash, Zero},
 	DispatchError, FixedPointNumber,
 };
-use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, dispatch, dispatch::DispatchResult, ensure, traits::Get,
-};
-use frame_system::{self as system, ensure_signed};
+use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
+use frame_system::ensure_signed;
 use primitives::{asset::AssetPair, fee, traits::AMM, AssetId, Balance, Price, MAX_IN_RATIO, MAX_OUT_RATIO};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
@@ -22,32 +20,375 @@ use orml_utilities::with_transaction_result;
 #[cfg(test)]
 mod mock;
 
-mod benchmarking;
 #[cfg(test)]
 mod tests;
+
+mod benchmarking;
 
 pub mod weights;
 
 use weights::WeightInfo;
 
-/// The pallet's configuration trait.
-pub trait Config: frame_system::Config + pallet_asset_registry::Config {
-	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
 
-	/// Share token support
-	type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
+#[frame_support::pallet]
+pub mod pallet {
+	use super::*;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::OriginFor;
 
-	/// Multi currency for transfer of currencies
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
 
-	/// Native Asset Id
-	type HDXAssetId: Get<AssetId>;
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
-	/// Weight information for the extrinsics.
-	type WeightInfo: WeightInfo;
+	#[pallet::config]
+	pub trait Config: frame_system::Config + pallet_asset_registry::Config {
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-	/// Trading fee rate
-	type GetExchangeFee: Get<fee::Fee>;
+		/// Share token support
+		type AssetPairAccountId: AssetPairAccountIdFor<AssetId, Self::AccountId>;
+
+		/// Multi currency for transfer of currencies
+		type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
+
+		/// Native Asset Id
+		type HDXAssetId: Get<AssetId>;
+
+		/// Weight information for the extrinsics.
+		type WeightInfo: WeightInfo;
+
+		/// Trading fee rate
+		type GetExchangeFee: Get<fee::Fee>;
+	}
+
+	#[pallet::error]
+	pub enum Error<T> {
+		/// Create pool errors
+		CannotCreatePoolWithSameAssets,
+		CannotCreatePoolWithZeroLiquidity,
+		CannotCreatePoolWithZeroInitialPrice,
+		CreatePoolAssetAmountInvalid,
+
+		/// Add / Remove liquidity errors
+		CannotRemoveLiquidityWithZero,
+		CannotAddZeroLiquidity,
+		InvalidMintedLiquidity, // No tests - but it is currently not possible this error to occur due to previous checks in the code.
+		InvalidLiquidityAmount, // no tests
+
+		/// Balance errors
+		AssetBalanceLimitExceeded,
+		InsufficientAssetBalance,
+		InsufficientPoolAssetBalance, // No tests
+		InsufficientHDXBalance,       // No tests
+
+		/// Pool existence errors
+		TokenPoolNotFound,
+		TokenPoolAlreadyExists,
+
+		/// Calculation errors
+		AddAssetAmountInvalid, // no tests
+		RemoveAssetAmountInvalid, // no tests
+		SellAssetAmountInvalid,   // no tests
+		BuyAssetAmountInvalid,    // no tests
+		FeeAmountInvalid,         // no tests
+		CannotApplyDiscount,
+
+		/// Trading Limit errors
+		MaxOutRatioExceeded,
+		MaxInRatioExceeded,
+	}
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// AddLiquidity
+		/// who, asset_a, asset_b, amount_a, amount_b
+		AddLiquidity(T::AccountId, AssetId, AssetId, Balance, Balance),
+
+		/// who, asset_a, asset_b, shares
+		RemoveLiquidity(T::AccountId, AssetId, AssetId, Balance),
+
+		/// Pool creation - who, asset a, asset b, liquidity
+		CreatePool(T::AccountId, AssetId, AssetId, Balance),
+
+		/// Pool destroyed - who, asset a, asset b
+		PoolDestroyed(T::AccountId, AssetId, AssetId),
+
+		/// Sell token - who, asset in, asset out, amount, sale price
+		Sell(T::AccountId, AssetId, AssetId, Balance, Balance),
+
+		/// Buy token - who, asset out, asset in, amount, buy price
+		Buy(T::AccountId, AssetId, AssetId, Balance, Balance),
+	}
+
+	/// Asset id storage for each shared token
+	#[pallet::storage]
+	#[pallet::getter(fn share_token)]
+	pub type ShareToken<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, AssetId, ValueQuery>;
+
+	/// Total liquidity for shared token
+	#[pallet::storage]
+	#[pallet::getter(fn total_liquidity)]
+	pub type TotalLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
+
+	/// Assair pair for each shared token in the pool
+	#[pallet::storage]
+	#[pallet::getter(fn pool_assets)]
+	pub type PoolAssets<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (AssetId, AssetId), ValueQuery>;
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight(<T as Config>::WeightInfo::create_pool())]
+		#[transactional]
+		pub fn create_pool(
+			origin: OriginFor<T>,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount: Balance,
+			initial_price: Price,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			ensure!(!amount.is_zero(), Error::<T>::CannotCreatePoolWithZeroLiquidity);
+			ensure!(
+				!initial_price.is_zero(),
+				Error::<T>::CannotCreatePoolWithZeroInitialPrice
+			);
+
+			ensure!(asset_a != asset_b, Error::<T>::CannotCreatePoolWithSameAssets);
+
+			let asset_pair = AssetPair {
+				asset_in: asset_a,
+				asset_out: asset_b,
+			};
+
+			ensure!(!Self::exists(asset_pair), Error::<T>::TokenPoolAlreadyExists);
+
+			let asset_b_amount = initial_price
+				.checked_mul_int(amount)
+				.ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
+			let shares_added = if asset_a < asset_b { amount } else { asset_b_amount };
+
+			ensure!(
+				T::Currency::free_balance(asset_a, &who) >= amount,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			ensure!(
+				T::Currency::free_balance(asset_b, &who) >= asset_b_amount,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			let pair_account = Self::get_pair_id(asset_pair);
+
+			let token_name = asset_pair.name();
+
+			let share_token = <pallet_asset_registry::Module<T>>::get_or_create_asset(token_name)?.into();
+
+			<ShareToken<T>>::insert(&pair_account, &share_token);
+			<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
+
+			T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
+			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
+
+			T::Currency::deposit(share_token, &who, shares_added)?;
+
+			<TotalLiquidity<T>>::insert(&pair_account, shares_added);
+
+			Self::deposit_event(Event::CreatePool(who, asset_a, asset_b, shares_added));
+
+			Ok(().into())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[transactional]
+		pub fn add_liquidity(
+			origin: OriginFor<T>,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			amount_a: Balance,
+			amount_b_max_limit: Balance,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let asset_pair = AssetPair {
+				asset_in: asset_a,
+				asset_out: asset_b,
+			};
+
+			ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
+
+			ensure!(!amount_a.is_zero(), Error::<T>::CannotAddZeroLiquidity);
+
+			ensure!(!amount_b_max_limit.is_zero(), Error::<T>::CannotAddZeroLiquidity);
+
+			ensure!(
+				T::Currency::free_balance(asset_a, &who) >= amount_a,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			ensure!(
+				T::Currency::free_balance(asset_b, &who) >= amount_b_max_limit,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			let pair_account = Self::get_pair_id(asset_pair);
+
+			let share_token = Self::share_token(&pair_account);
+
+			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
+			let total_liquidity = Self::total_liquidity(&pair_account);
+
+			let amount_b_required = hydra_dx_math::calculate_liquidity_in(asset_a_reserve, asset_b_reserve, amount_a)
+				.ok_or(Error::<T>::AddAssetAmountInvalid)?;
+
+			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
+
+			ensure!(
+				amount_b_required <= amount_b_max_limit,
+				Error::<T>::AssetBalanceLimitExceeded
+			);
+
+			ensure!(shares_added > Zero::zero(), Error::<T>::InvalidMintedLiquidity);
+
+			let liquidity_amount = total_liquidity
+				.checked_add(shares_added)
+				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
+
+			let asset_b_balance = T::Currency::free_balance(asset_b, &who);
+
+			ensure!(
+				asset_b_balance >= amount_b_required,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
+			T::Currency::transfer(asset_b, &who, &pair_account, amount_b_required)?;
+
+			T::Currency::deposit(share_token, &who, shares_added)?;
+
+			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
+
+			Self::deposit_event(Event::AddLiquidity(who, asset_a, asset_b, amount_a, amount_b_required));
+
+			Ok(().into())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
+		#[transactional]
+		pub fn remove_liquidity(
+			origin: OriginFor<T>,
+			asset_a: AssetId,
+			asset_b: AssetId,
+			liquidity_amount: Balance,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let asset_pair = AssetPair {
+				asset_in: asset_a,
+				asset_out: asset_b,
+			};
+
+			ensure!(!liquidity_amount.is_zero(), Error::<T>::CannotRemoveLiquidityWithZero);
+
+			ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
+
+			let pair_account = Self::get_pair_id(asset_pair);
+
+			let share_token = Self::share_token(&pair_account);
+
+			let total_shares = Self::total_liquidity(&pair_account);
+
+			ensure!(total_shares >= liquidity_amount, Error::<T>::InsufficientAssetBalance);
+
+			ensure!(
+				T::Currency::free_balance(share_token, &who) >= liquidity_amount,
+				Error::<T>::InsufficientAssetBalance
+			);
+
+			ensure!(!total_shares.is_zero(), Error::<T>::CannotRemoveLiquidityWithZero);
+
+			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
+			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
+
+			let liquidity_out = hydra_dx_math::calculate_liquidity_out(
+				asset_a_reserve,
+				asset_b_reserve,
+				liquidity_amount,
+				total_shares,
+			)
+			.ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+
+			let (remove_amount_a, remove_amount_b) = liquidity_out;
+
+			ensure!(
+				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
+				Error::<T>::InsufficientPoolAssetBalance
+			);
+			ensure!(
+				T::Currency::free_balance(asset_b, &pair_account) >= remove_amount_b,
+				Error::<T>::InsufficientPoolAssetBalance
+			);
+
+			let liquidity_left = total_shares
+				.checked_sub(liquidity_amount)
+				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
+
+			T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
+			T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
+
+			T::Currency::withdraw(share_token, &who, liquidity_amount)?;
+
+			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
+
+			Self::deposit_event(Event::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
+
+			if liquidity_left == 0 {
+				<ShareToken<T>>::remove(&pair_account);
+				<PoolAssets<T>>::remove(&pair_account);
+
+				Self::deposit_event(Event::PoolDestroyed(who, asset_a, asset_b));
+			}
+
+			Ok(().into())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::sell())]
+		pub fn sell(
+			origin: OriginFor<T>,
+			asset_in: AssetId,
+			asset_out: AssetId,
+			amount: Balance,
+			max_limit: Balance,
+			discount: bool,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			<Self as AMM<_, _, _, _>>::sell(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
+
+			Ok(().into())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::buy())]
+		pub fn buy(
+			origin: OriginFor<T>,
+			asset_out: AssetId,
+			asset_in: AssetId,
+			amount: Balance,
+			max_limit: Balance,
+			discount: bool,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			<Self as AMM<_, _, _, _>>::buy(&who, AssetPair { asset_in, asset_out }, amount, max_limit, discount)?;
+
+			Ok(().into())
+		}
+	}
 }
 
 pub trait AssetPairAccountIdFor<AssetId: Sized, AccountId: Sized> {
@@ -74,367 +415,7 @@ where
 	}
 }
 
-// This pallet's storage items.
-decl_storage! {
-	trait Store for Module<T: Config> as AMM {
-		/// Asset id storage for each shared token
-		ShareToken get(fn share_token): map hasher(blake2_128_concat) T::AccountId => AssetId;
-
-		/// Total liquidity for shared token
-		TotalLiquidity get(fn total_liquidity): map hasher(blake2_128_concat) T::AccountId => Balance;
-
-		/// Assair pair for each shared token in the pool
-		PoolAssets get(fn pool_assets): map hasher(blake2_128_concat) T::AccountId => (AssetId, AssetId);
-	}
-}
-
-// The pallet's events
-decl_event!(
-	pub enum Event<T>
-	where
-		AccountId = <T as system::Config>::AccountId,
-		AssetId = AssetId,
-		Balance = Balance,
-	{
-		/// AddLiquidity
-		/// who, asset_a, asset_b, amount_a, amount_b
-		AddLiquidity(AccountId, AssetId, AssetId, Balance, Balance),
-		/// who, asset_a, asset_b, shares
-		RemoveLiquidity(AccountId, AssetId, AssetId, Balance),
-
-		/// Pool creation - who, asset a, asset b, liquidity
-		CreatePool(AccountId, AssetId, AssetId, Balance),
-
-		/// Pool destroyed - who, asset a, asset b
-		PoolDestroyed(AccountId, AssetId, AssetId),
-
-		/// Sell token - who, asset in, asset out, amount, sale price
-		Sell(AccountId, AssetId, AssetId, Balance, Balance),
-
-		/// Buy token - who, asset out, asset in, amount, buy price
-		Buy(AccountId, AssetId, AssetId, Balance, Balance),
-	}
-);
-
-// The pallet's errors
-decl_error! {
-	pub enum Error for Module<T: Config> {
-
-		/// Create pool errors
-		CannotCreatePoolWithSameAssets,
-		CannotCreatePoolWithZeroLiquidity,
-		CannotCreatePoolWithZeroInitialPrice,
-		CreatePoolAssetAmountInvalid,
-
-		/// Add / Remove liquidity errors
-		CannotRemoveLiquidityWithZero,
-		CannotAddZeroLiquidity,
-		InvalidMintedLiquidity, // No tests - but it is currently not possible this error to occur due to previous checks in the code.
-		InvalidLiquidityAmount, // no tests
-
-		/// Balance errors
-		AssetBalanceLimitExceeded,
-		InsufficientAssetBalance,
-		InsufficientPoolAssetBalance, // No tests
-		InsufficientHDXBalance, // No tests
-
-		/// Pool existence errors
-		TokenPoolNotFound,
-		TokenPoolAlreadyExists,
-
-		/// Calculation errors
-		AddAssetAmountInvalid, // no tests
-		RemoveAssetAmountInvalid, // no tests
-		SellAssetAmountInvalid, // no tests
-		BuyAssetAmountInvalid, // no tests
-		FeeAmountInvalid, // no tests
-		CannotApplyDiscount,
-
-		/// Trading Limit errors
-		MaxOutRatioExceeded,
-		MaxInRatioExceeded,
-	}
-}
-
-// The pallet's dispatchable functions.
-decl_module! {
-	/// The module declaration.
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
-		// Initializing errors
-		// this includes information about your errors in the node's metadata.
-		type Error = Error<T>;
-
-		// Initializing events
-		fn deposit_event() = default;
-
-		#[weight =  <T as Config>::WeightInfo::create_pool()]
-		pub fn create_pool(
-			origin,
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-			initial_price: Price
-		) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			ensure!(
-				!amount.is_zero(),
-				Error::<T>::CannotCreatePoolWithZeroLiquidity
-			);
-			ensure!(
-				!initial_price.is_zero(),
-				Error::<T>::CannotCreatePoolWithZeroInitialPrice
-			);
-
-			ensure!(
-				asset_a != asset_b,
-				Error::<T>::CannotCreatePoolWithSameAssets
-			);
-
-			let asset_pair = AssetPair{asset_in: asset_a, asset_out: asset_b};
-
-			ensure!(
-				!Self::exists(asset_pair),
-				Error::<T>::TokenPoolAlreadyExists
-			);
-
-			let asset_b_amount = initial_price.checked_mul_int(amount).ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
-			let shares_added = if asset_a < asset_b { amount } else { asset_b_amount };
-
-			ensure!(
-				T::Currency::free_balance(asset_a, &who) >= amount,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			ensure!(
-				T::Currency::free_balance(asset_b, &who) >= asset_b_amount,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			let pair_account = Self::get_pair_id(asset_pair);
-
-			let token_name = asset_pair.name();
-
-			with_transaction_result(|| {
-				let share_token = <pallet_asset_registry::Module<T>>::get_or_create_asset(token_name)?.into();
-
-				<ShareToken<T>>::insert(&pair_account, &share_token);
-				<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
-
-				T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
-				T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
-
-				T::Currency::deposit(share_token, &who, shares_added)?;
-
-				<TotalLiquidity<T>>::insert(&pair_account, shares_added);
-
-				Self::deposit_event(RawEvent::CreatePool(who, asset_a, asset_b, shares_added));
-
-				Ok(())
-			})
-		}
-
-		#[weight =  <T as Config>::WeightInfo::add_liquidity()]
-		pub fn add_liquidity(
-			origin,
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount_a: Balance,
-			amount_b_max_limit: Balance
-		) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			let asset_pair = AssetPair{asset_in: asset_a, asset_out: asset_b};
-
-			ensure!(
-				Self::exists(asset_pair),
-				Error::<T>::TokenPoolNotFound
-			);
-
-			ensure!(
-				!amount_a.is_zero(),
-				Error::<T>::CannotAddZeroLiquidity
-			);
-
-			ensure!(
-				!amount_b_max_limit.is_zero(),
-				Error::<T>::CannotAddZeroLiquidity
-			);
-
-			ensure!(
-				T::Currency::free_balance(asset_a, &who) >= amount_a,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			ensure!(
-				T::Currency::free_balance(asset_b, &who) >= amount_b_max_limit,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			let pair_account = Self::get_pair_id(asset_pair);
-
-			let share_token = Self::share_token(&pair_account);
-
-			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-			let total_liquidity = Self::total_liquidity(&pair_account);
-
-			let amount_b_required = hydra_dx_math::calculate_liquidity_in(asset_a_reserve,
-				asset_b_reserve,
-				amount_a).ok_or(Error::<T>::AddAssetAmountInvalid)?;
-
-			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
-
-			ensure!(
-				amount_b_required <= amount_b_max_limit,
-				Error::<T>::AssetBalanceLimitExceeded
-			);
-
-			ensure!(
-				shares_added > Zero::zero(),
-				Error::<T>::InvalidMintedLiquidity
-			);
-
-			let liquidity_amount = total_liquidity.checked_add(shares_added).ok_or(Error::<T>::InvalidLiquidityAmount)?;
-
-			let asset_b_balance = T::Currency::free_balance(asset_b, &who);
-
-			ensure!(
-				asset_b_balance >= amount_b_required,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			with_transaction_result(|| {
-
-				T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
-				T::Currency::transfer(asset_b, &who, &pair_account, amount_b_required)?;
-
-				T::Currency::deposit(share_token, &who, shares_added)?;
-
-				<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
-
-				Self::deposit_event(RawEvent::AddLiquidity(who, asset_a, asset_b, amount_a, amount_b_required));
-
-				Ok(())
-
-			})
-		}
-
-		#[weight =  <T as Config>::WeightInfo::remove_liquidity()]
-		pub fn remove_liquidity(
-			origin,
-			asset_a: AssetId,
-			asset_b: AssetId,
-			liquidity_amount: Balance
-		) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			let asset_pair = AssetPair{asset_in: asset_a, asset_out: asset_b};
-
-			ensure!(
-				!liquidity_amount.is_zero(),
-				Error::<T>::CannotRemoveLiquidityWithZero
-			);
-
-			ensure!(
-				Self::exists(asset_pair),
-				Error::<T>::TokenPoolNotFound
-			);
-
-			let pair_account = Self::get_pair_id(asset_pair);
-
-			let share_token = Self::share_token(&pair_account);
-
-			let total_shares = Self::total_liquidity(&pair_account);
-
-			ensure!(
-				total_shares >= liquidity_amount,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			ensure!(
-				T::Currency::free_balance(share_token, &who) >= liquidity_amount,
-				Error::<T>::InsufficientAssetBalance
-			);
-
-			ensure!(
-				!total_shares.is_zero(),
-				Error::<T>::CannotRemoveLiquidityWithZero
-			);
-
-			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
-			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
-
-			let liquidity_out = hydra_dx_math::calculate_liquidity_out(asset_a_reserve,
-				asset_b_reserve,
-				liquidity_amount,
-				total_shares).ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
-
-			let (remove_amount_a, remove_amount_b) = liquidity_out;
-
-			ensure!(
-				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
-				Error::<T>::InsufficientPoolAssetBalance
-			);
-			ensure!(
-				T::Currency::free_balance(asset_b, &pair_account) >= remove_amount_b,
-				Error::<T>::InsufficientPoolAssetBalance
-			);
-
-			let liquidity_left = total_shares.checked_sub(liquidity_amount).ok_or(Error::<T>::InvalidLiquidityAmount)?;
-
-			with_transaction_result( || {
-				T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
-				T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
-
-				T::Currency::withdraw(share_token, &who, liquidity_amount)?;
-
-				<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
-
-				Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
-
-				if liquidity_left == 0 {
-					<ShareToken<T>>::remove(&pair_account);
-					<PoolAssets<T>>::remove(&pair_account);
-
-					Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
-				}
-
-				Ok(())
-			})
-		}
-
-		#[weight =  <T as Config>::WeightInfo::sell()]
-		pub fn sell(
-			origin,
-			asset_in: AssetId,
-			asset_out: AssetId,
-			amount: Balance,
-			max_limit: Balance,
-			discount: bool,
-		) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			<Self as AMM<_,_,_,_>>::sell(&who, AssetPair{asset_in, asset_out}, amount, max_limit, discount)
-		}
-
-		#[weight =  <T as Config>::WeightInfo::buy()]
-		pub fn buy(
-			origin,
-			asset_out: AssetId,
-			asset_in: AssetId,
-			amount: Balance,
-			max_limit: Balance,
-			discount: bool,
-		) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			<Self as AMM<_,_,_,_>>::buy(&who, AssetPair{asset_in, asset_out}, amount, max_limit, discount)
-		}
-	}
-}
-
-impl<T: Config> Module<T> {
+impl<T: Config> Pallet<T> {
 	pub fn get_pool_balances(pool_address: T::AccountId) -> Option<Vec<(AssetId, Balance)>> {
 		let mut balances = Vec::new();
 
@@ -466,7 +447,7 @@ impl<T: Config> Module<T> {
 	}
 }
 
-impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Module<T> {
+impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
 		let pair_account = T::AssetPairAccountId::from_assets(assets.asset_in, assets.asset_out);
 		<ShareToken<T>>::contains_key(&pair_account)
