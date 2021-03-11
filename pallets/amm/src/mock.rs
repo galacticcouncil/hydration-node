@@ -36,6 +36,7 @@ frame_support::construct_runtime!(
 		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		 AMM: amm::{Module, Call, Storage, Event<T>},
 		 Currency: orml_tokens::{Module, Event<T>},
+		 AssetRegistry: pallet_asset_registry::{Module, Storage},
 	 }
 
 );
