@@ -186,7 +186,7 @@ parameter_types! {
 		.build_or_panic();
 	pub ExtrinsicPaymentExtraWeight: Weight =  <Runtime as pallet_transaction_multi_payment::Config>::WeightInfo::swap_currency();
 	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
-	pub const SS58Prefix: u8 = 42;
+	pub const SS58Prefix: u8 = 63;
 }
 
 // Configure FRAME pallets to include in runtime.
