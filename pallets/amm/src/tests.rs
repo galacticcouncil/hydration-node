@@ -590,7 +590,9 @@ fn discount_sell_fees_should_work() {
 		assert_eq!(Currency::free_balance(HDX, &user_1), 989_986);
 
 		expect_events(vec![
+			TestEvent::frame_system(system::Event::NewAccount(hdx_pair_account.clone())),
 			RawEvent::CreatePool(user_1, asset_a, HDX, 10_000).into(),
+			TestEvent::frame_system(system::Event::NewAccount(pair_account.clone())),
 			RawEvent::CreatePool(user_1, asset_a, asset_b, 60_000).into(),
 			RawEvent::Sell(user_1, asset_a, asset_b, 10_000, 14_993).into(),
 		]);
@@ -668,6 +670,7 @@ fn single_buy_with_discount_should_work() {
 		));
 
 		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let hdx_pair_account = AMM::get_pair_id(&asset_a, &HDX);
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_949_800_000_000);
@@ -699,7 +702,9 @@ fn single_buy_with_discount_should_work() {
 		assert_eq!(Currency::free_balance(HDX, &user_1), 999_899_999_906_668);
 
 		expect_events(vec![
+			TestEvent::frame_system(system::Event::NewAccount(pair_account.clone())),
 			RawEvent::CreatePool(user_1, asset_a, asset_b, 640_000_000_000).into(),
+			TestEvent::frame_system(system::Event::NewAccount(hdx_pair_account.clone())),
 			RawEvent::CreatePool(user_1, asset_a, HDX, 100_000_000_000).into(),
 			RawEvent::Buy(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
 		]);
@@ -854,7 +859,7 @@ fn create_pool_fixed_point_amount_should_work() {
 }
 
 #[test]
-fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
+fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
 		let asset_a = HDX;
@@ -894,8 +899,10 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 
 		expect_events(vec![
 			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			TestEvent::frame_system(system::Event::KilledAccount(pair_account.clone())),
 			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
 			RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
+			TestEvent::frame_system(system::Event::NewAccount(pair_account.clone())),
 			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
 		]);
 	});
