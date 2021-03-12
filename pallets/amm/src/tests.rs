@@ -636,7 +636,7 @@ fn discount_sell_fees_should_work() {
 
 		expect_events(vec![
 			Event::CreatePool(user_1, asset_a, HDX, 10_000).into(),
-			frame_system::Event::NewAccount(2003000).into(),
+			frame_system::Event::NewAccount(pair_account).into(),
 			Event::CreatePool(user_1, asset_a, asset_b, 60_000).into(),
 			Event::Sell(user_1, asset_a, asset_b, 10_000, 14_993).into(),
 		]);
@@ -716,6 +716,11 @@ fn single_buy_with_discount_should_work() {
 			Price::from(2)
 		));
 
+		let hdx_pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: HDX,
+		});
+
 		let pair_account = AMM::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
@@ -752,7 +757,7 @@ fn single_buy_with_discount_should_work() {
 
 		expect_events(vec![
 			Event::CreatePool(user_1, asset_a, asset_b, 640_000_000_000).into(),
-			frame_system::Event::NewAccount(1003000).into(),
+			frame_system::Event::NewAccount(hdx_pair_account).into(),
 			Event::CreatePool(user_1, asset_a, HDX, 100_000_000_000).into(),
 			Event::Buy(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
 		]);
@@ -960,7 +965,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			frame_system::Event::KilledAccount(1002000).into(),
 			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
 			Event::PoolDestroyed(user, asset_a, asset_b).into(),
-			frame_system::Event::NewAccount(1002000).into(),
+			frame_system::Event::NewAccount(pair_account).into(),
 			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
 		]);
 	});
