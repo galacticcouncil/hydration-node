@@ -59,10 +59,14 @@ RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hack-hydra-dx -lruntime=debug -
 ### Rococo local testnet
 
 Relay chain (polkadot) has to be built in `../polkadot` with `--features=real-overseer` 
-Uses `polkadot-launch` utility
+Uses `polkadot-launch` utility that has to installed from latest sources
 
 ```
-npm i -g polkadot-lauch
+git clone https://github.com/paritytech/polkadot-launch.git
+cd polkadot-launch
+yarn
+yarn build
+npm link
 ```
 
 Starts local testnet with 4 relay chain validators and 2 separate hydra parachains
