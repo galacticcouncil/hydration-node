@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, EncodeLike};
+use core::fmt::Debug;
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
@@ -15,8 +16,8 @@ use frame_system::ensure_signed;
 use primitives::Balance;
 use sp_runtime::traits::Zero;
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
-use weights::WeightInfo;
 pub use traits::*;
+use weights::WeightInfo;
 
 mod benchmarking;
 mod claims_data;
@@ -36,8 +37,7 @@ pub trait Config: frame_system::Config {
 	type WeightInfo: WeightInfo;
 	type Currency: Currency<Self::AccountId>;
 	// This type is needed to convert from Currency to Balance
-	type CurrencyBalance: From<Balance>
-		+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
+	type CurrencyBalance: From<Balance> + EncodeLike<BalanceOf<Self>> + Debug + Into<BalanceOf<Self>>;
 }
 
 pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
