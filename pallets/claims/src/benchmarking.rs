@@ -24,8 +24,12 @@ benchmarks! {
 		Claims::<T>::insert(eth_address, T::CurrencyBalance::from(1_000_000_000_000_000_000_u128));
 	}: _(RawOrigin::Signed(caller.clone()), EcdsaSignature(signature))
 	verify {
+		let expected_balance = T::CurrencyBalance::from(2_000_000_000_000_000_000_u128);
+
 		#[cfg(test)]
-		assert_eq!(T::Currency::free_balance(&caller), T::CurrencyBalance::from(1_000_000_000_000_000_000_u128).into());
+		let expected_balance = T::CurrencyBalance::from(1_000_000_000_000_000_000_u128);
+
+		assert_eq!(T::Currency::free_balance(&caller), expected_balance.into());
 		assert_eq!(Claims::<T>::get(eth_address), T::CurrencyBalance::from(0u128).into());
 	}
 }
