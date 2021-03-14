@@ -9,6 +9,7 @@ The `HydraDX` project is an Open Source Project if you'd like to help us please 
  - [Submission Guidelines](#submit)
  - [Coding Rules](#rules)
  - [Pull Request Naming Guidelines](#conventional)
+ - [SemVer](#semver)
 
 ## <a name="coc"></a> Code of Conduct
 Help us keep HydraDX open and inclusive. Please read and follow our [coc](CODE_OF_CONDUCT.md).
@@ -71,6 +72,7 @@ Before you submit your Pull Request (PR) consider the following guidelines:
 
 1. In GitHub, send a pull request to `master` or `main` branch.
 1. Make sure the PR name follows [conventional commit format](#conventional)
+1. Make sure you bumped the correct versions. We're following [SemVer](#semver)
 * If we suggest changes then:
   * Make the required updates.
   * Re-run the test suites to ensure tests are still passing.
@@ -168,6 +170,13 @@ The subject contains a succinct description of the change:
 * no dot (.) at the end
 
 **Breaking Changes** add ! after the scope
+
+## <a name="semver"></a> SemVer
+We're following [SemVer](https://semver.org) specification to keep us and our dependencies sane.
+
+* please bump respective version of the closest package file (cargo.toml or package.json).
+* if the change is a breaking change, always change the MAJOR version and bump version of packages above the package it's using. Follow this guideline to the root of the repository.
+* if in the Node repository, bump impl_version (non-breaking change) and spec_version (breaking-change) in the `runtime/lib.rs` respectively.
 
 ### We're thankful for any meaningful contribution
 
