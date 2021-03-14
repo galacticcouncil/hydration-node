@@ -1,12 +1,14 @@
 # Formatting
 
+
+-   Adhere to [Rust Clippy](link:https://github.com/rust-lang/rust-clippy) & [Rustfmt](link:https://github.com/rust-lang/rustfmt) guidelines.
 -   Indent using tabs.
 -   Lines should be longer than 100 characters long only in exceptional circumstances and certainly
     no longer than 120. For this purpose, tabs are considered 4 characters wide.
 -   Indent levels should be greater than 5 only in exceptional circumstances and certainly no
     greater than 8. If they are greater than 5, then consider using `let` or auxiliary functions in
     order to strip out complex inline expressions.
--   Never have spaces on a line prior to a non-whitespace character
+-   Never have spaces on a line prior to a non-whitespace character.
 -   Follow-on lines are only ever a single indent from the original line.
 
 ```rust
