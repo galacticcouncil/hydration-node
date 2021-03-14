@@ -2,6 +2,12 @@
 
 CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE
 
+## Contributions & Code of Conduct
+
+Please follow the contributions guidelines as outlined in[`docs/CONTRIBUTING.adoc`](docs/CONTRIBUTING.adoc). 
+In all communications and contributions, this project follows 
+the [Contributor Covenant Code of Conduct](docs/CODE_OF_CONDUCT.md).
+
 ## HACKNET
 - https://hack.hydradx.io/
 

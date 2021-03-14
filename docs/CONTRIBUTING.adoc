@@ -16,7 +16,7 @@ There are a few basic ground-rules for contributors (including the maintainer(s)
 . **Non-master branches** ought to be used for ongoing work.
 . **All modifications** ought to be subject to an **internal pull-request** to solicit feedback from other contributors.
 . **Titles of Pull-requests** should follow link:https://github.com/zeke/semantic-pull-requests/blob/master/README.md[Semantic Pull Requests] guidelines.
-. Contributors should attempt to adhere to the prevailing code-style.
+. Contributors should attempt to adhere to the link:STYLE_GUIDE.md[coding style guide].
 
 == Releases
 
