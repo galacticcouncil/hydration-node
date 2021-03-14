@@ -2113,8 +2113,8 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/hydraDX-math?tag=v0.1.0#e809dac5058316da7b59883956aed95a55e98001"
+version = "1.0.0"
+source = "git+https://github.com/galacticcouncil/hydraDX-math?tag=v1.0.0#3bcb2baa335f8f3d0ccac4aea1c80b44453201c5"
 dependencies = [
  "primitive-types 0.7.3",
 ]
@@ -3759,7 +3759,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-amm"
-version = "2.0.0"
+version = "2.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7985,7 +7985,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04f8ab788026715fa63b31960869617cba39117e520eb415b0139543e325ab59"
 dependencies = [
  "cfg-if 0.1.10",
- "rand 0.3.23",
+ "rand 0.7.3",
  "static_assertions",
 ]
 
