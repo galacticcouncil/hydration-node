@@ -27,9 +27,9 @@ tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
 module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0'}
-pallet-amm = {path = '../pallets/amm', default-features = false, version = '2.0.0'}
+pallet-amm = {path = '../pallets/amm', default-features = false}
 pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false, version = '2.0.0'}
-pallet-claims = {path = '../pallets/claims', default-features = false, version = '2.0.0'}
+pallet-claims = {path = '../pallets/claims', default-features = false}
 pallet-exchange = {path = '../pallets/exchange', default-features = false, version = '2.0.0'}
 pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', default-features = false, optional = true, version = '2.0.0'}
 pallet-faucet = {path = '../pallets/faucet', default-features = false, version = '2.0.0'}
