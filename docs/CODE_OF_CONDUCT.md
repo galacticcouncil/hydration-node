@@ -1,5 +1,5 @@
 
-# Contributor Covenant Code of Conduct
+# HydraDX Code of Conduct
 
 ## Our Pledge
 
