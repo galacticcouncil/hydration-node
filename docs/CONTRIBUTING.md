@@ -1,31 +1,177 @@
-= Contributing
+## Contributing
 
-The `HydraDX` project is an **OPENISH Open Source Project**
+The `HydraDX` project is an Open Source Project if you'd like to help us please follow these rules so that our lives are easy
 
-== What?
+ - [Code of Conduct](#coc)
+ - [Question or Problem?](#question)
+ - [Issues and Bugs](#issue)
+ - [Feature Requests](#feature)
+ - [Submission Guidelines](#submit)
+ - [Coding Rules](#rules)
+ - [Pull Request Naming Guidelines](#conventional)
+
+## <a name="coc"></a> Code of Conduct
+Help us keep HydraDX open and inclusive. Please read and follow our [coc](CODE_OF_CONDUCT.md).
+
+## <a name="question"></a> Got a Question or Problem?
+
+Do not open issues for general support questions as we want to keep GitHub issues for bug reports and feature requests. You've got much better chances of getting your question answered on [Discord](https://discord.gg/T8HfDP6d83).
+
+## <a name="issue"></a> Found a Bug?
+If you find a bug in the source code, you can help us by submitting an issue to our repository. 
+Even better, you can submit a PR with a fix.
+
+## <a name="feature"></a> Missing a Feature?
+You can *request* a new feature by submitting an issue to our GitHub
+Repository. 
+If you would like to *implement* a new feature, please submit an issue with
+a proposal for your work first, to be sure that we can use it.
+Please consider what kind of change it is:
+
+* For a **Major Feature**, first open an issue and outline your proposal so that it can be
+discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
+and help you to craft the change so that it is successfully accepted into the project.
+* **Small Features** can be crafted and directly [submitted as a Pull Request](#submit-pr).
+
+## <a name="submit"></a> Submission Guidelines
+
+### <a name="submit-issue"></a> Submitting an Issue
+
+Before you submit an Issue, please search Issues for an open or closed Issue in this repository.
+Please use the provided templates to create new issues.
+
+### <a name="submit-pr"></a> Submitting a Pull Request (PR)
+Before you submit your Pull Request (PR) consider the following guidelines:
+
+1. Search GitHub for an open or closed PR that relates to your submission. You don't want to duplicate effort.
+1. Please sign our [Contributor License Agreement (CLA)](#cla) before sending PRs. We cannot accept code without this. Make sure you sign with the primary email address.
+1. Fork the repository.
+1. Make your changes in a new git branch:
+
+     ```shell
+     git checkout -b fix/my-branch master
+     ```
+
+1. Create your patch, **including appropriate test cases**.
+1. Follow our [Coding Rules](#rules).
+1. Run the respective test suites and make sure it passes.
+1. Use respective formatting tools to format the code.
+1. Commit your changes using a descriptive commit message.
+
+     ```shell
+     git commit -a
+     ```
+    Note: the optional commit `-a` command line option will automatically "add" and "rm" edited files.
+
+1. Push your branch to GitHub:
+
+    ```shell
+    git push origin fix/my-branch
+    ```
+
+1. In GitHub, send a pull request to `master` or `main` branch.
+1. Make sure the PR name follows [conventional commit format](#conventional)
+* If we suggest changes then:
+  * Make the required updates.
+  * Re-run the test suites to ensure tests are still passing.
+
+That's it! Thank you for your contribution!
+
+#### After your pull request is merged
+
+After your pull request is merged, you can safely delete your branch and pull the changes
+from the main (upstream) repository:
+
+* Delete the remote branch on GitHub either through the GitHub web UI or your local shell as follows:
+
+    ```shell
+    git push origin --delete fix/my-branch
+    ```
+
+* Check out the master branch:
+
+    ```shell
+    git checkout master -f
+    ```
+
+* Delete the local branch:
+
+    ```shell
+    git branch -D fix/my-branch
+    ```
+
+* Update your master with the latest upstream version:
+
+    ```shell
+    git pull --ff upstream master
+    ```
 
 Individuals making significant and valuable contributions are given
-commit-access to the project to contribute as they see fit. This project
-is more like an open wiki than a standard guarded open source project.
+commit-access to the project to contribute as they see fit.
 
-== Rules
+## <a name="rules"></a> Coding Rules
+To ensure consistency throughout the source code, keep these rules in mind as you are working:
 
-There are a few basic ground-rules for contributors (including the maintainer(s) of the project):
+* All features or bug fixes **must be tested** by one or more specs unit tests.
+* All module API methods **must be documented**.
+* Please follow our [style guide](STYLE_GUIDE.md)
 
-. **No `--force` pushes** or modifying the master branch history in any way.
-. **Non-master branches** ought to be used for ongoing work.
-. **All modifications** ought to be subject to an **internal pull-request** to solicit feedback from other contributors.
-. **Titles of Pull-requests** should follow link:https://github.com/zeke/semantic-pull-requests/blob/master/README.md[Semantic Pull Requests] guidelines.
-. Contributors should attempt to adhere to the link:STYLE_GUIDE.md[coding style guide].
+## <a name="conventional"></a> Pull Request Naming Guidelines
 
-== Releases
+We have very precise rules over how our git commit messages can be formatted.  This leads to **more
+readable messages** that are easy to follow when looking through the **project history**.  But also,
+we use the git commit messages to **generate the change logs**.
 
-Declaring formal releases remains the prerogative of the project maintainers.
+### The format
+Each commit message consists of a **header**, a **body** and a **footer**.  The header has a special
+format that includes a **type**, a **scope** and a **subject**:
 
-== Changes to this arrangement
+```
+<type>(<scope>)<breaking-change-indicator>: <subject>
+```
 
-This is an experiment and feedback is welcome! This document may also be
-subject to pull-requests or changes by contributors where you believe
-you have something valuable to add or change.
+Samples:
 
-These contributing guidelines are modified from the link:http://openopensource.org/[OPEN Open Source Project] guidelines.
+```
+ci(changelog): generate changelog
+```
+```
+fix(amm): fix benchmarking
+```
+```
+feat(claim)!: add possibility to change claim data
+```
+* Note that last message indicates a breaking change
+
+### Type
+Must be one of the following:
+
+* **build**: Changes that affect the build system or external dependencies (example scopes: cargo, substrate)
+* **ci**: Changes to our CI configuration files and scripts (example scopes: gh-actions, bench-bot)
+* **docs**: Documentation only changes
+* **feat**: A new feature
+* **fix**: A bug fix (example scopes: amm, claims)
+* **perf**: A code change that improves performance
+* **refactor**: A code change that neither fixes a bug nor adds a feature
+* **style**: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+* **test**: Adding missing tests or correcting existing tests (example scopes: amm, claims)
+
+### Scope
+The scope should be the name of the affected module (as perceived by the person reading the changelog generated from commit messages).
+If the PR touches more than one thing, leave it blank and try to use subject to describe the change.
+
+### Subject
+The subject contains a succinct description of the change:
+
+* use the imperative, present tense: "change" not "changed" nor "changes"
+* don't capitalize the first letter
+* no dot (.) at the end
+
+**Breaking Changes** add ! after the scope
+
+### We're thankful for any meaningful contribution
+
+Feedback for this guide is welcome! If you believe
+you have something valuable to add or change, please open a PR.
+
+These contributing guidelines are modified from the [Angular](https://raw.githubusercontent.com/angular/angular/22b96b96902e1a42ee8c5e807720424abad3082a/CONTRIBUTING.md) guidelines.
