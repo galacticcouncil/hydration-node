@@ -59,7 +59,7 @@ impl system::Config for Test {
 pub type Amount = i128;
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
 }
@@ -108,12 +108,12 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		crate::GenesisConfig {
+		faucet::GenesisConfig {
 			rampage: true,
 			mintable_currencies: vec![2000, 3000],
 			mint_limit: 5,
 		}
-		.assimilate_storage(&mut t)
+		.assimilate_storage::<Test>(&mut t)
 		.unwrap();
 
 		t.into()
@@ -127,7 +127,7 @@ impl ExtBuilder {
 			mintable_currencies: vec![2000, 3000],
 			mint_limit: 5,
 		}
-		.assimilate_storage(&mut t)
+		.assimilate_storage::<Test>(&mut t)
 		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
