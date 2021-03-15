@@ -52,6 +52,7 @@ frame_support::construct_runtime!(
 				 Balances: pallet_balances::{Module,Call, Storage,Config<T>, Event<T>},
 				 Currencies: orml_currencies::{Module, Event<T>},
 				 Tokens: orml_tokens::{Module, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Module, Storage},
 		 }
 
 );
