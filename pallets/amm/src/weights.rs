@@ -35,77 +35,79 @@
 // --output=weights.rs
 // --template=.maintain/pallet-weight-template.hbs
 
-
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
+use frame_support::{
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
+};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for amm.
 pub trait WeightInfo {
-fn create_pool() -> Weight;
-fn add_liquidity() -> Weight;
-fn remove_liquidity() -> Weight;
-fn sell() -> Weight;
-fn buy() -> Weight;
+	fn create_pool() -> Weight;
+	fn add_liquidity() -> Weight;
+	fn remove_liquidity() -> Weight;
+	fn sell() -> Weight;
+	fn buy() -> Weight;
 }
 
 /// Weights for amm using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
-		impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-				fn create_pool() -> Weight {
-				(250_200_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(11 as Weight))
-				.saturating_add(T::DbWeight::get().writes(13 as Weight))
-				}
-				fn add_liquidity() -> Weight {
-				(239_134_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(9 as Weight))
-				.saturating_add(T::DbWeight::get().writes(8 as Weight))
-				}
-				fn remove_liquidity() -> Weight {
-				(240_260_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(8 as Weight))
-				.saturating_add(T::DbWeight::get().writes(7 as Weight))
-				}
-				fn sell() -> Weight {
-				(169_053_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(5 as Weight))
-				.saturating_add(T::DbWeight::get().writes(4 as Weight))
-				}
-				fn buy() -> Weight {
-				(168_649_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(5 as Weight))
-				.saturating_add(T::DbWeight::get().writes(4 as Weight))
-				}
-				}
+impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
+	fn create_pool() -> Weight {
+		(250_200_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(11 as Weight))
+			.saturating_add(T::DbWeight::get().writes(13 as Weight))
+	}
+	fn add_liquidity() -> Weight {
+		(239_134_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(9 as Weight))
+			.saturating_add(T::DbWeight::get().writes(8 as Weight))
+	}
+	fn remove_liquidity() -> Weight {
+		(240_260_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(8 as Weight))
+			.saturating_add(T::DbWeight::get().writes(7 as Weight))
+	}
+	fn sell() -> Weight {
+		(169_053_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+	}
+	fn buy() -> Weight {
+		(168_649_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+	}
+}
 
-				// For backwards compatibility and tests
-				impl WeightInfo for () {
-				fn create_pool() -> Weight {
-				(250_200_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(11 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(13 as Weight))
-				}
-				fn add_liquidity() -> Weight {
-				(239_134_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(9 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(8 as Weight))
-				}
-				fn remove_liquidity() -> Weight {
-				(240_260_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(8 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(7 as Weight))
-				}
-				fn sell() -> Weight {
-				(169_053_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(4 as Weight))
-				}
-				fn buy() -> Weight {
-				(168_649_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(4 as Weight))
-				}
-				}
+// For backwards compatibility and tests
+impl WeightInfo for () {
+	fn create_pool() -> Weight {
+		(250_200_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(11 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(13 as Weight))
+	}
+	fn add_liquidity() -> Weight {
+		(239_134_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(9 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(8 as Weight))
+	}
+	fn remove_liquidity() -> Weight {
+		(240_260_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(8 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(7 as Weight))
+	}
+	fn sell() -> Weight {
+		(169_053_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+	}
+	fn buy() -> Weight {
+		(168_649_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+	}
+}
