@@ -2,11 +2,6 @@
 
 CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE
 
-## HACKNET
-- https://hack.hydradx.io/
-
-- [app source](https://github.com/galacticcouncil/hack.HydraDX-app)
-
 ## Local Development
 
 Follow these steps to prepare a local Substrate development environment :hammer_and_wrench:
@@ -130,3 +125,6 @@ However, if the difference < 0 - your machine might not suitable to run HydraDX 
 ```bash
 ./target/release/hydra-dx --chain lerna
 ```
+
+### Honorable contributions
+[@apopiak](https://github.com/apopiak) for great reviews [#87](https://github.com/galacticcouncil/HydraDX-node/pull/87) and support.

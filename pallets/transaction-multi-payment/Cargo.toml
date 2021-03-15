@@ -27,6 +27,10 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependecies
 primitives = {path = '../../primitives', default-features = false, version = '3.0.0'}
+pallet-balances = {default-features = false, version = '3.0.0' }
+pallet-asset-registry = {path = '../asset-registry', default-features = false, version = '3.0.0'}
+pallet-amm = {path = '../amm', default-features = false }
+pallet-transaction-payment = {default-features = false, version = '3.0.0'}
 
 # ORML dependencies
 orml-tokens = {default-features = false, version = "0.4.1-dev"}
@@ -37,14 +41,9 @@ orml-utilities = {default-features = false, version = "0.4.1-dev"}
 frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
-pallet-transaction-payment = {default-features = false, version = '3.0.0'}
-
 sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 sp-api= {default-features = false, version = '3.0.0'}
-pallet-balances = {default-features = false, version = '3.0.0' }
-pallet-asset-registry = {path = '../asset-registry', default-features = false, version = '3.0.0'}
-pallet-amm = {path = '../amm', default-features = false, version = '3.0.0'}
 
 [dev-dependencies]
 sp-io = {default-features = false, version = '3.0.0'}
