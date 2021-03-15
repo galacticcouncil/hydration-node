@@ -244,9 +244,7 @@ pub mod pallet {
 			let total_liquidity = Self::total_liquidity(&pair_account);
 
 			let amount_b_required = hydra_dx_math::calculate_liquidity_in(asset_a_reserve, asset_b_reserve, amount_a)
-				.map_err(|_| {
-					Error::<T>::AddAssetAmountInvalid
-				})?;
+				.map_err(|_| Error::<T>::AddAssetAmountInvalid)?;
 
 			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
 
@@ -317,10 +315,13 @@ pub mod pallet {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let liquidity_out = hydra_dx_math::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, liquidity_amount, total_shares)
-				.map_err(|_| {
-					Error::<T>::RemoveAssetAmountInvalid
-				})?;
+			let liquidity_out = hydra_dx_math::calculate_liquidity_out(
+				asset_a_reserve,
+				asset_b_reserve,
+				liquidity_amount,
+				total_shares,
+			)
+			.map_err(|_| Error::<T>::RemoveAssetAmountInvalid)?;
 
 			let (remove_amount_a, remove_amount_b) = liquidity_out;
 
