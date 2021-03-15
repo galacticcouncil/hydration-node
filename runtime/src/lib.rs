@@ -342,7 +342,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
 }
