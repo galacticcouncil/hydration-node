@@ -41,6 +41,7 @@ frame_support::construct_runtime!(
 				 Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 				 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
 				 Currency: orml_tokens::{Module, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Module, Storage},
 		 }
 
 );
