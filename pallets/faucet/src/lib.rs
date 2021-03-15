@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![allow(clippy::unused_unit)]
+
 use frame_support::{
 	ensure,
 	weights::{DispatchClass, Pays},

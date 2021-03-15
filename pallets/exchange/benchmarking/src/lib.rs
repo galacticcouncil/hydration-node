@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![allow(clippy::unnecessary_wraps)]
+
 mod amounts;
 mod mock;
 

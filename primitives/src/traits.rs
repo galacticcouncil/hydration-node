@@ -1,3 +1,5 @@
+#![allow(clippy::upper_case_acronyms)]
+
 use frame_support::dispatch;
 use frame_support::dispatch::DispatchResult;
 use sp_std::vec::Vec;

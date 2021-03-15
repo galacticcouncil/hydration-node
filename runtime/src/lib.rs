@@ -3,6 +3,8 @@
 #![recursion_limit = "256"]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::large_enum_variant)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::from_over_into)]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]

@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![allow(clippy::upper_case_acronyms)]
+
 use codec::{Decode, Encode};
 
 use frame_support::sp_runtime::FixedU128;
