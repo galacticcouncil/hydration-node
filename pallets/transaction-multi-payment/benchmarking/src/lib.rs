@@ -11,8 +11,8 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use orml_utilities::OrderedSet;
 use pallet_transaction_multi_payment::Module as MultiPaymentModule;
 use primitives::{Amount, AssetId, Balance, Price};
-use sp_runtime::DispatchError;
 
+use frame_support::dispatch;
 use pallet_amm as ammpool;
 
 pub struct Module<T: Config>(pallet_transaction_multi_payment::Module<T>);
@@ -43,9 +43,9 @@ fn initialize_pool<T: Config>(
 	asset: AssetId,
 	amount: Balance,
 	price: Price,
-) -> Result<(), DispatchError> {
+) -> dispatch::DispatchResultWithPostInfo {
 	ammpool::Module::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
-	Ok(())
+	Ok(().into())
 }
 
 benchmarks! {

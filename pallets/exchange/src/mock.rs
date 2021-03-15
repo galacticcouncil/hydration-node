@@ -45,6 +45,7 @@ frame_support::construct_runtime!(
 		 Exchange: exchange::{Module, Call, Storage, Event<T>},
 		 AMM: pallet_amm::{Module, Call, Storage, Event<T>},
 		 Currency: orml_tokens::{Module, Event<T>},
+		 AssetRegistry: pallet_asset_registry::{Module, Storage},
 	 }
 
 );
@@ -83,7 +84,7 @@ impl system::Config for Test {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
 }

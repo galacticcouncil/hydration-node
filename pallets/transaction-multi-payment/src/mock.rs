@@ -62,6 +62,7 @@ frame_support::construct_runtime!(
 		 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
 		 Balances: pallet_balances::{Module,Call, Storage,Config<T>, Event<T>},
 		 Currencies: orml_currencies::{Module, Event<T>},
+		 AssetRegistry: pallet_asset_registry::{Module, Storage},
 		 Tokens: orml_tokens::{Module, Event<T>},
 	 }
 
@@ -179,7 +180,7 @@ impl pallet_amm::Config for Test {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
 }
