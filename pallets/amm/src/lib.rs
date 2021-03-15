@@ -244,7 +244,9 @@ pub mod pallet {
 			let total_liquidity = Self::total_liquidity(&pair_account);
 
 			let amount_b_required = hydra_dx_math::calculate_liquidity_in(asset_a_reserve, asset_b_reserve, amount_a)
-				.ok_or(Error::<T>::AddAssetAmountInvalid)?;
+				.map_err(|_| {
+					Error::<T>::AddAssetAmountInvalid
+				})?;
 
 			let shares_added = if asset_a < asset_b { amount_a } else { amount_b_required };
 
@@ -315,13 +317,10 @@ pub mod pallet {
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
-			let liquidity_out = hydra_dx_math::calculate_liquidity_out(
-				asset_a_reserve,
-				asset_b_reserve,
-				liquidity_amount,
-				total_shares,
-			)
-			.ok_or(Error::<T>::RemoveAssetAmountInvalid)?;
+			let liquidity_out = hydra_dx_math::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, liquidity_amount, total_shares)
+				.map_err(|_| {
+					Error::<T>::RemoveAssetAmountInvalid
+				})?;
 
 			let (remove_amount_a, remove_amount_b) = liquidity_out;
 
@@ -477,8 +476,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
 
 		hydra_dx_math::calculate_spot_price(asset_a_reserve, asset_b_reserve, amount)
-			.or(Some(0))
-			.unwrap()
+			.unwrap_or_else(|_| Balance::zero())
 	}
 
 	fn validate_sell(
@@ -517,13 +515,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		let transfer_fee = Self::calculate_fees(amount, discount, &mut hdx_amount)?;
 
-		let sale_price =
-			match hydra_dx_math::calculate_sell_price(asset_in_total, asset_out_total, amount - transfer_fee) {
-				Some(x) => x,
-				None => {
-					return Err(Error::<T>::SellAssetAmountInvalid.into());
-				}
-			};
+		let sale_price = hydra_dx_math::calculate_out_given_in(asset_in_total, asset_out_total, amount - transfer_fee)
+			.map_err(|_| Error::<T>::SellAssetAmountInvalid)?;
 
 		ensure!(asset_out_total >= sale_price, Error::<T>::InsufficientAssetBalance);
 
@@ -541,7 +534,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			let asset_reserve = T::Currency::free_balance(assets.asset_in, &hdx_pair_account);
 
 			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
-				.ok_or(Error::<T>::CannotApplyDiscount)?;
+				.map_err(|_| Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,
@@ -641,12 +634,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		);
 
 		let buy_price =
-			match hydra_dx_math::calculate_buy_price(asset_in_reserve, asset_out_reserve, amount + transfer_fee) {
-				Some(x) => x,
-				None => {
-					return Err(Error::<T>::BuyAssetAmountInvalid.into());
-				}
-			};
+			hydra_dx_math::calculate_in_given_out(asset_out_reserve, asset_in_reserve, amount + transfer_fee)
+				.map_err(|_| Error::<T>::BuyAssetAmountInvalid)?;
 
 		ensure!(
 			T::Currency::free_balance(assets.asset_in, who) >= buy_price,
@@ -667,7 +656,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			let asset_reserve = T::Currency::free_balance(assets.asset_out, &hdx_pair_account);
 
 			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
-				.ok_or(Error::<T>::CannotApplyDiscount)?;
+				.map_err(|_| Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
 				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,

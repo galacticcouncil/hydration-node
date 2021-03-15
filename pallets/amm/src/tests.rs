@@ -1,6 +1,7 @@
 use super::*;
 pub use crate::mock::{Currency, Event as TestEvent, ExtBuilder, Origin, System, Test, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
+use hydra_dx_math::MathError;
 use primitives::traits::AMM as AMMPool;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -962,7 +963,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 
 		expect_events(vec![
 			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
-			frame_system::Event::KilledAccount(1002000).into(),
+			frame_system::Event::KilledAccount(pair_account).into(),
 			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
 			Event::PoolDestroyed(user, asset_a, asset_b).into(),
 			frame_system::Event::NewAccount(pair_account).into(),
@@ -1165,45 +1166,45 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 }
 
 #[test]
-fn test_calculate_sell_price() {
+fn test_calculate_out_given_in() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 100000;
-		let sell_amount: Balance = 100000000000;
-		let result = hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_eq!(result, Some(991));
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 100000;
+		let in_amount: Balance = 100000000000;
+		let result = hydra_dx_math::calculate_out_given_in(in_reserve, out_reserve, in_amount);
+		assert_eq!(result, Ok(991));
 	});
 }
 
 #[test]
-fn test_calculate_sell_price_invalid() {
+fn test_calculate_out_given_in_invalid() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 0;
-		let buy_reserve: Balance = 1000;
-		let sell_amount: Balance = 0;
-		let result = hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_eq!(result, None);
+		let in_reserve: Balance = 0;
+		let out_reserve: Balance = 1000;
+		let in_amount: Balance = 0;
+		let result = hydra_dx_math::calculate_out_given_in(in_reserve, out_reserve, in_amount);
+		assert_eq!(result, Err(MathError::ZeroInReserve));
 	});
 }
 
 #[test]
-fn test_calculate_buy_price_insufficient_pool_balance() {
+fn test_calculate_in_given_out_insufficient_pool_balance() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 100000;
-		let buy_amount: Balance = 100000000000;
-		let result = hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_eq!(result, None);
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 100000;
+		let out_amount: Balance = 100000000000;
+		let result = hydra_dx_math::calculate_in_given_out(out_reserve, in_reserve, out_amount);
+		assert_eq!(result, Err(MathError::InsufficientOutReserve));
 	});
 }
 
 #[test]
-fn test_calculate_buy_price() {
+fn test_calculate_in_given_out() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 10000000;
-		let buy_amount: Balance = 1000000;
-		let result = hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_eq!(result, Some(1111111111112));
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 10000000;
+		let out_amount: Balance = 1000000;
+		let result = hydra_dx_math::calculate_in_given_out(out_reserve, in_reserve, out_amount);
+		assert_eq!(result, Ok(1111111111112));
 	});
 }

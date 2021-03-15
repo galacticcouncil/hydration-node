@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, EncodeLike};
+use core::fmt::Debug;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
