@@ -1,6 +1,6 @@
 #![allow(clippy::or_fun_call)]
 
-use hydra_dx_runtime::constants::currency::{Balance, DOLLARS, HDX};
+use hydra_dx_runtime::constants::currency::{Balance, HDX};
 use hydra_dx_runtime::opaque::SessionKeys;
 use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
@@ -78,7 +78,7 @@ fn session_keys(
 	}
 }
 
-const STASH: Balance = 100 * DOLLARS;
+const STASH: Balance = 100 * HDX;
 const DEFAULT_PROTOCOL_ID: &str = "hdx";
 
 pub fn development_config() -> Result<ChainSpec, String> {
@@ -296,7 +296,7 @@ fn testnet_genesis(
 			balances: endowed_accounts
 				.iter()
 				.cloned()
-				.map(|k| (k, 1_000_000u128 * DOLLARS))
+				.map(|k| (k, 1_000_000u128 * HDX))
 				.collect(),
 		}),
 		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
@@ -325,9 +325,9 @@ fn testnet_genesis(
 				.iter()
 				.flat_map(|x| {
 					vec![
-						(x.clone(), 1, 100_000u128 * DOLLARS),
-						(x.clone(), 2, 100_000u128 * DOLLARS),
-						(x.clone(), 3, 100_000u128 * DOLLARS),
+						(x.clone(), 1, 100_000u128 * HDX),
+						(x.clone(), 2, 100_000u128 * HDX),
+						(x.clone(), 3, 100_000u128 * HDX),
 					]
 				})
 				.collect(),
@@ -399,12 +399,12 @@ fn lerna_genesis(
 				(
 					// Intergalactic HDX Tokens 15%
 					hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
-					(1_500_000_000u128 * DOLLARS) - (3 * STASH),
+					(1_500_000_000u128 * HDX) - (3 * STASH),
 				),
 				(
 					// Treasury for rewards 3%
 					hex!["84d0959b84b3b12013430ea136b0c26e83412ea3bc46a8620abb8c8db7e53d0c"].into(),
-					300_000_000 * DOLLARS,
+					300_000_000 * HDX,
 				),
 				(
 					// Intergalactic Validator01
