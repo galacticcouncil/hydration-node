@@ -1,7 +1,7 @@
 ---
 name: Improvement
 about: Propose an improvement
-title: 'Improve: '
+title: 'Improve '
 labels: ''
 assignees: ''
 
