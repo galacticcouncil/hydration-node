@@ -34,6 +34,7 @@ assignees: ''
 
 ### Your Environment
 <!--- Include as many relevant details about the environment you experienced the bug in -->
+* Toolchain versions: <!--- rustup show, node -v etc.. -->
 * Version used:
 * System type: <!--- eg VPS, Bare metal -->
 * Operating System and version:
