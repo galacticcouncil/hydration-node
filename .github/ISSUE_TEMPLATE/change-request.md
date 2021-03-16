@@ -1,7 +1,7 @@
 ---
 name: Change request
 about: Propose a change
-title: 'Change: '
+title: 'Change '
 labels: ''
 assignees: ''
 
