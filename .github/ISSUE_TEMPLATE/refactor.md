@@ -1,7 +1,7 @@
 ---
 name: Refactor
 about: Describe need for a refactor
-title: 'Refactor: '
+title: 'Refactor '
 labels: ''
 assignees: ''
 
