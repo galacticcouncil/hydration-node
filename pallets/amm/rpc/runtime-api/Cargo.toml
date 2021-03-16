@@ -1,7 +1,7 @@
 [package]
 authors = ['GalacticCouncil']
 name = "module-amm-rpc-runtime-api"
-version = '2.0.0'
+version = '3.0.0'
 edition = "2018"
 
 [package.metadata.docs.rs]
@@ -15,15 +15,15 @@ wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '1.
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
-version = '1.3.4'
+version = '2.0.0'
 
 [dependencies]
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 # Substrate dependencies
-sp-std = { default-features = false, version = '2.0.0' }
-sp-api = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
+sp-std = { default-features = false, version = '3.0.0' }
+sp-api = { default-features = false, version = '3.0.0' }
+sp-runtime = { default-features = false, version = '3.0.0' }
 
 [features]
 default = ["std"]

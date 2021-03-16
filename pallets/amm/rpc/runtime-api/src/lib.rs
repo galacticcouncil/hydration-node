@@ -4,6 +4,7 @@
 // The `too_many_arguments` warning originates from `decl_runtime_apis` macro.
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::unnecessary_mut_passed)]
+#![allow(clippy::upper_case_acronyms)]
 
 use codec::{Codec, Decode, Encode};
 #[cfg(feature = "std")]

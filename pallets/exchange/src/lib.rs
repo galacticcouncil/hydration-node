@@ -1,7 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::comparison_chain)]
 
-use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, storage::IterableStorageMap};
+#![allow(clippy::unused_unit)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::unnecessary_wraps)]
+
+use frame_support::{dispatch, ensure};
 use frame_system::{self as system, ensure_signed};
 
 use codec::Encode;
@@ -38,80 +42,121 @@ mod tests;
 type IntentionId<T> = <T as system::Config>::Hash;
 pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, Balance, IntentionId<T>>;
 
-/// The pallet's configuration trait.
-pub trait Config: system::Config {
-	type Event: From<Event<Self>> + Into<<Self as system::Config>::Event>;
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
 
-	/// AMM pool implementation
-	type AMMPool: AMM<Self::AccountId, AssetId, AssetPair, Balance>;
+#[frame_support::pallet]
+pub mod pallet {
+	use super::*;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::OriginFor;
 
-	/// Intention resolver
-	type Resolver: Resolver<Self::AccountId, Intention<Self>, Error<Self>>;
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
 
-	/// Currency for transfers
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>
-		+ MultiReservableCurrency<Self::AccountId>;
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		/// Finalize and resolve all registered intentions.
+		/// Group/match intentions which can be directly traded.
+		fn on_finalize(_n: T::BlockNumber) {
+			for ((asset_1, asset_2), count) in ExchangeAssetsIntentionCount::<T>::iter() {
+				// If no intention registered for asset1/2, move onto next one
+				if count == 0u32 {
+					continue;
+				}
+				let pair = AssetPair {
+					asset_in: asset_1,
+					asset_out: asset_2,
+				};
 
-	/// Weight information for the extrinsics.
-	type WeightInfo: WeightInfo;
-}
+				let pair_account = T::AMMPool::get_pair_id(pair);
 
-// This pallet's storage items.
-decl_storage! {
-	trait Store for Module<T: Config> as Exchange {
+				let asset_a_ins = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
+				let asset_b_ins = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
 
-		/// Intention count for current block
-		ExchangeAssetsIntentionCount get(fn get_intentions_count): map hasher(blake2_128_concat) (AssetId, AssetId) => u32;
+				//TODO: we can short circuit here if nothing in asset_b_sells and just resolve asset_a sells.
 
-		/// Registered intentions for current block
-		/// Stored as ( asset_a, asset_b ) combination where asset_a is meant to be exchanged for asset_b ( asset_a < asset_b)
-		ExchangeAssetsIntentions get(fn get_intentions): map hasher(blake2_128_concat) (AssetId, AssetId) => Vec<Intention<T>>;
+				Self::process_exchange_intentions(&pair_account, &asset_a_ins, &asset_b_ins);
+			}
+
+			ExchangeAssetsIntentionCount::<T>::remove_all();
+			ExchangeAssetsIntentions::<T>::remove_all();
+		}
+
+		fn on_initialize(_n: T::BlockNumber) -> Weight {
+			T::WeightInfo::known_overhead_for_on_finalize()
+		}
 	}
-}
 
-// The pallet's events
-decl_event!(
-	pub enum Event<T>
-	where
-		AccountId = <T as system::Config>::AccountId,
-		IntentionID = IntentionId<T>,
-	{
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// AMM pool implementation
+		type AMMPool: AMM<Self::AccountId, AssetId, AssetPair, Balance>;
+
+		/// Intention resolver
+		type Resolver: Resolver<Self::AccountId, Intention<Self>, Error<Self>>;
+
+		/// Currency for transfers
+		type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>
+			+ MultiReservableCurrency<Self::AccountId>;
+
+		/// Weight information for the extrinsics.
+		type WeightInfo: WeightInfo;
+	}
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
+	pub enum Event<T: Config> {
 		/// Intention registered event
 		/// who, asset a, asset b, amount, intention type, intention id
-		IntentionRegistered(AccountId, AssetId, AssetId, Balance, IntentionType, IntentionID),
+		IntentionRegistered(T::AccountId, AssetId, AssetId, Balance, IntentionType, IntentionId<T>),
 
 		/// Intention resolved as AMM Trade
 		/// who, intention type, intention id, amount, amount sold/bought
-		IntentionResolvedAMMTrade(AccountId, IntentionType, IntentionID, Balance, Balance),
+		IntentionResolvedAMMTrade(T::AccountId, IntentionType, IntentionId<T>, Balance, Balance),
 
 		/// Intention resolved as Direct Trade
 		/// who, who - account between which direct trade happens
 		/// intention id, intention id - intentions which are being resolved ( fully or partially )
 		/// Balance, Balance  - corresponding amounts
-		IntentionResolvedDirectTrade(AccountId, AccountId, IntentionID, IntentionID, Balance, Balance),
+		IntentionResolvedDirectTrade(
+			T::AccountId,
+			T::AccountId,
+			IntentionId<T>,
+			IntentionId<T>,
+			Balance,
+			Balance,
+		),
 
 		/// Paid fees event
 		/// who, account paid to, asset, amount
-		IntentionResolvedDirectTradeFees(AccountId, AccountId, AssetId, Balance),
+		IntentionResolvedDirectTradeFees(T::AccountId, T::AccountId, AssetId, Balance),
 
 		/// Error event - insuficient balance of specified asset
 		/// who, asset, intention type, intention id, error detail
-		InsufficientAssetBalanceEvent(AccountId, AssetId, IntentionType, IntentionID, dispatch::DispatchError),
+		InsufficientAssetBalanceEvent(
+			T::AccountId,
+			AssetId,
+			IntentionType,
+			IntentionId<T>,
+			dispatch::DispatchError,
+		),
 
 		/// Intetion Error Event
 		/// who, assets, sell or buy, intention id, error detail
 		IntentionResolveErrorEvent(
-			AccountId,
+			T::AccountId,
 			AssetPair,
 			IntentionType,
-			IntentionID,
+			IntentionId<T>,
 			dispatch::DispatchError,
 		),
 	}
-);
 
-decl_error! {
-	pub enum Error for Module<T: Config> {
+	#[pallet::error]
+	pub enum Error<T> {
 		///Token pool does not exist.
 		TokenPoolNotFound,
 
@@ -125,41 +170,48 @@ decl_error! {
 		ZeroSpotPrice,
 
 		/// Minimum trading limit is not enough
-		MinimumTradeLimitNotReached
+		MinimumTradeLimitNotReached,
 	}
-}
 
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
+	/// Intention count for current block
+	#[pallet::storage]
+	#[pallet::getter(fn get_intentions_count)]
+	pub type ExchangeAssetsIntentionCount<T: Config> =
+		StorageMap<_, Blake2_128Concat, (AssetId, AssetId), u32, ValueQuery>;
 
-		type Error = Error<T>;
+	/// Registered intentions for current block
+	/// Stored as ( asset_a, asset_b ) combination where asset_a is meant to be exchanged for asset_b ( asset_a < asset_b)
+	#[pallet::storage]
+	#[pallet::getter(fn get_intentions)]
+	pub type ExchangeAssetsIntentions<T: Config> =
+		StorageMap<_, Blake2_128Concat, (AssetId, AssetId), Vec<Intention<T>>, ValueQuery>;
 
-		fn deposit_event() = default;
-
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
 		/// Create sell intention
 		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
-		#[weight =  <T as Config>::WeightInfo::sell_intention() + <T as Config>::WeightInfo::on_finalize_for_one_sell_extrinsic() -  <T as Config>::WeightInfo::known_overhead_for_on_finalize()]
+		#[pallet::weight(< T as Config >::WeightInfo::sell_intention() + < T as Config >::WeightInfo::on_finalize_for_one_sell_extrinsic() - < T as Config >::WeightInfo::known_overhead_for_on_finalize())]
 		pub fn sell(
-			origin,
+			origin: OriginFor<T>,
 			asset_sell: AssetId,
 			asset_buy: AssetId,
 			amount_sell: Balance,
 			min_bought: Balance,
 			discount: bool,
-		)  -> dispatch::DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			ensure!{
+			ensure! {
 				amount_sell >= MIN_TRADING_LIMIT,
 				Error::<T>::MinimumTradeLimitNotReached
 			};
 
-			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
+			let assets = AssetPair {
+				asset_in: asset_sell,
+				asset_out: asset_buy,
+			};
 
-			ensure!(
-				T::AMMPool::exists(assets),
-				Error::<T>::TokenPoolNotFound
-			);
+			ensure!(T::AMMPool::exists(assets), Error::<T>::TokenPoolNotFound);
 
 			ensure!(
 				T::Currency::free_balance(asset_sell, &who) >= amount_sell,
@@ -168,53 +220,49 @@ decl_module! {
 
 			let amount_buy = T::AMMPool::get_spot_price_unchecked(asset_sell, asset_buy, amount_sell);
 
-			ensure!(
-				amount_buy != 0,
-				Error::<T>::ZeroSpotPrice
-			);
+			ensure!(amount_buy != 0, Error::<T>::ZeroSpotPrice);
 
 			Self::register_intention(
-					&who,
-					IntentionType::SELL,
-					assets,
-					amount_sell,
-					amount_buy,
-					min_bought,
-					discount
-			)
+				&who,
+				IntentionType::SELL,
+				assets,
+				amount_sell,
+				amount_buy,
+				min_bought,
+				discount,
+			)?;
+
+			Ok(().into())
 		}
 
 		/// Create buy intention
 		/// Calculate current spot price, create an intention and store in ```ExchangeAssetsIntentions```
-		#[weight =  <T as Config>::WeightInfo::buy_intention() + <T as Config>::WeightInfo::on_finalize_for_one_buy_extrinsic() -  <T as Config>::WeightInfo::known_overhead_for_on_finalize()]
+		#[pallet::weight(<T as Config>::WeightInfo::buy_intention() + <T as Config>::WeightInfo::on_finalize_for_one_buy_extrinsic() -  <T as Config>::WeightInfo::known_overhead_for_on_finalize())]
 		pub fn buy(
-			origin,
+			origin: OriginFor<T>,
 			asset_buy: AssetId,
 			asset_sell: AssetId,
 			amount_buy: Balance,
 			max_sold: Balance,
 			discount: bool,
-		)  -> dispatch::DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			ensure!{
+			ensure! {
 				amount_buy >= MIN_TRADING_LIMIT,
 				Error::<T>::MinimumTradeLimitNotReached
 			};
 
-			let assets = AssetPair{asset_in: asset_sell, asset_out: asset_buy};
+			let assets = AssetPair {
+				asset_in: asset_sell,
+				asset_out: asset_buy,
+			};
 
-			ensure!(
-				T::AMMPool::exists(assets),
-				Error::<T>::TokenPoolNotFound
-			);
+			ensure!(T::AMMPool::exists(assets), Error::<T>::TokenPoolNotFound);
 
 			let amount_sell = T::AMMPool::get_spot_price_unchecked(asset_buy, asset_sell, amount_buy);
 
-			ensure!(
-				amount_sell != 0,
-				Error::<T>::ZeroSpotPrice
-			);
+			ensure!(amount_sell != 0, Error::<T>::ZeroSpotPrice);
 
 			ensure!(
 				T::Currency::free_balance(asset_sell, &who) >= amount_sell,
@@ -222,49 +270,22 @@ decl_module! {
 			);
 
 			Self::register_intention(
-					&who,
-					IntentionType::BUY,
-					assets,
-					amount_sell,
-					amount_buy,
-					max_sold,
-					discount
-			)
-		}
+				&who,
+				IntentionType::BUY,
+				assets,
+				amount_sell,
+				amount_buy,
+				max_sold,
+				discount,
+			)?;
 
-		fn on_initialize() -> Weight {
-			T::WeightInfo::known_overhead_for_on_finalize()
-		}
-
-		/// Finalize and resolve all registered intentions.
-		/// Group/match intentions which can be directly traded.
-		fn on_finalize(){
-
-			for ((asset_1,asset_2), count) in ExchangeAssetsIntentionCount::iter() {
-				// If no intention registered for asset1/2, move onto next one
-				if count == 0u32 {
-					continue;
-				}
-				let pair = AssetPair{asset_in: asset_1, asset_out: asset_2};
-
-				let pair_account = T::AMMPool::get_pair_id(pair);
-
-				let asset_a_ins = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
-				let asset_b_ins = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
-
-				//TODO: we can short circuit here if nothing in asset_b_sells and just resolve asset_a sells.
-
-				Self::process_exchange_intentions(&pair_account, &asset_a_ins, &asset_b_ins);
-			}
-
-			ExchangeAssetsIntentionCount::remove_all();
-			ExchangeAssetsIntentions::<T>::remove_all();
+			Ok(().into())
 		}
 	}
 }
 
 // "Internal" functions, callable by code.
-impl<T: Config> Module<T> {
+impl<T: Config> Pallet<T> {
 	/// Register SELL or BUY intention
 	fn register_intention(
 		who: &T::AccountId,
@@ -275,7 +296,7 @@ impl<T: Config> Module<T> {
 		limit: Balance,
 		discount: bool,
 	) -> dispatch::DispatchResult {
-		let intention_count = ExchangeAssetsIntentionCount::get(assets.ordered_pair());
+		let intention_count = ExchangeAssetsIntentionCount::<T>::get(assets.ordered_pair());
 
 		let intention_id = Self::generate_intention_id(who, intention_count, &assets);
 
@@ -292,11 +313,11 @@ impl<T: Config> Module<T> {
 		// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
 		<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention);
 
-		ExchangeAssetsIntentionCount::mutate(assets.ordered_pair(), |total| *total += 1u32);
+		ExchangeAssetsIntentionCount::<T>::mutate(assets.ordered_pair(), |total| *total += 1u32);
 
 		match intention_type {
 			IntentionType::SELL => {
-				Self::deposit_event(RawEvent::IntentionRegistered(
+				Self::deposit_event(Event::IntentionRegistered(
 					who.clone(),
 					assets.asset_in,
 					assets.asset_out,
@@ -306,7 +327,7 @@ impl<T: Config> Module<T> {
 				));
 			}
 			IntentionType::BUY => {
-				Self::deposit_event(RawEvent::IntentionRegistered(
+				Self::deposit_event(Event::IntentionRegistered(
 					who.clone(),
 					assets.asset_out,
 					assets.asset_in,
@@ -378,7 +399,7 @@ impl<T: Config> Module<T> {
 			IntentionType::SELL => {
 				T::AMMPool::execute_sell(transfer)?;
 
-				Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
+				Self::deposit_event(Event::IntentionResolvedAMMTrade(
 					transfer.origin.clone(),
 					IntentionType::SELL,
 					intention_id,
@@ -389,7 +410,7 @@ impl<T: Config> Module<T> {
 			IntentionType::BUY => {
 				T::AMMPool::execute_buy(transfer)?;
 
-				Self::deposit_event(RawEvent::IntentionResolvedAMMTrade(
+				Self::deposit_event(Event::IntentionResolvedAMMTrade(
 					transfer.origin.clone(),
 					IntentionType::BUY,
 					intention_id,
@@ -406,7 +427,7 @@ impl<T: Config> Module<T> {
 	///
 	/// Send event with error detail for intention that failed.
 	fn send_intention_error_event(intention: &Intention<T>, error: dispatch::DispatchError) {
-		Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
+		Self::deposit_event(Event::IntentionResolveErrorEvent(
 			intention.who.clone(),
 			intention.assets,
 			intention.sell_or_buy,
@@ -428,7 +449,7 @@ impl<T: Config> Module<T> {
 					intention.discount,
 				) {
 					Err(error) => {
-						Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
+						Self::deposit_event(Event::IntentionResolveErrorEvent(
 							intention.who.clone(),
 							intention.assets,
 							intention.sell_or_buy,
@@ -449,7 +470,7 @@ impl<T: Config> Module<T> {
 					intention.discount,
 				) {
 					Err(error) => {
-						Self::deposit_event(RawEvent::IntentionResolveErrorEvent(
+						Self::deposit_event(Event::IntentionResolveErrorEvent(
 							intention.who.clone(),
 							intention.assets,
 							intention.sell_or_buy,
@@ -470,7 +491,7 @@ impl<T: Config> Module<T> {
 	}
 }
 
-impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Module<T> {
+impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 	/// Resolve intention via AMM pool.
 	fn resolve_single_intention(intention: &Intention<T>) {
 		let amm_transfer = match intention.sell_or_buy {

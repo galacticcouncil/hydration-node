@@ -1,8 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::{Decode, Encode, EncodeLike};
-use core::fmt::Debug;
+
+#![allow(clippy::unused_unit)]
+
+use codec::{Decode, Encode};
 use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
 	ensure,
 	sp_runtime::{
@@ -31,45 +32,50 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub trait Config: frame_system::Config {
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Prefix: Get<&'static [u8]>;
-	type WeightInfo: WeightInfo;
-	type Currency: Currency<Self::AccountId>;
-	// This type is needed to convert from Currency to Balance
-	type CurrencyBalance: From<Balance> + EncodeLike<BalanceOf<Self>> + Debug + Into<BalanceOf<Self>>;
-}
-
 pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-decl_storage! {
-	trait Store for Module<T: Config> as Claims {
-		Claims get(fn claims): map hasher(blake2_128_concat) EthereumAddress => BalanceOf<T>;
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
+
+#[frame_support::pallet]
+pub mod pallet {
+	use super::*;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::OriginFor;
+
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		fn on_runtime_upgrade() -> frame_support::weights::Weight {
+			migration::import_initial_claims::<T>(&claims_data::CLAIMS_DATA)
+		}
 	}
 
-	add_extra_genesis {
-		config(claims): Vec<(EthereumAddress, BalanceOf<T>)>;
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		build(|config: &GenesisConfig<T>| {
-			config.claims.iter().for_each(|(eth_address, initial_balance)| {
-				Claims::<T>::mutate(eth_address, |amount| *amount += *initial_balance)
-			})
-		})
+		type Prefix: Get<&'static [u8]>;
+
+		type WeightInfo: WeightInfo;
+
+		type Currency: Currency<Self::AccountId>;
+
+		// This type is needed to convert from Currency to Balance
+		type CurrencyBalance: From<Balance>
+			+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
 	}
-}
 
-decl_event!(
-	pub enum Event<T>
-	where
-		AccountId = <T as frame_system::Config>::AccountId,
-		Balance = BalanceOf<T>,
-	{
-		Claim(AccountId, EthereumAddress, Balance),
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
+		Claim(T::AccountId, EthereumAddress, BalanceOf<T>),
 	}
-);
 
-decl_error! {
-	pub enum Error for Module<T: Config> {
+	#[pallet::error]
+	pub enum Error<T> {
 		/// Ethereum signature is not valid
 		InvalidEthereumSignature,
 		/// Claim is not valid
@@ -77,37 +83,49 @@ decl_error! {
 		/// Value reached maximum and cannot be incremented further
 		BalanceOverflow,
 	}
-}
 
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
-		type Error = Error<T>;
+	/// Asset id storage for each shared token
+	#[pallet::storage]
+	#[pallet::getter(fn claims)]
+	pub type Claims<T: Config> = StorageMap<_, Blake2_128Concat, EthereumAddress, BalanceOf<T>, ValueQuery>;
 
-		fn deposit_event() = default;
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub claims: Vec<(EthereumAddress, BalanceOf<T>)>,
+	}
 
-		/// The Prefix that is used in signed Ethereum messages for this network
-		const Prefix: &[u8] = T::Prefix::get();
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			GenesisConfig { claims: vec![] }
+		}
+	}
 
-		/// Claim a balance
-		/// Verify an Ethereum signature and deposit the corresponding balance into the account's free balance.
-		/// The dispatch origin of this call must match the address in the signed message.
-		/// This is feeless transaction.
-		#[weight = (<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No)]
-		fn claim(origin, ethereum_signature: EcdsaSignature)  {
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			self.claims.iter().for_each(|(eth_address, initial_balance)| {
+				Claims::<T>::mutate(eth_address, |amount| *amount += *initial_balance)
+			})
+		}
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
+		pub fn claim(origin: OriginFor<T>, ethereum_signature: EcdsaSignature) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
 			let (balance_due, address) = Self::validate_claim(&sender, &ethereum_signature)?;
 
 			Self::process_claim(sender, balance_due, address)?;
-		}
 
-		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			migration::import_initial_claims::<T>(&claims_data::CLAIMS_DATA)
+			Ok(().into())
 		}
 	}
 }
 
-impl<T: Config> Module<T> {
+impl<T: Config> Pallet<T> {
 	fn validate_claim(
 		who: &T::AccountId,
 		signature: &EcdsaSignature,
@@ -138,7 +156,7 @@ impl<T: Config> Module<T> {
 
 		Claims::<T>::mutate(address, |bal| *bal = Zero::zero());
 
-		Self::deposit_event(RawEvent::Claim(dest, address, balance_due));
+		Self::deposit_event(Event::Claim(dest, address, balance_due));
 
 		Ok(())
 	}
