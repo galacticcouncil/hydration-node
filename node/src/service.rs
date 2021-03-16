@@ -207,7 +207,6 @@ pub fn new_full(
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
-	//let telemetry_connection_sinks = sc_service::TelemetryConnectionSinks::default();
 
 	let (_rpc_handlers, telemetry_connection_notifier) = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
