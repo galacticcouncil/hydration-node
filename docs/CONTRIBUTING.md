@@ -120,12 +120,12 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 ## <a name="conventional"></a> Pull Request Naming Guidelines
 
-We have very precise rules over how our git commit messages can be formatted.  This leads to **more
+We have very precise rules over how our git pull request names can be formatted.  This leads to **more
 readable messages** that are easy to follow when looking through the **project history**.  But also,
-we use the git commit messages to **generate the change logs**.
+we use the git merge commit messages to **generate the change logs**.
 
 ### The format
-Each commit message consists of a **header**, a **body** and a **footer**.  The header has a special
+Each pull-request name consists of a **header**, a **body** and a **footer**.  The header has a special
 format that includes a **type**, a **scope** and a **subject**:
 
 ```
@@ -159,7 +159,7 @@ Must be one of the following:
 * **test**: Adding missing tests or correcting existing tests (example scopes: amm, claims)
 
 ### Scope
-The scope should be the name of the affected module (as perceived by the person reading the changelog generated from commit messages).
+The scope should be the name of the affected module (as perceived by the person reading the changelog generated from merge commit messages).
 If the PR touches more than one thing, leave it blank and try to use subject to describe the change.
 
 ### Subject
