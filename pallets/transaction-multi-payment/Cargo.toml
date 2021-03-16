@@ -44,7 +44,7 @@ sp-runtime = {default-features = false, version = '2.0.0'}
 sp-api= {default-features = false, version = '2.0.0'}
 pallet-balances = {default-features = false, version = '2.0.0' }
 pallet-asset-registry = {path = '../asset-registry', default-features = false, version = '2.0.0'}
-pallet-amm = {path = '../amm', default-features = false, version = '2.0.0'}
+pallet-amm = {path = '../amm', default-features = false }
 
 [dev-dependencies]
 sp-io = {default-features = false, version = '2.0.0'}
