@@ -26,7 +26,7 @@ primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependencies
-primitives = {path = '../../primitives', default-features = false, version = '3.0.0'}
+primitives = {path = '../../primitives', default-features = false}
 
 # Substrate dependencies
 frame-support = {default-features = false, version = '3.0.0'}

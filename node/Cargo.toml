@@ -24,9 +24,9 @@ serde_json = "1.0.61"
 structopt = '0.3.8'
 
 # local dependencies
-hydra-dx-runtime = {path = '../runtime', version = '3.0.0'}
-module-amm-rpc = {path = '../pallets/amm/rpc', version = '3.0.0'}
-primitives = {path = '../primitives', version = '3.0.0'}
+hydra-dx-runtime = {path = '../runtime'}
+module-amm-rpc = {path = '../pallets/amm/rpc'}
+primitives = {path = '../primitives'}
 
 # Substrate dependencies
 frame-benchmarking = '3.0.0'

@@ -33,7 +33,7 @@ hex-literal = '0.3.1'
 lazy_static = {features = ['spin_no_std'], version = "1.4.0"}
 
 # Local dependencies
-primitives = {path = '../../primitives', default-features = false, version = '3.0.0'}
+primitives = {path = '../../primitives', default-features = false}
 
 # ORML dependencies
 orml-traits = { default-features = false, version = '0.4.1-dev' }

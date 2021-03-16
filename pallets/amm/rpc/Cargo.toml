@@ -8,7 +8,6 @@ version = '3.0.0'
 default-features = false
 package = 'module-amm-rpc-runtime-api'
 path = 'runtime-api'
-version = '3.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']

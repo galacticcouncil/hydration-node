@@ -28,8 +28,8 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 hydra-dx-math = {default-features = false, version = "1.0.0", git = "https://github.com/galacticcouncil/hydraDX-math", tag="v1.0.0"}
 
 # Local dependencies
-pallet-asset-registry = {path = '../asset-registry', default-features = false, version = '3.0.0'}
-primitives = {path = '../../primitives', default-features = false, version = '3.0.0'}
+pallet-asset-registry = {path = '../asset-registry', default-features = false}
+primitives = {path = '../../primitives', default-features = false}
 
 # ORML dependencies
 orml-tokens = {default-features = false, version = "0.4.1-dev"}
