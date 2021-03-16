@@ -1,5 +1,5 @@
 use codec::{Decode, Encode};
-use sp_runtime::RuntimeDebug;
+use frame_support::sp_runtime::RuntimeDebug;
 use sp_std::{convert::TryFrom, vec::Vec};
 
 use sp_std::prelude::*;

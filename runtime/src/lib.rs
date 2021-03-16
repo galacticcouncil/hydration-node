@@ -34,7 +34,7 @@ pub use frame_support::{
 	traits::{Get, KeyOwnerProofSystem, LockIdentifier, Randomness},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass, IdentityFee, Weight,
+		DispatchClass, IdentityFee, Pays, Weight,
 	},
 	StorageValue,
 };
@@ -271,6 +271,7 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
+	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -285,7 +286,9 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMM;
-	type WeightInfo = pallet_transaction_multi_payment::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
+	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
+	type WeightToFee = IdentityFee<Balance>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -333,7 +336,7 @@ impl pallet_amm::Config for Runtime {
 	type AssetPairAccountId = pallet_amm::AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type HDXAssetId = HDXAssetId;
-	type WeightInfo = pallet_amm::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_amm::weights::HydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
 }
 
@@ -342,7 +345,7 @@ impl pallet_exchange::Config for Runtime {
 	type AMMPool = AMM;
 	type Resolver = Exchange;
 	type Currency = Currencies;
-	type WeightInfo = pallet_exchange::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_exchange::weights::HydraWeight<Runtime>;
 }
 
 impl pallet_faucet::Config for Runtime {
@@ -646,39 +649,6 @@ impl_runtime_apis! {
 		AssetId,
 		Balance,
 	> for Runtime {
-		fn get_spot_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_spot_price(asset_a,asset_b, amount)
-			}
-		}
-
-		fn get_sell_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_sell_price(asset_a,asset_b, amount)
-			}
-		}
-
-		fn get_buy_price(
-			asset_a: AssetId,
-			asset_b: AssetId,
-			amount: Balance,
-		) -> amm_rpc::BalanceInfo<AssetId, Balance> {
-			 amm_rpc::BalanceInfo{
-				 asset: None,
-				amount: AMM::get_buy_price(asset_a,asset_b, amount)
-			}
-		}
-
 		fn get_pool_balances(
 			pool_address: AccountId,
 		) -> Vec<amm_rpc::BalanceInfo<AssetId, Balance>> {

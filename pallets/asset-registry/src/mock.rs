@@ -1,5 +1,5 @@
-use crate as asset_registry;
-use crate::{Config, Module};
+#![cfg(test)]
+
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -7,6 +7,8 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+
+use crate::{self as asset_registry, Config, Module};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;

@@ -1,5 +1,8 @@
 use super::*;
-pub use crate::mock::{Currency, Event as TestEvent, ExtBuilder, Origin, System, Test, ALICE, AMM as AMMModule, FERDIE, GEORGE, Exchange , ETH, DAVE, BOB, DOT, HDX, CHARLIE};
+pub use crate::mock::{
+	Currency, Event as TestEvent, Exchange, ExtBuilder, Origin, System, Test, ALICE, AMM as AMMModule, BOB, CHARLIE,
+	DAVE, DOT, ETH, FERDIE, GEORGE, HDX,
+};
 use frame_support::sp_runtime::traits::Hash;
 use frame_support::traits::OnFinalize;
 use frame_support::{assert_noop, assert_ok};
@@ -60,11 +63,12 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 		price.checked_mul_int(amount).unwrap()
 	};
 
-	expect_event(amm::RawEvent::CreatePool(
-		user, asset_a, asset_b, shares,
-	));
+	expect_event(amm::Event::CreatePool(user, asset_a, asset_b, shares));
 
-	let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+	let pair_account = AMMModule::get_pair_id(AssetPair {
+		asset_in: asset_a,
+		asset_out: asset_b,
+	});
 	let share_token = AMMModule::share_token(pair_account);
 
 	let amount_b = price.saturating_mul_int(amount);
@@ -81,12 +85,7 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	assert_eq!(Currency::free_balance(share_token, &user), shares);
 
 	// Advance blockchain so that we kill old events
-	System::initialize(
-		&1,
-		&[0u8; 32].into(),
-		&Default::default(),
-		InitKind::Full,
-	);
+	System::initialize(&1, &[0u8; 32].into(), &Default::default(), InitKind::Full);
 }
 
 #[test]
@@ -100,7 +99,10 @@ fn sell_test_pool_finalization_states() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -141,7 +143,7 @@ fn sell_test_pool_finalization_states() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -150,7 +152,7 @@ fn sell_test_pool_finalization_states() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_a,
 				asset_b,
@@ -159,7 +161,7 @@ fn sell_test_pool_finalization_states() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
 				user_2_sell_intention_id,
@@ -168,10 +170,10 @@ fn sell_test_pool_finalization_states() {
 				2000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
-			amm::RawEvent::Sell(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
+			amm::Event::Sell(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
 				user_2_sell_intention_id,
@@ -208,7 +210,10 @@ fn sell_test_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -254,7 +259,7 @@ fn sell_test_standard() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -263,7 +268,7 @@ fn sell_test_standard() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_a,
 				asset_b,
@@ -272,7 +277,7 @@ fn sell_test_standard() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
 				user_2_sell_intention_id,
@@ -281,10 +286,10 @@ fn sell_test_standard() {
 				2000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
-			amm::RawEvent::Sell(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
+			amm::Event::Sell(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
 				user_2_sell_intention_id,
@@ -307,7 +312,10 @@ fn sell_test_inverse_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -355,7 +363,7 @@ fn sell_test_inverse_standard() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -364,7 +372,7 @@ fn sell_test_inverse_standard() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -373,8 +381,8 @@ fn sell_test_inverse_standard() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Sell(3, 2000, 3000, 2000000000000, 988138378978).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Sell(3, 2000, 3000, 2000000000000, 988138378978).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
 				user_3_sell_intention_id,
@@ -382,7 +390,7 @@ fn sell_test_inverse_standard() {
 				988138378978,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
 				user_2_sell_intention_id,
@@ -391,8 +399,8 @@ fn sell_test_inverse_standard() {
 				2000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
 		]);
 	});
 }
@@ -408,7 +416,10 @@ fn sell_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -453,7 +464,7 @@ fn sell_test_exact_match() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -462,7 +473,7 @@ fn sell_test_exact_match() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -471,7 +482,7 @@ fn sell_test_exact_match() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
 				user_2_sell_intention_id,
@@ -480,8 +491,8 @@ fn sell_test_exact_match() {
 				2000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
 		]);
 	});
 }
@@ -497,7 +508,10 @@ fn sell_test_single_eth_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -540,7 +554,7 @@ fn sell_test_single_eth_sells() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -549,7 +563,7 @@ fn sell_test_single_eth_sells() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_a,
 				asset_b,
@@ -558,14 +572,8 @@ fn sell_test_single_eth_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Sell(
-				user_3,
-				asset_a,
-				asset_b,
-				2000000000000,
-				3913878975647,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Sell(user_3, asset_a, asset_b, 2000000000000, 3913878975647).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
 				user_3_sell_intention_id,
@@ -573,14 +581,8 @@ fn sell_test_single_eth_sells() {
 				3913878975647,
 			)
 			.into(),
-			amm::RawEvent::Sell(
-				user_2,
-				asset_a,
-				asset_b,
-				1000000000000,
-				1899978143094,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Sell(user_2, asset_a, asset_b, 1000000000000, 1899978143094).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
 				user_2_sell_intention_id,
@@ -603,7 +605,10 @@ fn sell_test_single_dot_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -634,19 +639,19 @@ fn sell_test_single_dot_sells() {
 		<Exchange as OnFinalize<u64>>::on_finalize(9);
 
 		// Check final account balances -> SEEMS LEGIT
-		assert_eq!(Currency::free_balance(asset_a, &user_2), 1_000_496_522_353_457);
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 1000486772470162);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 999_000_000_000_000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1_000_978_388_447_963);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1000988138378978);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 998_000_000_000_000);
 
 		// Check final pool balances -> SEEMS LEGIT
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 98_525_089_198_580);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 98525089150860);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 203_000_000_000_000);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_b,
 				asset_a,
@@ -655,7 +660,7 @@ fn sell_test_single_dot_sells() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -664,34 +669,107 @@ fn sell_test_single_dot_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Sell(
-				user_2,
-				asset_b,
-				asset_a,
-				1000000000000,
-				496522353457,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
-				user_2,
-				IntentionType::SELL,
-				user_2_sell_intention_id,
-				1000000000000,
-				496522353457,
-			)
-			.into(),
-			amm::RawEvent::Sell(
-				user_3,
-				asset_b,
-				asset_a,
-				2000000000000,
-				978388447963,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Sell(user_3, asset_b, asset_a, 2000000000000, 988138378978).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				2000000000000,
-				978388447963,
+				988138378978,
+			)
+			.into(),
+			amm::Event::Sell(user_2, asset_b, asset_a, 1000000000000, 486772470162).into(),
+			Event::IntentionResolvedAMMTrade(
+				user_2,
+				IntentionType::SELL,
+				user_2_sell_intention_id,
+				1000000000000,
+				486772470162,
+			)
+			.into(),
+		]);
+	});
+}
+
+#[test]
+fn sell_trade_limits_respected_for_matched_intention() {
+	new_test_ext().execute_with(|| {
+		let user_1 = ALICE;
+		let user_2 = BOB;
+		let user_3 = CHARLIE;
+		let asset_a = ETH;
+		let asset_b = DOT;
+
+		let pool_amount = 100_000_000_000_000;
+		let initial_price = Price::from(2);
+
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
+
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			100_000_000_000,
+			false,
+		));
+
+		assert_ok!(Exchange::sell(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			1_000_000_000_000,
+			100_000_000_000_000_000, // Limit set to absurd amount which can't go through
+			false,
+		));
+		let user_3_sell_intention_id = generate_intention_id(&user_3, 1);
+
+		let user_2_sell_intention_id = generate_intention_id(&user_2, 0);
+
+		// Finalize block
+		<Exchange as OnFinalize<u64>>::on_finalize(9);
+
+		expect_events(vec![
+			Event::IntentionRegistered(
+				user_2,
+				asset_a,
+				asset_b,
+				1_000_000_000_000,
+				IntentionType::SELL,
+				user_2_sell_intention_id,
+			)
+			.into(),
+			Event::IntentionRegistered(
+				user_3,
+				asset_b,
+				asset_a,
+				1_000_000_000_000,
+				IntentionType::SELL,
+				user_3_sell_intention_id,
+			)
+			.into(),
+			Event::IntentionResolveErrorEvent(
+				user_3,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
+				IntentionType::SELL,
+				user_3_sell_intention_id,
+				DispatchError::Module {
+					index: 1,
+					error: 2,
+					message: None,
+				},
+			)
+			.into(),
+			amm::Event::Sell(user_2, asset_a, asset_b, 1000000000000, 1976276757956).into(),
+			Event::IntentionResolvedAMMTrade(
+				user_2,
+				IntentionType::SELL,
+				user_2_sell_intention_id,
+				1000000000000,
+				1976276757956,
 			)
 			.into(),
 		]);
@@ -713,7 +791,10 @@ fn sell_test_single_multiple_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -785,7 +866,7 @@ fn sell_test_single_multiple_sells() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -794,7 +875,7 @@ fn sell_test_single_multiple_sells() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -803,7 +884,7 @@ fn sell_test_single_multiple_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_4,
 				asset_a,
 				asset_b,
@@ -812,7 +893,7 @@ fn sell_test_single_multiple_sells() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_5,
 				asset_b,
 				asset_a,
@@ -821,7 +902,7 @@ fn sell_test_single_multiple_sells() {
 				user_5_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_6,
 				asset_b,
 				asset_a,
@@ -830,7 +911,7 @@ fn sell_test_single_multiple_sells() {
 				user_6_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_6,
 				user_2_sell_intention_id,
@@ -839,9 +920,9 @@ fn sell_test_single_multiple_sells() {
 				2000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_6, pair_account, asset_a, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_6, pair_account, asset_a, 2000000000).into(),
+			Event::IntentionResolvedDirectTrade(
 				user_4,
 				user_3,
 				user_4_sell_intention_id,
@@ -850,16 +931,10 @@ fn sell_test_single_multiple_sells() {
 				1000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1000000000).into(),
-			amm::RawEvent::Sell(
-				user_4,
-				asset_a,
-				asset_b,
-				500000000000,
-				993044854829,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 2000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1000000000).into(),
+			amm::Event::Sell(user_4, asset_a, asset_b, 500000000000, 993044854829).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
 				user_4_sell_intention_id,
@@ -867,14 +942,8 @@ fn sell_test_single_multiple_sells() {
 				993044854829,
 			)
 			.into(),
-			amm::RawEvent::Sell(
-				user_5,
-				asset_b,
-				asset_a,
-				1000000000000,
-				501482500933,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Sell(user_5, asset_b, asset_a, 1000000000000, 501482500933).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_5,
 				IntentionType::SELL,
 				user_5_sell_intention_id,
@@ -899,7 +968,10 @@ fn sell_test_group_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -940,20 +1012,20 @@ fn sell_test_group_sells() {
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 1002495000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 995000000000000);
 
-		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001702327336909);
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 1001497000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_3), 997000000000000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_4), 990000000000000);
-		assert_eq!(Currency::free_balance(asset_b, &user_4), 1018917573262630);
+		assert_eq!(Currency::free_balance(asset_b, &user_4), 1019283443450697);
 
 		// Check final pool balances
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 105802672663091);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 189082426737370);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 106008000000000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 188716556549303);
 
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_b,
 				asset_a,
@@ -962,7 +1034,7 @@ fn sell_test_group_sells() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -971,7 +1043,7 @@ fn sell_test_group_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_4,
 				asset_a,
 				asset_b,
@@ -980,7 +1052,7 @@ fn sell_test_group_sells() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_4,
 				user_2,
 				user_4_sell_intention_id,
@@ -989,47 +1061,58 @@ fn sell_test_group_sells() {
 				5000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
-			amm::RawEvent::Sell(
+			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
+			Event::IntentionResolvedDirectTrade(
 				user_4,
-				asset_a,
-				asset_b,
-				7500000000000,
-				13927573262630,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+				user_3,
+				user_4_sell_intention_id,
+				user_3_sell_intention_id,
+				1500000000000,
+				3000000000000,
+			)
+			.into(),
+			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
+			amm::Event::Sell(user_4, asset_a, asset_b, 6000000000000, 11299443450697).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
 				user_4_sell_intention_id,
-				7500000000000,
-				13927573262630,
-			)
-			.into(),
-			amm::RawEvent::Sell(
-				user_3,
-				asset_b,
-				asset_a,
-				3000000000000,
-				1702327336909,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
-				user_3,
-				IntentionType::SELL,
-				user_3_sell_intention_id,
-				3000000000000,
-				1702327336909,
+				6000000000000,
+				11299443450697,
 			)
 			.into(),
 		]);
 	});
 }
+
 #[test]
-fn sell_without_pool_should_not_work() {
+fn trades_without_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 100, 200, false),
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000, 200, false),
 			Error::<Test>::TokenPoolNotFound
+		);
+
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), HDX, ETH, 1000, 200, false),
+			Error::<Test>::TokenPoolNotFound
+		);
+	});
+}
+
+#[test]
+fn trade_min_limit() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Error::<Test>::MinimumTradeLimitNotReached
+		);
+
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Error::<Test>::MinimumTradeLimitNotReached
 		);
 	});
 }
@@ -1045,8 +1128,15 @@ fn sell_more_than_owner_should_not_work() {
 			Price::from(2)
 		));
 
+		// With SELL
 		assert_noop!(
 			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 1000_000_000_000_000u128, 1, false),
+			Error::<Test>::InsufficientAssetBalance
+		);
+
+		// With BUY
+		assert_noop!(
+			Exchange::buy(Origin::signed(ALICE), ETH, HDX, 3000_000_000_000_000u128, 1, false),
 			Error::<Test>::InsufficientAssetBalance
 		);
 	});
@@ -1065,7 +1155,10 @@ fn sell_test_mixed_buy_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1119,7 +1212,7 @@ fn sell_test_mixed_buy_sells() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_b,
 				asset_a,
@@ -1128,7 +1221,7 @@ fn sell_test_mixed_buy_sells() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1137,7 +1230,7 @@ fn sell_test_mixed_buy_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_4,
 				asset_a,
 				asset_b,
@@ -1146,7 +1239,7 @@ fn sell_test_mixed_buy_sells() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_4,
 				user_3,
 				user_4_sell_intention_id,
@@ -1155,16 +1248,10 @@ fn sell_test_mixed_buy_sells() {
 				3000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::RawEvent::Sell(
-				user_4,
-				asset_a,
-				asset_b,
-				8500000000000,
-				15639353446528,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
+			amm::Event::Sell(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
 				user_4_sell_intention_id,
@@ -1172,14 +1259,8 @@ fn sell_test_mixed_buy_sells() {
 				15639353446528,
 			)
 			.into(),
-			amm::RawEvent::Buy(
-				user_2,
-				asset_b,
-				asset_a,
-				5000000000000,
-				3030832926719,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Buy(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
 				user_2_sell_intention_id,
@@ -1204,7 +1285,10 @@ fn discount_tests_no_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1258,7 +1342,7 @@ fn discount_tests_no_discount() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_b,
 				asset_a,
@@ -1267,7 +1351,7 @@ fn discount_tests_no_discount() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1276,7 +1360,7 @@ fn discount_tests_no_discount() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_4,
 				asset_a,
 				asset_b,
@@ -1285,7 +1369,7 @@ fn discount_tests_no_discount() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_4,
 				user_3,
 				user_4_sell_intention_id,
@@ -1294,16 +1378,10 @@ fn discount_tests_no_discount() {
 				3000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::RawEvent::Sell(
-				user_4,
-				asset_a,
-				asset_b,
-				8500000000000,
-				15639353446528,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
+			amm::Event::Sell(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
 				user_4_sell_intention_id,
@@ -1311,14 +1389,8 @@ fn discount_tests_no_discount() {
 				15639353446528,
 			)
 			.into(),
-			amm::RawEvent::Buy(
-				user_2,
-				asset_b,
-				asset_a,
-				5000000000000,
-				3030832926719,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Buy(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
 				user_2_sell_intention_id,
@@ -1343,7 +1415,10 @@ fn discount_tests_with_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 		initialize_pool(asset_a, HDX, user_2, pool_amount, initial_price);
@@ -1403,7 +1478,7 @@ fn discount_tests_with_discount() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_b,
 				asset_a,
@@ -1412,7 +1487,7 @@ fn discount_tests_with_discount() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1421,7 +1496,7 @@ fn discount_tests_with_discount() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_4,
 				asset_a,
 				asset_b,
@@ -1430,7 +1505,7 @@ fn discount_tests_with_discount() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_4,
 				user_3,
 				user_4_sell_intention_id,
@@ -1439,16 +1514,10 @@ fn discount_tests_with_discount() {
 				3000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::RawEvent::Sell(
-				user_4,
-				asset_a,
-				asset_b,
-				8500000000000,
-				15658130468064,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
+			amm::Event::Sell(user_4, asset_a, asset_b, 8500000000000, 15658130468064).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
 				user_4_sell_intention_id,
@@ -1456,14 +1525,8 @@ fn discount_tests_with_discount() {
 				15658130468064,
 			)
 			.into(),
-			amm::RawEvent::Buy(
-				user_2,
-				asset_b,
-				asset_a,
-				5000000000000,
-				3027107914884,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Buy(user_2, asset_b, asset_a, 5000000000000, 3027107914884).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
 				user_2_sell_intention_id,
@@ -1486,7 +1549,10 @@ fn buy_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1528,7 +1594,7 @@ fn buy_test_exact_match() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -1537,7 +1603,7 @@ fn buy_test_exact_match() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1546,7 +1612,7 @@ fn buy_test_exact_match() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_3,
 				user_2,
 				user_3_sell_intention_id,
@@ -1555,8 +1621,8 @@ fn buy_test_exact_match() {
 				2000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 2000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4000000000).into(),
 		]);
 	});
 }
@@ -1574,7 +1640,10 @@ fn buy_test_group_buys() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1628,7 +1697,7 @@ fn buy_test_group_buys() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_b,
 				asset_a,
@@ -1637,7 +1706,7 @@ fn buy_test_group_buys() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1646,7 +1715,7 @@ fn buy_test_group_buys() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_4,
 				asset_a,
 				asset_b,
@@ -1655,14 +1724,8 @@ fn buy_test_group_buys() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Buy(
-				user_4,
-				asset_a,
-				asset_b,
-				7500000000000,
-				16251283991999,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Buy(user_4, asset_a, asset_b, 7500000000000, 16251283991999).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::BUY,
 				user_4_sell_intention_id,
@@ -1670,7 +1733,7 @@ fn buy_test_group_buys() {
 				16251283991999,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_4,
 				user_2_sell_intention_id,
@@ -1679,16 +1742,10 @@ fn buy_test_group_buys() {
 				5000000000000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
-			amm::RawEvent::Buy(
-				user_3,
-				asset_b,
-				asset_a,
-				3000000000000,
-				1303930316730,
-			).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
+			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
+			amm::Event::Buy(user_3, asset_b, asset_a, 3000000000000, 1303930316730).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::BUY,
 				user_3_sell_intention_id,
@@ -1713,7 +1770,10 @@ fn discount_tests_with_error() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1771,7 +1831,7 @@ fn discount_tests_with_error() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_b,
 				asset_a,
@@ -1780,7 +1840,7 @@ fn discount_tests_with_error() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1789,7 +1849,7 @@ fn discount_tests_with_error() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_4,
 				asset_a,
 				asset_b,
@@ -1798,41 +1858,47 @@ fn discount_tests_with_error() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			RawEvent::AMMSellErrorEvent(
+			Event::IntentionResolveErrorEvent(
 				user_4,
-				asset_a,
-				asset_b,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::SELL,
 				user_4_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 23,
+					error: 19,
 					message: None,
 				},
 			)
 			.into(),
-			RawEvent::AMMBuyErrorEvent(
+			Event::IntentionResolveErrorEvent(
 				user_2,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::BUY,
 				user_2_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 23,
+					error: 19,
 					message: None,
 				},
 			)
 			.into(),
-			RawEvent::IntentionResolveErrorEvent(
+			Event::IntentionResolveErrorEvent(
 				user_3,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 23,
+					error: 19,
 					message: None,
 				},
 			)
@@ -1852,7 +1918,10 @@ fn simple_sell_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1890,7 +1959,7 @@ fn simple_sell_sell() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 199997008);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -1899,7 +1968,7 @@ fn simple_sell_sell() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1908,7 +1977,7 @@ fn simple_sell_sell() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
 				user_2_sell_intention_id,
@@ -1917,11 +1986,10 @@ fn simple_sell_sell() {
 				1000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
-			amm::RawEvent::Sell(2, 3000, 2000, 1500, 2994).into(),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1500, 2994)
-				.into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
+			amm::Event::Sell(2, 3000, 2000, 1500, 2994).into(),
+			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1500, 2994).into(),
 		]);
 	});
 }
@@ -1937,7 +2005,10 @@ fn simple_buy_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -1975,7 +2046,7 @@ fn simple_buy_buy() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200003009);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -1984,7 +2055,7 @@ fn simple_buy_buy() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -1993,10 +2064,9 @@ fn simple_buy_buy() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Buy(2, 3000, 2000, 1500, 3007).into(),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1500, 3007)
-				.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			amm::Event::Buy(2, 3000, 2000, 1500, 3007).into(),
+			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1500, 3007).into(),
+			Event::IntentionResolvedDirectTrade(
 				user_3,
 				user_2,
 				user_3_sell_intention_id,
@@ -2005,8 +2075,8 @@ fn simple_buy_buy() {
 				1000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
 		]);
 	});
 }
@@ -2022,7 +2092,10 @@ fn simple_sell_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2061,7 +2134,7 @@ fn simple_sell_buy() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 199998010);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -2070,7 +2143,7 @@ fn simple_sell_buy() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_a,
 				asset_b,
@@ -2079,7 +2152,7 @@ fn simple_sell_buy() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
 				user_2_sell_intention_id,
@@ -2088,11 +2161,10 @@ fn simple_sell_buy() {
 				2000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4).into(),
-			amm::RawEvent::Sell(2, 3000, 2000, 1000, 1996).into(),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1000, 1996)
-				.into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4).into(),
+			amm::Event::Sell(2, 3000, 2000, 1000, 1996).into(),
+			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1000, 1996).into(),
 		]);
 	});
 }
@@ -2108,7 +2180,10 @@ fn simple_buy_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2147,7 +2222,7 @@ fn simple_buy_sell() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200002011);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -2156,7 +2231,7 @@ fn simple_buy_sell() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_a,
 				asset_b,
@@ -2165,10 +2240,9 @@ fn simple_buy_sell() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Buy(user_2, 3000, 2000, 1000, 2005).into(),
-			RawEvent::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1000, 2005)
-				.into(),
-			RawEvent::IntentionResolvedDirectTrade(
+			amm::Event::Buy(user_2, 3000, 2000, 1000, 2005).into(),
+			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1000, 2005).into(),
+			Event::IntentionResolvedDirectTrade(
 				user_3,
 				user_2,
 				user_3_sell_intention_id,
@@ -2177,8 +2251,8 @@ fn simple_buy_sell() {
 				2000,
 			)
 			.into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 2).into(),
-			RawEvent::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4).into(),
+			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 2).into(),
+			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 4).into(),
 		]);
 	});
 }
@@ -2193,7 +2267,10 @@ fn single_sell_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2223,7 +2300,7 @@ fn single_sell_intention_test() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -2232,8 +2309,8 @@ fn single_sell_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Sell(2, 3000, 2000, 2000000000000, 3913878975647).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Sell(2, 3000, 2000, 2000000000000, 3913878975647).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
 				user_2_sell_intention_id,
@@ -2255,7 +2332,10 @@ fn single_buy_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2286,7 +2366,7 @@ fn single_buy_intention_test() {
 		assert_eq!(Exchange::get_intentions_count((asset_b, asset_a)), 0);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -2295,8 +2375,8 @@ fn single_buy_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			amm::RawEvent::Buy(2, 3000, 2000, 2000000000000, 4089962855627).into(),
-			RawEvent::IntentionResolvedAMMTrade(
+			amm::Event::Buy(2, 3000, 2000, 2000000000000, 4089962855627).into(),
+			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
 				user_2_sell_intention_id,
@@ -2319,7 +2399,10 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMMModule::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -2360,7 +2443,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 200000000);
 
 		expect_events(vec![
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_2,
 				asset_a,
 				asset_b,
@@ -2369,7 +2452,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			RawEvent::IntentionRegistered(
+			Event::IntentionRegistered(
 				user_3,
 				asset_b,
 				asset_a,
@@ -2378,28 +2461,32 @@ fn simple_sell_sell_with_error_should_not_pass() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			RawEvent::AMMSellErrorEvent(
+			Event::IntentionResolveErrorEvent(
 				user_2,
-				asset_a,
-				asset_b,
+				AssetPair {
+					asset_in: asset_a,
+					asset_out: asset_b,
+				},
 				IntentionType::SELL,
 				user_2_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 5,
+					error: 8,
 					message: None,
 				},
 			)
 			.into(),
-			RawEvent::IntentionResolveErrorEvent(
+			Event::IntentionResolveErrorEvent(
 				user_3,
-				asset_b,
-				asset_a,
+				AssetPair {
+					asset_in: asset_b,
+					asset_out: asset_a,
+				},
 				IntentionType::SELL,
 				user_3_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 5,
+					error: 8,
 					message: None,
 				},
 			)

@@ -14,20 +14,27 @@ targets = ['x86_64-unknown-linux-gnu']
 [build-dependencies]
 wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '1.0.5' }
 
+# alias "parity-scale-code" to "codec"
+[dependencies.codec]
+default-features = false
+features = ['derive']
+package = 'parity-scale-codec'
+version = '2.0.0'
+
 [dependencies]
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
-codec = {package = 'parity-scale-codec', version = '2.0.0', default-features = false, features = ['derive']}
 
 # Local dependencies
-primitives = { path = '../../../primitives', default-features = false, version = '3.0.0' }
-pallet-asset-registry= { path = '../../asset-registry', default-features = false, version = '3.0.0' }
-pallet-amm = { path = '../../amm', default-features = false, version = '3.0.0' }
-pallet-transaction-multi-payment = { path = '../../transaction-multi-payment', default-features = false, version = '3.0.0' }
+primitives = { path = '../../../primitives', default-features = false }
+pallet-asset-registry= { path = '../../asset-registry', default-features = false }
+pallet-amm = { path = '../../amm', default-features = false }
+pallet-transaction-multi-payment = { path = '../../transaction-multi-payment', default-features = false }
 
 # ORML dependencies
 orml-traits = { default-features = false, version = "0.4.1-dev" }
 orml-tokens = { default-features = false, version = "0.4.1-dev" }
 orml-currencies= { default-features = false, version = "0.4.1-dev" }
+orml-utilities = {default-features = false, version = "0.4.1-dev"}
 
 # Substrate dependencies
 frame-system = { default-features = false, version = '3.0.0' }

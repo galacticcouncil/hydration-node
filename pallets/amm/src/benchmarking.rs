@@ -20,7 +20,8 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
-use system::RawOrigin;
+use frame_system::RawOrigin;
+use sp_std::prelude::*;
 
 use crate::Module as AMM;
 

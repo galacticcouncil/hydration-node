@@ -1726,9 +1726,6 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11498d382790b7a8f2fd211780bec78619bba81cdad3a283997c0c41f836759c"
 dependencies = [
- "byteorder",
- "rand 0.7.3",
- "rustc-hex",
  "static_assertions",
 ]
 
@@ -2639,8 +2636,8 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hydra-dx-math"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/hydraDX-math?branch=cumulus#72fe3b666819339c624697a2703e57a886ffcdb2"
+version = "1.0.0"
+source = "git+https://github.com/galacticcouncil/hydraDX-math?tag=v1.0.0#3bcb2baa335f8f3d0ccac4aea1c80b44453201c5"
 dependencies = [
  "primitive-types 0.7.3",
 ]
@@ -4461,15 +4458,17 @@ dependencies = [
  "hydra-dx-math",
  "orml-tokens",
  "orml-traits",
+ "orml-utilities",
  "pallet-asset-registry",
  "parity-scale-codec 2.0.1",
- "primitive-types 0.7.3",
+ "primitive-types 0.8.0",
  "primitives",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
@@ -4479,13 +4478,14 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec 2.0.1",
- "primitive-types 0.7.3",
+ "primitive-types 0.8.0",
  "primitives",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
@@ -4667,13 +4667,14 @@ dependencies = [
  "pallet-amm",
  "pallet-asset-registry",
  "parity-scale-codec 2.0.1",
- "primitive-types 0.7.3",
+ "primitive-types 0.8.0",
  "primitives",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
@@ -4715,6 +4716,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
@@ -4815,6 +4817,7 @@ dependencies = [
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
+ "orml-utilities",
  "pallet-amm",
  "pallet-asset-registry",
  "pallet-balances",
@@ -5057,12 +5060,13 @@ dependencies = [
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
+ "orml-utilities",
  "pallet-amm",
  "pallet-asset-registry",
  "pallet-balances",
  "pallet-transaction-payment",
  "parity-scale-codec 2.0.1",
- "primitive-types 0.7.3",
+ "primitive-types 0.8.0",
  "primitives",
  "serde",
  "sp-api",
@@ -5070,6 +5074,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
@@ -6650,8 +6655,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dd39dcacf71411ba488570da7bbc89b717225e46478b30ba99b92db6b149809"
 dependencies = [
  "fixed-hash 0.6.1",
- "impl-codec 0.4.2",
  "uint 0.8.5",
+]
+
+[[package]]
+name = "primitive-types"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3824ae2c5e27160113b9e029a10ec9e3f0237bad8029f69c7724393c9fdefd8"
+dependencies = [
+ "fixed-hash 0.7.0",
+ "impl-codec 0.4.2",
+ "uint 0.9.0",
 ]
 
 [[package]]
@@ -6674,7 +6689,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec 2.0.1",
- "primitive-types 0.7.3",
+ "primitive-types 0.8.0",
  "serde",
  "sp-core",
  "sp-io",

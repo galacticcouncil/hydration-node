@@ -1,0 +1,65 @@
+[package]
+authors = ['GalacticCouncil']
+description = 'HydraDX Claims Module'
+edition = '2018'
+homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
+license = 'Unlicense'
+name = 'pallet-claims'
+repository = 'https://github.com/galacticcouncil/hack.hydradx-node'
+version = '3.0.0'
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+# alias "parity-scale-code" to "codec"
+[dependencies.codec]
+default-features = false
+features = ['derive']
+package = 'parity-scale-codec'
+version = '2.0.0'
+
+[dependencies]
+# Substrate dependencies
+frame-support = { default-features = false, version = '3.0.0' }
+frame-system = { default-features = false, version = '3.0.0' }
+frame-benchmarking = { version = "3.0.0", default-features = false, optional = true }
+rustc-hex = { version = '2.1.0', default-features = false }
+serde = { optional = true, version = '1.0.101', features = ['derive'] }
+sp-io = { default-features = false, version = '3.0.0' }
+sp-runtime = { default-features = false, version = '3.0.0' }
+sp-std = { default-features = false, version = '3.0.0' }
+hex = {default-features = false, version = "0.4.2"}
+hex-literal = '0.3.1'
+lazy_static = {features = ['spin_no_std'], version = "1.4.0"}
+
+# Local dependencies
+primitives = {path = '../../primitives', default-features = false}
+
+# ORML dependencies
+orml-traits = { default-features = false, version = '0.4.1-dev' }
+orml-tokens = { default-features = false, version = '0.4.1-dev' }
+orml-utilities = { default-features = false, version = '0.4.1-dev' }
+
+[dev-dependencies]
+sp-core = { default-features = false, version = '3.0.0' }
+hex-literal = '0.3.1'
+pallet-balances = { version = "3.0.0" }
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'orml-traits/std',
+    'orml-tokens/std',
+    'orml-utilities/std',
+    'primitives/std',
+    'rustc-hex/std',
+    'serde/std',
+]
+runtime-benchmarks = [
+	"frame-benchmarking",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+]
