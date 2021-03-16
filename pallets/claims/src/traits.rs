@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_slicing)]
+
 use codec::{Decode, Encode};
 
 use sp_io::{crypto::secp256k1_ecdsa_recover, hashing::keccak_256};

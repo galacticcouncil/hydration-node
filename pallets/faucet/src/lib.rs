@@ -1,7 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![allow(clippy::unused_unit)]
+
 use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
+	ensure,
 	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
@@ -15,61 +17,115 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub trait Config: frame_system::Config {
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
-	type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
-}
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
 
-decl_storage! {
-	trait Store for Module<T: Config> as Faucet {
-		pub Minted get(fn minted): u8;
-		pub MintLimit get(fn mint_limit) config(): u8;
-		pub Rampage get(fn rampage) config(): bool;
-		pub MintableCurrencies get(fn mintable_currencies) config(): Vec<AssetId>;
+#[frame_support::pallet]
+pub mod pallet {
+	use super::*;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::OriginFor;
+
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		fn on_finalize(_p: T::BlockNumber) {
+			Minted::<T>::set(0u8);
+		}
 	}
-}
 
-decl_event!(
-	pub enum Event<T>
-	where
-		AccountId = <T as frame_system::Config>::AccountId,
-		AssetId = AssetId,
-		Balance = Balance,
-	{
-		RampageMint(AccountId, AssetId, Balance),
-		Mint(AccountId),
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = i128>;
 	}
-);
 
-decl_error! {
-	pub enum Error for Module<T: Config> {
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
+		RampageMint(T::AccountId, AssetId, Balance),
+		Mint(T::AccountId),
+	}
+
+	#[pallet::error]
+	pub enum Error<T> {
 		RampageMintNotAllowed,
-		MaximumMintLimitReached
+		MaximumMintLimitReached,
 	}
-}
+	#[pallet::storage]
+	#[pallet::getter(fn minted)]
+	pub type Minted<T: Config> = StorageValue<_, u8, ValueQuery>;
 
-decl_module! {
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
-		type Error = Error<T>;
+	#[pallet::storage]
+	#[pallet::getter(fn mint_limit)]
+	pub type MintLimit<T: Config> = StorageValue<_, u8, ValueQuery>;
 
-		fn deposit_event() = default;
+	#[pallet::storage]
+	#[pallet::getter(fn rampage)]
+	pub type Rampage<T: Config> = StorageValue<_, bool, ValueQuery>;
 
-		#[weight = (0, DispatchClass::Normal, Pays::No)]
-		pub fn rampage_mint(origin, asset: AssetId, amount: Balance) -> dispatch::DispatchResult {
-			let who = ensure_signed(origin)?;
-			ensure!(
-				Self::rampage(),
-				Error::<T>::RampageMintNotAllowed
-			);
+	#[pallet::storage]
+	#[pallet::getter(fn mintable_currencies)]
+	pub type MintableCurrencies<T: Config> = StorageValue<_, Vec<AssetId>, ValueQuery>;
 
-			T::Currency::deposit(asset, &who, amount)?;
-			Self::deposit_event(RawEvent::RampageMint(who, asset, amount));
+	#[pallet::genesis_config]
+	pub struct GenesisConfig {
+		pub mint_limit: u8,
+		pub rampage: bool,
+		pub mintable_currencies: Vec<AssetId>,
+	}
 
-			Ok(())
+	#[cfg(feature = "std")]
+	impl Default for GenesisConfig {
+		fn default() -> Self {
+			GenesisConfig {
+				mint_limit: Default::default(),
+				rampage: Default::default(),
+				mintable_currencies: vec![],
+			}
+		}
+	}
+
+	#[cfg(feature = "std")]
+	impl GenesisConfig {
+		/// Direct implementation to not break dependency
+		pub fn build_storage<T: Config>(&self) -> Result<sp_runtime::Storage, String> {
+			<Self as frame_support::traits::GenesisBuild<T>>::build_storage(self)
 		}
 
-		#[weight = (0, DispatchClass::Normal, Pays::No)]
-		pub fn mint(origin) -> dispatch::DispatchResult {
+		/// Direct implementation to not break dependency
+		pub fn assimilate_storage<T: Config>(&self, storage: &mut sp_runtime::Storage) -> Result<(), String> {
+			<Self as frame_support::traits::GenesisBuild<T>>::assimilate_storage(self, storage)
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+		fn build(&self) {
+			MintLimit::<T>::put(self.mint_limit);
+			Rampage::<T>::put(self.rampage);
+			MintableCurrencies::<T>::put(self.mintable_currencies.clone());
+		}
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight((0, DispatchClass::Normal, Pays::No))]
+		pub fn rampage_mint(origin: OriginFor<T>, asset: AssetId, amount: Balance) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			ensure!(Self::rampage(), Error::<T>::RampageMintNotAllowed);
+
+			T::Currency::deposit(asset, &who, amount)?;
+			Self::deposit_event(Event::RampageMint(who, asset, amount));
+
+			Ok(().into())
+		}
+
+		#[pallet::weight((0, DispatchClass::Normal, Pays::No))]
+		pub fn mint(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
 			ensure!(Self::minted() < Self::mint_limit(), Error::<T>::MaximumMintLimitReached);
@@ -78,15 +134,11 @@ decl_module! {
 				T::Currency::deposit(i, &who, 1_000_000_000_000_000)?;
 			}
 
-			Minted::set(Self::minted() + 1);
+			Minted::<T>::set(Self::minted() + 1);
 
-			Self::deposit_event(RawEvent::Mint(who));
+			Self::deposit_event(Event::Mint(who));
 
-			Ok(())
-		}
-
-		fn on_finalize(){
-			Minted::set(0u8);
+			Ok(().into())
 		}
 	}
 }
