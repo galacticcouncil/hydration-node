@@ -2,6 +2,11 @@
 
 CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE
 
+## Contributions & Code of Conduct
+
+Please follow the contributions guidelines as outlined in [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+We are welcoming and friendly community please follow our [Code of Conduct](docs/CODE_OF_CONDUCT.md).
+
 ## Local Development
 
 Follow these steps to prepare a local Substrate development environment :hammer_and_wrench:
