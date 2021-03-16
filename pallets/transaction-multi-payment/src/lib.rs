@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unused_unit)]
 
 pub mod weights;
@@ -52,30 +51,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			/*
-			mod previous {
-				pub struct Module<T>(sp_std::marker::PhantomData<T>);
-				frame_support::decl_storage! {
-					trait Store for Module<T: super::Config> as TransactionPayment {
-						pub AcceptedCurrencies get(fn currencies) config(): super::Vec<super::AssetId>;
-					}
-				}
-			}
-			let version = <Self as GetPalletVersion>::storage_version();
-
-			if version == None || version == Some(PalletVersion::new(2, 0, 0)) {
-				previous::AcceptedCurrencies::kill();
-				AcceptedCurrencies::put(OrderedSet::<AssetId>::new());
-				T::BlockWeights::get().max_block
-			} else {
-				0
-			}
-			 */
-			0
-		}
-	}
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_transaction_payment::Config {
