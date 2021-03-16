@@ -1,5 +1,6 @@
-use crate::{Config, EthereumAddress, GenesisConfig, Module};
-use frame_support::{impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types};
+use crate as claims;
+use crate::{Config, EthereumAddress};
+use frame_support::parameter_types;
 use frame_system;
 use hex_literal::hex;
 use primitives::Balance;
@@ -9,19 +10,22 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+use frame_support::traits::GenesisBuild;
 
-impl_outer_dispatch! {
-	pub enum Call for Test where origin: Origin {
-		pallet_claims::ClaimsModule,
-		frame_system::System,
-	}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
+frame_support::construct_runtime!(
+	pub enum Test where
+	 Block = Block,
+	 NodeBlock = Block,
+	 UncheckedExtrinsic = UncheckedExtrinsic,
+	 {
+		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		 ClaimsModule: claims::{Module, Call, Storage, Event<T>},
+		 Balances: pallet_balances::{Module, Event<T>},
+	 }
+);
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -40,21 +44,22 @@ impl frame_system::Config for Test {
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = ();
+	type Event = Event;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
-	type PalletInfo = ();
+	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
+	type SS58Prefix = ();
 }
 
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
-	type Event = ();
+	type Event = Event;
 	type DustRemoval = ();
 	type ExistentialDeposit = ();
 	type AccountStore = frame_system::Module<Test>;
@@ -66,23 +71,12 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = ();
+	type Event = Event;
 	type Currency = Balances;
 	type Prefix = Prefix;
 	type WeightInfo = ();
 	type CurrencyBalance = Balance;
 }
-
-impl_outer_event! {
-	pub enum Event for Test{
-		frame_system<T>,
-		pallet_balances<T>,
-	}
-}
-
-pub type System = frame_system::Module<Test>;
-pub type ClaimsModule = Module<Test>;
-pub type Balances = pallet_balances::Module<Test>;
 
 pub type AccountId = u64;
 pub const ALICE: AccountId = 42;
@@ -104,7 +98,7 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		GenesisConfig::<Test> {
+		claims::GenesisConfig::<Test> {
 			claims: vec![(
 				// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
 				// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0

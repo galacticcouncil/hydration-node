@@ -1,3 +1,5 @@
+#![allow(clippy::upper_case_acronyms)]
+
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;

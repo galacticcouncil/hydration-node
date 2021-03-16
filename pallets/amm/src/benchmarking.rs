@@ -20,8 +20,8 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
+use frame_system::RawOrigin;
 use sp_std::prelude::*;
-use system::RawOrigin;
 
 use crate::Module as AMM;
 
@@ -37,9 +37,6 @@ fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 }
 
 benchmarks! {
-	_ {
-	}
-
 	create_pool {
 		let caller = funded_account::<T>("caller", 0);
 

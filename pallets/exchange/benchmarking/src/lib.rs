@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![allow(clippy::unnecessary_wraps)]
+
 mod amounts;
 mod mock;
 
@@ -19,6 +21,7 @@ use sp_runtime::traits::{BlakeTwo256, Hash};
 
 use amounts::INTENTION_AMOUNTS;
 
+use frame_support::dispatch;
 use pallet_amm as ammpool;
 
 pub struct Module<T: Config>(pallet_exchange::Module<T>);
@@ -37,8 +40,6 @@ pub const DOLLARS: Balance = 100 * CENTS;
 fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
 
-	//<T as ammpool::Config>::Currency::update_balance(0, &caller, 1_000_000_000_000_000).unwrap();
-
 	<T as ammpool::Config>::Currency::update_balance(1, &caller, 1_000_000_000_000_000).unwrap();
 
 	<T as ammpool::Config>::Currency::update_balance(2, &caller, 1_000_000_000_000_000).unwrap();
@@ -52,10 +53,10 @@ fn initialize_pool<T: Config>(
 	asset_b: AssetId,
 	amount: Balance,
 	price: Price,
-) -> Result<(), DispatchError> {
+) -> dispatch::DispatchResultWithPostInfo {
 	ammpool::Module::<T>::create_pool(RawOrigin::Signed(caller).into(), asset_a, asset_b, amount, price)?;
 
-	Ok(())
+	Ok(().into())
 }
 
 const SELL_INTENTION_AMOUNT: Balance = 1_000_000_000;
@@ -68,7 +69,7 @@ fn feed_intentions<T: Config>(
 	asset_b: AssetId,
 	number: u32,
 	amounts: &[u32],
-) -> Result<(), DispatchError> {
+) -> dispatch::DispatchResultWithPostInfo {
 	for idx in 0..number / 2 {
 		let user = funded_account::<T>("user", idx + 2);
 		pallet_exchange::Module::<T>::sell(
@@ -91,7 +92,7 @@ fn feed_intentions<T: Config>(
 		)?;
 	}
 
-	Ok(())
+	Ok(().into())
 }
 
 fn validate_finalize<T: Config>(
@@ -118,8 +119,6 @@ fn validate_finalize<T: Config>(
 }
 
 benchmarks! {
-	_ { }
-
 	known_overhead_for_on_finalize {
 		let t: u32 = 5;
 	}: {  Exchange::<T>::on_finalize(t.into()); }
