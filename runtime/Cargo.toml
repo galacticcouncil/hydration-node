@@ -56,6 +56,7 @@ pallet-staking = {default-features = false, version = '3.0.0'}
 pallet-staking-reward-curve = {default-features = false, version = '3.0.0'}
 pallet-tips = {default-features = false, version = '=3.0.0'}
 pallet-treasury = {default-features = false, version = '3.0.0'}
+pallet-scheduler = {default-features = false, version = '3.0.0'}
 sp-authority-discovery = {default-features = false, version = '3.0.0'}
 sp-consensus-babe = {default-features = false, version = '0.9.0'}
 
@@ -120,6 +121,7 @@ std = [
   'pallet-balances/std',
   'pallet-grandpa/std',
   'pallet-randomness-collective-flip/std',
+  'pallet-scheduler/std',
   'pallet-sudo/std',
   'pallet-timestamp/std',
   'pallet-tips/std',
