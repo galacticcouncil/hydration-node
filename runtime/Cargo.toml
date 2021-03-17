@@ -69,6 +69,7 @@ frame-system-benchmarking = {default-features = false, optional = true, version 
 frame-system-rpc-runtime-api = {default-features = false, version = '3.0.0'}
 pallet-balances = {default-features = false, version = '3.0.0'}
 pallet-grandpa = {default-features = false, version = '3.0.0'}
+pallet-identity = {default-features = false, version = '3.0.0'}
 pallet-randomness-collective-flip = {default-features = false, version = '3.0.0'}
 pallet-sudo = {default-features = false, version = '3.0.0'}
 pallet-timestamp = {default-features = false, version = '3.0.0'}
@@ -100,6 +101,7 @@ runtime-benchmarks = [
   "pallet-amm/runtime-benchmarks",
   "pallet-exchange-benchmarking",
   'pallet-collective/runtime-benchmarks',
+  'pallet-identity/runtime-benchmarks',
   'sp-runtime/runtime-benchmarks',
   'pallet-claims/runtime-benchmarks',
 ]
@@ -120,6 +122,7 @@ std = [
   'pallet-faucet/std',
   'pallet-balances/std',
   'pallet-grandpa/std',
+  'pallet-identity/std',
   'pallet-randomness-collective-flip/std',
   'pallet-scheduler/std',
   'pallet-sudo/std',
