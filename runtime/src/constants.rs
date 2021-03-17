@@ -2,13 +2,9 @@ pub mod currency {
 	pub use primitives::Balance;
 
 	pub const HDX: Balance = 1_000_000_000_000;
-	pub const DOLLARS: Balance = HDX;
+	pub const DOLLARS: Balance = HDX / 10;	// 10 HDX ~= 1 $
 	pub const CENTS: Balance = DOLLARS / 100;
 	pub const MILLICENTS: Balance = CENTS / 1_000;
-
-	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * DOLLARS + (bytes as Balance) * 5 * MILLICENTS
-	}
 }
 
 pub mod time {
