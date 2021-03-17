@@ -349,7 +349,7 @@ decl_module! {
 				Error::<T>::TokenPoolNotFound
 			);
 
-			let pair_account = Self::get_pair_id(&asset_a , &asset_b );
+			let pair_account = Self::get_pair_id(&asset_a , &asset_b);
 
 			let share_token = Self::share_token(&pair_account);
 
@@ -399,21 +399,22 @@ decl_module! {
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
+			if total_shares != liquidity_amount {
+				ensure!(
+					total_shares - liquidity_amount >= MIN_POOL_LIQUIDITY_LIMIT,
+					Error::<T>::MinimalPoolLiquidityRequirementNotMet
+				);
+			}
+
 			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
 
-			ensure!(
-				u128::from(share_token) < MIN_POOL_LIQUIDITY_LIMIT,
-				Error::<T>::MinimalPoolLiquidityRequirementNotMet
-			);
-
-			if liquidity_left >= MIN_POOL_LIQUIDITY_LIMIT || liquidity_left.is_zero() {
+			if liquidity_left <= MIN_POOL_LIQUIDITY_LIMIT || liquidity_left.is_zero() {
 				<ShareToken<T>>::remove(&pair_account);
 				<PoolAssets<T>>::remove(&pair_account);
 				if liquidity_left.is_zero() {
 					Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
 				}
 			}
-
 
 			Ok(())
 		}
