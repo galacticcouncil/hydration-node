@@ -253,6 +253,29 @@ fn remove_zero_liquidity_should_not_work() {
 }
 
 #[test]
+fn remove_liquidity_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000,
+			Price::from(10_000)
+		));
+
+		assert_eq!(AMM::exists(asset_a, asset_b), true);
+
+		assert_noop!(AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1),
+		 Error::<Test>::MinimalPoolLiquidityRequirementNotMet
+		);
+	});
+}
+
+#[test]
 fn remove_liquidity_should_destroy_pool() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
@@ -274,17 +297,51 @@ fn remove_liquidity_should_destroy_pool() {
 			Origin::signed(user),
 			asset_a,
 			asset_b,
-			100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1
+			100_000_000
 		));
 
-		assert_eq!(AMM::total_liquidity(&pair_account), MIN_POOL_LIQUIDITY_LIMIT - 1);
-		//assert_eq!(AMM::exists(asset_a, asset_b), false);
+		assert_eq!(AMM::total_liquidity(&pair_account), 0);
+		assert_eq!(AMM::exists(asset_a, asset_b), false);
+
+		expect_events(vec![
+			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
+			RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
+		]);
+	});
+}
+
+#[test]
+fn remove_liquidity_should_not_destroy_pool() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000,
+			Price::from(10_000)
+		));
+
+		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		assert_eq!(AMM::exists(asset_a, asset_b), true);
+
+		assert_ok!(AMM::remove_liquidity(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000 - MIN_POOL_LIQUIDITY_LIMIT
+		));
+
+		assert_eq!(AMM::total_liquidity(&pair_account), MIN_POOL_LIQUIDITY_LIMIT);
 		assert_eq!(AMM::exists(asset_a, asset_b), true);
 
 		expect_events(vec![
 			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
-			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1).into(),
-			//RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
+			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT).into(),
 		]);
 	});
 }

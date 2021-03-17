@@ -408,12 +408,10 @@ decl_module! {
 
 			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
 
-			if liquidity_left < MIN_POOL_LIQUIDITY_LIMIT || liquidity_left.is_zero() {
+			if liquidity_left.is_zero() {
 				<ShareToken<T>>::remove(&pair_account);
 				<PoolAssets<T>>::remove(&pair_account);
-				if liquidity_left.is_zero() {
-					Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
-				}
+				Self::deposit_event(RawEvent::PoolDestroyed(who, asset_a, asset_b));
 			}
 
 			Ok(())
