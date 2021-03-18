@@ -10,6 +10,7 @@ pallet-balances = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2
 pallet-grandpa = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-election-provider-multi-phase = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-randomness-collective-flip = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
+pallet-scheduler = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-sudo = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-timestamp = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-tips = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
