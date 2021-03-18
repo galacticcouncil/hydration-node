@@ -43,17 +43,17 @@ EXPECTED_BENCHWIZARD_VERSION="0.2.1"
 
 echo -n "benchwizard >= $EXPECTED_BENCHWIZARD_VERSION ..... "
 
-command -v benchwizard >/dev/null 2>&1 || {
+$PYTHON -m bench_wizard >/dev/null 2>&1 || {
   echo "benchwizard required. benchwizard is cli tool developed by HydraDX dev to streamline substrate benchmark process.";
   echo "Installation: pip3 install bench-wizard";
   exit 1;
   }
 
-CURRENT_BENCH_VERSION=`benchwizard version | tr -d '\n'`
+CURRENT_BENCH_VERSION=`$PYTHON -m bench_wizard version | tr -d '\n'`
 
-if [[ $EXPECTED_BENCHWIZARD_VERSION != $CURRENT_BENCH_VERSION ]]
+if [[ $EXPECTED_BENCHWIZARD_VERSION > $CURRENT_BENCH_VERSION ]]
 then
-  echo "Please upgrade benchwizard : pip3 install bench-wizard --upgrade";
+	echo "Please upgrade benchwizard (current version $CURRENT_BENCH_VERSION): pip3 install bench-wizard --upgrade";
   exit 1;
 fi
 
