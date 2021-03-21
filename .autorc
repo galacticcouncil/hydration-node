@@ -1,0 +1,11 @@
+{
+  "plugins": [
+    "git-tag",
+    "conventional-commits"
+  ],
+  "labels": [],
+  "owner": "galacticcouncil",
+  "repo": "HydraDX-node",
+  "name": "Galactic Council",
+  "email": "info@galacticcouncil.io"
+}
