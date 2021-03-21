@@ -1,7 +1,8 @@
 #![cfg(test)]
 
 use crate::Config;
-use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types};
+use frame_support::parameter_types;
+use frame_support::traits::GenesisBuild;
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -36,23 +37,26 @@ impl Get<u64> for ExtrinsicBaseWeight {
 	}
 }
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-mod multi_payment {
-	pub use super::super::*;
-}
+frame_support::construct_runtime!(
+		pub enum Test where
+		 Block = Block,
+		 NodeBlock = Block,
+		 UncheckedExtrinsic = UncheckedExtrinsic,
+		 {
+				 System: frame_system::{Module, Call, Config, Storage, Event<T>},
+				 PaymentModule: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
+				 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
+				 Balances: pallet_balances::{Module,Call, Storage,Config<T>, Event<T>},
+				 Currencies: orml_currencies::{Module, Event<T>},
+				 Tokens: orml_tokens::{Module, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Module, Storage},
+		 }
 
-impl_outer_dispatch! {
-	pub enum Call for Test where origin: Origin {
-		pallet_balances::Balances,
-		frame_system::System,
-	}
-}
+);
 
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 
@@ -77,20 +81,21 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = ();
+	type Event = Event;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
-	type PalletInfo = ();
+	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<u128>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
+	type SS58Prefix = ();
 }
 impl Config for Test {}
 
 impl pallet_transaction_multi_payment::Config for Test {
-	type Event = ();
+	type Event = Event;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type AMMPool = AMMModule;
@@ -108,7 +113,7 @@ impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
 	/// The ubiquitous event type.
-	type Event = ();
+	type Event = Event;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -138,7 +143,7 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 }
 
 impl pallet_amm::Config for Test {
-	type Event = ();
+	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
 	type HDXAssetId = HdxAssetId;
@@ -147,13 +152,13 @@ impl pallet_amm::Config for Test {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
 }
 
 impl orml_tokens::Config for Test {
-	type Event = ();
+	type Event = Event;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -163,20 +168,12 @@ impl orml_tokens::Config for Test {
 }
 
 impl orml_currencies::Config for Test {
-	type Event = ();
+	type Event = Event;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type GetNativeCurrencyId = HdxAssetId;
 	type WeightInfo = ();
 }
-
-pub type AMMModule = pallet_amm::Module<Test>;
-pub type Tokens = orml_tokens::Module<Test>;
-pub type Currencies = orml_currencies::Module<Test>;
-pub type Balances = pallet_balances::Module<Test>;
-
-pub type PaymentModule = pallet_transaction_multi_payment::Module<Test>;
-pub type System = system::Module<Test>;
 
 pub struct ExtBuilder {
 	base_weight: u64,
