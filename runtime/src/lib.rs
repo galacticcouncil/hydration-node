@@ -131,7 +131,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 3,
+	spec_version: 4,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -185,6 +185,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::AuthorityDiscovery(_)
 			| Call::ImOnline(_)
 			| Call::ElectionProviderMultiPhase(_)
+			| Call::Scheduler(_)
 			| Call::Sudo(_) => true,
 		}
 	}
@@ -435,8 +436,8 @@ impl pallet_authorship::Config for Runtime {
 pallet_staking_reward_curve::build! {
 	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
 		min_inflation: 0_040_000,
-		max_inflation: 0_120_000,
-		ideal_stake: 0_900_000,
+		max_inflation: 0_080_000,
+		ideal_stake: 0_160_000,
 		falloff: 1_000_000,
 		max_piece_count: 40,
 		test_precision: 0_005_000,
@@ -705,6 +706,22 @@ impl pallet_offences::Config for Runtime {
 	type WeightSoftLimit = OffencesWeightSoftLimit;
 }
 
+parameter_types! {
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(10) * BlockWeights::get().max_block;
+    pub const MaxScheduledPerBlock: u32 = 50;
+}
+
+impl pallet_scheduler::Config for Runtime {
+    type Event = Event;
+    type Origin = Origin;
+    type PalletsOrigin = OriginCaller;
+    type Call = Call;
+    type MaximumWeight = MaximumSchedulerWeight;
+    type ScheduleOrigin = EnsureRoot<AccountId>;
+    type MaxScheduledPerBlock = MaxScheduledPerBlock;
+    type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -719,6 +736,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>},
 
 		//Staking related modules
 		Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
