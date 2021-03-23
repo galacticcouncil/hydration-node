@@ -5,6 +5,7 @@ use sp_runtime::traits::SignedExtension;
 
 use frame_support::weights::DispatchInfo;
 use orml_traits::MultiCurrency;
+use orml_utilities::OrderedSet;
 use pallet_balances::Call as BalancesCall;
 use primitives::Price;
 
@@ -198,10 +199,10 @@ fn fee_payment_non_native_insufficient_balance() {
 #[test]
 fn add_new_accepted_currency() {
 	ExtBuilder::default().base_weight(5).build().execute_with(|| {
-		assert_eq!(PaymentModule::currencies(), vec![2000, 3000]);
+		assert_eq!(PaymentModule::currencies(), OrderedSet::from(vec![2000, 3000]));
 
 		assert_ok!(PaymentModule::add_currency(Origin::signed(BOB), 100));
-		assert_eq!(PaymentModule::currencies(), vec![2000, 3000, 100]);
+		assert_eq!(PaymentModule::currencies(), OrderedSet::from(vec![2000, 3000, 100]));
 		assert_noop!(
 			PaymentModule::add_currency(Origin::signed(ALICE), 1000),
 			Error::<Test>::NotAllowed
@@ -210,17 +211,17 @@ fn add_new_accepted_currency() {
 			PaymentModule::add_currency(Origin::signed(BOB), 100),
 			Error::<Test>::AlreadyAccepted
 		);
-		assert_eq!(PaymentModule::currencies(), vec![2000, 3000, 100]);
+		assert_eq!(PaymentModule::currencies(), OrderedSet::from(vec![2000, 3000, 100]));
 	});
 }
 
 #[test]
 fn removed_accepted_currency() {
 	ExtBuilder::default().base_weight(5).build().execute_with(|| {
-		assert_eq!(PaymentModule::currencies(), vec![2000, 3000]);
+		assert_eq!(PaymentModule::currencies(), OrderedSet::from(vec![2000, 3000]));
 
 		assert_ok!(PaymentModule::add_currency(Origin::signed(BOB), 100));
-		assert_eq!(PaymentModule::currencies(), vec![2000, 3000, 100]);
+		assert_eq!(PaymentModule::currencies(), OrderedSet::from(vec![2000, 3000, 100]));
 
 		assert_noop!(
 			PaymentModule::remove_currency(Origin::signed(ALICE), 100),
@@ -238,6 +239,45 @@ fn removed_accepted_currency() {
 			PaymentModule::remove_currency(Origin::signed(BOB), 100),
 			Error::<Test>::UnsupportedCurrency
 		);
-		assert_eq!(PaymentModule::currencies(), vec![2000, 3000]);
+		assert_eq!(PaymentModule::currencies(), OrderedSet::from(vec![2000, 3000]));
+	});
+}
+
+#[test]
+fn add_member() {
+	ExtBuilder::default().base_weight(5).build().execute_with(|| {
+		const CHARLIE: AccountId = 3;
+		assert_eq!(PaymentModule::authorities(), vec![BOB]);
+
+		assert_ok!(PaymentModule::add_member(Origin::root(), CHARLIE));
+
+		assert_eq!(PaymentModule::authorities(), vec![BOB, CHARLIE]);
+
+		// Non root should not be allowed
+		assert_noop!(
+			PaymentModule::add_member(Origin::signed(ALICE), CHARLIE),
+			sp_runtime::traits::BadOrigin
+		);
+
+		// Adding existing member should return error
+		assert_noop!(
+			PaymentModule::add_member(Origin::root(), CHARLIE),
+			Error::<Test>::AlreadyMember
+		);
+
+		// Non root should not be allowed
+		assert_noop!(
+			PaymentModule::remove_member(Origin::signed(ALICE), CHARLIE),
+			sp_runtime::traits::BadOrigin
+		);
+
+		assert_ok!(PaymentModule::remove_member(Origin::root(), CHARLIE));
+
+		assert_eq!(PaymentModule::authorities(), vec![BOB]);
+
+		assert_noop!(
+			PaymentModule::remove_member(Origin::root(), CHARLIE),
+			Error::<Test>::NotAMember
+		);
 	});
 }

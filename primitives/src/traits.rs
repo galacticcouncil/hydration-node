@@ -1,13 +1,14 @@
+#![allow(clippy::upper_case_acronyms)]
+
 use frame_support::dispatch;
 use frame_support::dispatch::DispatchResult;
 use sp_std::vec::Vec;
 
 /// Hold information to perform amm transfer
 /// Contains also exact amount which will be sold/bought
-pub struct AMMTransfer<AccountId, AssetId, Balance> {
+pub struct AMMTransfer<AccountId, AssetPair, Balance> {
 	pub origin: AccountId,
-	pub asset_sell: AssetId,
-	pub asset_buy: AssetId,
+	pub assets: AssetPair,
 	pub amount: Balance,
 	pub amount_out: Balance,
 	pub discount: bool,
@@ -15,12 +16,12 @@ pub struct AMMTransfer<AccountId, AssetId, Balance> {
 }
 
 /// Traits for handling AMM Pool trades.
-pub trait AMM<AccountId, AssetId, Amount> {
+pub trait AMM<AccountId, AssetId, AssetPair, Amount> {
 	/// Check if a pool for asset_a and asset_b exists.
-	fn exists(asset_a: AssetId, asset_b: AssetId) -> bool;
+	fn exists(assets: AssetPair) -> bool;
 
 	/// Return pair account.
-	fn get_pair_id(asset_a: &AssetId, asset_b: &AssetId) -> AccountId;
+	fn get_pair_id(assets: AssetPair) -> AccountId;
 
 	/// Return list of active assets in a given pool.
 	fn get_pool_assets(pool_account_id: &AccountId) -> Option<Vec<AssetId>>;
@@ -32,34 +33,25 @@ pub trait AMM<AccountId, AssetId, Amount> {
 	/// Perform all necessary checks to validate an intended sale.
 	fn validate_sell(
 		origin: &AccountId,
-		asset_sell: AssetId,
-		asset_buy: AssetId,
-		amount_buy: Amount,
+		assets: AssetPair,
+		amount: Amount,
 		min_bought: Amount,
 		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, Amount>, frame_support::sp_runtime::DispatchError>;
+	) -> Result<AMMTransfer<AccountId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
-	fn execute_sell(transfer: &AMMTransfer<AccountId, AssetId, Amount>) -> dispatch::DispatchResult;
+	fn execute_sell(transfer: &AMMTransfer<AccountId, AssetPair, Amount>) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
 	/// Call execute following the validation.
 	fn sell(
 		origin: &AccountId,
-		asset_sell: AssetId,
-		asset_buy: AssetId,
-		amount_sell: Amount,
+		assets: AssetPair,
+		amount: Amount,
 		min_bought: Amount,
 		discount: bool,
 	) -> dispatch::DispatchResult {
-		Self::execute_sell(&Self::validate_sell(
-			origin,
-			asset_sell,
-			asset_buy,
-			amount_sell,
-			min_bought,
-			discount,
-		)?)?;
+		Self::execute_sell(&Self::validate_sell(origin, assets, amount, min_bought, discount)?)?;
 		Ok(())
 	}
 
@@ -67,28 +59,24 @@ pub trait AMM<AccountId, AssetId, Amount> {
 	/// Perform all necessary checks to validate an intended buy.
 	fn validate_buy(
 		origin: &AccountId,
-		asset_buy: AssetId,
-		asset_sell: AssetId,
-		amount_buy: Amount,
+		assets: AssetPair,
+		amount: Amount,
 		max_limit: Amount,
 		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetId, Amount>, frame_support::sp_runtime::DispatchError>;
+	) -> Result<AMMTransfer<AccountId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
-	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetId, Amount>) -> dispatch::DispatchResult;
+	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetPair, Amount>) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
 	fn buy(
 		origin: &AccountId,
-		asset_buy: AssetId,
-		asset_sell: AssetId,
-		amount_buy: Amount,
+		assets: AssetPair,
+		amount: Amount,
 		max_limit: Amount,
 		discount: bool,
 	) -> dispatch::DispatchResult {
-		Self::execute_buy(&Self::validate_buy(
-			origin, asset_buy, asset_sell, amount_buy, max_limit, discount,
-		)?)?;
+		Self::execute_buy(&Self::validate_buy(origin, assets, amount, max_limit, discount)?)?;
 		Ok(())
 	}
 }
