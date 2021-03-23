@@ -41,7 +41,7 @@ pub const MAX_IN_RATIO: u128 = 3;
 
 /// Pool Liquidity & Trade Limits
 pub const MIN_POOL_LIQUIDITY_LIMIT: u128 = 1000;
-pub const MIN_TRADE_LIMIT: u128 = 10;
+pub const MIN_TRADING_LIMIT: u128 = 10;
 
 /// Scaled Unsigned of Balance
 pub type HighPrecisionBalance = U256;

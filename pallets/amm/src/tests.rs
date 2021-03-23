@@ -65,14 +65,14 @@ fn create_same_pool_should_not_work() {
 			Origin::signed(user),
 			asset_b,
 			asset_a,
-			100,
+			1000,
 			Price::from(2)
 		));
 		assert_noop!(
-			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from(2)),
+			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 1000, Price::from(2)),
 			Error::<Test>::TokenPoolAlreadyExists
 		);
-		expect_events(vec![Event::CreatePool(ALICE, asset_b, asset_a, 200).into()]);
+		expect_events(vec![Event::CreatePool(ALICE, asset_b, asset_a, 2000).into()]);
 	});
 }
 
@@ -259,7 +259,7 @@ fn add_liquidity_more_than_owner_should_not_work() {
 #[test]
 fn add_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 100, Price::from(1)));
+		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 1000, Price::from(1)));
 
 		assert_noop!(
 			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 0, 0),
@@ -298,7 +298,11 @@ fn remove_liquidity_should_not_work() {
 			Price::from(10_000)
 		));
 
-		assert_eq!(AMM::exists(asset_a, asset_b), true);
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		assert_eq!(AMM::exists(asset_pair), true);
 
 		assert_noop!(
 			AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1),
@@ -321,9 +325,12 @@ fn remove_liquidity_should_destroy_pool() {
 			100_000_000,
 			Price::from(10_000)
 		));
-
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
-		assert_eq!(AMM::exists(asset_a, asset_b), true);
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let pair_account = AMM::get_pair_id(asset_pair);
+		assert_eq!(AMM::exists(asset_pair), true);
 
 		assert_ok!(AMM::remove_liquidity(
 			Origin::signed(user),
@@ -333,12 +340,12 @@ fn remove_liquidity_should_destroy_pool() {
 		));
 
 		assert_eq!(AMM::total_liquidity(&pair_account), 0);
-		assert_eq!(AMM::exists(asset_a, asset_b), false);
+		assert_eq!(AMM::exists(asset_pair), false);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
-			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
-			RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
+			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
+			Event::PoolDestroyed(user, asset_a, asset_b).into(),
 		]);
 	});
 }
@@ -358,8 +365,13 @@ fn remove_liquidity_should_not_destroy_pool() {
 			Price::from(10_000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
-		assert_eq!(AMM::exists(asset_a, asset_b), true);
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		let pair_account = AMM::get_pair_id(asset_pair);
+		assert_eq!(AMM::exists(asset_pair), true);
+
 
 		assert_ok!(AMM::remove_liquidity(
 			Origin::signed(user),
@@ -369,11 +381,11 @@ fn remove_liquidity_should_not_destroy_pool() {
 		));
 
 		assert_eq!(AMM::total_liquidity(&pair_account), MIN_POOL_LIQUIDITY_LIMIT);
-		assert_eq!(AMM::exists(asset_a, asset_b), true);
+		assert_eq!(AMM::exists(asset_pair), true);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
-			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT).into(),
+			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT).into(),
 		]);
 	});
 }
@@ -869,7 +881,7 @@ fn create_pool_with_zero_liquidity_should_not_work() {
 		);
 
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 10, Price::from(0)),
+			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 1000, Price::from(0)),
 			Error::<Test>::CannotCreatePoolWithZeroInitialPrice
 		);
 	});
@@ -932,7 +944,7 @@ fn discount_sell_with_no_hdx_pool_should_not_work() {
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
-			100,
+			1000,
 			Price::from(3200)
 		));
 
@@ -960,7 +972,7 @@ fn discount_buy_with_no_hdx_pool_should_not_work() {
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
-			100,
+			1000,
 			Price::from(3200)
 		));
 
