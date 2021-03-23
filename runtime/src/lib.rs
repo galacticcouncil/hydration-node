@@ -467,8 +467,8 @@ impl pallet_authorship::Config for Runtime {
 pallet_staking_reward_curve::build! {
 	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
 		min_inflation: 0_040_000,
-		max_inflation: 0_120_000,
-		ideal_stake: 0_900_000,
+		max_inflation: 0_080_000,
+		ideal_stake: 0_160_000,
 		falloff: 1_000_000,
 		max_piece_count: 40,
 		test_precision: 0_005_000,
