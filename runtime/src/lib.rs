@@ -360,7 +360,7 @@ type EnsureRootOrHalfCouncil = EnsureOneOf<
 
 parameter_types! {
 	pub const BasicDeposit: Balance = 5 * DOLLARS;
-	pub const FieldDeposit: Balance = 1 * DOLLARS;
+	pub const FieldDeposit: Balance = DOLLARS;
 	pub const SubAccountDeposit: Balance = 5 * DOLLARS;
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
