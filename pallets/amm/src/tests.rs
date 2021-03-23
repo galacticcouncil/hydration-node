@@ -343,7 +343,6 @@ fn remove_liquidity_should_destroy_pool() {
 		assert_eq!(AMM::exists(asset_pair), false);
 
 		expect_events(vec![
-			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
 			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
 			Event::PoolDestroyed(user, asset_a, asset_b).into(),
 		]);
