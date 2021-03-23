@@ -28,7 +28,7 @@ fi
 echo "OK"
 
 echo -n "Toolchain ...... "
-TOOLCHAIN=`rustup default`
+TOOLCHAIN=$(rustup default)
 
 if [[ $TOOLCHAIN = "nightly"* ]]
 then
@@ -62,12 +62,26 @@ $PYTHON -m bench_wizard >/dev/null 2>&1 || {
     exit 1
   fi
 }
-CURRENT_BENCH_VERSION=`$PYTHON -m bench_wizard version | tr -d '\n'`
+
+CURRENT_BENCH_VERSION=$($PYTHON -m bench_wizard version | tr -d '\n')
 
 if [[ $EXPECTED_BENCHWIZARD_VERSION > $CURRENT_BENCH_VERSION ]]
 then
 	echo "Please upgrade benchwizard (current version $CURRENT_BENCH_VERSION): pip3 install bench-wizard --upgrade";
-  exit 1;
+	read -p "Do you want to upgrade it now? [Y/n] " -n 1 -r
+  echo    # move to a new line
+  if [[ ! $REPLY =~ ^[Yy]$ ]]
+  then
+      exit 1
+  fi
+
+  pip3 install bench-wizard --upgrade > /dev/null
+
+  if [[ $? != 0 ]];
+  then
+    echo "benchwizard upgrade failed."
+    exit 1
+  fi
 fi
 
 echo
