@@ -359,9 +359,9 @@ type EnsureRootOrHalfCouncil = EnsureOneOf<
 >;
 
 parameter_types! {
-	pub const BasicDeposit: Balance = 20 * DOLLARS + 25_800 * MILLICENTS;
-	pub const FieldDeposit: Balance = 6_600 * MILLICENTS;
-	pub const SubAccountDeposit: Balance = 20 * DOLLARS + 5_300 * MILLICENTS;
+	pub const BasicDeposit: Balance = 5 * DOLLARS;
+	pub const FieldDeposit: Balance = 1 * DOLLARS;
+	pub const SubAccountDeposit: Balance = 5 * DOLLARS;
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 100;
 	pub const MaxRegistrars: u32 = 20;
