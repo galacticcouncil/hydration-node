@@ -392,19 +392,19 @@ decl_module! {
 			// Note: this check is not really needed as we already check if amount to remove >= liquidity in pool
 			let liquidity_left = total_shares.checked_sub(liquidity_amount).ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
-			T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
-			T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
-
-			T::Currency::withdraw(share_token, &who, liquidity_amount)?;
-
-			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
-
 			if total_shares != liquidity_amount {
 				ensure!(
 					total_shares - liquidity_amount >= MIN_POOL_LIQUIDITY_LIMIT,
 					Error::<T>::MinimalPoolLiquidityRequirementNotMet
 				);
 			}
+
+			T::Currency::transfer(asset_a, &pair_account, &who, remove_amount_a)?;
+			T::Currency::transfer(asset_b, &pair_account, &who, remove_amount_b)?;
+
+			T::Currency::withdraw(share_token, &who, liquidity_amount)?;
+
+			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
 			Self::deposit_event(RawEvent::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
 

@@ -269,8 +269,9 @@ fn remove_liquidity_should_not_work() {
 
 		assert_eq!(AMM::exists(asset_a, asset_b), true);
 
-		assert_noop!(AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1),
-		 Error::<Test>::MinimalPoolLiquidityRequirementNotMet
+		assert_noop!(
+			AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1),
+		 	Error::<Test>::MinimalPoolLiquidityRequirementNotMet
 		);
 	});
 }
