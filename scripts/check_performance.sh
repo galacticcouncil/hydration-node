@@ -11,13 +11,8 @@ echo "Prerequisites"
 
 echo -n "Python version >= 3.8 ..... "
 
-# Need python3
-if command -v python3.8 >/dev/null 2>&1
-then
-  PYTHON=python3.8
-else
-  PYTHON=python3
-fi
+PYTHON=python3
+
 command -v $PYTHON >/dev/null 2>&1 || { echo "python3 required. Please install first"; exit 1; }
 
 if ! $PYTHON -c 'import sys; assert sys.version_info >= (3,8)' > /dev/null 2>&1; then
@@ -25,14 +20,14 @@ if ! $PYTHON -c 'import sys; assert sys.version_info >= (3,8)' > /dev/null 2>&1;
   exit 1
 fi
 
-echo "OK"
+echo "OK ($($PYTHON --version))"
 
 echo -n "Toolchain ...... "
 TOOLCHAIN=$(rustup default)
 
 if [[ $TOOLCHAIN = "nightly"* ]]
 then
-        echo "OK"
+        echo "OK ($TOOLCHAIN)"
 else
         echo "Nightly toolchain required"
         echo "Current toolchain $TOOLCHAIN"
@@ -54,13 +49,10 @@ $PYTHON -m bench_wizard >/dev/null 2>&1 || {
       exit 1
   fi
 
-  pip3 install bench-wizard > /dev/null
-
-  if [[ $? != 0 ]];
-  then
+  pip3 install bench-wizard > /dev/null || {
     echo "benchwizard installation failed."
     exit 1
-  fi
+  }
 }
 
 CURRENT_BENCH_VERSION=$($PYTHON -m bench_wizard version | tr -d '\n')
@@ -75,17 +67,16 @@ then
       exit 1
   fi
 
-  pip3 install bench-wizard --upgrade > /dev/null
-
-  if [[ $? != 0 ]];
-  then
+  pip3 install bench-wizard --upgrade > /dev/null || {
     echo "benchwizard upgrade failed."
     exit 1
-  fi
+  }
 fi
 
-echo
+echo "OK ($($PYTHON -m bench_wizard version))"
+
 echo
 
 # Run the check
+# shellcheck disable=SC2086
 $PYTHON -m bench_wizard benchmark -pc $*
