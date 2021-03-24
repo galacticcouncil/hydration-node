@@ -256,7 +256,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
-		let fee_currency = match Module::<T>::get_currency(who) {
+		let fee_currency = match Pallet::<T>::get_currency(who) {
 			Some(c) => c,
 			_ => CORE_ASSET_ID,
 		};

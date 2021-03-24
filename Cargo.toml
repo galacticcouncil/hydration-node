@@ -69,6 +69,7 @@ pallet-transaction-payment = { git = 'https://github.com/paritytech/substrate', 
 # ORML dependencies
 orml-currencies = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
 orml-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
+orml-unknown-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
 orml-traits = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
 orml-utilities = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }
 orml-xtokens= { git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master' }

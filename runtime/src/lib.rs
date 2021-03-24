@@ -16,7 +16,7 @@ use sp_runtime::{
 	traits::Convert,
 	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, MultiSignature,
+	ApplyExtrinsicResult, DispatchResult, MultiSignature,
 };
 use sp_std::convert::{From, TryFrom};
 use sp_std::prelude::*;
@@ -56,7 +56,7 @@ use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use orml_xcm_support::{
 	CurrencyIdConversion, IsConcreteWithGeneralKey, MultiCurrencyAdapter as XCMMultiCurrencyAdapter,
-	NativePalletAssetOr,
+	NativePalletAssetOr, XcmHandler as XcmHandlerT,
 };
 
 use cumulus_primitives_core::relay_chain::Balance as RelayChainBalance;
@@ -64,7 +64,7 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 
 // XCM imports
 use polkadot_parachain::primitives::Sibling;
-use xcm::v0::{Junction, MultiAsset, MultiLocation, NetworkId};
+use xcm::v0::{Junction, MultiAsset, MultiLocation, NetworkId, Xcm};
 use xcm_builder::{
 	AccountId32Aliases, ChildParachainConvertsVia, LocationInverter, ParentIsDefault, RelayChainAsNative,
 	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SovereignSignedViaLocation,
@@ -409,6 +409,7 @@ impl CurrencyIdConversion<AssetId> for AssetCurrencyConverter {
 
 pub type LocalAssetTransactor = XCMMultiCurrencyAdapter<
 	Currencies,
+	UnknownTokens,
 	IsConcreteWithGeneralKey<CurrencyId, RelayToNative>,
 	LocationConverter,
 	AccountId,
@@ -476,6 +477,13 @@ impl Convert<AccountId, [u8; 32]> for AccountId32Convert {
 	}
 }
 
+pub struct HandleXcm;
+impl XcmHandlerT<AccountId> for HandleXcm {
+	fn execute_xcm(origin: AccountId, xcm: Xcm) -> DispatchResult {
+		XcmHandler::execute_xcm(origin, xcm)
+	}
+}
+
 impl orml_xtokens::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
@@ -483,8 +491,11 @@ impl orml_xtokens::Config for Runtime {
 	type AccountId32Convert = AccountId32Convert;
 	type RelayChainNetworkId = PolkadotNetworkId;
 	type ParaId = ParachainInfo;
-	type AccountIdConverter = LocationConverter;
-	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmHandler = HandleXcm;
+}
+
+impl orml_unknown_tokens::Config for Runtime {
+	type Event = Event;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -494,29 +505,30 @@ construct_runtime!(
 		NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
-		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
-		TransactionPayment: pallet_transaction_payment::{Module, Storage},
-		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
+		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 
 		// Parachain
-		ParachainSystem: cumulus_pallet_parachain_system::{Module, Call, Storage, Inherent, Event},
-		ParachainInfo: parachain_info::{Module, Storage, Config},
-		XcmHandler: xcm_handler::{Module, Call, Event<T>, Origin},
-		XTokens: orml_xtokens::{Module, Storage, Call, Event<T>},
+		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event},
+		ParachainInfo: parachain_info::{Pallet, Storage, Config},
+		XcmHandler: xcm_handler::{Pallet, Call, Event<T>, Origin},
+		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>},
 
 		// ORML related modules
-		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
-		Currencies: orml_currencies::{Module, Call, Event<T>},
+		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
+		Currencies: orml_currencies::{Pallet, Call, Event<T>},
+		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event},
 
 		// HydraDX related modules
-		AssetRegistry: pallet_asset_registry::{Module, Call, Storage, Config<T>},
-		AMM: pallet_amm::{Module, Call, Storage, Event<T>},
-		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
-		Faucet: pallet_faucet::{Module, Call, Storage, Config, Event<T>},
-		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
+		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},
+		AMM: pallet_amm::{Pallet, Call, Storage, Event<T>},
+		Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
+		Faucet: pallet_faucet::{Pallet, Call, Storage, Config, Event<T>},
+		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -546,7 +558,7 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllModules>;
+	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPallets>;
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -590,7 +602,7 @@ impl_runtime_apis! {
 		}
 
 		fn random_seed() -> <Block as BlockT>::Hash {
-			RandomnessCollectiveFlip::random_seed()
+			RandomnessCollectiveFlip::random_seed().0
 		}
 	}
 
@@ -677,9 +689,9 @@ impl_runtime_apis! {
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
-			use pallet_exchange_benchmarking::Module as ExchangeBench;
-			use frame_system_benchmarking::Module as SystemBench;
-			use pallet_multi_payment_benchmarking::Module as MultiBench;
+			use pallet_exchange_benchmarking::Pallet as ExchangeBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
+			use pallet_multi_payment_benchmarking::Pallet as MultiBench;
 
 			impl frame_system_benchmarking::Config for Runtime {}
 			impl pallet_exchange_benchmarking::Config for Runtime {};

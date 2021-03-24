@@ -33,10 +33,10 @@ frame_support::construct_runtime!(
 	 NodeBlock = Block,
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
-		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		 AMM: amm::{Module, Call, Storage, Event<T>},
-		 Currency: orml_tokens::{Module, Event<T>},
-		 AssetRegistry: pallet_asset_registry::{Module, Storage},
+		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		 AMM: amm::{Pallet, Call, Storage, Event<T>},
+		 Currency: orml_tokens::{Pallet, Event<T>},
+		 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 	 }
 
 );

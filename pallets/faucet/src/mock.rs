@@ -20,9 +20,9 @@ frame_support::construct_runtime!(
 	 NodeBlock = Block,
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
-		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		 Faucet: faucet::{Module, Call,Config, Storage, Event<T>},
-		 Currency: orml_tokens::{Module, Event<T>},
+		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		 Faucet: faucet::{Pallet, Call,Config, Storage, Event<T>},
+		 Currency: orml_tokens::{Pallet, Event<T>},
 	 }
 );
 

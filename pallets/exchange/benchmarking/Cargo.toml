@@ -1,6 +1,6 @@
 [package]
 authors = ['GalacticCouncil']
-description = 'HydraDX Exchange Benchmakring Module'
+description = 'HydraDX Exchange Benchmakring Pallet'
 edition = '2018'
 homepage = 'https://github.com/galacticcouncil/hydra-dx'
 license = 'Unlicense'

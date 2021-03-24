@@ -1,6 +1,6 @@
 use super::*;
 pub use crate::mock::{
-	Currency, Event as TestEvent, Exchange, ExtBuilder, Origin, System, Test, ALICE, AMM as AMMModule, BOB, CHARLIE,
+	Currency, Event as TestEvent, Exchange, ExtBuilder, Origin, System, Test, ALICE, AMM as AMMPallet, BOB, CHARLIE,
 	DAVE, DOT, ETH, FERDIE, GEORGE, HDX,
 };
 use frame_support::sp_runtime::traits::Hash;
@@ -21,7 +21,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 fn last_event() -> TestEvent {
-	system::Module::<Test>::events().pop().expect("Event expected").event
+	system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
 fn expect_event<E: Into<TestEvent>>(e: E) {
@@ -29,7 +29,7 @@ fn expect_event<E: Into<TestEvent>>(e: E) {
 }
 
 fn last_events(n: usize) -> Vec<TestEvent> {
-	system::Module::<Test>::events()
+	system::Pallet::<Test>::events()
 		.into_iter()
 		.rev()
 		.take(n)
@@ -43,13 +43,13 @@ fn expect_events(e: Vec<TestEvent>) {
 }
 
 fn generate_intention_id(account: &<Test as system::Config>::AccountId, c: u32) -> crate::IntentionId<Test> {
-	let b = <system::Module<Test>>::current_block_number();
+	let b = <system::Pallet<Test>>::current_block_number();
 	(c, &account, b, DOT, ETH).using_encoded(<Test as system::Config>::Hashing::hash)
 }
 
 /// HELPER FOR INITIALIZING POOLS
 fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: Price) {
-	assert_ok!(AMMModule::create_pool(
+	assert_ok!(AMMPallet::create_pool(
 		Origin::signed(user),
 		asset_a,
 		asset_b,
@@ -65,11 +65,11 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 
 	expect_event(amm::Event::CreatePool(user, asset_a, asset_b, shares));
 
-	let pair_account = AMMModule::get_pair_id(AssetPair {
+	let pair_account = AMMPallet::get_pair_id(AssetPair {
 		asset_in: asset_a,
 		asset_out: asset_b,
 	});
-	let share_token = AMMModule::share_token(pair_account);
+	let share_token = AMMPallet::share_token(pair_account);
 
 	let amount_b = price.saturating_mul_int(amount);
 
@@ -99,7 +99,7 @@ fn sell_test_pool_finalization_states() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -210,7 +210,7 @@ fn sell_test_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -312,7 +312,7 @@ fn sell_test_inverse_standard() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -416,7 +416,7 @@ fn sell_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -508,7 +508,7 @@ fn sell_test_single_eth_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -605,7 +605,7 @@ fn sell_test_single_dot_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -791,7 +791,7 @@ fn sell_test_single_multiple_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -968,7 +968,7 @@ fn sell_test_group_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1120,7 +1120,7 @@ fn trade_min_limit() {
 #[test]
 fn sell_more_than_owner_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMMModule::create_pool(
+		assert_ok!(AMMPallet::create_pool(
 			Origin::signed(ALICE),
 			HDX,
 			ETH,
@@ -1155,7 +1155,7 @@ fn sell_test_mixed_buy_sells() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1285,7 +1285,7 @@ fn discount_tests_no_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1415,7 +1415,7 @@ fn discount_tests_with_discount() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1549,7 +1549,7 @@ fn buy_test_exact_match() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1640,7 +1640,7 @@ fn buy_test_group_buys() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1770,7 +1770,7 @@ fn discount_tests_with_error() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1918,7 +1918,7 @@ fn simple_sell_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2005,7 +2005,7 @@ fn simple_buy_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2092,7 +2092,7 @@ fn simple_sell_buy() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2180,7 +2180,7 @@ fn simple_buy_sell() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2267,7 +2267,7 @@ fn single_sell_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2332,7 +2332,7 @@ fn single_buy_intention_test() {
 		let pool_amount = 100_000_000_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2399,7 +2399,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		let pool_amount = 100_000_000;
 		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = AMMPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});

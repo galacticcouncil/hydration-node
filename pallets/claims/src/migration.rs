@@ -1,10 +1,10 @@
 use super::*;
+use frame_support::traits::GetPalletVersion;
 use hex::FromHex;
 use primitives::Balance;
-use frame_support::traits::GetPalletVersion;
 
 pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
-	let version = <Module<T> as GetPalletVersion>::storage_version();
+	let version = <Pallet<T> as GetPalletVersion>::storage_version();
 	if version == None {
 		for (addr, amount) in claims_data.iter() {
 			let balance: BalanceOf<T> = T::CurrencyBalance::from(*amount).into();

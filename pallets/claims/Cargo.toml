@@ -1,6 +1,6 @@
 [package]
 authors = ['GalacticCouncil']
-description = 'HydraDX Claims Module'
+description = 'HydraDX Claims Pallet'
 edition = '2018'
 homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
 license = 'Unlicense'

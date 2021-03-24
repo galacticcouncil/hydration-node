@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
@@ -205,7 +204,7 @@ where
 		_len: usize,
 	) -> TransactionValidity {
 		match call.is_sub_type() {
-			Some(Call::claim(signature)) => match Module::<T>::validate_claim(who, &signature) {
+			Some(Call::claim(signature)) => match Pallet::<T>::validate_claim(who, &signature) {
 				Ok(_) => Ok(ValidTransaction::default()),
 				Err(error) => InvalidTransaction::Custom(error.as_u8()).into(),
 			},

@@ -37,6 +37,7 @@ module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-
 # ORML dependencies
 orml-currencies = { default-features = false, version = "0.4.1-dev" }
 orml-tokens = { default-features = false, version = "0.4.1-dev" }
+orml-unknown-tokens = { default-features = false, version = "0.4.1-dev" }
 orml-traits = { default-features = false, version = "0.4.1-dev" }
 orml-xtokens = { default-features = false, version = "0.4.1-dev" }
 orml-xcm-support = { default-features = false, version = "0.4.1-dev" }

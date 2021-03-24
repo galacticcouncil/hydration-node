@@ -13,7 +13,7 @@ use polkadot_primitives::v0::CollatorPair;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, PartialComponents, Role, TaskManager};
-use sc_telemetry::TelemetrySpan;
+use sc_telemetry::{Telemetry, TelemetryWorker, TelemetryWorkerHandle};
 use sp_core::Pair;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
@@ -39,15 +39,35 @@ pub fn new_partial(
 		(),
 		sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
 		sc_transaction_pool::FullPool<Block, FullClient>,
-		(),
+		(Option<Telemetry>, Option<TelemetryWorkerHandle>),
 	>,
 	ServiceError,
 > {
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-	let (client, backend, keystore_container, task_manager) =
-		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+	let telemetry = config
+		.telemetry_endpoints
+		.clone()
+		.filter(|x| !x.is_empty())
+		.map(|endpoints| -> Result<_, sc_telemetry::Error> {
+			let worker = TelemetryWorker::new(16)?;
+			let telemetry = worker.handle().new_telemetry(endpoints);
+			Ok((worker, telemetry))
+		})
+		.transpose()?;
+
+	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
+		&config,
+		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+	)?;
 	let client = Arc::new(client);
+
+	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
+
+	let telemetry = telemetry.map(|(worker, telemetry)| {
+		task_manager.spawn_handle().spawn("telemetry", worker.run());
+		telemetry
+	});
 
 	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
 		config.transaction_pool.clone(),
@@ -74,7 +94,7 @@ pub fn new_partial(
 		transaction_pool,
 		inherent_data_providers,
 		select_chain: (),
-		other: (),
+		other: (telemetry, telemetry_worker_handle),
 	})
 }
 
@@ -98,17 +118,23 @@ where
 
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let polkadot_full_node = cumulus_client_service::build_polkadot_full_node(polkadot_config, collator_key.public())
-		.map_err(|e| match e {
-		polkadot_service::Error::Sub(x) => x,
-		s => format!("{}", s).into(),
-	})?;
-
 	let params = new_partial(&parachain_config)?;
 	params
 		.inherent_data_providers
 		.register_provider(sp_timestamp::InherentDataProvider)
 		.unwrap();
+
+	let (mut telemetry, telemetry_worker_handle) = params.other;
+
+	let polkadot_full_node = cumulus_client_service::build_polkadot_full_node(
+		polkadot_config,
+		collator_key.public(),
+		telemetry_worker_handle,
+	)
+	.map_err(|e| match e {
+		polkadot_service::Error::Sub(x) => x,
+		s => format!("{}", s).into(),
+	})?;
 
 	let client = params.client.clone();
 	let backend = params.backend.clone();
@@ -149,9 +175,6 @@ where
 		})
 	};
 
-	let telemetry_span = TelemetrySpan::new();
-	let _telemetry_span_entered = telemetry_span.enter();
-
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		on_demand: None,
 		remote_blockchain: None,
@@ -165,12 +188,12 @@ where
 		network: network.clone(),
 		network_status_sinks,
 		system_rpc_tx,
-		telemetry_span: Some(telemetry_span.clone()),
+		telemetry: telemetry.as_mut(),
 	})?;
 
 	let announce_block = {
 		let network = network.clone();
-		Arc::new(move |hash, data| network.announce_block(hash, Some(data)))
+		Arc::new(move |hash, data| network.announce_block(hash, data))
 	};
 
 	if validator {
@@ -179,6 +202,7 @@ where
 			client.clone(),
 			transaction_pool,
 			prometheus_registry.as_ref(),
+			telemetry.as_ref().map(|x| x.handle()),
 		);
 		let spawner = task_manager.spawn_handle();
 

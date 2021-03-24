@@ -11,7 +11,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 fn last_events(n: usize) -> Vec<TestEvent> {
-	frame_system::Module::<Test>::events()
+	frame_system::Pallet::<Test>::events()
 		.into_iter()
 		.rev()
 		.take(n)
@@ -866,7 +866,7 @@ fn create_pool_small_fixed_point_amount_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000_000_000,
-			Price::from_fraction(0.00001)
+			Price::from_float(0.00001)
 		));
 
 		let pair_account = AMM::get_pair_id(AssetPair {
@@ -896,7 +896,7 @@ fn create_pool_fixed_point_amount_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000_000,
-			Price::from_fraction(4560.234543)
+			Price::from_float(4560.234543)
 		));
 
 		let pair_account = AMM::get_pair_id(AssetPair {
