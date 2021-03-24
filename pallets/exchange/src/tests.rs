@@ -1106,12 +1106,12 @@ fn trades_without_pool_should_not_work() {
 fn trade_min_limit() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			Exchange::sell(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Exchange::sell(Origin::signed(ALICE), HDX, ETH, MIN_TRADING_LIMIT - 1, 200, false),
 			Error::<Test>::MinimumTradeLimitNotReached
 		);
 
 		assert_noop!(
-			Exchange::buy(Origin::signed(ALICE), HDX, ETH, 10, 200, false),
+			Exchange::buy(Origin::signed(ALICE), HDX, ETH, MIN_TRADING_LIMIT - 1, 200, false),
 			Error::<Test>::MinimumTradeLimitNotReached
 		);
 	});
