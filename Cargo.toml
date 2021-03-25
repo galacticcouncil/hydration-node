@@ -16,6 +16,7 @@ pallet-timestamp = {git = 'https://github.com/paritytech/substrate', rev = 'e84d
 pallet-tips = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-transaction-payment-rpc = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-transaction-payment-rpc-runtime-api = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
+pallet-bounties = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 sc-basic-authorship = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 sc-chain-spec = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 sc-cli = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}

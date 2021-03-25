@@ -2253,7 +2253,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2272,6 +2272,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
+ "pallet-bounties",
  "pallet-claims",
  "pallet-collective",
  "pallet-election-provider-multi-phase",
@@ -3996,6 +3997,21 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "parity-scale-codec 2.0.1",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-bounties"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68c8efd48909a70d58e8#e84d2ae4e519d77f59ef68c8efd48909a70d58e8"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-treasury",
  "parity-scale-codec 2.0.1",
  "serde",
  "sp-runtime",
