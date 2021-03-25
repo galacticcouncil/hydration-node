@@ -29,7 +29,7 @@ fi
 echo "OK ($($PYTHON --version))"
 
 echo -n "Toolchain ...... "
-TOOLCHAIN=$(rustup default)
+TOOLCHAIN=$(rustup show active-toolchain)
 
 if [[ $TOOLCHAIN == "nightly"* ]]; then
   echo "OK ($TOOLCHAIN)"
