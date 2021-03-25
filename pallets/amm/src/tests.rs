@@ -312,6 +312,43 @@ fn remove_liquidity_should_not_work() {
 }
 
 #[test]
+fn remove_liquidity_should_not_lock_user() {
+	new_test_ext().execute_with(|| {
+		let user_one = ALICE;
+		let user_two = BOB;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(AMM::create_pool(
+			Origin::signed(user_one),
+			asset_a,
+			asset_b,
+			100_000_000,
+			Price::from(10_000)
+		));
+
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+		assert_eq!(AMM::exists(asset_pair), true);
+
+		assert_ok!(AMM::add_liquidity(
+			Origin::signed(user_two),
+			asset_a,
+			asset_b,
+			MIN_TRADING_LIMIT - 1,
+			100_000
+		));
+
+		assert_noop!(
+			AMM::remove_liquidity(Origin::signed(user_one), asset_a, asset_b, 100_000_000),
+		 	Error::<Test>::MinimalPoolLiquidityRequirementNotMet
+		);
+	});
+}
+
+#[test]
 fn remove_liquidity_should_destroy_pool() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;

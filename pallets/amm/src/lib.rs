@@ -311,14 +311,14 @@ pub mod pallet {
 
 			let total_shares = Self::total_liquidity(&pair_account);
 
-			ensure!(total_shares >= liquidity_amount, Error::<T>::InsufficientAssetBalance);
+			ensure!(total_shares >= liquidity_amount, Error::<T>::InsufficientPoolAssetBalance);
+
+			let user_shares = T::Currency::free_balance(share_token, &who);
 
 			ensure!(
-				T::Currency::free_balance(share_token, &who) >= liquidity_amount,
+				user_shares >= liquidity_amount,
 				Error::<T>::InsufficientAssetBalance
 			);
-
-			ensure!(!total_shares.is_zero(), Error::<T>::CannotRemoveLiquidityWithZero);
 
 			let asset_a_reserve = T::Currency::free_balance(asset_a, &pair_account);
 			let asset_b_reserve = T::Currency::free_balance(asset_b, &pair_account);
@@ -333,22 +333,17 @@ pub mod pallet {
 
 			let (remove_amount_a, remove_amount_b) = liquidity_out;
 
-			ensure!(
-				T::Currency::free_balance(asset_a, &pair_account) >= remove_amount_a,
-				Error::<T>::InsufficientPoolAssetBalance
-			);
-			ensure!(
-				T::Currency::free_balance(asset_b, &pair_account) >= remove_amount_b,
-				Error::<T>::InsufficientPoolAssetBalance
-			);
-
 			let liquidity_left = total_shares
+				.checked_sub(liquidity_amount)
+				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
+
+			let pool_liquidity_left = user_shares
 				.checked_sub(liquidity_amount)
 				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
 			if total_shares != liquidity_amount {
 				ensure!(
-					total_shares - liquidity_amount >= MIN_POOL_LIQUIDITY_LIMIT,
+					pool_liquidity_left >= MIN_POOL_LIQUIDITY_LIMIT,
 					Error::<T>::MinimalPoolLiquidityRequirementNotMet
 				);
 			}
