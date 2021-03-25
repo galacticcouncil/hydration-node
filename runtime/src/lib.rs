@@ -16,7 +16,7 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{
 	crypto::KeyTypeId,
-	u32_trait::{_2, _3, _4},
+	u32_trait::{_3, _4},
 	OpaqueMetadata,
 };
 use sp_runtime::traits::{
@@ -546,7 +546,7 @@ parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = DOLLARS;
 	pub const SpendPeriod: BlockNumber = DAYS;
-	pub const Burn: Permill = Permill::from_percent(50);
+	pub const Burn: Permill = Permill::from_percent(0);
 	pub const DataDepositPerByte: Balance = CENTS;
 	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
@@ -559,19 +559,14 @@ parameter_types! {
 				  .saturating_sub(ExtrinsicBaseWeight::get());
 }
 
+type ManageOrigin =
+	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, CouncilCollective>>;
+
 impl pallet_treasury::Config for Runtime {
 	type ModuleId = TreasuryModuleId;
 	type Currency = Balances;
-	type ApproveOrigin = EnsureOneOf<
-		AccountId,
-		EnsureRoot<AccountId>,
-		pallet_collective::EnsureMembers<_4, AccountId, CouncilCollective>,
-	>;
-	type RejectOrigin = EnsureOneOf<
-		AccountId,
-		EnsureRoot<AccountId>,
-		pallet_collective::EnsureMembers<_2, AccountId, CouncilCollective>,
-	>;
+	type ApproveOrigin = ManageOrigin;
+	type RejectOrigin = ManageOrigin;
 	//type TipReportDepositPerByte = TipReportDepositPerByte;
 	type Event = Event;
 	type OnSlash = ();
@@ -582,7 +577,8 @@ impl pallet_treasury::Config for Runtime {
 	type Burn = Burn;
 	type BurnDestination = ();
 	type WeightInfo = ();
-	type SpendFunds = Bounties;
+	// Bouties disabled
+	type SpendFunds = ();
 }
 
 impl pallet_tips::Config for Runtime {
@@ -622,8 +618,8 @@ parameter_types! {
 	pub const CandidacyBond: Balance = 10 * DOLLARS;
 	pub const VotingBond: Balance = DOLLARS;
 	pub const TermDuration: BlockNumber = 7 * DAYS;
-	pub const DesiredMembers: u32 = 13;
-	pub const DesiredRunnersUp: u32 = 7;
+	pub const DesiredMembers: u32 = 1;
+	pub const DesiredRunnersUp: u32 = 0;
 	pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
 }
 
@@ -632,9 +628,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type ModuleId = ElectionsPhragmenModuleId;
 	type Currency = Balances;
 	type ChangeMembers = Council;
-	// NOTE: this implies that council's genesis members cannot be set directly and must come from
-	// this module.
-	type InitializeMembers = Council;
+	// NOTE: set council in chain spec
+	type InitializeMembers = ();
 	type CurrencyToVote = U128CurrencyToVote;
 	type CandidacyBond = CandidacyBond;
 	type VotingBondBase = ();
@@ -673,9 +668,10 @@ impl pallet_babe::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
-	pub const CouncilMaxProposals: u32 = 100;
+	pub const CouncilMaxProposals: u32 = 0;
 	pub const ProposalVotesRequired: u32 = 3;
 	pub const ProposalMininumDeposit: Balance = 0;
+	pub const CouncilMaxMembers: u32 = 1;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -685,14 +681,14 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type Event = Event;
 	type MotionDuration = CouncilMotionDuration;
 	type MaxProposals = CouncilMaxProposals;
-	type MaxMembers = ();
+	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = ();
 }
 
 parameter_types! {
 	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 100;
+	pub const TechnicalMaxProposals: u32 = 0;
 	pub const TechnicalMaxMembers: u32 = 100;
 }
 

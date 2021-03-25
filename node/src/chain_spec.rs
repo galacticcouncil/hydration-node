@@ -254,6 +254,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
 			)
@@ -367,7 +369,10 @@ fn testnet_genesis(
 			..Default::default()
 		}),
 		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			phantom: Default::default(),
+		}),
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
 		pallet_claims: Some(ClaimsConfig {
 			claims: create_testnet_claims(),
