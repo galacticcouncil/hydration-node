@@ -1,0 +1,52 @@
+{
+  "plugins": [
+    "git-tag",
+    "conventional-commits"
+  ],
+  "labels": [
+    {
+      "name": "bug",
+      "changelogTitle": "🐛 Bug Fix",
+      "releaseType": "patch"
+    },
+    {
+      "name": "refactor",
+      "changelogTitle": "Refactoring",
+      "releaseType": "patch"
+    },
+    {
+      "name": "style",
+      "changelogTitle": "Refactoring",
+      "releaseType": "patch"
+    },
+    {
+      "name": "performance",
+      "changelogTitle": "Refactoring",
+      "releaseType": "patch"
+    },
+    {
+      "name": "test",
+      "changelogTitle": "Other improvements",
+      "releaseType": "none"
+    },
+    {
+      "name": "chore",
+      "changelogTitle": "Other improvements",
+      "releaseType": "none"
+    },
+    {
+      "name": "ci",
+      "changelogTitle": "Other improvements",
+      "releaseType": "none"
+    },
+    {
+      "name": "build",
+      "changelogTitle": "Other improvements",
+      "releaseType": "none"
+    }
+  ],
+  "owner": "galacticcouncil",
+  "repo": "HydraDX-node",
+  "name": "Galactic Council",
+  "email": "info@galacticcouncil.io"
+}
