@@ -477,7 +477,11 @@ fn lerna_genesis(
 			..Default::default()
 		}),
 		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			// Intergalactic council member
+			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
+			phantom: Default::default(),
+		}),
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
 		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
 	}
