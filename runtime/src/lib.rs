@@ -17,7 +17,7 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{
 	crypto::KeyTypeId,
-	u32_trait::{_2, _3, _4},
+	u32_trait::{_2, _4},
 	OpaqueMetadata,
 };
 use sp_runtime::traits::{
