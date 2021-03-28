@@ -337,13 +337,13 @@ pub mod pallet {
 				.checked_sub(liquidity_amount)
 				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
-			let pool_liquidity_left = user_shares
+			let user_liquidity_left = user_shares
 				.checked_sub(liquidity_amount)
 				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
 			if total_shares != liquidity_amount {
 				ensure!(
-					pool_liquidity_left >= MIN_POOL_LIQUIDITY_LIMIT,
+					user_liquidity_left >= MIN_POOL_LIQUIDITY_LIMIT,
 					Error::<T>::MinimalPoolLiquidityRequirementNotMet
 				);
 			}
