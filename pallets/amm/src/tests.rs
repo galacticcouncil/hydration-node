@@ -377,7 +377,7 @@ fn remove_liquidity_should_destroy_pool() {
 		));
 
 		assert_eq!(AMM::total_liquidity(&pair_account), 0);
-		aassert!(!AMM::exists(asset_pair), "Pool not destroyed after removing all liquidity");
+		assert!(!AMM::exists(asset_pair), "Pool not destroyed after removing all liquidity");
 
 		expect_events(vec![
 			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
