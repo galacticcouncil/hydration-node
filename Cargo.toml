@@ -105,4 +105,5 @@ members = [
   'pallets/transaction-multi-payment',
   'primitives',
   'runtime',
+  'utils/build-script-utils'
 ]
