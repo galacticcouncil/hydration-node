@@ -1274,6 +1274,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
+name = "enumflags2"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83c8d82922337cd23a15f88b70d8e4ef5f11da38dd7cdb55e84dd5de99695da0"
+dependencies = [
+ "enumflags2_derive",
+]
+
+[[package]]
+name = "enumflags2_derive"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "946ee94e3dbf58fdd324f9ce245c7b238d46a66f00e86a020b71996349e46cce"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2193,7 +2213,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -2253,7 +2273,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "3.0.0"
+version = "6.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2280,6 +2300,7 @@ dependencies = [
  "pallet-exchange-benchmarking",
  "pallet-faucet",
  "pallet-grandpa",
+ "pallet-identity",
  "pallet-im-online",
  "pallet-multi-payment-benchmarking",
  "pallet-offences",
@@ -4154,6 +4175,22 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-identity"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68c8efd48909a70d58e8#e84d2ae4e519d77f59ef68c8efd48909a70d58e8"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.0.1",
+ "serde",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 
