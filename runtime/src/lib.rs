@@ -158,6 +158,9 @@ pub fn native_version() -> NativeVersion {
 }
 
 pub struct BaseFilter;
+#[cfg(feature = "testing-node")]
+mod testing_runtime;
+#[cfg(not(feature = "testing-node"))]
 impl Filter<Call> for BaseFilter {
 	fn filter(call: &Call) -> bool {
 		match call {
