@@ -373,10 +373,14 @@ fn testnet_genesis(
 			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 			phantom: Default::default(),
 		}),
-		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			phantom: Default::default(),
+		}),
 		pallet_claims: Some(ClaimsConfig {
 			claims: create_testnet_claims(),
 		}),
+		pallet_democracy: Default::default(),
 	}
 }
 
@@ -484,6 +488,7 @@ fn lerna_genesis(
 		}),
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
 		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
+		pallet_democracy: Default::default(),
 	}
 }
 

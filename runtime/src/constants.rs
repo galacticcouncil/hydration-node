@@ -5,6 +5,8 @@ pub mod currency {
 	pub const DOLLARS: Balance = HDX / 10; // 10 HDX ~= 1 $
 	pub const CENTS: Balance = DOLLARS / 100;
 	pub const MILLICENTS: Balance = CENTS / 1_000;
+
+	pub const FORTUNE: Balance = u128::MAX;
 }
 
 pub mod time {
@@ -46,4 +48,5 @@ pub mod time {
 
 		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
 	};
+	pub const INFINITY: u32 = u32::MAX;
 }

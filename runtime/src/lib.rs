@@ -159,36 +159,37 @@ pub struct BaseFilter;
 impl Filter<Call> for BaseFilter {
 	fn filter(call: &Call) -> bool {
 		match call {
-			Call::Council(_)
-			| Call::Faucet(_)
+			Call::AMM(_)
+			| Call::AssetRegistry(_)
 			| Call::Balances(_)
 			| Call::Currencies(_)
-			| Call::Tokens(_)
-			| Call::AssetRegistry(_)
-			| Call::Offences(_)
-			| Call::AMM(_)
+			| Call::Exchange(_)
+			| Call::Faucet(_)
 			| Call::MultiTransactionPayment(_)
-			| Call::Exchange(_) => false,
+			| Call::Offences(_)
+			| Call::Tokens(_) => false,
 
-			Call::System(_)
-			| Call::RandomnessCollectiveFlip(_)
-			| Call::Claims(_)
-			| Call::Elections(_)
-			| Call::Babe(_)
-			| Call::TechnicalCommittee(_)
-			| Call::Treasury(_)
-			| Call::Tips(_)
-			| Call::Timestamp(_)
+			Call::AuthorityDiscovery(_)
 			| Call::Authorship(_)
-			| Call::Staking(_)
-			| Call::Session(_)
-			| Call::Grandpa(_)
-			| Call::AuthorityDiscovery(_)
-			| Call::ImOnline(_)
-			| Call::ElectionProviderMultiPhase(_)
-			| Call::Scheduler(_)
+			| Call::Babe(_)
 			| Call::Bounties(_)
-			| Call::Sudo(_) => true,
+			| Call::Claims(_)
+			| Call::Council(_)
+			| Call::Democracy(_)
+			| Call::ElectionProviderMultiPhase(_)
+			| Call::Elections(_)
+			| Call::Grandpa(_)
+			| Call::ImOnline(_)
+			| Call::RandomnessCollectiveFlip(_)
+			| Call::Scheduler(_)
+			| Call::Session(_)
+			| Call::Staking(_)
+			| Call::Sudo(_)
+			| Call::System(_)
+			| Call::TechnicalCommittee(_)
+			| Call::Timestamp(_)
+			| Call::Tips(_)
+			| Call::Treasury(_) => true,
 		}
 	}
 }
@@ -704,6 +705,61 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const LaunchPeriod: BlockNumber = 28 * DAYS;
+	pub const VotingPeriod: BlockNumber = 28 * DAYS;
+	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
+	pub const MinimumDeposit: Balance = 100 * DOLLARS;
+	pub const EnactmentPeriod: BlockNumber = 28 * DAYS;
+	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
+	// One cent: $10,000 / MB
+	pub const PreimageByteDeposit: Balance = CENTS;
+	pub const InstantAllowed: bool = true;
+	pub const MaxVotes: u32 = 100;
+	pub const MaxProposals: u32 = 100;
+}
+
+impl pallet_democracy::Config for Runtime {
+	type Proposal = Call;
+	type Event = Event;
+	type Currency = Balances;
+	type EnactmentPeriod = EnactmentPeriod;
+	type LaunchPeriod = LaunchPeriod;
+	type VotingPeriod = VotingPeriod;
+	type MinimumDeposit = MinimumDeposit;
+	/// A straight majority of the council can decide what their next motion is.
+	type ExternalOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	/// A 60% super-majority can have the next scheduled referendum be a straight majority-carries vote.
+	type ExternalMajorityOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	/// A unanimous council can have the next scheduled referendum be a straight default-carries
+	/// (NTB) vote.
+	type ExternalDefaultOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
+	/// be tabled immediately and with a shorter voting/enactment period.
+	type FastTrackOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	type InstantOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	type InstantAllowed = InstantAllowed;
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	// To cancel a proposal which has been passed, a member of the council must agree to it.
+	type CancellationOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
+	// Root must agree.
+	type CancelProposalOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	type BlacklistOrigin = EnsureRoot<AccountId>;
+	// A single technical committee member may veto a coming council proposal, however they can
+	// only do it once and it lasts only for the cooloff period.
+	type VetoOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	type CooloffPeriod = CooloffPeriod;
+	type PreimageByteDeposit = PreimageByteDeposit;
+	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	type Slash = Treasury;
+	type Scheduler = Scheduler;
+	type PalletsOrigin = OriginCaller;
+	type MaxVotes = MaxVotes;
+	type WeightInfo = ();
+	type MaxProposals = MaxProposals;
+}
+
 impl pallet_authority_discovery::Config for Runtime {}
 
 parameter_types! {
@@ -790,6 +846,7 @@ construct_runtime!(
 		Historical: session_historical::{Module},
 		Tips: pallet_tips::{Module, Call, Storage, Event<T>},
 		Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
+		Democracy: pallet_democracy::{Module, Call, Storage, Config, Event<T>},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
