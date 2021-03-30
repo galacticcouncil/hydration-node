@@ -1,3 +1,5 @@
+#![allow(unknown_lints)]
+#![allow(clippy::all)]
 use std::{env, fs, fs::File, io, io::Read, path::PathBuf};
 
 /// Make sure the calling `build.rs` script is rerun when `.git/HEAD` or the ref of `.git/HEAD`
