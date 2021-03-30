@@ -302,7 +302,7 @@ fn remove_liquidity_should_not_work() {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		};
-		assert_eq!(AMM::exists(asset_pair), true);
+		assert!(AMM::exists(asset_pair));
 
 		assert_noop!(
 			AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1),
@@ -331,7 +331,7 @@ fn remove_liquidity_should_not_lock_user() {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		};
-		assert_eq!(AMM::exists(asset_pair), true);
+		assert!(AMM::exists(asset_pair));
 
 		assert_ok!(AMM::add_liquidity(
 			Origin::signed(user_two),
@@ -367,7 +367,7 @@ fn remove_liquidity_should_destroy_pool() {
 			asset_out: asset_b,
 		};
 		let pair_account = AMM::get_pair_id(asset_pair);
-		assert_eq!(AMM::exists(asset_pair), true);
+		assert!(AMM::exists(asset_pair));
 
 		assert_ok!(AMM::remove_liquidity(
 			Origin::signed(user),
@@ -377,7 +377,7 @@ fn remove_liquidity_should_destroy_pool() {
 		));
 
 		assert_eq!(AMM::total_liquidity(&pair_account), 0);
-		assert_eq!(AMM::exists(asset_pair), false);
+		aassert!(!AMM::exists(asset_pair), "Pool not destroyed after removing all liquidity");
 
 		expect_events(vec![
 			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
@@ -406,7 +406,7 @@ fn remove_liquidity_should_not_destroy_pool() {
 			asset_out: asset_b,
 		};
 		let pair_account = AMM::get_pair_id(asset_pair);
-		assert_eq!(AMM::exists(asset_pair), true);
+		assert!(AMM::exists(asset_pair));
 
 
 		assert_ok!(AMM::remove_liquidity(
@@ -417,7 +417,7 @@ fn remove_liquidity_should_not_destroy_pool() {
 		));
 
 		assert_eq!(AMM::total_liquidity(&pair_account), MIN_POOL_LIQUIDITY_LIMIT);
-		assert_eq!(AMM::exists(asset_pair), true);
+		assert!(AMM::exists(asset_pair));
 
 		expect_events(vec![
 			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
