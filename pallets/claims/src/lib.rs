@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
@@ -211,5 +210,12 @@ where
 			},
 			_ => Ok(Default::default()),
 		}
+	}
+}
+
+impl<T: Config + Send + Sync> ValidateClaim<T> {
+	#[cfg_attr(feature = "cargo-clippy", allow(clippy::new_without_default))]
+	pub fn new() -> Self {
+		Self(sp_std::marker::PhantomData)
 	}
 }
