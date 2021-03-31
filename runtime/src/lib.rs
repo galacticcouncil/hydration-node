@@ -167,9 +167,9 @@ impl Filter<Call> for BaseFilter {
 			| Call::Faucet(_)
 			| Call::MultiTransactionPayment(_)
 			| Call::Offences(_)
-			| Call::Tokens(_) //=> false,
+			| Call::Tokens(_) => false,
 
-			| Call::AuthorityDiscovery(_)
+			Call::AuthorityDiscovery(_)
 			| Call::Authorship(_)
 			| Call::Babe(_)
 			| Call::Claims(_)
@@ -523,7 +523,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = DOLLARS;
+	pub const ProposalBondMinimum: Balance = FORTUNE;
 	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
@@ -540,17 +540,14 @@ impl pallet_treasury::Config for Runtime {
 	type Currency = Balances;
 	type ApproveOrigin = ManageOrigin;
 	type RejectOrigin = ManageOrigin;
-	//type TipReportDepositPerByte = TipReportDepositPerByte;
 	type Event = Event;
 	type OnSlash = ();
-	//type ProposalRejection = ();
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ProposalBondMinimum;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type BurnDestination = ();
 	type WeightInfo = ();
-	// Bouties disabled
 	type SpendFunds = ();
 }
 
@@ -558,7 +555,7 @@ parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
 	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(2);
-	pub const TipReportDepositBase: Balance = 2 * DOLLARS;
+	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
 	pub const MaximumReasonLength: u32 = 1024;
 }
@@ -611,7 +608,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type ModuleId = ElectionsPhragmenModuleId;
 	type Currency = Balances;
 	type ChangeMembers = Council;
-	type InitializeMembers = Council; // Set to () if defined in chain spec
+	type InitializeMembers = (); // Set to () if defined in chain spec
 	type CurrencyToVote = U128CurrencyToVote;
 	type CandidacyBond = CandidacyBond;
 	type VotingBondBase = ();

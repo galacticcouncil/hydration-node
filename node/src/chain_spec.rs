@@ -368,7 +368,9 @@ fn testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
+		pallet_elections_phragmen: Some(ElectionsConfig {
+			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), 0)],
+		}),
 		pallet_collective_Instance1: Some(CouncilConfig {
 			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 			phantom: Default::default(),
