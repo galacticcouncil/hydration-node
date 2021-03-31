@@ -1,3 +1,15 @@
+# v4.0.1 (Tue Mar 30 2021)
+
+#### 🐛 Bug Fix
+
+- fix: telemetry [#190](https://github.com/galacticcouncil/HydraDX-node/pull/190) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 1
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+
+---
+
 # v4.0.0 (Mon Mar 29 2021)
 
 #### 💥 Breaking Change
