@@ -16,7 +16,7 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{
 	crypto::KeyTypeId,
-	u32_trait::{_3, _4},
+	u32_trait::{_1, _3, _4},
 	OpaqueMetadata,
 };
 use sp_runtime::traits::{
@@ -50,7 +50,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
-use frame_system::{EnsureOneOf, EnsureRoot};
+use frame_system::EnsureRoot;
 use sp_runtime::curve::PiecewiseLinear;
 
 use pallet_session::historical as session_historical;
@@ -167,15 +167,13 @@ impl Filter<Call> for BaseFilter {
 			| Call::Faucet(_)
 			| Call::MultiTransactionPayment(_)
 			| Call::Offences(_)
-			| Call::Tokens(_) => false,
+			| Call::Tokens(_) //=> false,
 
-			Call::AuthorityDiscovery(_)
+			| Call::AuthorityDiscovery(_)
 			| Call::Authorship(_)
 			| Call::Babe(_)
-			| Call::Bounties(_)
 			| Call::Claims(_)
 			| Call::Council(_)
-			| Call::Democracy(_)
 			| Call::ElectionProviderMultiPhase(_)
 			| Call::Elections(_)
 			| Call::Grandpa(_)
@@ -354,26 +352,6 @@ parameter_type_with_key! {
 	};
 }
 
-parameter_types! {
-	pub const BountyDepositBase: Balance = DOLLARS;
-	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
-	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
-	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-	pub const BountyValueMinimum: Balance = 10 * DOLLARS;
-}
-
-impl pallet_bounties::Config for Runtime {
-	type Event = Event;
-	type BountyDepositBase = BountyDepositBase;
-	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
-	type BountyUpdatePeriod = BountyUpdatePeriod;
-	type BountyCuratorDeposit = BountyCuratorDeposit;
-	type BountyValueMinimum = BountyValueMinimum;
-	type DataDepositPerByte = DataDepositPerByte;
-	type MaximumReasonLength = MaximumReasonLength;
-	type WeightInfo = ();
-}
-
 /// ORML Configurations
 impl orml_tokens::Config for Runtime {
 	type Event = Event;
@@ -548,20 +526,14 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = DOLLARS;
 	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
-	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = DAYS;
-	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = DOLLARS;
-	pub const TipReportDepositPerByte: Balance = CENTS;
-	pub const MaximumReasonLength: u32 = 16384;
 	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
 	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
 				  .saturating_sub(BlockExecutionWeight::get())
 				  .saturating_sub(ExtrinsicBaseWeight::get());
 }
 
-type ManageOrigin =
-	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, CouncilCollective>>;
+type AllCouncilMembers = pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
+type ManageOrigin = frame_system::EnsureOneOf<AccountId, EnsureRoot<AccountId>, AllCouncilMembers>;
 
 impl pallet_treasury::Config for Runtime {
 	type ModuleId = TreasuryModuleId;
@@ -580,6 +552,15 @@ impl pallet_treasury::Config for Runtime {
 	type WeightInfo = ();
 	// Bouties disabled
 	type SpendFunds = ();
+}
+
+parameter_types! {
+	pub const DataDepositPerByte: Balance = CENTS;
+	pub const TipCountdown: BlockNumber = DAYS;
+	pub const TipFindersFee: Percent = Percent::from_percent(2);
+	pub const TipReportDepositBase: Balance = 2 * DOLLARS;
+	pub const TipReportDepositPerByte: Balance = CENTS;
+	pub const MaximumReasonLength: u32 = 1024;
 }
 
 impl pallet_tips::Config for Runtime {
@@ -616,7 +597,8 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
-	pub const CandidacyBond: Balance = 10 * DOLLARS;
+	// Don't allow runner-ups
+	pub const CandidacyBond: Balance = FORTUNE;
 	pub const VotingBond: Balance = DOLLARS;
 	pub const TermDuration: BlockNumber = 7 * DAYS;
 	pub const DesiredMembers: u32 = 1;
@@ -629,8 +611,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type ModuleId = ElectionsPhragmenModuleId;
 	type Currency = Balances;
 	type ChangeMembers = Council;
-	// NOTE: set council in chain spec
-	type InitializeMembers = ();
+	type InitializeMembers = Council; // Set to () if defined in chain spec
 	type CurrencyToVote = U128CurrencyToVote;
 	type CandidacyBond = CandidacyBond;
 	type VotingBondBase = ();
@@ -669,9 +650,9 @@ impl pallet_babe::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
-	pub const CouncilMaxProposals: u32 = 0;
-	pub const ProposalVotesRequired: u32 = 3;
-	pub const ProposalMininumDeposit: Balance = 0;
+	pub const CouncilMaxProposals: u32 = 10;
+	pub const ProposalVotesRequired: u32 = 1;
+	pub const ProposalMininumDeposit: Balance = FORTUNE;
 	pub const CouncilMaxMembers: u32 = 1;
 }
 
@@ -689,8 +670,8 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 
 parameter_types! {
 	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 0;
-	pub const TechnicalMaxMembers: u32 = 100;
+	pub const TechnicalMaxProposals: u32 = 10;
+	pub const TechnicalMaxMembers: u32 = 10;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
@@ -703,61 +684,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 28 * DAYS;
-	pub const VotingPeriod: BlockNumber = 28 * DAYS;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 100 * DOLLARS;
-	pub const EnactmentPeriod: BlockNumber = 28 * DAYS;
-	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	// One cent: $10,000 / MB
-	pub const PreimageByteDeposit: Balance = CENTS;
-	pub const InstantAllowed: bool = true;
-	pub const MaxVotes: u32 = 100;
-	pub const MaxProposals: u32 = 100;
-}
-
-impl pallet_democracy::Config for Runtime {
-	type Proposal = Call;
-	type Event = Event;
-	type Currency = Balances;
-	type EnactmentPeriod = EnactmentPeriod;
-	type LaunchPeriod = LaunchPeriod;
-	type VotingPeriod = VotingPeriod;
-	type MinimumDeposit = MinimumDeposit;
-	/// A straight majority of the council can decide what their next motion is.
-	type ExternalOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	/// A 60% super-majority can have the next scheduled referendum be a straight majority-carries vote.
-	type ExternalMajorityOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	/// A unanimous council can have the next scheduled referendum be a straight default-carries
-	/// (NTB) vote.
-	type ExternalDefaultOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	type InstantOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	type InstantAllowed = InstantAllowed;
-	type FastTrackVotingPeriod = FastTrackVotingPeriod;
-	// To cancel a proposal which has been passed, a member of the council must agree to it.
-	type CancellationOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
-	// Root must agree.
-	type CancelProposalOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	type BlacklistOrigin = EnsureRoot<AccountId>;
-	// A single technical committee member may veto a coming council proposal, however they can
-	// only do it once and it lasts only for the cooloff period.
-	type VetoOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	type CooloffPeriod = CooloffPeriod;
-	type PreimageByteDeposit = PreimageByteDeposit;
-	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	type Slash = Treasury;
-	type Scheduler = Scheduler;
-	type PalletsOrigin = OriginCaller;
-	type MaxVotes = MaxVotes;
-	type WeightInfo = ();
-	type MaxProposals = MaxProposals;
 }
 
 impl pallet_authority_discovery::Config for Runtime {}
@@ -845,8 +771,6 @@ construct_runtime!(
 		Offences: pallet_offences::{Module, Call, Storage, Event},
 		Historical: session_historical::{Module},
 		Tips: pallet_tips::{Module, Call, Storage, Event<T>},
-		Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
-		Democracy: pallet_democracy::{Module, Call, Storage, Config, Event<T>},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Module, Storage, Call, Event<T>, Config<T>},
@@ -1135,7 +1059,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_collective, Council);
-			add_benchmark!(params, batches, pallet_bounties, Bounties);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
