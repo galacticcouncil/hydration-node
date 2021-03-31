@@ -6,7 +6,8 @@ use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
-	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID,
+	WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -253,6 +254,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
 			)
@@ -365,8 +368,21 @@ fn testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_elections_phragmen: Some(ElectionsConfig {
+			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), 0)],
+		}),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			phantom: Default::default(),
+		}),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+			members: vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+			],
+			phantom: Default::default(),
+		}),
 		pallet_claims: Some(ClaimsConfig {
 			claims: create_testnet_claims(),
 		}),
@@ -470,7 +486,12 @@ fn lerna_genesis(
 			..Default::default()
 		}),
 		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			// Intergalactic council member
+			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
+			phantom: Default::default(),
+		}),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
 		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
 	}
 }
