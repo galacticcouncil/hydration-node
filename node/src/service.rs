@@ -14,7 +14,6 @@ use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, PartialComponents, Role, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker, TelemetryWorkerHandle};
-use sp_core::Pair;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
@@ -128,7 +127,7 @@ where
 
 	let polkadot_full_node = cumulus_client_service::build_polkadot_full_node(
 		polkadot_config,
-		collator_key.public(),
+		collator_key.clone(),
 		telemetry_worker_handle,
 	)
 	.map_err(|e| match e {
