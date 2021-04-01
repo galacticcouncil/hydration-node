@@ -2273,7 +2273,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "6.0.1"
+version = "7.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2294,6 +2294,7 @@ dependencies = [
  "pallet-balances",
  "pallet-claims",
  "pallet-collective",
+ "pallet-democracy",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
  "pallet-exchange",
@@ -4058,6 +4059,20 @@ dependencies = [
  "parity-scale-codec 2.0.1",
  "serde",
  "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-democracy"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f2be1b6b34f7208d4e85bb2129de6ed319e43e2cf7ae6fc8f3e32797f55724b"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.0.1",
  "sp-io",
  "sp-runtime",
  "sp-std",
