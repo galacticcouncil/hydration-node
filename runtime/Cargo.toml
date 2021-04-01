@@ -47,6 +47,7 @@ pallet-authority-discovery = {default-features = false, version = '3.0.0'}
 pallet-authorship = {default-features = false, version = '3.0.0'}
 pallet-babe = {default-features = false, version = '3.0.0'}
 pallet-collective = {default-features = false, version = '3.0.0'}
+pallet-democracy = {default-features = false, version = '3.0.0'}
 pallet-election-provider-multi-phase = {default-features = false, version = '3.0.0'}
 pallet-elections-phragmen = {default-features = false, version = '3.0.0'}
 pallet-im-online = {default-features = false, version = '3.0.0'}

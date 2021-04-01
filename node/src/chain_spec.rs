@@ -5,9 +5,8 @@ use hydra_dx_runtime::opaque::SessionKeys;
 use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
-	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
-	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID,
-	WASM_BINARY,
+	FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature, StakerStatus,
+	StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -302,7 +301,7 @@ fn testnet_genesis(
 				.map(|k| (k, 1_000_000u128 * HDX))
 				.collect(),
 		}),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
+		pallet_grandpa: Default::default(),
 		pallet_sudo: Some(SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
@@ -342,8 +341,8 @@ fn testnet_genesis(
 		}),
 		pallet_babe: Some(BabeConfig { authorities: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-		pallet_treasury: Some(Default::default()),
+		pallet_im_online: Default::default(),
+		pallet_treasury: Default::default(),
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -368,9 +367,7 @@ fn testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Some(ElectionsConfig {
-			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), 0)],
-		}),
+		pallet_elections_phragmen: Default::default(),
 		pallet_collective_Instance1: Some(CouncilConfig {
 			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 			phantom: Default::default(),
@@ -485,7 +482,7 @@ fn lerna_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
+		pallet_elections_phragmen: Default::default(),
 		pallet_collective_Instance1: Some(CouncilConfig {
 			// Intergalactic council member
 			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
