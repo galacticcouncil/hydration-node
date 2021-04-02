@@ -39,7 +39,7 @@ use sp_version::RuntimeVersion;
 use frame_system::{limits, EnsureOneOf, EnsureRoot};
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
-	construct_runtime, debug, parameter_types,
+	construct_runtime, parameter_types,
 	traits::{Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -158,11 +158,10 @@ pub fn native_version() -> NativeVersion {
 pub struct BaseFilter;
 impl Filter<Call> for BaseFilter {
 	fn filter(call: &Call) -> bool {
-		debug::info!("{:?}", call);
-
 		match call {
 			Call::AuthorityDiscovery(_)
 			| Call::Authorship(_)
+			| Call::Balances(_)
 			| Call::Babe(_)
 			| Call::Claims(_)
 			| Call::Council(_)
@@ -181,16 +180,15 @@ impl Filter<Call> for BaseFilter {
 			| Call::Tips(_)
 			| Call::Treasury(_)
 			| Call::Identity(_)
+			| Call::Offences(_)
 			| Call::Sudo(_) => true,
 
 			Call::AMM(_)
 			| Call::AssetRegistry(_)
-			| Call::Balances(_)
 			| Call::Currencies(_)
 			| Call::Exchange(_)
 			| Call::Faucet(_)
 			| Call::MultiTransactionPayment(_)
-			| Call::Offences(_)
 			| Call::Tokens(_) => false,
 		}
 	}
@@ -524,13 +522,13 @@ impl pallet_staking::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 14 * DAYS;
-	pub const VotingPeriod: BlockNumber = 14 * DAYS;
+	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
+	pub const VotingPeriod: BlockNumber = 7 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 100 * DOLLARS;
-	pub const EnactmentPeriod: BlockNumber = 8 * DAYS;
+	pub const MinimumDeposit: Balance = FORTUNE;
+	pub const EnactmentPeriod: BlockNumber = 6 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	pub const PreimageByteDeposit: Balance = 1 * CENTS;
+	pub const PreimageByteDeposit: Balance = CENTS;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 30;
 	pub const MaxProposals: u32 = 30;
@@ -773,7 +771,6 @@ parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
 	pub const CouncilMaxProposals: u32 = 20;
 	pub const ProposalVotesRequired: u32 = 1;
-	pub const ProposalMininumDeposit: Balance = FORTUNE;
 	pub const CouncilMaxMembers: u32 = 1;
 }
 
