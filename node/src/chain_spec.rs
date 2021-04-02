@@ -5,8 +5,9 @@ use hydra_dx_runtime::opaque::SessionKeys;
 use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
-	FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature, StakerStatus,
-	StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
+	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID,
+	WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -369,7 +370,9 @@ fn testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Default::default(),
+		pallet_elections_phragmen: Some(ElectionsConfig {
+			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
+		}),
 		pallet_collective_Instance1: Some(CouncilConfig {
 			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 			phantom: Default::default(),
