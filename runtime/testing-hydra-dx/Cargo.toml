@@ -153,4 +153,3 @@ std = [
   'sp-consensus-babe/std',
   'pallet-im-online/std',
 ]
-testing-node = []
