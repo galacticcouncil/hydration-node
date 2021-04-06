@@ -35,12 +35,6 @@ Once the development environment is set up, build the node. This command will bu
 cargo build --release
 ```
 
-There is also an option to build the testing node with less restrictive settings to facilitate testing of new features:
-```bash
-cd node/testing_node
-cargo build --release
-```
-
 ## Run
 
 ### Single Node Development Chain
