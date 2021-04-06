@@ -98,5 +98,6 @@ panic = 'unwind'
 [workspace]
 members = [
   'node',
-  'runtime',
+  'runtime/hydra-dx',
+  'runtime/testing-hydra-dx',
 ]
