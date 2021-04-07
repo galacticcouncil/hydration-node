@@ -26,16 +26,17 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
-module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api', default-features = false}
-pallet-amm = {path = '../pallets/amm', default-features = false}
-pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false}
-pallet-claims = {path = '../pallets/claims', default-features = false}
-pallet-exchange = {path = '../pallets/exchange', default-features = false}
-pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', default-features = false, optional = true}
-pallet-faucet = {path = '../pallets/faucet', default-features = false}
-pallet-multi-payment-benchmarking = {path = '../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true}
-pallet-transaction-multi-payment = {path = '../pallets/transaction-multi-payment', default-features = false}
-primitives = {path = '../primitives', default-features = false}
+hydra-dx-common-runtime = {path = '../common', default-features = false}
+module-amm-rpc-runtime-api = {path = '../../pallets/amm/rpc/runtime-api', default-features = false}
+pallet-amm = {path = '../../pallets/amm', default-features = false}
+pallet-asset-registry = {path = '../../pallets/asset-registry', default-features = false}
+pallet-claims = {path = '../../pallets/claims', default-features = false}
+pallet-exchange = {path = '../../pallets/exchange', default-features = false}
+pallet-exchange-benchmarking = {path = '../../pallets/exchange/benchmarking', default-features = false, optional = true}
+pallet-faucet = {path = '../../pallets/faucet', default-features = false}
+pallet-multi-payment-benchmarking = {path = '../../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true}
+pallet-transaction-multi-payment = {path = '../../pallets/transaction-multi-payment', default-features = false}
+primitives = {path = '../../primitives', default-features = false}
 
 # ORML dependencies
 orml-currencies = {default-features = false, version = '0.4.1-dev'}
@@ -153,4 +154,3 @@ std = [
   'sp-consensus-babe/std',
   'pallet-im-online/std',
 ]
-testing-node = []

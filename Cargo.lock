@@ -2261,6 +2261,20 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "testing-hydra-dx-runtime",
+]
+
+[[package]]
+name = "hydra-dx-common-runtime"
+version = "6.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.0.1",
+ "primitives",
+ "sp-core",
+ "sp-runtime",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
@@ -2282,6 +2296,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal",
+ "hydra-dx-common-runtime",
  "module-amm-rpc-runtime-api",
  "orml-currencies",
  "orml-tokens",
@@ -7734,6 +7749,72 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "testing-hydra-dx-runtime"
+version = "6.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "hex-literal",
+ "hydra-dx-common-runtime",
+ "module-amm-rpc-runtime-api",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-amm",
+ "pallet-asset-registry",
+ "pallet-authority-discovery",
+ "pallet-authorship",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-claims",
+ "pallet-collective",
+ "pallet-election-provider-multi-phase",
+ "pallet-elections-phragmen",
+ "pallet-exchange",
+ "pallet-exchange-benchmarking",
+ "pallet-faucet",
+ "pallet-grandpa",
+ "pallet-identity",
+ "pallet-im-online",
+ "pallet-multi-payment-benchmarking",
+ "pallet-offences",
+ "pallet-randomness-collective-flip",
+ "pallet-scheduler",
+ "pallet-session",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-tips",
+ "pallet-transaction-multi-payment",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "parity-scale-codec 2.0.1",
+ "primitives",
+ "serde",
+ "sp-api",
+ "sp-authority-discovery",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-core",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std",
+ "sp-transaction-pool",
+ "sp-version",
+ "substrate-wasm-builder-runner",
+ "tracing-core",
 ]
 
 [[package]]

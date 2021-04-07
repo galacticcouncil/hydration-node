@@ -24,7 +24,8 @@ serde_json = "1.0.61"
 structopt = '0.3.8'
 
 # local dependencies
-hydra-dx-runtime = {path = '../runtime'}
+hydra-dx-runtime = {path = '../runtime/hydra-dx'}
+testing-hydra-dx-runtime = {path = '../runtime/testing-hydra-dx'}
 module-amm-rpc = {path = '../pallets/amm/rpc'}
 primitives = {path = '../primitives'}
 
