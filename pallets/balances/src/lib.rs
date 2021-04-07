@@ -150,11 +150,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[macro_use]
-mod tests;
+// mod tests;
 mod benchmarking;
-mod tests_composite;
-mod tests_local;
-mod tests_reentrancy;
+// mod tests_composite;
+// mod tests_local;
+// mod tests_reentrancy;
 pub mod weights;
 
 pub use self::imbalances::{NegativeImbalance, PositiveImbalance};
