@@ -68,6 +68,7 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 pub use pallet_asset_registry;
 pub use pallet_claims;
 pub use pallet_faucet;
+pub use pallet_genesis_history;
 
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
 
@@ -169,6 +170,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::AssetRegistry(_)
 			| Call::Offences(_)
 			| Call::AMM(_)
+			| Call::GenesisHistory(_)
 			| Call::MultiTransactionPayment(_)
 			| Call::Exchange(_) => false,
 
@@ -343,6 +345,8 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = IdentityFee<Balance>;
 }
+
+impl pallet_genesis_history::Config for Runtime {}
 
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;

@@ -6,7 +6,7 @@ use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
-	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, GenesisHistoryConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -370,6 +370,7 @@ fn testnet_genesis(
 		pallet_claims: Some(ClaimsConfig {
 			claims: create_testnet_claims(),
 		}),
+		pallet_genesis_history: Some(GenesisHistoryConfig::default()),
 	}
 }
 

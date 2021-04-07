@@ -122,6 +122,7 @@ std = [
   'pallet-exchange/std',
   'pallet-faucet/std',
   'pallet-balances/std',
+  'pallet-genesis-history/std',
   'pallet-grandpa/std',
   'pallet-identity/std',
   'pallet-randomness-collective-flip/std',

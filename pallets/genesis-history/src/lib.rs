@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode};
 use sp_std::vec::Vec;
 use sp_core::RuntimeDebug;
@@ -18,11 +19,18 @@ mod tests;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Default, Hash))]
 pub struct BlockHash(#[cfg_attr(feature = "std", serde(with="bytes"))] pub Vec<u8>);
 
-#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Chain {
 	pub genesis_hash: BlockHash,
 	pub last_block_hash: BlockHash,
+}
+
+#[cfg(feature = "std")]
+impl Default for Chain {
+	fn default() -> Self {
+		Chain { genesis_hash: BlockHash::default(), last_block_hash: BlockHash::default() }
+	}
 }
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -60,7 +68,7 @@ pub mod pallet {
 	#[cfg(feature = "std")]
 	impl Default for GenesisConfig {
 		fn default() -> Self {
-			GenesisConfig { previous_chain: { Chain { genesis_hash: BlockHash::default(), last_block_hash: BlockHash::default() } } }
+			GenesisConfig { previous_chain: { Chain::default() } }
 		}
 	}
 
