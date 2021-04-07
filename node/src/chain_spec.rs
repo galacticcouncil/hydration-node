@@ -472,6 +472,7 @@ fn lerna_genesis(
 		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
 		pallet_collective_Instance1: Some(CouncilConfig::default()),
 		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
+		pallet_genesis_history: Some(GenesisHistoryConfig::default()),
 	}
 }
 

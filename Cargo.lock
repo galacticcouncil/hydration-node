@@ -2299,6 +2299,7 @@ dependencies = [
  "pallet-exchange",
  "pallet-exchange-benchmarking",
  "pallet-faucet",
+ "pallet-genesis-history",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -4155,6 +4156,21 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder-runner",
+]
+
+[[package]]
+name = "pallet-genesis-history"
+version = "1.0.0"
+dependencies = [
+ "derive_more",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.0.1",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

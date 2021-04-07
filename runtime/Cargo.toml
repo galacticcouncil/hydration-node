@@ -35,6 +35,7 @@ pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', defau
 pallet-faucet = {path = '../pallets/faucet', default-features = false}
 pallet-multi-payment-benchmarking = {path = '../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true}
 pallet-transaction-multi-payment = {path = '../pallets/transaction-multi-payment', default-features = false}
+pallet-genesis-history = {path = '../pallets/genesis-history', default-features = false}
 primitives = {path = '../primitives', default-features = false}
 
 # ORML dependencies
