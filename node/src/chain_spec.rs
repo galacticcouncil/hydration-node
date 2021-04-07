@@ -487,13 +487,26 @@ fn lerna_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Default::default(),
+		pallet_elections_phragmen: Some(ElectionsConfig {
+			members: vec![(
+				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
+				STASH,
+			)],
+		}),
 		pallet_collective_Instance1: Some(CouncilConfig {
 			// Intergalactic council member
 			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
 			phantom: Default::default(),
 		}),
-		pallet_collective_Instance2: Some(TechnicalCommitteeConfig::default()),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+			members: vec![
+				hex!["d6cf8789dce651cb54a4036406f4aa0c771914d345c004ad0567b814c71fb637"].into(),
+				hex!["bc96ec00952efa8f0e3e08b36bf5096bcb877acac536e478aecb72868db5db02"].into(),
+				hex!["2875dd47bc1bcb70e23de79e7538c312be12c716033bbae425130e46f5f2b35e"].into(),
+				hex!["644643bf953233d08c4c9bae0acd49f3baa7658d9b342b7e6879bb149ee6e44c"].into(),
+			],
+			phantom: Default::default(),
+		}),
 		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
 	}
 }
