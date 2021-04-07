@@ -170,7 +170,6 @@ impl Filter<Call> for BaseFilter {
 			| Call::AssetRegistry(_)
 			| Call::Offences(_)
 			| Call::AMM(_)
-			| Call::GenesisHistory(_)
 			| Call::MultiTransactionPayment(_)
 			| Call::Exchange(_) => false,
 
@@ -866,7 +865,7 @@ construct_runtime!(
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Config, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
-		GenesisHistory: pallet_genesis_history::{Module, Call, Storage},
+		GenesisHistory: pallet_genesis_history::{Module, Storage, Config},
 	}
 );
 
