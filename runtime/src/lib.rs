@@ -432,7 +432,7 @@ impl pallet_claims::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type Prefix = ClaimMessagePrefix;
-	type WeightInfo = pallet_claims::weights::HackHydraWeight<Runtime>;
+	type WeightInfo = pallet_claims::weights::HydraWeight<Runtime>;
 	type CurrencyBalance = Balance;
 }
 
@@ -637,7 +637,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type CompactSolution = pallet_staking::CompactAssignments;
 	type Fallback = Fallback;
 	type BenchmarkingConfig = ();
-	type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = ();
 }
 
 parameter_types! {

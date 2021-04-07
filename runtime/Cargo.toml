@@ -2,7 +2,7 @@
 authors = ['GalacticCouncil']
 edition = '2018'
 homepage = 'https://github.com/galacticcouncil/hydradx-node'
-license = 'Unlicense'
+license = 'Apache 2.0'
 name = 'hydra-dx-runtime'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
 version = '7.0.0'
