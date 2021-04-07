@@ -119,6 +119,7 @@ std = [
   'pallet-amm/std',
   'pallet-claims/std',
   'pallet-asset-registry/std',
+  'pallet-democracy/std',
   'pallet-exchange/std',
   'pallet-faucet/std',
   'pallet-balances/std',

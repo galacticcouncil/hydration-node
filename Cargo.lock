@@ -4085,9 +4085,11 @@ name = "pallet-democracy"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68c8efd48909a70d58e8#e84d2ae4e519d77f59ef68c8efd48909a70d58e8"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec 2.0.1",
+ "serde",
  "sp-io",
  "sp-runtime",
  "sp-std",
