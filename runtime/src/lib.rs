@@ -66,6 +66,7 @@ pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
 pub use pallet_asset_registry;
 pub use pallet_claims;
 pub use pallet_faucet;
+pub use pallet_genesis_history;
 
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
 
@@ -343,6 +344,8 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = IdentityFee<Balance>;
 }
+
+impl pallet_genesis_history::Config for Runtime {}
 
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
@@ -960,6 +963,7 @@ construct_runtime!(
 		Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Module, Call, Storage, Config, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
+		GenesisHistory: pallet_genesis_history::{Module, Storage, Config},
 	}
 );
 
