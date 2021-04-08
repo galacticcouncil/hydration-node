@@ -4165,6 +4165,7 @@ dependencies = [
  "derive_more",
  "frame-support",
  "frame-system",
+ "hex-literal",
  "parity-scale-codec 2.0.1",
  "serde",
  "sp-core",

@@ -1,4 +1,5 @@
-use crate as pallet_genesis_history;
+pub use crate as pallet_genesis_history;
+use super::*;
 use sp_core::H256;
 use frame_support::parameter_types;
 use sp_runtime::{
@@ -16,7 +17,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		GenesisHistory: pallet_genesis_history::{Module, Call, Storage},
+		GenesisHistory: pallet_genesis_history::{Module, Storage, Config},
 	}
 );
 
@@ -51,3 +52,26 @@ impl system::Config for Test {
 }
 
 impl pallet_genesis_history::Config for Test {}
+
+pub struct ExtBuilder {
+    pub chain: Chain
+}
+
+impl ExtBuilder {
+    // builds genesis config
+    pub fn build(self) -> sp_io::TestExternalities {
+        let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+        let build = pallet_genesis_history::GenesisConfig {
+            previous_chain: self.chain.clone()
+        };
+        build.assimilate_storage::<Test>(&mut t).unwrap();
+        t.into()
+    }
+}
+
+impl Default for ExtBuilder {
+    fn default() -> Self {
+        Self { chain: Default::default() }
+    }
+}
