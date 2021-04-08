@@ -2273,7 +2273,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "6.0.0"
+version = "7.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2291,9 +2291,10 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
- "pallet-balances",
+ "pallet-balances 3.0.0",
  "pallet-claims",
  "pallet-collective",
+ "pallet-democracy",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
  "pallet-exchange",
@@ -4025,6 +4026,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-balances"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-transaction-payment",
+ "parity-scale-codec 2.0.1",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-claims"
 version = "3.0.0"
 dependencies = [
@@ -4037,7 +4054,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
- "pallet-balances",
+ "pallet-balances 3.0.0 (git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68c8efd48909a70d58e8)",
  "parity-scale-codec 2.0.1",
  "primitives",
  "rustc-hex",
@@ -4059,6 +4076,21 @@ dependencies = [
  "parity-scale-codec 2.0.1",
  "serde",
  "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-democracy"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68c8efd48909a70d58e8#e84d2ae4e519d77f59ef68c8efd48909a70d58e8"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.0.1",
+ "serde",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -4243,7 +4275,7 @@ dependencies = [
  "orml-utilities",
  "pallet-amm",
  "pallet-asset-registry",
- "pallet-balances",
+ "pallet-balances 3.0.0",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "parity-scale-codec 2.0.1",
@@ -4263,7 +4295,7 @@ source = "git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68
 dependencies = [
  "frame-support",
  "frame-system",
- "pallet-balances",
+ "pallet-balances 3.0.0 (git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68c8efd48909a70d58e8)",
  "parity-scale-codec 2.0.1",
  "serde",
  "sp-runtime",
@@ -4409,7 +4441,7 @@ dependencies = [
  "orml-utilities",
  "pallet-amm",
  "pallet-asset-registry",
- "pallet-balances",
+ "pallet-balances 3.0.0",
  "pallet-transaction-payment",
  "parity-scale-codec 2.0.1",
  "primitive-types 0.8.0",
@@ -4475,7 +4507,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "impl-trait-for-tuples 0.2.1",
- "pallet-balances",
+ "pallet-balances 3.0.0 (git+https://github.com/paritytech/substrate?rev=e84d2ae4e519d77f59ef68c8efd48909a70d58e8)",
  "parity-scale-codec 2.0.1",
  "serde",
  "sp-runtime",

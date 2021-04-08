@@ -1,4 +1,4 @@
-// This file is part of hack.HydraDX-node.
+// This file is part of HydraDX-node.
 
 // Copyright (C) 2021 Intergalactic Ltd.
 // SPDX-License-Identifier: Apache-2.0
@@ -22,7 +22,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 128
 
 // Executed Command:
-// target/release/hack-hydra-dx
+// target/release/hydra-dx
 // benchmark
 // --chain=dev
 // --steps=50
@@ -50,9 +50,9 @@ pub trait WeightInfo {
 	fn claim() -> Weight;
 }
 
-/// Weights for claims using the hack.hydraDX node and recommended hardware.
-pub struct HackHydraWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for HackHydraWeight<T> {
+/// Weights for claims using the hydraDX node and recommended hardware.
+pub struct HydraWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn claim() -> Weight {
 		(248_181_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))

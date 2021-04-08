@@ -3,7 +3,7 @@ authors = ['GalacticCouncil']
 description = 'HydraDX Exchange Module'
 edition = '2018'
 homepage = 'https://github.com/galacticcouncil/hydradx-node'
-license = 'Unlicense'
+license = 'Apache 2.0'
 name = 'pallet-exchange'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
 version = '3.0.0'
@@ -26,7 +26,7 @@ primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependencies
-pallet-amm = {path = '../amm', default-features = false }
+pallet-amm = {path = '../amm', default-features = false}
 pallet-asset-registry = {path = '../asset-registry', default-features = false}
 primitives = {path = '../../primitives', default-features = false}
 
