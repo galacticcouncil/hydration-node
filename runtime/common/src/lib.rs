@@ -2,18 +2,21 @@
 
 pub mod constants;
 pub use constants::{currency::*, time::*};
-pub use primitives::{Amount, AssetId, Balance, fee, Moment, CORE_ASSET_ID};
 pub use frame_support::{
-    parameter_types,
-    traits::LockIdentifier,
-    weights::{DispatchClass, Pays, Weight, constants::{BlockExecutionWeight, WEIGHT_PER_SECOND}}
+	parameter_types,
+	traits::LockIdentifier,
+	weights::{
+		constants::{BlockExecutionWeight, WEIGHT_PER_SECOND},
+		DispatchClass, Pays, Weight,
+	},
 };
 pub use frame_system::limits;
-use sp_runtime::{
-    ModuleId, Percent,
-    traits::{IdentifyAccount, Verify},
-    generic, Perbill, Permill, MultiSignature,
-    transaction_validity::TransactionPriority
+pub use primitives::{fee, Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
+pub use sp_runtime::{
+	generic,
+	traits::{IdentifyAccount, Verify},
+	transaction_validity::TransactionPriority,
+	ModuleId, MultiSignature, Perbill, Percent, Permill,
 };
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -51,7 +54,6 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_perthousand(25);
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 2 seconds of compute with a 6 second average block time.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
-
 
 // frame system
 parameter_types! {
@@ -169,4 +171,3 @@ parameter_types! {
 	/// We prioritize im-online heartbeats over election solution submission.
 	pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
 }
-

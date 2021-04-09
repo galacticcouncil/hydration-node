@@ -26,8 +26,10 @@ structopt = '0.3.8'
 # local dependencies
 hydra-dx-runtime = {path = '../runtime/hydra-dx'}
 testing-hydra-dx-runtime = {path = '../runtime/testing-hydra-dx'}
+hydra-dx-common-runtime = {path = '../runtime/common'}
 module-amm-rpc = {path = '../pallets/amm/rpc'}
 primitives = {path = '../primitives'}
+module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api'}
 
 # Substrate dependencies
 frame-benchmarking = '3.0.0'
@@ -69,6 +71,13 @@ sp-keystore = '0.9.0'
 sp-runtime = '3.0.0'
 sp-transaction-pool = '3.0.0'
 substrate-frame-rpc-system = '3.0.0'
+sp-storage = "3.0.0"
+sp-session = "3.0.0"
+sp-offchain = "3.0.0"
+sp-trie = "3.0.0"
+pallet-transaction-payment-rpc-runtime-api = "3.0.0"
+frame-system-rpc-runtime-api = "3.0.0"
+pallet-grandpa = "3.0.0"
 
 [features]
 default = [

@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::upper_case_acronyms)]
 
 use codec::{Decode, Encode};
@@ -8,12 +7,38 @@ use frame_support::sp_runtime::FixedU128;
 use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use sp_runtime::{
+	generic,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	MultiSignature,
+};
 
 pub mod asset;
 pub mod traits;
 
+/// Opaque, encoded, unchecked extrinsic.
+pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+
+/// Header type.
+pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+
+/// Block type.
+pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+
 /// An index to a block.
 pub type BlockNumber = u32;
+
+/// Alias to 512-bit hash when used in the context of a transaction signature.
+pub type Signature = MultiSignature;
+
+/// Some way of identifying an account.
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+/// Index of a transaction in.
+pub type Index = u32;
+
+/// A hash of some data.
+pub type Hash = sp_core::H256;
 
 /// Type used for expressing timestamp.
 pub type Moment = u64;
