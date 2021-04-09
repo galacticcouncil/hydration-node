@@ -1,5 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![allow(clippy::unused_unit)]
+#![allow(clippy::upper_case_acronyms)]
+
 /// WIP - price fetch pallet
 /// The target of this pallet is to get a reliable price point on request
 ///
