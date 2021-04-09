@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydra-dx'
 license = 'Unlicense'
 name = 'pallet-multi-payment-benchmarking'
 repository = 'https://github.com/galacticcouncil/hydra-dx'
-version = '2.0.0'
+version = '3.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -19,40 +19,42 @@ wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '1.
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
-version = '1.3.4'
+version = '2.0.0'
 
 [dependencies]
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
 # Local dependencies
-primitives = { path = '../../../primitives', default-features = false, version = '2.0.0' }
-pallet-asset-registry= { path = '../../asset-registry', default-features = false, version = '2.0.0' }
-pallet-amm = { path = '../../amm', default-features = false, version = '2.0.0' }
-pallet-transaction-multi-payment = { path = '../../transaction-multi-payment', default-features = false, version = '2.0.0' }
+primitives = { path = '../../../primitives', default-features = false }
+pallet-asset-registry= { path = '../../asset-registry', default-features = false }
+pallet-amm = { path = '../../amm', default-features = false }
+pallet-transaction-multi-payment = { path = '../../transaction-multi-payment', default-features = false }
 
 # ORML dependencies
-orml-traits = { default-features = false, version = "0.3.3-dev" }
-orml-tokens = { default-features = false, version = "0.3.3-dev" }
-orml-currencies= { default-features = false, version = "0.3.3-dev" }
+orml-traits = { default-features = false, version = "0.4.1-dev" }
+orml-tokens = { default-features = false, version = "0.4.1-dev" }
+orml-currencies= { default-features = false, version = "0.4.1-dev" }
+orml-utilities = {default-features = false, version = "0.4.1-dev"}
 
 # Substrate dependencies
-frame-system = { default-features = false, version = '2.0.0' }
-frame-support = { default-features = false, version = '2.0.0' }
-frame-benchmarking = { default-features = false, version = '2.0.0' }
-frame-system-benchmarking = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment = {default-features = false, version = '2.0.0'}
-sp-std = { default-features = false, version = '2.0.0' }
-pallet-balances = {default-features = false, version = '2.0.0' }
+frame-system = { default-features = false, version = '3.0.0' }
+frame-support = { default-features = false, version = '3.0.0' }
+frame-benchmarking = { default-features = false, version = '3.0.0' }
+frame-system-benchmarking = { default-features = false, version = '3.0.0' }
+pallet-transaction-payment = {default-features = false, version = '3.0.0'}
+sp-std = { default-features = false, version = '3.0.0' }
+pallet-balances = {default-features = false, version = '3.0.0' }
 
-sp-core = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
+sp-core = { default-features = false, version = '3.0.0' }
+sp-runtime = { default-features = false, version = '3.0.0' }
 
 [dev-dependencies]
-sp-io = { default-features = false, version = '2.0.0' }
+sp-io = { default-features = false, version = '3.0.0' }
 
 [features]
 default = ['std']
 std = [
+  'serde',
   'codec/std',
   'frame-support/std',
   'frame-system/std',

@@ -1,10 +1,11 @@
-# hack HydraDX node
+# HydraDX node
 
-XYK AMM + Exchange order matching blockchain built on substrate for Hackusama hackaton
+CROSS-CHAIN LIQUIDITY PROTOCOL BUILT ON SUBSTRATE
 
-- https://hack.hydradx.io/
-- [app source](https://github.com/galacticcouncil/hack.HydraDX-app)
-- [hack submission](https://devpost.com/software/hack-hydra-dx-io)
+## Contributions & Code of Conduct
+
+Please follow the contributions guidelines as outlined in [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+We are welcoming and friendly community please follow our [Code of Conduct](docs/CODE_OF_CONDUCT.md).
 
 ## Local Development
 
@@ -41,19 +42,19 @@ cargo build --release
 Purge any existing dev chain state:
 
 ```bash
-./target/release/hack-hydra-dx purge-chain --dev
+./target/release/hydra-dx purge-chain --dev
 ```
 
 Start a dev chain:
 
 ```bash
-./target/release/hack-hydra-dx --dev
+./target/release/hydra-dx --dev
 ```
 
 Or, start a dev chain with detailed logging:
 
 ```bash
-RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hack-hydra-dx -lruntime=debug --dev
+RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hydra-dx -lruntime=debug --dev
 ```
 
 ### Interaction with the node
@@ -98,8 +99,10 @@ Then open settings screen -> developer and paste
 }
 ```
 
-Connect to the `wss://hack.hydradx.io:9944` or local node.
-
+Connect to the 
+- Hacknet: `wss://hack.hydradx.io:9944` 
+- [Stakenet](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-01.snakenet.hydradx.io): `wss://rpc-01.snakenet.hydradx.io`
+- or local node.
 
 ### Performance check
 
@@ -122,3 +125,11 @@ The most interesting information would be the difference between the HydraDx ben
 If the difference is >= 0, performance is similar or better.
 However, if the difference < 0 - your machine might not suitable to run HydraDX node. Contact HydraDX devs to discuss the results.
 
+### Running a stakenet node
+
+```bash
+./target/release/hydra-dx --chain lerna
+```
+
+### Honorable contributions
+[@apopiak](https://github.com/apopiak) for great reviews [#87](https://github.com/galacticcouncil/HydraDX-node/pull/87) and support.

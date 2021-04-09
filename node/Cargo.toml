@@ -1,75 +1,79 @@
 [package]
 authors = ['GalacticCouncil']
 build = 'build.rs'
-description = 'Hack Hydra DX'
+description = 'Hydra DX'
 edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Unlicense'
-name = 'hack-hydra-dx'
-repository = 'https://github.com/galacticcouncil/hack.hydradx-node'
-version = '2.0.0'
+name = 'hydra-dx'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
+version = '3.0.1'
 
 [[bin]]
-name = 'hack-hydra-dx'
+name = 'hydra-dx'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-build-script-utils = '2.0.0'
+substrate-build-script-utils = '2.0.1'
 
 [dependencies]
 jsonrpc-core = '15.0.0'
+serde_json = "1.0.61"
 structopt = '0.3.8'
-serde_json = "1.0.44"
 
 # local dependencies
-hack-hydra-dx-runtime = { path = '../runtime', version = '2.0.0' }
-primitives = { path = '../primitives', version = '2.0.0' }
-module-amm-rpc = { path = '../pallets/amm/rpc', version = '2.0.0' }
+hydra-dx-runtime = {path = '../runtime'}
+module-amm-rpc = {path = '../pallets/amm/rpc'}
+primitives = {path = '../primitives'}
 
 # Substrate dependencies
-frame-benchmarking = '2.0.0'
-pallet-im-online = "2.0.0"
-frame-benchmarking-cli = { version = '2.0.0', optional = true }
-pallet-transaction-payment-rpc = '2.0.0'
-sc-basic-authorship = '0.8.0'
-sc-cli = { features = ['wasmtime'], version = '0.8.0' }
+frame-benchmarking = '3.0.0'
+frame-benchmarking-cli = {version = '3.0.0', optional = true}
 futures = '0.3.4'
-sc-client-api = '2.0.0'
-sc-consensus = '0.8.0'
-sc-consensus-babe = '0.8.0'
-sc-consensus-babe-rpc = '0.8.0'
-sc-consensus-epochs = '0.8.0'
-sc-authority-discovery = '0.8.0'
-sc-consensus-slots = '0.8.0'
-sc-executor = {features = ['wasmtime'], version = '0.8.0'}
-sc-finality-grandpa = '0.8.0'
-sc-finality-grandpa-rpc = '0.8.0'
-sc-keystore = '2.0.0'
-sc-network = '0.8.0'
-sc-rpc = '2.0.0'
-sc-rpc-api = '0.8.0'
-sc-service = '0.8.0'
-sc-transaction-pool = '2.0.0'
-sp-api = '2.0.0'
-sp-authority-discovery = '2.0.0'
-sp-block-builder = '2.0.0'
-sp-blockchain = '2.0.0'
-sp-consensus = '0.8.0'
-sp-consensus-babe = '0.8.0'
-sp-core = '2.0.0'
-sp-finality-grandpa = '2.0.0'
-sp-inherents = '2.0.0'
-sp-runtime = '2.0.0'
-sp-transaction-pool = '2.0.0'
-sp-keystore = '0.8.0'
-substrate-frame-rpc-system = '2.0.0'
+hex-literal = "0.3.1"
+pallet-im-online = "3.0.0"
+pallet-staking = '3.0.0'
+pallet-transaction-payment-rpc = '3.0.0'
+sc-authority-discovery = '0.9.0'
+sc-basic-authorship = '0.9.0'
+sc-cli = {features = ['wasmtime'], version = '0.9.0'}
+sc-client-api = '3.0.0'
+sc-consensus = '0.9.0'
+sc-consensus-babe = '0.9.0'
+sc-consensus-babe-rpc = '0.9.0'
+sc-consensus-epochs = '0.9.0'
+sc-consensus-slots = '0.9.0'
+sc-executor = {features = ['wasmtime'], version = '0.9.0'}
+sc-finality-grandpa = '=0.9.0'
+sc-finality-grandpa-rpc = '=0.9.0'
+sc-keystore = '3.0.0'
+sc-network = '0.9.0'
+sc-rpc = '3.0.0'
+sc-rpc-api = '0.9.0'
+sc-service = '0.9.0'
+sc-telemetry = '3.0.0'
+sc-transaction-pool = '3.0.0'
+sp-api = '3.0.0'
+sp-authority-discovery = '3.0.0'
+sp-block-builder = '3.0.0'
+sp-blockchain = '3.0.0'
+sp-consensus = '0.9.0'
+sp-consensus-babe = '0.9.0'
+sp-core = '=3.0.0'
+sp-finality-grandpa = '3.0.0'
+sp-inherents = '3.0.0'
+sp-keystore = '0.9.0'
+sp-runtime = '3.0.0'
+sp-transaction-pool = '3.0.0'
+substrate-frame-rpc-system = '3.0.0'
 
 [features]
 default = [
-    "frame-benchmarking-cli",
+  "frame-benchmarking-cli",
 ]
-runtime-benchmarks = ['hack-hydra-dx-runtime/runtime-benchmarks',
-    "frame-benchmarking-cli",
+runtime-benchmarks = [
+  'hydra-dx-runtime/runtime-benchmarks',
+  "frame-benchmarking-cli",
 ]

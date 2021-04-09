@@ -25,4 +25,9 @@
 
 .idea/
 
+.env
+
 *.orig
+
+# custom chainspec(frido)
+balice*.json*

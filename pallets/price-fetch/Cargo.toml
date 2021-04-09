@@ -11,31 +11,36 @@ version = '2.0.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
+[build-dependencies]
+wasm-builder-runner = {package = 'substrate-wasm-builder-runner', version = '1.0.5'}
+
 # alias "parity-scale-code" to "codec"
 [dependencies.codec]
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
-version = '1.3.4'
+version = '2.0.0'
 
 [dependencies]
 alt_serde = {version = "=1.0.104", default-features = false, features = ["derive"]}
-fixed = {default-features = false, version = '1.5.0'}
-frame-support = {default-features = false, version = '2.0.0'}
-frame-system = {default-features = false, version = '2.0.0'}
-pallet-timestamp = {default-features = false, version = '2.0.0'}
+fixed = {default-features = false, version = '=1.5.0'}
+frame-support = {default-features = false, version = '3.0.0'}
+frame-system = {default-features = false, version = '3.0.0'}
+pallet-timestamp = {default-features = false, version = '3.0.0'}
 serde_json = {version = "=1.0.44", default-features = false, git = "https://github.com/Xanewok/json", branch = "no-std", features = ["alloc"]}
-sp-api = {default-features = false, version = '2.0.0'}
-sp-core = {default-features = false, version = '2.0.0'}
-sp-io = {default-features = false, version = '2.0.0'}
-sp-runtime = {default-features = false, version = '2.0.0'}
-sp-std = {default-features = false, version = '2.0.0'}
+sp-api = {default-features = false, version = '3.0.0'}
+sp-core = {default-features = false, version = '3.0.0'}
+sp-io = {default-features = false, version = '3.0.0'}
+sp-runtime = {default-features = false, version = '3.0.0'}
+sp-std = {default-features = false, version = '3.0.0'}
 
 # Local dependencies
-primitives = {path = '../../primitives', default-features = false, version = '2.0.0'}
+primitives = {path = '../../primitives', default-features = false, version = '3.0.0'}
 
 [dev-dependencies]
-sp-keystore = { git = "https://github.com/paritytech/substrate", rev = "330f5c0dbfdf4ffbb891251e90880757687a8a72" }
+sp-keystore = { git = "https://github.com/paritytech/substrate", rev = "e84d2ae4e519d77f59ef68c8efd48909a70d58e8" }
+serde = {version = "1.0.0", default-features = false, features = ["derive"]}
+
 
 [features]
 default = ['std']

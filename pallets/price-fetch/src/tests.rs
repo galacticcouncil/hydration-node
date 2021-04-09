@@ -1,16 +1,14 @@
 use super::*;
-use crate::{mock::*, DiaPriceRecord};
+use crate::mock::*;
 
-use crate as price_fetch;
-use frame_support::{assert_noop, assert_ok};
-use primitives::Price;
-use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
 use sp_runtime::offchain::{
-	testing::{self, TestOffchainExt},
-	OffchainExt, TransactionPoolExt,
+    testing::{TestOffchainExt, self},
+    OffchainExt, TransactionPoolExt
 };
-use sp_std::vec::Vec;
+use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
+use frame_support::{assert_ok, assert_noop};
 use std::sync::Arc;
+use sp_std::vec::Vec;
 
 #[test]
 fn parse_res_from_dia_should_work() {
@@ -46,9 +44,9 @@ fn fetch_price_req_should_work() {
 			..Default::default()
 		});
 	}
-
+ 
 	let p1 = DiaPriceRecord {
-		price: price_fetch::Price::from_fraction(599.5155962856843),
+		price: Price::from_fraction(599.5155962856843),
 		time: b"2020-12-04T17:22:35.694940893Z".to_vec(),
 		symbol: b"ETH".to_vec(),
 	};
@@ -211,36 +209,32 @@ fn cal_avg_price_and_submit_should_work() {
 		assert!(pool_state.read().transactions.is_empty());
 		let tx = mock::Extrinsic::decode(&mut &*tx).unwrap();
 		assert_eq!(tx.signature.unwrap().0, 0);
-		assert_eq!(tx.call, Call::submit_new_avg_price(key.clone(), avg));
+		assert_eq!(tx.call, mock::Call::PriceFetch(crate::Call::submit_new_avg_price(key.clone(), avg)));
+        
 	})
 }
+
 
 /*
 #[test]
 fn offchain_should_work() {
 	use frame_support::traits::OffchainWorker;
-
 	let mut ext = new_test_ext();
 	let (offchain, _state) = TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 	ext.register_extension(OffchainExt::new(offchain));
-
 	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
-
 	let keystore = KeyStore::new();
 	keystore.write().sr25519_generate_new(
 		crate::crypto::Public::ID,
 		Some(&format!("{}/hunter1", PHRASE))
 	).unwrap();
-
 	let mut t = sp_io::TestExternalities::default();
 	t.register_extension(OffchainExt::new(offchain));
 	t.register_extension(TransactionPoolExt::new(pool));
 	t.register_extension(KeystoreExt(keystore));
-
 	ext.execute_with(|| {
 		assert_ok!(PriceFetch::start_fetcher(Origin::signed(Default::default())));
-
 		mock::run_to_block(10);
 		PriceFetch::offchain_worker(3);
 	})

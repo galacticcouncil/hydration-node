@@ -15,28 +15,19 @@
 ///
 /// We assume proof of stake environment, thus we can be sure this process is secured by validators stake.
 ///
-use codec::{Decode, Encode};
-use frame_support::{
-	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, traits::Get,
-};
 
+use codec::{Decode, Encode};
+use sp_core::crypto::KeyTypeId;
+use sp_std::vec::Vec;
+use primitives::Price;
+use frame_support::debug;
 use frame_system::{
-	self as system, ensure_signed,
-	offchain::{AppCrypto, CreateSignedTransaction, SendSignedTransaction, Signer},
+    ensure_signed,
+    offchain::{Signer, SendSignedTransaction, CreateSignedTransaction}
 };
+use sp_runtime::offchain::{http, Duration};
 
 use alt_serde::{Deserialize, Deserializer};
-
-use primitives::Price;
-use sp_core::crypto::KeyTypeId;
-use sp_runtime::offchain::{http, Duration};
-use sp_std::vec::Vec;
-
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
 
 pub type Symbol = Vec<u8>;
 
@@ -44,20 +35,11 @@ pub type Symbol = Vec<u8>;
 const SYM: &[u8; 3] = b"ETH";
 pub const SYMBOLS: [(&[u8], &[u8]); 1] = [(b"ETH", b"https://api.diadata.org/v1/quotation/ETH")];
 
-// Specifying serde path as `alt_serde`
-// ref: https://serde.rs/container-attrs.html#crate
-#[serde(crate = "alt_serde")]
-#[derive(Deserialize, Encode, Decode, Default, Clone, PartialEq, Debug)]
-pub struct DiaPriceRecord {
-	#[serde(rename(deserialize = "Price"))]
-	#[serde(deserialize_with = "de_float_to_price")]
-	price: Price,
-	#[serde(deserialize_with = "de_string_to_bytes")]
-	#[serde(rename(deserialize = "Time"))]
-	time: Vec<u8>,
-	#[serde(deserialize_with = "de_string_to_bytes")]
-	#[serde(rename(deserialize = "Symbol"))]
+#[derive(Encode, Decode, Default, Clone, PartialEq, Debug)]
+pub struct Fetcher<BlockNumber> {
 	symbol: Symbol,
+	url: Vec<u8>,
+	end_fetching_at: BlockNumber,
 }
 
 #[derive(Encode, Decode, Default, Clone, PartialEq, Debug)]
@@ -68,11 +50,20 @@ pub struct FetchedPrice<AccountId> {
 	author: AccountId,
 }
 
-#[derive(Encode, Decode, Default, Clone, PartialEq, Debug)]
-pub struct Fetcher<BlockNumber> {
+// Specifying serde path as `alt_serde`
+// ref: https://serde.rs/container-attrs.html#crate
+#[derive(Deserialize, Encode, Decode, Default, Clone, PartialEq, Debug)]
+#[serde(crate = "alt_serde")]
+pub struct DiaPriceRecord {
+	#[serde(rename(deserialize = "Price"))]
+	#[serde(deserialize_with = "de_float_to_price")]
+	price: Price,
+	#[serde(deserialize_with = "de_string_to_bytes")]
+	#[serde(rename(deserialize = "Time"))]
+	time: Vec<u8>,
+	#[serde(deserialize_with = "de_string_to_bytes")]
+	#[serde(rename(deserialize = "Symbol"))]
 	symbol: Symbol,
-	url: Vec<u8>,
-	end_fetching_at: BlockNumber,
 }
 
 pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
@@ -96,161 +87,67 @@ where
 	Ok(Price::from_inner(int))
 }
 
-pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"pocw");
+#[cfg(test)]
+mod mock;
 
-pub mod crypto {
-	use super::KEY_TYPE;
-	use sp_core::sr25519::Signature as Sr25519Signature;
-	use sp_runtime::app_crypto::{app_crypto, sr25519};
-	use sp_runtime::{traits::Verify, MultiSignature, MultiSigner};
+#[cfg(test)]
+mod tests;
 
-	app_crypto!(sr25519, KEY_TYPE);
+// Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
 
-	pub struct TestAuthId;
-	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for TestAuthId {
-		type RuntimeAppPublic = Public;
-		type GenericSignature = Sr25519Signature;
-		type GenericPublic = sp_core::sr25519::Public;
-	}
+#[frame_support::pallet]
+pub mod pallet {
+    use super::*;
 
-	//implemented for mock runtime in test
-	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for TestAuthId {
-		type RuntimeAppPublic = Public;
-		type GenericSignature = sp_core::sr25519::Signature;
-		type GenericPublic = sp_core::sr25519::Public;
-	}
-}
+    use frame_support::pallet_prelude::*;
+    use frame_system::pallet_prelude::*;
 
-/// This pallet's configuration trait
-pub trait Config: CreateSignedTransaction<Call<Self>> + pallet_timestamp::Config + system::Config {
-	/// The identifier type for an offchain worker.
-	type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 
-	/// The overarching event type.
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+    #[pallet::config]
+    pub trait Config: CreateSignedTransaction<Call<Self>> + pallet_timestamp::Config + frame_system::Config {
+        /// The overarching event type.
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-	/// The overarching dispatch call type.
-	type Call: From<Call<Self>>;
+		/// The overarching dispatch call type.
+		type Call: From<Call<Self>>;
 
-	/// Grace period between submitting prices. Submit price only every GracePeriod block
-	type GracePeriod: Get<Self::BlockNumber>;
-}
+        /// The identifier type for an offchain worker.
+        type AuthorityId: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>;
 
-decl_storage! {
-	trait Store for Module<T: Config> as PriceFetch {
-		///Map of currently running fetchers
-		Fetchers get(fn fetcher): map hasher(identity) Vec<u8> => Fetcher<T::BlockNumber>;
+        /// Grace period between submitting prices. Submit price only every GracePeriod block
+        #[pallet::constant]
+        type GracePeriod: Get<Self::BlockNumber>;
+    }
 
-		///Map of raw fetched_prices from oracle. Key is hash of symbol e.g hash('ETH')
-		FetchedPrices get(fn fetched_prices): map hasher(identity) Vec<u8> => Vec<FetchedPrice<T::AccountId>>;
+    #[pallet::pallet]
+    pub struct Pallet<T>(_);
 
-		///Map of aggregated prices
-		AvgPrices get(fn avg_price): map hasher(identity) Vec<u8> => (T::Moment, Price, T::AccountId);
-	}
-}
-
-decl_error! {
-	pub enum Error for Module<T: Config> {
-		//Fetcher for required symbol is already running
-		FetcherAlreadyExist,
-		//start fetcher for unsupported symbol (currency/token, e.g ETH
-		SymbolNotFound,
-
-		FetcherNotFound,
-	}
-}
-
-decl_event!(
-	pub enum Event<T>
-	where
-		Moment = <T as pallet_timestamp::Config>::Moment,
-		AccountId = <T as frame_system::Config>::AccountId,
-		Price = Price,
-		Symbol = Symbol,
-	{
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(crate) fn deposit_event)]
+    pub enum Event<T: Config> {
 		//New fetcher was initialized
-		NewFetcher(AccountId, Symbol, Moment),
+		NewFetcher(T::AccountId, Symbol, <T as pallet_timestamp::Config>::Moment),
 
 		//New price point was saved from symbol
-		NewPricePoint(AccountId, Symbol, Moment, Price),
+		NewPricePoint(T::AccountId, Symbol, <T as pallet_timestamp::Config>::Moment, Price),
 
 		//New avg price was calculated and old fetcher was destroyed
-		NewAvgPrice(AccountId, Symbol, Moment, Price),
-	}
-);
+		NewAvgPrice(T::AccountId, Symbol, <T as pallet_timestamp::Config>::Moment, Price),
+    }
 
-decl_module! {
-	/// A public part of the pallet.
-	pub struct Module<T: Config> for enum Call where origin: T::Origin {
+    #[pallet::error]
+    pub enum Error<T> {
+        //Fetcher for required symbol is already running
+        FetcherAlreadyExist,
+        //start fetcher for unsupported symbol (currency/token, e.g ETH
+        SymbolNotFound,
 
-		type Error = Error<T>;
+        FetcherNotFound,
+    }
 
-		fn deposit_event() = default;
-
-		///Start fetching price for 600 blocks
-		//TODO: add fetched duration and symbol
-		#[weight = 0]
-		pub fn start_fetcher(origin) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			ensure!(!<Fetchers<T>>::contains_key(&SYM.to_vec()), Error::<T>::FetcherAlreadyExist);
-
-			//TODO: duration should be param of function
-			let end_at = <system::Module<T>>::block_number() + T::BlockNumber::from(600u32); //600 blocs is 1hour at 1 block/6s
-			let url = match SYMBOLS.iter().find(|(s, _)| s == SYM) {
-				Some (p) => Ok(p.1),
-				None => Err(Error::<T>::SymbolNotFound)
-			}?;
-
-			let new_fetcher = Fetcher {
-				symbol: SYM.to_vec(),
-				end_fetching_at: end_at,
-				url: url.to_vec()
-			};
-			<Fetchers<T>>::insert(SYM.to_vec(), new_fetcher);
-
-			let now = <pallet_timestamp::Module<T>>::get();
-			Self::deposit_event(RawEvent::NewFetcher(who, SYM.to_vec(), now));
-			Ok(())
-		}
-
-		#[weight = 0]
-		pub fn submit_new_price(origin, price_record: DiaPriceRecord) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			ensure!(<Fetchers<T>>::contains_key(&price_record.symbol), Error::<T>::FetcherNotFound);
-
-			let new_price = FetchedPrice {
-				price: price_record.price,
-				time: price_record.time,
-				symbol: price_record.symbol.clone(),
-				author: who.clone()
-			};
-
-			Self::add_new_price_to_list(new_price);
-
-			let now = <pallet_timestamp::Module<T>>::get();
-			Self::deposit_event(RawEvent::NewPricePoint(who, price_record.symbol, now, price_record.price));
-
-			Ok(())
-		}
-
-		#[weight = 0]
-		pub fn submit_new_avg_price(origin, symbol: Symbol, avg_price:Price) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			let now = <pallet_timestamp::Module<T>>::get();
-			<AvgPrices<T>>::insert(symbol.clone(), (now, avg_price, who.clone()));
-
-			//delete finished fetcher and remove old data
-			let _old_fetcher = <Fetchers<T>>::take(symbol.clone());
-			let _old_prices = <FetchedPrices<T>>::take(symbol.clone());
-
-			Self::deposit_event(RawEvent::NewAvgPrice(who, symbol, now, avg_price));
-
-			Ok(())
-		}
-
+    #[pallet::hooks]
+    impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
 			//NOTE: sp_io::offchain::is_validator()
 
@@ -272,14 +169,94 @@ decl_module! {
 				}
 			});
 		}
-	}
+    }
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        ///Start fetching price for 600 blocks
+        //TODO: add fetched duration and symbol
+        #[pallet::weight((0, Pays::No))]
+        pub fn start_fetcher(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+            ensure!(!<Fetchers<T>>::contains_key(&SYM.to_vec()), Error::<T>::FetcherAlreadyExist);
+
+            //TODO: duration should be param of function
+            let end_at = <frame_system::Module<T>>::block_number() + T::BlockNumber::from(600u32); //600 blocs is 1hour at 1 block/6s
+            let url = match SYMBOLS.iter().find(|(s, _)| s == SYM) {
+                Some (p) => Ok(p.1),
+                None => Err(Error::<T>::SymbolNotFound)
+            }?;
+
+            let new_fetcher = Fetcher {
+                symbol: SYM.to_vec(),
+                end_fetching_at: end_at,
+                url: url.to_vec()
+            };
+
+            <Fetchers<T>>::insert(SYM.to_vec(), new_fetcher);
+
+            let now = <pallet_timestamp::Pallet<T>>::get();
+            Self::deposit_event(Event::NewFetcher(who, SYM.to_vec(), now));
+
+            Ok(().into())
+        }
+    
+        #[pallet::weight((0, Pays::No))]
+        pub fn submit_new_price(origin: OriginFor<T>, price_record: DiaPriceRecord) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+
+            ensure!(<Fetchers<T>>::contains_key(&price_record.symbol), Error::<T>::FetcherNotFound);
+
+            let new_price = FetchedPrice {
+                price: price_record.price,
+                time: price_record.time,
+                symbol: price_record.symbol.clone(),
+                author: who.clone()
+            };
+
+            Self::add_new_price_to_list(new_price);
+
+            let now = <pallet_timestamp::Pallet<T>>::get();
+            Self::deposit_event(Event::NewPricePoint(who, price_record.symbol, now, price_record.price));
+
+            Ok(().into())
+        }
+
+        #[pallet::weight((0, Pays::No))]
+		pub fn submit_new_avg_price(origin: OriginFor<T>, symbol: Symbol, avg_price:Price) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let now = <pallet_timestamp::Module<T>>::get();
+			<AvgPrices<T>>::insert(symbol.clone(), (now, avg_price, who.clone()));
+
+			//delete finished fetcher and remove old data
+			let _old_fetcher = <Fetchers<T>>::take(symbol.clone());
+			let _old_prices = <FetchedPrices<T>>::take(symbol.clone());
+
+			Self::deposit_event(Event::NewAvgPrice(who, symbol, now, avg_price));
+
+			Ok(().into())
+		}
+    }
+
+	///Map of currently running fetchers
+    #[pallet::storage]
+    #[pallet::getter(fn fetcher)]
+	pub type Fetchers<T: Config> = StorageMap<_, Identity, Vec<u8>, Fetcher<T::BlockNumber>, ValueQuery>;
+
+    ///Map of raw fetched_prices from oracle. Key is hash of symbol e.g hash('ETH')
+    #[pallet::storage]
+    #[pallet::getter(fn fetched_prices)]
+    pub type FetchedPrices<T: Config> = StorageMap<_, Identity, Vec<u8>, Vec<FetchedPrice<T::AccountId>>, ValueQuery>;
+
+	///Map of aggregated prices
+    #[pallet::storage]
+    #[pallet::getter(fn avg_price)]
+	pub type AvgPrices<T:Config> = StorageMap<_, Identity, Vec<u8>, (T::Moment, Price, T::AccountId), ValueQuery>;
 }
 
-/// Most of the functions are moved outside of the `decl_module!` macro.
-///
-/// This greatly helps with error messages, as the ones inside the macro
-/// can sometimes be hard to debug.
-impl<T: Config> Module<T> {
+
+impl<T: Config> Pallet<T> {
 	fn add_new_price_to_list(price: FetchedPrice<T::AccountId>) {
 		<FetchedPrices<T>>::mutate(price.symbol.clone(), |prices| {
 			prices.push(price);
@@ -392,3 +369,29 @@ impl<T: Config> Module<T> {
 		}
 	}
 }
+
+pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"pocw");
+
+pub mod crypto {
+	use super::KEY_TYPE;
+	use sp_core::sr25519::Signature as Sr25519Signature;
+	use sp_runtime::app_crypto::{app_crypto, sr25519};
+	use sp_runtime::{traits::Verify, MultiSignature, MultiSigner};
+
+	app_crypto!(sr25519, KEY_TYPE);
+
+	pub struct TestAuthId;
+	impl frame_system::offchain::AppCrypto<MultiSigner, MultiSignature> for TestAuthId {
+		type RuntimeAppPublic = Public;
+		type GenericSignature = Sr25519Signature;
+		type GenericPublic = sp_core::sr25519::Public;
+	}
+
+	//implemented for mock runtime in test
+	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for TestAuthId {
+		type RuntimeAppPublic = Public;
+		type GenericSignature = sp_core::sr25519::Signature;
+		type GenericPublic = sp_core::sr25519::Public;
+	}
+}
+

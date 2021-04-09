@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#![allow(clippy::upper_case_acronyms)]
+
 use codec::{Decode, Encode};
 
 use frame_support::sp_runtime::FixedU128;
@@ -7,6 +9,7 @@ use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+pub mod asset;
 pub mod traits;
 
 /// An index to a block.
@@ -18,10 +21,10 @@ pub type Moment = u64;
 /// Core asset id
 pub const CORE_ASSET_ID: AssetId = 0;
 
-/// Balance of an account.
+/// Type for storing the id of an asset.
 pub type AssetId = u32;
 
-/// Balance of an account.
+/// Type for storing the balance of an account.
 pub type Balance = u128;
 
 /// Signed version of Balance
@@ -33,15 +36,18 @@ pub type Price = FixedU128;
 /// Max fraction of pool to buy in single transaction
 pub const MAX_OUT_RATIO: u128 = 3;
 
-// Max fraction of pool to sell in single transaction
+/// Max fraction of pool to sell in single transaction
 pub const MAX_IN_RATIO: u128 = 3;
+
+/// Trading limit
+pub const MIN_TRADING_LIMIT: Balance = 1000;
 
 /// Scaled Unsigned of Balance
 pub type HighPrecisionBalance = U256;
 pub type LowPrecisionBalance = u128;
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq)]
 pub enum IntentionType {
 	SELL,
 	BUY,
@@ -55,12 +61,11 @@ impl Default for IntentionType {
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
-pub struct ExchangeIntention<AccountId, AssetId, Balance, IntentionID> {
+pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 	pub who: AccountId,
-	pub asset_sell: AssetId,
-	pub asset_buy: AssetId,
-	pub amount_sell: Balance,
-	pub amount_buy: Balance,
+	pub assets: asset::AssetPair,
+	pub amount_in: Balance,
+	pub amount_out: Balance,
 	pub trade_limit: Balance,
 	pub discount: bool,
 	pub sell_or_buy: IntentionType,

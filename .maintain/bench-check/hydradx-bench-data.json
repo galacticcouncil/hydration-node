@@ -1,27 +1,23 @@
 {
     "amm": {
-        "create_pool": 244.0,
-        "add_liquidity": 230.0,
-        "remove_liquidity": 231.0,
-        "sell": 163.0,
-        "buy": 162.0
+        "create_pool": 189.0,
+        "add_liquidity": 171.0,
+        "remove_liquidity": 170.0,
+        "sell": 122.0,
+        "buy": 121.0
     },
     "exchange": {
-        "known_overhead_for_on_finalize": 13.0,
-        "sell_intention": 85.0,
-        "buy_intention": 85.0,
-        "on_finalize": 21.54,
-        "on_finalize_buys_no_matches": 60.54,
-        "on_finalize_sells_no_matches": 58.0,
-        "sell_extrinsic": 165.0,
-        "on_finalize_for_one_sell_extrinsic": 217.0,
-        "buy_extrinsic": 164.0,
-        "on_finalize_for_one_buy_extrinsic": 239.0
+        "sell_intention": 109.0,
+        "buy_intention": 112.0,
+        "sell_extrinsic": 121.0,
+        "on_finalize_for_one_sell_extrinsic": 163.0,
+        "buy_extrinsic": 120.0,
+        "on_finalize_for_one_buy_extrinsic": 179.0
     },
     "transaction_multi_payment": {
-        "swap_currency": 168.0,
-        "set_currency": 41.0,
-        "add_currency": 35.0,
-        "remove_currency": 37.0
+        "swap_currency": 132.0,
+        "set_currency": 34.0,
+        "add_currency": 26.0,
+        "remove_currency": 26.0
     }
 }

@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2020-09-27
+          toolchain: nightly-2021-02-12
           target: wasm32-unknown-unknown
           override: true
           default: true
@@ -28,11 +28,17 @@ jobs:
       - name: Tests
         run: time cargo test --all --release --verbose --locked
       - name: Benchmarking tests
-        run: cd node && cargo test --release --features runtime-benchmarks -p pallet-exchange-benchmarking -p pallet-amm -p pallet-multi-payment-benchmarking
+        run: cd node && cargo test --release --features runtime-benchmarks -p pallet-exchange-benchmarking -p pallet-amm -p pallet-multi-payment-benchmarking -p pallet-claims
       - name: Build release
         run: time cargo build --release --verbose
-      - name: Upload release
+      - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
-          name: hack-hydra-dx
-          path: target/release/hack-hydra-dx
+          name: hydra-dx
+          path: target/release/hydra-dx
+      - name: Upload release wasm
+        uses: actions/upload-artifact@v2
+        with:
+          name: hydra_dx_runtime.wasm
+          path: target/release/wbuild/hydra-dx-runtime/hydra_dx_runtime.compact.wasm
+

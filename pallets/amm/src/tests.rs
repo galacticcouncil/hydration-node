@@ -1,6 +1,7 @@
 use super::*;
-pub use crate::mock::{Currency, ExtBuilder, Origin, System, Test, TestEvent, ACA, ALICE, AMM, BOB, DOT, HDX};
+pub use crate::mock::{Currency, Event as TestEvent, ExtBuilder, Origin, System, Test, ACA, ALICE, AMM, BOB, DOT, HDX};
 use frame_support::{assert_noop, assert_ok};
+use hydra_dx_math::MathError;
 use primitives::traits::AMM as AMMPool;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -10,7 +11,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 fn last_events(n: usize) -> Vec<TestEvent> {
-	system::Module::<Test>::events()
+	frame_system::Module::<Test>::events()
 		.into_iter()
 		.rev()
 		.take(n)
@@ -36,7 +37,10 @@ fn create_pool_should_work() {
 			Price::from(10)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
@@ -46,9 +50,7 @@ fn create_pool_should_work() {
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
 		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000);
 
-		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000000).into()
-		]);
+		expect_events(vec![Event::CreatePool(ALICE, asset_a, asset_b, 100000000000000).into()]);
 	});
 }
 
@@ -70,7 +72,27 @@ fn create_same_pool_should_not_work() {
 			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from(2)),
 			Error::<Test>::TokenPoolAlreadyExists
 		);
-		expect_events(vec![RawEvent::CreatePool(ALICE, asset_b, asset_a, 200).into()]);
+		expect_events(vec![Event::CreatePool(ALICE, asset_b, asset_a, 200).into()]);
+	});
+}
+
+#[test]
+fn create_pool_overflowing_amount_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = ACA;
+
+		assert_noop!(
+			AMM::create_pool(
+				Origin::signed(user),
+				asset_b,
+				asset_a,
+				u128::MAX as u128,
+				Price::from(2)
+			),
+			Error::<Test>::CreatePoolAssetAmountInvalid
+		);
 	});
 }
 
@@ -97,7 +119,10 @@ fn add_liquidity_should_work() {
 			1_000_000_000_000
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_b, &asset_a);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1004000000000);
@@ -107,8 +132,8 @@ fn add_liquidity_should_work() {
 		assert_eq!(AMM::total_liquidity(&pair_account), 1004000000000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 1000000000000).into(),
-			RawEvent::AddLiquidity(ALICE, asset_a, asset_b, 400000, 4000000000).into(),
+			Event::CreatePool(ALICE, asset_a, asset_b, 1000000000000).into(),
+			Event::AddLiquidity(ALICE, asset_a, asset_b, 400000, 4000000000).into(),
 		]);
 	});
 }
@@ -134,7 +159,10 @@ fn add_liquidity_as_another_user_should_work() {
 			1_000_000_000_000
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1004000000000);
@@ -160,9 +188,9 @@ fn add_liquidity_as_another_user_should_work() {
 		assert_eq!(AMM::total_liquidity(&pair_account), 1014000000000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_b, asset_a, 1000000000000).into(),
-			RawEvent::AddLiquidity(ALICE, asset_b, asset_a, 400000, 4000000000).into(),
-			RawEvent::AddLiquidity(BOB, asset_b, asset_a, 1000000, 10000000000).into(),
+			Event::CreatePool(ALICE, asset_b, asset_a, 1000000000000).into(),
+			Event::AddLiquidity(ALICE, asset_b, asset_a, 400000, 4000000000).into(),
+			Event::AddLiquidity(BOB, asset_b, asset_a, 1000000, 10000000000).into(),
 		]);
 	});
 }
@@ -182,7 +210,10 @@ fn remove_liquidity_should_work() {
 			Price::from(10_000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(share_token, &user), 100000000);
@@ -199,8 +230,8 @@ fn remove_liquidity_should_work() {
 		assert_eq!(AMM::total_liquidity(&pair_account), 99645000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000).into(),
-			RawEvent::RemoveLiquidity(ALICE, asset_a, asset_b, 355_000).into(),
+			Event::CreatePool(ALICE, asset_a, asset_b, 100000000).into(),
+			Event::RemoveLiquidity(ALICE, asset_a, asset_b, 355_000).into(),
 		]);
 	});
 }
@@ -267,7 +298,10 @@ fn sell_test() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -293,8 +327,8 @@ fn sell_test() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636510197744);
 
 		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 600000000000000).into(),
-			RawEvent::Sell(ALICE, asset_a, asset_b, 456444678, 1363489802256).into(),
+			Event::CreatePool(ALICE, asset_a, asset_b, 600000000000000).into(),
+			Event::Sell(ALICE, asset_a, asset_b, 456444678, 1363489802256).into(),
 		]);
 	});
 }
@@ -307,7 +341,10 @@ fn work_flow_happy_path_should_work() {
 		let asset_a = HDX;
 		let asset_b = ACA;
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 
 		// Check initial balances
 
@@ -457,13 +494,13 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(AMM::total_liquidity(&pair_account), 649_999_962_000);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 350_000_000_000).into(),
-			RawEvent::AddLiquidity(user_2, asset_a, asset_b, 300_000_000_000, 12_000_000_000_000).into(),
-			RawEvent::Sell(user_2, asset_a, asset_b, 216_666_666_666, 6_490_245_122_554).into(),
-			RawEvent::Sell(ALICE, asset_a, asset_b, 288_888_888_888, 4_870_118_901_375).into(),
-			RawEvent::RemoveLiquidity(user_2, asset_a, asset_b, 10_000).into(),
-			RawEvent::RemoveLiquidity(user_2, asset_b, asset_a, 10_000).into(),
-			RawEvent::RemoveLiquidity(user_2, asset_a, asset_b, 18_000).into(),
+			Event::CreatePool(user_1, asset_a, asset_b, 350_000_000_000).into(),
+			Event::AddLiquidity(user_2, asset_a, asset_b, 300_000_000_000, 12_000_000_000_000).into(),
+			Event::Sell(user_2, asset_a, asset_b, 216_666_666_666, 6_490_245_122_554).into(),
+			Event::Sell(ALICE, asset_a, asset_b, 288_888_888_888, 4_870_118_901_375).into(),
+			Event::RemoveLiquidity(user_2, asset_a, asset_b, 10_000).into(),
+			Event::RemoveLiquidity(user_2, asset_b, asset_a, 10_000).into(),
+			Event::RemoveLiquidity(user_2, asset_a, asset_b, 18_000).into(),
 		]);
 	});
 }
@@ -502,7 +539,10 @@ fn sell_with_correct_fees_should_work() {
 			Price::from(200)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999990000000);
@@ -528,8 +568,8 @@ fn sell_with_correct_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999989900000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998019762768,);
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 2000000000).into(),
-			RawEvent::Sell(user_1, asset_a, asset_b, 100000, 19762768).into(),
+			Event::CreatePool(user_1, asset_a, asset_b, 2000000000).into(),
+			Event::Sell(user_1, asset_a, asset_b, 100000, 19762768).into(),
 		]);
 	});
 }
@@ -566,8 +606,14 @@ fn discount_sell_fees_should_work() {
 			Price::from(2)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
-		let hdx_pair_account = AMM::get_pair_id(&asset_a, &HDX);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+		let hdx_pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: HDX,
+		});
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 30_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 60_000);
@@ -590,9 +636,10 @@ fn discount_sell_fees_should_work() {
 		assert_eq!(Currency::free_balance(HDX, &user_1), 989_986);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, HDX, 10_000).into(),
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 60_000).into(),
-			RawEvent::Sell(user_1, asset_a, asset_b, 10_000, 14_993).into(),
+			Event::CreatePool(user_1, asset_a, HDX, 10_000).into(),
+			frame_system::Event::NewAccount(pair_account).into(),
+			Event::CreatePool(user_1, asset_a, asset_b, 60_000).into(),
+			Event::Sell(user_1, asset_a, asset_b, 10_000, 14_993).into(),
 		]);
 	});
 }
@@ -612,7 +659,10 @@ fn single_buy_should_work() {
 			Price::from(3200)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
@@ -638,8 +688,8 @@ fn single_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_960_953_747);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 640000000000).into(),
-			RawEvent::Buy(user_1, asset_a, asset_b, 66666666, 320960953747).into(),
+			Event::CreatePool(user_1, asset_a, asset_b, 640000000000).into(),
+			Event::Buy(user_1, asset_a, asset_b, 66666666, 320960953747).into(),
 		]);
 	});
 }
@@ -667,7 +717,15 @@ fn single_buy_with_discount_should_work() {
 			Price::from(2)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let hdx_pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: HDX,
+		});
+
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_949_800_000_000);
@@ -699,9 +757,10 @@ fn single_buy_with_discount_should_work() {
 		assert_eq!(Currency::free_balance(HDX, &user_1), 999_899_999_906_668);
 
 		expect_events(vec![
-			RawEvent::CreatePool(user_1, asset_a, asset_b, 640_000_000_000).into(),
-			RawEvent::CreatePool(user_1, asset_a, HDX, 100_000_000_000).into(),
-			RawEvent::Buy(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
+			Event::CreatePool(user_1, asset_a, asset_b, 640_000_000_000).into(),
+			frame_system::Event::NewAccount(hdx_pair_account).into(),
+			Event::CreatePool(user_1, asset_a, HDX, 100_000_000_000).into(),
+			Event::Buy(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
 		]);
 	});
 }
@@ -810,7 +869,10 @@ fn create_pool_small_fixed_point_amount_should_work() {
 			Price::from_fraction(0.00001)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
@@ -820,9 +882,7 @@ fn create_pool_small_fixed_point_amount_should_work() {
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
 		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000);
 
-		expect_events(vec![
-			RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000000).into()
-		]);
+		expect_events(vec![Event::CreatePool(ALICE, asset_a, asset_b, 100000000000000).into()]);
 	});
 }
 
@@ -839,7 +899,10 @@ fn create_pool_fixed_point_amount_should_work() {
 			Price::from_fraction(4560.234543)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000);
@@ -849,12 +912,12 @@ fn create_pool_fixed_point_amount_should_work() {
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000);
 		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000);
 
-		expect_events(vec![RawEvent::CreatePool(ALICE, asset_a, asset_b, 100000000000).into()]);
+		expect_events(vec![Event::CreatePool(ALICE, asset_a, asset_b, 100000000000).into()]);
 	});
 }
 
 #[test]
-fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
+fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
 		let asset_a = HDX;
@@ -868,8 +931,14 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 			Price::from(10_000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
-		assert_eq!(AMM::exists(asset_a, asset_b), true);
+		let asset_pair = AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		};
+
+		let pair_account = AMM::get_pair_id(asset_pair);
+
+		assert_eq!(AMM::exists(asset_pair), true);
 
 		assert_ok!(AMM::remove_liquidity(
 			Origin::signed(user),
@@ -880,7 +949,7 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 
 		assert_eq!(AMM::total_liquidity(&pair_account), 0);
 
-		assert_eq!(AMM::exists(asset_a, asset_b), false);
+		assert_eq!(AMM::exists(asset_pair), false);
 
 		// It should be possible to recreate the pool again
 
@@ -893,10 +962,12 @@ fn destry_pool_on_remove_liquidity_and_recreate_should_work() {
 		));
 
 		expect_events(vec![
-			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
-			RawEvent::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
-			RawEvent::PoolDestroyed(user, asset_a, asset_b).into(),
-			RawEvent::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
+			frame_system::Event::KilledAccount(pair_account).into(),
+			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
+			Event::PoolDestroyed(user, asset_a, asset_b).into(),
+			frame_system::Event::NewAccount(pair_account).into(),
+			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
 		]);
 	});
 }
@@ -929,7 +1000,10 @@ fn sell_test_exceeding_max_limit() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -974,7 +1048,10 @@ fn buy_test_exceeding_max_limit() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -1019,7 +1096,10 @@ fn single_buy_more_than_ratio_out_should_not_work() {
 			Price::from(3200)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
@@ -1058,7 +1138,10 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 			Price::from(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(&asset_a, &asset_b);
+		let pair_account = AMM::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
 		let share_token = AMM::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_800_000_000_000);
@@ -1083,45 +1166,45 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 }
 
 #[test]
-fn test_calculate_sell_price() {
+fn test_calculate_out_given_in() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 100000;
-		let sell_amount: Balance = 100000000000;
-		let result = hack_hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_eq!(result, Some(991));
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 100000;
+		let in_amount: Balance = 100000000000;
+		let result = hydra_dx_math::calculate_out_given_in(in_reserve, out_reserve, in_amount);
+		assert_eq!(result, Ok(991));
 	});
 }
 
 #[test]
-fn test_calculate_sell_price_invalid() {
+fn test_calculate_out_given_in_invalid() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 0;
-		let buy_reserve: Balance = 1000;
-		let sell_amount: Balance = 0;
-		let result = hack_hydra_dx_math::calculate_sell_price(sell_reserve, buy_reserve, sell_amount);
-		assert_eq!(result, None);
+		let in_reserve: Balance = 0;
+		let out_reserve: Balance = 1000;
+		let in_amount: Balance = 0;
+		let result = hydra_dx_math::calculate_out_given_in(in_reserve, out_reserve, in_amount);
+		assert_eq!(result, Err(MathError::ZeroInReserve));
 	});
 }
 
 #[test]
-fn test_calculate_buy_price_insufficient_pool_balance() {
+fn test_calculate_in_given_out_insufficient_pool_balance() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 100000;
-		let buy_amount: Balance = 100000000000;
-		let result = hack_hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_eq!(result, None);
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 100000;
+		let out_amount: Balance = 100000000000;
+		let result = hydra_dx_math::calculate_in_given_out(out_reserve, in_reserve, out_amount);
+		assert_eq!(result, Err(MathError::InsufficientOutReserve));
 	});
 }
 
 #[test]
-fn test_calculate_buy_price() {
+fn test_calculate_in_given_out() {
 	ExtBuilder::default().build().execute_with(|| {
-		let sell_reserve: Balance = 10000000000000;
-		let buy_reserve: Balance = 10000000;
-		let buy_amount: Balance = 1000000;
-		let result = hack_hydra_dx_math::calculate_buy_price(sell_reserve, buy_reserve, buy_amount);
-		assert_eq!(result, Some(1111111111112));
+		let in_reserve: Balance = 10000000000000;
+		let out_reserve: Balance = 10000000;
+		let out_amount: Balance = 1000000;
+		let result = hydra_dx_math::calculate_in_given_out(out_reserve, in_reserve, out_amount);
+		assert_eq!(result, Ok(1111111111112));
 	});
 }

@@ -1,7 +1,8 @@
 #![cfg(test)]
 
 use super::*;
-use frame_support::{impl_outer_origin, parameter_types};
+use frame_support::parameter_types;
+use frame_support::traits::GenesisBuild;
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -27,29 +28,36 @@ pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ETH: AssetId = 3000;
 
-impl_outer_origin! {
-	pub enum Origin for Test where system = frame_system {}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-// For testing the pallet, we construct most of a mock runtime. This means
-// first constructing a configuration type (`Test`) which `impl`s each of the
-// configuration traits of pallets we want to use.
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
+frame_support::construct_runtime!(
+		pub enum Test where
+		 Block = Block,
+		 NodeBlock = Block,
+		 UncheckedExtrinsic = UncheckedExtrinsic,
+		 {
+				 System: frame_system::{Module, Call, Config, Storage, Event<T>},
+				 Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
+				 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
+				 Currency: orml_tokens::{Module, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Module, Storage},
+		 }
+
+);
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-
 	pub const HDXAssetId: AssetId = HDX;
-
 	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
+
 impl system::Config for Test {
 	type BaseCallFilter = ();
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -57,25 +65,26 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = ();
+	type Event = Event;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
-	type PalletInfo = ();
+	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
+	type SS58Prefix = ();
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
 }
 
 impl orml_tokens::Config for Test {
-	type Event = ();
+	type Event = Event;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
@@ -83,8 +92,6 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
 }
-
-pub type Currency = orml_tokens::Module<Test>;
 
 pub struct AssetPairAccountIdTest();
 
@@ -106,7 +113,7 @@ impl pallet_asset_registry::Config for Test {
 }
 
 impl pallet_amm::Config for Test {
-	type Event = ();
+	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
 	type HDXAssetId = HDXAssetId;
@@ -114,11 +121,8 @@ impl pallet_amm::Config for Test {
 	type GetExchangeFee = ExchangeFeeRate;
 }
 
-pub type AMMModule = pallet_amm::Module<Test>;
-pub type System = system::Module<Test>;
-
 impl pallet_exchange::Config for Test {
-	type Event = ();
+	type Event = Event;
 	type AMMPool = AMMModule;
 	type Currency = Currency;
 	type Resolver = pallet_exchange::Module<Test>;

@@ -1,136 +1,147 @@
 [package]
 authors = ['GalacticCouncil']
 edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hack.hydradx-node'
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Unlicense'
-name = 'hack-hydra-dx-runtime'
-repository = 'https://github.com/galacticcouncil/hack.hydradx-node'
-version = '2.0.0'
+name = 'hydra-dx-runtime'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
+version = '6.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '1.0.5' }
+wasm-builder-runner = {package = 'substrate-wasm-builder-runner', version = '1.0.5'}
 
-# alias "parity-scale-code" to "codec"
+# alias 'parity-scale-code' to 'codec'
 [dependencies.codec]
 default-features = false
 features = ['derive']
 package = 'parity-scale-codec'
-version = '1.3.4'
+version = '2.0.0'
 
 [dependencies]
-hex-literal = { optional = true, version = '0.3.1' }
-tracing-core = { optional = true, version = '0.1.17' }
-serde = { features = ['derive'], optional = true, version = '1.0.101' }
+hex-literal = {optional = true, version = '0.3.1'}
+serde = {features = ['derive'], optional = true, version = '1.0.101'}
+tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
-pallet-asset-registry = { path = '../pallets/asset-registry', default-features = false, version = '2.0.0' }
-pallet-amm = { path = '../pallets/amm', default-features = false, version = '2.0.0' }
-pallet-exchange = { path = '../pallets/exchange', default-features = false, version = '2.0.0' }
-pallet-exchange-benchmarking = { path = '../pallets/exchange/benchmarking', default-features = false, optional = true, version = '2.0.0' }
-pallet-faucet = { path = '../pallets/faucet', default-features = false, version = '2.0.0' }
-pallet-transaction-multi-payment = { path = '../pallets/transaction-multi-payment', default-features = false, version = '2.0.0' }
-pallet-multi-payment-benchmarking = { path = '../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true, version = '2.0.0' }
-primitives = { path = '../primitives', default-features = false, version = '2.0.0' }
-module-amm-rpc-runtime-api = { path = '../pallets/amm/rpc/runtime-api', default-features = false, version = '2.0.0' }
+module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api', default-features = false}
+pallet-amm = {path = '../pallets/amm', default-features = false}
+pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false}
+pallet-claims = {path = '../pallets/claims', default-features = false}
+pallet-exchange = {path = '../pallets/exchange', default-features = false}
+pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', default-features = false, optional = true}
+pallet-faucet = {path = '../pallets/faucet', default-features = false}
+pallet-multi-payment-benchmarking = {path = '../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true}
+pallet-transaction-multi-payment = {path = '../pallets/transaction-multi-payment', default-features = false}
+primitives = {path = '../primitives', default-features = false}
 pallet-price-fetch = { path = '../pallets/price-fetch', default-features = false, version = '2.0.0' }
 
 # ORML dependencies
-orml-currencies = {default-features = false, version = "0.3.3-dev"}
-orml-tokens = {default-features = false, version = "0.3.3-dev"}
-orml-traits = {default-features = false, version = "0.3.3-dev"}
+orml-currencies = {default-features = false, version = '0.4.1-dev'}
+orml-tokens = {default-features = false, version = '0.4.1-dev'}
+orml-traits = {default-features = false, version = '0.4.1-dev'}
 
 # Staking dependencies
-pallet-authority-discovery = {default-features = false, version = '2.0.0'}
-pallet-authorship = {default-features = false, version = '2.0.0'}
-pallet-babe = {default-features = false, version = '2.0.0'}
-pallet-collective = {default-features = false, version = '2.0.0'}
-pallet-elections-phragmen = {default-features = false, version = '2.0.0'}
-pallet-im-online = {default-features = false, version = '2.0.0'}
-pallet-offences = {default-features = false, version = '2.0.0'}
-pallet-session = {default-features = false, version = '2.0.0'}
-pallet-staking = {default-features = false, version = '2.0.0'}
-pallet-staking-reward-curve = {default-features = false, version = '2.0.0'}
-pallet-treasury = {default-features = false, version = '2.0.0'}
-sp-authority-discovery = {default-features = false, version = '2.0.0'}
-sp-consensus-babe = {default-features = false, version = '0.8.0'}
+pallet-authority-discovery = {default-features = false, version = '3.0.0'}
+pallet-authorship = {default-features = false, version = '3.0.0'}
+pallet-babe = {default-features = false, version = '3.0.0'}
+pallet-collective = {default-features = false, version = '3.0.0'}
+pallet-election-provider-multi-phase = {default-features = false, version = '3.0.0'}
+pallet-elections-phragmen = {default-features = false, version = '3.0.0'}
+pallet-im-online = {default-features = false, version = '3.0.0'}
+pallet-offences = {default-features = false, version = '3.0.0'}
+pallet-scheduler = {default-features = false, version = '3.0.0'}
+pallet-session = {default-features = false, version = '3.0.0'}
+pallet-staking = {default-features = false, version = '3.0.0'}
+pallet-staking-reward-curve = {default-features = false, version = '3.0.0'}
+pallet-tips = {default-features = false, version = '=3.0.0'}
+pallet-treasury = {default-features = false, version = '3.0.0'}
+sp-authority-discovery = {default-features = false, version = '3.0.0'}
+sp-consensus-babe = {default-features = false, version = '0.9.0'}
 
 # Substrate dependencies
-frame-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
-frame-executive = { default-features = false, version = '2.0.0' }
-frame-support = { default-features = false, version = '2.0.0' }
-frame-system = { default-features = false, version = '2.0.0' }
-frame-system-benchmarking = { default-features = false, optional = true, version = '2.0.0' }
-frame-system-rpc-runtime-api = { default-features = false, version = '2.0.0' }
-pallet-balances = { default-features = false, version = '2.0.0' }
-pallet-grandpa = { default-features = false, version = '2.0.0' }
-pallet-randomness-collective-flip = { default-features = false, version = '2.0.0' }
-pallet-sudo = { default-features = false, version = '2.0.0' }
-pallet-timestamp = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment = { default-features = false, version = '2.0.0' }
-pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = '2.0.0' }
-sp-api = { default-features = false, version = '2.0.0' }
-sp-block-builder = { default-features = false, version = '2.0.0' }
-sp-core = { default-features = false, version = '2.0.0' }
-sp-inherents = { default-features = false, version = '2.0.0' }
-sp-offchain = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
-sp-session = { default-features = false, version = '2.0.0' }
-sp-std = { default-features = false, version = '2.0.0' }
-sp-transaction-pool = { default-features = false, version = '2.0.0' }
-sp-version = { default-features = false, version = '2.0.0' }
-sp-staking = { default-features = false, version = '2.0.0' }
+frame-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
+frame-executive = {default-features = false, version = '3.0.0'}
+frame-support = {default-features = false, version = '3.0.0'}
+frame-system = {default-features = false, version = '3.0.0'}
+frame-system-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
+frame-system-rpc-runtime-api = {default-features = false, version = '3.0.0'}
+pallet-balances = {default-features = false, version = '3.0.0'}
+pallet-grandpa = {default-features = false, version = '3.0.0'}
+pallet-identity = {default-features = false, version = '3.0.0'}
+pallet-randomness-collective-flip = {default-features = false, version = '3.0.0'}
+pallet-sudo = {default-features = false, version = '3.0.0'}
+pallet-timestamp = {default-features = false, version = '3.0.0'}
+pallet-transaction-payment = {default-features = false, version = '3.0.0'}
+pallet-transaction-payment-rpc-runtime-api = {default-features = false, version = '3.0.0'}
+sp-api = {default-features = false, version = '3.0.0'}
+sp-block-builder = {default-features = false, version = '3.0.0'}
+sp-core = {default-features = false, version = '3.0.0'}
+sp-inherents = {default-features = false, version = '3.0.0'}
+sp-offchain = {default-features = false, version = '3.0.0'}
+sp-runtime = {default-features = false, version = '3.0.0'}
+sp-session = {default-features = false, version = '3.0.0'}
+sp-staking = {default-features = false, version = '3.0.0'}
+sp-std = {default-features = false, version = '3.0.0'}
+sp-transaction-pool = {default-features = false, version = '3.0.0'}
+sp-version = {default-features = false, version = '3.0.0'}
 
 [features]
 default = ['std']
 runtime-benchmarks = [
-    'hex-literal',
-    'frame-benchmarking',
-    'frame-support/runtime-benchmarks',
-    'frame-system-benchmarking',
-    'frame-system/runtime-benchmarks',
-    'pallet-balances/runtime-benchmarks',
-    'pallet-timestamp/runtime-benchmarks',
-    'pallet-multi-payment-benchmarking',
-    "pallet-amm/runtime-benchmarks",
-    "pallet-exchange-benchmarking",
-    'pallet-collective/runtime-benchmarks',
-    'sp-runtime/runtime-benchmarks',
+  'hex-literal',
+  'frame-benchmarking',
+  'frame-support/runtime-benchmarks',
+  'frame-system-benchmarking',
+  'frame-system/runtime-benchmarks',
+  'pallet-balances/runtime-benchmarks',
+  'pallet-timestamp/runtime-benchmarks',
+  'pallet-multi-payment-benchmarking',
+  "pallet-amm/runtime-benchmarks",
+  "pallet-exchange-benchmarking",
+  'pallet-collective/runtime-benchmarks',
+  'pallet-identity/runtime-benchmarks',
+  'sp-runtime/runtime-benchmarks',
+  'pallet-claims/runtime-benchmarks',
 ]
 std = [
-    'codec/std',
-    'serde',
-    'frame-executive/std',
-    'frame-support/std',
-    'frame-system/std',
-    'frame-system-rpc-runtime-api/std',
-    'orml-currencies/std',
-    'orml-tokens/std',
-    'orml-traits/std',
-    'pallet-amm/std',
-'pallet-price-fetch/std',
-    'pallet-asset-registry/std',
-    'pallet-exchange/std',
-    'pallet-faucet/std',
-    'pallet-balances/std',
-    'pallet-grandpa/std',
-    'pallet-randomness-collective-flip/std',
-    'pallet-sudo/std',
-    'pallet-timestamp/std',
-    'pallet-transaction-payment/std',
-    'pallet-transaction-payment-rpc-runtime-api/std',
-    'sp-api/std',
-    'sp-block-builder/std',
-    'sp-core/std',
-    'sp-inherents/std',
-    'sp-offchain/std',
-    'sp-runtime/std',
-    'sp-session/std',
-    'sp-std/std',
-    'sp-transaction-pool/std',
-    'sp-version/std',
+  'codec/std',
+  'serde',
+  'frame-executive/std',
+  'frame-support/std',
+  'frame-system/std',
+  'frame-system-rpc-runtime-api/std',
+  'orml-currencies/std',
+  'orml-tokens/std',
+  'orml-traits/std',
+  'pallet-amm/std',
+  'pallet-claims/std',
+  'pallet-asset-registry/std',
+  'pallet-exchange/std',
+  'pallet-faucet/std',
+  'pallet-balances/std',
+  'pallet-grandpa/std',
+  'pallet-identity/std',
+  'pallet-randomness-collective-flip/std',
+  'pallet-scheduler/std',
+  'pallet-sudo/std',
+  'pallet-timestamp/std',
+  'pallet-tips/std',
+  'pallet-transaction-payment/std',
+  'pallet-transaction-payment-rpc-runtime-api/std',
+  'sp-api/std',
+  'sp-block-builder/std',
+  'sp-core/std',
+  'sp-inherents/std',
+  'sp-offchain/std',
+  'sp-runtime/std',
+  'sp-session/std',
+  'sp-std/std',
+  'sp-transaction-pool/std',
+  'sp-version/std',
+  'pallet-price-fetch/std',
   'pallet-staking/std',
   'sp-staking/std',
   'pallet-treasury/std',
