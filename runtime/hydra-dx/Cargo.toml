@@ -26,7 +26,7 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
-hydra-dx-common-runtime = {path = '../common', default-features = false}
+common-runtime = {path = '../common', default-features = false}
 module-amm-rpc-runtime-api = {path = '../../pallets/amm/rpc/runtime-api', default-features = false}
 pallet-amm = {path = '../../pallets/amm', default-features = false}
 pallet-asset-registry = {path = '../../pallets/asset-registry', default-features = false}

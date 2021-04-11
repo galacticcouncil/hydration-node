@@ -1,5 +1,5 @@
 pub mod currency {
-	pub use primitives::Balance;
+	pub use crate::Balance;
 
 	pub const HDX: Balance = 1_000_000_000_000;
 	pub const DOLLARS: Balance = HDX / 10; // 10 HDX ~= 1 $
@@ -8,7 +8,7 @@ pub mod currency {
 }
 
 pub mod time {
-	use primitives::{BlockNumber, Moment};
+	use crate::{BlockNumber, Moment};
 
 	/// Since BABE is probabilistic this is the average expected block time that
 	/// we are targeting. Blocks will be produced at a minimum duration defined
@@ -46,4 +46,36 @@ pub mod time {
 
 		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
 	};
+}
+
+pub mod chain {
+	pub use crate::{AssetId, Balance};
+	pub use sp_runtime::Perbill;
+	pub use frame_support::weights::{Weight, constants::WEIGHT_PER_SECOND};
+
+	/// Core asset id
+	pub const CORE_ASSET_ID: AssetId = 0;
+
+	/// Max fraction of pool to buy in single transaction
+	pub const MAX_OUT_RATIO: u128 = 3;
+
+	/// Max fraction of pool to sell in single transaction
+	pub const MAX_IN_RATIO: u128 = 3;
+
+	/// Trading limit
+	pub const MIN_TRADING_LIMIT: Balance = 1000;
+
+	pub const RUNTIME_AUTHORING_VERSION: u32 = 1;
+	pub const RUNTIME_SPEC_VERSION: u32 = 6;
+	pub const RUNTIME_IMPL_VERSION: u32 = 0;
+	pub const RUNTIME_TRANSACTION_VERSION: u32 = 1;
+
+	/// We assume that an on-initialize consumes 2.5% of the weight on average, hence a single extrinsic
+	/// will not be allowed to consume more than `AvailableBlockRatio - 2.5%`.
+	pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_perthousand(25);
+	/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
+	/// by  Operational  extrinsics.
+	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+	/// We allow for 2 seconds of compute with a 6 second average block time.
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
 }

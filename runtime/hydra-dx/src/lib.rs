@@ -60,16 +60,13 @@ use module_amm_rpc_runtime_api as amm_rpc;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 
-pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
+pub use common_runtime::*;
 
 /// Import HydraDX pallets
 pub use pallet_asset_registry;
 pub use pallet_claims;
 pub use pallet_faucet;
-
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
-
-pub use hydra_dx_common_runtime::*;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -106,16 +103,14 @@ impl_opaque_keys! {
 	}
 }
 
-use hydra_dx_common_runtime::{HYDRADX_AUTHORING_VERSION, HYDRADX_SPEC_VERSION,
-	HYDRADX_IMPL_VERSION, HYDRADX_TRANSACTION_VERSION};
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
-	authoring_version: HYDRADX_AUTHORING_VERSION,
-	spec_version: HYDRADX_SPEC_VERSION,
-	impl_version: HYDRADX_IMPL_VERSION,
+	authoring_version: RUNTIME_AUTHORING_VERSION,
+	spec_version: RUNTIME_SPEC_VERSION,
+	impl_version: RUNTIME_IMPL_VERSION,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: HYDRADX_TRANSACTION_VERSION,
+	transaction_version: RUNTIME_TRANSACTION_VERSION,
 };
 
 

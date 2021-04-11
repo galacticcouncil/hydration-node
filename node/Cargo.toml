@@ -26,7 +26,7 @@ structopt = '0.3.8'
 # local dependencies
 hydra-dx-runtime = {path = '../runtime/hydra-dx'}
 testing-hydra-dx-runtime = {path = '../runtime/testing-hydra-dx'}
-hydra-dx-common-runtime = {path = '../runtime/common'}
+common-runtime = {path = '../runtime/common'}
 module-amm-rpc = {path = '../pallets/amm/rpc'}
 primitives = {path = '../primitives'}
 module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api'}

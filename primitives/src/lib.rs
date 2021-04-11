@@ -14,10 +14,15 @@ use sp_runtime::{
 };
 
 pub mod asset;
+pub mod constants;
 pub mod traits;
 
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+
+/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
+/// never know...
+pub type AccountIndex = u32;
 
 /// Header type.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -28,23 +33,24 @@ pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 /// An index to a block.
 pub type BlockNumber = u32;
 
-/// Alias to 512-bit hash when used in the context of a transaction signature.
+/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
 
-/// Some way of identifying an account.
+/// Some way of identifying an account on the chain. We intentionally make it equivalent
+/// to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
-/// Index of a transaction in.
+/// Index of a transaction in the chain.
 pub type Index = u32;
 
-/// A hash of some data.
+/// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
+
+/// Digest item type.
+pub type DigestItem = generic::DigestItem<Hash>;
 
 /// Type used for expressing timestamp.
 pub type Moment = u64;
-
-/// Core asset id
-pub const CORE_ASSET_ID: AssetId = 0;
 
 /// Type for storing the id of an asset.
 pub type AssetId = u32;
@@ -57,15 +63,6 @@ pub type Amount = i128;
 
 /// Price
 pub type Price = FixedU128;
-
-/// Max fraction of pool to buy in single transaction
-pub const MAX_OUT_RATIO: u128 = 3;
-
-/// Max fraction of pool to sell in single transaction
-pub const MAX_IN_RATIO: u128 = 3;
-
-/// Trading limit
-pub const MIN_TRADING_LIMIT: Balance = 1000;
 
 /// Scaled Unsigned of Balance
 pub type HighPrecisionBalance = U256;

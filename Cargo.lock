@@ -781,6 +781,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-runtime"
+version = "6.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.0.1",
+ "primitives",
+ "sp-runtime",
+ "substrate-wasm-builder-runner",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2215,12 +2227,12 @@ dependencies = [
 name = "hydra-dx"
 version = "3.0.1"
 dependencies = [
+ "common-runtime",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-system-rpc-runtime-api",
  "futures 0.3.13",
  "hex-literal",
- "hydra-dx-common-runtime",
  "hydra-dx-runtime",
  "jsonrpc-core",
  "module-amm-rpc",
@@ -2274,19 +2286,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hydra-dx-common-runtime"
-version = "6.0.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec 2.0.1",
- "primitives",
- "sp-core",
- "sp-runtime",
- "substrate-wasm-builder-runner",
-]
-
-[[package]]
 name = "hydra-dx-math"
 version = "1.0.0"
 source = "git+https://github.com/galacticcouncil/hydraDX-math?tag=v1.0.0#3bcb2baa335f8f3d0ccac4aea1c80b44453201c5"
@@ -2298,6 +2297,7 @@ dependencies = [
 name = "hydra-dx-runtime"
 version = "6.0.0"
 dependencies = [
+ "common-runtime",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -2305,7 +2305,6 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal",
- "hydra-dx-common-runtime",
  "module-amm-rpc-runtime-api",
  "orml-currencies",
  "orml-tokens",
@@ -7764,6 +7763,7 @@ dependencies = [
 name = "testing-hydra-dx-runtime"
 version = "6.0.0"
 dependencies = [
+ "common-runtime",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -7771,7 +7771,6 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal",
- "hydra-dx-common-runtime",
  "module-amm-rpc-runtime-api",
  "orml-currencies",
  "orml-tokens",

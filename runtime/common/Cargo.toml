@@ -3,7 +3,7 @@ authors = ['GalacticCouncil']
 edition = '2018'
 homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Unlicense'
-name = 'hydra-dx-common-runtime'
+name = 'common-runtime'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
 version = '6.0.0'
 
@@ -77,7 +77,7 @@ frame-system = {default-features = false, version = '3.0.0'}
 #pallet-transaction-payment-rpc-runtime-api = {default-features = false, version = '3.0.0'}
 #sp-api = {default-features = false, version = '3.0.0'}
 #sp-block-builder = {default-features = false, version = '3.0.0'}
-sp-core = {default-features = false, version = '3.0.0'}
+#sp-core = {default-features = false, version = '3.0.0'}
 #sp-inherents = {default-features = false, version = '3.0.0'}
 #sp-offchain = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}

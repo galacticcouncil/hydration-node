@@ -31,9 +31,10 @@ use sp_std::marker::PhantomData;
 
 use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use primitives::asset::AssetPair;
-use primitives::traits::{CurrencySwap, AMM};
-use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
+use primitives::{Amount, AssetId, Balance,
+	asset::AssetPair,
+	traits::{CurrencySwap, AMM},
+	constants::chain::CORE_ASSET_ID};
 
 use orml_utilities::OrderedSet;
 

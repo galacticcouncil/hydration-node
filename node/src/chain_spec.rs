@@ -1,6 +1,6 @@
 #![allow(clippy::or_fun_call)]
 
-use hydra_dx_common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
+use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
 use hydra_dx_runtime::opaque::SessionKeys;
 use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
@@ -516,7 +516,7 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 
 pub mod testing_node {
 	use super::create_testnet_claims;
-	use hydra_dx_common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
+	use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
 	use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 	use pallet_staking::Forcing;
 	use sc_service::ChainType;

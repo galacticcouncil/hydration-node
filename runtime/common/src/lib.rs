@@ -1,59 +1,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod constants;
-pub use constants::{currency::*, time::*};
+pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use frame_support::{
 	parameter_types,
 	traits::LockIdentifier,
-	weights::{
-		constants::{BlockExecutionWeight, WEIGHT_PER_SECOND},
-		DispatchClass, Pays, Weight,
-	},
+	weights::{DispatchClass, Pays},
 };
 pub use frame_system::limits;
-pub use primitives::{fee, Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
+pub use primitives::{fee, AccountId, AccountIndex, Amount, AssetId, Balance, BlockNumber, DigestItem,
+	Hash, Index, Moment, Signature};
 pub use sp_runtime::{
-	generic,
-	traits::{IdentifyAccount, Verify},
 	transaction_validity::TransactionPriority,
-	ModuleId, MultiSignature, Perbill, Percent, Permill,
+	ModuleId, Perbill, Percent, Permill,
 };
-/// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
-/// never know...
-pub type AccountIndex = u32;
-
-/// Index of a transaction in the chain.
-pub type Index = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
-
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
-
-pub const HYDRADX_AUTHORING_VERSION: u32 = 1;
-pub const HYDRADX_SPEC_VERSION: u32 = 6;
-pub const HYDRADX_IMPL_VERSION: u32 = 0;
-pub const HYDRADX_TRANSACTION_VERSION: u32 = 1;
-
-/// We assume that an on-initialize consumes 2.5% of the weight on average, hence a single extrinsic
-/// will not be allowed to consume more than `AvailableBlockRatio - 2.5%`.
-pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_perthousand(25);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
-/// by  Operational  extrinsics.
-pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
 
 // frame system
 parameter_types! {
