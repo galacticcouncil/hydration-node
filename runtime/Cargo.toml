@@ -5,7 +5,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Unlicense'
 name = 'hydra-dx-runtime'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '5.0.0'
+version = '6.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -27,7 +27,7 @@ tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
 module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api', default-features = false}
-pallet-amm = {path = '../pallets/amm', default-features = false }
+pallet-amm = {path = '../pallets/amm', default-features = false}
 pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false}
 pallet-claims = {path = '../pallets/claims', default-features = false}
 pallet-exchange = {path = '../pallets/exchange', default-features = false}
@@ -47,16 +47,16 @@ pallet-authority-discovery = {default-features = false, version = '3.0.0'}
 pallet-authorship = {default-features = false, version = '3.0.0'}
 pallet-babe = {default-features = false, version = '3.0.0'}
 pallet-collective = {default-features = false, version = '3.0.0'}
-pallet-elections-phragmen = {default-features = false, version = '3.0.0'}
 pallet-election-provider-multi-phase = {default-features = false, version = '3.0.0'}
+pallet-elections-phragmen = {default-features = false, version = '3.0.0'}
 pallet-im-online = {default-features = false, version = '3.0.0'}
 pallet-offences = {default-features = false, version = '3.0.0'}
+pallet-scheduler = {default-features = false, version = '3.0.0'}
 pallet-session = {default-features = false, version = '3.0.0'}
 pallet-staking = {default-features = false, version = '3.0.0'}
 pallet-staking-reward-curve = {default-features = false, version = '3.0.0'}
 pallet-tips = {default-features = false, version = '=3.0.0'}
 pallet-treasury = {default-features = false, version = '3.0.0'}
-pallet-scheduler = {default-features = false, version = '3.0.0'}
 sp-authority-discovery = {default-features = false, version = '3.0.0'}
 sp-consensus-babe = {default-features = false, version = '0.9.0'}
 
@@ -69,6 +69,7 @@ frame-system-benchmarking = {default-features = false, optional = true, version 
 frame-system-rpc-runtime-api = {default-features = false, version = '3.0.0'}
 pallet-balances = {default-features = false, version = '3.0.0'}
 pallet-grandpa = {default-features = false, version = '3.0.0'}
+pallet-identity = {default-features = false, version = '3.0.0'}
 pallet-randomness-collective-flip = {default-features = false, version = '3.0.0'}
 pallet-sudo = {default-features = false, version = '3.0.0'}
 pallet-timestamp = {default-features = false, version = '3.0.0'}
@@ -100,6 +101,7 @@ runtime-benchmarks = [
   "pallet-amm/runtime-benchmarks",
   "pallet-exchange-benchmarking",
   'pallet-collective/runtime-benchmarks',
+  'pallet-identity/runtime-benchmarks',
   'sp-runtime/runtime-benchmarks',
   'pallet-claims/runtime-benchmarks',
 ]
@@ -120,6 +122,7 @@ std = [
   'pallet-faucet/std',
   'pallet-balances/std',
   'pallet-grandpa/std',
+  'pallet-identity/std',
   'pallet-randomness-collective-flip/std',
   'pallet-scheduler/std',
   'pallet-sudo/std',

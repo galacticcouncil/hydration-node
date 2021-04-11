@@ -1,3 +1,42 @@
+# v4.0.1 (Tue Mar 30 2021)
+
+#### 🐛 Bug Fix
+
+- fix: telemetry [#190](https://github.com/galacticcouncil/HydraDX-node/pull/190) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 1
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+
+---
+
+# v4.0.0 (Mon Mar 29 2021)
+
+#### 💥 Breaking Change
+
+- feat!: disable slashing [#184](https://github.com/galacticcouncil/HydraDX-node/pull/184) ([@martinfridrich](https://github.com/martinfridrich) [@jak-pan](https://github.com/jak-pan))
+- feat!: add identity pallet [#163](https://github.com/galacticcouncil/HydraDX-node/pull/163) ([@Roznovjak](https://github.com/Roznovjak) [@lumir-mrkva](https://github.com/lumir-mrkva) [@jak-pan](https://github.com/jak-pan))
+- feat!: set reward curve params for inc. testnet [#173](https://github.com/galacticcouncil/HydraDX-node/pull/173) ([@green-jay](https://github.com/green-jay))
+
+#### 🐛 Bug Fix
+
+- bug(perf-check): fix bench-wizard install/upgrade [#179](https://github.com/galacticcouncil/HydraDX-node/pull/179) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Other improvements
+
+- chore(perf-check): install bench wizard as part of the check perf script [#170](https://github.com/galacticcouncil/HydraDX-node/pull/170) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Authors: 6
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+- Jindrich Zeleny ([@green-jay](https://github.com/green-jay))
+- martin fridrich ([@martinfridrich](https://github.com/martinfridrich))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
 # v3.0.0 (Sun Mar 21 2021)
 
 #### 💥 Breaking Change
