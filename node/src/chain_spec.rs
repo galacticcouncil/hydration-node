@@ -1,12 +1,12 @@
 #![allow(clippy::or_fun_call)]
 
 use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
-use hydra_dx_runtime::opaque::SessionKeys;
-use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
 	AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, SessionConfig, StakerStatus,
 	StakingConfig, SudoConfig, SystemConfig, TokensConfig, WASM_BINARY,
+	opaque::SessionKeys,
+	pallet_claims::EthereumAddress
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -515,71 +515,24 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 }
 
 pub mod testing_node {
-	use super::create_testnet_claims;
-	use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
-	use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-	use pallet_staking::Forcing;
-	use sc_service::ChainType;
-	use serde_json::map::Map;
-	use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-	use sp_consensus_babe::AuthorityId as BabeId;
-	use sp_core::{sr25519, Pair, Public};
-	use sp_finality_grandpa::AuthorityId as GrandpaId;
-	use sp_runtime::traits::{IdentifyAccount, Verify};
-	use testing_hydra_dx_runtime::{
-		opaque::SessionKeys, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig,
-		CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
-		StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, WASM_BINARY,
-	};
+	use super::*;
+	use testing_hydra_dx_runtime as testing_runtime;
+	// use testing_hydra_dx_runtime::{
+	// 	opaque::SessionKeys, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig,
+	// 	CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
+	// 	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, WASM_BINARY,
+	// };
 
 	/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-	pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
+	pub type ChainSpec = sc_service::GenericChainSpec<testing_runtime::GenesisConfig>;
 
-	/// Generate a crypto pair from seed.
-	pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
-		TPublic::Pair::from_string(&format!("//{}", seed), None)
-			.expect("static values are valid; qed")
-			.public()
-	}
-
-	type AccountPublic = <Signature as Verify>::Signer;
-
-	/// Generate an account ID from seed.
-	pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-	where
-		AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-	{
-		AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
-	}
-
-	/// Helper function to generate stash, controller and session key from seed
-	pub fn authority_keys_from_seed(
-		seed: &str,
-	) -> (
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	) {
-		(
-			get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
-			get_account_id_from_seed::<sr25519::Public>(seed),
-			get_from_seed::<GrandpaId>(seed),
-			get_from_seed::<BabeId>(seed),
-			get_from_seed::<ImOnlineId>(seed),
-			get_from_seed::<AuthorityDiscoveryId>(seed),
-		)
-	}
-
-	fn session_keys(
+	fn testing_session_keys(
 		grandpa: GrandpaId,
 		babe: BabeId,
 		im_online: ImOnlineId,
 		authority_discovery: AuthorityDiscoveryId,
-	) -> SessionKeys {
-		SessionKeys {
+	) -> testing_runtime::opaque::SessionKeys {
+		testing_runtime::opaque::SessionKeys {
 			grandpa,
 			babe,
 			im_online,
@@ -587,11 +540,8 @@ pub mod testing_node {
 		}
 	}
 
-	const STASH: Balance = 100 * HDX;
-	const DEFAULT_PROTOCOL_ID: &str = "hdx";
-
 	pub fn testing_node_development_config() -> Result<ChainSpec, String> {
-		let wasm_binary = WASM_BINARY.ok_or("Testing and development wasm binary not available".to_string())?;
+		let wasm_binary = testing_runtime::WASM_BINARY.ok_or("Testing and development wasm binary not available".to_string())?;
 		let mut properties = Map::new();
 		properties.insert("tokenDecimals".into(), 12.into());
 		properties.insert("tokenSymbol".into(), "HDX".into());
@@ -646,14 +596,14 @@ pub mod testing_node {
 		root_key: AccountId,
 		endowed_accounts: Vec<AccountId>,
 		_enable_println: bool,
-	) -> GenesisConfig {
-		GenesisConfig {
-			frame_system: Some(SystemConfig {
+	) -> testing_runtime::GenesisConfig {
+		testing_runtime::GenesisConfig {
+			frame_system: Some(testing_runtime::SystemConfig {
 				// Add Wasm runtime to storage.
 				code: wasm_binary.to_vec(),
 				changes_trie_config: Default::default(),
 			}),
-			pallet_balances: Some(BalancesConfig {
+			pallet_balances: Some(testing_runtime::BalancesConfig {
 				// Configure endowed accounts with initial balance of 1_000_000.
 				balances: endowed_accounts
 					.iter()
@@ -661,12 +611,12 @@ pub mod testing_node {
 					.map(|k| (k, 1_000_000u128 * HDX))
 					.collect(),
 			}),
-			pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
-			pallet_sudo: Some(SudoConfig {
+			pallet_grandpa: Some(testing_runtime::GrandpaConfig { authorities: vec![] }),
+			pallet_sudo: Some(testing_runtime::SudoConfig {
 				// Assign network admin rights.
 				key: root_key,
 			}),
-			pallet_asset_registry: Some(AssetRegistryConfig {
+			pallet_asset_registry: Some(testing_runtime::AssetRegistryConfig {
 				core_asset_id: CORE_ASSET_ID,
 				asset_ids: vec![
 					(b"tKSM".to_vec(), 1),
@@ -682,7 +632,7 @@ pub mod testing_node {
 				],
 				next_asset_id: 11,
 			}),
-			orml_tokens: Some(TokensConfig {
+			orml_tokens: Some(testing_runtime::TokensConfig {
 				endowed_accounts: endowed_accounts
 					.iter()
 					.flat_map(|x| {
@@ -694,28 +644,28 @@ pub mod testing_node {
 					})
 					.collect(),
 			}),
-			pallet_faucet: Some(FaucetConfig {
+			pallet_faucet: Some(testing_runtime::FaucetConfig {
 				rampage: true,
 				mint_limit: 5,
 				mintable_currencies: vec![0, 1, 2],
 			}),
-			pallet_babe: Some(BabeConfig { authorities: vec![] }),
-			pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-			pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
+			pallet_babe: Some(testing_runtime::BabeConfig { authorities: vec![] }),
+			pallet_authority_discovery: Some(testing_runtime::AuthorityDiscoveryConfig { keys: vec![] }),
+			pallet_im_online: Some(testing_runtime::ImOnlineConfig { keys: vec![] }),
 			pallet_treasury: Some(Default::default()),
-			pallet_session: Some(SessionConfig {
+			pallet_session: Some(testing_runtime::SessionConfig {
 				keys: initial_authorities
 					.iter()
 					.map(|x| {
 						(
 							x.0.clone(),
 							x.0.clone(),
-							session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+							testing_session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
 						)
 					})
 					.collect::<Vec<_>>(),
 			}),
-			pallet_staking: Some(StakingConfig {
+			pallet_staking: Some(testing_runtime::StakingConfig {
 				validator_count: initial_authorities.len() as u32 * 2,
 				minimum_validator_count: initial_authorities.len() as u32,
 				stakers: initial_authorities
@@ -727,9 +677,9 @@ pub mod testing_node {
 				slash_reward_fraction: Perbill::from_percent(10),
 				..Default::default()
 			}),
-			pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-			pallet_collective_Instance1: Some(CouncilConfig::default()),
-			pallet_claims: Some(ClaimsConfig {
+			pallet_elections_phragmen: Some(testing_runtime::ElectionsConfig { members: vec![] }),
+			pallet_collective_Instance1: Some(testing_runtime::CouncilConfig::default()),
+			pallet_claims: Some(testing_runtime::ClaimsConfig {
 				claims: create_testnet_claims(),
 			}),
 		}
