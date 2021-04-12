@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 6,
+	spec_version: 7,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -169,26 +169,26 @@ impl Filter<Call> for BaseFilter {
 			| Call::AssetRegistry(_)
 			| Call::Offences(_)
 			| Call::AMM(_)
+			| Call::Claims(_)
+			| Call::Elections(_)
+			| Call::Treasury(_)
+			| Call::Tips(_)
+			| Call::Staking(_)
 			| Call::MultiTransactionPayment(_)
+			| Call::Identity(_)
+			| Call::Scheduler(_)
 			| Call::Exchange(_) => false,
 
 			Call::System(_)
 			| Call::RandomnessCollectiveFlip(_)
-			| Call::Claims(_)
-			| Call::Elections(_)
 			| Call::Babe(_)
-			| Call::Treasury(_)
-			| Call::Tips(_)
 			| Call::Timestamp(_)
 			| Call::Authorship(_)
-			| Call::Staking(_)
 			| Call::Session(_)
 			| Call::Grandpa(_)
 			| Call::AuthorityDiscovery(_)
 			| Call::ImOnline(_)
 			| Call::ElectionProviderMultiPhase(_)
-			| Call::Scheduler(_)
-			| Call::Identity(_)
 			| Call::Sudo(_) => true,
 		}
 	}
