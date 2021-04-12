@@ -21,13 +21,14 @@ use sp_core::{
 	OpaqueMetadata,
 };
 use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys,
-	SaturatedConversion, Verify,
+	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys, SaturatedConversion,
+	Verify,
 };
 use sp_runtime::{
-	ApplyExtrinsicResult, create_runtime_str, generic, impl_opaque_keys,
+	create_runtime_str, generic, impl_opaque_keys,
 	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -112,8 +113,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: RUNTIME_TRANSACTION_VERSION,
 };
-
-
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]

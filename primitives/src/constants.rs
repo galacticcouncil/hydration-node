@@ -2,7 +2,7 @@ pub mod currency {
 	pub use crate::Balance;
 
 	pub const HDX: Balance = 1_000_000_000_000;
-	pub const DOLLARS: Balance = HDX * 10;	// 10 HDX ~= 1 $
+	pub const DOLLARS: Balance = HDX * 10; // 10 HDX ~= 1 $
 	pub const CENTS: Balance = DOLLARS / 100;
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 }
@@ -50,8 +50,8 @@ pub mod time {
 
 pub mod chain {
 	pub use crate::{AssetId, Balance};
+	pub use frame_support::weights::{constants::WEIGHT_PER_SECOND, Weight};
 	pub use sp_runtime::Perbill;
-	pub use frame_support::weights::{Weight, constants::WEIGHT_PER_SECOND};
 
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;

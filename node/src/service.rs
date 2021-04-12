@@ -4,7 +4,6 @@
 
 pub use crate::client::{AbstractClient, Client, ClientHandle, ExecuteWithClient, RuntimeApiCollection};
 use hydra_dx_runtime;
-use testing_hydra_dx_runtime;
 use primitives::Block;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 pub use sc_executor::NativeExecutor;
@@ -18,6 +17,7 @@ use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 use std::time::Duration;
+use testing_hydra_dx_runtime;
 
 // Our native executor instance.
 native_executor_instance!(

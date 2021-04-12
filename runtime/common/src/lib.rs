@@ -1,18 +1,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use frame_support::{
 	parameter_types,
 	traits::LockIdentifier,
 	weights::{DispatchClass, Pays},
 };
 pub use frame_system::limits;
-pub use primitives::{fee, AccountId, AccountIndex, Amount, AssetId, Balance, BlockNumber, DigestItem,
-	Hash, Index, Moment, Signature};
-pub use sp_runtime::{
-	transaction_validity::TransactionPriority,
-	ModuleId, Perbill, Percent, Permill,
+pub use primitives::constants::{chain::*, currency::*, time::*};
+pub use primitives::{
+	fee, AccountId, AccountIndex, Amount, AssetId, Balance, BlockNumber, DigestItem, Hash, Index, Moment, Signature,
 };
+pub use sp_runtime::{transaction_validity::TransactionPriority, ModuleId, Perbill, Percent, Permill};
 
 // frame system
 parameter_types! {
