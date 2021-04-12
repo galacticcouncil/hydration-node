@@ -31,6 +31,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		// REVIEW: Technically missing on_initialize with the weight.
 		fn on_finalize(_p: T::BlockNumber) {
 			Minted::<T>::set(0u8);
 		}
@@ -115,6 +116,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight((0, DispatchClass::Normal, Pays::No))]
 		pub fn rampage_mint(origin: OriginFor<T>, asset: AssetId, amount: Balance) -> DispatchResultWithPostInfo {
+			// REVIEW: Are you sure you want to allow anyone to mint any asset when rampage is
+			// set to true?
 			let who = ensure_signed(origin)?;
 			ensure!(Self::rampage(), Error::<T>::RampageMintNotAllowed);
 
