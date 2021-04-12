@@ -440,6 +440,11 @@ fn lerna_genesis(
 					hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
 					STASH,
 				),
+				(
+					// Unsold tokens treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					56873469471297884942_u128,
+				),
 			],
 		}),
 		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
@@ -489,6 +494,7 @@ fn lerna_genesis(
 			..Default::default()
 		}),
 		pallet_elections_phragmen: Some(ElectionsConfig {
+			// Intergalactic elections
 			members: vec![(
 				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 				STASH,
