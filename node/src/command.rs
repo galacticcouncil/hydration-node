@@ -64,14 +64,20 @@ impl SubstrateCli for Cli {
 		} else {
 			id
 		};
-		Ok(match id {
-			"dev" => Box::new(chain_spec::development_config()?),
-			"lerna-staging" => Box::new(chain_spec::lerna_staging_config()?),
-			"lerna" => Box::new(chain_spec::lerna_config()?),
-			"local" => Box::new(chain_spec::local_testnet_config()?),
-			"testing" => Box::new(chain_spec::testing_node::testing_node_development_config()?),
-			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
-		})
+		if self.run.testing {
+			Ok(match id {
+				"dev" => Box::new(chain_spec::testing_node::testing_node_development_config()?),
+				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+			})
+		} else {
+			Ok(match id {
+				"dev" => Box::new(chain_spec::development_config()?),
+				"lerna-staging" => Box::new(chain_spec::lerna_staging_config()?),
+				"lerna" => Box::new(chain_spec::lerna_config()?),
+				"local" => Box::new(chain_spec::local_testnet_config()?),
+				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+			})
+		}
 	}
 
 	fn native_runtime_version(spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
@@ -94,6 +100,17 @@ pub fn run() -> sc_cli::Result<()> {
 	set_ss58();
 
 	match &cli.subcommand {
+		None => {
+			let run_testing_runtime = cli.run.testing;
+			let runner = cli.create_runner(&cli.run.base)?;
+			runner.run_node_until_exit(|config| async move {
+				match config.role {
+					Role::Light => service::build_light(config, run_testing_runtime),
+					_ => service::build_full(config, run_testing_runtime).map(|full| full.task_manager),
+				}
+				.map_err(sc_cli::Error::Service)
+			})
+		}
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
@@ -147,16 +164,6 @@ pub fn run() -> sc_cli::Result<()> {
 				You can enable it with `--features runtime-benchmarks`."
 					.into())
 			}
-		}
-		None => {
-			let runner = cli.create_runner(&cli.run)?;
-			runner.run_node_until_exit(|config| async move {
-				match config.role {
-					Role::Light => service::build_light(config),
-					_ => service::build_full(config).map(|full| full.task_manager),
-				}
-				.map_err(sc_cli::Error::Service)
-			})
 		}
 	}
 }

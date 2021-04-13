@@ -1,4 +1,3 @@
-use sc_cli::RunCmd;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -8,6 +7,16 @@ pub struct Cli {
 
 	#[structopt(flatten)]
 	pub run: RunCmd,
+}
+
+#[derive(Debug, StructOpt)]
+pub struct RunCmd {
+	#[structopt(flatten)]
+	pub base: sc_cli::RunCmd,
+
+	/// Use testing native runtime.
+	#[structopt(long)]
+	pub testing: bool,
 }
 
 #[derive(Debug, StructOpt)]

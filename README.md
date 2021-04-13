@@ -59,7 +59,7 @@ RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hydra-dx -lruntime=debug --dev
 
 There is also an option to run the testing runtime with less restrictive settings to facilitate testing of new features:
 ```bash
-./target/release/hydra-dx --chain testing --alice
+./target/release/hydra-dx --dev --testing
 ```
 
 ### Interaction with the node

@@ -250,8 +250,8 @@ impl<C> NewFull<C> {
 	}
 }
 
-pub fn build_full(config: Configuration) -> Result<NewFull<Client>, ServiceError> {
-	if config.chain_spec.is_testing_hydra_dx() {
+pub fn build_full(config: Configuration, run_testing_runtime: bool) -> Result<NewFull<Client>, ServiceError> {
+	if run_testing_runtime {
 		new_full::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)
 			.map(|full| full.with_client(Client::TestingHydraDX))
 	} else {
@@ -450,8 +450,8 @@ where
 	})
 }
 
-pub fn build_light(config: Configuration) -> Result<TaskManager, ServiceError> {
-	if config.chain_spec.is_testing_hydra_dx() {
+pub fn build_light(config: Configuration, is_testing_runtime: bool) -> Result<TaskManager, ServiceError> {
+	if is_testing_runtime {
 		new_light::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)
 	} else {
 		new_light::<hydra_dx_runtime::RuntimeApi, HydraExecutor>(config)
