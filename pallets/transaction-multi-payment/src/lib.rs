@@ -282,6 +282,7 @@ impl<T: Config> Pallet<T> {
 		Authorities::<T>::mutate(|x| x.push(who.clone()));
 	}
 
+	// REVIEW: Consider marking with the [`require_transactional` attribute](https://crates.parity.io/frame_support/attr.require_transactional.html)
 	pub fn withdraw_set_fee(who: &T::AccountId, currency: AssetId) -> DispatchResult {
 		let base_fee = Self::weight_to_fee(T::BlockWeights::get().get(DispatchClass::Normal).base_extrinsic);
 		let adjusted_weight_fee = Self::weight_to_fee(T::WeightInfo::set_currency());
