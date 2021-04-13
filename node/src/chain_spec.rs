@@ -21,6 +21,8 @@ use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
+use hydra_dx_runtime::pallet_genesis_history::Chain;
+
 // The URL for the telemetry server.
 const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -140,7 +142,7 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"HydraDX Snakenet",
+		"HydraDX Snakenet Gen2",
 		// ID
 		"lerna",
 		ChainType::Live,
@@ -517,7 +519,12 @@ fn lerna_genesis(
 			phantom: Default::default(),
 		}),
 		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
-		pallet_genesis_history: Some(GenesisHistoryConfig::default()),
+		pallet_genesis_history: Some(GenesisHistoryConfig {
+			previous_chain: Chain {
+				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"].to_vec().into(),
+				last_block_hash: hex!["f3c43294255f2d0cd8b3bc8787d18cc2adcec581f74d23df15ca75b8b77cd507"].to_vec().into(),
+			}
+		}),
 	}
 }
 

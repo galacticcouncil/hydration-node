@@ -29,7 +29,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::Zero,
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, ModuleId, MultiSignature, Percent,
+	ApplyExtrinsicResult, FixedPointNumber, ModuleId, MultiSignature, Percent,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -51,7 +51,7 @@ pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{curve::PiecewiseLinear, Perbill, Permill};
+pub use sp_runtime::{curve::PiecewiseLinear, Perbill, Permill, Perquintill};
 
 use pallet_session::historical as session_historical;
 
@@ -327,6 +327,10 @@ impl pallet_balances::Config for Runtime {
 parameter_types! {
 	pub const TransactionByteFee: Balance = 1;
 	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
+
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -334,7 +338,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type TransactionByteFee = TransactionByteFee;
 	// REVIEW: Todo: decide on fee system.
 	type WeightToFee = IdentityFee<Balance>;
-	type FeeMultiplierUpdate = ();
+	type FeeMultiplierUpdate = TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {
@@ -460,6 +464,7 @@ pub mod impls;
 use constants::{currency::*, time::*};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::fee;
 
 parameter_types! {
