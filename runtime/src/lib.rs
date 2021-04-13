@@ -307,6 +307,7 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 parameter_types! {
+	// REVIEW: What's your dust avoidance mechanism?
 	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
 }
@@ -331,6 +332,7 @@ parameter_types! {
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), MultiTransactionPayment>;
 	type TransactionByteFee = TransactionByteFee;
+	// REVIEW: Todo: decide on fee system.
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
 }
@@ -492,6 +494,9 @@ parameter_types! {
 	pub const MaxIterations: u32 = 10;
 	// 0.05%. The higher the value, the more strict solution acceptance becomes.
 	pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
+	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
+				  .saturating_sub(BlockExecutionWeight::get())
+				  .saturating_sub(ExtrinsicBaseWeight::get());
 }
 
 type SlashCancelOrigin =
@@ -509,7 +514,6 @@ impl pallet_staking::Config for Runtime {
 	type SessionsPerEra = SessionsPerEra;
 	type BondingDuration = BondingDuration;
 	type SlashDeferDuration = SlashDeferDuration;
-	// A super-majority of the council can cancel the slash.
 	type SlashCancelOrigin = SlashCancelOrigin;
 	type SessionInterface = Self;
 	type RewardCurve = RewardCurve;
@@ -528,6 +532,7 @@ parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
 	pub const VotingPeriod: BlockNumber = 7 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
+	// REVIEW: This seems fairly high.
 	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
 	pub const EnactmentPeriod: BlockNumber = 6 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
@@ -645,13 +650,11 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
+	// REVIEW: This disables submitting proposals, right? --> document
 	pub const ProposalBondMinimum: Balance = FORTUNE;
 	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
-	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
-				  .saturating_sub(BlockExecutionWeight::get())
-				  .saturating_sub(ExtrinsicBaseWeight::get());
 }
 
 type AllCouncilMembers = pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
@@ -718,15 +721,17 @@ impl pallet_session::historical::Config for Runtime {
 parameter_types! {
 	// Don't allow runner-ups
 	pub const CandidacyBond: Balance = FORTUNE;
-	// 1 storage item created, key size is 32 bytes, value size is 16+16.
 	pub const VotingBondBase: Balance = CENTS;
-	// additional data per vote is 32 bytes (account id).
 	pub const VotingBondFactor: Balance = CENTS;
 	pub const TermDuration: BlockNumber = 7 * DAYS;
 	pub const DesiredMembers: u32 = 1;
 	pub const DesiredRunnersUp: u32 = 0;
 	pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
 }
+
+// REVIEW: I would add this assert.
+// Make sure that there are no more than MaxMembers members elected via phragmen.
+const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
 
 impl pallet_elections_phragmen::Config for Runtime {
 	type Event = Event;
@@ -792,6 +797,10 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 parameter_types! {
 	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
 	pub const TechnicalMaxProposals: u32 = 20;
+	// REVIEW: Note from the collective pallet:
+	// The pallet assumes that the amount of members stays at or below `MaxMembers` for its weight
+	// calculations, but enforces this neither in `set_members` nor in `change_members_sorted`.
+	// --> This is not the maximum you would like to be, but the maximum that you will make sure to never exceed.
 	pub const TechnicalMaxMembers: u32 = 10;
 }
 
@@ -809,6 +818,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 
 impl pallet_authority_discovery::Config for Runtime {}
 
+// REVIEW: these seem a little lost here :-D
 parameter_types! {
 	pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
@@ -982,6 +992,7 @@ pub type SignedExtra = (
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
+	// REVIEW: nitpick: Was renamed to `CheckMortality`.
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
