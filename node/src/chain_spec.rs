@@ -3,8 +3,8 @@
 use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
 use hydra_dx_runtime::{
 	AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
-	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, SessionConfig, StakerStatus,
-	StakingConfig, SudoConfig, SystemConfig, TokensConfig, WASM_BINARY,
+	ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig, SessionConfig, StakerStatus,
+	StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, WASM_BINARY,
 	opaque::SessionKeys,
 	pallet_claims::EthereumAddress
 };
@@ -20,6 +20,8 @@ use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
+use hydra_dx_runtime::pallet_genesis_history::Chain;
+
 // The URL for the telemetry server.
 const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -107,6 +109,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
 			)
@@ -137,7 +141,7 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"HydraDX Snakenet",
+		"HydraDX Snakenet Gen2",
 		// ID
 		"lerna",
 		ChainType::Live,
@@ -253,6 +257,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
 			)
@@ -299,7 +305,7 @@ fn testnet_genesis(
 				.map(|k| (k, 1_000_000u128 * HDX))
 				.collect(),
 		}),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
+		pallet_grandpa: Default::default(),
 		pallet_sudo: Some(SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
@@ -339,8 +345,8 @@ fn testnet_genesis(
 		}),
 		pallet_babe: Some(BabeConfig { authorities: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-		pallet_treasury: Some(Default::default()),
+		pallet_im_online: Default::default(),
+		pallet_treasury: Default::default(),
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -365,11 +371,25 @@ fn testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_elections_phragmen: Some(ElectionsConfig {
+			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
+		}),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			phantom: Default::default(),
+		}),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+			members: vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+			],
+			phantom: Default::default(),
+		}),
 		pallet_claims: Some(ClaimsConfig {
 			claims: create_testnet_claims(),
 		}),
+		pallet_genesis_history: Some(GenesisHistoryConfig::default()),
 	}
 }
 
@@ -421,6 +441,11 @@ fn lerna_genesis(
 					hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
 					STASH,
 				),
+				(
+					// Unsold tokens treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					56873469471297884942_u128,
+				),
 			],
 		}),
 		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
@@ -469,9 +494,36 @@ fn lerna_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
-		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		pallet_elections_phragmen: Some(ElectionsConfig {
+			// Intergalactic elections
+			members: vec![(
+				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
+				STASH,
+			)],
+		}),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			// Intergalactic council member
+			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
+			phantom: Default::default(),
+		}),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+			members: vec![
+				hex!["d6cf8789dce651cb54a4036406f4aa0c771914d345c004ad0567b814c71fb637"].into(),
+				hex!["bc96ec00952efa8f0e3e08b36bf5096bcb877acac536e478aecb72868db5db02"].into(),
+				hex!["2875dd47bc1bcb70e23de79e7538c312be12c716033bbae425130e46f5f2b35e"].into(),
+				hex!["644643bf953233d08c4c9bae0acd49f3baa7658d9b342b7e6879bb149ee6e44c"].into(),
+				hex!["ccdb435892c9883656d0398b2b67023ba1e11bda0c7f213f70fdac54c6abab3f"].into(),
+				hex!["f461c5ae6e80bf4af5b84452789c17b0b0a095a2d77c2a407978147de2d5b572"].into(),
+			],
+			phantom: Default::default(),
+		}),
 		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
+		pallet_genesis_history: Some(GenesisHistoryConfig {
+			previous_chain: Chain {
+				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"].to_vec().into(),
+				last_block_hash: hex!["f3c43294255f2d0cd8b3bc8787d18cc2adcec581f74d23df15ca75b8b77cd507"].to_vec().into(),
+			}
+		}),
 	}
 }
 
@@ -677,11 +729,25 @@ pub mod testing_node {
 				slash_reward_fraction: Perbill::from_percent(10),
 				..Default::default()
 			}),
-			pallet_elections_phragmen: Some(testing_runtime::ElectionsConfig { members: vec![] }),
-			pallet_collective_Instance1: Some(testing_runtime::CouncilConfig::default()),
-			pallet_claims: Some(testing_runtime::ClaimsConfig {
-				claims: create_testnet_claims(),
-			}),
+			pallet_elections_phragmen: Some(testing_runtime::ElectionsConfig {
+			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
+		}),
+		pallet_collective_Instance1: Some(testing_runtime::CouncilConfig {
+			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			phantom: Default::default(),
+		}),
+		pallet_collective_Instance2: Some(testing_runtime::TechnicalCommitteeConfig {
+			members: vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+			],
+			phantom: Default::default(),
+		}),
+		pallet_claims: Some(testing_runtime::ClaimsConfig {
+			claims: create_testnet_claims(),
+		}),
+		pallet_genesis_history: Some(testing_runtime::GenesisHistoryConfig::default()),
 		}
 	}
 }

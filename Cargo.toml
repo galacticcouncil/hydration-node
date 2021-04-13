@@ -7,8 +7,10 @@ frame-system = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4
 frame-system-benchmarking = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 frame-system-rpc-runtime-api = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-balances = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
-pallet-grandpa = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
+pallet-democracy = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-election-provider-multi-phase = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
+pallet-grandpa = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
+pallet-identity = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-randomness-collective-flip = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-scheduler = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-sudo = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
@@ -16,7 +18,6 @@ pallet-timestamp = {git = 'https://github.com/paritytech/substrate', rev = 'e84d
 pallet-tips = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-transaction-payment-rpc = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 pallet-transaction-payment-rpc-runtime-api = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
-pallet-identity = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 sc-basic-authorship = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 sc-chain-spec = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
 sc-cli = {git = 'https://github.com/paritytech/substrate', rev = 'e84d2ae4e519d77f59ef68c8efd48909a70d58e8'}
@@ -98,6 +99,13 @@ panic = 'unwind'
 [workspace]
 members = [
   'node',
+  'runtime/common',
   'runtime/hydra-dx',
   'runtime/testing-hydra-dx',
+  'pallets/amm',
+  'pallets/asset-registry',
+  'pallets/exchange',
+  'pallets/transaction-multi-payment',
+  'pallets/genesis-history',
+  'primitives',
 ]
