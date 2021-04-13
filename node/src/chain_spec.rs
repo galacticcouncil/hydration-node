@@ -142,7 +142,7 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"HydraDX Snakenet",
+		"HydraDX Snakenet Gen2",
 		// ID
 		"lerna",
 		ChainType::Live,
