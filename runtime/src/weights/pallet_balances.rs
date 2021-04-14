@@ -1,0 +1,1 @@
+pub type HydraWeight<T> = pallet_balances::weights::SubstrateWeight<T>;

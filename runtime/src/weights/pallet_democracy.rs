@@ -1,0 +1,1 @@
+pub type HydraWeight<T> =  pallet_democracy::weights::SubstrateWeight<T>;

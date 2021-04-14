@@ -272,7 +272,7 @@ impl frame_system::Config for Runtime {
 	/// The data to be stored in an account.
 	type AccountData = pallet_balances::AccountData<Balance>;
 	/// Weight information for the extrinsics of this pallet.
-	type SystemWeightInfo = ();
+	type SystemWeightInfo = weights::frame_system::HydraWeight<Runtime>;
 	type SS58Prefix = SS58Prefix;
 }
 
@@ -290,7 +290,7 @@ impl pallet_grandpa::Config for Runtime {
 	type HandleEquivocation =
 		pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_grandpa::HydraWeight;
 }
 
 parameter_types! {
@@ -303,7 +303,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = Babe;
 	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_timestamp::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -320,7 +320,7 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_balances::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -389,7 +389,7 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type ForceOrigin = EnsureRootOrHalfCouncil;
 	type RegistrarOrigin = EnsureRootOrHalfCouncil;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_identity::HydraWeight<Runtime>;
 }
 
 /// ORML Configurations
@@ -399,7 +399,7 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type WeightInfo = ();
+	type WeightInfo = weights::orml_tokens::HydraWeight;
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
 }
@@ -409,7 +409,7 @@ impl orml_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type GetNativeCurrencyId = HDXAssetId;
-	type WeightInfo = ();
+	type WeightInfo = weights::orml_currencies::HydraWeight;
 }
 
 /// HydraDX Pallets configurations
@@ -459,6 +459,9 @@ impl pallet_faucet::Config for Runtime {
 pub mod constants;
 /// Staking pallets configurations
 pub mod impls;
+
+mod weights;
+
 use constants::{currency::*, time::*};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
@@ -526,7 +529,7 @@ impl pallet_staking::Config for Runtime {
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
 	type UnsignedPriority = StakingUnsignedPriority;
 	type OffchainSolutionWeightLimit = OffchainSolutionWeightLimit;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_staking::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -607,7 +610,7 @@ impl pallet_democracy::Config for Runtime {
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
 	type MaxVotes = MaxVotes;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_democracy::HydraWeight<Runtime>;
 	type MaxProposals = MaxProposals;
 }
 
@@ -645,7 +648,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type CompactSolution = pallet_staking::CompactAssignments;
 	type Fallback = Fallback;
 	type BenchmarkingConfig = ();
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_election_provider_multi_phase::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -674,7 +677,7 @@ impl pallet_treasury::Config for Runtime {
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type BurnDestination = ();
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_treasury::HydraWeight<Runtime>;
 	type SpendFunds = ();
 }
 
@@ -695,7 +698,7 @@ impl pallet_tips::Config for Runtime {
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_tips::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -712,7 +715,7 @@ impl pallet_session::Config for Runtime {
 	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
 	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_session::HydraWeight<Runtime>;
 }
 
 impl pallet_session::historical::Config for Runtime {
@@ -748,7 +751,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type DesiredMembers = DesiredMembers;
 	type DesiredRunnersUp = DesiredRunnersUp;
 	type TermDuration = TermDuration;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_elections_phragmen::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -772,7 +775,7 @@ impl pallet_babe::Config for Runtime {
 		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::IdentificationTuple;
 
 	type HandleEquivocation = pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_babe::HydraWeight;
 }
 
 parameter_types! {
@@ -791,7 +794,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_collective::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -809,7 +812,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxProposals = TechnicalMaxProposals;
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_collective::HydraWeight<Runtime>;
 }
 
 impl pallet_authority_discovery::Config for Runtime {}
@@ -890,7 +893,7 @@ impl pallet_im_online::Config for Runtime {
 	type ValidatorSet = Historical;
 	type ReportUnresponsiveness = Offences;
 	type UnsignedPriority = ImOnlineUnsignedPriority;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_im_online::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -917,7 +920,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_scheduler::HydraWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -929,7 +932,6 @@ construct_runtime!(
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-
 
 		Babe: pallet_babe::{Module, Call, Storage, Config, ValidateUnsigned},
 
@@ -1217,6 +1219,7 @@ impl_runtime_apis! {
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
+			use pallet_session_benchmarking::Module as SessionBench;
 			use pallet_exchange_benchmarking::Module as ExchangeBench;
 			use frame_system_benchmarking::Module as SystemBench;
 			use pallet_multi_payment_benchmarking::Module as MultiBench;
@@ -1224,6 +1227,7 @@ impl_runtime_apis! {
 			impl frame_system_benchmarking::Config for Runtime {}
 			impl pallet_exchange_benchmarking::Config for Runtime {}
 			impl pallet_multi_payment_benchmarking::Config for Runtime {}
+			impl pallet_session_benchmarking::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1244,12 +1248,25 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, amm, AMM);
 			add_benchmark!(params, batches, claims, Claims);
 			add_benchmark!(params, batches, transaction_multi_payment, MultiBench::<Runtime>);
-			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, exchange, ExchangeBench::<Runtime>);
+
+            // Substrate
+			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_collective, Council);
 			add_benchmark!(params, batches, pallet_identity, Identity);
+			add_benchmark!(params, batches, pallet_grandpa, Grandpa);
+			add_benchmark!(params, batches, pallet_staking, Staking);
+			add_benchmark!(params, batches, pallet_democracy, Democracy);
+			add_benchmark!(params, batches, pallet_treasury, Treasury);
+			add_benchmark!(params, batches, pallet_tips, Tips);
+			add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
+			add_benchmark!(params, batches, pallet_babe, Babe);
+			add_benchmark!(params, batches, pallet_im_online, ImOnline);
+			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
+
+			add_benchmark!(params, batches, pallet_session, SessionBench::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

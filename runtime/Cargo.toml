@@ -43,6 +43,7 @@ primitives = {path = '../primitives', default-features = false}
 orml-currencies = {default-features = false, version = '0.4.1-dev'}
 orml-tokens = {default-features = false, version = '0.4.1-dev'}
 orml-traits = {default-features = false, version = '0.4.1-dev'}
+orml-benchmarking = {default-features = false, version = '0.4.1-dev', optional = true}
 
 # Staking dependencies
 pallet-authority-discovery = {default-features = false, version = '3.0.0'}
@@ -56,6 +57,7 @@ pallet-im-online = {default-features = false, version = '3.0.0'}
 pallet-offences = {default-features = false, version = '3.0.0'}
 pallet-scheduler = {default-features = false, version = '3.0.0'}
 pallet-session = {default-features = false, version = '3.0.0'}
+pallet-session-benchmarking = {default-features = false, version = '3.0.0', optional = true}
 pallet-staking = {default-features = false, version = '3.0.0'}
 pallet-staking-reward-curve = {default-features = false, version = '3.0.0'}
 pallet-tips = {default-features = false, version = '=3.0.0'}
@@ -106,6 +108,16 @@ runtime-benchmarks = [
   'pallet-identity/runtime-benchmarks',
   'sp-runtime/runtime-benchmarks',
   'pallet-claims/runtime-benchmarks',
+  'pallet-grandpa/runtime-benchmarks',
+  'pallet-staking/runtime-benchmarks',
+  'pallet-democracy/runtime-benchmarks',
+  'pallet-treasury/runtime-benchmarks',
+  'pallet-tips/runtime-benchmarks',
+  'pallet-elections-phragmen/runtime-benchmarks',
+  'pallet-babe/runtime-benchmarks',
+  'pallet-im-online/runtime-benchmarks',
+  'pallet-scheduler/runtime-benchmarks',
+  'pallet-session-benchmarking',
 ]
 std = [
   'codec/std',

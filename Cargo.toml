@@ -90,6 +90,7 @@ orml-currencies = {git = 'https://github.com/open-web3-stack/open-runtime-module
 orml-tokens = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
 orml-traits = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
 orml-utilities = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
+orml-benchmarking = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', branch = 'master'}
 
 librocksdb-sys = {git = "https://github.com/hdevalence/rust-rocksdb", branch = "master"}
 
