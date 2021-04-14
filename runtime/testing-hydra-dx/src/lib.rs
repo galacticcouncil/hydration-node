@@ -50,7 +50,7 @@ pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{curve::PiecewiseLinear, Perquintill};
+pub use sp_runtime::curve::PiecewiseLinear;
 
 use pallet_session::historical as session_historical;
 
@@ -109,6 +109,9 @@ mod testing {
 
 	parameter_types! {
     	pub const LaunchPeriod: BlockNumber = MINUTES;
+		pub const VotingPeriod: BlockNumber = MINUTES;
+		pub const EpochDuration: u64 = 10 * MINUTES as u64;
+		pub const SessionsPerEra: sp_staking::SessionIndex = 1;
 	}
 }
 
@@ -376,7 +379,6 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
-	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
 	pub const BondingDuration: pallet_staking::EraIndex = 28; //28 Days
 	pub const SlashDeferDuration: pallet_staking::EraIndex =  28 - 1; //SlashDeferDuration should be less than BondingDuration https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
@@ -394,7 +396,7 @@ impl pallet_staking::Config for Runtime {
 	type Event = Event;
 	type Slash = Treasury;
 	type Reward = ();
-	type SessionsPerEra = SessionsPerEra;
+	type SessionsPerEra = testing::SessionsPerEra;
 	type BondingDuration = BondingDuration;
 	type SlashDeferDuration = SlashDeferDuration;
 	// A super-majority of the council can cancel the slash.
@@ -418,7 +420,7 @@ impl pallet_democracy::Config for Runtime {
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
 	type LaunchPeriod = testing::LaunchPeriod;
-	type VotingPeriod = VotingPeriod;
+	type VotingPeriod = testing::VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin = frame_system::EnsureOneOf<
@@ -582,11 +584,11 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 parameter_types! {
 	pub const ReportLongevity: u64 =
-		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
+		BondingDuration::get() as u64 * testing::SessionsPerEra::get() as u64 * testing::EpochDuration::get();
 }
 
 impl pallet_babe::Config for Runtime {
-	type EpochDuration = EpochDuration;
+	type EpochDuration = testing::EpochDuration;
 	type ExpectedBlockTime = ExpectedBlockTime;
 	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
 
@@ -818,7 +820,7 @@ impl_runtime_apis! {
 			// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
 			sp_consensus_babe::BabeGenesisConfiguration {
 				slot_duration: Babe::slot_duration(),
-				epoch_length: EpochDuration::get(),
+				epoch_length: testing::EpochDuration::get(),
 				c: PRIMARY_PROBABILITY,
 				genesis_authorities: Babe::authorities(),
 				randomness: Babe::randomness(),
