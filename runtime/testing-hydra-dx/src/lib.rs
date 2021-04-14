@@ -104,6 +104,15 @@ impl_opaque_keys! {
 	}
 }
 
+mod testing {
+	use super::{parameter_types, BlockNumber, MINUTES};
+	pub type BaseFilter = ();
+
+	parameter_types! {
+    	pub const LaunchPeriod: BlockNumber = MINUTES;
+	}
+}
+
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydra-dx"),
 	impl_name: create_runtime_str!("testing-hydra-dx"),
@@ -153,7 +162,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = ();
+	type BaseCallFilter = testing::BaseFilter;
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -420,7 +429,7 @@ impl pallet_democracy::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
-	type LaunchPeriod = LaunchPeriod;
+	type LaunchPeriod = testing::LaunchPeriod;
 	type VotingPeriod = VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
@@ -536,15 +545,6 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 }
 
-parameter_types! {
-	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 4 * HOURS;
-	pub const TipFindersFee: Percent = Percent::from_percent(2);
-	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
-	pub const TipReportDepositPerByte: Balance = CENTS;
-	pub const MaximumReasonLength: u32 = 1024;
-}
-
 impl pallet_tips::Config for Runtime {
 	type Event = Event;
 	type DataDepositPerByte = DataDepositPerByte;
@@ -624,12 +624,6 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 20;
-	pub const TechnicalMaxMembers: u32 = 10;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
