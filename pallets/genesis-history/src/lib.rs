@@ -19,17 +19,11 @@ mod tests;
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash))]
 pub struct BlockHash(#[cfg_attr(feature = "std", serde(with="bytes"))] pub Vec<u8>);
 
-#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq)]
+#[derive(Debug, Encode, Decode, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Chain {
 	pub genesis_hash: BlockHash,
 	pub last_block_hash: BlockHash,
-}
-
-impl Default for Chain {
-	fn default() -> Self {
-		Chain { genesis_hash: BlockHash::default(), last_block_hash: BlockHash::default() }
-	}
 }
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
