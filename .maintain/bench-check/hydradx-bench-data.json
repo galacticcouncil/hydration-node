@@ -1,5 +1,4 @@
 {
-    "pallet_identity": {},
     "amm": {
         "create_pool": 189.0,
         "add_liquidity": 171.0,
