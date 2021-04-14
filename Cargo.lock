@@ -817,6 +817,7 @@ version = "7.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "pallet-transaction-payment",
  "parity-scale-codec 2.0.1",
  "primitives",
  "sp-runtime",

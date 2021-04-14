@@ -10,7 +10,8 @@ pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{
 	fee, AccountId, AccountIndex, Amount, AssetId, Balance, BlockNumber, DigestItem, Hash, Index, Moment, Signature,
 };
-pub use sp_runtime::{transaction_validity::TransactionPriority, ModuleId, Perbill, Percent, Permill};
+pub use sp_runtime::{transaction_validity::TransactionPriority, ModuleId, Perbill, Percent, Permill, Perquintill, FixedPointNumber};
+use pallet_transaction_payment::Multiplier;
 
 // frame system
 parameter_types! {
@@ -31,6 +32,13 @@ parameter_types! {
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
+}
+
+// pallet transaction payment
+parameter_types! {
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 // pallet transaction payment
@@ -62,6 +70,15 @@ parameter_types! {
 // pallet authorship
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
+}
+
+// pallet staking
+parameter_types! {
+	pub const MaxNominatorRewardedPerValidator: u32 = 64;
+	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
+	pub const MaxIterations: u32 = 10;
+	// 0.05%. The higher the value, the more strict solution acceptance becomes.
+	pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
 }
 
 // pallet democracy
