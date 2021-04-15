@@ -22,12 +22,10 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
-      - name: Infra Working Directory
-        working-directory: ./infrastructure
-      - name: cur_dir
-        run: ls  
+      
       - name: Terraform Init
         id: init
+        working-directory: ./infrastructure
         run: terraform init
         continue-on-error: false    
       #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
