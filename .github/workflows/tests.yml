@@ -13,6 +13,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
+      - name: "Setup - Terraform CLI"
+        uses: hashicorp/setup-terraform@v1.0.1
       - name: checkout code
         uses: actions/checkout@v2.1.0
       - name: setup node  
