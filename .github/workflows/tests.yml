@@ -13,6 +13,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
+      - uses: actions/checkout@v2
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
@@ -24,7 +25,6 @@ jobs:
   
   build:
     runs-on: aws-${GITHUB_REF##*/}
-
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
