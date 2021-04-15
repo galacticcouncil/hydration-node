@@ -13,28 +13,20 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
-      - name: "Setup - Terraform CLI"
-        uses: hashicorp/setup-terraform@v1.0.1
       - name: checkout code
         uses: actions/checkout@v2.1.0
       - name: setup node  
         uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - name: Terraform - Init
-        uses: hashicorp/terraform-github-actions@v0.8.0
+      - uses: hashicorp/setup-terraform@v1
         with:
-          tf_actions_subcommand: "init"
-          tf_actions_version: "latest"
-          tf_actions_working_dir: infrastructure/    
-      #- uses: hashicorp/setup-terraform@v1
-       # with:
-       #   terraform_version: 0.12.25
-      #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
-      #- run: cd infrastructure
-      #- run: terraform init
-      #- run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
-      #- run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
+          terraform_version: 0.12.25
+      - run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
+      - run: cd infrastructure
+      - run: terraform init
+      - run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
+      - run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
   
   build:
     runs-on: aws-${GITHUB_REF##*/}
