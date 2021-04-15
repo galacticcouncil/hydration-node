@@ -13,6 +13,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
+      - uses: actions/checkout@v2.1.0
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
