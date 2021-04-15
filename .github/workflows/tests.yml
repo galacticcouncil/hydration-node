@@ -33,10 +33,7 @@ jobs:
       - name: Terraform Init
         id: init
         working-directory: ./infrastructure
-        run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
         run: terraform init
-        run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
-        run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
         continue-on-error: false
 
       - name: Terraform workspace
