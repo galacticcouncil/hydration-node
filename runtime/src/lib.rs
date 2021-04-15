@@ -20,7 +20,6 @@ use sp_core::{
 	u32_trait::{_1, _2, _3},
 	OpaqueMetadata,
 };
-
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, NumberFor, OpaqueKeys,
 	SaturatedConversion, Verify,
@@ -489,8 +488,11 @@ pallet_staking_reward_curve::build! {
 
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	pub const BondingDuration: pallet_staking::EraIndex = 28; //28 Days
-	pub const SlashDeferDuration: pallet_staking::EraIndex =  28 - 1; //SlashDeferDuration should be less than BondingDuration https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
+	// Funds are bonded for 28 Days
+	pub const BondingDuration: pallet_staking::EraIndex = 28;
+	// SlashDeferDuration should be less than BondingDuration
+	// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
+	pub const SlashDeferDuration: pallet_staking::EraIndex =  28 - 1;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 64;
 	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
