@@ -22,6 +22,8 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
+      - name: cur_di
+        run: ls    
       - name: Terraform Init
         id: init
         run: terraform init
