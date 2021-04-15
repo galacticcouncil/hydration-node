@@ -23,7 +23,9 @@ jobs:
         with:
           terraform_version: 0.12.25
       - name: To Infra Directory
-        run: cd infrastructure/  
+        run: cd infrastructure/
+      - name: cur_dir
+        run: ls  
       - name: Terraform Init
         id: init
         run: terraform init
