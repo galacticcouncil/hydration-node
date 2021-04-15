@@ -25,7 +25,7 @@ jobs:
       
 
       - name: set env
-        id: init
+        id: set_env
         working-directory: ./infrastructure
         run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
         continue-on-error: false
