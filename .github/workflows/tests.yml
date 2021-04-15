@@ -1,11 +1,25 @@
-name: Build
+name: build-${GITHUB_REF##*/}
 
 on:
   push:
 
 jobs:
+  pop-runner-instance:
+    name: create and setup infrastructure
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
+      - run: terraform init
+      - run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
+      - run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
+  
   build:
-    runs-on: aws
+    runs-on: aws-${GITHUB_REF##*/}
 
     steps:
       - uses: actions/checkout@v2
