@@ -22,8 +22,8 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
-      - name: To Infra Directory
-        run: cd infrastructure/
+      - name: Infra Working Directory
+        working-directory: ./infrastructure
       - name: cur_dir
         run: ls  
       - name: Terraform Init
