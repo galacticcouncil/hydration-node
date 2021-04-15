@@ -39,7 +39,7 @@ jobs:
       - name: Terraform workspace
         id: workspace
         working-directory: ./infrastructure
-        run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
+        run: terraform workspace new $BRANCH_NAME
         continue-on-error: false   
 
       - name: Terraform apply
