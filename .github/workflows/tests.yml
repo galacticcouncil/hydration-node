@@ -22,11 +22,15 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
-      - run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
-      - run: cd infrastructure
-      - run: terraform init
-      - run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
-      - run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
+      - name: Terraform Init
+        id: init
+        run: terraform init
+        continue-on-error: false    
+      #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
+      #- run: cd infrastructure
+      #- run: terraform init
+      #- run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
+      #- run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
   
   build:
     runs-on: aws-${GITHUB_REF##*/}
