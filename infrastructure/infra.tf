@@ -24,11 +24,10 @@ variable "branch_name" {
 }
 
 resource "aws_instance" "runner-aws" {
-    name = "runner-aws-${branch_name}"
     ami = "ami-06fd78dc2f0b69910"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
-    tags {
+    tags = {
         Type = "Github_Self_Runner"
     }
     provisioner "file" {
