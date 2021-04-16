@@ -28,6 +28,7 @@ resource "aws_instance" "runner-aws" {
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-key-ec2"
+    vpc_security_group_ids = ["sg-05f1a5d51f4d92cae"]
     tags = {
         Type = "Github_Self_Runner"
     }
