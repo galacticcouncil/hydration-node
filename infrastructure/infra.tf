@@ -39,12 +39,12 @@ resource "aws_instance" "runner-aws" {
         timeout = "3m"
     } 
     provisioner "file" {
-        source      = "infrastructure/config_script.sh"
+        source      = "config_script.sh"
         destination = "/tmp/config_script.sh"
     }
 
     provisioner "file" {
-        source      = "infrastructure/get_token.sh"
+        source      = "get_token.sh"
         destination = "/tmp/get_token.sh"
     }
   
