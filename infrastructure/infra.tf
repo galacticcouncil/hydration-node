@@ -24,10 +24,10 @@ variable "ec2_secret" {
 }
 
 resource "aws_instance" "runner-aws" {
-    ami = "ami-06fd78dc2f0b69910"
+    ami = "ami-0e068df008f7f3798"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
-    key_name = "aws-key-ec2"
+    key_name = "aws-ec2-key"
     vpc_security_group_ids = ["sg-05f1a5d51f4d92cae"]
     tags = {
         Type = "Github_Self_Runner"
