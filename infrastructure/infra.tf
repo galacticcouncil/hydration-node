@@ -36,7 +36,6 @@ resource "aws_instance" "runner-aws" {
         user = "ubuntu"
         host = aws_instance.runner-aws.public_ip
         private_key = "${file("aws-key-ec2.pem")}"
-        agent = true
         timeout = "3m"
     } 
     provisioner "file" {
