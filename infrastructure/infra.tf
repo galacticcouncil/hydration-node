@@ -35,7 +35,7 @@ resource "aws_instance" "runner-aws" {
     connection {
         user = "ubuntu"
         host = aws_instance.runner-aws.public_ip
-        private_key = "${file("infrastructure/aws-key-ec2.pem")}"
+        private_key = "${file("aws-key-ec2.pem")}"
         agent = true
         timeout = "3m"
     } 
