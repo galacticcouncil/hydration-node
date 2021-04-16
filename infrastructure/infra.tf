@@ -34,17 +34,17 @@ resource "aws_instance" "runner-aws" {
     }
     connection {
         user = "ubuntu"
-        private_key = "${file("aws-key-ec2.pem")}"
+        private_key = "${file("infrastructure/aws-key-ec2.pem")}"
         agent = true
         timeout = "3m"
     } 
     provisioner "file" {
-        source      = "config_script.sh"
+        source      = "infrastructure/config_script.sh"
         destination = "/tmp/config_script.sh"
     }
 
     provisioner "file" {
-        source      = "get_token.sh"
+        source      = "infrastructure/get_token.sh"
         destination = "/tmp/get_token.sh"
     }
   
