@@ -4,8 +4,8 @@ terraform {
   required_version = ">= 0.12.24"
 
   #backend "s3" {
-    #bucket = "example-bucket"
-    #key    = "example-key"
+    #bucket = "hydradx-ci-backend-state"
+    #key    = "example-key" #Variable coming from the CI
     #region = "eu-west-1"
   #}
 }
@@ -19,7 +19,7 @@ variable "aws_region" {
   default     = "eu-west-1"
 }
 
-variable "branch_name" {
+variable "ec2_secret" {
   description = "The name of the branch that's being deployed"
 }
 
@@ -35,9 +35,9 @@ resource "aws_instance" "runner-aws" {
     connection {
         user = "ubuntu"
         host = aws_instance.runner-aws.public_ip
-        private_key = "${file("aws-key-ec2.pem")}"
+        private_key = var.ec2_secret
         timeout = "3m"
-    } 
+    }
     provisioner "file" {
         source      = "config_script.sh"
         destination = "/tmp/config_script.sh"
@@ -47,7 +47,7 @@ resource "aws_instance" "runner-aws" {
         source      = "get_token.sh"
         destination = "/tmp/get_token.sh"
     }
-  
+
     provisioner "remote-exec" {
         inline = [
         "chmod +x /tmp/get_token.sh",

@@ -12,6 +12,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      EC2_SECRET: ${{ secrets.INSTANCE_KEY }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2.1.0
@@ -39,13 +40,13 @@ jobs:
       - name: Terraform workspace
         id: workspace
         working-directory: ./infrastructure
-        run: terraform workspace new aws-runner
+        run: terraform workspace new aws-runner #variabilize
         continue-on-error: false   
 
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
-        run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
+        run: terraform apply -var="ec2_secret=$EC2_SECRET" -auto-approve
         continue-on-error: false    
       #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
       #- run: cd infrastructure
