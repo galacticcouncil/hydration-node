@@ -1,11 +1,11 @@
-name: build-${GITHUB_REF##*/}
-
+name: build-and-deploy
+#${GITHUB_REF##*/}
 on:
   push:
 
 jobs:
   pop-runner-instance:
-    name: create and setup infrastructure
+    name: create and setup infrastructure for branch 
     runs-on: ubuntu-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true

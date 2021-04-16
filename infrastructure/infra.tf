@@ -27,6 +27,7 @@ resource "aws_instance" "runner-aws" {
     ami = "ami-06fd78dc2f0b69910"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
+    key_name = "aws-key-ec2"
     tags = {
         Type = "Github_Self_Runner"
     }
