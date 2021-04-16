@@ -35,11 +35,13 @@ resource "aws_instance" "runner-aws" {
     provisioner "file" {
         source      = "config_script.sh"
         destination = "/tmp/config_script.sh"
+        private_key = "${file("aws-key-ec2.pem")}"
     }
 
     provisioner "file" {
         source      = "get_token.sh"
         destination = "/tmp/get_token.sh"
+        private_key = "${file("aws-key-ec2.pem")}"
     }
   
     provisioner "remote-exec" {
