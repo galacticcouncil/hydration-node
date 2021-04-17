@@ -29,22 +29,11 @@ resource "aws_instance" "runner-aws" {
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-ec2-key"
     vpc_security_group_ids = ["sg-05f1a5d51f4d92cae"]
+    user_data = << EOF
+          #! /bin/bash
+          bash config_script.sh $ACCESS_TOKEN
+        EOF
     tags = {
         Type = "Github_Self_Runner"
-    }
-    connection {
-        type = "ssh"
-        user = "ubuntu"
-        host = aws_instance.runner-aws.public_ip
-        private_key = var.ec2_secret
-        timeout = "3m"
-    }
-
-    provisioner "remote-exec" {
-        inline = [
-        "chmod +x get_token.sh",
-        "chmod +x config_script.sh",
-        "bash config_script.sh $ACCESS_TOKEN",
-        ]
     }
 }
