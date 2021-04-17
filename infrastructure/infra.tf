@@ -31,8 +31,8 @@ resource "aws_instance" "runner-aws" {
     vpc_security_group_ids = ["sg-05f1a5d51f4d92cae"]
     user_data = << EOF
           #! /bin/bash
-          bash config_script.sh $ACCESS_TOKEN
-        EOF
+          bash config_script.sh "$ACCESS_TOKEN"
+    EOF
     tags = {
         Type = "Github_Self_Runner"
     }
