@@ -45,7 +45,7 @@ jobs:
       - name: Terraform plan
         id: plan
         working-directory: ./infrastructure
-        run: terraform plan -var="ec2_secret=$EC2_SECRET" -auto-approve
+        run: terraform plan -var="ec2_secret=$EC2_SECRET"
         continue-on-error: false  
       - name: Terraform apply
         id: apply
