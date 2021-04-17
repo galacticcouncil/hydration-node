@@ -45,12 +45,12 @@ jobs:
       - name: Terraform plan
         id: plan
         working-directory: ./infrastructure
-        run: terraform plan -var="ec2_secret=$EC2_SECRET"
+        run: terraform plan -var="ec2_pwd=$EC2_SECRET"
         continue-on-error: false  
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
-        run: terraform apply -var="ec2_secret=$EC2_SECRET" -auto-approve
+        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -auto-approve
         continue-on-error: false    
       #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
       #- run: cd infrastructure
