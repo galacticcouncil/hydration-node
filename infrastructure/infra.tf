@@ -19,12 +19,12 @@ variable "aws_region" {
   default     = "eu-west-1"
 }
 
-variable "ec2_secret" {
-  description = "The name of the branch that's being deployed"
+variable "ec2_pwd" {
+  description = ""
 }
 
 resource "aws_instance" "runner-aws" {
-    ami = "ami-05181117cd8d52108"
+    ami = "ami-096bbd5be4d146161"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-ec2-key"
@@ -36,9 +36,8 @@ resource "aws_instance" "runner-aws" {
         type = "ssh"
         user = "ubuntu"
         host = aws_instance.runner-aws.public_ip
-        private_key = var.ec2_secret
+        password = var.ec2_pwd
         timeout = "3m"
-        agent = false
     }
 
     provisioner "remote-exec" {

@@ -12,7 +12,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      EC2_SECRET: ${{ secrets.INSTANCE_KEY }}
+      EC2_SECRET: ${{ secrets.EC2_PWD }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2.1.0
@@ -25,11 +25,11 @@ jobs:
           terraform_version: 0.12.25
       
 
-      - name: set env
-        id: set_env
-        working-directory: ./infrastructure
-        run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
-        continue-on-error: false
+      #- name: set env
+       # id: set_env
+       # working-directory: ./infrastructure
+      #  run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
+       # continue-on-error: false
 
       - name: Terraform Init
         id: init
