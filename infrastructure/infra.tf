@@ -32,7 +32,7 @@ resource "aws_instance" "runner-aws" {
 
     user_data = <<-EOF
               #!/bin/bash
-              bash config_script.sh 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
+              
             EOF 
 
     tags = {
