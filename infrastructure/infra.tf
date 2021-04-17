@@ -33,6 +33,7 @@ resource "aws_instance" "runner-aws" {
         Type = "Github_Self_Runner"
     }
     connection {
+        type = "ssh"
         user = "ubuntu"
         host = aws_instance.runner-aws.public_ip
         private_key = var.ec2_secret
