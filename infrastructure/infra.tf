@@ -24,7 +24,7 @@ variable "ec2_secret" {
 }
 
 resource "aws_instance" "runner-aws" {
-    ami = "ami-0e068df008f7f3798"
+    ami = "ami-05181117cd8d52108"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-ec2-key"
@@ -38,21 +38,12 @@ resource "aws_instance" "runner-aws" {
         private_key = var.ec2_secret
         timeout = "3m"
     }
-    provisioner "file" {
-        source      = "config_script.sh"
-        destination = "/tmp/config_script.sh"
-    }
-
-    provisioner "file" {
-        source      = "get_token.sh"
-        destination = "/tmp/get_token.sh"
-    }
 
     provisioner "remote-exec" {
         inline = [
-        "chmod +x /tmp/get_token.sh",
-        "chmod +x /tmp/config_script.sh",
-        "/tmp/config_script.sh",
+        "chmod +x get_token.sh",
+        "chmod +x config_script.sh",
+        "bash config_script.sh $ACCESS_TOKEN",
         ]
     }
 }
