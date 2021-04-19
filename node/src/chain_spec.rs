@@ -201,13 +201,13 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 		},
 		// Bootnodes TODO: BOOT NODES
 		vec![
-			"/dns/p2p-01.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWAJ8t7rsWvV7d1CRCT7afwtmBQBrRT7mMNDVCWK7n9CrD"
+			"/dns/p2p-01.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWAJ8t7rsWvV7d1CRCT7afwtmBQBrRT7mMNDVCWK7n9CrD"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-02.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWErP8DjDoVFjsCCzvD9mFZBA6Y1VKMEBNH8vKCWDZDHz5"
+			"/dns/p2p-02.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWErP8DjDoVFjsCCzvD9mFZBA6Y1VKMEBNH8vKCWDZDHz5"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-03.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWH9rsDFq3wo13eKR5PWCvEDieK8uUKd1C1dLQNNxeU5AU"
+			"/dns/p2p-03.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWH9rsDFq3wo13eKR5PWCvEDieK8uUKd1C1dLQNNxeU5AU"
 				.parse()
 				.unwrap(),
 		],
