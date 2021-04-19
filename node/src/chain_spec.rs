@@ -24,8 +24,7 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use hydra_dx_runtime::pallet_genesis_history::Chain;
 
 // The URL for the telemetry server.
-const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
+const TELEMETRY_URLS: [&str; 2] = ["wss://telemetry.polkadot.io/submit/", "wss://telemetry.hydradx.io:9000/submit/"];
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
@@ -213,7 +212,7 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 				.unwrap(),
 		],
 		// Telemetry
-		Some(TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)]).expect("Telemetry url is valid")),
+		Some(TelemetryEndpoints::new(vec![(TELEMETRY_URLS[0].to_string(), 0), (TELEMETRY_URLS[1].to_string(), 0)]).expect("Telemetry url is valid")),
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
