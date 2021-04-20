@@ -13,7 +13,7 @@ path = 'runtime-api'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-wasm-builder-runner = {package = 'substrate-wasm-builder-runner', version = '1.0.5'}
+substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
 
 # alias "parity-scale-code" to "codec"
 [dependencies.codec]

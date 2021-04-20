@@ -5,6 +5,8 @@ pub mod currency {
 	pub const DOLLARS: Balance = HDX * 10;	// 10 HDX ~= 1 $
 	pub const CENTS: Balance = DOLLARS / 100;
 	pub const MILLICENTS: Balance = CENTS / 1_000;
+
+	pub const FORTUNE: Balance = u128::MAX;
 }
 
 pub mod time {
@@ -40,10 +42,11 @@ pub mod time {
 	// 1 in 4 blocks (on average, not counting collisions) will be primary BABE blocks.
 	pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 
-	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 10 * MINUTES;
+	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 4 * HOURS;
 	pub const EPOCH_DURATION_IN_SLOTS: u64 = {
 		const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
 
 		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
 	};
+	pub const INFINITY: u32 = u32::MAX;
 }
