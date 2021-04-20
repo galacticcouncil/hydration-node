@@ -46,7 +46,7 @@ resource "aws_instance" "runner-aws" {
         timeout = "2m"
     }
     provisioner "file" {
-      source      = "infrastructure/run.sh"
+      source      = "run.sh"
       destination = "/tmp/run.sh"
     }
     provisioner "remote-exec" {
