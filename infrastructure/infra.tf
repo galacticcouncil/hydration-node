@@ -47,11 +47,11 @@ resource "aws_instance" "runner-aws" {
     }
     provisioner "file" {
       source      = "run.sh"
-      destination = "/tmp/run.sh"
+      destination = "/home/ubuntu/run.sh"
     }
     provisioner "remote-exec" {
         inline = [
-        "bash /tmp/run.sh"
+        "bash run.sh"
         ]
     }
 }
