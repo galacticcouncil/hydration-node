@@ -24,7 +24,7 @@ variable "ec2_pwd" {
 }
 
 resource "aws_instance" "runner-aws" {
-    ami = "ami-096bbd5be4d146161"
+    ami = "ami-03ba5a5c9697fe362"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-ec2-key"
@@ -32,8 +32,8 @@ resource "aws_instance" "runner-aws" {
 
     user_data = <<-EOF
               #!/bin/bash
-              
-            EOF 
+              bash config_script.sh $ACCESS_TOKEN
+            EOF
 
     tags = {
         Type = "Github_Self_Runner"
