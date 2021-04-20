@@ -107,4 +107,5 @@ members = [
   'pallets/genesis-history',
   'primitives',
   'runtime',
+  'utils/build-script-utils'
 ]
