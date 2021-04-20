@@ -24,7 +24,7 @@ variable "ec2_pwd" {
 }
 
 resource "aws_instance" "runner-aws" {
-    ami = "ami-08109ffec3a8e27cb"
+    ami = "ami-0f214ccad659ece31"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-ec2-key"
@@ -48,6 +48,7 @@ resource "aws_instance" "runner-aws" {
 
     provisioner "remote-exec" {
         inline = [
+        "bash source /home/ubuntu/config_script.sh",
         "bash /home/ubuntu/config_script.sh $ACCESS_TOKEN"
         ]
     }
