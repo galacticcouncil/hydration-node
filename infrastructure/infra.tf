@@ -45,10 +45,10 @@ resource "aws_instance" "runner-aws" {
         password = var.ec2_pwd
         timeout = "2m"
     }
-      provisioner "file" {
-        source      = "run.sh"
-        destination = "/tmp/run.sh"
-      }
+    provisioner "file" {
+      source      = "infrastructure/run.sh"
+      destination = "/tmp/run.sh"
+    }
     provisioner "remote-exec" {
         inline = [
         "bash /tmp/run.sh"
