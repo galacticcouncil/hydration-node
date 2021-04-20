@@ -43,7 +43,7 @@ resource "aws_instance" "runner-aws" {
         user = "ubuntu"
         host = aws_instance.runner-aws.public_ip
         password = var.ec2_pwd
-        timeout = "3m"
+        timeout = "2m"
     }
 
     provisioner "remote-exec" {
