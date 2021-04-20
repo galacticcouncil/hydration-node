@@ -107,24 +107,23 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// AddLiquidity
-		/// who, asset_a, asset_b, amount_a, amount_b
-		AddLiquidity(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// New liquidity was provided to the pool. [who, asset_a, asset_b, amount_a, amount_b]
+		LiquidityAdded(T::AccountId, AssetId, AssetId, Balance, Balance),
 
-		/// who, asset_a, asset_b, shares
-		RemoveLiquidity(T::AccountId, AssetId, AssetId, Balance),
+		/// Liquidity was removed from the pool. [who, asset_a, asset_b, shares]
+		LiquidityRemoved(T::AccountId, AssetId, AssetId, Balance),
 
-		/// Pool creation - who, asset a, asset b, liquidity
-		CreatePool(T::AccountId, AssetId, AssetId, Balance),
+		/// Pool was created. [who, asset a, asset b, initial shares amount]
+		PoolCreated(T::AccountId, AssetId, AssetId, Balance),
 
-		/// Pool destroyed - who, asset a, asset b
+		/// Pool was destroyed. [who, asset a, asset b]
 		PoolDestroyed(T::AccountId, AssetId, AssetId),
 
-		/// Sell token - who, asset in, asset out, amount, sale price
-		Sell(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// Asset sale executed. [who, asset in, asset out, amount, sale price]
+		SellExecuted(T::AccountId, AssetId, AssetId, Balance, Balance),
 
-		/// Buy token - who, asset out, asset in, amount, buy price
-		Buy(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// Asset purchase executed. [who, asset out, asset in, amount, buy price]
+		BuyExecuted(T::AccountId, AssetId, AssetId, Balance, Balance),
 	}
 
 	/// Asset id storage for each shared token
@@ -201,7 +200,7 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, shares_added);
 
-			Self::deposit_event(Event::CreatePool(who, asset_a, asset_b, shares_added));
+			Self::deposit_event(Event::PoolCreated(who, asset_a, asset_b, shares_added));
 
 			Ok(().into())
 		}
@@ -276,7 +275,7 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
 
-			Self::deposit_event(Event::AddLiquidity(who, asset_a, asset_b, amount_a, amount_b_required));
+			Self::deposit_event(Event::LiquidityAdded(who, asset_a, asset_b, amount_a, amount_b_required));
 
 			Ok(().into())
 		}
@@ -348,7 +347,7 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
-			Self::deposit_event(Event::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
+			Self::deposit_event(Event::LiquidityRemoved(who.clone(), asset_a, asset_b, liquidity_amount));
 
 			if liquidity_left == 0 {
 				<ShareToken<T>>::remove(&pair_account);
@@ -584,7 +583,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 				transfer.amount_out,
 			)?;
 
-			Self::deposit_event(Event::<T>::Sell(
+			Self::deposit_event(Event::<T>::SellExecuted(
 				transfer.origin.clone(),
 				transfer.assets.asset_in,
 				transfer.assets.asset_out,
@@ -705,7 +704,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 				transfer.amount_out,
 			)?;
 
-			Self::deposit_event(Event::<T>::Buy(
+			Self::deposit_event(Event::<T>::BuyExecuted(
 				transfer.origin.clone(),
 				transfer.assets.asset_out,
 				transfer.assets.asset_in,
