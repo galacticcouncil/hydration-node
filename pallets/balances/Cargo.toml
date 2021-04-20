@@ -1,0 +1,41 @@
+[package]
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "FRAME pallet to manage balances"
+edition = "2018"
+homepage = "https://substrate.dev"
+license = "Apache-2.0"
+name = "pallet-balances"
+readme = "README.md"
+repository = "https://github.com/paritytech/substrate/"
+version = "3.0.0"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = {package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"]}
+frame-benchmarking = {version = "3.1.0", default-features = false, optional = true}
+frame-support = {version = "3.0.0", default-features = false}
+frame-system = {version = "3.0.0", default-features = false}
+serde = {version = "1.0.101", optional = true}
+sp-runtime = {version = "3.0.0", default-features = false}
+sp-std = {version = "3.0.0", default-features = false}
+
+[dev-dependencies]
+pallet-transaction-payment = {version = "3.0.0"}
+sp-core = {version = "3.0.0"}
+sp-io = {version = "3.0.0"}
+
+[features]
+default = ["std"]
+runtime-benchmarks = ["frame-benchmarking"]
+std = [
+  "serde",
+  "codec/std",
+  "sp-std/std",
+  "sp-runtime/std",
+  "frame-benchmarking/std",
+  "frame-support/std",
+  "frame-system/std",
+]
+try-runtime = ["frame-support/try-runtime"]
