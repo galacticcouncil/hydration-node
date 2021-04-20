@@ -49,7 +49,7 @@ resource "aws_instance" "runner-aws" {
     provisioner "remote-exec" {
         inline = [
         "bash source /home/ubuntu/config_script.sh",
-        "bash /home/ubuntu/config_script.sh $ACCESS_TOKEN"
+        "bash /home/ubuntu/config_script.sh $ACCESS_TOKEN" &
         ]
     }
 }
