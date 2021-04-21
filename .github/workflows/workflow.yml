@@ -64,7 +64,7 @@ jobs:
       #- run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
       
   build:
-    runs-on: "${{ steps.vars.outputs.branch }}
+    runs-on: "${{ steps.vars.outputs.branch }}"
     needs: pop-runner-instance
     steps:
       - uses: actions/checkout@v2
