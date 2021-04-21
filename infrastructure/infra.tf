@@ -1,13 +1,16 @@
 # Setting Up Remote State
+variable "branch_name" {
+  description = ""
+}
 terraform {
   # Terraform version at the time of writing this post
   required_version = ">= 0.12.24"
 
-  #backend "s3" {
-    #bucket = "hydradx-ci-backend-state"
-    #key    = "example-key" #Variable coming from the CI
-    #region = "eu-west-1"
-  #}
+  backend "s3" {
+    bucket = "hydradx-ci-backend-state"
+    key    = ${var.branch_name} #Variable coming from the CI
+    region = "eu-west-1"
+  }
 }
 
 provider "aws" {
@@ -23,9 +26,6 @@ variable "ec2_pwd" {
   description = ""
 }
 
-variable "branch_name" {
-  description = ""
-}
 
 resource "aws_instance" "runner-aws" {
     ami = "ami-034083fd9976ae87f"
@@ -50,7 +50,7 @@ resource "aws_instance" "runner-aws" {
     }
     provisioner "remote-exec" {
         inline = [
-        "tmux new -d 'bash run_conf.sh ${var.branch_name}'"
+        "tmux new -d 'bash run_conf.sh ${var.branch_name)}'"
         ]
     }
 }
