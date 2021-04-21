@@ -3,7 +3,6 @@ variable "branch_name" {
   description = ""
 }
 terraform {
-  # Terraform version at the time of writing this post
   required_version = ">= 0.12.24"
 
   backend "s3" {
@@ -50,7 +49,7 @@ resource "aws_instance" "runner-aws" {
     }
     provisioner "remote-exec" {
         inline = [
-        "tmux new -d 'bash run_conf.sh ${var.branch_name)}'"
+        "tmux new -d 'bash run_conf.sh ${var.branch_name}'"
         ]
     }
 }
