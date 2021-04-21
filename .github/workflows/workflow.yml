@@ -58,17 +58,17 @@ jobs:
         working-directory: ./infrastructure
         run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.ref }}" -auto-approve
         continue-on-error: false
-      - name: Sleep for 30 seconds
+      - name: Sleep for 10 seconds
         uses: jakejarvis/wait-action@master
         with:
-          time: '30s'
+          time: '10s'
         #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
       #- run: cd infrastructure
       #- run: terraform init
       #- run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
       
   build:
-    runs-on: aws-runner
+    runs-on: ${{ github.ref }}
     needs: pop-runner-instance
     steps:
       - uses: actions/checkout@v2
