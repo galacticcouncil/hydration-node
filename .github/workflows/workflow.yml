@@ -76,8 +76,14 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
-          
-        continue-on-error: false   
+
+        continue-on-error: false  
+      - name: Terraform Init
+        id: init
+        working-directory: ./infrastructure
+        run: terraform init
+        continue-on-error: false
+           
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
