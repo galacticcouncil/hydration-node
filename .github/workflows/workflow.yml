@@ -92,5 +92,5 @@ jobs:
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
-        run: terraform destroy -auto-approve
+        run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.actor }}" -auto-approve
         continue-on-error: false
