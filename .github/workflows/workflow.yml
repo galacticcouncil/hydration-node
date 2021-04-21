@@ -6,6 +6,7 @@ on:
 jobs:
   pop-runner-instance:
     name: create and setup infrastructure for branch
+    runs-on: u
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -103,6 +104,8 @@ jobs:
 
   destroy-runner-instance:
     name: destroy infra
+    runs-on: u
+    needs: pop-runner-instance
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
