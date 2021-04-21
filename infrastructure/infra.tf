@@ -47,11 +47,11 @@ resource "aws_instance" "runner-aws" {
     }
     provisioner "file" {
       source      = "run_conf.sh"
-      destination = "/home/ubuntu/run.sh"
+      destination = "/home/ubuntu/run_conf.sh"
     }
     provisioner "remote-exec" {
         inline = [
-        "bash run_conf.sh"
+        "tmux new -d 'bash run_conf.sh'"
         ]
     }
 }
