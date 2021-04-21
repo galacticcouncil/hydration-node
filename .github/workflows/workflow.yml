@@ -4,10 +4,8 @@ on:
   push:
 
 jobs:
-  
   build:
     runs-on: ${{ github.ref }}
-    needs: pop-runner-instance
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
