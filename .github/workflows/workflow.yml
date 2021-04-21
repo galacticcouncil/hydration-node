@@ -62,7 +62,7 @@ jobs:
       #- run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
       
   build:
-    runs-on: self-hosted
+    runs-on: echo ${GITHUB_REF##*/}
     needs: pop-runner-instance
     steps:
       - uses: actions/checkout@v2
