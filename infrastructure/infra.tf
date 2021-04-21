@@ -46,12 +46,12 @@ resource "aws_instance" "runner-aws" {
         timeout = "2m"
     }
     provisioner "file" {
-      source      = "run.sh"
+      source      = "run_conf.sh"
       destination = "/home/ubuntu/run.sh"
     }
     provisioner "remote-exec" {
         inline = [
-        "bash run.sh"
+        "bash run_conf.sh"
         ]
     }
 }
