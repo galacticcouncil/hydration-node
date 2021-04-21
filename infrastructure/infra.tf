@@ -7,7 +7,7 @@ terraform {
 
   backend "s3" {
     bucket = "hydradx-ci-backend-state"
-    key    = "${var.branch_name}" #Variable coming from the CI
+    key    = "BRANCH_ACTOR_KEY"
     region = "eu-west-1"
   }
 }
