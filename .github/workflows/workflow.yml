@@ -33,7 +33,7 @@ jobs:
       - name: rewrite tf state key
         id: tf-state-key
         working-directory: ./infrastructure
-        run: sed -i 's/BRANCH_ACTOR_KEY/$S3_BACKEND_KEY_NAME/g' infra.tf
+        run: sed -i 's/BRANCH_ACTOR_KEY/"$S3_BACKEND_KEY_NAME"/g' infra.tf
       - name: Terraform Init
         id: init
         working-directory: ./infrastructure
@@ -55,45 +55,11 @@ jobs:
         with:
           time: '10s'
   
-  build:
-    runs-on: ${{ github.actor }}
-    needs: pop-runner-instance
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-02-12
-          target: wasm32-unknown-unknown
-          override: true
-          default: true
-      - run: ./scripts/init.sh
-      - name: Install clippy
-        run: rustup component add clippy
-      - name: Run clippy
-        run: cargo clippy --release -- -D warnings
-      - name: Tests
-        run: time cargo test --all --release --verbose --locked
-      - name: Benchmarking tests
-        run: cd node && cargo test --release --features runtime-benchmarks -p pallet-exchange-benchmarking -p pallet-amm -p pallet-multi-payment-benchmarking -p pallet-claims
-      - name: Build release
-        run: time cargo build --release --verbose
-      - name: Upload release binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: hydra-dx
-          path: target/release/hydra-dx
-      - name: Upload release wasm
-        uses: actions/upload-artifact@v2
-        with:
-          name: hydra_dx_runtime.wasm
-          path: target/release/wbuild/hydra-dx-runtime/hydra_dx_runtime.compact.wasm
-
+  
   destroy-runner-instance:
     name: destroy infra
     runs-on: ubuntu-latest
-    needs: build
+    needs: pop-runner-instance
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
