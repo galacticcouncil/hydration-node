@@ -66,6 +66,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       EC2_SECRET: ${{ secrets.EC2_PWD }}
+      S3_BACKEND_KEY_NAME: tf-state-${{ github.actor }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2.1.0
@@ -76,14 +77,18 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
-
-        continue-on-error: false  
+          continue-on-error: false 
+      - name: rewrite tf state key
+        id: tf-state-key
+        working-directory: ./infrastructure
+        run: sed -i 's/BRANCH_ACTOR_KEY/${{ env.S3_BACKEND_KEY_NAME }}/g' infra.tf
+          
       - name: Terraform Init
         id: init
         working-directory: ./infrastructure
         run: terraform init
         continue-on-error: false
-           
+
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
