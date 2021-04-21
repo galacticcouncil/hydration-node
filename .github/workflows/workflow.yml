@@ -102,3 +102,33 @@ jobs:
           name: hydra_dx_runtime.wasm
           path: target/release/wbuild/hydra-dx-runtime/hydra_dx_runtime.compact.wasm
 
+  destroy-runner-instance:
+    name: destroy infra 
+    runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      EC2_SECRET: ${{ secrets.EC2_PWD }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2.1.0
+      - name: setup node  
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 0.12.25
+
+      - name: Terraform workspace
+        id: workspace
+        working-directory: ./infrastructure
+        run: terraform workspace new aws-runner #variabilize
+        continue-on-error: false   
+      - name: Terraform apply
+        id: apply
+        working-directory: ./infrastructure
+        run: terraform destroy -auto-approve
+        continue-on-error: false
