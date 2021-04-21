@@ -59,11 +59,6 @@ jobs:
         run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.actor }}" -auto-approve
         continue-on-error: false
 
-        #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
-      #- run: cd infrastructure
-      #- run: terraform init
-      #- run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
-      
   build:
     runs-on: ${{ github.actor }}
     needs: pop-runner-instance
