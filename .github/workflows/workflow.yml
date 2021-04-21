@@ -51,7 +51,7 @@ jobs:
       - name: Terraform plan
         id: plan
         working-directory: ./infrastructure
-        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.ref }}"
+        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.actor }}"
         continue-on-error: false  
       - name: Terraform apply
         id: apply
