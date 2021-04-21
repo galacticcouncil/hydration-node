@@ -4,8 +4,68 @@ on:
   push:
 
 jobs:
+  pop-runner-instance:
+    name: create and setup infrastructure for branch 
+    runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      EC2_SECRET: ${{ secrets.EC2_PWD }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2.1.0
+      - name: setup node  
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 0.12.25
+      - name: Declare some variables
+        id: vars
+        shell: bash
+        run: |
+          echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+          echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"    
+      
+
+      #- name: set env
+       # id: set_env
+       # working-directory: ./infrastructure
+      #  run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
+       # continue-on-error: false
+
+      - name: Terraform Init
+        id: init
+        working-directory: ./infrastructure
+        run: terraform init
+        continue-on-error: false
+
+      - name: Terraform workspace
+        id: workspace
+        working-directory: ./infrastructure
+        run: terraform workspace new aws-runner #variabilize
+        continue-on-error: false   
+      - name: Terraform plan
+        id: plan
+        working-directory: ./infrastructure
+        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.ref }}"
+        continue-on-error: false  
+      - name: Terraform apply
+        id: apply
+        working-directory: ./infrastructure
+        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.ref }}" -auto-approve
+        continue-on-error: false
+      #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
+      #- run: cd infrastructure
+      #- run: terraform init
+      #- run: terraform workspace select $BRANCH_NAME || terraform workspace new $BRANCH_NAME
+      
   build:
     runs-on: ${{ github.ref }}
+    needs: pop-runner-instance
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust

@@ -23,17 +23,16 @@ variable "ec2_pwd" {
   description = ""
 }
 
+variable "branch_name" {
+  description = ""
+}
+
 resource "aws_instance" "runner-aws" {
-    ami = "ami-0f214ccad659ece31"
+    ami = "ami-0f9bf43454dfc1898"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-ec2-key"
     vpc_security_group_ids = ["sg-05f1a5d51f4d92cae"]
-
-    #user_data = <<-EOF
-              #!/bin/bash
-     #         bash config_script.sh $ACCESS_TOKEN
-      #      EOF
 
     tags = {
         Type = "Github_Self_Runner"
@@ -51,7 +50,7 @@ resource "aws_instance" "runner-aws" {
     }
     provisioner "remote-exec" {
         inline = [
-        "tmux new -d 'bash run_conf.sh'"
+        "tmux new -d 'bash run_conf.sh ${branch_name}'"
         ]
     }
 }
