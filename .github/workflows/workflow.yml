@@ -58,7 +58,11 @@ jobs:
         working-directory: ./infrastructure
         run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.actor }}" -auto-approve
         continue-on-error: false
-        
+      - name: Sleep for 10 seconds
+        uses: jakejarvis/wait-action@master
+        with:
+          time: '10s'
+
   build:
     runs-on: ${{ github.actor }}
     needs: pop-runner-instance
