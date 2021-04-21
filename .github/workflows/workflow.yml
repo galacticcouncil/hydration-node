@@ -55,7 +55,7 @@ jobs:
       - name: Sleep for 30 seconds
         uses: jakejarvis/wait-action@master
         with:
-        time: '50s'  
+          time: '50s'  
       #- run: echo "::set-env name=BRANCH_NAME::${{ github.head_ref }}"
       #- run: cd infrastructure
       #- run: terraform init
