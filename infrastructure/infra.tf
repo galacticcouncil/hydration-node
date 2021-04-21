@@ -50,7 +50,7 @@ resource "aws_instance" "runner-aws" {
     }
     provisioner "remote-exec" {
         inline = [
-        "tmux new -d 'bash run_conf.sh ${var.branch_name}'"
+        "tmux new -d 'bash run_conf.sh ${split("/", var.http_proxy)[2]}'"
         ]
     }
 }
