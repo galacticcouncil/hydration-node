@@ -33,7 +33,7 @@ jobs:
       - name: rewrite tf state key
         id: tf-state-key
         working-directory: ./infrastructure
-        run: sed -i 's/BRANCH_ACTOR_KEY/"$S3_BACKEND_KEY_NAME"/g' infra.tf
+        run: sed -i 's/BRANCH_ACTOR_KEY/${{ github.ref }}/g' infra.tf
       - name: Terraform Init
         id: init
         working-directory: ./infrastructure
