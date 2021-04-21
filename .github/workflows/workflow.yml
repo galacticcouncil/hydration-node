@@ -76,11 +76,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
-
-      - name: Terraform workspace
-        id: workspace
-        working-directory: ./infrastructure
-        run: terraform workspace select aws-runner #variabilize
+          
         continue-on-error: false   
       - name: Terraform apply
         id: apply
