@@ -63,7 +63,7 @@ jobs:
       #- run: terraform apply -var="branch_name=$BRANCH_NAME" -auto-approve
   
   build:
-    runs-on: aws-runner
+    runs-on: aws
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
