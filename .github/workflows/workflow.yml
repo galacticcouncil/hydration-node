@@ -68,7 +68,6 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
           default: true
-      - run: ./scripts/init.sh
       - name: Install clippy
         run: rustup component add clippy
       - name: Run clippy
