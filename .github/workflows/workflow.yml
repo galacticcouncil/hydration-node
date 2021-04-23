@@ -13,7 +13,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       EC2_SECRET: ${{ secrets.EC2_PWD }}
-      S3_BACKEND_KEY_NAME: tf-state-${{ github.actor }}
+      S3_BACKEND_KEY_NAME: tf-state-${{ github.sha }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2.1.0
@@ -126,5 +126,5 @@ jobs:
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
-        run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.actor }}" -auto-approve
+        run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
         continue-on-error: false
