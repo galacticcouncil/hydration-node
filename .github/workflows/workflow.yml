@@ -43,12 +43,12 @@ jobs:
       - name: Terraform plan
         id: plan
         working-directory: ./infrastructure
-        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.github.sha }}"
+        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}"
         continue-on-error: false  
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
-        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.github.sha }}" -auto-approve
+        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
         continue-on-error: false
       - name: Sleep for 10 seconds
         uses: jakejarvis/wait-action@master
