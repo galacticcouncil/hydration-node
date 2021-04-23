@@ -43,7 +43,7 @@ fn create_pool_should_work() {
 		});
 		let share_token = AMM::share_token(pair_account);
 
-		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 666);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000000000);
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 0);
