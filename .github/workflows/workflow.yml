@@ -50,10 +50,10 @@ jobs:
         working-directory: ./infrastructure
         run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
         continue-on-error: false
-      - name: Sleep for 10 seconds
+      - name: Sleep for 20 seconds
         uses: jakejarvis/wait-action@master
         with:
-          time: '10s'
+          time: '20s'
   
   build:
     runs-on: ${{ github.sha }}
