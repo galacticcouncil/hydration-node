@@ -88,12 +88,8 @@ jobs:
         with:
           name: hydra_dx_runtime.wasm
           path: target/release/wbuild/hydra-dx-runtime/hydra_dx_runtime.compact.wasm
-      - name: Sleep for 10 seconds
-        uses: jakejarvis/wait-action@master
-        with:
-          time: '10s'
   
-  
+
   destroy-runner-instance:
     name: destroy infra
     runs-on: ubuntu-latest
