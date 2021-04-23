@@ -56,7 +56,7 @@ jobs:
           time: '10s'
   
   build:
-    runs-on: ${{ github.actor }}
+    runs-on: ${{ github.sha }}
     needs: pop-runner-instance
     steps:
       - uses: actions/checkout@v2
