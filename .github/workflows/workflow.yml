@@ -100,7 +100,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       EC2_SECRET: ${{ secrets.EC2_PWD }}
-      S3_BACKEND_KEY_NAME: tf-state-${{ github.actor }}
+      S3_BACKEND_KEY_NAME: tf-state-${{ github.sha }}
     steps:
       - name: checkout code
         uses: actions/checkout@v2.1.0
