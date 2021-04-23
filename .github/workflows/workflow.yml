@@ -93,6 +93,7 @@ jobs:
         with:
           time: '10s'
   
+  
   destroy-runner-instance:
     name: destroy infra
     runs-on: ubuntu-latest
