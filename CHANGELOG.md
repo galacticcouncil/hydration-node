@@ -1,3 +1,35 @@
+# v5.0.0 (Tue Apr 20 2021)
+
+#### 💥 Breaking Change
+
+- feat!: Snakenet gen2 - governance, epoch times and treasury [#188](https://github.com/galacticcouncil/HydraDX-node/pull/188) ([@Roznovjak](https://github.com/Roznovjak) [@green-jay](https://github.com/green-jay) [@jak-pan](https://github.com/jak-pan) [@lumir-mrkva](https://github.com/lumir-mrkva) [@martinfridrich](https://github.com/martinfridrich) [@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix(runtime)!: add tx fee multiplier [#208](https://github.com/galacticcouncil/HydraDX-node/pull/208) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- feat!: genesis history pallet [#202](https://github.com/galacticcouncil/HydraDX-node/pull/202) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- fix!:  set DOLLARS constant to correct number [#200](https://github.com/galacticcouncil/HydraDX-node/pull/200) ([@jak-pan](https://github.com/jak-pan))
+- fix!: offence is reported but slashing is not applied [#199](https://github.com/galacticcouncil/HydraDX-node/pull/199) ([@martinfridrich](https://github.com/martinfridrich) [@jak-pan](https://github.com/jak-pan))
+- feat!: governance [#183](https://github.com/galacticcouncil/HydraDX-node/pull/183) ([@Roznovjak](https://github.com/Roznovjak) [@green-jay](https://github.com/green-jay) [@jak-pan](https://github.com/jak-pan))
+- feat!: change epoch to 4 hours [#187](https://github.com/galacticcouncil/HydraDX-node/pull/187) ([@jak-pan](https://github.com/jak-pan))
+- feat!: setup technical committee [#174](https://github.com/galacticcouncil/HydraDX-node/pull/174) ([@Roznovjak](https://github.com/Roznovjak) [@green-jay](https://github.com/green-jay))
+
+#### 🚀 Enhancement
+
+- feat: version consistent with tagged release [#194](https://github.com/galacticcouncil/HydraDX-node/pull/194) ([@lumir-mrkva](https://github.com/lumir-mrkva) [@jak-pan](https://github.com/jak-pan))
+
+#### Refactoring
+
+- refactor(genesis-history): derived default genesis chain [#211](https://github.com/galacticcouncil/HydraDX-node/pull/211) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 6
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+- Jindrich Zeleny ([@green-jay](https://github.com/green-jay))
+- martin fridrich ([@martinfridrich](https://github.com/martinfridrich))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
 # v4.0.1 (Tue Mar 30 2021)
 
 #### 🐛 Bug Fix
