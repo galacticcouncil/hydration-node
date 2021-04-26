@@ -108,4 +108,5 @@ members = [
   'pallets/transaction-multi-payment',
   'pallets/genesis-history',
   'primitives',
+  'utils/build-script-utils'
 ]
