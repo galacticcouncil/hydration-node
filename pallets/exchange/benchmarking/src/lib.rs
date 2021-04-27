@@ -1,14 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unnecessary_wraps)]
 
 mod amounts;
 mod mock;
 
 use sp_std::prelude::*;
-use sp_std::vec;
 
-use pallet_exchange::Module as Exchange;
+use pallet_exchange::Pallet as Exchange;
 
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::OnFinalize;
@@ -24,7 +22,7 @@ use amounts::INTENTION_AMOUNTS;
 use frame_support::dispatch;
 use pallet_amm as ammpool;
 
-pub struct Module<T: Config>(pallet_exchange::Module<T>);
+//pub struct Pallet<T: Config>(pallet_exchange::Pallet<T>);
 
 pub trait Config: pallet_exchange::Config + ammpool::Config {}
 
@@ -56,7 +54,7 @@ fn initialize_pool<T: Config>(
 	amount: Balance,
 	price: Price,
 ) -> dispatch::DispatchResultWithPostInfo {
-	ammpool::Module::<T>::create_pool(RawOrigin::Signed(caller).into(), asset_a, asset_b, amount, price)?;
+	ammpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), asset_a, asset_b, amount, price)?;
 
 	Ok(().into())
 }
@@ -74,7 +72,7 @@ fn feed_intentions<T: Config>(
 ) -> dispatch::DispatchResultWithPostInfo {
 	for idx in 0..number / 2 {
 		let user = funded_account::<T>("user", idx + 2);
-		pallet_exchange::Module::<T>::sell(
+		pallet_exchange::Pallet::<T>::sell(
 			RawOrigin::Signed(user.clone()).into(),
 			asset_a,
 			asset_b,
@@ -84,7 +82,7 @@ fn feed_intentions<T: Config>(
 		)?;
 
 		let buyer = funded_account::<T>("user", idx + number + 1);
-		pallet_exchange::Module::<T>::buy(
+		pallet_exchange::Pallet::<T>::buy(
 			RawOrigin::Signed(buyer.clone()).into(),
 			asset_a,
 			asset_b,
@@ -141,11 +139,11 @@ benchmarks! {
 
 		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &INTENTION_AMOUNTS)?;
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
 	}: {  Exchange::<T>::sell(RawOrigin::Signed(caller.clone()).into(), asset_a, asset_b, amount ,limit, false)? }
 	verify{
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended + 1);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended + 1);
 	}
 
 	buy_intention {
@@ -162,11 +160,11 @@ benchmarks! {
 
 		feed_intentions::<T>(asset_a, asset_b, nbr_intentions_appended, &INTENTION_AMOUNTS)?;
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended);
 
 	}: {  Exchange::<T>::buy(RawOrigin::Signed(caller.clone()).into(), asset_a, asset_b, amount / 10 ,limit, false)? }
 	verify{
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended + 1);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), nbr_intentions_appended + 1);
 	}
 
 	on_finalize {
@@ -186,11 +184,11 @@ benchmarks! {
 
 		feed_intentions::<T>(asset_a, asset_b, t, &INTENTION_AMOUNTS)?;
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), t);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), t);
 
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		validate_finalize::<T>(asset_a, asset_b, t, &INTENTION_AMOUNTS)?;
 	}
 
@@ -206,7 +204,7 @@ benchmarks! {
 
 		for idx in 0 .. t {
 			let user = funded_account::<T>("user", idx + 100);
-			pallet_exchange::Module::<T>::buy(
+			pallet_exchange::Pallet::<T>::buy(
 				RawOrigin::Signed(user.clone()).into(),
 				asset_a,
 				asset_b,
@@ -216,11 +214,11 @@ benchmarks! {
 			)?;
 		}
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), t);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), t);
 
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		for idx in 0..t  {
 			let user: T::AccountId = account("user", idx + 100, SEED);
 			assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &user), INITIAL_ASSET_BALANCE + SELL_INTENTION_AMOUNT);
@@ -239,7 +237,7 @@ benchmarks! {
 
 		for idx in 0 .. t {
 			let user = funded_account::<T>("user", idx + 100);
-			pallet_exchange::Module::<T>::sell(
+			pallet_exchange::Pallet::<T>::sell(
 				RawOrigin::Signed(user.clone()).into(),
 				asset_a,
 				asset_b,
@@ -249,11 +247,11 @@ benchmarks! {
 			)?;
 		}
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), t);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), t);
 
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		for idx in 0..t  {
 			let user: T::AccountId = account("user", idx + 100, SEED);
 			assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &user), INITIAL_ASSET_BALANCE - SELL_INTENTION_AMOUNT);
@@ -272,7 +270,7 @@ benchmarks! {
 
 		initialize_pool::<T>(creator, asset_a, asset_b, amount, Price::from(1))?;
 
-	}: { ammpool::Module::<T>::sell(RawOrigin::Signed(seller.clone()).into(), asset_a, asset_b, 1_000_000_000, min_bought, false)?; }
+	}: { ammpool::Pallet::<T>::sell(RawOrigin::Signed(seller.clone()).into(), asset_a, asset_b, 1_000_000_000, min_bought, false)?; }
 	verify {
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
@@ -289,7 +287,7 @@ benchmarks! {
 
 		initialize_pool::<T>(creator, asset_a, asset_b, amount, Price::from(1))?;
 
-		pallet_exchange::Module::<T>::sell(
+		pallet_exchange::Pallet::<T>::sell(
 			RawOrigin::Signed(seller.clone()).into(),
 			asset_a,
 			asset_b,
@@ -298,11 +296,11 @@ benchmarks! {
 			false,
 		)?;
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 1);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 1);
 
 	}: {  Exchange::<T>::on_finalize(1u32.into()); }
 	verify {
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
 	}
@@ -319,7 +317,7 @@ benchmarks! {
 
 		initialize_pool::<T>(creator, asset_a, asset_b, amount, Price::from(1))?;
 
-	}: { ammpool::Module::<T>::buy(RawOrigin::Signed(buyer.clone()).into(), asset_a, asset_b, 1_000_000_000, max_sold, false)?; }
+	}: { ammpool::Pallet::<T>::buy(RawOrigin::Signed(buyer.clone()).into(), asset_a, asset_b, 1_000_000_000, max_sold, false)?; }
 	verify {
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
@@ -339,7 +337,7 @@ benchmarks! {
 
 		initialize_pool::<T>(creator, asset_a, asset_b, amount, Price::from(1))?;
 
-		pallet_exchange::Module::<T>::buy(
+		pallet_exchange::Pallet::<T>::buy(
 			RawOrigin::Signed(buyer.clone()).into(),
 			asset_a,
 			asset_b,
@@ -348,11 +346,11 @@ benchmarks! {
 			false,
 		)?;
 
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 1);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 1);
 
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
-		assert_eq!(pallet_exchange::Module::<T>::get_intentions_count((asset_a, asset_b)), 0);
+		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
 		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
 	}

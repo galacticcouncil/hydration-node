@@ -3,19 +3,18 @@
 mod mock;
 
 use sp_std::prelude::*;
-use sp_std::vec;
 
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use orml_utilities::OrderedSet;
-use pallet_transaction_multi_payment::Module as MultiPaymentModule;
+use pallet_transaction_multi_payment::Pallet as MultiPaymentModule;
 use primitives::{Amount, AssetId, Balance, Price};
 
 use frame_support::dispatch;
 use pallet_amm as ammpool;
 
-pub struct Pallet<T: Config>(pallet_transaction_multi_payment::Module<T>);
+pub struct Pallet<T: Config>(pallet_transaction_multi_payment::Pallet<T>);
 
 pub trait Config:
 	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + ammpool::Config
@@ -44,7 +43,7 @@ fn initialize_pool<T: Config>(
 	amount: Balance,
 	price: Price,
 ) -> dispatch::DispatchResultWithPostInfo {
-	ammpool::Module::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
+	ammpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
 	Ok(().into())
 }
 

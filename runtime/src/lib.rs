@@ -36,7 +36,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_system::{limits, EnsureOneOf, EnsureRoot, Config, SetCode};
+use frame_system::{limits, EnsureOneOf, EnsureRoot};
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
@@ -45,8 +45,7 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Pays, Weight,
 	},
-	StorageValue,
-	PalletId,
+	PalletId, StorageValue,
 };
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -466,7 +465,6 @@ use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::fee;
-use pallet_staking::EraPayout;
 
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
@@ -491,14 +489,13 @@ pallet_staking_reward_curve::build! {
 }
 
 sp_npos_elections::generate_solution_type!(
-        #[compact]
-        pub struct NposCompactSolution16::<
-            VoterIndex = u32,
-            TargetIndex = u16,
-            Accuracy = sp_runtime::PerU16,
-        >(16)
-    );
-
+	#[compact]
+	pub struct NposCompactSolution16::<
+		VoterIndex = u32,
+		TargetIndex = u16,
+		Accuracy = sp_runtime::PerU16,
+	>(16)
+);
 
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
@@ -509,7 +506,7 @@ parameter_types! {
 	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
 	pub const MaxIterations: u32 = 10;
 	// 0.05%. The higher the value, the more strict solution acceptance becomes.
-	pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
+	pub MinSolutionScoreBump: Perbill = Perbill::from_rational(5u32, 10_000);
 }
 
 type SlashCancelOrigin =
@@ -630,7 +627,7 @@ parameter_types! {
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
 		pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
 
-	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational_approximation(1u32, 10_000);
+	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
 
 	// miner configs
 	pub const MultiPhaseUnsignedPriority: TransactionPriority = StakingUnsignedPriority::get() - 1u64;

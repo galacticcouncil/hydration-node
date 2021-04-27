@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 
@@ -189,7 +188,7 @@ pub mod pallet {
 
 			let token_name = asset_pair.name();
 
-			let share_token = <pallet_asset_registry::Module<T>>::get_or_create_asset(token_name)?.into();
+			let share_token = <pallet_asset_registry::Pallet<T>>::get_or_create_asset(token_name)?.into();
 
 			<ShareToken<T>>::insert(&pair_account, &share_token);
 			<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));

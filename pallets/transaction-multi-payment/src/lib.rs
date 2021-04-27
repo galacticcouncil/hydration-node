@@ -256,7 +256,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
-		let fee_currency = match Module::<T>::get_currency(who) {
+		let fee_currency = match Pallet::<T>::get_currency(who) {
 			Some(c) => c,
 			_ => CORE_ASSET_ID,
 		};
@@ -371,22 +371,22 @@ where
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Result<(), TransactionValidityError> {
 		if let Some(paid) = already_withdrawn {
-            // Calculate how much refund we should return
-            let refund_amount = paid.peek().saturating_sub(corrected_fee);
-            // refund to the the account that paid the fees. If this fails, the
-            // account might have dropped below the existential balance. In
-            // that case we don't refund anything.
-            let refund_imbalance =
-                C::deposit_into_existing(&who, refund_amount).unwrap_or_else(|_| C::PositiveImbalance::zero());
-            // merge the imbalance caused by paying the fees and refunding parts of it again.
-            let adjusted_paid = paid
-                .offset(refund_imbalance)
-                .same()
-                .map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-            // Call someone else to handle the imbalance (fee and tip separately)
-            let imbalances = adjusted_paid.split(tip);
-            OU::on_unbalanceds(Some(imbalances.0).into_iter().chain(Some(imbalances.1)));
-        }
-        Ok(())
+			// Calculate how much refund we should return
+			let refund_amount = paid.peek().saturating_sub(corrected_fee);
+			// refund to the the account that paid the fees. If this fails, the
+			// account might have dropped below the existential balance. In
+			// that case we don't refund anything.
+			let refund_imbalance =
+				C::deposit_into_existing(&who, refund_amount).unwrap_or_else(|_| C::PositiveImbalance::zero());
+			// merge the imbalance caused by paying the fees and refunding parts of it again.
+			let adjusted_paid = paid
+				.offset(refund_imbalance)
+				.same()
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			// Call someone else to handle the imbalance (fee and tip separately)
+			let imbalances = adjusted_paid.split(tip);
+			OU::on_unbalanceds(Some(imbalances.0).into_iter().chain(Some(imbalances.1)));
+		}
+		Ok(())
 	}
 }
