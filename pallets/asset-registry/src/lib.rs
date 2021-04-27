@@ -35,7 +35,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Next Asset ID is not available. Happens when it reaches the MAX of given id type.
+		/// Asset Id is not available. This only happens when it reaches the MAX value of given id type.
 		NoIdAvailable,
 	}
 
@@ -84,7 +84,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// Create assset for given name or return existing AssetId if already exists.
+	/// Create asset for given name or return existing AssetId if such asset already exists.
 	pub fn get_or_create_asset(name: Vec<u8>) -> Result<T::AssetId, DispatchError> {
 		match <AssetIds<T>>::contains_key(&name) {
 			true => Ok(<AssetIds<T>>::get(&name).unwrap()),

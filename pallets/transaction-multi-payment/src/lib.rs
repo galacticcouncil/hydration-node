@@ -104,25 +104,25 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Selected currency is not supported
+		/// Selected currency is not supported.
 		UnsupportedCurrency,
 
-		/// Zero Balance of selected currency
+		/// Account balance should be non-zero.
 		ZeroBalance,
 
-		/// Not allowed to add or remove accepted currency
+		/// Account is not allowed to add or remove accepted currency.
 		NotAllowed,
 
-		/// Currency being added is already in the list of accpeted currencies
+		/// Currency is already in the list of accepted currencies.
 		AlreadyAccepted,
 
-		/// Currency being added is already in the list of accpeted currencies
+		/// It is not allowed to add Core Asset as accepted currency. Core asset is accepted by design.
 		CoreAssetNotAllowed,
 
-		/// Account is already a member of authorities
+		/// Account is already member of authorities.
 		AlreadyMember,
 
-		/// Account is not a member of authorities
+		/// Account is not a member of authorities.
 		NotAMember,
 	}
 
@@ -165,6 +165,16 @@ pub mod pallet {
 	}
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Set selected currency for given account.
+		///
+		/// This allows to set a currency for an account in which all transaction fees will be paid.
+		/// Account balance cannot be zero.
+		///
+		/// Chosen currency must be whitelist in the list of accepted currencies.
+		///
+		/// When currency is set, fixed fee is withdrawn from the account to pay for the currency change
+		///
+		/// Emihts `CurrencySet` event when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::set_currency(), DispatchClass::Normal, Pays::No))]
 		#[transactional]
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
@@ -189,6 +199,13 @@ pub mod pallet {
 			Err(Error::<T>::UnsupportedCurrency.into())
 		}
 
+		/// Add a currency to the list of accepted currencies.
+		///
+		/// Only member can perform this action.
+		///
+		/// Currency must not be already accepted. Core asset id cannot be exp[licitly added.
+		///
+		/// Emits `CurrencyAdded` event when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::add_currency(), DispatchClass::Normal, Pays::No))]
 		pub fn add_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
@@ -207,6 +224,10 @@ pub mod pallet {
 
 		/// Remove currency from the list of supported currencies
 		/// Only selected members can perform this action
+		///
+		/// Core asset cannot be removed.
+		///
+		/// Emits `CurrencyRemoved` when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::remove_currency(), DispatchClass::Normal, Pays::No))]
 		pub fn remove_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
@@ -225,6 +246,12 @@ pub mod pallet {
 		}
 
 		/// Add an account as member to list of authorities who can manage list of accepted currencies
+		///
+		/// Members can be add or removed a currency from a list of accepted currencies.
+		///
+		/// Only root can be perform this action.
+		///
+		/// Emits `MemberAdded` when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::add_member(), DispatchClass::Normal, Pays::No))]
 		pub fn add_member(origin: OriginFor<T>, member: T::AccountId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
@@ -238,6 +265,11 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Rmove account from list of authorities who can manage list of accepted currencies
+		///
+		/// Only root can be perform this action.
+		///
+		/// Emits `MemberRemoved` when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::remove_member(), DispatchClass::Normal, Pays::No))]
 		pub fn remove_member(origin: OriginFor<T>, member: T::AccountId) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
@@ -254,6 +286,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Execute a trade to buy HDX and sell selected currency.
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
 		let fee_currency = match Module::<T>::get_currency(who) {

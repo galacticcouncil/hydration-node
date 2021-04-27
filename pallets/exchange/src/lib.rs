@@ -1,6 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::comparison_chain)]
-
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::unnecessary_wraps)]
@@ -160,16 +159,16 @@ pub mod pallet {
 		///Token pool does not exist.
 		TokenPoolNotFound,
 
-		/// Insufficient balance
+		/// Insufficient asset balance.
 		InsufficientAssetBalance,
 
-		/// Limit exceeded
+		/// Given trading limit has been exceeded (Sell) or has Not been reached (buy).
 		AssetBalanceLimitExceeded,
 
-		/// Invalid amount
+		/// Overflow
 		ZeroSpotPrice,
 
-		/// Minimum trading limit is not enough
+		/// Trade amount is too low.
 		MinimumTradeLimitNotReached,
 	}
 

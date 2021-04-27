@@ -17,7 +17,7 @@ pub struct AMMTransfer<AccountId, AssetPair, Balance> {
 
 /// Traits for handling AMM Pool trades.
 pub trait AMM<AccountId, AssetId, AssetPair, Amount> {
-	/// Check if a pool for asset_a and asset_b exists.
+	/// Check if both assets exists in a pool.
 	fn exists(assets: AssetPair) -> bool;
 
 	/// Return pair account.
@@ -29,7 +29,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount> {
 	/// Calculate spot price for asset a and b.
 	fn get_spot_price_unchecked(asset_a: AssetId, asset_b: AssetId, amount: Amount) -> Amount;
 
-	/// SELL
+	/// Sell trade validation
 	/// Perform all necessary checks to validate an intended sale.
 	fn validate_sell(
 		origin: &AccountId,
@@ -55,7 +55,7 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount> {
 		Ok(())
 	}
 
-	/// BUY
+	/// Buy trade validation
 	/// Perform all necessary checks to validate an intended buy.
 	fn validate_buy(
 		origin: &AccountId,
