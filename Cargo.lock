@@ -2368,7 +2368,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "7.0.0"
+version = "9.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
