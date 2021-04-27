@@ -22,8 +22,6 @@ use amounts::INTENTION_AMOUNTS;
 use frame_support::dispatch;
 use pallet_amm as ammpool;
 
-//pub struct Pallet<T: Config>(pallet_exchange::Pallet<T>);
-
 pub trait Config: pallet_exchange::Config + ammpool::Config {}
 
 const INITIAL_ASSET_BALANCE: Balance = 1_000_000_000_000_000;
