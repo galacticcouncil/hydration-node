@@ -8,7 +8,7 @@ use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 use sc_finality_grandpa::FinalityProofProvider as GrandpaFinalityProofProvider;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
-use sc_telemetry::TelemetrySpan;
+use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_inherents::InherentDataProviders;
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
@@ -47,14 +47,34 @@ pub fn new_partial(
 				sc_consensus_babe::BabeLink<Block>,
 			),
 			sc_finality_grandpa::SharedVoterState,
+			Option<Telemetry>,
 		),
 	>,
 	ServiceError,
 > {
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
-	let (client, backend, keystore_container, task_manager) =
-		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
+	let telemetry = config
+		.telemetry_endpoints
+		.clone()
+		.filter(|x| !x.is_empty())
+		.map(move |endpoints| -> Result<_, sc_telemetry::Error> {
+			let worker = TelemetryWorker::new(16)?;
+			let telemetry = worker.handle().new_telemetry(endpoints);
+			Ok((worker, telemetry))
+		})
+		.transpose()?;
+
+	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
+		&config,
+		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+	)?;
+
 	let client = Arc::new(client);
+
+	let telemetry = telemetry.map(|(worker, telemetry)| {
+		task_manager.spawn_handle().spawn("telemetry", worker.run());
+		telemetry
+	});
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
@@ -66,8 +86,12 @@ pub fn new_partial(
 		client.clone(),
 	);
 
-	let (grandpa_block_import, grandpa_link) =
-		sc_finality_grandpa::block_import(client.clone(), &(client.clone() as Arc<_>), select_chain.clone())?;
+	let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
+		client.clone(),
+		&(client.clone() as Arc<_>),
+		select_chain.clone(),
+		telemetry.as_ref().map(|x| x.handle()),
+	)?;
 
 	let (block_import, babe_link) = sc_consensus_babe::block_import(
 		sc_consensus_babe::Config::get_or_compute(&*client)?,
@@ -85,6 +109,7 @@ pub fn new_partial(
 		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
 		sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone()),
+		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
 	let import_setup = (block_import, grandpa_link, babe_link);
@@ -143,7 +168,7 @@ pub fn new_partial(
 		import_queue,
 		transaction_pool,
 		inherent_data_providers,
-		other: (rpc_extensions_builder, import_setup, rpc_setup),
+		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry),
 	})
 }
 
@@ -170,7 +195,7 @@ pub fn new_full(
 		select_chain,
 		transaction_pool,
 		inherent_data_providers,
-		other: (rpc_extensions_builder, import_setup, rpc_setup),
+		other: (rpc_extensions_builder, import_setup, rpc_setup, mut telemetry),
 	} = new_partial(&config)?;
 
 	let backoff_authoring_blocks = Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
@@ -194,13 +219,7 @@ pub fn new_full(
 		})?;
 
 	if config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(
-			&config,
-			backend.clone(),
-			task_manager.spawn_handle(),
-			client.clone(),
-			network.clone(),
-		);
+		sc_service::build_offchain_workers(&config, task_manager.spawn_handle(), client.clone(), network.clone());
 	}
 
 	let role = config.role.clone();
@@ -209,10 +228,7 @@ pub fn new_full(
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 
-	let telemetry_span = TelemetrySpan::new();
-	let _telemetry_span_entered = telemetry_span.enter();
-
-	let (_rpc_handlers, telemetry_connection_notifier) = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
 		backend: backend,
 		client: client.clone(),
@@ -225,7 +241,7 @@ pub fn new_full(
 		remote_blockchain: None,
 		network_status_sinks: network_status_sinks.clone(),
 		system_rpc_tx,
-		telemetry_span: Some(telemetry_span.clone()),
+		telemetry: telemetry.as_mut(),
 	})?;
 
 	let (block_import, grandpa_link, babe_link) = import_setup;
@@ -236,6 +252,7 @@ pub fn new_full(
 			client.clone(),
 			transaction_pool.clone(),
 			prometheus_registry.as_ref(),
+			telemetry.as_ref().map(|x| x.handle()),
 		);
 
 		let can_author_with = sp_consensus::CanAuthorWithNativeVersion::new(client.executor().clone());
@@ -252,6 +269,8 @@ pub fn new_full(
 			backoff_authoring_blocks,
 			babe_link,
 			can_author_with,
+			block_proposal_slot_portion: sc_consensus_babe::SlotProportion::new(2f32 / 3f32),
+			telemetry: telemetry.as_ref().map(|x| x.handle()),
 		};
 
 		let babe = sc_consensus_babe::start_babe(babe_config)?;
@@ -307,6 +326,7 @@ pub fn new_full(
 		observer_enabled: false,
 		keystore,
 		is_authority: role.is_authority(),
+		telemetry: telemetry.as_ref().map(|x| x.handle()),
 	};
 
 	if enable_grandpa {
@@ -320,10 +340,10 @@ pub fn new_full(
 			config: grandpa_config,
 			link: grandpa_link,
 			network: network.clone(),
-			telemetry_on_connect: telemetry_connection_notifier.map(|x| x.on_connect_stream()),
 			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry: prometheus_registry,
 			shared_voter_state,
+			telemetry: telemetry.as_ref().map(|x| x.handle()),
 		};
 
 		// the GRANDPA voter task is considered infallible, i.e.
@@ -346,8 +366,22 @@ pub fn new_full(
 
 /// Builds a new service for a light client.
 pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
+	let telemetry = config
+		.telemetry_endpoints
+		.clone()
+		.filter(|x| !x.is_empty())
+		.map(|endpoints| -> Result<_, sc_telemetry::Error> {
+			let worker = TelemetryWorker::new(16)?;
+			let telemetry = worker.handle().new_telemetry(endpoints);
+			Ok((worker, telemetry))
+		})
+		.transpose()?;
+
 	let (client, backend, keystore_container, mut task_manager, on_demand) =
-		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(&config)?;
+		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(
+			&config,
+			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+		)?;
 
 	let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_light(
 		config.transaction_pool.clone(),
@@ -357,10 +391,19 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		on_demand.clone(),
 	));
 
+	let mut telemetry = telemetry.map(|(worker, telemetry)| {
+		task_manager.spawn_handle().spawn("telemetry", worker.run());
+		telemetry
+	});
+
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
-	let (grandpa_block_import, _) =
-		sc_finality_grandpa::block_import(client.clone(), &(client.clone() as Arc<_>), select_chain.clone())?;
+	let (grandpa_block_import, _) = sc_finality_grandpa::block_import(
+		client.clone(),
+		&(client.clone() as Arc<_>),
+		select_chain.clone(),
+		telemetry.as_ref().map(|x| x.handle()),
+	)?;
 	let finality_proof_import = grandpa_block_import.clone();
 
 	let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
@@ -379,6 +422,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
 		sp_consensus::NeverCanAuthor,
+		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
 	let (network, network_status_sinks, system_rpc_tx, network_starter) =
@@ -393,17 +437,8 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		})?;
 
 	if config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(
-			&config,
-			backend.clone(),
-			task_manager.spawn_handle(),
-			client.clone(),
-			network.clone(),
-		);
+		sc_service::build_offchain_workers(&config, task_manager.spawn_handle(), client.clone(), network.clone());
 	}
-
-	let telemetry_span = TelemetrySpan::new();
-	let _telemetry_span_entered = telemetry_span.enter();
 
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		remote_blockchain: Some(backend.remote_blockchain()),
@@ -418,7 +453,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		network,
 		network_status_sinks,
 		system_rpc_tx,
-		telemetry_span: Some(telemetry_span.clone()),
+		telemetry: telemetry.as_mut(),
 	})?;
 
 	network_starter.start_network();

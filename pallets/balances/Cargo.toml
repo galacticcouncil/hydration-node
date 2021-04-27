@@ -20,6 +20,7 @@ frame-system = {version = "3.0.0", default-features = false}
 serde = {version = "1.0.101", optional = true}
 sp-runtime = {version = "3.0.0", default-features = false}
 sp-std = {version = "3.0.0", default-features = false}
+log = { version = "0.4.14", default-features = false }
 
 [dev-dependencies]
 pallet-transaction-payment = {version = "3.0.0"}
@@ -37,5 +38,6 @@ std = [
   "frame-benchmarking/std",
   "frame-support/std",
   "frame-system/std",
+  "log/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

@@ -15,7 +15,7 @@ use primitives::{Amount, AssetId, Balance, Price};
 use frame_support::dispatch;
 use pallet_amm as ammpool;
 
-pub struct Module<T: Config>(pallet_transaction_multi_payment::Module<T>);
+pub struct Pallet<T: Config>(pallet_transaction_multi_payment::Module<T>);
 
 pub trait Config:
 	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + ammpool::Config

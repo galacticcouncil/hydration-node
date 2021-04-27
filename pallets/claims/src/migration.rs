@@ -11,7 +11,7 @@ pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)])
 
 			Claims::<T>::insert(
 				EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
-					frame_support::debug::warn!("Error encountered while migrating Ethereum address: {}", addr);
+					frame_support::log::warn!("Error encountered while migrating Ethereum address: {}", addr);
 					EthereumAddress::default().0
 				})),
 				balance,
