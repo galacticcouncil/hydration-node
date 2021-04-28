@@ -1,3 +1,5 @@
+#![allow(unknown_lints)]
+#![allow(clippy::all)]
 use codec::{Decode, Encode};
 use frame_support::sp_runtime::RuntimeDebug;
 use sp_std::{convert::TryFrom, vec::Vec};
