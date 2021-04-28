@@ -1,5 +1,5 @@
 name: build-and-deploy
-#${GITHUB_REF##*/}
+
 on:
   workflow_dispatch:
   pull_request:
@@ -19,6 +19,7 @@ jobs:
       runner: ${{ steps.determine-runner.outputs.runner }}
     steps:
       - id: determine-runner
+        name: Determine runner
         run: if [ -z $AWS_ACCESS_KEY_ID ]; then echo "::set-output name=runner::ubuntu-latest"; else echo "::set-output name=runner::${{ github.sha }}"; fi;
       - name: checkout code
         if: ${{ env.AWS_ACCESS_KEY_ID }}
@@ -119,27 +120,33 @@ jobs:
       S3_BACKEND_KEY_NAME: tf-state-${{ github.sha }}
     steps:
       - name: checkout code
+        if: ${{ env.AWS_ACCESS_KEY_ID }}
         uses: actions/checkout@v2.1.0
       - name: setup node
+        if: ${{ env.AWS_ACCESS_KEY_ID }}
         uses: actions/setup-node@v2
         with:
           node-version: '14'
       - uses: hashicorp/setup-terraform@v1
+        if: ${{ env.AWS_ACCESS_KEY_ID }}
         with:
           terraform_version: 0.12.25
           continue-on-error: false
       - name: rewrite tf state key
+        if: ${{ env.AWS_ACCESS_KEY_ID }}
         id: tf-state-key
         working-directory: ./infrastructure
         run: sed -i 's/BRANCH_ACTOR_KEY/${{ env.S3_BACKEND_KEY_NAME }}/g' infra.tf
 
       - name: Terraform Init
+        if: ${{ env.AWS_ACCESS_KEY_ID }}
         id: init
         working-directory: ./infrastructure
         run: terraform init
         continue-on-error: false
 
       - name: Terraform apply
+        if: ${{ env.AWS_ACCESS_KEY_ID }}
         id: apply
         working-directory: ./infrastructure
         run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
