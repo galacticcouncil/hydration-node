@@ -6,12 +6,53 @@ pub use frame_support::{
 	weights::{DispatchClass, Pays},
 };
 pub use frame_system::limits;
-pub use primitives::constants::{chain::*, currency::*, time::*};
-pub use primitives::{
-	fee, AccountId, AccountIndex, Amount, AssetId, Balance, BlockNumber, DigestItem, Hash, Index, Moment, Signature,
-};
-pub use sp_runtime::{transaction_validity::TransactionPriority, ModuleId, Perbill, Percent, Permill, Perquintill, FixedPointNumber};
+pub mod constants;
+pub use constants::{chain::*, currency::*, time::*};
 use pallet_transaction_payment::Multiplier;
+pub use primitives::{fee, Amount, AssetId, Balance};
+use sp_runtime::{
+	generic,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	MultiSignature,
+};
+pub use sp_runtime::{
+	transaction_validity::TransactionPriority, FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
+};
+
+/// An index to a block.
+pub type BlockNumber = u32;
+
+/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
+pub type Signature = MultiSignature;
+
+/// Some way of identifying an account on the chain. We intentionally make it equivalent
+/// to the public key of our transaction signing scheme.
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+
+/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
+/// never know...
+pub type AccountIndex = u32;
+
+/// Index of a transaction in the chain.
+pub type Index = u32;
+
+/// A hash of some data used by the chain.
+pub type Hash = sp_core::H256;
+
+/// Digest item type.
+pub type DigestItem = generic::DigestItem<Hash>;
+
+/// Opaque, encoded, unchecked extrinsic.
+pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+
+/// Header type.
+pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+
+/// Block type.
+pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+
+/// Type used for expressing timestamp.
+pub type Moment = u64;
 
 // frame system
 parameter_types! {

@@ -5,7 +5,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'common-runtime'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '7.0.0'
+version = '10.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -25,5 +25,6 @@ primitives = {path = '../../primitives', default-features = false}
 # Substrate dependencies
 frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
+sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}

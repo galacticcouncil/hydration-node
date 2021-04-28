@@ -3,8 +3,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 pub use crate::service::{FullBackend, FullClient, HydraExecutor, LightBackend, LightClient, TestingHydraExecutor};
-use common_runtime::{AccountId, AssetId, Balance, BlockNumber, Hash, Index};
-use primitives::{Block, Header};
+use common_runtime::{AccountId, AssetId, Balance, BlockNumber, Hash, Index, Block, Header};
 use sc_client_api::{Backend as BackendT, BlockchainEvents, KeyIterator};
 use sp_api::{CallApiAt, NumberFor, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;

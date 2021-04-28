@@ -7,50 +7,9 @@ use frame_support::sp_runtime::FixedU128;
 use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_runtime::{
-	generic,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	MultiSignature,
-};
 
 pub mod asset;
-pub mod constants;
 pub mod traits;
-
-/// Opaque, encoded, unchecked extrinsic.
-pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
-
-/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
-/// never know...
-pub type AccountIndex = u32;
-
-/// Header type.
-pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
-
-/// Block type.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
-
-/// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// Index of a transaction in the chain.
-pub type Index = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
-
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
-
-/// Type used for expressing timestamp.
-pub type Moment = u64;
 
 /// Type for storing the id of an asset.
 pub type AssetId = u32;

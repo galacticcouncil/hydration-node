@@ -827,13 +827,14 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "7.0.0"
+version = "10.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
  "pallet-transaction-payment",
  "parity-scale-codec 2.0.1",
  "primitives",
+ "sp-core",
  "sp-runtime",
  "substrate-wasm-builder-runner",
 ]
@@ -4015,6 +4016,7 @@ dependencies = [
 name = "pallet-amm"
 version = "3.0.0"
 dependencies = [
+ "common-runtime",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -4227,6 +4229,7 @@ dependencies = [
 name = "pallet-exchange"
 version = "3.0.0"
 dependencies = [
+ "common-runtime",
  "frame-support",
  "frame-system",
  "orml-tokens",
@@ -4529,6 +4532,7 @@ dependencies = [
 name = "pallet-transaction-multi-payment"
 version = "3.0.0"
 dependencies = [
+ "common-runtime",
  "frame-support",
  "frame-system",
  "orml-currencies",

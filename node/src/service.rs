@@ -4,7 +4,7 @@
 
 pub use crate::client::{AbstractClient, Client, ClientHandle, ExecuteWithClient, RuntimeApiCollection};
 use hydra_dx_runtime;
-use primitives::Block;
+use common_runtime::Block;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 pub use sc_executor::NativeExecutor;
 use sc_executor::{native_executor_instance, NativeExecutionDispatch};

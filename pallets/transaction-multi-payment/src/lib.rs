@@ -33,8 +33,8 @@ use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::{Amount, AssetId, Balance,
 	asset::AssetPair,
-	traits::{CurrencySwap, AMM},
-	constants::chain::CORE_ASSET_ID};
+	traits::{CurrencySwap, AMM}};
+use common_runtime::constants::chain::CORE_ASSET_ID;
 
 use orml_utilities::OrderedSet;
 
