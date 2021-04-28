@@ -1,7 +1,6 @@
 name: build-and-deploy
 #${GITHUB_REF##*/}
-on:
-  push:
+on: [push, pull_request]
 
 jobs:
   pop-runner-instance:
