@@ -111,6 +111,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Claim xHDX by providing signed message with Ethereum address.
 		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
 		pub fn claim(origin: OriginFor<T>, ethereum_signature: EcdsaSignature) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
@@ -125,6 +126,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Check if a claim is valid.
+	///
+	/// Recovers Ethereum address from a message signature and checks whether such address
+	/// can make a valid claims and has not been already claimed.
 	fn validate_claim(
 		who: &T::AccountId,
 		signature: &EcdsaSignature,
@@ -146,6 +151,11 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Process previously verified claim.
+	///
+	/// Deposits the balance into the claiming account.
+	///
+	/// Emits `Claimed` when successfully.
 	fn process_claim(dest: T::AccountId, balance_due: BalanceOf<T>, address: EthereumAddress) -> DispatchResult {
 		let imbalance = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
 		ensure!(
