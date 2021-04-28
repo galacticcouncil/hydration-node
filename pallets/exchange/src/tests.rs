@@ -21,7 +21,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 fn last_event() -> TestEvent {
-	system::Module::<Test>::events().pop().expect("Event expected").event
+	system::Pallet::<Test>::events().pop().expect("Event expected").event
 }
 
 fn expect_event<E: Into<TestEvent>>(e: E) {
@@ -29,7 +29,7 @@ fn expect_event<E: Into<TestEvent>>(e: E) {
 }
 
 fn last_events(n: usize) -> Vec<TestEvent> {
-	system::Module::<Test>::events()
+	system::Pallet::<Test>::events()
 		.into_iter()
 		.rev()
 		.take(n)
@@ -43,7 +43,7 @@ fn expect_events(e: Vec<TestEvent>) {
 }
 
 fn generate_intention_id(account: &<Test as system::Config>::AccountId, c: u32) -> crate::IntentionId<Test> {
-	let b = <system::Module<Test>>::current_block_number();
+	let b = <system::Pallet<Test>>::current_block_number();
 	(c, &account, b, DOT, ETH).using_encoded(<Test as system::Config>::Hashing::hash)
 }
 
