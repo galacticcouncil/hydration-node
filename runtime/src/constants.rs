@@ -2,7 +2,7 @@ pub mod currency {
 	pub use primitives::Balance;
 
 	pub const HDX: Balance = 1_000_000_000_000;
-	pub const DOLLARS: Balance = HDX * 10;	// 10 HDX ~= 1 $
+	pub const DOLLARS: Balance = HDX * 10; // 10 HDX ~= 1 $
 	pub const CENTS: Balance = DOLLARS / 100;
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 
@@ -49,4 +49,27 @@ pub mod time {
 		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
 	};
 	pub const INFINITY: u32 = u32::MAX;
+}
+
+#[cfg(test)]
+mod tests {
+	use super::time::{DAYS, EPOCH_DURATION_IN_BLOCKS, HOURS, MILLISECS_PER_BLOCK, MINUTES, SECS_PER_BLOCK};
+	use primitives::BlockNumber;
+
+	#[test]
+	// This function tests that time units are set up correctly
+	fn time_units_work() {
+		// 24 hours in a day
+		assert_eq!(DAYS / 24, HOURS);
+		// 60 minuts in an hour
+		assert_eq!(HOURS / 60, MINUTES);
+		// 1 minute = 60s = 10 blocks 6s each
+		assert_eq!(MINUTES, 10 as BlockNumber);
+		// 6s per block
+		assert_eq!(SECS_PER_BLOCK, 6);
+		// 1s = 1000ms
+		assert_eq!(MILLISECS_PER_BLOCK / 1000, SECS_PER_BLOCK);
+		// Extra check for epoch time because changing it bricks the block production and requires regenesis
+		assert_eq!(EPOCH_DURATION_IN_BLOCKS, 4 * HOURS);
+	}
 }
