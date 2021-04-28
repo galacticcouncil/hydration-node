@@ -57,6 +57,12 @@ jobs:
         uses: jakejarvis/wait-action@master
         with:
           time: '20s'
+          
+  test-output:
+    runs-on: ubuntu-latest
+    needs: pop-runner-instance
+    steps:
+      - run: echo ${{ needs.pop-runner-instance.outputs.runner }}
 
   build:
     needs: pop-runner-instance
