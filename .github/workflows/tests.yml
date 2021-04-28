@@ -68,10 +68,6 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
           default: true
-      - name: Install clippy
-        run: rustup component add clippy
-      - name: Run clippy
-        run: cargo clippy --release -- -D warnings
       - name: Tests
         run: time cargo test --all --release --verbose --locked
       - name: Benchmarking tests
