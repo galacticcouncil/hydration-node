@@ -21,39 +21,39 @@ jobs:
       - id: determine-runner
         run: if [ -z $AWS_ACCESS_KEY_ID ]; then echo "::set-output name=runner::ubuntu-latest"; else echo "::set-output name=runner::${{ github.sha }}"; fi;
       - name: checkout code
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         uses: actions/checkout@v2.1.0
       - name: setup node
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         uses: actions/setup-node@v2
         with:
           node-version: '14'
       - uses: hashicorp/setup-terraform@v1
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         with:
           terraform_version: 0.12.25
       - name: rewrite tf state key
         id: tf-state-key
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         working-directory: ./infrastructure
         run: sed -i 's/BRANCH_ACTOR_KEY/${{ env.S3_BACKEND_KEY_NAME }}/g' infra.tf
       - name: Terraform Init
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         id: init
         working-directory: ./infrastructure
         run: terraform init
       - name: Terraform plan
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         id: plan
         working-directory: ./infrastructure
         run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}"
       - name: Terraform apply
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         id: apply
         working-directory: ./infrastructure
         run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
       - name: Sleep for 20 seconds
-        if: ${{ $AWS_ACCESS_KEY_ID }}
+        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
         uses: jakejarvis/wait-action@master
         with:
           time: '20s'
@@ -103,7 +103,7 @@ jobs:
     name: destroy infra
     runs-on: ubuntu-latest
     needs: build
-    if: ${{ always() && $AWS_ACCESS_KEY_ID }}
+    if: ${{ always() && secrets.AWS_ACCESS_KEY_ID }}
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
