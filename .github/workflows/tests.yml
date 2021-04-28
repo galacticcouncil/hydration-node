@@ -16,7 +16,7 @@ jobs:
       EC2_SECRET: ${{ secrets.EC2_PWD }}
       S3_BACKEND_KEY_NAME: tf-state-${{ github.sha }}
     outputs:
-      build-runner: ${{ steps.determine-runner.outputs.runner }}
+      runner: ${{ steps.determine-runner.outputs.runner }}
     steps:
       - id: determine-runner
         run: if [ -z $AWS_ACCESS_KEY_ID ]; then echo "::set-output name=runner::ubuntu-latest"; else echo "::set-output name=runner::${{ github.sha }}"; fi;
