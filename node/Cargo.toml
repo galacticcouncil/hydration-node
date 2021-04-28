@@ -16,7 +16,7 @@ name = 'hydra-dx'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-build-script-utils = '2.0.1'
+hydra-dx-build-script-utils = {path = '../utils/build-script-utils'}
 
 [dependencies]
 jsonrpc-core = '15.0.0'

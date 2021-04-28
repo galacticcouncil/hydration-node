@@ -24,8 +24,7 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use hydra_dx_runtime::pallet_genesis_history::Chain;
 
 // The URL for the telemetry server.
-const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
+const TELEMETRY_URLS: [&str; 2] = ["wss://telemetry.polkadot.io/submit/", "wss://telemetry.hydradx.io:9000/submit/"];
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
@@ -202,18 +201,18 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 		},
 		// Bootnodes TODO: BOOT NODES
 		vec![
-			"/dns/p2p-01.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWAJ8t7rsWvV7d1CRCT7afwtmBQBrRT7mMNDVCWK7n9CrD"
+			"/dns/p2p-01.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWAJ8t7rsWvV7d1CRCT7afwtmBQBrRT7mMNDVCWK7n9CrD"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-02.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWErP8DjDoVFjsCCzvD9mFZBA6Y1VKMEBNH8vKCWDZDHz5"
+			"/dns/p2p-02.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWErP8DjDoVFjsCCzvD9mFZBA6Y1VKMEBNH8vKCWDZDHz5"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-03.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWH9rsDFq3wo13eKR5PWCvEDieK8uUKd1C1dLQNNxeU5AU"
+			"/dns/p2p-03.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWH9rsDFq3wo13eKR5PWCvEDieK8uUKd1C1dLQNNxeU5AU"
 				.parse()
 				.unwrap(),
 		],
 		// Telemetry
-		Some(TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)]).expect("Telemetry url is valid")),
+		Some(TelemetryEndpoints::new(vec![(TELEMETRY_URLS[0].to_string(), 0), (TELEMETRY_URLS[1].to_string(), 0)]).expect("Telemetry url is valid")),
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
