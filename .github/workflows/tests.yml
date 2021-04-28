@@ -53,7 +53,7 @@ jobs:
         working-directory: ./infrastructure
         run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
       - name: Sleep for 20 seconds
-        if: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        if: ${{ env.AWS_ACCESS_KEY_ID }}
         uses: jakejarvis/wait-action@master
         with:
           time: '20s'
