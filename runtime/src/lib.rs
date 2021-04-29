@@ -20,7 +20,6 @@ use sp_core::{
 	u32_trait::{_1, _2, _3},
 	OpaqueMetadata,
 };
-
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, NumberFor, OpaqueKeys,
 	SaturatedConversion, Verify,
@@ -132,7 +131,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 8,
+	spec_version: 9,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -489,8 +488,11 @@ pallet_staking_reward_curve::build! {
 
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	pub const BondingDuration: pallet_staking::EraIndex = 28; //28 Days
-	pub const SlashDeferDuration: pallet_staking::EraIndex =  28 - 1; //SlashDeferDuration should be less than BondingDuration https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
+	// Funds are bonded for 28 Days
+	pub const BondingDuration: pallet_staking::EraIndex = 28;
+	// SlashDeferDuration should be less than BondingDuration
+	// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
+	pub const SlashDeferDuration: pallet_staking::EraIndex =  28 - 1;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 64;
 	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
@@ -616,9 +618,9 @@ parameter_types! {
 	pub const SignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
 	pub const UnsignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
 
-	// fallback: no need to do on-chain phragmen initially.
+	// fallback: run election on-chain.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-		pallet_election_provider_multi_phase::FallbackStrategy::Nothing;
+		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
 
 	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational_approximation(1u32, 10_000);
 
