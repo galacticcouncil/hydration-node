@@ -82,3 +82,27 @@ pub mod chain {
 	/// We allow for 2 seconds of compute with a 6 second average block time.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
 }
+
+#[cfg(test)]
+mod tests {
+	use super::time::{DAYS, EPOCH_DURATION_IN_BLOCKS, HOURS, MILLISECS_PER_BLOCK, MINUTES, SECS_PER_BLOCK};
+	use crate::BlockNumber;
+
+	#[test]
+	// This function tests that time units are set up correctly
+	fn time_units_work() {
+		// 24 hours in a day
+		assert_eq!(DAYS / 24, HOURS);
+		// 60 minuts in an hour
+		assert_eq!(HOURS / 60, MINUTES);
+		// 1 minute = 60s = 10 blocks 6s each
+		assert_eq!(MINUTES, 10 as BlockNumber);
+		// 6s per block
+		assert_eq!(SECS_PER_BLOCK, 6);
+		// 1s = 1000ms
+		assert_eq!(MILLISECS_PER_BLOCK / 1000, SECS_PER_BLOCK);
+		// Extra check for epoch time because changing it bricks the block production and requires regenesis
+		assert_eq!(EPOCH_DURATION_IN_BLOCKS, 4 * HOURS);
+	}
+}
+
