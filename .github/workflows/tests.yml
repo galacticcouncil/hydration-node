@@ -47,12 +47,12 @@ jobs:
         if: ${{ env.AWS_ACCESS_KEY_ID }}
         id: plan
         working-directory: ./infrastructure
-        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}"
+        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ steps.determine-runner.outputs.runner }}"
       - name: Terraform apply
         if: ${{ env.AWS_ACCESS_KEY_ID }}
         id: apply
         working-directory: ./infrastructure
-        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
+        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ steps.determine-runner.outputs.runner }}" -auto-approve
       - name: Sleep for 20 seconds
         if: ${{ env.AWS_ACCESS_KEY_ID }}
         uses: jakejarvis/wait-action@master
