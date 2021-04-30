@@ -19,6 +19,7 @@ jobs:
     outputs:
       runner: ${{ steps.determine-runner.outputs.runner }}
     steps:
+      - run: echo "${{ toJSON(github) }}"
       - id: determine-runner
         name: Determine runner
         run: if $IS_LOCAL; then echo "::set-output name=runner::${{ github.sha }}"; else echo "::set-output name=runner::ubuntu-latest"; fi;
