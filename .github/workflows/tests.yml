@@ -143,5 +143,5 @@ jobs:
         if: ${{ env.AWS_ACCESS_KEY_ID }}
         id: apply
         working-directory: ./infrastructure
-        run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
+        run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ needs.pop-runner-instance.outputs.runner }}" -auto-approve
         continue-on-error: false
