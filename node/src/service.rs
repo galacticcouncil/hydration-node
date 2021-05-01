@@ -92,6 +92,8 @@ pub fn new_partial(
 		select_chain.clone(),
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
+  
+	let justification_import = grandpa_block_import.clone();
 
 	let (block_import, babe_link) = sc_consensus_babe::block_import(
 		sc_consensus_babe::Config::get_or_compute(&*client)?,
@@ -102,7 +104,7 @@ pub fn new_partial(
 	let import_queue = sc_consensus_babe::import_queue(
 		babe_link.clone(),
 		block_import.clone(),
-		None,
+		Some(Box::new(justification_import)),
 		client.clone(),
 		select_chain.clone(),
 		inherent_data_providers.clone(),
@@ -405,6 +407,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 	let finality_proof_import = grandpa_block_import.clone();
+	let justification_import = grandpa_block_import.clone();
 
 	let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
 		sc_consensus_babe::Config::get_or_compute(&*client)?,
@@ -415,7 +418,7 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let import_queue = sc_consensus_babe::import_queue(
 		babe_link,
 		babe_block_import,
-		Some(Box::new(finality_proof_import)),
+		Some(Box::new(justification_import)),
 		client.clone(),
 		select_chain,
 		InherentDataProviders::new(),
