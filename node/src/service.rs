@@ -406,7 +406,6 @@ pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
 		select_chain.clone(),
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
-	let finality_proof_import = grandpa_block_import.clone();
 	let justification_import = grandpa_block_import.clone();
 
 	let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
