@@ -41,11 +41,11 @@ frame_support::construct_runtime!(
 	 NodeBlock = Block,
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
-		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		 Exchange: exchange::{Module, Call, Storage, Event<T>},
-		 AMM: pallet_amm::{Module, Call, Storage, Event<T>},
-		 Currency: orml_tokens::{Module, Event<T>},
-		 AssetRegistry: pallet_asset_registry::{Module, Storage},
+		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		 Exchange: exchange::{Pallet, Call, Storage, Event<T>},
+		 AMM: pallet_amm::{Pallet, Call, Storage, Event<T>},
+		 Currency: orml_tokens::{Pallet, Event<T>},
+		 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 	 }
 
 );
@@ -81,6 +81,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
 }
 
 parameter_type_with_key! {
@@ -131,7 +132,7 @@ impl Config for Test {
 	type Event = Event;
 	type AMMPool = AMM;
 	type Currency = Currency;
-	type Resolver = exchange::Module<Test>;
+	type Resolver = exchange::Pallet<Test>;
 	type WeightInfo = ();
 }
 

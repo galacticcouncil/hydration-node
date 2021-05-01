@@ -5,7 +5,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'hydra-dx-runtime'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '10.0.0'
+version = '11.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -51,7 +51,7 @@ pallet-babe = {default-features = false, version = '3.0.0'}
 pallet-collective = {default-features = false, version = '3.0.0'}
 pallet-democracy = {default-features = false, version = '3.0.0'}
 pallet-election-provider-multi-phase = {default-features = false, version = '3.0.0'}
-pallet-elections-phragmen = {default-features = false, version = '3.0.0'}
+pallet-elections-phragmen = {default-features = false, version = '4.0.0'}
 pallet-im-online = {default-features = false, version = '3.0.0'}
 pallet-offences = {default-features = false, version = '3.0.0'}
 pallet-scheduler = {default-features = false, version = '3.0.0'}
@@ -88,6 +88,8 @@ sp-staking = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
 sp-transaction-pool = {default-features = false, version = '3.0.0'}
 sp-version = {default-features = false, version = '3.0.0'}
+sp-npos-elections = {version='3.0.0', default-features = false }
+
 
 [features]
 default = ['std']

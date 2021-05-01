@@ -11,7 +11,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 fn last_events(n: usize) -> Vec<TestEvent> {
-	frame_system::Module::<Test>::events()
+	frame_system::Pallet::<Test>::events()
 		.into_iter()
 		.rev()
 		.take(n)

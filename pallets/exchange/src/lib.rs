@@ -485,7 +485,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn generate_intention_id(account: &T::AccountId, c: u32, assets: &AssetPair) -> IntentionId<T> {
-		let b = <system::Module<T>>::current_block_number();
+		let b = <system::Pallet<T>>::current_block_number();
 		(c, &account, b, assets.ordered_pair().0, assets.ordered_pair().1).using_encoded(T::Hashing::hash)
 	}
 }

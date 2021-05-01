@@ -46,13 +46,13 @@ frame_support::construct_runtime!(
 		 NodeBlock = Block,
 		 UncheckedExtrinsic = UncheckedExtrinsic,
 		 {
-				 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-				 PaymentModule: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
-				 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
-				 Balances: pallet_balances::{Module,Call, Storage,Config<T>, Event<T>},
-				 Currencies: orml_currencies::{Module, Event<T>},
-				 Tokens: orml_tokens::{Module, Event<T>},
-				 AssetRegistry: pallet_asset_registry::{Module, Storage},
+				 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+				 PaymentPallet: pallet_transaction_multi_payment::{Pallet, Call, Storage, Event<T>},
+				 AMMPallet: pallet_amm::{Pallet, Call, Storage, Event<T>},
+				 Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
+				 Currencies: orml_currencies::{Pallet, Event<T>},
+				 Tokens: orml_tokens::{Pallet, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 		 }
 
 );
@@ -91,6 +91,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
+	type OnSetCode = ();
 }
 impl Config for Test {}
 
@@ -98,7 +99,7 @@ impl pallet_transaction_multi_payment::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
-	type AMMPool = AMMModule;
+	type AMMPool = AMMPallet;
 	type WeightInfo = ();
 	type WithdrawFeeForSetCurrency = PayForSetCurrency;
 	type WeightToFee = IdentityFee<Balance>;
@@ -121,7 +122,7 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_transaction_payment::Config for Test {
-	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), PaymentModule>;
+	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), PaymentPallet>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
