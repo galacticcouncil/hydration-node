@@ -50,7 +50,7 @@ fn initialize_pool<T: Config>(
 benchmarks! {
 	swap_currency {
 		let maker = funded_account::<T>("maker", 1);
-		initialize_pool::<T>(maker.clone(), ASSET_ID, 1000, Price::from(1))?;
+		initialize_pool::<T>(maker.clone(), ASSET_ID, 1000, Price::from_num(1))?;
 		MultiPaymentModule::<T>::add_new_member(&maker);
 		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID)?;
 

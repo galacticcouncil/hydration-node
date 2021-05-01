@@ -131,7 +131,7 @@ fn fee_payment_in_non_native_currency() {
 				HDX,
 				SUPPORTED_CURRENCY_WITH_BALANCE,
 				100000,
-				Price::from(1)
+				Price::from_num(1)
 			));
 			assert_ok!(PaymentPallet::set_currency(
 				Origin::signed(CHARLIE),
@@ -174,7 +174,7 @@ fn fee_payment_non_native_insufficient_balance() {
 				HDX,
 				SUPPORTED_CURRENCY_WITH_BALANCE,
 				100000,
-				Price::from(1)
+				Price::from_num(1)
 			));
 
 			assert_ok!(PaymentPallet::set_currency(

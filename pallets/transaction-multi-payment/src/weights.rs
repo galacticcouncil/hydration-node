@@ -40,87 +40,87 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for transaction_multi_payment.
 pub trait WeightInfo {
-    fn swap_currency() -> Weight;
-    fn set_currency() -> Weight;
-    fn add_currency() -> Weight;
-    fn remove_currency() -> Weight;
-    fn add_member() -> Weight;
-    fn remove_member() -> Weight;
+	fn swap_currency() -> Weight;
+	fn set_currency() -> Weight;
+	fn add_currency() -> Weight;
+	fn remove_currency() -> Weight;
+	fn add_member() -> Weight;
+	fn remove_member() -> Weight;
 }
 
 /// Weights for transaction_multi_payment using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-    fn swap_currency() -> Weight {
-        (132_983_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(6 as Weight))
-            .saturating_add(T::DbWeight::get().writes(4 as Weight))
-    }
-    fn set_currency() -> Weight {
-        (34_622_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(2 as Weight))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-    }
-    fn add_currency() -> Weight {
-        (26_292_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(2 as Weight))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-    }
-    fn remove_currency() -> Weight {
-        (26_232_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(2 as Weight))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-    }
-    fn add_member() -> Weight {
-        (23_021_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(1 as Weight))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-    }
-    fn remove_member() -> Weight {
-        (24_963_000 as Weight)
-            .saturating_add(T::DbWeight::get().reads(1 as Weight))
-            .saturating_add(T::DbWeight::get().writes(1 as Weight))
-    }
+	fn swap_currency() -> Weight {
+		(132_983_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(6 as Weight))
+			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+	}
+	fn set_currency() -> Weight {
+		(34_622_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn add_currency() -> Weight {
+		(26_292_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn remove_currency() -> Weight {
+		(26_232_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn add_member() -> Weight {
+		(23_021_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn remove_member() -> Weight {
+		(24_963_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    fn swap_currency() -> Weight {
-        (132_983_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(6 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(4 as Weight))
-    }
-    fn set_currency() -> Weight {
-        (34_622_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-    }
-    fn add_currency() -> Weight {
-        (26_292_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-    }
-    fn remove_currency() -> Weight {
-        (26_232_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-    }
-    fn add_member() -> Weight {
-        (23_021_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-    }
-    fn remove_member() -> Weight {
-        (24_963_000 as Weight)
-            .saturating_add(RocksDbWeight::get().reads(1 as Weight))
-            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
-    }
+	fn swap_currency() -> Weight {
+		(132_983_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+	}
+	fn set_currency() -> Weight {
+		(34_622_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn add_currency() -> Weight {
+		(26_292_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn remove_currency() -> Weight {
+		(26_232_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn add_member() -> Weight {
+		(23_021_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn remove_member() -> Weight {
+		(24_963_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
 }

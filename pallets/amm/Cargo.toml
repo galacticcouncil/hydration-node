@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'pallet-amm'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '3.0.0'
+version = '4.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
