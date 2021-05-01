@@ -1,11 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 
 use frame_support::sp_runtime::{
 	traits::{Hash, Zero},
-	DispatchError, FixedPointNumber,
+	DispatchError,
 };
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
@@ -156,10 +155,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(!amount.is_zero(), Error::<T>::CannotCreatePoolWithZeroLiquidity);
-			ensure!(
-				!initial_price.is_zero(),
-				Error::<T>::CannotCreatePoolWithZeroInitialPrice
-			);
+			ensure!(!(initial_price == 0), Error::<T>::CannotCreatePoolWithZeroInitialPrice);
 
 			ensure!(asset_a != asset_b, Error::<T>::CannotCreatePoolWithSameAssets);
 
@@ -173,7 +169,11 @@ pub mod pallet {
 			let asset_b_amount = initial_price
 				.checked_mul_int(amount)
 				.ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
-			let shares_added = if asset_a < asset_b { amount } else { asset_b_amount };
+			let shares_added = if asset_a < asset_b {
+				amount
+			} else {
+				asset_b_amount.to_num()
+			};
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &who) >= amount,
@@ -195,7 +195,7 @@ pub mod pallet {
 			<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
 
 			T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
+			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount.to_num())?;
 
 			T::Currency::deposit(share_token, &who, shares_added)?;
 
@@ -256,7 +256,7 @@ pub mod pallet {
 				Error::<T>::AssetBalanceLimitExceeded
 			);
 
-			ensure!(shares_added > Zero::zero(), Error::<T>::InvalidMintedLiquidity);
+			ensure!(shares_added > 0_u128, Error::<T>::InvalidMintedLiquidity);
 
 			let liquidity_amount = total_liquidity
 				.checked_add(shares_added)
