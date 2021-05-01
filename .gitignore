@@ -24,5 +24,11 @@
 .local
 
 .idea/
+.vscode/
 
 .env
+
+*.orig
+
+# Custom chainspec(frido)
+balice*

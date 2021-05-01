@@ -4,10 +4,10 @@ build = 'build.rs'
 description = 'Hydra DX'
 edition = '2018'
 homepage = 'https://github.com/galacticcouncil/hydradx-node'
-license = 'Unlicense'
+license = 'Apache 2.0'
 name = 'hydra-dx'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '3.0.0'
+version = '3.0.1'
 
 [[bin]]
 name = 'hydra-dx'
@@ -16,7 +16,7 @@ name = 'hydra-dx'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-build-script-utils = '2.0.1'
+hydra-dx-build-script-utils = {path = '../utils/build-script-utils'}
 
 [dependencies]
 jsonrpc-core = '15.0.0'
