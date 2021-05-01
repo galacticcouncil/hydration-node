@@ -1,6 +1,7 @@
 name: build-and-deploy
-#${GITHUB_REF##*/}
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  pull_request:
 
 jobs:
   pop-runner-instance:
@@ -8,55 +9,59 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+      IS_LOCAL: ${{ github.event.pull_request.head.repo.fork == false }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       EC2_SECRET: ${{ secrets.EC2_PWD }}
       S3_BACKEND_KEY_NAME: tf-state-${{ github.sha }}
+    outputs:
+      runner: ${{ steps.determine-runner.outputs.runner }}
     steps:
+      - id: determine-runner
+        name: Determine runner
+        run: if $IS_LOCAL; then echo "::set-output name=runner::${{ github.sha }}"; else echo "::set-output name=runner::ubuntu-latest"; fi;
       - name: checkout code
+        if: ${{ env.IS_LOCAL == 'true' }}
         uses: actions/checkout@v2.1.0
       - name: setup node
+        if: ${{ env.IS_LOCAL == 'true' }}
         uses: actions/setup-node@v2
         with:
           node-version: '14'
       - uses: hashicorp/setup-terraform@v1
+        if: ${{ env.IS_LOCAL == 'true' }}
         with:
           terraform_version: 0.12.25
-          #- name: Declare some variables
-          # id: vars
-          #shell: bash
-          #run: |
-          # echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-          #echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
       - name: rewrite tf state key
         id: tf-state-key
+        if: ${{ env.IS_LOCAL == 'true' }}
         working-directory: ./infrastructure
         run: sed -i 's/BRANCH_ACTOR_KEY/${{ env.S3_BACKEND_KEY_NAME }}/g' infra.tf
       - name: Terraform Init
+        if: ${{ env.IS_LOCAL == 'true' }}
         id: init
         working-directory: ./infrastructure
         run: terraform init
-        continue-on-error: false
-
       - name: Terraform plan
+        if: ${{ env.IS_LOCAL == 'true' }}
         id: plan
         working-directory: ./infrastructure
-        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}"
-        continue-on-error: false
+        run: terraform plan -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ steps.determine-runner.outputs.runner }}"
       - name: Terraform apply
+        if: ${{ env.IS_LOCAL == 'true' }}
         id: apply
         working-directory: ./infrastructure
-        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
-        continue-on-error: false
+        run: terraform apply -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ steps.determine-runner.outputs.runner }}" -auto-approve
       - name: Sleep for 20 seconds
+        if: ${{ env.IS_LOCAL == 'true' }}
         uses: jakejarvis/wait-action@master
         with:
           time: '20s'
 
   build:
-    runs-on: ${{ github.sha }}
     needs: pop-runner-instance
+    runs-on: ${{ needs.pop-runner-instance.outputs.runner }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -99,7 +104,7 @@ jobs:
     name: destroy infra
     runs-on: ubuntu-latest
     needs: build
-    if: always()
+    if: ${{ always() && github.event.pull_request.head.repo.fork == false }}
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -132,5 +137,5 @@ jobs:
       - name: Terraform apply
         id: apply
         working-directory: ./infrastructure
-        run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ github.sha }}" -auto-approve
+        run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ needs.pop-runner-instance.outputs.runner }}" -auto-approve
         continue-on-error: false
