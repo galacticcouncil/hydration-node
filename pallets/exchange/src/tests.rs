@@ -63,7 +63,7 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 		price.checked_mul_int(amount).unwrap().to_num()
 	};
 
-	expect_event(amm::Event::CreatePool(user, asset_a, asset_b, shares));
+	expect_event(amm::Event::PoolCreated(user, asset_a, asset_b, shares));
 
 	let pair_account = AMMModule::get_pair_id(AssetPair {
 		asset_in: asset_a,
@@ -175,7 +175,7 @@ fn sell_test_pool_finalization_states() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
-			amm::Event::Sell(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			amm::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -291,7 +291,7 @@ fn sell_test_standard() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
-			amm::Event::Sell(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			amm::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -384,7 +384,7 @@ fn sell_test_inverse_standard() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Sell(3, 2000, 3000, 2000000000000, 988138378978).into(),
+			amm::Event::SellExecuted(3, 2000, 3000, 2000000000000, 988138378978).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -575,7 +575,7 @@ fn sell_test_single_eth_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Sell(user_3, asset_a, asset_b, 2000000000000, 3913878975647).into(),
+			amm::Event::SellExecuted(user_3, asset_a, asset_b, 2000000000000, 3913878975647).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -584,7 +584,7 @@ fn sell_test_single_eth_sells() {
 				3913878975647,
 			)
 			.into(),
-			amm::Event::Sell(user_2, asset_a, asset_b, 1000000000000, 1899978143094).into(),
+			amm::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1899978143094).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -672,7 +672,7 @@ fn sell_test_single_dot_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Sell(user_3, asset_b, asset_a, 2000000000000, 988138378978).into(),
+			amm::Event::SellExecuted(user_3, asset_b, asset_a, 2000000000000, 988138378978).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -681,7 +681,7 @@ fn sell_test_single_dot_sells() {
 				988138378978,
 			)
 			.into(),
-			amm::Event::Sell(user_2, asset_b, asset_a, 1000000000000, 486772470162).into(),
+			amm::Event::SellExecuted(user_2, asset_b, asset_a, 1000000000000, 486772470162).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -766,7 +766,7 @@ fn sell_trade_limits_respected_for_matched_intention() {
 				},
 			)
 			.into(),
-			amm::Event::Sell(user_2, asset_a, asset_b, 1000000000000, 1976276757956).into(),
+			amm::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1976276757956).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -936,7 +936,7 @@ fn sell_test_single_multiple_sells() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 2000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1000000000).into(),
-			amm::Event::Sell(user_4, asset_a, asset_b, 500000000000, 993044854829).into(),
+			amm::Event::SellExecuted(user_4, asset_a, asset_b, 500000000000, 993044854829).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -945,7 +945,7 @@ fn sell_test_single_multiple_sells() {
 				993044854829,
 			)
 			.into(),
-			amm::Event::Sell(user_5, asset_b, asset_a, 1000000000000, 501482500933).into(),
+			amm::Event::SellExecuted(user_5, asset_b, asset_a, 1000000000000, 501482500933).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_5,
 				IntentionType::SELL,
@@ -1077,7 +1077,7 @@ fn sell_test_group_sells() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::Sell(user_4, asset_a, asset_b, 6000000000000, 11299443450697).into(),
+			amm::Event::SellExecuted(user_4, asset_a, asset_b, 6000000000000, 11299443450697).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1253,7 +1253,7 @@ fn sell_test_mixed_buy_sells() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::Sell(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			amm::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1262,7 +1262,7 @@ fn sell_test_mixed_buy_sells() {
 				15639353446528,
 			)
 			.into(),
-			amm::Event::Buy(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
+			amm::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1383,7 +1383,7 @@ fn discount_tests_no_discount() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::Sell(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			amm::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1392,7 +1392,7 @@ fn discount_tests_no_discount() {
 				15639353446528,
 			)
 			.into(),
-			amm::Event::Buy(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
+			amm::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1519,7 +1519,7 @@ fn discount_tests_with_discount() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::Sell(user_4, asset_a, asset_b, 8500000000000, 15658130468064).into(),
+			amm::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15658130468064).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1528,7 +1528,7 @@ fn discount_tests_with_discount() {
 				15658130468064,
 			)
 			.into(),
-			amm::Event::Buy(user_2, asset_b, asset_a, 5000000000000, 3027107914884).into(),
+			amm::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3027107914884).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1727,7 +1727,7 @@ fn buy_test_group_buys() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Buy(user_4, asset_a, asset_b, 7500000000000, 16251283991999).into(),
+			amm::Event::BuyExecuted(user_4, asset_a, asset_b, 7500000000000, 16251283991999).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::BUY,
@@ -1747,7 +1747,7 @@ fn buy_test_group_buys() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
-			amm::Event::Buy(user_3, asset_b, asset_a, 3000000000000, 1303930316730).into(),
+			amm::Event::BuyExecuted(user_3, asset_b, asset_a, 3000000000000, 1303930316730).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::BUY,
@@ -1991,7 +1991,7 @@ fn simple_sell_sell() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
-			amm::Event::Sell(2, 3000, 2000, 1500, 2994).into(),
+			amm::Event::SellExecuted(2, 3000, 2000, 1500, 2994).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1500, 2994).into(),
 		]);
 	});
@@ -2067,7 +2067,7 @@ fn simple_buy_buy() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Buy(2, 3000, 2000, 1500, 3007).into(),
+			amm::Event::BuyExecuted(2, 3000, 2000, 1500, 3007).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1500, 3007).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_3,
@@ -2166,7 +2166,7 @@ fn simple_sell_buy() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4).into(),
-			amm::Event::Sell(2, 3000, 2000, 1000, 1996).into(),
+			amm::Event::SellExecuted(2, 3000, 2000, 1000, 1996).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1000, 1996).into(),
 		]);
 	});
@@ -2243,7 +2243,7 @@ fn simple_buy_sell() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Buy(user_2, 3000, 2000, 1000, 2005).into(),
+			amm::Event::BuyExecuted(user_2, 3000, 2000, 1000, 2005).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1000, 2005).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_3,
@@ -2312,7 +2312,7 @@ fn single_sell_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Sell(2, 3000, 2000, 2000000000000, 3913878975647).into(),
+			amm::Event::SellExecuted(2, 3000, 2000, 2000000000000, 3913878975647).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -2378,7 +2378,7 @@ fn single_buy_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			amm::Event::Buy(2, 3000, 2000, 2000000000000, 4089962855627).into(),
+			amm::Event::BuyExecuted(2, 3000, 2000, 2000000000000, 4089962855627).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
