@@ -1,11 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 
 use frame_support::sp_runtime::{
 	traits::{Hash, Zero},
-	DispatchError, FixedPointNumber,
+	DispatchError,
 };
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
@@ -107,24 +106,23 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// AddLiquidity
-		/// who, asset_a, asset_b, amount_a, amount_b
-		AddLiquidity(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// New liquidity was provided to the pool. [who, asset_a, asset_b, amount_a, amount_b]
+		LiquidityAdded(T::AccountId, AssetId, AssetId, Balance, Balance),
 
-		/// who, asset_a, asset_b, shares
-		RemoveLiquidity(T::AccountId, AssetId, AssetId, Balance),
+		/// Liquidity was removed from the pool. [who, asset_a, asset_b, shares]
+		LiquidityRemoved(T::AccountId, AssetId, AssetId, Balance),
 
-		/// Pool creation - who, asset a, asset b, liquidity
-		CreatePool(T::AccountId, AssetId, AssetId, Balance),
+		/// Pool was created. [who, asset a, asset b, initial shares amount]
+		PoolCreated(T::AccountId, AssetId, AssetId, Balance),
 
-		/// Pool destroyed - who, asset a, asset b
+		/// Pool was destroyed. [who, asset a, asset b]
 		PoolDestroyed(T::AccountId, AssetId, AssetId),
 
-		/// Sell token - who, asset in, asset out, amount, sale price
-		Sell(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// Asset sale executed. [who, asset in, asset out, amount, sale price]
+		SellExecuted(T::AccountId, AssetId, AssetId, Balance, Balance),
 
-		/// Buy token - who, asset out, asset in, amount, buy price
-		Buy(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// Asset purchase executed. [who, asset out, asset in, amount, buy price]
+		BuyExecuted(T::AccountId, AssetId, AssetId, Balance, Balance),
 	}
 
 	/// Asset id storage for each shared token
@@ -156,10 +154,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(!amount.is_zero(), Error::<T>::CannotCreatePoolWithZeroLiquidity);
-			ensure!(
-				!initial_price.is_zero(),
-				Error::<T>::CannotCreatePoolWithZeroInitialPrice
-			);
+			ensure!(!(initial_price == 0), Error::<T>::CannotCreatePoolWithZeroInitialPrice);
 
 			ensure!(asset_a != asset_b, Error::<T>::CannotCreatePoolWithSameAssets);
 
@@ -173,7 +168,11 @@ pub mod pallet {
 			let asset_b_amount = initial_price
 				.checked_mul_int(amount)
 				.ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
-			let shares_added = if asset_a < asset_b { amount } else { asset_b_amount };
+			let shares_added = if asset_a < asset_b {
+				amount
+			} else {
+				asset_b_amount.to_num()
+			};
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &who) >= amount,
@@ -195,13 +194,13 @@ pub mod pallet {
 			<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
 
 			T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
+			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount.to_num())?;
 
 			T::Currency::deposit(share_token, &who, shares_added)?;
 
 			<TotalLiquidity<T>>::insert(&pair_account, shares_added);
 
-			Self::deposit_event(Event::CreatePool(who, asset_a, asset_b, shares_added));
+			Self::deposit_event(Event::PoolCreated(who, asset_a, asset_b, shares_added));
 
 			Ok(().into())
 		}
@@ -256,7 +255,7 @@ pub mod pallet {
 				Error::<T>::AssetBalanceLimitExceeded
 			);
 
-			ensure!(shares_added > Zero::zero(), Error::<T>::InvalidMintedLiquidity);
+			ensure!(shares_added > 0_u128, Error::<T>::InvalidMintedLiquidity);
 
 			let liquidity_amount = total_liquidity
 				.checked_add(shares_added)
@@ -276,7 +275,7 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
 
-			Self::deposit_event(Event::AddLiquidity(who, asset_a, asset_b, amount_a, amount_b_required));
+			Self::deposit_event(Event::LiquidityAdded(who, asset_a, asset_b, amount_a, amount_b_required));
 
 			Ok(().into())
 		}
@@ -348,7 +347,7 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_left);
 
-			Self::deposit_event(Event::RemoveLiquidity(who.clone(), asset_a, asset_b, liquidity_amount));
+			Self::deposit_event(Event::LiquidityRemoved(who.clone(), asset_a, asset_b, liquidity_amount));
 
 			if liquidity_left == 0 {
 				<ShareToken<T>>::remove(&pair_account);
@@ -584,7 +583,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 				transfer.amount_out,
 			)?;
 
-			Self::deposit_event(Event::<T>::Sell(
+			Self::deposit_event(Event::<T>::SellExecuted(
 				transfer.origin.clone(),
 				transfer.assets.asset_in,
 				transfer.assets.asset_out,
@@ -705,7 +704,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 				transfer.amount_out,
 			)?;
 
-			Self::deposit_event(Event::<T>::Buy(
+			Self::deposit_event(Event::<T>::BuyExecuted(
 				transfer.origin.clone(),
 				transfer.assets.asset_out,
 				transfer.assets.asset_in,
