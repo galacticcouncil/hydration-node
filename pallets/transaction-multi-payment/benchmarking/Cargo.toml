@@ -27,7 +27,7 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 # Local dependencies
 pallet-amm = {path = '../../amm', default-features = false}
 pallet-asset-registry = {path = '../../asset-registry', default-features = false}
-pallet-balances = {path = '../../balances', default-features = false}
+pallet-balances = {default-features = false}
 pallet-transaction-multi-payment = {path = '../../transaction-multi-payment', default-features = false}
 primitives = {path = '../../../primitives', default-features = false}
 
