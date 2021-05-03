@@ -306,7 +306,7 @@ impl<T: Config> Pallet<T> {
 	/// Execute a trade to buy HDX and sell selected currency.
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
-		let fee_currency = match Module::<T>::get_currency(who) {
+		let fee_currency = match Pallet::<T>::get_currency(who) {
 			Some(c) => c,
 			_ => CORE_ASSET_ID,
 		};
@@ -431,6 +431,7 @@ where
 			// merge the imbalance caused by paying the fees and refunding parts of it again.
 			let adjusted_paid = paid
 				.offset(refund_imbalance)
+				.same()
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 			// Call someone else to handle the imbalance (fee and tip separately)
 			let imbalances = adjusted_paid.split(tip);

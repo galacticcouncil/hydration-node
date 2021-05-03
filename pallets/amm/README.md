@@ -1,5 +1,6 @@
 ### AMM XYK pallet
 
+<<<<<<< HEAD
 ## Overview
 AMM pallet provides functionality for managing liquidity pool and executing trades.
 
