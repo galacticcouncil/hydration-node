@@ -132,7 +132,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 8,
+	spec_version: 10,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -162,34 +162,34 @@ impl Filter<Call> for BaseFilter {
 		match call {
 			Call::AuthorityDiscovery(_)
 			| Call::Authorship(_)
-			| Call::Balances(_)
 			| Call::Babe(_)
-			| Call::Claims(_)
-			| Call::Council(_)
 			| Call::Democracy(_)
 			| Call::ElectionProviderMultiPhase(_)
-			| Call::Elections(_)
 			| Call::Grandpa(_)
 			| Call::ImOnline(_)
-			| Call::RandomnessCollectiveFlip(_)
-			| Call::Scheduler(_)
-			| Call::Session(_)
-			| Call::Staking(_)
-			| Call::System(_)
-			| Call::TechnicalCommittee(_)
-			| Call::Timestamp(_)
-			| Call::Tips(_)
-			| Call::Treasury(_)
-			| Call::Identity(_)
 			| Call::Offences(_)
+			| Call::RandomnessCollectiveFlip(_)
+			| Call::Session(_)
+			| Call::System(_)
+			| Call::Timestamp(_)
+			| Call::Treasury(_)
 			| Call::Sudo(_) => true,
 
 			Call::AMM(_)
 			| Call::AssetRegistry(_)
+			| Call::Balances(_)
+			| Call::Claims(_)
+			| Call::Council(_)
 			| Call::Currencies(_)
+			| Call::Elections(_)
 			| Call::Exchange(_)
 			| Call::Faucet(_)
+			| Call::Identity(_)
 			| Call::MultiTransactionPayment(_)
+			| Call::Scheduler(_)
+			| Call::Staking(_)
+			| Call::TechnicalCommittee(_)
+			| Call::Tips(_)
 			| Call::Tokens(_) => false,
 		}
 	}
