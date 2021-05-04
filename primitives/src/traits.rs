@@ -34,7 +34,7 @@ pub struct AMMTransfer<AccountId, AssetPair, Balance> {
 
 /// Traits for handling AMM Pool trades.
 pub trait AMM<AccountId, AssetId, AssetPair, Amount> {
-	/// Check if both assets exists in a pool.
+	/// Check if both assets exist in a pool.
 	fn exists(assets: AssetPair) -> bool;
 
 	/// Return pair account.

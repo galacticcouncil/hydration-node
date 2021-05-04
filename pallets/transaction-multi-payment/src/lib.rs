@@ -187,11 +187,11 @@ pub mod pallet {
 		/// This allows to set a currency for an account in which all transaction fees will be paid.
 		/// Account balance cannot be zero.
 		///
-		/// Chosen currency must be whitelist in the list of accepted currencies.
+		/// Chosen currency must be in the list of accepted currencies.
 		///
 		/// When currency is set, fixed fee is withdrawn from the account to pay for the currency change
 		///
-		/// Emihts `CurrencySet` event when successful.
+		/// Emits `CurrencySet` event when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::set_currency(), DispatchClass::Normal, Pays::No))]
 		#[transactional]
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
@@ -220,7 +220,7 @@ pub mod pallet {
 		///
 		/// Only member can perform this action.
 		///
-		/// Currency must not be already accepted. Core asset id cannot be exp[licitly added.
+		/// Currency must not be already accepted. Core asset id cannot be explicitly added.
 		///
 		/// Emits `CurrencyAdded` event when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::add_currency(), DispatchClass::Normal, Pays::No))]
