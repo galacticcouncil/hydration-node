@@ -426,7 +426,7 @@ impl pallet_amm::Config for Runtime {
 	type Event = Event;
 	type AssetPairAccountId = pallet_amm::AssetPairAccountId<Self>;
 	type Currency = Currencies;
-	type HDXAssetId = HDXAssetId;
+	type NativeAssetId = HDXAssetId;
 	type WeightInfo = pallet_amm::weights::HydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
 }

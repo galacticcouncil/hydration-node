@@ -4496,7 +4496,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-multi-payment-benchmarking"
-version = "3.0.0"
+version = "3.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4664,7 +4664,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "3.0.1"
+version = "3.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
