@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydra-dx'
 license = 'Apache 2.0'
 name = 'pallet-transaction-multi-payment'
 repository = 'https://github.com/galacticcouncil/hydra-dx'
-version = '3.0.1'
+version = '3.0.2'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
