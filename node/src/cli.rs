@@ -1,3 +1,5 @@
+#![allow(clippy::upper_case_acronyms)]
+
 use structopt::StructOpt;
 use std::{fmt, str::FromStr};
 
