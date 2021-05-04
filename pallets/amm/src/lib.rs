@@ -1,3 +1,29 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! # AMM Module
+//!
+//! ## Overview
+//!
+//! AMM pallet provides functionality for managing liquidity pool and executing trades.
+//!
+//! This pallet implements AMM Api trait therefore it is possible to plug this pool implementation
+//! into the exchange pallet.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
@@ -69,38 +95,64 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Create pool errors
+		/// It is not allowed to create a pool between same assets.
 		CannotCreatePoolWithSameAssets,
+
+		/// It is not allowed to create a pool with zero initial liquidity.
 		CannotCreatePoolWithZeroLiquidity,
+
+		/// It is not allowed to create a pool with zero initial price.
 		CannotCreatePoolWithZeroInitialPrice,
+
+		/// Overflow
 		CreatePoolAssetAmountInvalid,
 
-		/// Add / Remove liquidity errors
+		/// It is not allowed to remove zero liquidity.
 		CannotRemoveLiquidityWithZero,
+
+		/// It is not allowed to add zero liquidity.
 		CannotAddZeroLiquidity,
+
+		/// Overflow
 		InvalidMintedLiquidity, // No tests - but it is currently not possible this error to occur due to previous checks in the code.
+
+		/// Overflow
 		InvalidLiquidityAmount, // no tests
 
-		/// Balance errors
+		/// Given trading limit has been exceeded (Sell) or has Not been reached (buy).
 		AssetBalanceLimitExceeded,
-		InsufficientAssetBalance,
-		InsufficientPoolAssetBalance, // No tests
-		InsufficientHDXBalance,       // No tests
 
-		/// Pool existence errors
+		/// Asset balance is not sufficient.
+		InsufficientAssetBalance,
+
+		/// Not enough asset liquidity in the pool.
+		InsufficientPoolAssetBalance, // No tests
+
+		/// Not enough core asset liquidity in the pool.
+		InsufficientHDXBalance, // No tests
+
+		/// Liquidity pool for given assets does not exist.
 		TokenPoolNotFound,
+
+		/// Liquidity pool for given assets already exists.
 		TokenPoolAlreadyExists,
 
-		/// Calculation errors
+		/// Overflow
 		AddAssetAmountInvalid, // no tests
+		/// Overflow
 		RemoveAssetAmountInvalid, // no tests
-		SellAssetAmountInvalid,   // no tests
-		BuyAssetAmountInvalid,    // no tests
-		FeeAmountInvalid,         // no tests
+		/// Overflow
+		SellAssetAmountInvalid, // no tests
+		/// Overflow
+		BuyAssetAmountInvalid, // no tests
+		/// Overflow
+		FeeAmountInvalid, // no tests
+		/// Overflow
 		CannotApplyDiscount,
 
-		/// Trading Limit errors
+		/// Max fraction of pool to buy in single transaction has been exceeded.
 		MaxOutRatioExceeded,
+		/// Max fraction of pool to sell in single transaction has been exceeded.
 		MaxInRatioExceeded,
 	}
 
@@ -126,23 +178,32 @@ pub mod pallet {
 		BuyExecuted(T::AccountId, AssetId, AssetId, Balance, Balance),
 	}
 
-	/// Asset id storage for each shared token
+	/// Asset id storage for shared pool tokens
 	#[pallet::storage]
 	#[pallet::getter(fn share_token)]
 	pub type ShareToken<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, AssetId, ValueQuery>;
 
-	/// Total liquidity for shared token
+	/// Total liquidity in a pool.
 	#[pallet::storage]
 	#[pallet::getter(fn total_liquidity)]
 	pub type TotalLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Balance, ValueQuery>;
 
-	/// Assair pair for each shared token in the pool
+	/// Asset pair in a pool.
 	#[pallet::storage]
 	#[pallet::getter(fn pool_assets)]
 	pub type PoolAssets<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (AssetId, AssetId), ValueQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Create new pool for given asset pair.
+		///
+		/// Registers new pool for given asset pair (`asset a` and `asset b`) in asset registry.
+		/// Asset registry creates new id or returns previously created one if such pool existed before.
+		///
+		/// Pool is created with initial liquidity provided by `origin`.
+		/// Shares are issued with specified initial price and represents proportion of asset in the pool.
+		///
+		/// Emits `PoolCreated` event when successful.
 		#[pallet::weight(<T as Config>::WeightInfo::create_pool())]
 		#[transactional]
 		pub fn create_pool(
@@ -206,6 +267,11 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Add liquidity to previously created asset pair pool.
+		///
+		/// Shares are issued with current price.
+		///
+		/// Emits `LiquidityAdded` event when successful.
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
 		#[transactional]
 		pub fn add_liquidity(
@@ -276,11 +342,23 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
 
-			Self::deposit_event(Event::LiquidityAdded(who, asset_a, asset_b, amount_a, amount_b_required));
+			Self::deposit_event(Event::LiquidityAdded(
+				who,
+				asset_a,
+				asset_b,
+				amount_a,
+				amount_b_required,
+			));
 
 			Ok(().into())
 		}
 
+		/// Remove liquidity from specific liquidity pool in the form of burning shares.
+		///
+		/// If liquidity in the pool reaches 0, it is destroyed.
+		///
+		/// Emits 'LiquidityRemoved' when successful.
+		/// Emits 'PoolDestroyed' when pool is destroyed.
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
 		#[transactional]
 		pub fn remove_liquidity(
@@ -360,6 +438,13 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Trade asset in for asset out.
+		///
+		/// Executes a swap of `asset_in` for `asset_out`. Price is determined by the liquidity pool.
+		///
+		/// `max_limit` - minimum amount of `asset_out` / amount of asset_out to be obtained from the pool in exchange for `asset_in`.
+		///
+		/// Emits `SellExecuted` when successful.
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -376,6 +461,13 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Trade asset in for asset out.
+		///
+		/// Executes a swap of `asset_in` for `asset_out`. Price is determined by the liquidity pool.
+		///
+		/// `max_limit` - maximum amount of `asset_in` to be sold in exchange for `asset_out`.
+		///
+		/// Emits `BuyExecuted` when successful.
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		pub fn buy(
 			origin: OriginFor<T>,
@@ -419,6 +511,7 @@ where
 }
 
 impl<T: Config> Pallet<T> {
+	/// Return balance of each asset in selected liquidity pool.
 	pub fn get_pool_balances(pool_address: T::AccountId) -> Option<Vec<(AssetId, Balance)>> {
 		let mut balances = Vec::new();
 
@@ -450,6 +543,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+// Implementation of AMM API which makes possible to plug the AMM pool into the exchange pallet.
 impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	fn exists(assets: AssetPair) -> bool {
 		let pair_account = T::AssetPairAccountId::from_assets(assets.asset_in, assets.asset_out);
@@ -483,6 +577,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			.unwrap_or_else(|_| Balance::zero())
 	}
 
+	/// Validate a sell. Perform all necessary checks and calculations.
+	/// No storage changes are performed yet.
+	///
+	/// Return `AMMTransfer` with all info needed to execute the transaction.
 	fn validate_sell(
 		who: &T::AccountId,
 		assets: AssetPair,
@@ -562,6 +660,9 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		Ok(transfer)
 	}
 
+	/// Execute sell. validate_sell must be called first.
+	/// Perform necessary storage/state changes.
+	/// Note : the execution should not return error as everything was previously verified and validated.
 	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
@@ -596,6 +697,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		})
 	}
 
+	/// Validate a buy. Perform all necessary checks and calculations.
+	/// No storage changes are performed yet.
+	///
+	/// Return `AMMTransfer` with all info needed to execute the transaction.
 	fn validate_buy(
 		who: &T::AccountId,
 		assets: AssetPair,
@@ -683,6 +788,9 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		Ok(transfer)
 	}
 
+	/// Execute buy. validate_buy must be called first.
+	/// Perform necessary storage/state changes.
+	/// Note : the execution should not return error as everything was previously verified and validated.
 	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 

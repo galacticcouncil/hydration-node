@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 pub const INTENTION_AMOUNTS: [u32; 1000] = [
 	16632, 35979, 81119, 57522, 5693, 2576, 69100, 9570, 60695, 52377, 60305, 28056, 22327, 5495, 1453, 54753, 24070,
 	19693, 63859, 8695, 17029, 88735, 2056, 59702, 33969, 12853, 86656, 53372, 16402, 6204, 14548, 16947, 39328, 90622,

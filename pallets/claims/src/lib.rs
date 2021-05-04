@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
@@ -111,6 +128,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Claim xHDX by providing signed message with Ethereum address.
 		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
 		pub fn claim(origin: OriginFor<T>, ethereum_signature: EcdsaSignature) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
@@ -125,6 +143,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Check if a claim is valid.
+	///
+	/// Recovers Ethereum address from a message signature and checks whether such address
+	/// can make a valid claims and has not been already claimed.
 	fn validate_claim(
 		who: &T::AccountId,
 		signature: &EcdsaSignature,
@@ -146,6 +168,11 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Process previously verified claim.
+	///
+	/// Deposits the balance into the claiming account.
+	///
+	/// Emits `Claimed` when successfully.
 	fn process_claim(dest: T::AccountId, balance_due: BalanceOf<T>, address: EthereumAddress) -> DispatchResult {
 		let imbalance = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
 		ensure!(

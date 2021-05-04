@@ -2372,7 +2372,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -2449,7 +2449,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "11.0.0"
+version = "12.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
