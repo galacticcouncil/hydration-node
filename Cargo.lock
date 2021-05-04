@@ -849,7 +849,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "10.0.0"
+version = "13.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -2449,7 +2449,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "12.0.0"
+version = "13.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -8107,7 +8107,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydra-dx-runtime"
-version = "11.0.0"
+version = "13.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -8126,7 +8126,7 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
- "pallet-balances 3.0.1",
+ "pallet-balances 3.0.0",
  "pallet-claims",
  "pallet-collective",
  "pallet-democracy",

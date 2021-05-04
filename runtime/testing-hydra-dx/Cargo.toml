@@ -37,7 +37,6 @@ pallet-faucet = {path = '../../pallets/faucet', default-features = false}
 pallet-multi-payment-benchmarking = {path = '../../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true}
 pallet-transaction-multi-payment = {path = '../../pallets/transaction-multi-payment', default-features = false}
 primitives = {path = '../../primitives', default-features = false}
-pallet-balances = {path = '../../pallets/balances', default-features = false}
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
 
 # ORML dependencies
@@ -49,6 +48,7 @@ orml-traits = {default-features = false, version = '0.4.1-dev'}
 pallet-authority-discovery = {default-features = false, version = '3.0.0'}
 pallet-authorship = {default-features = false, version = '3.0.0'}
 pallet-babe = {default-features = false, version = '3.0.0'}
+pallet-balances = {default-features = false, version = '3.0.0'}
 pallet-collective = {default-features = false, version = '3.0.0'}
 pallet-democracy = {default-features = false, version = '3.0.0'}
 pallet-election-provider-multi-phase = {default-features = false, version = '3.0.0'}
