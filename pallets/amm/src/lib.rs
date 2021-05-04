@@ -17,8 +17,6 @@ use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 use primitives::Amount;
 
-use orml_utilities::with_transaction_result;
-
 #[cfg(test)]
 mod mock;
 
@@ -57,12 +55,14 @@ pub mod pallet {
 		type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = AssetId, Balance = Balance, Amount = Amount>;
 
 		/// Native Asset Id
-		type HDXAssetId: Get<AssetId>;
+		#[pallet::constant]
+		type NativeAssetId: Get<AssetId>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 
 		/// Trading fee rate
+		#[pallet::constant]
 		type GetExchangeFee: Get<fee::Fee>;
 	}
 
@@ -83,8 +83,8 @@ pub mod pallet {
 		/// Balance errors
 		AssetBalanceLimitExceeded,
 		InsufficientAssetBalance,
-		InsufficientPoolAssetBalance, // No tests
-		InsufficientHDXBalance,       // No tests
+		InsufficientPoolAssetBalance,      // No tests
+		InsufficientNativeCurrencyBalance, // No tests
 
 		/// Pool existence errors
 		TokenPoolNotFound,
@@ -275,7 +275,13 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, liquidity_amount);
 
-			Self::deposit_event(Event::LiquidityAdded(who, asset_a, asset_b, amount_a, amount_b_required));
+			Self::deposit_event(Event::LiquidityAdded(
+				who,
+				asset_a,
+				asset_b,
+				amount_a,
+				amount_b_required,
+			));
 
 			Ok(().into())
 		}
@@ -430,22 +436,18 @@ impl<T: Config> Pallet<T> {
 		Some(balances)
 	}
 
-	fn calculate_fees(amount: Balance, discount: bool, hdx_fee: &mut Balance) -> Result<Balance, DispatchError> {
-		match discount {
-			true => {
-				let transfer_fee = amount
-					.discounted_fee()
-					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?;
-				*hdx_fee = transfer_fee;
-				Ok(transfer_fee)
-			}
-			false => {
-				*hdx_fee = 0;
-				Ok(amount
-					.just_fee(T::GetExchangeFee::get())
-					.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
-			}
-		}
+	/// Calculate discounted trade fee
+	fn calculate_discounted_fee(amount: Balance) -> Result<Balance, DispatchError> {
+		Ok(amount
+			.discounted_fee()
+			.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
+	}
+
+	/// Calculate trade fee
+	fn calculate_fee(amount: Balance) -> Result<Balance, DispatchError> {
+		Ok(amount
+			.just_fee(T::GetExchangeFee::get())
+			.ok_or::<Error<T>>(Error::<T>::FeeAmountInvalid)?)
 	}
 }
 
@@ -460,12 +462,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	}
 
 	fn get_pool_assets(pool_account_id: &T::AccountId) -> Option<Vec<AssetId>> {
-		match <PoolAssets<T>>::contains_key(pool_account_id) {
-			true => {
-				let assets = Self::pool_assets(pool_account_id);
-				Some(vec![assets.0, assets.1])
-			}
-			false => None,
+		if <PoolAssets<T>>::contains_key(pool_account_id) {
+			let assets = Self::pool_assets(pool_account_id);
+			Some(vec![assets.0, assets.1])
+		} else {
+			None
 		}
 	}
 
@@ -496,12 +497,12 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		ensure!(Self::exists(assets), Error::<T>::TokenPoolNotFound);
 
-		// If discount, pool for Sell asset and HDX must exist
+		// If discount, pool for Sell asset and native asset must exist
 		if discount {
 			ensure!(
 				Self::exists(AssetPair {
 					asset_in: assets.asset_in,
-					asset_out: T::HDXAssetId::get()
+					asset_out: T::NativeAssetId::get()
 				}),
 				Error::<T>::CannotApplyDiscount
 			);
@@ -514,9 +515,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		ensure!(amount <= asset_in_total / MAX_IN_RATIO, Error::<T>::MaxInRatioExceeded);
 
-		let mut hdx_amount = 0;
-
-		let transfer_fee = Self::calculate_fees(amount, discount, &mut hdx_amount)?;
+		let transfer_fee = if discount {
+			Self::calculate_discounted_fee(amount)?
+		} else {
+			Self::calculate_fee(amount)?
+		};
 
 		let sale_price = hydra_dx_math::calculate_out_given_in(asset_in_total, asset_out_total, amount - transfer_fee)
 			.map_err(|_| Error::<T>::SellAssetAmountInvalid)?;
@@ -525,26 +528,27 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		ensure!(min_bought <= sale_price, Error::<T>::AssetBalanceLimitExceeded);
 
-		let discount_fee = if discount && hdx_amount > 0 {
-			let hdx_asset = T::HDXAssetId::get();
+		let discount_fee = if discount {
+			let native_asset_id = T::NativeAssetId::get();
 
-			let hdx_pair_account = Self::get_pair_id(AssetPair {
+			let native_pair_account = Self::get_pair_id(AssetPair {
 				asset_in: assets.asset_in,
-				asset_out: hdx_asset,
+				asset_out: native_asset_id,
 			});
 
-			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
-			let asset_reserve = T::Currency::free_balance(assets.asset_in, &hdx_pair_account);
+			let native_asset_reserve = T::Currency::free_balance(native_asset_id, &native_pair_account);
+			let asset_reserve = T::Currency::free_balance(assets.asset_in, &native_pair_account);
 
-			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
-				.map_err(|_| Error::<T>::CannotApplyDiscount)?;
+			let native_fee_spot_price =
+				hydra_dx_math::calculate_spot_price(asset_reserve, native_asset_reserve, transfer_fee)
+					.map_err(|_| Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
-				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,
-				Error::<T>::InsufficientHDXBalance
+				T::Currency::free_balance(native_asset_id, who) >= native_fee_spot_price,
+				Error::<T>::InsufficientNativeCurrencyBalance
 			);
 
-			hdx_fee_spot_price
+			native_fee_spot_price
 		} else {
 			Balance::zero()
 		};
@@ -561,38 +565,37 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		Ok(transfer)
 	}
 
+	#[transactional]
 	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
-		with_transaction_result(|| {
-			if transfer.discount && transfer.discount_amount > 0u128 {
-				let hdx_asset = T::HDXAssetId::get();
-				T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
-			}
+		if transfer.discount && transfer.discount_amount > 0u128 {
+			let native_asset = T::NativeAssetId::get();
+			T::Currency::withdraw(native_asset, &transfer.origin, transfer.discount_amount)?;
+		}
 
-			T::Currency::transfer(
-				transfer.assets.asset_in,
-				&transfer.origin,
-				&pair_account,
-				transfer.amount,
-			)?;
-			T::Currency::transfer(
-				transfer.assets.asset_out,
-				&pair_account,
-				&transfer.origin,
-				transfer.amount_out,
-			)?;
+		T::Currency::transfer(
+			transfer.assets.asset_in,
+			&transfer.origin,
+			&pair_account,
+			transfer.amount,
+		)?;
+		T::Currency::transfer(
+			transfer.assets.asset_out,
+			&pair_account,
+			&transfer.origin,
+			transfer.amount_out,
+		)?;
 
-			Self::deposit_event(Event::<T>::SellExecuted(
-				transfer.origin.clone(),
-				transfer.assets.asset_in,
-				transfer.assets.asset_out,
-				transfer.amount,
-				transfer.amount_out,
-			));
+		Self::deposit_event(Event::<T>::SellExecuted(
+			transfer.origin.clone(),
+			transfer.assets.asset_in,
+			transfer.assets.asset_out,
+			transfer.amount,
+			transfer.amount_out,
+		));
 
-			Ok(())
-		})
+		Ok(())
 	}
 
 	fn validate_buy(
@@ -616,20 +619,22 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Error::<T>::MaxOutRatioExceeded
 		);
 
-		// If discount, pool for Sell asset and HDX must exist
+		// If discount, pool for Sell asset and native asset must exist
 		if discount {
 			ensure!(
 				Self::exists(AssetPair {
 					asset_in: assets.asset_out,
-					asset_out: T::HDXAssetId::get()
+					asset_out: T::NativeAssetId::get()
 				}),
 				Error::<T>::CannotApplyDiscount
 			);
 		}
 
-		let mut hdx_amount = 0;
-
-		let transfer_fee = Self::calculate_fees(amount, discount, &mut hdx_amount)?;
+		let transfer_fee = if discount {
+			Self::calculate_discounted_fee(amount)?
+		} else {
+			Self::calculate_fee(amount)?
+		};
 
 		ensure!(
 			amount + transfer_fee <= asset_out_reserve,
@@ -647,25 +652,26 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		ensure!(max_limit >= buy_price, Error::<T>::AssetBalanceLimitExceeded);
 
-		let discount_fee = if discount && hdx_amount > 0 {
-			let hdx_asset = T::HDXAssetId::get();
+		let discount_fee = if discount {
+			let native_asset_id = T::NativeAssetId::get();
 
-			let hdx_pair_account = Self::get_pair_id(AssetPair {
+			let native_pair_account = Self::get_pair_id(AssetPair {
 				asset_in: assets.asset_out,
-				asset_out: hdx_asset,
+				asset_out: native_asset_id,
 			});
 
-			let hdx_reserve = T::Currency::free_balance(hdx_asset, &hdx_pair_account);
-			let asset_reserve = T::Currency::free_balance(assets.asset_out, &hdx_pair_account);
+			let native_asset_reserve = T::Currency::free_balance(native_asset_id, &native_pair_account);
+			let asset_reserve = T::Currency::free_balance(assets.asset_out, &native_pair_account);
 
-			let hdx_fee_spot_price = hydra_dx_math::calculate_spot_price(asset_reserve, hdx_reserve, hdx_amount)
-				.map_err(|_| Error::<T>::CannotApplyDiscount)?;
+			let native_fee_spot_price =
+				hydra_dx_math::calculate_spot_price(asset_reserve, native_asset_reserve, transfer_fee)
+					.map_err(|_| Error::<T>::CannotApplyDiscount)?;
 
 			ensure!(
-				T::Currency::free_balance(hdx_asset, who) >= hdx_fee_spot_price,
-				Error::<T>::InsufficientHDXBalance
+				T::Currency::free_balance(native_asset_id, who) >= native_fee_spot_price,
+				Error::<T>::InsufficientNativeCurrencyBalance
 			);
-			hdx_fee_spot_price
+			native_fee_spot_price
 		} else {
 			Balance::zero()
 		};
@@ -682,37 +688,36 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		Ok(transfer)
 	}
 
+	#[transactional]
 	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
-		with_transaction_result(|| {
-			if transfer.discount && transfer.discount_amount > 0 {
-				let hdx_asset = T::HDXAssetId::get();
-				T::Currency::withdraw(hdx_asset, &transfer.origin, transfer.discount_amount)?;
-			}
+		if transfer.discount && transfer.discount_amount > 0 {
+			let native_asset = T::NativeAssetId::get();
+			T::Currency::withdraw(native_asset, &transfer.origin, transfer.discount_amount)?;
+		}
 
-			T::Currency::transfer(
-				transfer.assets.asset_out,
-				&pair_account,
-				&transfer.origin,
-				transfer.amount,
-			)?;
-			T::Currency::transfer(
-				transfer.assets.asset_in,
-				&transfer.origin,
-				&pair_account,
-				transfer.amount_out,
-			)?;
+		T::Currency::transfer(
+			transfer.assets.asset_out,
+			&pair_account,
+			&transfer.origin,
+			transfer.amount,
+		)?;
+		T::Currency::transfer(
+			transfer.assets.asset_in,
+			&transfer.origin,
+			&pair_account,
+			transfer.amount_out,
+		)?;
 
-			Self::deposit_event(Event::<T>::BuyExecuted(
-				transfer.origin.clone(),
-				transfer.assets.asset_out,
-				transfer.assets.asset_in,
-				transfer.amount,
-				transfer.amount_out,
-			));
+		Self::deposit_event(Event::<T>::BuyExecuted(
+			transfer.origin.clone(),
+			transfer.assets.asset_out,
+			transfer.assets.asset_in,
+			transfer.amount,
+			transfer.amount_out,
+		));
 
-			Ok(())
-		})
+		Ok(())
 	}
 }
