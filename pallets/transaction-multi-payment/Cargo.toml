@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydra-dx'
 license = 'Apache 2.0'
 name = 'pallet-transaction-multi-payment'
 repository = 'https://github.com/galacticcouncil/hydra-dx'
-version = '3.0.1'
+version = '3.0.2'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -26,8 +26,6 @@ primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependecies
-pallet-amm = {path = '../amm', default-features = false}
-pallet-asset-registry = {path = '../asset-registry', default-features = false}
 primitives = {path = '../../primitives', default-features = false}
 
 # ORML dependencies
@@ -43,12 +41,13 @@ sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
 
-pallet-balances = {path = '../balances', default-features = false, version = '3.0.0'}
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}
 
 [dev-dependencies]
+pallet-balances = {default-features = false, version = '3.0.0'}
 orml-currencies = {default-features = false, version = "0.4.1-dev"}
-pallet-transaction-payment = {default-features = false, version = '3.0.0'}
+pallet-amm = {path = '../amm', default-features = false}
+pallet-asset-registry = {path = '../asset-registry', default-features = false}
 sp-io = {default-features = false, version = '3.0.0'}
 
 [features]
@@ -63,7 +62,4 @@ std = [
   'sp-runtime/std',
   'orml-tokens/std',
   'orml-traits/std',
-  'pallet-balances/std',
-  'pallet-asset-registry/std',
-  'pallet-amm/std',
 ]
