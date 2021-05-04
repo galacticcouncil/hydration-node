@@ -16,8 +16,10 @@ use sp_runtime::{
 	MultiSignature,
 };
 pub use sp_runtime::{
-	transaction_validity::TransactionPriority, FixedPointNumber, ModuleId, Perbill, Percent, Permill, Perquintill,
+	transaction_validity::TransactionPriority, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
+pub use frame_support::PalletId;
+use codec::alloc::vec;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -113,13 +115,24 @@ parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
 }
 
+sp_npos_elections::generate_solution_type!(
+	#[compact]
+	pub struct NposCompactSolution16::<
+		VoterIndex = u32,
+		TargetIndex = u16,
+		Accuracy = sp_runtime::PerU16,
+	>(16)
+);
+
+pub const MAX_NOMINATIONS: u32 = <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
+
 // pallet staking
 parameter_types! {
 	pub const MaxNominatorRewardedPerValidator: u32 = 64;
 	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
 	pub const MaxIterations: u32 = 10;
 	// 0.05%. The higher the value, the more strict solution acceptance becomes.
-	pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
+	pub MinSolutionScoreBump: Perbill = Perbill::from_rational(5u32, 10_000);
 }
 
 // pallet democracy
@@ -142,7 +155,7 @@ parameter_types! {
 	pub const SignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
 	pub const UnsignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
 
-	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational_approximation(1u32, 10_000);
+	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
 
 	// miner configs
 	pub const MultiPhaseUnsignedPriority: TransactionPriority = StakingUnsignedPriority::get() - 1u64;
@@ -155,7 +168,7 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = FORTUNE;
 	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
-	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 }
 
 // pallet tips
@@ -184,7 +197,7 @@ parameter_types! {
 	pub const TermDuration: BlockNumber = 7 * DAYS;
 	pub const DesiredMembers: u32 = 1;
 	pub const DesiredRunnersUp: u32 = 0;
-	pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
+	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 
 // pallet babe

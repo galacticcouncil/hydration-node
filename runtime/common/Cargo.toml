@@ -28,3 +28,4 @@ frame-system = {default-features = false, version = '3.0.0'}
 sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}
+sp-npos-elections = {version='3.0.0', default-features = false }

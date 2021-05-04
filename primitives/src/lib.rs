@@ -3,10 +3,10 @@
 
 use codec::{Decode, Encode};
 
-use frame_support::sp_runtime::FixedU128;
 use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use substrate_fixed::types::U64F64;
 
 pub mod asset;
 pub mod traits;
@@ -21,7 +21,7 @@ pub type Balance = u128;
 pub type Amount = i128;
 
 /// Price
-pub type Price = FixedU128;
+pub type Price = U64F64;
 
 /// Scaled Unsigned of Balance
 pub type HighPrecisionBalance = U256;

@@ -11,7 +11,7 @@ use sp_consensus::BlockStatus;
 use sp_runtime::{
 	generic::{BlockId, SignedBlock},
 	traits::{BlakeTwo256, Block as BlockT},
-	Justification,
+	Justifications,
 };
 use sp_storage::{ChildInfo, PrefixedStorageKey, StorageData, StorageKey};
 use std::sync::Arc;
@@ -175,10 +175,10 @@ impl sc_client_api::BlockBackend<Block> for Client {
 		}
 	}
 
-	fn justification(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Justification>> {
+	fn justifications(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Justifications>> {
 		match self {
-			Self::HydraDX(client) => client.justification(id),
-			Self::TestingHydraDX(client) => client.justification(id),
+			Self::HydraDX(client) => client.justifications(id),
+			Self::TestingHydraDX(client) => client.justifications(id),
 		}
 	}
 
@@ -189,10 +189,10 @@ impl sc_client_api::BlockBackend<Block> for Client {
 		}
 	}
 
-	fn extrinsic(&self, hash: &<Block as BlockT>::Hash) -> sp_blockchain::Result<Option<<Block as BlockT>::Extrinsic>> {
+	fn indexed_transaction(&self, id: &<Block as BlockT>::Hash) -> sp_blockchain::Result<Option<Vec<u8>>> {
 		match self {
-			Self::HydraDX(client) => client.extrinsic(hash),
-			Self::TestingHydraDX(client) => client.extrinsic(hash),
+			Self::HydraDX(client) => client.indexed_transaction(id),
+			Self::TestingHydraDX(client) => client.indexed_transaction(id),
 		}
 	}
 }

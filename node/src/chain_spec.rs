@@ -17,13 +17,16 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 use hex_literal::hex;
+use hydra_dx_runtime::pallet_genesis_history::Chain;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-use hydra_dx_runtime::pallet_genesis_history::Chain;
 
 // The URL for the telemetry server.
-const TELEMETRY_URLS: [&str; 2] = ["wss://telemetry.polkadot.io/submit/", "wss://telemetry.hydradx.io:9000/submit/"];
+const TELEMETRY_URLS: [&str; 2] = [
+	"wss://telemetry.polkadot.io/submit/",
+	"wss://telemetry.hydradx.io:9000/submit/",
+];
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
@@ -211,7 +214,13 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 				.unwrap(),
 		],
 		// Telemetry
-		Some(TelemetryEndpoints::new(vec![(TELEMETRY_URLS[0].to_string(), 0), (TELEMETRY_URLS[1].to_string(), 0)]).expect("Telemetry url is valid")),
+		Some(
+			TelemetryEndpoints::new(vec![
+				(TELEMETRY_URLS[0].to_string(), 0),
+				(TELEMETRY_URLS[1].to_string(), 0),
+			])
+			.expect("Telemetry url is valid"),
+		),
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
@@ -291,25 +300,25 @@ fn testnet_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		frame_system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		pallet_balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1_000_000.
 			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, 1_000_000u128 * HDX))
 				.collect(),
-		}),
+		},
 		pallet_grandpa: Default::default(),
-		pallet_sudo: Some(SudoConfig {
+		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
-		}),
-		pallet_asset_registry: Some(AssetRegistryConfig {
+		},
+		pallet_asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![
 				(b"tKSM".to_vec(), 1),
@@ -324,8 +333,8 @@ fn testnet_genesis(
 				(b"tUSDT".to_vec(), 10),
 			],
 			next_asset_id: 11,
-		}),
-		orml_tokens: Some(TokensConfig {
+		},
+		orml_tokens: TokensConfig {
 			endowed_accounts: endowed_accounts
 				.iter()
 				.flat_map(|x| {
@@ -336,17 +345,20 @@ fn testnet_genesis(
 					]
 				})
 				.collect(),
-		}),
-		pallet_faucet: Some(FaucetConfig {
+		},
+		pallet_faucet: FaucetConfig {
 			rampage: true,
 			mint_limit: 5,
 			mintable_currencies: vec![0, 1, 2],
-		}),
-		pallet_babe: Some(BabeConfig { authorities: vec![] }),
-		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+		},
+		pallet_babe: BabeConfig {
+			authorities: vec![],
+			epoch_config: Default::default(), //TODO: epoch config value ???
+		},
+		pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		pallet_im_online: Default::default(),
 		pallet_treasury: Default::default(),
-		pallet_session: Some(SessionConfig {
+		pallet_session: SessionConfig {
 			keys: initial_authorities
 				.iter()
 				.map(|x| {
@@ -357,8 +369,8 @@ fn testnet_genesis(
 					)
 				})
 				.collect::<Vec<_>>(),
-		}),
-		pallet_staking: Some(StakingConfig {
+		},
+		pallet_staking: StakingConfig {
 			validator_count: initial_authorities.len() as u32 * 2,
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
@@ -369,26 +381,26 @@ fn testnet_genesis(
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
-		}),
-		pallet_elections_phragmen: Some(ElectionsConfig {
+		},
+		pallet_elections_phragmen: ElectionsConfig {
 			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
-		}),
-		pallet_collective_Instance1: Some(CouncilConfig {
+		},
+		pallet_collective_Instance1: CouncilConfig {
 			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 			phantom: Default::default(),
-		}),
-		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+		},
+		pallet_collective_Instance2: TechnicalCommitteeConfig {
 			members: vec![
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
 				get_account_id_from_seed::<sr25519::Public>("Eve"),
 			],
 			phantom: Default::default(),
-		}),
-		pallet_claims: Some(ClaimsConfig {
+		},
+		pallet_claims: ClaimsConfig {
 			claims: create_testnet_claims(),
-		}),
-		pallet_genesis_history: Some(GenesisHistoryConfig::default()),
+		},
+		pallet_genesis_history: GenesisHistoryConfig::default(),
 	}
 }
 
@@ -407,12 +419,12 @@ fn lerna_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		frame_system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		pallet_balances: BalancesConfig {
 			// Intergalactic initial supply
 			balances: vec![
 				(
@@ -446,30 +458,33 @@ fn lerna_genesis(
 					56873469471297884942_u128,
 				),
 			],
-		}),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
-		pallet_sudo: Some(SudoConfig {
+		},
+		pallet_grandpa: GrandpaConfig { authorities: vec![] },
+		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
-		}),
-		pallet_asset_registry: Some(AssetRegistryConfig {
+		},
+		pallet_asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![],
 			next_asset_id: 1,
-		}),
-		orml_tokens: Some(TokensConfig {
+		},
+		orml_tokens: TokensConfig {
 			endowed_accounts: endowed_accounts.iter().flat_map(|_x| vec![]).collect(),
-		}),
-		pallet_faucet: Some(FaucetConfig {
+		},
+		pallet_faucet: FaucetConfig {
 			rampage: false,
 			mint_limit: 5,
 			mintable_currencies: vec![],
-		}),
-		pallet_babe: Some(BabeConfig { authorities: vec![] }),
-		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-		pallet_treasury: Some(Default::default()),
-		pallet_session: Some(SessionConfig {
+		},
+		pallet_babe: BabeConfig {
+			authorities: vec![],
+			epoch_config: Default::default(),
+		},
+		pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		pallet_im_online: ImOnlineConfig { keys: vec![] },
+		pallet_treasury: Default::default(),
+		pallet_session: SessionConfig {
 			keys: initial_authorities
 				.iter()
 				.map(|x| {
@@ -480,8 +495,8 @@ fn lerna_genesis(
 					)
 				})
 				.collect::<Vec<_>>(),
-		}),
-		pallet_staking: Some(StakingConfig {
+		},
+		pallet_staking: StakingConfig {
 			validator_count: 3,
 			minimum_validator_count: 3,
 			stakers: initial_authorities
@@ -492,20 +507,20 @@ fn lerna_genesis(
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
-		}),
-		pallet_elections_phragmen: Some(ElectionsConfig {
+		},
+		pallet_elections_phragmen: ElectionsConfig {
 			// Intergalactic elections
 			members: vec![(
 				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 				STASH,
 			)],
-		}),
-		pallet_collective_Instance1: Some(CouncilConfig {
+		},
+		pallet_collective_Instance1: CouncilConfig {
 			// Intergalactic council member
 			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
 			phantom: Default::default(),
-		}),
-		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+		},
+		pallet_collective_Instance2: TechnicalCommitteeConfig {
 			members: vec![
 				hex!["d6cf8789dce651cb54a4036406f4aa0c771914d345c004ad0567b814c71fb637"].into(),
 				hex!["bc96ec00952efa8f0e3e08b36bf5096bcb877acac536e478aecb72868db5db02"].into(),
@@ -515,14 +530,18 @@ fn lerna_genesis(
 				hex!["f461c5ae6e80bf4af5b84452789c17b0b0a095a2d77c2a407978147de2d5b572"].into(),
 			],
 			phantom: Default::default(),
-		}),
-		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
-		pallet_genesis_history: Some(GenesisHistoryConfig {
+		},
+		pallet_claims: ClaimsConfig { claims: vec![] },
+		pallet_genesis_history: GenesisHistoryConfig {
 			previous_chain: Chain {
-				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"].to_vec().into(),
-				last_block_hash: hex!["f3c43294255f2d0cd8b3bc8787d18cc2adcec581f74d23df15ca75b8b77cd507"].to_vec().into(),
-			}
-		}),
+				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"]
+					.to_vec()
+					.into(),
+				last_block_hash: hex!["f3c43294255f2d0cd8b3bc8787d18cc2adcec581f74d23df15ca75b8b77cd507"]
+					.to_vec()
+					.into(),
+			},
+		},
 	}
 }
 
@@ -702,25 +721,25 @@ pub mod testing_node {
 		_enable_println: bool,
 	) -> testing_runtime::GenesisConfig {
 		testing_runtime::GenesisConfig {
-			frame_system: Some(testing_runtime::SystemConfig {
+			frame_system: testing_runtime::SystemConfig {
 				// Add Wasm runtime to storage.
 				code: wasm_binary.to_vec(),
 				changes_trie_config: Default::default(),
-			}),
-			pallet_balances: Some(testing_runtime::BalancesConfig {
+			},
+			pallet_balances: testing_runtime::BalancesConfig {
 				// Configure endowed accounts with initial balance of 1_000_000.
 				balances: endowed_accounts
 					.iter()
 					.cloned()
 					.map(|k| (k, 1_000_000u128 * HDX))
 					.collect(),
-			}),
-			pallet_grandpa: Some(testing_runtime::GrandpaConfig { authorities: vec![] }),
-			pallet_sudo: Some(testing_runtime::SudoConfig {
+			},
+			pallet_grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
+			pallet_sudo: testing_runtime::SudoConfig {
 				// Assign network admin rights.
 				key: root_key,
-			}),
-			pallet_asset_registry: Some(testing_runtime::AssetRegistryConfig {
+			},
+			pallet_asset_registry: testing_runtime::AssetRegistryConfig {
 				core_asset_id: CORE_ASSET_ID,
 				asset_ids: vec![
 					(b"tDAI".to_vec(), 1),
@@ -736,8 +755,8 @@ pub mod testing_node {
 					(b"tUSDT".to_vec(), 11),
 				],
 				next_asset_id: 12,
-			}),
-			orml_tokens: Some(testing_runtime::TokensConfig {
+			},
+			orml_tokens: testing_runtime::TokensConfig {
 				endowed_accounts: endowed_accounts
 					.iter()
 					.flat_map(|x| {
@@ -748,17 +767,20 @@ pub mod testing_node {
 						]
 					})
 					.collect(),
-			}),
-			pallet_faucet: Some(testing_runtime::FaucetConfig {
+			},
+			pallet_faucet: testing_runtime::FaucetConfig {
 				rampage: true,
 				mint_limit: 5,
 				mintable_currencies: vec![0, 1, 2],
-			}),
-			pallet_babe: Some(testing_runtime::BabeConfig { authorities: vec![] }),
-			pallet_authority_discovery: Some(testing_runtime::AuthorityDiscoveryConfig { keys: vec![] }),
-			pallet_im_online: Some(testing_runtime::ImOnlineConfig { keys: vec![] }),
-			pallet_treasury: Some(Default::default()),
-			pallet_session: Some(testing_runtime::SessionConfig {
+			},
+			pallet_babe: testing_runtime::BabeConfig {
+				authorities: vec![],
+				epoch_config: Default::default(), //TODO: epoch config value ???
+			},
+			pallet_authority_discovery: testing_runtime::AuthorityDiscoveryConfig { keys: vec![] },
+			pallet_im_online: testing_runtime::ImOnlineConfig { keys: vec![] },
+			pallet_treasury: Default::default(),
+			pallet_session: testing_runtime::SessionConfig {
 				keys: initial_authorities
 					.iter()
 					.map(|x| {
@@ -769,8 +791,8 @@ pub mod testing_node {
 						)
 					})
 					.collect::<Vec<_>>(),
-			}),
-			pallet_staking: Some(testing_runtime::StakingConfig {
+			},
+			pallet_staking: testing_runtime::StakingConfig {
 				validator_count: initial_authorities.len() as u32 * 2,
 				minimum_validator_count: initial_authorities.len() as u32,
 				stakers: initial_authorities
@@ -781,26 +803,26 @@ pub mod testing_node {
 				force_era: Forcing::ForceNone,
 				slash_reward_fraction: Perbill::from_percent(10),
 				..Default::default()
-			}),
-			pallet_elections_phragmen: Some(testing_runtime::ElectionsConfig {
+			},
+			pallet_elections_phragmen: testing_runtime::ElectionsConfig {
 			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
-		}),
-		pallet_collective_Instance1: Some(testing_runtime::CouncilConfig {
+		},
+		pallet_collective_Instance1: testing_runtime::CouncilConfig {
 			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 			phantom: Default::default(),
-		}),
-		pallet_collective_Instance2: Some(testing_runtime::TechnicalCommitteeConfig {
+		},
+		pallet_collective_Instance2: testing_runtime::TechnicalCommitteeConfig {
 			members: vec![
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
 				get_account_id_from_seed::<sr25519::Public>("Eve"),
 			],
 			phantom: Default::default(),
-		}),
-		pallet_claims: Some(testing_runtime::ClaimsConfig {
+		},
+		pallet_claims: testing_runtime::ClaimsConfig {
 			claims: create_testnet_claims(),
-		}),
-		pallet_genesis_history: Some(testing_runtime::GenesisHistoryConfig::default()),
+		},
+		pallet_genesis_history: testing_runtime::GenesisHistoryConfig::default(),
 		}
 	}
 }

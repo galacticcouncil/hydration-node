@@ -1,6 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::comparison_chain)]
-
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::unnecessary_wraps)]
@@ -486,7 +485,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn generate_intention_id(account: &T::AccountId, c: u32, assets: &AssetPair) -> IntentionId<T> {
-		let b = <system::Module<T>>::current_block_number();
+		let b = <system::Pallet<T>>::current_block_number();
 		(c, &account, b, assets.ordered_pair().0, assets.ordered_pair().1).using_encoded(T::Hashing::hash)
 	}
 }
