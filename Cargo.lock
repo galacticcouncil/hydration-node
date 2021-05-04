@@ -2357,7 +2357,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "3.0.1"
+version = "3.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "9.0.0"
+version = "11.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2443,7 +2443,7 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
- "pallet-balances 3.0.0",
+ "pallet-balances 3.0.1",
  "pallet-claims",
  "pallet-collective",
  "pallet-democracy",
@@ -4149,7 +4149,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-amm"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4173,7 +4173,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4257,7 +4257,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-balances"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4274,7 +4274,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4285,7 +4285,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
- "pallet-balances 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "pallet-balances 3.0.0",
  "parity-scale-codec 2.1.1",
  "primitives",
  "rustc-hex",
@@ -4363,7 +4363,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-exchange"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4384,7 +4384,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-exchange-benchmarking"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4407,7 +4407,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-faucet"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4426,7 +4426,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "derive_more",
  "frame-support",
@@ -4529,7 +4529,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "pallet-balances 3.0.0",
  "parity-scale-codec 2.1.1",
  "serde",
  "sp-runtime",
@@ -4664,7 +4664,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4740,7 +4740,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "impl-trait-for-tuples",
- "pallet-balances 3.0.0 (git+https://github.com/paritytech/substrate?branch=rococo-v1)",
+ "pallet-balances 3.0.0",
  "parity-scale-codec 2.1.1",
  "serde",
  "sp-runtime",
@@ -7939,7 +7939,7 @@ name = "substrate-fixed"
 version = "0.5.6"
 source = "git+https://github.com/encointer/substrate-fixed#b33d186888c60f38adafcfc0ec3a21aab263aef1"
 dependencies = [
- "parity-scale-codec 2.0.1",
+ "parity-scale-codec 2.1.1",
  "typenum",
 ]
 
