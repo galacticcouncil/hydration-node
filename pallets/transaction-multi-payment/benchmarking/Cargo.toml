@@ -27,7 +27,6 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 # Local dependencies
 pallet-amm = {path = '../../amm', default-features = false}
 pallet-asset-registry = {path = '../../asset-registry', default-features = false}
-pallet-balances = {default-features = false}
 pallet-transaction-multi-payment = {path = '../../transaction-multi-payment', default-features = false}
 primitives = {path = '../../../primitives', default-features = false}
 
@@ -43,9 +42,10 @@ frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
 frame-system-benchmarking = {default-features = false, version = '3.0.0'}
 
+pallet-balances = {default-features = false, version = "3.0.0"}
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}
-sp-std = {default-features = false, version = '3.0.0'}
 
+sp-std = {default-features = false, version = '3.0.0'}
 sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 
