@@ -64,10 +64,11 @@ impl SubstrateCli for Cli {
 		} else {
 			id
 		};
-		if self.run.testing {
+		if self.run.runtime.is_testing_runtime() {
 			Ok(match id {
-				"dev" => Box::new(chain_spec::testing_node::testing_node_development_config()?),
-				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+				"dev" => Box::new(chain_spec::testing_node::development_config()?),
+				"local" => Box::new(chain_spec::testing_node::local_testnet_config()?),
+				path => Box::new(chain_spec::testing_node::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 			})
 		} else {
 			Ok(match id {
@@ -81,7 +82,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		if spec.is_testing_hydra_dx() {
+		if spec.is_testing_runtime() {
 			&testing_hydra_dx_runtime::VERSION
 		} else {
 			&hydra_dx_runtime::VERSION
@@ -101,7 +102,7 @@ pub fn run() -> sc_cli::Result<()> {
 
 	match &cli.subcommand {
 		None => {
-			let run_testing_runtime = cli.run.testing;
+			let run_testing_runtime = cli.run.runtime.is_testing_runtime();
 			let runner = cli.create_runner(&cli.run.base)?;
 			runner.run_node_until_exit(|config| async move {
 				match config.role {

@@ -568,11 +568,6 @@ fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 pub mod testing_node {
 	use super::*;
 	use testing_hydra_dx_runtime as testing_runtime;
-	// use testing_hydra_dx_runtime::{
-	// 	opaque::SessionKeys, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig,
-	// 	CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
-	// 	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, WASM_BINARY,
-	// };
 
 	/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 	pub type ChainSpec = sc_service::GenericChainSpec<testing_runtime::GenesisConfig>;
@@ -591,7 +586,7 @@ pub mod testing_node {
 		}
 	}
 
-	pub fn testing_node_development_config() -> Result<ChainSpec, String> {
+	pub fn development_config() -> Result<ChainSpec, String> {
 		let wasm_binary = testing_runtime::WASM_BINARY.ok_or("Testing and development wasm binary not available".to_string())?;
 		let mut properties = Map::new();
 		properties.insert("tokenDecimals".into(), 12.into());
@@ -599,10 +594,12 @@ pub mod testing_node {
 		properties.insert("ss58Format".into(), 63.into());
 
 		Ok(ChainSpec::from_genesis(
+			// Config names for the testing runtime have to start with `Testing` string literal
+			// because ChainSpecs are used to identify runtimes.
 			// Name
 			"Testing HydraDX Development chain",
 			// ID
-			"testing",
+			"dev",
 			ChainType::Development,
 			move || {
 				testnet_genesis(
@@ -633,6 +630,62 @@ pub mod testing_node {
 			None,
 		))
 	}
+
+	pub fn local_testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = testing_runtime::WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+
+	let mut properties = Map::new();
+	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenSymbol".into(), "HDX".into());
+	properties.insert("ss58Format".into(), 63.into());
+
+	Ok(ChainSpec::from_genesis(
+		// Config names for the testing runtime have to start with `Testing` string literal
+		// because ChainSpecs are used to identify runtimes.
+		// Name
+		"Testing HydraDX Local Testnet",
+		// ID
+		"local_testnet",
+		ChainType::Local,
+		move || {
+			testnet_genesis(
+				wasm_binary,
+				// Initial PoA authorities
+				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
+				// Sudo account
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				// Pre-funded accounts
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+					get_account_id_from_seed::<sr25519::Public>("Dave"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+				],
+				true,
+			)
+		},
+		// Bootnodes
+		vec![],
+		// Telemetry
+		None,
+		// Protocol ID
+		Some(DEFAULT_PROTOCOL_ID),
+		// Properties
+		Some(properties),
+		// Extensions
+		None,
+	))
+}
 
 	fn testnet_genesis(
 		wasm_binary: &[u8],

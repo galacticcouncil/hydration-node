@@ -50,18 +50,18 @@ pub type FullGrandpaBlockImport<RuntimeApi, Executor> =
 /// Can be called for a `Configuration` to check what node it belongs to.
 pub trait IdentifyVariant {
 	/// Returns if this is a configuration for the `Hydra DX` node.
-	fn is_hydra_dx(&self) -> bool;
+	fn is_hydra_dx_runtime(&self) -> bool;
 
 	/// Returns if this is a configuration for the `Testing Hydra DX` node.
-	fn is_testing_hydra_dx(&self) -> bool;
+	fn is_testing_runtime(&self) -> bool;
 }
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
-	fn is_hydra_dx(&self) -> bool {
-		self.id().starts_with("hydra") || self.name().starts_with("hdx")
+	fn is_hydra_dx_runtime(&self) -> bool {
+		self.name().to_lowercase().starts_with("hydra") || self.name().to_lowercase().starts_with("hdx")
 	}
-	fn is_testing_hydra_dx(&self) -> bool {
-		self.id().starts_with("test")
+	fn is_testing_runtime(&self) -> bool {
+		self.name().to_lowercase().starts_with("test")
 	}
 }
 
@@ -77,7 +77,7 @@ pub fn new_chain_ops(
 	ServiceError,
 > {
 	config.keystore = sc_service::config::KeystoreConfig::InMemory;
-	if config.chain_spec.is_testing_hydra_dx() {
+	if config.chain_spec.is_testing_runtime() {
 		let sc_service::PartialComponents {
 			client,
 			backend,
