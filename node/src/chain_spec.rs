@@ -354,7 +354,7 @@ fn testnet_genesis(
 		},
 		pallet_babe: BabeConfig {
 			authorities: vec![],
-			epoch_config: Default::default(), //TODO: epoch config value ???
+			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		pallet_im_online: Default::default(),
@@ -480,7 +480,7 @@ fn lerna_genesis(
 		},
 		pallet_babe: BabeConfig {
 			authorities: vec![],
-			epoch_config: Default::default(),
+			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		pallet_im_online: ImOnlineConfig { keys: vec![] },

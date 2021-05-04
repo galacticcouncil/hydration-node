@@ -68,6 +68,8 @@ pub mod time {
 	pub const INFINITY: u32 = u32::MAX;
 }
 
+pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
+
 #[cfg(test)]
 mod tests {
 	use super::time::{DAYS, EPOCH_DURATION_IN_BLOCKS, HOURS, MILLISECS_PER_BLOCK, MINUTES, SECS_PER_BLOCK};
@@ -85,6 +87,7 @@ mod tests {
 		// 6s per block
 		assert_eq!(SECS_PER_BLOCK, 6);
 		// 1s = 1000ms
+		pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 		assert_eq!(MILLISECS_PER_BLOCK / 1000, SECS_PER_BLOCK);
 		// Extra check for epoch time because changing it bricks the block production and requires regenesis
 		assert_eq!(EPOCH_DURATION_IN_BLOCKS, 4 * HOURS);
