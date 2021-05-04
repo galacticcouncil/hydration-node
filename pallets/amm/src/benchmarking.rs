@@ -23,7 +23,7 @@ use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 
-use crate::Module as AMM;
+use crate::Pallet as AMM;
 
 use primitives::{AssetId, Balance, Price};
 

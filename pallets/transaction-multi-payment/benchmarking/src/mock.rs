@@ -147,7 +147,7 @@ impl pallet_amm::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
-	type HDXAssetId = HdxAssetId;
+	type NativeAssetId = HdxAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }

@@ -123,7 +123,7 @@ impl amm::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
-	type HDXAssetId = HDXAssetId;
+	type NativeAssetId = HDXAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }
