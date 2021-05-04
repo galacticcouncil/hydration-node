@@ -1,0 +1,36 @@
+[package]
+authors = ['GalacticCouncil']
+name = "pallet-xyk-rpc-runtime-api"
+version = '3.0.0'
+edition = "2018"
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[build-dependencies]
+substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
+
+# alias "parity-scale-code" to "codec"
+[dependencies.codec]
+default-features = false
+features = ['derive']
+package = 'parity-scale-codec'
+version = '2.0.0'
+
+[dependencies]
+serde = { features = ['derive'], optional = true, version = '1.0.101' }
+
+# Substrate dependencies
+sp-std = { default-features = false, version = '3.0.0' }
+sp-api = { default-features = false, version = '3.0.0' }
+sp-runtime = { default-features = false, version = '3.0.0' }
+
+[features]
+default = ["std"]
+std = [
+	"serde",
+	"codec/std",
+	"sp-api/std",
+	"sp-runtime/std",
+	"sp-std/std",
+]
