@@ -1,6 +1,6 @@
-// This file is part of HydraDX-node.
+// This file is part of HydraDX.
 
-// Copyright (C) 2021 Intergalactic Ltd.
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");

@@ -2357,7 +2357,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "11.0.0"
+version = "11.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
