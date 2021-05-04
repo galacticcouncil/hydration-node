@@ -2357,7 +2357,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "11.0.0"
+version = "11.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4496,7 +4496,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-multi-payment-benchmarking"
-version = "3.0.0"
+version = "3.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4664,7 +4664,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "3.0.1"
+version = "3.0.2"
 dependencies = [
  "frame-support",
  "frame-system",
