@@ -205,6 +205,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Treasury(_)
 			| Call::Identity(_)
 			| Call::Offences(_)
+			| Call::Utility(_)
 			| Call::Sudo(_) => true,
 
 			Call::AMM(_)
@@ -413,6 +414,12 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type ForceOrigin = EnsureRootOrHalfCouncil;
 	type RegistrarOrigin = EnsureRootOrHalfCouncil;
+	type WeightInfo = ();
+}
+
+impl pallet_utility::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
 	type WeightInfo = ();
 }
 
@@ -990,6 +997,7 @@ construct_runtime!(
 		Offences: pallet_offences::{Pallet, Call, Storage, Event},
 		Historical: session_historical::{Pallet},
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
+		Utility: pallet_utility::{Pallet, Call, Event},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
