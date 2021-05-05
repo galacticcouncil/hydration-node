@@ -1,17 +1,34 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::*;
+use frame_support::traits::GetPalletVersion;
 use hex::FromHex;
 use primitives::Balance;
-use frame_support::traits::GetPalletVersion;
 
 pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
-	let version = <Module<T> as GetPalletVersion>::storage_version();
+	let version = <Pallet<T> as GetPalletVersion>::storage_version();
 	if version == None {
 		for (addr, amount) in claims_data.iter() {
 			let balance: BalanceOf<T> = T::CurrencyBalance::from(*amount).into();
 
 			Claims::<T>::insert(
 				EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
-					frame_support::debug::warn!("Error encountered while migrating Ethereum address: {}", addr);
+					frame_support::log::warn!("Error encountered while migrating Ethereum address: {}", addr);
 					EthereumAddress::default().0
 				})),
 				balance,
