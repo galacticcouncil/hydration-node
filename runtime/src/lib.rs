@@ -148,7 +148,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 10,
+	spec_version: 11,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -195,7 +195,6 @@ impl Filter<Call> for BaseFilter {
 			| Call::Session(_)
 			| Call::System(_)
 			| Call::Timestamp(_)
-			| Call::Treasury(_)
 			| Call::Sudo(_) => true,
 
 			Call::AMM(_)
@@ -213,7 +212,8 @@ impl Filter<Call> for BaseFilter {
 			| Call::Staking(_)
 			| Call::TechnicalCommittee(_)
 			| Call::Tips(_)
-			| Call::Tokens(_) => false,
+			| Call::Tokens(_)
+			| Call::Treasury(_) => false,
 		}
 	}
 }
