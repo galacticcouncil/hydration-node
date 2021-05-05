@@ -37,9 +37,9 @@ use sp_runtime::traits::{BlakeTwo256, Hash};
 use amounts::INTENTION_AMOUNTS;
 
 use frame_support::dispatch;
-use pallet_amm as ammpool;
+use pallet_xyk as xykpool;
 
-pub trait Config: pallet_exchange::Config + ammpool::Config {}
+pub trait Config: pallet_exchange::Config + xykpool::Config {}
 
 const INITIAL_ASSET_BALANCE: Balance = 1_000_000_000_000_000;
 
@@ -55,9 +55,9 @@ pub struct Pallet<T: Config>(Exchange<T>);
 fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
 	let caller: T::AccountId = account(name, index, SEED);
 
-	<T as ammpool::Config>::Currency::update_balance(1, &caller, 1_000_000_000_000_000).unwrap();
+	<T as xykpool::Config>::Currency::update_balance(1, &caller, 1_000_000_000_000_000).unwrap();
 
-	<T as ammpool::Config>::Currency::update_balance(2, &caller, 1_000_000_000_000_000).unwrap();
+	<T as xykpool::Config>::Currency::update_balance(2, &caller, 1_000_000_000_000_000).unwrap();
 
 	caller
 }
@@ -69,7 +69,7 @@ fn initialize_pool<T: Config>(
 	amount: Balance,
 	price: Price,
 ) -> dispatch::DispatchResultWithPostInfo {
-	ammpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), asset_a, asset_b, amount, price)?;
+	xykpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), asset_a, asset_b, amount, price)?;
 
 	Ok(().into())
 }
@@ -119,13 +119,13 @@ fn validate_finalize<T: Config>(
 	for idx in 0..number / 2 {
 		let user: T::AccountId = account("user", idx + 2, SEED);
 		assert_eq!(
-			<T as ammpool::Config>::Currency::free_balance(asset_a, &user),
+			<T as xykpool::Config>::Currency::free_balance(asset_a, &user),
 			INITIAL_ASSET_BALANCE - amounts[idx as usize] as u128
 		);
 
 		let buyer: T::AccountId = account("user", idx + number + 1, SEED);
 		assert_eq!(
-			<T as ammpool::Config>::Currency::free_balance(asset_a, &buyer),
+			<T as xykpool::Config>::Currency::free_balance(asset_a, &buyer),
 			INITIAL_ASSET_BALANCE + amounts[idx as usize] as u128
 		);
 	}
@@ -236,7 +236,7 @@ benchmarks! {
 		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		for idx in 0..t  {
 			let user: T::AccountId = account("user", idx + 100, SEED);
-			assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &user), INITIAL_ASSET_BALANCE + SELL_INTENTION_AMOUNT);
+			assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &user), INITIAL_ASSET_BALANCE + SELL_INTENTION_AMOUNT);
 		}
 	}
 
@@ -269,7 +269,7 @@ benchmarks! {
 		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		for idx in 0..t  {
 			let user: T::AccountId = account("user", idx + 100, SEED);
-			assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &user), INITIAL_ASSET_BALANCE - SELL_INTENTION_AMOUNT);
+			assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &user), INITIAL_ASSET_BALANCE - SELL_INTENTION_AMOUNT);
 		}
 	}
 
@@ -285,10 +285,10 @@ benchmarks! {
 
 		initialize_pool::<T>(creator, asset_a, asset_b, amount, Price::from_num(1))?;
 
-	}: { ammpool::Pallet::<T>::sell(RawOrigin::Signed(seller.clone()).into(), asset_a, asset_b, 1_000_000_000, min_bought, false)?; }
+	}: { xykpool::Pallet::<T>::sell(RawOrigin::Signed(seller.clone()).into(), asset_a, asset_b, 1_000_000_000, min_bought, false)?; }
 	verify {
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
 	}
 
 	on_finalize_for_one_sell_extrinsic {
@@ -316,8 +316,8 @@ benchmarks! {
 	}: {  Exchange::<T>::on_finalize(1u32.into()); }
 	verify {
 		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
 	}
 
 	buy_extrinsic {
@@ -332,10 +332,10 @@ benchmarks! {
 
 		initialize_pool::<T>(creator, asset_a, asset_b, amount, Price::from_num(1))?;
 
-	}: { ammpool::Pallet::<T>::buy(RawOrigin::Signed(buyer.clone()).into(), asset_a, asset_b, 1_000_000_000, max_sold, false)?; }
+	}: { xykpool::Pallet::<T>::buy(RawOrigin::Signed(buyer.clone()).into(), asset_a, asset_b, 1_000_000_000, max_sold, false)?; }
 	verify {
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
 	}
 
 	on_finalize_for_one_buy_extrinsic {
@@ -366,8 +366,8 @@ benchmarks! {
 	}: {  Exchange::<T>::on_finalize(t.into()); }
 	verify {
 		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
-		assert_eq!(<T as ammpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
 	}
 }
 

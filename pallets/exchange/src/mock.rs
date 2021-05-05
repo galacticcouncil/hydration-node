@@ -27,10 +27,10 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
-use pallet_amm as amm;
+use pallet_xyk as xyk;
 
 use frame_support::traits::GenesisBuild;
-use pallet_amm::AssetPairAccountIdFor;
+use pallet_xyk::AssetPairAccountIdFor;
 use primitives::{fee, AssetId, Balance};
 
 pub type Amount = i128;
@@ -58,7 +58,7 @@ frame_support::construct_runtime!(
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 Exchange: exchange::{Pallet, Call, Storage, Event<T>},
-		 AMM: pallet_amm::{Pallet, Call, Storage, Event<T>},
+		 XYK: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		 Currency: orml_tokens::{Pallet, Event<T>},
 		 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 	 }
@@ -134,7 +134,7 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl amm::Config for Test {
+impl xyk::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
@@ -145,7 +145,7 @@ impl amm::Config for Test {
 
 impl Config for Test {
 	type Event = Event;
-	type AMMPool = AMM;
+	type AMMPool = XYK;
 	type Currency = Currency;
 	type Resolver = exchange::Pallet<Test>;
 	type WeightInfo = ();

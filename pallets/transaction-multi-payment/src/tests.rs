@@ -143,7 +143,7 @@ fn fee_payment_in_non_native_currency() {
 			// Make sure Charlie ain't got a penny!
 			assert_eq!(Balances::free_balance(CHARLIE), 0);
 
-			assert_ok!(pallet_amm::Pallet::<Test>::create_pool(
+			assert_ok!(pallet_xyk::Pallet::<Test>::create_pool(
 				Origin::signed(ALICE),
 				HDX,
 				SUPPORTED_CURRENCY_WITH_BALANCE,
@@ -186,7 +186,7 @@ fn fee_payment_non_native_insufficient_balance() {
 		.account_tokens(CHARLIE, SUPPORTED_CURRENCY_WITH_BALANCE, 10)
 		.build()
 		.execute_with(|| {
-			assert_ok!(pallet_amm::Pallet::<Test>::create_pool(
+			assert_ok!(pallet_xyk::Pallet::<Test>::create_pool(
 				Origin::signed(ALICE),
 				HDX,
 				SUPPORTED_CURRENCY_WITH_BALANCE,

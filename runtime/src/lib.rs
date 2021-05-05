@@ -71,7 +71,7 @@ pub use sp_runtime::{curve::PiecewiseLinear, Perbill, Permill, Perquintill};
 
 use pallet_session::historical as session_historical;
 
-use module_amm_rpc_runtime_api as amm_rpc;
+use pallet_xyk_rpc_runtime_api as xyk_rpc;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
@@ -207,7 +207,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Offences(_)
 			| Call::Sudo(_) => true,
 
-			Call::AMM(_)
+			Call::XYK(_)
 			| Call::AssetRegistry(_)
 			| Call::Currencies(_)
 			| Call::Exchange(_)
@@ -367,7 +367,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
-	type AMMPool = AMM;
+	type AMMPool = XYK;
 	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = IdentityFee<Balance>;
@@ -446,12 +446,12 @@ parameter_types! {
 	pub ExchangeFee: fee::Fee = fee::Fee::default();
 }
 
-impl pallet_amm::Config for Runtime {
+impl pallet_xyk::Config for Runtime {
 	type Event = Event;
-	type AssetPairAccountId = pallet_amm::AssetPairAccountId<Self>;
+	type AssetPairAccountId = pallet_xyk::AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type NativeAssetId = HDXAssetId;
-	type WeightInfo = pallet_amm::weights::HydraWeight<Runtime>;
+	type WeightInfo = pallet_xyk::weights::HydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
 }
 
@@ -469,7 +469,7 @@ impl pallet_claims::Config for Runtime {
 
 impl pallet_exchange::Config for Runtime {
 	type Event = Event;
-	type AMMPool = AMM;
+	type AMMPool = XYK;
 	type Resolver = Exchange;
 	type Currency = Currencies;
 	type WeightInfo = pallet_exchange::weights::HydraWeight<Runtime>;
@@ -997,7 +997,7 @@ construct_runtime!(
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},
-		AMM: pallet_amm::{Pallet, Call, Storage, Event<T>},
+		XYK: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Pallet, Call, Storage, Config, Event<T>},
@@ -1217,7 +1217,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl amm_rpc::AMMApi<
+	impl xyk_rpc::XYKApi<
 		Block,
 		AccountId,
 		AssetId,
@@ -1225,13 +1225,13 @@ impl_runtime_apis! {
 	> for Runtime {
 		fn get_pool_balances(
 			pool_address: AccountId,
-		) -> Vec<amm_rpc::BalanceInfo<AssetId, Balance>> {
+		) -> Vec<xyk_rpc::BalanceInfo<AssetId, Balance>> {
 			let mut vec = Vec::new();
 
-			let pool_balances = AMM::get_pool_balances(pool_address).unwrap();
+			let pool_balances = XYK::get_pool_balances(pool_address).unwrap();
 
 			for b in pool_balances {
-				let item  = amm_rpc::BalanceInfo{
+				let item  = xyk_rpc::BalanceInfo{
 				 asset: Some(b.0),
 					amount: b.1
 				};
@@ -1275,7 +1275,7 @@ impl_runtime_apis! {
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
 
-			add_benchmark!(params, batches, amm, AMM);
+			add_benchmark!(params, batches, xyk, XYK);
 			add_benchmark!(params, batches, claims, Claims);
 			add_benchmark!(params, batches, transaction_multi_payment, MultiBench::<Runtime>);
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);

@@ -26,8 +26,8 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
-module-amm-rpc-runtime-api = {path = '../pallets/amm/rpc/runtime-api', default-features = false}
-pallet-amm = {path = '../pallets/amm', default-features = false}
+pallet-xyk-rpc-runtime-api = {path = '../pallets/xyk/rpc/runtime-api', default-features = false}
+pallet-xyk = {path = '../pallets/xyk', default-features = false}
 pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false}
 pallet-balances = {path = '../pallets/balances', default-features = false}
 pallet-claims = {path = '../pallets/claims', default-features = false}
@@ -101,8 +101,8 @@ runtime-benchmarks = [
   'frame-system/runtime-benchmarks',
   'pallet-balances/runtime-benchmarks',
   'pallet-timestamp/runtime-benchmarks',
-  'pallet-multi-payment-benchmarking',
-  "pallet-amm/runtime-benchmarks",
+  'pallet-multi-payment-benchmarking/std',
+  "pallet-xyk/runtime-benchmarks",
   "pallet-exchange-benchmarking",
   'pallet-collective/runtime-benchmarks',
   'pallet-identity/runtime-benchmarks',
@@ -119,7 +119,7 @@ std = [
   'orml-currencies/std',
   'orml-tokens/std',
   'orml-traits/std',
-  'pallet-amm/std',
+  'pallet-xyk/std',
   'pallet-claims/std',
   'pallet-asset-registry/std',
   'pallet-democracy/std',

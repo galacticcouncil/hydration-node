@@ -46,7 +46,7 @@ pallet-transaction-payment = {default-features = false, version = '3.0.0'}
 [dev-dependencies]
 pallet-balances = {default-features = false, version = '3.0.0'}
 orml-currencies = {default-features = false, version = "0.4.1-dev"}
-pallet-amm = {path = '../amm', default-features = false}
+pallet-xyk = {path = '../xyk', default-features = false}
 pallet-asset-registry = {path = '../asset-registry', default-features = false}
 sp-io = {default-features = false, version = '3.0.0'}
 

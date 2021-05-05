@@ -29,12 +29,12 @@ use pallet_transaction_multi_payment::Pallet as MultiPaymentModule;
 use primitives::{Amount, AssetId, Balance, Price};
 
 use frame_support::dispatch;
-use pallet_amm as ammpool;
+use pallet_xyk as xykpool;
 
 pub struct Pallet<T: Config>(pallet_transaction_multi_payment::Pallet<T>);
 
 pub trait Config:
-	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + ammpool::Config
+	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + xykpool::Config
 {
 }
 
@@ -60,7 +60,7 @@ fn initialize_pool<T: Config>(
 	amount: Balance,
 	price: Price,
 ) -> dispatch::DispatchResultWithPostInfo {
-	ammpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
+	xykpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
 	Ok(().into())
 }
 
