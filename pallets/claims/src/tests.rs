@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::*;
 use crate::mock::*;
 use frame_support::dispatch::DispatchInfo;
@@ -21,9 +38,9 @@ fn claiming_works() {
 		assert_eq!(Balances::free_balance(&BOB), 0);
 
 		// Signature not consistent with origin
-		assert_noop!(ClaimsModule::claim(Origin::signed(BOB), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
+		assert_noop!(ClaimsPallet::claim(Origin::signed(BOB), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 
-		assert_ok!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
+		assert_ok!(ClaimsPallet::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
 
 		assert_eq!(Balances::free_balance(&ALICE), CLAIM_AMOUNT);
 	})
@@ -33,7 +50,7 @@ fn claiming_works() {
 fn invalid_signature_fail() {
 	new_test_ext().execute_with(|| {
 		let invalid_signature = hex!["a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"];
-		assert_noop!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(invalid_signature)), Error::<Test>::InvalidEthereumSignature);
+		assert_noop!(ClaimsPallet::claim(Origin::signed(ALICE), EcdsaSignature(invalid_signature)), Error::<Test>::InvalidEthereumSignature);
 	})
 }
 
@@ -48,7 +65,7 @@ fn claim_cant_overflow() {
 		assert_eq!(Claims::<Test>::get(&charlie_eth_addr), CLAIM_AMOUNT);
 		assert_eq!(Balances::free_balance(&CHARLIE), primitives::Balance::MAX - 1);
 
-		assert_noop!(ClaimsModule::claim(Origin::signed(CHARLIE), EcdsaSignature(signature)), Error::<Test>::BalanceOverflow);
+		assert_noop!(ClaimsPallet::claim(Origin::signed(CHARLIE), EcdsaSignature(signature)), Error::<Test>::BalanceOverflow);
 
 		assert_eq!(Claims::<Test>::get(&charlie_eth_addr), CLAIM_AMOUNT);
 		assert_eq!(Balances::free_balance(&CHARLIE), primitives::Balance::MAX - 1);
@@ -64,7 +81,7 @@ fn zeroize_claimed_balance_works() {
 		let alice_eth_addr = EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]);
 
 		assert_eq!(Claims::<Test>::get(&alice_eth_addr), CLAIM_AMOUNT);
-		assert_ok!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
+		assert_ok!(ClaimsPallet::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
 		assert_eq!(Claims::<Test>::get(&alice_eth_addr), 0);
 	})
 }
@@ -74,8 +91,8 @@ fn double_claim_fail() {
 	new_test_ext().execute_with(|| {
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 
-		assert_ok!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
-		assert_noop!(ClaimsModule::claim(Origin::signed(ALICE), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
+		assert_ok!(ClaimsPallet::claim(Origin::signed(ALICE), EcdsaSignature(signature)));
+		assert_noop!(ClaimsPallet::claim(Origin::signed(ALICE), EcdsaSignature(signature)), Error::<Test>::NoClaimOrAlreadyClaimed);
 	})
 }
 
@@ -84,7 +101,7 @@ fn unsigned_claim_fail() {
 	new_test_ext().execute_with(|| {
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 		assert_err!(
-			ClaimsModule::claim(Origin::none(), EcdsaSignature(signature)),
+			ClaimsPallet::claim(Origin::none(), EcdsaSignature(signature)),
 			sp_runtime::traits::BadOrigin,
 		);
 	});
