@@ -257,18 +257,18 @@ fn add_liquidity_more_than_owner_should_not_work() {
 }
 
 #[test]
-fn add_zero_liquidity_should_not_work() {
+fn add_low_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(AMM::create_pool(Origin::signed(ALICE), HDX, ACA, 1000, Price::from(1)));
 
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 0, 0),
-			Error::<Test>::CannotAddZeroLiquidity
+			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, MIN_TRADING_LIMIT - 1, MIN_TRADING_LIMIT),
+			Error::<Test>::MinimalTradeLimitRequirementNotMet
 		);
 
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 100, 0),
-			Error::<Test>::CannotAddZeroLiquidity
+			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, MIN_TRADING_LIMIT, MIN_TRADING_LIMIT - 1),
+			Error::<Test>::MinimalTradeLimitRequirementNotMet
 		);
 	});
 }
@@ -306,43 +306,6 @@ fn remove_liquidity_should_not_work() {
 
 		assert_noop!(
 			AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT + 1),
-		 	Error::<Test>::MinimalPoolLiquidityRequirementNotMet
-		);
-	});
-}
-
-#[test]
-fn remove_liquidity_should_not_lock_user() {
-	new_test_ext().execute_with(|| {
-		let user_one = ALICE;
-		let user_two = BOB;
-		let asset_a = HDX;
-		let asset_b = DOT;
-
-		assert_ok!(AMM::create_pool(
-			Origin::signed(user_one),
-			asset_a,
-			asset_b,
-			100_000_000,
-			Price::from(10_000)
-		));
-
-		let asset_pair = AssetPair {
-			asset_in: asset_a,
-			asset_out: asset_b,
-		};
-		assert!(AMM::exists(asset_pair));
-
-		assert_ok!(AMM::add_liquidity(
-			Origin::signed(user_two),
-			asset_a,
-			asset_b,
-			MIN_TRADING_LIMIT - 1,
-			100_000
-		));
-
-		assert_noop!(
-			AMM::remove_liquidity(Origin::signed(user_one), asset_a, asset_b, 100_000_000),
 		 	Error::<Test>::MinimalPoolLiquidityRequirementNotMet
 		);
 	});

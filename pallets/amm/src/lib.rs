@@ -229,9 +229,15 @@ pub mod pallet {
 
 			ensure!(Self::exists(asset_pair), Error::<T>::TokenPoolNotFound);
 
-			ensure!(!amount_a.is_zero(), Error::<T>::CannotAddZeroLiquidity);
+			ensure!(
+				amount_a >= MIN_TRADING_LIMIT,
+				Error::<T>::MinimalTradeLimitRequirementNotMet
+			);
 
-			ensure!(!amount_b_max_limit.is_zero(), Error::<T>::CannotAddZeroLiquidity);
+			ensure!(
+				amount_b_max_limit >= MIN_TRADING_LIMIT,
+				Error::<T>::MinimalTradeLimitRequirementNotMet
+			);
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &who) >= amount_a,
