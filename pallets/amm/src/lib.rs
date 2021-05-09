@@ -153,7 +153,9 @@ pub mod pallet {
 		MaxOutRatioExceeded,
 		/// Max fraction of pool to sell in single transaction has been exceeded.
 		MaxInRatioExceeded,
+		/// Minimal liquidity required for a pool to exist is not met.
 		MinimalPoolLiquidityRequirementNotMet,
+		/// Minimal limit required to trade is not met.
 		MinimalTradeLimitRequirementNotMet
 	}
 
