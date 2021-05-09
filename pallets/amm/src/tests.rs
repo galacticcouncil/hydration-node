@@ -82,11 +82,11 @@ fn create_same_pool_should_not_work() {
 			Origin::signed(user),
 			asset_b,
 			asset_a,
-			1000,
+			MIN_POOL_LIQUIDITY_LIMIT,
 			Price::from_num(2)
 		));
 		assert_noop!(
-			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 1000, Price::from_num(2)),
+			AMM::create_pool(Origin::signed(user), asset_b, asset_a, MIN_POOL_LIQUIDITY_LIMIT, Price::from_num(2)),
 			Error::<Test>::TokenPoolAlreadyExists
 		);
 		expect_events(vec![Event::PoolCreated(ALICE, asset_b, asset_a, 2000).into()]);
@@ -280,7 +280,7 @@ fn add_low_liquidity_should_not_work() {
 			Origin::signed(ALICE),
 			HDX,
 			ACA,
-			100,
+			MIN_POOL_LIQUIDITY_LIMIT,
 			Price::from_num(1)
 		));
 
@@ -346,7 +346,7 @@ fn remove_liquidity_should_destroy_pool() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			Price::from(10_000)
+			Price::from_num(10_000)
 		));
 		let asset_pair = AssetPair {
 			asset_in: asset_a,
@@ -366,7 +366,7 @@ fn remove_liquidity_should_destroy_pool() {
 		assert!(!AMM::exists(asset_pair), "Pool not destroyed after removing all liquidity");
 
 		expect_events(vec![
-			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000).into(),
+			Event::LiquidityRemoved(user, asset_a, asset_b, 100_000_000).into(),
 			Event::PoolDestroyed(user, asset_a, asset_b).into(),
 		]);
 	});
@@ -384,7 +384,7 @@ fn remove_liquidity_should_not_destroy_pool() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			Price::from(10_000)
+			Price::from_num(10_000)
 		));
 
 		let asset_pair = AssetPair {
@@ -406,8 +406,8 @@ fn remove_liquidity_should_not_destroy_pool() {
 		assert!(AMM::exists(asset_pair));
 
 		expect_events(vec![
-			Event::CreatePool(user, asset_a, asset_b, 100_000_000).into(),
-			Event::RemoveLiquidity(user, asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT).into(),
+			Event::PoolCreated(user, asset_a, asset_b, 100_000_000).into(),
+			Event::LiquidityRemoved(user, asset_a, asset_b, 100_000_000 - MIN_POOL_LIQUIDITY_LIMIT).into(),
 		]);
 	});
 }
@@ -903,7 +903,7 @@ fn create_pool_with_zero_liquidity_should_not_work() {
 		);
 
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 1000, Price::from_num(0)),
+			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, MIN_POOL_LIQUIDITY_LIMIT, Price::from_num(0)),
 			Error::<Test>::CannotCreatePoolWithZeroInitialPrice
 		);
 	});
@@ -966,7 +966,7 @@ fn discount_sell_with_no_hdx_pool_should_not_work() {
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
-			1000,
+			MIN_POOL_LIQUIDITY_LIMIT,
 			Price::from_num(3200)
 		));
 
@@ -994,7 +994,7 @@ fn discount_buy_with_no_hdx_pool_should_not_work() {
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
-			1000,
+			MIN_POOL_LIQUIDITY_LIMIT,
 			Price::from_num(3200)
 		));
 

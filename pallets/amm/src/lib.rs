@@ -221,7 +221,7 @@ pub mod pallet {
 				Error::<T>::MinimalPoolLiquidityRequirementNotMet
 			);
 			ensure!(
-				!initial_price.is_zero(),
+				!(initial_price == 0),
 				Error::<T>::CannotCreatePoolWithZeroInitialPrice
 			);
 
