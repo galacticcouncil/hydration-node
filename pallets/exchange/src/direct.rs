@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use super::*;
 use frame_support::traits::BalanceStatus;
 
@@ -233,7 +250,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 
 	/// Send pallet event in case of insufficient balance.
 	fn send_insufficient_balance_event(intention: &Intention<T>, asset: AssetId) {
-		Module::<T>::deposit_event(Event::InsufficientAssetBalanceEvent(
+		Pallet::<T>::deposit_event(Event::InsufficientAssetBalanceEvent(
 			intention.who.clone(),
 			asset,
 			intention.sell_or_buy,
@@ -244,7 +261,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 
 	/// Send pallet event after a fee is transferred.
 	fn send_trade_fee_event(from: &T::AccountId, to: &T::AccountId, asset: AssetId, amount: Balance) {
-		Module::<T>::deposit_event(Event::IntentionResolvedDirectTradeFees(
+		Pallet::<T>::deposit_event(Event::IntentionResolvedDirectTradeFees(
 			from.clone(),
 			to.clone(),
 			asset,
@@ -254,7 +271,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 
 	/// Send event after successful direct trade.
 	fn send_direct_trade_resolve_event(&self) {
-		Module::<T>::deposit_event(Event::IntentionResolvedDirectTrade(
+		Pallet::<T>::deposit_event(Event::IntentionResolvedDirectTrade(
 			self.intention_a.who.clone(),
 			self.intention_b.who.clone(),
 			self.intention_a.intention_id,

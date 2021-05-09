@@ -1,13 +1,29 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+// This file is part of HydraDX.
 
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::upper_case_acronyms)]
 
 use codec::{Decode, Encode};
 
-use frame_support::sp_runtime::FixedU128;
 use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
+use substrate_fixed::types::U64F64;
 
 pub mod asset;
 pub mod traits;
@@ -31,7 +47,7 @@ pub type Balance = u128;
 pub type Amount = i128;
 
 /// Price
-pub type Price = FixedU128;
+pub type Price = U64F64;
 
 /// Max fraction of pool to buy in single transaction
 pub const MAX_OUT_RATIO: u128 = 3;
