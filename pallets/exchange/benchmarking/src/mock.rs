@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![cfg(test)]
 
 use super::*;
@@ -37,11 +54,11 @@ frame_support::construct_runtime!(
 		 NodeBlock = Block,
 		 UncheckedExtrinsic = UncheckedExtrinsic,
 		 {
-				 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-				 Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
-				 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
-				 Currency: orml_tokens::{Module, Event<T>},
-				 AssetRegistry: pallet_asset_registry::{Module, Storage},
+				 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+				 Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
+				 AMMPallet: pallet_amm::{Pallet, Call, Storage, Event<T>},
+				 Currency: orml_tokens::{Pallet, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 		 }
 
 );
@@ -75,6 +92,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
+	type OnSetCode = ();
 }
 
 parameter_type_with_key! {
@@ -123,9 +141,9 @@ impl pallet_amm::Config for Test {
 
 impl pallet_exchange::Config for Test {
 	type Event = Event;
-	type AMMPool = AMMModule;
+	type AMMPool = AMMPallet;
 	type Currency = Currency;
-	type Resolver = pallet_exchange::Module<Test>;
+	type Resolver = pallet_exchange::Pallet<Test>;
 	type WeightInfo = ();
 }
 

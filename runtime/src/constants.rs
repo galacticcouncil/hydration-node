@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 pub mod currency {
 	pub use primitives::Balance;
 
@@ -51,6 +68,8 @@ pub mod time {
 	pub const INFINITY: u32 = u32::MAX;
 }
 
+pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
+
 #[cfg(test)]
 mod tests {
 	use super::time::{DAYS, EPOCH_DURATION_IN_BLOCKS, HOURS, MILLISECS_PER_BLOCK, MINUTES, SECS_PER_BLOCK};
@@ -68,6 +87,7 @@ mod tests {
 		// 6s per block
 		assert_eq!(SECS_PER_BLOCK, 6);
 		// 1s = 1000ms
+		pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 		assert_eq!(MILLISECS_PER_BLOCK / 1000, SECS_PER_BLOCK);
 		// Extra check for epoch time because changing it bricks the block production and requires regenesis
 		assert_eq!(EPOCH_DURATION_IN_BLOCKS, 4 * HOURS);
