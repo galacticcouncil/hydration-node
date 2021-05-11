@@ -2,7 +2,7 @@ use platforms::*;
 use std::{borrow::Cow, process::Command, path, io, fs, env};
 
 /// Generate the `cargo:` key output
-pub fn generate_cargo_keys() -> io::Result<()> {
+pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {
 	let output = Command::new("git")
 		.args(&["rev-parse", "--short", "HEAD"])
 		.output();
@@ -22,7 +22,7 @@ pub fn generate_cargo_keys() -> io::Result<()> {
 		},
 	};
 
-	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version(&commit).unwrap());
+	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version(&commit, runtime).unwrap());
 	Ok(())
 }
 
