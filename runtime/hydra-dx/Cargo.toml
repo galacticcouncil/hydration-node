@@ -82,6 +82,7 @@ sp-api = {default-features = false, version = '3.0.0'}
 sp-block-builder = {default-features = false, version = '3.0.0'}
 sp-core = {default-features = false, version = '3.0.0'}
 sp-inherents = {default-features = false, version = '3.0.0'}
+sp-npos-elections = {version = '3.0.0', default-features = false}
 sp-offchain = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 sp-session = {default-features = false, version = '3.0.0'}
