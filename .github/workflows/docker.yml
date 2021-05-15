@@ -2,6 +2,11 @@ name: docker
 
 on:
   push:
+    branches:
+      - master
+      - stable
+      - docker-release
+    tags:
 
 jobs:
   docker:
@@ -16,7 +21,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: docker.pkg.github.com/galacticcouncil/hydradx-node/hydra-dx:latest
+          tags: docker.pkg.github.com/galacticcouncil/hydradx-node/hydra-dx:${{ github.ref }}
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
