@@ -1,4 +1,4 @@
-FROM paritytech/ci-linux:production as builder
+FROM rust:latest as builder
 
 WORKDIR /build
 
