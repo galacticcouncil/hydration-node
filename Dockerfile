@@ -1,5 +1,7 @@
 FROM rust:latest as builder
 
+RUN apt update && apt install -y git clang curl libssl-dev llvm libudev-dev
+
 WORKDIR /build
 
 COPY . /build
