@@ -48,7 +48,7 @@ jobs:
           time: '20s'
 
   docker-build:
-    runs-on: ${{ github.sha }}-docker
+    runs-on: ${{ format('{0}-docker', github.sha) }}
     needs: pop-runner-instance
     steps:
       - name: Extract branch name
