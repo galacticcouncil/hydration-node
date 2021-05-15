@@ -16,9 +16,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: docker.pkg.github.com/galacticcouncil/HydraDX-node/hydra:latest
-          secrets: |
-            GIT_AUTH_TOKEN=${{ secrets.MYTOKEN }}
+          tags: docker.pkg.github.com/galacticcouncil/hydradx-node/hydra-dx:latest
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
