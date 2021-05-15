@@ -8,9 +8,9 @@ on:
       - docker-release
     tags:
 
+jobs:
   docker-build:
     runs-on: docker
-    needs: pop-runner-instance
     steps:
       - name: Extract branch name
         shell: bash
