@@ -27,7 +27,5 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ghcr.io/galacticcouncil/hydra-dx:${{ steps.extract_branch.outputs.branch }}
-          secrets: |
-            GIT_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
