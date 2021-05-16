@@ -26,7 +26,7 @@ jobs:
         with:
           push: true
           platforms: linux/amd64
-          tags: docker.pkg.github.com/galacticcouncil/hydradx-node/hydra-dx:${{ steps.extract_branch.outputs.branch }}
+          tags: ghcr.io/galacticcouncil/hydra-dx:${{ steps.extract_branch.outputs.branch }}
           secrets: |
             GIT_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
       - name: Image digest
