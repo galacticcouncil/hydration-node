@@ -49,6 +49,8 @@ jobs:
   docker-build:
     runs-on: ${{ format('{0}-docker', github.sha) }}
     needs: pop-runner-instance
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
     steps:
       - name: Extract branch name
         shell: bash
