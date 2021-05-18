@@ -5,7 +5,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'hydra-dx-runtime'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '13.0.0'
+version = '14.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -60,6 +60,7 @@ pallet-staking = {default-features = false, version = '3.0.0'}
 pallet-staking-reward-curve = {default-features = false, version = '3.0.0'}
 pallet-tips = {default-features = false, version = '=3.0.0'}
 pallet-treasury = {default-features = false, version = '3.0.0'}
+pallet-utility = {default-features = false, version = '3.0.0'}
 sp-authority-discovery = {default-features = false, version = '3.0.0'}
 sp-consensus-babe = {default-features = false, version = '0.9.0'}
 
@@ -131,6 +132,7 @@ std = [
   'pallet-randomness-collective-flip/std',
   'pallet-scheduler/std',
   'pallet-sudo/std',
+  'pallet-utility/std',
   'pallet-timestamp/std',
   'pallet-tips/std',
   'pallet-transaction-payment/std',
