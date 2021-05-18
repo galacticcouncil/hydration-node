@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate as amm;
+use crate as xyk;
 use crate::{AssetPairAccountIdFor, Config};
 use frame_support::parameter_types;
 use frame_system as system;
@@ -49,7 +49,7 @@ frame_support::construct_runtime!(
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		 AMM: amm::{Pallet, Call, Storage, Event<T>},
+		 XYK: xyk::{Pallet, Call, Storage, Event<T>},
 		 Currency: orml_tokens::{Pallet, Event<T>},
 		 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 	 }
@@ -59,7 +59,7 @@ frame_support::construct_runtime!(
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
-	pub const HDXAssetId: AssetId = HDX;
+	pub const NativeAssetId: AssetId = HDX;
 	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
 }
 
@@ -128,7 +128,7 @@ impl Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
-	type HDXAssetId = HDXAssetId;
+	type NativeAssetId = NativeAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }

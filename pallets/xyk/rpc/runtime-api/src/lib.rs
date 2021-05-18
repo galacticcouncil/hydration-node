@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Runtime API definition for amm module.
+//! Runtime API definition for xyk pallet.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // The `too_many_arguments` warning originates from `decl_runtime_apis` macro.
@@ -55,7 +55,7 @@ fn deserialize_from_string<'de, D: Deserializer<'de>, T: std::str::FromStr>(dese
 }
 
 sp_api::decl_runtime_apis! {
-	pub trait AMMApi<AccountId, AssetId, Balance> where
+	pub trait XYKApi<AccountId, AssetId, Balance> where
 		AccountId: Codec,
 		AssetId: Codec,
 		Balance: Codec + MaybeDisplay + MaybeFromStr,

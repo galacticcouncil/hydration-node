@@ -1,6 +1,6 @@
 [package]
 authors = ['GalacticCouncil']
-name = "module-amm-rpc-runtime-api"
+name = "pallet-xyk-rpc-runtime-api"
 version = '3.0.0'
 edition = "2018"
 

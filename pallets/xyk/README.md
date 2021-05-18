@@ -10,7 +10,7 @@ into the exchange pallet.
 
 - **Currency** - implementation of fungible multi-currency system
 - **AssetPairAccount** / **AssetPairAccountId** - support for creating share accounts for asset pairs.
-- **HDXAssetID** - asset if native currency
+- **NativeAssetId** - asset id native currency
 - **ShareToken** - asset id from asset registry for an asset pair
 - **TotalLiquidity** - total liquidity in a pool identified by asset pair account id
 - **PoolAssets** - asset pair in a pool identified by asset pair account id
