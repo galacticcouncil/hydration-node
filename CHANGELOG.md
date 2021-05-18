@@ -1,3 +1,31 @@
+# v8.0.0 (Tue May 11 2021)
+
+#### 💥 Breaking Change
+
+- feat!: genesis3 reborn [#253](https://github.com/galacticcouncil/HydraDX-node/pull/253) ([@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 1
+
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+
+---
+
+# v7.0.0 (Sun May 09 2021)
+
+#### 💥 Breaking Change
+
+- feat!: genesis 3 [#251](https://github.com/galacticcouncil/HydraDX-node/pull/251) ([@jak-pan](https://github.com/jak-pan))
+
+#### 🐛 Bug Fix
+
+- fix(chore): discard patch for libsrock-db [#247](https://github.com/galacticcouncil/HydraDX-node/pull/247) ([@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 1
+
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+
+---
+
 # v6.0.0 (Wed May 05 2021)
 
 #### 💥 Breaking Change

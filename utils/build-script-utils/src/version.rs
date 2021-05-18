@@ -2,7 +2,7 @@ use platforms::*;
 use std::{borrow::Cow, process::Command, path, io, fs, env};
 
 /// Generate the `cargo:` key output
-pub fn generate_cargo_keys() -> io::Result<()> {
+pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {
 	let output = Command::new("git")
 		.args(&["rev-parse", "--short", "HEAD"])
 		.output();
@@ -22,7 +22,7 @@ pub fn generate_cargo_keys() -> io::Result<()> {
 		},
 	};
 
-	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version(&commit).unwrap());
+	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version(&commit, runtime).unwrap());
 	Ok(())
 }
 
@@ -40,7 +40,7 @@ fn get_platform() -> String {
 
 fn get_release_version() -> String {
 	let output = Command::new("git")
-		.args(&["describe", "--tags", "--abbrev=0"])
+		.args(&["describe", "--tags", "--abbrev=0", "--always"])
 		.output();
 
 	let version = match output {
@@ -76,12 +76,12 @@ fn parse_dependencies(lock_toml_buf: &str) -> Vec<(String, String)> {
 	deps
 }
 
-fn get_version(impl_commit: &str) -> io::Result<String> {
+fn get_version(impl_commit: &str, runtime: &str) -> io::Result<String> {
 	let commit_dash = if impl_commit.is_empty() { "" } else { "-" };
 	let deps = get_build_deps(env::var("CARGO_MANIFEST_DIR").unwrap().as_ref())?;
-	let runtime_dependency: Vec<(String, String)> = deps.into_iter().filter(|(dep,_)| dep.eq("hydra-dx-runtime")).collect();
+	let runtime_dependency: Vec<(String, String)> = deps.into_iter().filter(|(dep, _)| dep.eq(runtime)).collect();
 	let runtime_version = if runtime_dependency.is_empty() {
-		println!("cargo:warning=hydra-dx-runtime not found in dependencies");
+		println!("cargo:warning={} found in dependencies", runtime);
 		"unknown".to_string()
 	} else {
 		runtime_dependency[0].1.clone()
