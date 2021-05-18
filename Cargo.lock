@@ -2470,6 +2470,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-utility",
  "parity-scale-codec 2.1.1",
  "primitives",
  "serde",
@@ -4743,6 +4744,20 @@ dependencies = [
  "pallet-balances 3.0.0",
  "parity-scale-codec 2.1.1",
  "serde",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-utility"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#2be8fcc4236d32786c62f6f27a98e7fe7e550807"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.1.1",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
