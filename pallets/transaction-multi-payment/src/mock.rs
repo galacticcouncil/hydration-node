@@ -33,7 +33,7 @@ use frame_support::weights::Weight;
 use orml_currencies::BasicCurrencyAdapter;
 use primitives::{Amount, AssetId, Balance};
 
-use pallet_amm::AssetPairAccountIdFor;
+use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
 use frame_support::traits::{GenesisBuild, Get};
@@ -76,7 +76,7 @@ frame_support::construct_runtime!(
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 PaymentPallet: multi_payment::{Pallet, Call, Storage, Event<T>},
-		 AMMPallet: pallet_amm::{Pallet, Call, Storage, Event<T>},
+		 XYKPallet: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		 Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
 		 Currencies: orml_currencies::{Pallet, Event<T>},
 		 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
@@ -145,7 +145,7 @@ impl Config for Test {
 	type Event = Event;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
-	type AMMPool = AMMPallet;
+	type AMMPool = XYKPallet;
 	type WeightInfo = ();
 	type WithdrawFeeForSetCurrency = PayForSetCurrency;
 	type WeightToFee = IdentityFee<Balance>;
@@ -188,11 +188,11 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl pallet_amm::Config for Test {
+impl pallet_xyk::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
-	type HDXAssetId = HdxAssetId;
+	type NativeAssetId = HdxAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }

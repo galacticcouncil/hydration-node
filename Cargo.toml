@@ -100,11 +100,11 @@ panic = 'unwind'
 members = [
   # 'pallets/proposal', Update this
   'node',
-  'pallets/amm',
   'pallets/asset-registry',
   'pallets/exchange',
   'pallets/transaction-multi-payment',
   'pallets/genesis-history',
+  'pallets/xyk',
   'primitives',
   'runtime',
   'utils/build-script-utils'

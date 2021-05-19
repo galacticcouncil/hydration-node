@@ -89,9 +89,10 @@ pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 }
 
 pub mod fee {
-	use crate::Balance;
+	use super::*;
 
-	#[derive(Clone, Copy, Eq, PartialEq)]
+	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+	#[derive(Encode, Decode, Clone, PartialEq)]
 	pub struct Fee {
 		pub numerator: u32,
 		pub denominator: u32,

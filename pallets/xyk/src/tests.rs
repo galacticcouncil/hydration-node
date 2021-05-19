@@ -16,10 +16,10 @@
 // limitations under the License.
 
 use super::*;
-pub use crate::mock::{Currency, Event as TestEvent, ExtBuilder, Origin, System, Test, ACA, ALICE, AMM, BOB, DOT, HDX};
+pub use crate::mock::{Currency, Event as TestEvent, ExtBuilder, Origin, System, Test, ACA, ALICE, BOB, DOT, HDX, XYK};
 use frame_support::{assert_noop, assert_ok};
 use hydra_dx_math::MathError;
-use primitives::traits::AMM as AMMPool;
+use primitives::traits::AMM as AmmPool;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -46,7 +46,7 @@ fn create_pool_should_work() {
 	new_test_ext().execute_with(|| {
 		let asset_a = HDX;
 		let asset_b = ACA;
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(ALICE),
 			asset_a,
 			asset_b,
@@ -54,18 +54,18 @@ fn create_pool_should_work() {
 			Price::from_num(10)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000000000);
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 0);
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 100000000000000);
 
 		expect_events(vec![Event::PoolCreated(ALICE, asset_a, asset_b, 100000000000000).into()]);
 	});
@@ -78,7 +78,7 @@ fn create_same_pool_should_not_work() {
 		let asset_a = HDX;
 		let asset_b = ACA;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user),
 			asset_b,
 			asset_a,
@@ -86,7 +86,7 @@ fn create_same_pool_should_not_work() {
 			Price::from_num(2)
 		));
 		assert_noop!(
-			AMM::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from_num(2)),
+			XYK::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from_num(2)),
 			Error::<Test>::TokenPoolAlreadyExists
 		);
 		expect_events(vec![Event::PoolCreated(ALICE, asset_b, asset_a, 200).into()]);
@@ -101,7 +101,7 @@ fn create_pool_overflowing_amount_should_not_work() {
 		let asset_b = ACA;
 
 		assert_noop!(
-			AMM::create_pool(
+			XYK::create_pool(
 				Origin::signed(user),
 				asset_b,
 				asset_a,
@@ -120,7 +120,7 @@ fn add_liquidity_should_work() {
 		let asset_a = DOT;
 		let asset_b = HDX;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user),
 			asset_a,
 			asset_b,
@@ -128,7 +128,7 @@ fn add_liquidity_should_work() {
 			Price::from_num(10_000)
 		));
 
-		assert_ok!(AMM::add_liquidity(
+		assert_ok!(XYK::add_liquidity(
 			Origin::signed(user),
 			asset_a,
 			asset_b,
@@ -136,17 +136,17 @@ fn add_liquidity_should_work() {
 			1_000_000_000_000
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1004000000000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100400000);
 		assert_eq!(Currency::free_balance(asset_a, &user), 999999899600000);
 		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 1004000000000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 1004000000000);
 
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_a, asset_b, 1000000000000).into(),
@@ -161,14 +161,14 @@ fn add_liquidity_as_another_user_should_work() {
 		let user = ALICE;
 		let asset_a = HDX;
 		let asset_b = ACA;
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user),
 			asset_b,
 			asset_a,
 			100_000_000,
 			Price::from_num(10_000)
 		));
-		assert_ok!(AMM::add_liquidity(
+		assert_ok!(XYK::add_liquidity(
 			Origin::signed(user),
 			asset_b,
 			asset_a,
@@ -176,19 +176,19 @@ fn add_liquidity_as_another_user_should_work() {
 			1_000_000_000_000
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1004000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 100400000);
 		assert_eq!(Currency::free_balance(asset_b, &user), 999999899600000);
 		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 1004000000000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 1004000000000);
 
-		assert_ok!(AMM::add_liquidity(
+		assert_ok!(XYK::add_liquidity(
 			Origin::signed(BOB),
 			asset_b,
 			asset_a,
@@ -202,7 +202,7 @@ fn add_liquidity_as_another_user_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &BOB), 999999999000000);
 		assert_eq!(Currency::free_balance(share_token, &user), 1004000000000);
 		assert_eq!(Currency::free_balance(share_token, &BOB), 10000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 1014000000000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 1014000000000);
 
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_b, asset_a, 1000000000000).into(),
@@ -219,7 +219,7 @@ fn remove_liquidity_should_work() {
 		let asset_a = HDX;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user),
 			asset_a,
 			asset_b,
@@ -227,24 +227,24 @@ fn remove_liquidity_should_work() {
 			Price::from_num(10_000)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(share_token, &user), 100000000);
 		assert_eq!(Currency::free_balance(asset_a, &user), 999999900000000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000000);
 
-		assert_ok!(AMM::remove_liquidity(Origin::signed(user), asset_a, asset_b, 355_000));
+		assert_ok!(XYK::remove_liquidity(Origin::signed(user), asset_a, asset_b, 355_000));
 
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 996450000000);
 		assert_eq!(Currency::free_balance(asset_a, &user), 999999900355000);
 
 		assert_eq!(Currency::free_balance(share_token, &user), 99645000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 99645000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 99645000);
 
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_a, asset_b, 100000000).into(),
@@ -256,7 +256,7 @@ fn remove_liquidity_should_work() {
 #[test]
 fn add_liquidity_more_than_owner_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(ALICE),
 			HDX,
 			ACA,
@@ -267,7 +267,7 @@ fn add_liquidity_more_than_owner_should_not_work() {
 		assert_eq!(Currency::free_balance(ACA, &ALICE), 400000000000000);
 
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 200_000_000_000_000_000, 600_000_000),
+			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 200_000_000_000_000_000, 600_000_000),
 			Error::<Test>::InsufficientAssetBalance
 		);
 	});
@@ -276,7 +276,7 @@ fn add_liquidity_more_than_owner_should_not_work() {
 #[test]
 fn add_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(ALICE),
 			HDX,
 			ACA,
@@ -285,12 +285,12 @@ fn add_zero_liquidity_should_not_work() {
 		));
 
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 0, 0),
+			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 0, 0),
 			Error::<Test>::CannotAddZeroLiquidity
 		);
 
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 100, 0),
+			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 100, 0),
 			Error::<Test>::CannotAddZeroLiquidity
 		);
 	});
@@ -300,7 +300,7 @@ fn add_zero_liquidity_should_not_work() {
 fn remove_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AMM::remove_liquidity(Origin::signed(ALICE), HDX, ACA, 0),
+			XYK::remove_liquidity(Origin::signed(ALICE), HDX, ACA, 0),
 			Error::<Test>::CannotRemoveLiquidityWithZero
 		);
 	});
@@ -313,7 +313,7 @@ fn sell_test() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -321,11 +321,11 @@ fn sell_test() {
 			Price::from_num(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
@@ -334,7 +334,7 @@ fn sell_test() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
 
-		assert_ok!(AMM::sell(
+		assert_ok!(XYK::sell(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -364,7 +364,7 @@ fn work_flow_happy_path_should_work() {
 		let asset_a = HDX;
 		let asset_b = ACA;
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -375,7 +375,7 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1000000000000000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 0);
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -385,14 +385,14 @@ fn work_flow_happy_path_should_work() {
 
 		// User 1 really tries!
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(user_1), asset_a, asset_b, 800_000_000_000_000_000, 100),
+			XYK::add_liquidity(Origin::signed(user_1), asset_a, asset_b, 800_000_000_000_000_000, 100),
 			Error::<Test>::InsufficientAssetBalance
 		);
 
 		// Total liquidity
-		assert_eq!(AMM::total_liquidity(&pair_account), 350_000_000_000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 350_000_000_000);
 
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		// Check balance after add liquidity for user 1 and user 2
 
@@ -410,7 +410,7 @@ fn work_flow_happy_path_should_work() {
 
 		// User 2 adds liquidity
 		let current_b_balance = Currency::free_balance(asset_b, &user_2);
-		assert_ok!(AMM::add_liquidity(
+		assert_ok!(XYK::add_liquidity(
 			Origin::signed(user_2),
 			asset_a,
 			asset_b,
@@ -418,7 +418,7 @@ fn work_flow_happy_path_should_work() {
 			current_b_balance
 		));
 
-		assert_eq!(AMM::total_liquidity(&pair_account), 650_000_000_000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 650_000_000_000);
 
 		// Check balance after add liquidity for user 1 and user 2
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_650_000_000_000);
@@ -434,7 +434,7 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 26_000_000_000_000);
 
 		// User 2 SELLs
-		assert_ok!(AMM::sell(
+		assert_ok!(XYK::sell(
 			Origin::signed(user_2),
 			asset_a,
 			asset_b,
@@ -456,7 +456,7 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 195_09_754_877_446);
 
 		// User 1 SELLs
-		assert_ok!(AMM::sell(
+		assert_ok!(XYK::sell(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -479,7 +479,7 @@ fn work_flow_happy_path_should_work() {
 
 		// User 2 removes liquidity
 
-		assert_ok!(AMM::remove_liquidity(Origin::signed(user_2), asset_a, asset_b, 10_000));
+		assert_ok!(XYK::remove_liquidity(Origin::signed(user_2), asset_a, asset_b, 10_000));
 
 		let user_2_remove_1_balance_1 = Currency::free_balance(asset_a, &user_2);
 		let user_2_remove_1_balance_2 = Currency::free_balance(asset_b, &user_2);
@@ -488,7 +488,7 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(user_2_remove_1_balance_2, 994_490_245_347_779);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_990_000);
 
-		assert_ok!(AMM::remove_liquidity(Origin::signed(user_2), asset_b, asset_a, 10_000));
+		assert_ok!(XYK::remove_liquidity(Origin::signed(user_2), asset_b, asset_a, 10_000));
 
 		let user_2_remove_2_balance_1 = Currency::free_balance(asset_a, &user_2);
 		let user_2_remove_2_balance_2 = Currency::free_balance(asset_b, &user_2);
@@ -509,12 +509,12 @@ fn work_flow_happy_path_should_work() {
 			user_2_remove_2_balance_2 - user_2_remove_1_balance_2
 		);
 
-		assert_eq!(AMM::total_liquidity(&pair_account), 649_999_980_000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 649_999_980_000);
 
-		assert_ok!(AMM::remove_liquidity(Origin::signed(user_2), asset_a, asset_b, 18_000));
+		assert_ok!(XYK::remove_liquidity(Origin::signed(user_2), asset_a, asset_b, 18_000));
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_962_000);
 
-		assert_eq!(AMM::total_liquidity(&pair_account), 649_999_962_000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 649_999_962_000);
 
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 350_000_000_000).into(),
@@ -554,7 +554,7 @@ fn sell_with_correct_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 1_000_000_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_2), 1_000_000_000_000_000);
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -562,11 +562,11 @@ fn sell_with_correct_fees_should_work() {
 			Price::from_num(200)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999990000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998000000000);
@@ -576,7 +576,7 @@ fn sell_with_correct_fees_should_work() {
 
 		assert_eq!(Currency::free_balance(share_token, &user_1), 2000000000);
 
-		assert_ok!(AMM::sell(
+		assert_ok!(XYK::sell(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -614,14 +614,14 @@ fn discount_sell_fees_should_work() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			HDX,
 			5_000,
 			Price::from_num(2)
 		));
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -629,30 +629,30 @@ fn discount_sell_fees_should_work() {
 			Price::from_num(2)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let hdx_pair_account = AMM::get_pair_id(AssetPair {
+		let native_pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: HDX,
 		});
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 30_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 60_000);
-		assert_eq!(Currency::free_balance(asset_a, &hdx_pair_account), 5_000);
-		assert_eq!(Currency::free_balance(HDX, &hdx_pair_account), 10_000);
+		assert_eq!(Currency::free_balance(asset_a, &native_pair_account), 5_000);
+		assert_eq!(Currency::free_balance(HDX, &native_pair_account), 10_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 965_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 940_000);
 		assert_eq!(Currency::free_balance(HDX, &user_1), 990_000);
 
-		assert_ok!(AMM::sell(Origin::signed(user_1), asset_a, asset_b, 10_000, 1_500, true,));
+		assert_ok!(XYK::sell(Origin::signed(user_1), asset_a, asset_b, 10_000, 1_500, true,));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 40_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 45_007);
-		assert_eq!(Currency::free_balance(asset_a, &hdx_pair_account), 5_000);
-		assert_eq!(Currency::free_balance(HDX, &hdx_pair_account), 10_000);
+		assert_eq!(Currency::free_balance(asset_a, &native_pair_account), 5_000);
+		assert_eq!(Currency::free_balance(HDX, &native_pair_account), 10_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 955_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 954_993);
@@ -674,7 +674,7 @@ fn single_buy_should_work() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -682,11 +682,11 @@ fn single_buy_should_work() {
 			Price::from_num(3200)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
@@ -695,7 +695,7 @@ fn single_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
 
-		assert_ok!(AMM::buy(
+		assert_ok!(XYK::buy(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -724,7 +724,7 @@ fn single_buy_with_discount_should_work() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -732,7 +732,7 @@ fn single_buy_with_discount_should_work() {
 			Price::from_num(3200)
 		));
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			HDX,
@@ -740,16 +740,16 @@ fn single_buy_with_discount_should_work() {
 			Price::from_num(2)
 		));
 
-		let hdx_pair_account = AMM::get_pair_id(AssetPair {
+		let native_pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: HDX,
 		});
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_949_800_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
@@ -761,7 +761,7 @@ fn single_buy_with_discount_should_work() {
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
 
-		assert_ok!(AMM::buy(
+		assert_ok!(XYK::buy(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -781,7 +781,7 @@ fn single_buy_with_discount_should_work() {
 
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 640_000_000_000).into(),
-			frame_system::Event::NewAccount(hdx_pair_account).into(),
+			frame_system::Event::NewAccount(native_pair_account).into(),
 			Event::PoolCreated(user_1, asset_a, HDX, 100_000_000_000).into(),
 			Event::BuyExecuted(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
 		]);
@@ -792,12 +792,12 @@ fn single_buy_with_discount_should_work() {
 fn create_pool_with_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 0, Price::from_num(3200)),
+			XYK::create_pool(Origin::signed(ALICE), ACA, HDX, 0, Price::from_num(3200)),
 			Error::<Test>::CannotCreatePoolWithZeroLiquidity
 		);
 
 		assert_noop!(
-			AMM::create_pool(Origin::signed(ALICE), ACA, HDX, 10, Price::from_num(0)),
+			XYK::create_pool(Origin::signed(ALICE), ACA, HDX, 10, Price::from_num(0)),
 			Error::<Test>::CannotCreatePoolWithZeroInitialPrice
 		);
 	});
@@ -807,7 +807,7 @@ fn create_pool_with_zero_liquidity_should_not_work() {
 fn add_liquidity_to_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AMM::add_liquidity(Origin::signed(ALICE), HDX, ACA, 200_000_000_000_000_000, 600_000_000),
+			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 200_000_000_000_000_000, 600_000_000),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -817,7 +817,7 @@ fn add_liquidity_to_non_existing_pool_should_not_work() {
 fn remove_zero_liquidity_from_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AMM::remove_liquidity(Origin::signed(ALICE), HDX, ACA, 100),
+			XYK::remove_liquidity(Origin::signed(ALICE), HDX, ACA, 100),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
@@ -827,16 +827,16 @@ fn remove_zero_liquidity_from_non_existing_pool_should_not_work() {
 fn sell_with_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AMM::sell(Origin::signed(ALICE), HDX, DOT, 456_444_678, 1_000_000, false),
+			XYK::sell(Origin::signed(ALICE), HDX, DOT, 456_444_678, 1_000_000, false),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
 }
 
 #[test]
-fn discount_sell_with_no_hdx_pool_should_not_work() {
+fn discount_sell_with_no_native_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
@@ -845,7 +845,7 @@ fn discount_sell_with_no_hdx_pool_should_not_work() {
 		));
 
 		assert_noop!(
-			AMM::sell(Origin::signed(ALICE), ACA, DOT, 456_444_678, 1_000_000, true),
+			XYK::sell(Origin::signed(ALICE), ACA, DOT, 456_444_678, 1_000_000, true),
 			Error::<Test>::CannotApplyDiscount
 		);
 	});
@@ -855,16 +855,16 @@ fn discount_sell_with_no_hdx_pool_should_not_work() {
 fn buy_with_non_existing_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AMM::buy(Origin::signed(ALICE), HDX, DOT, 456_444_678, 1_000_000_000, false),
+			XYK::buy(Origin::signed(ALICE), HDX, DOT, 456_444_678, 1_000_000_000, false),
 			Error::<Test>::TokenPoolNotFound
 		);
 	});
 }
 
 #[test]
-fn discount_buy_with_no_hdx_pool_should_not_work() {
+fn discount_buy_with_no_native_pool_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(ALICE),
 			ACA,
 			DOT,
@@ -873,7 +873,7 @@ fn discount_buy_with_no_hdx_pool_should_not_work() {
 		));
 
 		assert_noop!(
-			AMM::buy(Origin::signed(ALICE), ACA, DOT, 10, 1_000_000_000, true),
+			XYK::buy(Origin::signed(ALICE), ACA, DOT, 10, 1_000_000_000, true),
 			Error::<Test>::CannotApplyDiscount
 		);
 	});
@@ -885,7 +885,7 @@ fn create_pool_small_fixed_point_amount_should_work() {
 		let asset_a = HDX;
 		let asset_b = ACA;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(ALICE),
 			asset_a,
 			asset_b,
@@ -893,18 +893,18 @@ fn create_pool_small_fixed_point_amount_should_work() {
 			Price::from_num(0.00001)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1000000000);
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 900000000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 999999000000000);
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 100000000000000);
 
 		expect_events(vec![Event::PoolCreated(ALICE, asset_a, asset_b, 100000000000000).into()]);
 	});
@@ -915,7 +915,7 @@ fn create_pool_fixed_point_amount_should_work() {
 	new_test_ext().execute_with(|| {
 		let asset_a = HDX;
 		let asset_b = ACA;
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(ALICE),
 			asset_a,
 			asset_b,
@@ -923,18 +923,18 @@ fn create_pool_fixed_point_amount_should_work() {
 			Price::from_num(4560.234543)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 100000000000);
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 456023454299999);
 		assert_eq!(Currency::free_balance(asset_a, &ALICE), 999900000000000);
 		assert_eq!(Currency::free_balance(asset_b, &ALICE), 543976545700001);
 		assert_eq!(Currency::free_balance(share_token, &ALICE), 100000000000);
-		assert_eq!(AMM::total_liquidity(&pair_account), 100000000000);
+		assert_eq!(XYK::total_liquidity(&pair_account), 100000000000);
 
 		expect_events(vec![Event::PoolCreated(ALICE, asset_a, asset_b, 100000000000).into()]);
 	});
@@ -947,7 +947,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 		let asset_a = HDX;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user),
 			asset_a,
 			asset_b,
@@ -960,24 +960,24 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			asset_out: asset_b,
 		};
 
-		let pair_account = AMM::get_pair_id(asset_pair);
+		let pair_account = XYK::get_pair_id(asset_pair);
 
-		assert_eq!(AMM::exists(asset_pair), true);
+		assert_eq!(XYK::exists(asset_pair), true);
 
-		assert_ok!(AMM::remove_liquidity(
+		assert_ok!(XYK::remove_liquidity(
 			Origin::signed(user),
 			asset_a,
 			asset_b,
 			100_000_000
 		));
 
-		assert_eq!(AMM::total_liquidity(&pair_account), 0);
+		assert_eq!(XYK::total_liquidity(&pair_account), 0);
 
-		assert_eq!(AMM::exists(asset_pair), false);
+		assert_eq!(XYK::exists(asset_pair), false);
 
 		// It should be possible to recreate the pool again
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user),
 			asset_a,
 			asset_b,
@@ -1003,7 +1003,7 @@ fn create_pool_with_same_assets_should_not_be_allowed() {
 		let asset_a = HDX;
 
 		assert_noop!(
-			AMM::create_pool(
+			XYK::create_pool(
 				Origin::signed(user),
 				asset_a,
 				asset_a,
@@ -1022,7 +1022,7 @@ fn sell_test_exceeding_max_limit() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -1030,11 +1030,11 @@ fn sell_test_exceeding_max_limit() {
 			Price::from_num(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
@@ -1044,7 +1044,7 @@ fn sell_test_exceeding_max_limit() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
 
 		assert_noop!(
-			AMM::sell(
+			XYK::sell(
 				Origin::signed(user_1),
 				asset_a,
 				asset_b,
@@ -1070,7 +1070,7 @@ fn buy_test_exceeding_max_limit() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -1078,11 +1078,11 @@ fn buy_test_exceeding_max_limit() {
 			Price::from_num(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400000000000000);
@@ -1092,7 +1092,7 @@ fn buy_test_exceeding_max_limit() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600000000000000);
 
 		assert_noop!(
-			AMM::buy(
+			XYK::buy(
 				Origin::signed(user_1),
 				asset_a,
 				asset_b,
@@ -1118,7 +1118,7 @@ fn single_buy_more_than_ratio_out_should_not_work() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -1126,11 +1126,11 @@ fn single_buy_more_than_ratio_out_should_not_work() {
 			Price::from_num(3200)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_800_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_360_000_000_000);
@@ -1140,7 +1140,7 @@ fn single_buy_more_than_ratio_out_should_not_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 640_000_000_000);
 
 		assert_noop!(
-			AMM::buy(
+			XYK::buy(
 				Origin::signed(user_1),
 				asset_a,
 				asset_b,
@@ -1160,7 +1160,7 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 		let asset_a = ACA;
 		let asset_b = DOT;
 
-		assert_ok!(AMM::create_pool(
+		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
@@ -1168,11 +1168,11 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 			Price::from_num(3000)
 		));
 
-		let pair_account = AMM::get_pair_id(AssetPair {
+		let pair_account = XYK::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
-		let share_token = AMM::share_token(pair_account);
+		let share_token = XYK::share_token(pair_account);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_800_000_000_000);
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 400_000_000_000_000);
@@ -1182,7 +1182,7 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 600_000_000_000_000);
 
 		assert_noop!(
-			AMM::sell(
+			XYK::sell(
 				Origin::signed(user_1),
 				asset_a,
 				asset_b,

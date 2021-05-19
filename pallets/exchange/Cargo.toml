@@ -26,7 +26,7 @@ primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependencies
-pallet-amm = {path = '../amm', default-features = false}
+pallet-xyk = {path = '../xyk', default-features = false}
 pallet-asset-registry = {path = '../asset-registry', default-features = false}
 primitives = {path = '../../primitives', default-features = false}
 
@@ -57,6 +57,6 @@ std = [
   'primitives/std',
   'orml-tokens/std',
   'orml-traits/std',
-  'pallet-amm/std',
+  'pallet-xyk/std',
   'pallet-asset-registry/std',
 ]
