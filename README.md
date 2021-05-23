@@ -75,7 +75,7 @@ Then open settings screen -> developer and paste
   "Address": "AccountId",
   "Fee": {
     "numerator": "u32",
-    "denominator": "u32",
+    "denominator": "u32"
   },
   "BalanceInfo": {
     "amount": "Balance",
