@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "13.0.0"
+version = "14.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2468,9 +2468,9 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-utility",
  "pallet-xyk",
  "pallet-xyk-rpc-runtime-api",
- "pallet-utility",
  "parity-scale-codec 2.1.1",
  "primitives",
  "serde",
@@ -5258,7 +5258,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "substrate-fixed",
  "substrate-wasm-builder",
 ]
 
@@ -7947,15 +7946,6 @@ dependencies = [
  "schnorrkel",
  "sha2 0.8.2",
  "zeroize",
-]
-
-[[package]]
-name = "substrate-fixed"
-version = "0.5.6"
-source = "git+https://github.com/encointer/substrate-fixed#b33d186888c60f38adafcfc0ec3a21aab263aef1"
-dependencies = [
- "parity-scale-codec 2.1.1",
- "typenum",
 ]
 
 [[package]]

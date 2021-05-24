@@ -23,7 +23,8 @@ use codec::{Decode, Encode};
 use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use substrate_fixed::types::U64F64;
+
+use frame_support::sp_runtime::FixedU128;
 
 pub mod asset;
 pub mod traits;
@@ -47,7 +48,7 @@ pub type Balance = u128;
 pub type Amount = i128;
 
 /// Price
-pub type Price = U64F64;
+pub type Price = FixedU128;
 
 /// Max fraction of pool to buy in single transaction
 pub const MAX_OUT_RATIO: u128 = 3;

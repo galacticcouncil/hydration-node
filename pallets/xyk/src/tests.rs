@@ -51,7 +51,7 @@ fn create_pool_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000_000_000,
-			Price::from_num(10)
+			Price::from(10)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -83,10 +83,10 @@ fn create_same_pool_should_not_work() {
 			asset_b,
 			asset_a,
 			100,
-			Price::from_num(2)
+			Price::from(2)
 		));
 		assert_noop!(
-			XYK::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from_num(2)),
+			XYK::create_pool(Origin::signed(user), asset_b, asset_a, 100, Price::from(2)),
 			Error::<Test>::TokenPoolAlreadyExists
 		);
 		expect_events(vec![Event::PoolCreated(ALICE, asset_b, asset_a, 200).into()]);
@@ -106,7 +106,7 @@ fn create_pool_overflowing_amount_should_not_work() {
 				asset_b,
 				asset_a,
 				u128::MAX as u128,
-				Price::from_num(2)
+				Price::from(2)
 			),
 			Error::<Test>::CreatePoolAssetAmountInvalid
 		);
@@ -125,7 +125,7 @@ fn add_liquidity_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			Price::from_num(10_000)
+			Price::from(10_000)
 		));
 
 		assert_ok!(XYK::add_liquidity(
@@ -166,7 +166,7 @@ fn add_liquidity_as_another_user_should_work() {
 			asset_b,
 			asset_a,
 			100_000_000,
-			Price::from_num(10_000)
+			Price::from(10_000)
 		));
 		assert_ok!(XYK::add_liquidity(
 			Origin::signed(user),
@@ -224,7 +224,7 @@ fn remove_liquidity_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			Price::from_num(10_000)
+			Price::from(10_000)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -261,7 +261,7 @@ fn add_liquidity_more_than_owner_should_not_work() {
 			HDX,
 			ACA,
 			200_000_000,
-			Price::from_num(3000000)
+			Price::from(3000000)
 		));
 
 		assert_eq!(Currency::free_balance(ACA, &ALICE), 400000000000000);
@@ -281,7 +281,7 @@ fn add_zero_liquidity_should_not_work() {
 			HDX,
 			ACA,
 			100,
-			Price::from_num(1)
+			Price::from(1)
 		));
 
 		assert_noop!(
@@ -318,7 +318,7 @@ fn sell_test() {
 			asset_a,
 			asset_b,
 			200_000_000_000,
-			Price::from_num(3000)
+			Price::from(3000)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -380,7 +380,7 @@ fn work_flow_happy_path_should_work() {
 			asset_a,
 			asset_b,
 			350_000_000_000,
-			Price::from_num(40)
+			Price::from(40)
 		));
 
 		// User 1 really tries!
@@ -559,7 +559,7 @@ fn sell_with_correct_fees_should_work() {
 			asset_a,
 			asset_b,
 			10_000_000,
-			Price::from_num(200)
+			Price::from(200)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -619,14 +619,14 @@ fn discount_sell_fees_should_work() {
 			asset_a,
 			HDX,
 			5_000,
-			Price::from_num(2)
+			Price::from(2)
 		));
 		assert_ok!(XYK::create_pool(
 			Origin::signed(user_1),
 			asset_a,
 			asset_b,
 			30_000,
-			Price::from_num(2)
+			Price::from(2)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -679,7 +679,7 @@ fn single_buy_should_work() {
 			asset_a,
 			asset_b,
 			200_000_000,
-			Price::from_num(3200)
+			Price::from(3200)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -729,7 +729,7 @@ fn single_buy_with_discount_should_work() {
 			asset_a,
 			asset_b,
 			200_000_000,
-			Price::from_num(3200)
+			Price::from(3200)
 		));
 
 		assert_ok!(XYK::create_pool(
@@ -737,7 +737,7 @@ fn single_buy_with_discount_should_work() {
 			asset_a,
 			HDX,
 			50_000_000_000,
-			Price::from_num(2)
+			Price::from(2)
 		));
 
 		let native_pair_account = XYK::get_pair_id(AssetPair {
@@ -792,12 +792,12 @@ fn single_buy_with_discount_should_work() {
 fn create_pool_with_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			XYK::create_pool(Origin::signed(ALICE), ACA, HDX, 0, Price::from_num(3200)),
+			XYK::create_pool(Origin::signed(ALICE), ACA, HDX, 0, Price::from(3200)),
 			Error::<Test>::CannotCreatePoolWithZeroLiquidity
 		);
 
 		assert_noop!(
-			XYK::create_pool(Origin::signed(ALICE), ACA, HDX, 10, Price::from_num(0)),
+			XYK::create_pool(Origin::signed(ALICE), ACA, HDX, 10, Price::from(0)),
 			Error::<Test>::CannotCreatePoolWithZeroInitialPrice
 		);
 	});
@@ -841,7 +841,7 @@ fn discount_sell_with_no_native_pool_should_not_work() {
 			ACA,
 			DOT,
 			100,
-			Price::from_num(3200)
+			Price::from(3200)
 		));
 
 		assert_noop!(
@@ -869,7 +869,7 @@ fn discount_buy_with_no_native_pool_should_not_work() {
 			ACA,
 			DOT,
 			100,
-			Price::from_num(3200)
+			Price::from(3200)
 		));
 
 		assert_noop!(
@@ -890,7 +890,7 @@ fn create_pool_small_fixed_point_amount_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000_000_000,
-			Price::from_num(0.00001)
+			Price::from_float(0.00001)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -920,7 +920,7 @@ fn create_pool_fixed_point_amount_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000_000,
-			Price::from_num(4560.234543)
+			Price::from_float(4560.234543)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -952,7 +952,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			Price::from_num(10_000)
+			Price::from(10_000)
 		));
 
 		let asset_pair = AssetPair {
@@ -982,7 +982,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			asset_a,
 			asset_b,
 			100_000_000,
-			Price::from_num(10_000)
+			Price::from(10_000)
 		));
 
 		expect_events(vec![
@@ -1008,7 +1008,7 @@ fn create_pool_with_same_assets_should_not_be_allowed() {
 				asset_a,
 				asset_a,
 				100_000_000,
-				Price::from_num(10_000)
+				Price::from(10_000)
 			),
 			Error::<Test>::CannotCreatePoolWithSameAssets
 		);
@@ -1027,7 +1027,7 @@ fn sell_test_exceeding_max_limit() {
 			asset_a,
 			asset_b,
 			200_000_000_000,
-			Price::from_num(3000)
+			Price::from(3000)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -1075,7 +1075,7 @@ fn buy_test_exceeding_max_limit() {
 			asset_a,
 			asset_b,
 			200_000_000_000,
-			Price::from_num(3000)
+			Price::from(3000)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -1123,7 +1123,7 @@ fn single_buy_more_than_ratio_out_should_not_work() {
 			asset_a,
 			asset_b,
 			200_000_000,
-			Price::from_num(3200)
+			Price::from(3200)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
@@ -1165,7 +1165,7 @@ fn single_sell_more_than_ratio_in_should_not_work() {
 			asset_a,
 			asset_b,
 			200_000_000_000,
-			Price::from_num(3000)
+			Price::from(3000)
 		));
 
 		let pair_account = XYK::get_pair_id(AssetPair {
