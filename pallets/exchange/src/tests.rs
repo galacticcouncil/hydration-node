@@ -22,6 +22,7 @@ pub use crate::mock::{
 };
 use frame_support::sp_runtime::traits::Hash;
 use frame_support::traits::OnFinalize;
+use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::InitKind;
 use primitives::Price;
@@ -77,7 +78,7 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	let shares = if asset_a <= asset_b {
 		amount
 	} else {
-		price.checked_mul_int(amount).unwrap().to_num()
+		price.checked_mul_int(amount).unwrap()
 	};
 
 	expect_event(xyk::Event::PoolCreated(user, asset_a, asset_b, shares));
@@ -94,7 +95,7 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	assert_eq!(Currency::free_balance(asset_a, &user), ENDOWED_AMOUNT - amount);
 	assert_eq!(
 		Currency::free_balance(asset_b, &user),
-		ENDOWED_AMOUNT - amount_b.to_num::<u128>()
+		ENDOWED_AMOUNT - amount_b
 	);
 
 	// Check initial state of the pool
@@ -117,7 +118,7 @@ fn sell_test_pool_finalization_states() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -228,7 +229,7 @@ fn sell_test_standard() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -330,7 +331,7 @@ fn sell_test_inverse_standard() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -434,7 +435,7 @@ fn sell_test_exact_match() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -526,7 +527,7 @@ fn sell_test_single_eth_sells() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -623,7 +624,7 @@ fn sell_test_single_dot_sells() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -721,7 +722,7 @@ fn sell_trade_limits_respected_for_matched_intention() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -809,7 +810,7 @@ fn sell_test_single_multiple_sells() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -986,7 +987,7 @@ fn sell_test_group_sells() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -1145,7 +1146,7 @@ fn sell_more_than_owner_should_not_work() {
 			HDX,
 			ETH,
 			200_000,
-			Price::from_num(2)
+			Price::from(2)
 		));
 
 		// With SELL
@@ -1173,7 +1174,7 @@ fn sell_test_mixed_buy_sells() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -1303,7 +1304,7 @@ fn discount_tests_no_discount() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -1433,7 +1434,7 @@ fn discount_tests_with_discount() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -1567,7 +1568,7 @@ fn buy_test_exact_match() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -1658,7 +1659,7 @@ fn buy_test_group_buys() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -1788,7 +1789,7 @@ fn discount_tests_with_error() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -1936,7 +1937,7 @@ fn simple_sell_sell() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -2023,7 +2024,7 @@ fn simple_buy_buy() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -2110,7 +2111,7 @@ fn simple_sell_buy() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -2198,7 +2199,7 @@ fn simple_buy_sell() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -2285,7 +2286,7 @@ fn single_sell_intention_test() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -2350,7 +2351,7 @@ fn single_buy_intention_test() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
@@ -2417,7 +2418,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
