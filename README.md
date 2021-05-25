@@ -73,10 +73,9 @@ Then open settings screen -> developer and paste
   "Amount": "i128",
   "AmountOf": "Amount",
   "Address": "AccountId",
-  "AccountData": {
-    "free": "Balance",
-    "frozen": "Balance",
-    "reserved": "Balance"
+  "Fee": {
+    "numerator": "u32",
+    "denominator": "u32"
   },
   "BalanceInfo": {
     "amount": "Balance",

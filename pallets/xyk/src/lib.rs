@@ -42,6 +42,7 @@ use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 use primitives::Amount;
+use frame_support::sp_runtime::FixedPointNumber;
 
 #[cfg(test)]
 mod mock;
@@ -215,7 +216,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(!amount.is_zero(), Error::<T>::CannotCreatePoolWithZeroLiquidity);
-			ensure!(!(initial_price == 0), Error::<T>::CannotCreatePoolWithZeroInitialPrice);
+			ensure!(!(initial_price == Price::zero()), Error::<T>::CannotCreatePoolWithZeroInitialPrice);
 
 			ensure!(asset_a != asset_b, Error::<T>::CannotCreatePoolWithSameAssets);
 
@@ -229,10 +230,11 @@ pub mod pallet {
 			let asset_b_amount = initial_price
 				.checked_mul_int(amount)
 				.ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
+
 			let shares_added = if asset_a < asset_b {
 				amount
 			} else {
-				asset_b_amount.to_num()
+				asset_b_amount
 			};
 
 			ensure!(
@@ -255,7 +257,7 @@ pub mod pallet {
 			<PoolAssets<T>>::insert(&pair_account, (asset_a, asset_b));
 
 			T::Currency::transfer(asset_a, &who, &pair_account, amount)?;
-			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount.to_num())?;
+			T::Currency::transfer(asset_b, &who, &pair_account, asset_b_amount)?;
 
 			T::Currency::deposit(share_token, &who, shares_added)?;
 
