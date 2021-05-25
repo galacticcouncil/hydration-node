@@ -93,7 +93,7 @@ pub mod fee {
 	use super::*;
 
 	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-	#[derive(Encode, Decode, Clone, PartialEq)]
+	#[derive(Debug, Encode, Decode, Copy, Clone, PartialEq)]
 	pub struct Fee {
 		pub numerator: u32,
 		pub denominator: u32,
