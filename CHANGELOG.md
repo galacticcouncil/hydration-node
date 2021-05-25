@@ -1,3 +1,22 @@
+# v9.0.0 (Tue May 25 2021)
+
+#### 🚀 Enhancement
+
+- feat!: add utility pallet to allow batch txs execution [#246](https://github.com/galacticcouncil/HydraDX-node/pull/246) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Refactoring
+
+- refactor!: revert price type to fixedu128 [#259](https://github.com/galacticcouncil/HydraDX-node/pull/259) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- refactor: pallet improvements and xyk pallet [#242](https://github.com/galacticcouncil/HydraDX-node/pull/242) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- refactor(build-script): allow to specify runtime [#254](https://github.com/galacticcouncil/HydraDX-node/pull/254) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Authors: 2
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+---
+
 # v8.0.0 (Tue May 11 2021)
 
 #### 💥 Breaking Change
