@@ -73,6 +73,10 @@ Then open settings screen -> developer and paste
   "Amount": "i128",
   "AmountOf": "Amount",
   "Address": "AccountId",
+  "Fee": {
+    "numerator": "u32",
+    "denominator": "u32"
+  },
   "BalanceInfo": {
     "amount": "Balance",
     "assetId": "AssetId"

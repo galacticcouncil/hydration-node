@@ -23,7 +23,7 @@ use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
 
-use crate::Module as AMM;
+use crate::Pallet as XYK;
 
 use primitives::{AssetId, Balance, Price};
 
@@ -43,7 +43,7 @@ benchmarks! {
 		let asset_a: AssetId = 1;
 		let asset_b: AssetId = 2;
 		let amount : Balance = 10 * 1_000_000_000;
-		let initial_price : Price = Price::from_num(2);
+		let initial_price : Price = Price::from(2);
 
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, initial_price)
 	verify {
@@ -59,7 +59,7 @@ benchmarks! {
 		let amount : Balance = 10 * 1_000_000_000;
 		let max_limit : Balance = 10 * 1_000_000_000_000;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a,asset_b, 1_000_000_000, Price::from_num(1))?;
+		XYK::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a,asset_b, 1_000_000_000, Price::from(1))?;
 
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, max_limit)
 	verify {
@@ -75,8 +75,8 @@ benchmarks! {
 		let asset_b: AssetId = 2;
 		let amount : Balance = 1_000_000_000;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), 1, 2, 10_000_000_000, Price::from_num(2))?;
-		AMM::<T>::add_liquidity(RawOrigin::Signed(caller.clone()).into(), 1, 2, 5_000_000_000, 10_000_000_000)?;
+		XYK::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), 1, 2, 10_000_000_000, Price::from(2))?;
+		XYK::<T>::add_liquidity(RawOrigin::Signed(caller.clone()).into(), 1, 2, 5_000_000_000, 10_000_000_000)?;
 
 		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999995000000000);
 		assert_eq!(T::Currency::free_balance(asset_b, &caller), 999990000000000);
@@ -98,7 +98,7 @@ benchmarks! {
 
 		let min_bought: Balance = 10 * 1_000;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from_num(3))?;
+		XYK::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from(3))?;
 
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, min_bought, discount)
 	verify{
@@ -117,7 +117,7 @@ benchmarks! {
 
 		let max_sold: Balance = 6_000_000_000;
 
-		AMM::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from_num(3))?;
+		XYK::<T>::create_pool(RawOrigin::Signed(maker.clone()).into(), asset_a, asset_b, 1 * 1_000_000_000_000, Price::from(3))?;
 
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, max_sold, discount)
 	verify{

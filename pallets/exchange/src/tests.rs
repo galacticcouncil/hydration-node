@@ -17,17 +17,18 @@
 
 use super::*;
 pub use crate::mock::{
-	Currency, Event as TestEvent, Exchange, ExtBuilder, Origin, System, Test, ALICE, AMM as AMMModule, BOB, CHARLIE,
-	DAVE, DOT, ETH, FERDIE, GEORGE, HDX,
+	Currency, Event as TestEvent, Exchange, ExtBuilder, Origin, System, Test, ALICE, BOB, CHARLIE, DAVE, DOT, ETH,
+	FERDIE, GEORGE, HDX, XYK as XYKPallet,
 };
 use frame_support::sp_runtime::traits::Hash;
 use frame_support::traits::OnFinalize;
+use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::InitKind;
 use primitives::Price;
 use sp_runtime::DispatchError;
 
-use pallet_amm as amm;
+use pallet_xyk as xyk;
 
 const ENDOWED_AMOUNT: u128 = 1_000_000_000_000_000;
 
@@ -66,7 +67,7 @@ fn generate_intention_id(account: &<Test as system::Config>::AccountId, c: u32) 
 
 /// HELPER FOR INITIALIZING POOLS
 fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: Price) {
-	assert_ok!(AMMModule::create_pool(
+	assert_ok!(XYKPallet::create_pool(
 		Origin::signed(user),
 		asset_a,
 		asset_b,
@@ -77,16 +78,16 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	let shares = if asset_a <= asset_b {
 		amount
 	} else {
-		price.checked_mul_int(amount).unwrap().to_num()
+		price.checked_mul_int(amount).unwrap()
 	};
 
-	expect_event(amm::Event::PoolCreated(user, asset_a, asset_b, shares));
+	expect_event(xyk::Event::PoolCreated(user, asset_a, asset_b, shares));
 
-	let pair_account = AMMModule::get_pair_id(AssetPair {
+	let pair_account = XYKPallet::get_pair_id(AssetPair {
 		asset_in: asset_a,
 		asset_out: asset_b,
 	});
-	let share_token = AMMModule::share_token(pair_account);
+	let share_token = XYKPallet::share_token(pair_account);
 
 	let amount_b = price.saturating_mul_int(amount);
 
@@ -94,7 +95,7 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	assert_eq!(Currency::free_balance(asset_a, &user), ENDOWED_AMOUNT - amount);
 	assert_eq!(
 		Currency::free_balance(asset_b, &user),
-		ENDOWED_AMOUNT - amount_b.to_num::<u128>()
+		ENDOWED_AMOUNT - amount_b
 	);
 
 	// Check initial state of the pool
@@ -117,9 +118,9 @@ fn sell_test_pool_finalization_states() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -192,7 +193,7 @@ fn sell_test_pool_finalization_states() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
-			amm::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			xyk::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -228,9 +229,9 @@ fn sell_test_standard() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -308,7 +309,7 @@ fn sell_test_standard() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4000000000).into(),
-			amm::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			xyk::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -330,9 +331,9 @@ fn sell_test_inverse_standard() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -401,7 +402,7 @@ fn sell_test_inverse_standard() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::SellExecuted(3, 2000, 3000, 2000000000000, 988138378978).into(),
+			xyk::Event::SellExecuted(3, 2000, 3000, 2000000000000, 988138378978).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -434,9 +435,9 @@ fn sell_test_exact_match() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -526,9 +527,9 @@ fn sell_test_single_eth_sells() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -592,7 +593,7 @@ fn sell_test_single_eth_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::SellExecuted(user_3, asset_a, asset_b, 2000000000000, 3913878975647).into(),
+			xyk::Event::SellExecuted(user_3, asset_a, asset_b, 2000000000000, 3913878975647).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -601,7 +602,7 @@ fn sell_test_single_eth_sells() {
 				3913878975647,
 			)
 			.into(),
-			amm::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1899978143094).into(),
+			xyk::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1899978143094).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -623,9 +624,9 @@ fn sell_test_single_dot_sells() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -689,7 +690,7 @@ fn sell_test_single_dot_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::SellExecuted(user_3, asset_b, asset_a, 2000000000000, 988138378978).into(),
+			xyk::Event::SellExecuted(user_3, asset_b, asset_a, 2000000000000, 988138378978).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -698,7 +699,7 @@ fn sell_test_single_dot_sells() {
 				988138378978,
 			)
 			.into(),
-			amm::Event::SellExecuted(user_2, asset_b, asset_a, 1000000000000, 486772470162).into(),
+			xyk::Event::SellExecuted(user_2, asset_b, asset_a, 1000000000000, 486772470162).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -721,7 +722,7 @@ fn sell_trade_limits_respected_for_matched_intention() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
 		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
 
@@ -783,7 +784,7 @@ fn sell_trade_limits_respected_for_matched_intention() {
 				},
 			)
 			.into(),
-			amm::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1976276757956).into(),
+			xyk::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1976276757956).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -809,9 +810,9 @@ fn sell_test_single_multiple_sells() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -953,7 +954,7 @@ fn sell_test_single_multiple_sells() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 2000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1000000000).into(),
-			amm::Event::SellExecuted(user_4, asset_a, asset_b, 500000000000, 993044854829).into(),
+			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 500000000000, 993044854829).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -962,7 +963,7 @@ fn sell_test_single_multiple_sells() {
 				993044854829,
 			)
 			.into(),
-			amm::Event::SellExecuted(user_5, asset_b, asset_a, 1000000000000, 501482500933).into(),
+			xyk::Event::SellExecuted(user_5, asset_b, asset_a, 1000000000000, 501482500933).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_5,
 				IntentionType::SELL,
@@ -986,9 +987,9 @@ fn sell_test_group_sells() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1094,7 +1095,7 @@ fn sell_test_group_sells() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::SellExecuted(user_4, asset_a, asset_b, 6000000000000, 11299443450697).into(),
+			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 6000000000000, 11299443450697).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1140,12 +1141,12 @@ fn trade_min_limit() {
 #[test]
 fn sell_more_than_owner_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(AMMModule::create_pool(
+		assert_ok!(XYKPallet::create_pool(
 			Origin::signed(ALICE),
 			HDX,
 			ETH,
 			200_000,
-			Price::from_num(2)
+			Price::from(2)
 		));
 
 		// With SELL
@@ -1173,9 +1174,9 @@ fn sell_test_mixed_buy_sells() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1270,7 +1271,7 @@ fn sell_test_mixed_buy_sells() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1279,7 +1280,7 @@ fn sell_test_mixed_buy_sells() {
 				15639353446528,
 			)
 			.into(),
-			amm::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
+			xyk::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1303,9 +1304,9 @@ fn discount_tests_no_discount() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1400,7 +1401,7 @@ fn discount_tests_no_discount() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1409,7 +1410,7 @@ fn discount_tests_no_discount() {
 				15639353446528,
 			)
 			.into(),
-			amm::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
+			xyk::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030832926719).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1433,9 +1434,9 @@ fn discount_tests_with_discount() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1536,7 +1537,7 @@ fn discount_tests_with_discount() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 6000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 3000000000).into(),
-			amm::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15658130468064).into(),
+			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15658130468064).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1545,7 +1546,7 @@ fn discount_tests_with_discount() {
 				15658130468064,
 			)
 			.into(),
-			amm::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3027107914884).into(),
+			xyk::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3027107914884).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1567,9 +1568,9 @@ fn buy_test_exact_match() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1658,9 +1659,9 @@ fn buy_test_group_buys() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1744,7 +1745,7 @@ fn buy_test_group_buys() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			amm::Event::BuyExecuted(user_4, asset_a, asset_b, 7500000000000, 16251283991999).into(),
+			xyk::Event::BuyExecuted(user_4, asset_a, asset_b, 7500000000000, 16251283991999).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::BUY,
@@ -1764,7 +1765,7 @@ fn buy_test_group_buys() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_a, 5000000000).into(),
 			Event::IntentionResolvedDirectTradeFees(user_4, pair_account, asset_b, 10000000000).into(),
-			amm::Event::BuyExecuted(user_3, asset_b, asset_a, 3000000000000, 1303930316730).into(),
+			xyk::Event::BuyExecuted(user_3, asset_b, asset_a, 3000000000000, 1303930316730).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::BUY,
@@ -1788,9 +1789,9 @@ fn discount_tests_with_error() {
 		let asset_b = DOT;
 
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -1936,9 +1937,9 @@ fn simple_sell_sell() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2008,7 +2009,7 @@ fn simple_sell_sell() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_a, 1).into(),
-			amm::Event::SellExecuted(2, 3000, 2000, 1500, 2994).into(),
+			xyk::Event::SellExecuted(2, 3000, 2000, 1500, 2994).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1500, 2994).into(),
 		]);
 	});
@@ -2023,9 +2024,9 @@ fn simple_buy_buy() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2084,7 +2085,7 @@ fn simple_buy_buy() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::BuyExecuted(2, 3000, 2000, 1500, 3007).into(),
+			xyk::Event::BuyExecuted(2, 3000, 2000, 1500, 3007).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1500, 3007).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_3,
@@ -2110,9 +2111,9 @@ fn simple_sell_buy() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2183,7 +2184,7 @@ fn simple_sell_buy() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, pair_account, asset_b, 2).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, pair_account, asset_b, 4).into(),
-			amm::Event::SellExecuted(2, 3000, 2000, 1000, 1996).into(),
+			xyk::Event::SellExecuted(2, 3000, 2000, 1000, 1996).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1000, 1996).into(),
 		]);
 	});
@@ -2198,9 +2199,9 @@ fn simple_buy_sell() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2260,7 +2261,7 @@ fn simple_buy_sell() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			amm::Event::BuyExecuted(user_2, 3000, 2000, 1000, 2005).into(),
+			xyk::Event::BuyExecuted(user_2, 3000, 2000, 1000, 2005).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1000, 2005).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_3,
@@ -2285,9 +2286,9 @@ fn single_sell_intention_test() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2329,7 +2330,7 @@ fn single_sell_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			amm::Event::SellExecuted(2, 3000, 2000, 2000000000000, 3913878975647).into(),
+			xyk::Event::SellExecuted(2, 3000, 2000, 2000000000000, 3913878975647).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -2350,9 +2351,9 @@ fn single_buy_intention_test() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});
@@ -2395,7 +2396,7 @@ fn single_buy_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			amm::Event::BuyExecuted(2, 3000, 2000, 2000000000000, 4089962855627).into(),
+			xyk::Event::BuyExecuted(2, 3000, 2000, 2000000000000, 4089962855627).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -2417,9 +2418,9 @@ fn simple_sell_sell_with_error_should_not_pass() {
 		let asset_a = ETH;
 		let asset_b = DOT;
 		let pool_amount = 100_000_000;
-		let initial_price = Price::from_num(2);
+		let initial_price = Price::from(2);
 
-		let pair_account = AMMModule::get_pair_id(AssetPair {
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
 			asset_in: asset_a,
 			asset_out: asset_b,
 		});

@@ -25,7 +25,7 @@ structopt = '0.3.8'
 
 # local dependencies
 hydra-dx-runtime = {path = '../runtime'}
-module-amm-rpc = {path = '../pallets/amm/rpc'}
+pallet-xyk-rpc = {path = '../pallets/xyk/rpc'}
 primitives = {path = '../primitives'}
 
 # Substrate dependencies

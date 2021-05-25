@@ -29,12 +29,12 @@ use pallet_transaction_multi_payment::Pallet as MultiPaymentModule;
 use primitives::{Amount, AssetId, Balance, Price};
 
 use frame_support::dispatch;
-use pallet_amm as ammpool;
+use pallet_xyk as xykpool;
 
 pub struct Pallet<T: Config>(pallet_transaction_multi_payment::Pallet<T>);
 
 pub trait Config:
-	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + ammpool::Config
+	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + xykpool::Config
 {
 }
 
@@ -60,14 +60,14 @@ fn initialize_pool<T: Config>(
 	amount: Balance,
 	price: Price,
 ) -> dispatch::DispatchResultWithPostInfo {
-	ammpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
+	xykpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
 	Ok(().into())
 }
 
 benchmarks! {
 	swap_currency {
 		let maker = funded_account::<T>("maker", 1);
-		initialize_pool::<T>(maker.clone(), ASSET_ID, 1000, Price::from_num(1))?;
+		initialize_pool::<T>(maker.clone(), ASSET_ID, 1000, Price::from(1))?;
 		MultiPaymentModule::<T>::add_new_member(&maker);
 		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID)?;
 

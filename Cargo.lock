@@ -2366,10 +2366,10 @@ dependencies = [
  "hydra-dx-build-script-utils",
  "hydra-dx-runtime",
  "jsonrpc-core",
- "module-amm-rpc",
  "pallet-im-online",
  "pallet-staking",
  "pallet-transaction-payment-rpc",
+ "pallet-xyk-rpc",
  "primitives",
  "sc-authority-discovery",
  "sc-basic-authorship",
@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "13.0.0"
+version = "14.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -2434,11 +2434,9 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hex-literal",
- "module-amm-rpc-runtime-api",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
- "pallet-amm",
  "pallet-asset-registry",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -2470,6 +2468,9 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-utility",
+ "pallet-xyk",
+ "pallet-xyk-rpc-runtime-api",
  "parity-scale-codec 2.1.1",
  "primitives",
  "serde",
@@ -3785,35 +3786,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "module-amm-rpc"
-version = "3.0.0"
-dependencies = [
- "jsonrpc-core",
- "jsonrpc-core-client",
- "jsonrpc-derive",
- "module-amm-rpc-runtime-api",
- "parity-scale-codec 2.1.1",
- "serde",
- "sp-api",
- "sp-blockchain",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
-name = "module-amm-rpc-runtime-api"
-version = "3.0.0"
-dependencies = [
- "parity-scale-codec 2.1.1",
- "serde",
- "sp-api",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "more-asserts"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4148,30 +4120,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-amm"
-version = "4.0.1"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "hydra-dx-math",
- "orml-tokens",
- "orml-traits",
- "orml-utilities",
- "pallet-asset-registry",
- "parity-scale-codec 2.1.1",
- "primitive-types 0.8.0",
- "primitives",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "pallet-asset-registry"
 version = "3.0.1"
 dependencies = [
@@ -4369,8 +4317,8 @@ dependencies = [
  "frame-system",
  "orml-tokens",
  "orml-traits",
- "pallet-amm",
  "pallet-asset-registry",
+ "pallet-xyk",
  "parity-scale-codec 2.1.1",
  "primitive-types 0.8.0",
  "primitives",
@@ -4392,9 +4340,9 @@ dependencies = [
  "frame-system-benchmarking",
  "orml-tokens",
  "orml-traits",
- "pallet-amm",
  "pallet-asset-registry",
  "pallet-exchange",
+ "pallet-xyk",
  "parity-scale-codec 2.1.1",
  "primitives",
  "serde",
@@ -4506,11 +4454,11 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
- "pallet-amm",
  "pallet-asset-registry",
  "pallet-balances 3.0.0",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
+ "pallet-xyk",
  "parity-scale-codec 2.1.1",
  "primitives",
  "serde",
@@ -4672,10 +4620,10 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
- "pallet-amm",
  "pallet-asset-registry",
  "pallet-balances 3.0.0",
  "pallet-transaction-payment",
+ "pallet-xyk",
  "parity-scale-codec 2.1.1",
  "primitive-types 0.8.0",
  "primitives",
@@ -4745,6 +4693,73 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-utility"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=rococo-v1#2be8fcc4236d32786c62f6f27a98e7fe7e550807"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec 2.1.1",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-xyk"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "hydra-dx-math",
+ "orml-tokens",
+ "orml-traits",
+ "orml-utilities",
+ "pallet-asset-registry",
+ "parity-scale-codec 2.1.1",
+ "primitive-types 0.8.0",
+ "primitives",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-xyk-rpc"
+version = "1.0.0"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "pallet-xyk-rpc-runtime-api",
+ "parity-scale-codec 2.1.1",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-xyk-rpc-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parity-scale-codec 2.1.1",
+ "serde",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -5243,7 +5258,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "substrate-fixed",
  "substrate-wasm-builder",
 ]
 
@@ -7932,15 +7946,6 @@ dependencies = [
  "schnorrkel",
  "sha2 0.8.2",
  "zeroize",
-]
-
-[[package]]
-name = "substrate-fixed"
-version = "0.5.6"
-source = "git+https://github.com/encointer/substrate-fixed#b33d186888c60f38adafcfc0ec3a21aab263aef1"
-dependencies = [
- "parity-scale-codec 2.1.1",
- "typenum",
 ]
 
 [[package]]

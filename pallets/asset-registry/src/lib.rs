@@ -103,15 +103,14 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Create asset for given name or return existing AssetId if such asset already exists.
 	pub fn get_or_create_asset(name: Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		match <AssetIds<T>>::contains_key(&name) {
-			true => Ok(<AssetIds<T>>::get(&name).unwrap()),
-			false => {
-				let asset_id = Self::next_asset_id();
-				let next_id = asset_id.checked_add(&One::one()).ok_or(Error::<T>::NoIdAvailable)?;
-				<NextAssetId<T>>::put(next_id);
-				<AssetIds<T>>::insert(name, Some(asset_id));
-				Ok(asset_id)
-			}
+		if <AssetIds<T>>::contains_key(&name) {
+			Ok(<AssetIds<T>>::get(&name).unwrap())
+		} else {
+			let asset_id = Self::next_asset_id();
+			let next_id = asset_id.checked_add(&One::one()).ok_or(Error::<T>::NoIdAvailable)?;
+			<NextAssetId<T>>::put(next_id);
+			<AssetIds<T>>::insert(name, Some(asset_id));
+			Ok(asset_id)
 		}
 	}
 }
