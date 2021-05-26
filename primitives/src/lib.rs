@@ -143,3 +143,22 @@ pub mod fee {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::fee::*;
+
+	#[test]
+	// This function tests that fee calculations return correct amounts
+	fn fee_calculations_should_work() {
+		let fee = Fee{
+			numerator: 2,
+			denominator: 1_000,
+		};
+
+		assert_eq!(1_000.with_fee(fee), Some(1_002));
+		assert_eq!(1_002.without_fee(fee), Some(1_000));
+		assert_eq!(1_000.just_fee(fee), Some(2));
+		assert_eq!(1_000_000.discounted_fee(), Some(700));
+	}
+}
