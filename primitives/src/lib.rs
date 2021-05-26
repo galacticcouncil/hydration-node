@@ -113,14 +113,20 @@ pub mod fee {
 		Self: Sized,
 	{
 		fn with_fee(&self, fee: Fee) -> Option<Self>;
+		fn without_fee(&self, fee: Fee) -> Option<Self>;
 		fn just_fee(&self, fee: Fee) -> Option<Self>;
 		fn discounted_fee(&self) -> Option<Self>;
 	}
 
 	impl WithFee for Balance {
 		fn with_fee(&self, fee: Fee) -> Option<Self> {
-			self.checked_mul(fee.denominator as Self - fee.numerator as Self)?
+			self.checked_mul(fee.denominator as Self + fee.numerator as Self)?
 				.checked_div(fee.denominator as Self)
+		}
+
+		fn without_fee(&self, fee: Fee) -> Option<Self> {
+			self.checked_mul(fee.denominator as Self)?
+				.checked_div(fee.denominator as Self + fee.numerator as Self)
 		}
 
 		fn just_fee(&self, fee: Fee) -> Option<Self> {
