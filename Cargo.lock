@@ -2357,7 +2357,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "6.0.0"
+version = "5.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "15.0.0"
+version = "14.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4121,7 +4121,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "4.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4222,7 +4222,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "4.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4311,7 +4311,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-exchange"
-version = "4.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4332,7 +4332,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-exchange-benchmarking"
-version = "4.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4355,7 +4355,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-faucet"
-version = "4.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4444,7 +4444,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-multi-payment-benchmarking"
-version = "4.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4612,7 +4612,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-multi-payment"
-version = "4.0.0"
+version = "3.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4711,7 +4711,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "2.0.0"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
