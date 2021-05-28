@@ -147,8 +147,10 @@ pub mod pallet {
 		),
 
 		/// Paid fees event
-		/// who, account paid to, asset, amount
-		IntentionResolvedDirectTradeFees(T::AccountId, T::AccountId, AssetId, Balance),
+		/// who - account which paid feed
+		/// intention id - intention which was resolved
+		/// account paid to, asset, amount
+		IntentionResolvedDirectTradeFees(T::AccountId, IntentionId<T>, T::AccountId, AssetId, Balance),
 
 		/// Error event - insuficient balance of specified asset
 		/// who, asset, intention type, intention id, error detail
