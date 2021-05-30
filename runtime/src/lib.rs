@@ -148,8 +148,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 14,
-	impl_version: 1,
+	spec_version: 15,
+	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
 };
@@ -763,7 +763,7 @@ impl pallet_session::historical::Config for Runtime {
 
 parameter_types! {
 	// Don't allow runner-ups
-	pub const CandidacyBond: Balance = FORTUNE;
+	pub const CandidacyBond: Balance = 5_000_000 * DOLLARS;
 	// 1 storage item created, key size is 32 bytes, value size is 16+16.
 	pub const VotingBondBase: Balance = CENTS;
 	// additional data per vote is 32 bytes (account id).
