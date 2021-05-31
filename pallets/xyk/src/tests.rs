@@ -276,13 +276,7 @@ fn add_liquidity_more_than_owner_should_not_work() {
 #[test]
 fn add_zero_liquidity_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(XYK::create_pool(
-			Origin::signed(ALICE),
-			HDX,
-			ACA,
-			100,
-			Price::from(1)
-		));
+		assert_ok!(XYK::create_pool(Origin::signed(ALICE), HDX, ACA, 100, Price::from(1)));
 
 		assert_noop!(
 			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 0, 0),
@@ -705,14 +699,14 @@ fn single_buy_should_work() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_999_866_666_666);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_039_039_046_253);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_039_360_004_809);
 		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 133_333_334);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_960_953_747);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_639_995_191);
 
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 640000000000).into(),
-			Event::BuyExecuted(user_1, asset_a, asset_b, 66666666, 320960953747).into(),
+			Event::BuyExecuted(user_1, asset_a, asset_b, 66666666, 320639995191).into(),
 		]);
 	});
 }
@@ -771,19 +765,19 @@ fn single_buy_with_discount_should_work() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_949_866_666_666);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_039_663_891_965); // compare to values in previous test to see difference!
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999_039_776_004_803); // compare to values in previous test to see difference!
 
 		assert_eq!(Currency::free_balance(share_token, &user_1), 640_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 133_333_334);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_336_108_035);
-		assert_eq!(Currency::free_balance(HDX, &user_1), 999_899_999_906_668);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_223_995_197);
+		assert_eq!(Currency::free_balance(HDX, &user_1), 999_899_552_000_008);
 
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 640_000_000_000).into(),
 			frame_system::Event::NewAccount(native_pair_account).into(),
 			Event::PoolCreated(user_1, asset_a, HDX, 100_000_000_000).into(),
-			Event::BuyExecuted(user_1, asset_a, asset_b, 66_666_666, 320_336_108_035).into(),
+			Event::BuyExecuted(user_1, asset_a, asset_b, 66_666_666, 320_223_995_197).into(),
 		]);
 	});
 }
@@ -1003,13 +997,7 @@ fn create_pool_with_same_assets_should_not_be_allowed() {
 		let asset_a = HDX;
 
 		assert_noop!(
-			XYK::create_pool(
-				Origin::signed(user),
-				asset_a,
-				asset_a,
-				100_000_000,
-				Price::from(10_000)
-			),
+			XYK::create_pool(Origin::signed(user), asset_a, asset_a, 100_000_000, Price::from(10_000)),
 			Error::<Test>::CannotCreatePoolWithSameAssets
 		);
 	})
