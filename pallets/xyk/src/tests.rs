@@ -345,7 +345,7 @@ fn sell_test() {
 
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_a, asset_b, 600000000000000).into(),
-			Event::SellExecuted(ALICE, asset_a, asset_b, 456444678, 1363489802256).into(),
+			Event::SellExecuted(ALICE, asset_a, asset_b, 455531789, 1363489802256, asset_a, 912889).into(),
 		]);
 	});
 }
@@ -513,8 +513,26 @@ fn work_flow_happy_path_should_work() {
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 350_000_000_000).into(),
 			Event::LiquidityAdded(user_2, asset_a, asset_b, 300_000_000_000, 12_000_000_000_000).into(),
-			Event::SellExecuted(user_2, asset_a, asset_b, 216_666_666_666, 6_490_245_122_554).into(),
-			Event::SellExecuted(ALICE, asset_a, asset_b, 288_888_888_888, 4_870_118_901_375).into(),
+			Event::SellExecuted(
+				user_2,
+				asset_a,
+				asset_b,
+				216_233_333_333,
+				6_490_245_122_554,
+				asset_a,
+				433_333_333,
+			)
+			.into(),
+			Event::SellExecuted(
+				ALICE,
+				asset_a,
+				asset_b,
+				288_311_111_111,
+				4_870_118_901_375,
+				asset_a,
+				577_777_777,
+			)
+			.into(),
 			Event::LiquidityRemoved(user_2, asset_a, asset_b, 10_000).into(),
 			Event::LiquidityRemoved(user_2, asset_b, asset_a, 10_000).into(),
 			Event::LiquidityRemoved(user_2, asset_a, asset_b, 18_000).into(),
@@ -586,7 +604,7 @@ fn sell_with_correct_fees_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998019762768,);
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 2000000000).into(),
-			Event::SellExecuted(user_1, asset_a, asset_b, 100000, 19762768).into(),
+			Event::SellExecuted(user_1, asset_a, asset_b, 99_800, 19_762_768, asset_a, 200).into(),
 		]);
 	});
 }
@@ -656,7 +674,7 @@ fn discount_sell_fees_should_work() {
 			Event::PoolCreated(user_1, asset_a, HDX, 10_000).into(),
 			frame_system::Event::NewAccount(pair_account).into(),
 			Event::PoolCreated(user_1, asset_a, asset_b, 60_000).into(),
-			Event::SellExecuted(user_1, asset_a, asset_b, 10_000, 14_993).into(),
+			Event::SellExecuted(user_1, asset_a, asset_b, 9_993, 14_993, asset_a, 7).into(),
 		]);
 	});
 }
@@ -705,8 +723,17 @@ fn single_buy_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &pair_account), 960_639_995_191);
 
 		expect_events(vec![
-			Event::PoolCreated(user_1, asset_a, asset_b, 640000000000).into(),
-			Event::BuyExecuted(user_1, asset_a, asset_b, 66666666, 320639995191).into(),
+			Event::PoolCreated(user_1, asset_a, asset_b, 640_000_000_000).into(),
+			Event::BuyExecuted(
+				user_1,
+				asset_a,
+				asset_b,
+				66_666_666,
+				319_999_995_201,
+				asset_b,
+				639_999_990,
+			)
+			.into(),
 		]);
 	});
 }
@@ -777,7 +804,16 @@ fn single_buy_with_discount_should_work() {
 			Event::PoolCreated(user_1, asset_a, asset_b, 640_000_000_000).into(),
 			frame_system::Event::NewAccount(native_pair_account).into(),
 			Event::PoolCreated(user_1, asset_a, HDX, 100_000_000_000).into(),
-			Event::BuyExecuted(user_1, asset_a, asset_b, 66_666_666, 320_223_995_197).into(),
+			Event::BuyExecuted(
+				user_1,
+				asset_a,
+				asset_b,
+				66_666_666,
+				319_999_995_201,
+				asset_b,
+				223_999_996,
+			)
+			.into(),
 		]);
 	});
 }

@@ -204,7 +204,7 @@ fn sell_test_pool_finalization_states() {
 				4000000000,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			xyk::Event::SellExecuted(user_2, 3000, 2000, 998000000000, 1976336046259, 3000, 2000000000).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -334,7 +334,7 @@ fn sell_test_standard() {
 				4000000000,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_2, 3000, 2000, 1000000000000, 1976336046259).into(),
+			xyk::Event::SellExecuted(user_2, 3000, 2000, 998000000000, 1976336046259, 3000, 2000000000).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -427,7 +427,7 @@ fn sell_test_inverse_standard() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::SellExecuted(3, 2000, 3000, 2000000000000, 988138378978).into(),
+			xyk::Event::SellExecuted(3, 2000, 3000, 1996000000000, 988138378978, 2000, 4000000000).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -646,7 +646,16 @@ fn sell_test_single_eth_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_3, asset_a, asset_b, 2000000000000, 3913878975647).into(),
+			xyk::Event::SellExecuted(
+				user_3,
+				asset_a,
+				asset_b,
+				1996000000000,
+				3913878975647,
+				asset_a,
+				4000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -655,7 +664,16 @@ fn sell_test_single_eth_sells() {
 				3913878975647,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1899978143094).into(),
+			xyk::Event::SellExecuted(
+				user_2,
+				asset_a,
+				asset_b,
+				998000000000,
+				1899978143094,
+				asset_a,
+				2000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -743,7 +761,16 @@ fn sell_test_single_dot_sells() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_3, asset_b, asset_a, 2000000000000, 988138378978).into(),
+			xyk::Event::SellExecuted(
+				user_3,
+				asset_b,
+				asset_a,
+				1996000000000,
+				988138378978,
+				asset_b,
+				4000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::SELL,
@@ -752,7 +779,16 @@ fn sell_test_single_dot_sells() {
 				988138378978,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_2, asset_b, asset_a, 1000000000000, 486772470162).into(),
+			xyk::Event::SellExecuted(
+				user_2,
+				asset_b,
+				asset_a,
+				998000000000,
+				486772470162,
+				asset_b,
+				2000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -837,7 +873,16 @@ fn sell_trade_limits_respected_for_matched_intention() {
 				},
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_2, asset_a, asset_b, 1000000000000, 1976276757956).into(),
+			xyk::Event::SellExecuted(
+				user_2,
+				asset_a,
+				asset_b,
+				998000000000,
+				1976276757956,
+				asset_a,
+				2000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -1035,7 +1080,16 @@ fn sell_test_single_multiple_sells() {
 				1000000000,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 500000000000, 993044854829).into(),
+			xyk::Event::SellExecuted(
+				user_4,
+				asset_a,
+				asset_b,
+				499000000000,
+				993044854829,
+				asset_a,
+				1000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1044,7 +1098,16 @@ fn sell_test_single_multiple_sells() {
 				993044854829,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_5, asset_b, asset_a, 1000000000000, 501482500933).into(),
+			xyk::Event::SellExecuted(
+				user_5,
+				asset_b,
+				asset_a,
+				998000000000,
+				501482500933,
+				asset_b,
+				2000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_5,
 				IntentionType::SELL,
@@ -1204,7 +1267,16 @@ fn sell_test_group_sells() {
 				3000000000,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 6000000000000, 11299443450697).into(),
+			xyk::Event::SellExecuted(
+				user_4,
+				asset_a,
+				asset_b,
+				5988000000000,
+				11299443450697,
+				asset_a,
+				12000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1394,7 +1466,16 @@ fn sell_test_mixed_buy_sells() {
 				3000000000,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			xyk::Event::SellExecuted(
+				user_4,
+				asset_a,
+				asset_b,
+				8483000000000,
+				15639353446528,
+				asset_a,
+				17000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1403,7 +1484,16 @@ fn sell_test_mixed_buy_sells() {
 				15639353446528,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030663952554).into(),
+			xyk::Event::BuyExecuted(
+				user_2,
+				asset_b,
+				asset_a,
+				5000000000000,
+				3024614723108,
+				asset_a,
+				6049229446,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1538,7 +1628,16 @@ fn discount_tests_no_discount() {
 				3000000000,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15639353446528).into(),
+			xyk::Event::SellExecuted(
+				user_4,
+				asset_a,
+				asset_b,
+				8483000000000,
+				15639353446528,
+				asset_a,
+				17000000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1547,7 +1646,16 @@ fn discount_tests_no_discount() {
 				15639353446528,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3030663952554).into(),
+			xyk::Event::BuyExecuted(
+				user_2,
+				asset_b,
+				asset_a,
+				5000000000000,
+				3024614723108,
+				asset_a,
+				6049229446,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1688,7 +1796,16 @@ fn discount_tests_with_discount() {
 				3000000000,
 			)
 			.into(),
-			xyk::Event::SellExecuted(user_4, asset_a, asset_b, 8500000000000, 15658130468064).into(),
+			xyk::Event::SellExecuted(
+				user_4,
+				asset_a,
+				asset_b,
+				8494050000000,
+				15658130468064,
+				asset_a,
+				5950000000,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::SELL,
@@ -1697,7 +1814,16 @@ fn discount_tests_with_discount() {
 				15658130468064,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(user_2, asset_b, asset_a, 5000000000000, 3027048840428).into(),
+			xyk::Event::BuyExecuted(
+				user_2,
+				asset_b,
+				asset_a,
+				5000000000000,
+				3024931388457,
+				asset_a,
+				2117451971,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,
@@ -1910,7 +2036,16 @@ fn buy_test_group_buys() {
 				user_4_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(user_4, asset_a, asset_b, 7500000000000, 16248648648649).into(),
+			xyk::Event::BuyExecuted(
+				user_4,
+				asset_a,
+				asset_b,
+				7500000000000,
+				16216216216217,
+				asset_b,
+				32432432432,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_4,
 				IntentionType::BUY,
@@ -1944,7 +2079,16 @@ fn buy_test_group_buys() {
 				10000000000,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(user_3, asset_b, asset_a, 3000000000000, 1303909744163).into(),
+			xyk::Event::BuyExecuted(
+				user_3,
+				asset_b,
+				asset_a,
+				3000000000000,
+				1301307129904,
+				asset_a,
+				2602614259,
+			)
+			.into(),
 			Event::IntentionResolvedAMMTrade(
 				user_3,
 				IntentionType::BUY,
@@ -2188,7 +2332,7 @@ fn simple_sell_sell() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, user_2_sell_intention_id, pair_account, asset_b, 2).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, user_3_sell_intention_id, pair_account, asset_a, 1).into(),
-			xyk::Event::SellExecuted(2, 3000, 2000, 1500, 2994).into(),
+			xyk::Event::SellExecuted(2, 3000, 2000, 1497, 2994, 3000, 3).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1500, 2994).into(),
 		]);
 	});
@@ -2264,7 +2408,7 @@ fn simple_buy_buy() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(2, 3000, 2000, 1500, 3007).into(),
+			xyk::Event::BuyExecuted(2, 3000, 2000, 1500, 3001, 2000, 6).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1500, 3007).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_3,
@@ -2363,7 +2507,7 @@ fn simple_sell_buy() {
 			.into(),
 			Event::IntentionResolvedDirectTradeFees(user_2, user_2_sell_intention_id, pair_account, asset_b, 2).into(),
 			Event::IntentionResolvedDirectTradeFees(user_3, user_3_sell_intention_id, pair_account, asset_b, 4).into(),
-			xyk::Event::SellExecuted(2, 3000, 2000, 1000, 1996).into(),
+			xyk::Event::SellExecuted(2, 3000, 2000, 998, 1996, 3000, 2).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::SELL, user_2_sell_intention_id, 1000, 1996).into(),
 		]);
 	});
@@ -2440,7 +2584,7 @@ fn simple_buy_sell() {
 				user_3_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(user_2, 3000, 2000, 1000, 2005).into(),
+			xyk::Event::BuyExecuted(user_2, 3000, 2000, 1000, 2001, 2000, 4).into(),
 			Event::IntentionResolvedAMMTrade(user_2, IntentionType::BUY, user_2_sell_intention_id, 1000, 2005).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_3,
@@ -2509,7 +2653,7 @@ fn single_sell_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::SellExecuted(2, 3000, 2000, 2000000000000, 3913878975647).into(),
+			xyk::Event::SellExecuted(2, 3000, 2000, 1996000000000, 3913878975647, 3000, 4000000000).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::SELL,
@@ -2575,7 +2719,7 @@ fn single_buy_intention_test() {
 				user_2_sell_intention_id,
 			)
 			.into(),
-			xyk::Event::BuyExecuted(2, 3000, 2000, 2000000000000, 4089795918368).into(),
+			xyk::Event::BuyExecuted(2, 3000, 2000, 2000000000000, 4081632653062, 2000, 8163265306).into(),
 			Event::IntentionResolvedAMMTrade(
 				user_2,
 				IntentionType::BUY,

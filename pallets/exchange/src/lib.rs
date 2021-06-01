@@ -411,7 +411,7 @@ impl<T: Config> Pallet<T> {
 	fn execute_amm_transfer(
 		amm_tranfer_type: IntentionType,
 		intention_id: IntentionId<T>,
-		transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>,
+		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
 	) -> dispatch::DispatchResult {
 		match amm_tranfer_type {
 			IntentionType::SELL => {
@@ -421,7 +421,7 @@ impl<T: Config> Pallet<T> {
 					transfer.origin.clone(),
 					IntentionType::SELL,
 					intention_id,
-					transfer.amount,
+					transfer.amount + transfer.fee.1,
 					transfer.amount_out,
 				));
 			}
@@ -433,7 +433,7 @@ impl<T: Config> Pallet<T> {
 					IntentionType::BUY,
 					intention_id,
 					transfer.amount,
-					transfer.amount_out,
+					transfer.amount_out + transfer.fee.1,
 				));
 			}
 		};
