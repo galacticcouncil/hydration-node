@@ -617,8 +617,12 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Self::calculate_fee(amount)?
 		};
 
+		let amount_without_fee = amount
+			.checked_sub(transfer_fee)
+			.ok_or(Error::<T>::SellAssetAmountInvalid)?;
+
 		let sale_price =
-			hydra_dx_math::calculate_out_given_in(asset_in_reserve, asset_out_reserve, amount - transfer_fee)
+			hydra_dx_math::calculate_out_given_in(asset_in_reserve, asset_out_reserve, amount_without_fee)
 				.map_err(|_| Error::<T>::SellAssetAmountInvalid)?;
 
 		ensure!(asset_out_reserve > sale_price, Error::<T>::InsufficientAssetBalance);
@@ -747,12 +751,12 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			.checked_add(transfer_fee)
 			.ok_or(Error::<T>::BuyAssetAmountInvalid)?;
 
+		ensure!(max_limit >= buy_price_with_fee, Error::<T>::AssetBalanceLimitExceeded);
+
 		ensure!(
 			T::Currency::free_balance(assets.asset_in, who) >= buy_price_with_fee,
 			Error::<T>::InsufficientAssetBalance
 		);
-
-		ensure!(max_limit >= buy_price_with_fee, Error::<T>::AssetBalanceLimitExceeded);
 
 		let discount_fee = if discount {
 			let native_asset = T::NativeAssetId::get();
