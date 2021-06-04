@@ -103,7 +103,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), asset_a, asset_b, amount, min_bought, discount)
 	verify{
 		assert_eq!(T::Currency::free_balance(asset_a, &caller), 999999000000000);
-		assert_eq!(T::Currency::free_balance(asset_b, &caller), 1000002991014968);
+		assert_eq!(T::Currency::free_balance(asset_b, &caller), 1000002991008993);
 	}
 
 	buy {

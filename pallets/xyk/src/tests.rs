@@ -338,14 +338,14 @@ fn sell_test() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999799543555322);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 401363489802256);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 401363483591788);
 		assert_eq!(Currency::free_balance(share_token, &user_1), 600000000000000);
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 200456444678);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636510197744);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 598636516408212);
 
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_a, asset_b, 600000000000000).into(),
-			Event::SellExecuted(ALICE, asset_a, asset_b, 455531789, 1363489802256, asset_a, 912889).into(),
+			Event::SellExecuted(ALICE, asset_a, asset_b, 456444678, 1363483591788, asset_b, 2732432047).into(),
 		]);
 	});
 }
@@ -441,13 +441,13 @@ fn work_flow_happy_path_should_work() {
 		assert_eq!(Currency::free_balance(asset_b, &user_1), 986_000_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_2), 999_483_333_333_334);
-		assert_eq!(Currency::free_balance(asset_b, &user_2), 994_490_245_122_554);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 994_486_999_999_986);
 
 		assert_eq!(Currency::free_balance(share_token, &user_1), 350_000_000_000);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 300_000_000_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 866_666_666_666);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 195_09_754_877_446);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 19_513_000_000_014);
 
 		// User 1 SELLs
 		assert_ok!(XYK::sell(
@@ -460,13 +460,13 @@ fn work_flow_happy_path_should_work() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999_361_111_111_112);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 990_870_118_901_375);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 990_868_493_499_997);
 
 		let user_2_original_balance_1 = Currency::free_balance(asset_a, &user_2);
 		let user_2_original_balance_2 = Currency::free_balance(asset_b, &user_2);
 
 		assert_eq!(user_2_original_balance_1, 999_483_333_333_334);
-		assert_eq!(user_2_original_balance_2, 994_490_245_122_554);
+		assert_eq!(user_2_original_balance_2, 994_486_999_999_986);
 
 		assert_eq!(Currency::free_balance(share_token, &user_1), 350_000_000_000);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 300_000_000_000);
@@ -479,7 +479,7 @@ fn work_flow_happy_path_should_work() {
 		let user_2_remove_1_balance_2 = Currency::free_balance(asset_b, &user_2);
 
 		assert_eq!(user_2_remove_1_balance_1, 999_483_333_351_111);
-		assert_eq!(user_2_remove_1_balance_2, 994_490_245_347_779);
+		assert_eq!(user_2_remove_1_balance_2, 994_487_000_225_286);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_990_000);
 
 		assert_ok!(XYK::remove_liquidity(Origin::signed(user_2), asset_b, asset_a, 10_000));
@@ -488,7 +488,7 @@ fn work_flow_happy_path_should_work() {
 		let user_2_remove_2_balance_2 = Currency::free_balance(asset_b, &user_2);
 
 		assert_eq!(user_2_remove_2_balance_1, 999_483_333_368_888);
-		assert_eq!(user_2_remove_2_balance_2, 994_490_245_573_004);
+		assert_eq!(user_2_remove_2_balance_2, 994_487_000_450_586);
 		assert_eq!(Currency::free_balance(share_token, &user_2), 299_999_980_000);
 
 		// The two removes should be equal (this could slip by 1 because of rounding error)
@@ -517,20 +517,20 @@ fn work_flow_happy_path_should_work() {
 				user_2,
 				asset_a,
 				asset_b,
-				216_233_333_333,
-				6_490_245_122_554,
-				asset_a,
-				433_333_333,
+				216_666_666_666,
+				6_486_999_999_986,
+				asset_b,
+				12_999_999_999,
 			)
 			.into(),
 			Event::SellExecuted(
 				ALICE,
 				asset_a,
 				asset_b,
-				288_311_111_111,
-				4_870_118_901_375,
-				asset_a,
-				577_777_777,
+				288_888_888_888,
+				4_868_493_499_997,
+				asset_b,
+				9_756_499_999,
 			)
 			.into(),
 			Event::LiquidityRemoved(user_2, asset_a, asset_b, 10_000).into(),
@@ -598,13 +598,13 @@ fn sell_with_correct_fees_should_work() {
 		));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 10100000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1980237232,);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 1980237622,);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999999989900000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998019762768,);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 999998019762378,);
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 2000000000).into(),
-			Event::SellExecuted(user_1, asset_a, asset_b, 99_800, 19_762_768, asset_a, 200).into(),
+			Event::SellExecuted(user_1, asset_a, asset_b, 100_000, 19_762_378, asset_b, 39_603).into(),
 		]);
 	});
 }
@@ -662,19 +662,19 @@ fn discount_sell_fees_should_work() {
 		assert_ok!(XYK::sell(Origin::signed(user_1), asset_a, asset_b, 10_000, 1_500, true,));
 
 		assert_eq!(Currency::free_balance(asset_a, &pair_account), 40_000);
-		assert_eq!(Currency::free_balance(asset_b, &pair_account), 45_007);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 45_009);
 		assert_eq!(Currency::free_balance(asset_a, &native_pair_account), 5_000);
 		assert_eq!(Currency::free_balance(HDX, &native_pair_account), 10_000);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 955_000);
-		assert_eq!(Currency::free_balance(asset_b, &user_1), 954_993);
-		assert_eq!(Currency::free_balance(HDX, &user_1), 989_986);
+		assert_eq!(Currency::free_balance(asset_b, &user_1), 954_991);
+		assert_eq!(Currency::free_balance(HDX, &user_1), 989_980);
 
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, HDX, 10_000).into(),
 			frame_system::Event::NewAccount(pair_account).into(),
 			Event::PoolCreated(user_1, asset_a, asset_b, 60_000).into(),
-			Event::SellExecuted(user_1, asset_a, asset_b, 9_993, 14_993, asset_a, 7).into(),
+			Event::SellExecuted(user_1, asset_a, asset_b, 10_000, 14_991, asset_b, 10).into(),
 		]);
 	});
 }

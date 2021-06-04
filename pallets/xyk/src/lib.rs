@@ -611,22 +611,22 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			Error::<T>::MaxInRatioExceeded
 		);
 
+		let amount_out = hydra_dx_math::calculate_out_given_in(asset_in_reserve, asset_out_reserve, amount)
+			.map_err(|_| Error::<T>::SellAssetAmountInvalid)?;
+
 		let transfer_fee = if discount {
-			Self::calculate_discounted_fee(amount)?
+			Self::calculate_discounted_fee(amount_out)?
 		} else {
-			Self::calculate_fee(amount)?
+			Self::calculate_fee(amount_out)?
 		};
 
-		let amount_without_fee = amount
+		let amount_out_without_fee = amount_out
 			.checked_sub(transfer_fee)
 			.ok_or(Error::<T>::SellAssetAmountInvalid)?;
 
-		let sale_price = hydra_dx_math::calculate_out_given_in(asset_in_reserve, asset_out_reserve, amount_without_fee)
-			.map_err(|_| Error::<T>::SellAssetAmountInvalid)?;
+		ensure!(asset_out_reserve > amount_out, Error::<T>::InsufficientAssetBalance);
 
-		ensure!(asset_out_reserve > sale_price, Error::<T>::InsufficientAssetBalance);
-
-		ensure!(min_bought <= sale_price, Error::<T>::AssetBalanceLimitExceeded);
+		ensure!(min_bought <= amount_out_without_fee, Error::<T>::AssetBalanceLimitExceeded);
 
 		let discount_fee = if discount {
 			let native_asset = T::NativeAssetId::get();
@@ -656,11 +656,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		let transfer = AMMTransfer {
 			origin: who.clone(),
 			assets,
-			amount: amount_without_fee,
-			amount_out: sale_price,
+			amount,
+			amount_out: amount_out_without_fee,
 			discount,
 			discount_amount: discount_fee,
-			fee: (assets.asset_in, transfer_fee),
+			fee: (assets.asset_out, transfer_fee),
 		};
 
 		Ok(transfer)
@@ -678,13 +678,11 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			T::Currency::withdraw(native_asset, &transfer.origin, transfer.discount_amount)?;
 		}
 
-		let amount_with_fee = transfer.amount + transfer.fee.1;
-
 		T::Currency::transfer(
 			transfer.assets.asset_in,
 			&transfer.origin,
 			&pair_account,
-			amount_with_fee,
+			transfer.amount,
 		)?;
 		T::Currency::transfer(
 			transfer.assets.asset_out,
