@@ -2425,7 +2425,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "15.0.1"
+version = "15.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4311,7 +4311,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-exchange"
-version = "3.2.1"
+version = "3.3.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4711,7 +4711,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5247,7 +5247,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "4.0.0"
+version = "4.1.0"
 dependencies = [
  "frame-support",
  "frame-system",

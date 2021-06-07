@@ -23,13 +23,14 @@ use sp_std::vec::Vec;
 
 /// Hold information to perform amm transfer
 /// Contains also exact amount which will be sold/bought
-pub struct AMMTransfer<AccountId, AssetPair, Balance> {
+pub struct AMMTransfer<AccountId, AssetId, AssetPair, Balance> {
 	pub origin: AccountId,
 	pub assets: AssetPair,
 	pub amount: Balance,
 	pub amount_out: Balance,
 	pub discount: bool,
 	pub discount_amount: Balance,
+	pub fee: (AssetId, Balance),
 }
 
 /// Traits for handling AMM Pool trades.
@@ -54,10 +55,10 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount> {
 		amount: Amount,
 		min_bought: Amount,
 		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
+	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
-	fn execute_sell(transfer: &AMMTransfer<AccountId, AssetPair, Amount>) -> dispatch::DispatchResult;
+	fn execute_sell(transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
 	/// Call execute following the validation.
@@ -80,10 +81,10 @@ pub trait AMM<AccountId, AssetId, AssetPair, Amount> {
 		amount: Amount,
 		max_limit: Amount,
 		discount: bool,
-	) -> Result<AMMTransfer<AccountId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
+	) -> Result<AMMTransfer<AccountId, AssetId, AssetPair, Amount>, frame_support::sp_runtime::DispatchError>;
 
 	/// Execute buy for given validated transfer.
-	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetPair, Amount>) -> dispatch::DispatchResult;
+	fn execute_buy(transfer: &AMMTransfer<AccountId, AssetId, AssetPair, Amount>) -> dispatch::DispatchResult;
 
 	/// Perform asset swap.
 	fn buy(
