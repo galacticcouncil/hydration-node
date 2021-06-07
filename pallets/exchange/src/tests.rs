@@ -2918,3 +2918,110 @@ fn matching_limits_sell_buy_should_work() {
 		]);
 	});
 }
+
+#[test]
+fn exact_match_limit_should_work() {
+	new_test_ext().execute_with(|| {
+		let one: Balance = 1_000_000_000_000;
+		let user_1 = ALICE;
+		let user_2 = BOB;
+		let user_3 = CHARLIE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+		let pool_amount = 1000 * one;
+		let initial_price = Price::from(2);
+
+		let pair_account = XYKPallet::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		initialize_pool(asset_a, asset_b, user_1, pool_amount, initial_price);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1_000 * one);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 2_000 * one);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 100_000 * one);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 100_000 * one);
+
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_2),
+			asset_a,
+			asset_b,
+			50_000_000_000_000,
+			106_315_789_473_684,
+			false,
+		));
+
+		let b = <system::Pallet<Test>>::current_block_number();
+		let user_2_sell_intention_id = (0, &user_2, b, HDX, DOT).using_encoded(<Test as system::Config>::Hashing::hash);
+
+		assert_ok!(Exchange::buy(
+			Origin::signed(user_3),
+			asset_b,
+			asset_a,
+			100_000_000_000_000,
+			53_157_894_736_843,
+			false,
+		));
+
+		let user_3_sell_intention_id = (1, &user_3, b, HDX, DOT).using_encoded(<Test as system::Config>::Hashing::hash);
+
+		<Exchange as OnFinalize<u64>>::on_finalize(9);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_2), 100_050_000_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_2), 99_899_800_000_000_000);
+
+		assert_eq!(Currency::free_balance(asset_a, &user_3), 99_949_900_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &user_3), 100_100_000_000_000_000);
+
+		assert_eq!(Currency::free_balance(asset_a, &pair_account), 1_000_100_000_000_000);
+		assert_eq!(Currency::free_balance(asset_b, &pair_account), 2_000_200_000_000_000);
+
+		expect_events(vec![
+			Event::IntentionRegistered(
+				user_2,
+				asset_a,
+				asset_b,
+				50 * one,
+				IntentionType::BUY,
+				user_2_sell_intention_id,
+			)
+			.into(),
+			Event::IntentionRegistered(
+				user_3,
+				asset_b,
+				asset_a,
+				100 * one,
+				IntentionType::BUY,
+				user_3_sell_intention_id,
+			)
+			.into(),
+			Event::IntentionResolvedDirectTrade(
+				user_2,
+				user_3,
+				user_2_sell_intention_id,
+				user_3_sell_intention_id,
+				100 * one,
+				50 * one,
+			)
+			.into(),
+			Event::IntentionResolvedDirectTradeFees(
+				user_2,
+				user_2_sell_intention_id,
+				pair_account,
+				asset_b,
+				200000000000,
+			)
+			.into(),
+			Event::IntentionResolvedDirectTradeFees(
+				user_3,
+				user_3_sell_intention_id,
+				pair_account,
+				asset_a,
+				100000000000,
+			)
+			.into(),
+		]);
+	});
+}
