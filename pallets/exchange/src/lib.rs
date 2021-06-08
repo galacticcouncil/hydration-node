@@ -586,7 +586,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 						}
 					}
 					IntentionType::BUY => {
-						if dt.amount_from_a > matched_intention.trade_limit {
+						if dt.amount_from_b > matched_intention.trade_limit {
 							Self::send_intention_error_event(
 								&matched_intention,
 								Error::<T>::AssetBalanceLimitExceeded.into(),
