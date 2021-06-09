@@ -31,7 +31,7 @@ use sp_runtime::{
 use frame_support::weights::IdentityFee;
 use frame_support::weights::Weight;
 use orml_currencies::BasicCurrencyAdapter;
-use primitives::{Amount, AssetId, Balance};
+use primitives::{Amount, AssetId, Balance, Price};
 
 use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
@@ -291,7 +291,10 @@ impl ExtBuilder {
 		.unwrap();
 
 		crate::GenesisConfig::<Test> {
-			currencies: OrderedSet::from(vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE]),
+			currencies: vec![
+				(SUPPORTED_CURRENCY_NO_BALANCE, Price::from(1)),
+				(SUPPORTED_CURRENCY_WITH_BALANCE, Price::from_float(0.2)),
+			],
 			authorities: vec![self.payment_authority],
 		}
 		.assimilate_storage(&mut t)

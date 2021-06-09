@@ -22,7 +22,6 @@ use sp_runtime::traits::SignedExtension;
 
 use frame_support::weights::DispatchInfo;
 use orml_traits::MultiCurrency;
-use orml_utilities::OrderedSet;
 use pallet_balances::Call as BalancesCall;
 use primitives::Price;
 
@@ -216,29 +215,29 @@ fn fee_payment_non_native_insufficient_balance() {
 #[test]
 fn add_new_accepted_currency() {
 	ExtBuilder::default().base_weight(5).build().execute_with(|| {
-		assert_eq!(PaymentPallet::currencies(), OrderedSet::from(vec![2000, 3000]));
-
-		assert_ok!(PaymentPallet::add_currency(Origin::signed(BOB), 100));
-		assert_eq!(PaymentPallet::currencies(), OrderedSet::from(vec![2000, 3000, 100]));
+		assert_ok!(PaymentPallet::add_currency(
+			Origin::signed(BOB),
+			100,
+			Price::from_float(1.1)
+		));
+		assert_eq!(PaymentPallet::currencies(100), Some(Price::from_float(1.1)));
 		assert_noop!(
-			PaymentPallet::add_currency(Origin::signed(ALICE), 1000),
+			PaymentPallet::add_currency(Origin::signed(ALICE), 1000, Price::from_float(1.2)),
 			Error::<Test>::NotAllowed
 		);
 		assert_noop!(
-			PaymentPallet::add_currency(Origin::signed(BOB), 100),
+			PaymentPallet::add_currency(Origin::signed(BOB), 100, Price::from(10)),
 			Error::<Test>::AlreadyAccepted
 		);
-		assert_eq!(PaymentPallet::currencies(), OrderedSet::from(vec![2000, 3000, 100]));
+		assert_eq!(PaymentPallet::currencies(100), Some(Price::from_float(1.1)));
 	});
 }
 
 #[test]
 fn removed_accepted_currency() {
 	ExtBuilder::default().base_weight(5).build().execute_with(|| {
-		assert_eq!(PaymentPallet::currencies(), OrderedSet::from(vec![2000, 3000]));
-
-		assert_ok!(PaymentPallet::add_currency(Origin::signed(BOB), 100));
-		assert_eq!(PaymentPallet::currencies(), OrderedSet::from(vec![2000, 3000, 100]));
+		assert_ok!(PaymentPallet::add_currency(Origin::signed(BOB), 100, Price::from(3)));
+		assert_eq!(PaymentPallet::currencies(100), Some(Price::from(3)));
 
 		assert_noop!(
 			PaymentPallet::remove_currency(Origin::signed(ALICE), 100),
@@ -252,11 +251,12 @@ fn removed_accepted_currency() {
 
 		assert_ok!(PaymentPallet::remove_currency(Origin::signed(BOB), 100));
 
+		assert_eq!(PaymentPallet::currencies(100), None);
+
 		assert_noop!(
 			PaymentPallet::remove_currency(Origin::signed(BOB), 100),
 			Error::<Test>::UnsupportedCurrency
 		);
-		assert_eq!(PaymentPallet::currencies(), OrderedSet::from(vec![2000, 3000]));
 	});
 }
 

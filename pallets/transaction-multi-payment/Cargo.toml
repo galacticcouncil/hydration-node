@@ -62,4 +62,6 @@ std = [
   'sp-runtime/std',
   'orml-tokens/std',
   'orml-traits/std',
+  'pallet-balances/std',
+  'pallet-asset-registry/std',
 ]

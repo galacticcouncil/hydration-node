@@ -52,8 +52,6 @@ use primitives::asset::AssetPair;
 use primitives::traits::{CurrencySwap, AMM};
 use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
-use orml_utilities::OrderedSet;
-
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -63,6 +61,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
+	use primitives::Price;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -146,12 +145,12 @@ pub mod pallet {
 	/// Account currency map
 	#[pallet::storage]
 	#[pallet::getter(fn get_currency)]
-	pub type AccountCurrencyMap<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Option<AssetId>, ValueQuery>;
+	pub type AccountCurrencyMap<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, AssetId, OptionQuery>;
 
 	/// Curated list of currencies which fees can be paid with
 	#[pallet::storage]
 	#[pallet::getter(fn currencies)]
-	pub type AcceptedCurrencies<T: Config> = StorageValue<_, OrderedSet<AssetId>, ValueQuery>;
+	pub type AcceptedCurrencies<T: Config> = StorageMap<_, Twox64Concat, AssetId, Price, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]
@@ -159,7 +158,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub currencies: OrderedSet<AssetId>,
+		pub currencies: Vec<(AssetId, Price)>,
 		pub authorities: Vec<T::AccountId>,
 	}
 
@@ -167,8 +166,8 @@ pub mod pallet {
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			GenesisConfig {
-				currencies: OrderedSet::new(),
 				authorities: vec![],
+				currencies: vec![],
 			}
 		}
 	}
@@ -177,7 +176,11 @@ pub mod pallet {
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
 			Authorities::<T>::put(self.authorities.clone());
-			AcceptedCurrencies::<T>::put(self.currencies.clone());
+
+			for (asset, price) in &self.currencies {
+				AcceptedCurrencies::<T>::insert(asset, price);
+			}
+			//AcceptedCurrencies::<T>::put(self.currencies.clone());
 		}
 	}
 	#[pallet::call]
@@ -197,12 +200,12 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			if currency == CORE_ASSET_ID || Self::currencies().contains(&currency) {
+			if currency == CORE_ASSET_ID || AcceptedCurrencies::<T>::contains_key(&currency) {
 				if T::MultiCurrency::free_balance(currency, &who) == Balance::zero() {
 					return Err(Error::<T>::ZeroBalance.into());
 				}
 
-				<AccountCurrencyMap<T>>::insert(who.clone(), Some(currency));
+				<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
 				if T::WithdrawFeeForSetCurrency::get() == Pays::Yes {
 					Self::withdraw_set_fee(&who, currency)?;
@@ -224,7 +227,7 @@ pub mod pallet {
 		///
 		/// Emits `CurrencyAdded` event when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::add_currency(), DispatchClass::Normal, Pays::No))]
-		pub fn add_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
+		pub fn add_currency(origin: OriginFor<T>, currency: AssetId, price: Price) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
 			ensure!(currency != CORE_ASSET_ID, Error::<T>::CoreAssetNotAllowed);
@@ -232,11 +235,15 @@ pub mod pallet {
 			// Only selected accounts can perform this action
 			ensure!(Self::authorities().contains(&who), Error::<T>::NotAllowed);
 
-			if AcceptedCurrencies::<T>::mutate(|x| x.insert(currency)) {
+			AcceptedCurrencies::<T>::try_mutate_exists(currency, |maybe_price| -> DispatchResultWithPostInfo {
+				if maybe_price.is_some() {
+					return Err(Error::<T>::AlreadyAccepted.into());
+				}
+
+				*maybe_price = Some(price);
 				Self::deposit_event(Event::CurrencyAdded(who, currency));
-				return Ok(().into());
-			}
-			Err(Error::<T>::AlreadyAccepted.into())
+				Ok(().into())
+			})
 		}
 
 		/// Remove currency from the list of supported currencies
@@ -254,12 +261,17 @@ pub mod pallet {
 			// Only selected accounts can perform this action
 			ensure!(Self::authorities().contains(&who), Error::<T>::NotAllowed);
 
-			if AcceptedCurrencies::<T>::mutate(|x| x.remove(&currency)) {
-				Self::deposit_event(Event::CurrencyRemoved(who, currency));
-				return Ok(().into());
-			}
+			AcceptedCurrencies::<T>::try_mutate(currency, |x| -> DispatchResultWithPostInfo {
+				if x.is_none() {
+					return Err(Error::<T>::UnsupportedCurrency.into());
+				}
 
-			Err(Error::<T>::UnsupportedCurrency.into())
+				*x = None;
+
+				Self::deposit_event(Event::CurrencyRemoved(who, currency));
+
+				Ok(().into())
+			})
 		}
 
 		/// Add an account as member to list of authorities who can manage list of accepted currencies
