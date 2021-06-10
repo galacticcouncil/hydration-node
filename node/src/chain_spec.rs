@@ -5,9 +5,9 @@ use hydra_dx_runtime::opaque::SessionKeys;
 use hydra_dx_runtime::pallet_claims::EthereumAddress;
 use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
-	ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig, Perbill,
-	SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig,
+	MultiTransactionPaymentConfig, Perbill, SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig,
+	SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -317,7 +317,7 @@ fn testnet_genesis(
 		pallet_grandpa: Default::default(),
 		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: root_key.clone(),
 		},
 		pallet_asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
@@ -334,6 +334,11 @@ fn testnet_genesis(
 				(b"tUSDT".to_vec(), 10),
 			],
 			next_asset_id: 11,
+		},
+		pallet_transaction_multi_payment: MultiTransactionPaymentConfig {
+			currencies: vec![],
+			authorities: vec![],
+			fallback_account: root_key,
 		},
 		orml_tokens: TokensConfig {
 			endowed_accounts: endowed_accounts
@@ -469,6 +474,11 @@ fn lerna_genesis(
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![],
 			next_asset_id: 1,
+		},
+		pallet_transaction_multi_payment: MultiTransactionPaymentConfig {
+			currencies: vec![],
+			authorities: vec![],
+			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 		},
 		orml_tokens: TokensConfig {
 			endowed_accounts: endowed_accounts.iter().flat_map(|_x| vec![]).collect(),

@@ -1009,7 +1009,7 @@ construct_runtime!(
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Pallet, Call, Storage, Config, Event<T>},
-		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Storage, Event<T>},
+		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Config<T>, Storage, Event<T>},
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config},
 	}
 );

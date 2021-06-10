@@ -249,8 +249,9 @@ impl ExtBuilder {
 		.unwrap();
 
 		pallet_transaction_multi_payment::GenesisConfig::<Test> {
-			currencies: OrderedSet::from(vec![]),
+			currencies: vec![],
 			authorities: vec![],
+			fallback_account: 1000,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
