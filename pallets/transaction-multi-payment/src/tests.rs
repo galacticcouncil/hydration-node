@@ -332,6 +332,7 @@ fn fee_payment_in_non_native_currency_with_no_pool() {
 
 			// token check should be less by the fee amount and -1 as fee in amm swap
 			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY_WITH_BALANCE, &CHARLIE), 970);
+			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY_WITH_BALANCE, &FALLBACK_ACCOUNT), 30);
 		});
 }
 
