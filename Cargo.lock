@@ -4311,7 +4311,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-exchange"
-version = "3.3.0"
+version = "3.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
