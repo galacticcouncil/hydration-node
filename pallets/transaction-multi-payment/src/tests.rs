@@ -298,3 +298,68 @@ fn add_member() {
 		);
 	});
 }
+
+#[test]
+fn fee_payment_in_non_native_currency_with_no_pool() {
+	const CHARLIE: AccountId = 5;
+
+	ExtBuilder::default()
+		.base_weight(5)
+		.account_native_balance(CHARLIE, 0)
+		.account_tokens(CHARLIE, SUPPORTED_CURRENCY_WITH_BALANCE, 1000)
+		.build()
+		.execute_with(|| {
+			// Make sure Charlie ain't got a penny!
+			assert_eq!(Balances::free_balance(CHARLIE), 0);
+
+			assert_ok!(PaymentPallet::set_currency(
+				Origin::signed(CHARLIE),
+				SUPPORTED_CURRENCY_WITH_BALANCE
+			));
+
+			let len = 10;
+			let info = DispatchInfo {
+				weight: 5,
+				..Default::default()
+			};
+
+			assert!(ChargeTransactionPayment::<Test>::from(0)
+				.pre_dispatch(&CHARLIE, CALL, &info, len)
+				.is_ok());
+
+			//Native balance check - Charlie should be still broke!
+			assert_eq!(Balances::free_balance(CHARLIE), 0);
+
+			// token check should be less by the fee amount and -1 as fee in amm swap
+			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY_WITH_BALANCE, &CHARLIE), 970);
+		});
+}
+
+#[test]
+fn fee_payment_non_native_insufficient_balance_with_no_pool() {
+	const CHARLIE: AccountId = 5;
+
+	ExtBuilder::default()
+		.base_weight(5)
+		.account_native_balance(CHARLIE, 0)
+		.account_tokens(CHARLIE, SUPPORTED_CURRENCY_WITH_BALANCE, 10)
+		.build()
+		.execute_with(|| {
+			assert_ok!(PaymentPallet::set_currency(
+				Origin::signed(CHARLIE),
+				SUPPORTED_CURRENCY_WITH_BALANCE
+			));
+
+			let len = 10;
+			let info = DispatchInfo {
+				weight: 5,
+				..Default::default()
+			};
+
+			assert!(ChargeTransactionPayment::<Test>::from(0)
+				.pre_dispatch(&CHARLIE, CALL, &info, len)
+				.is_err());
+
+			assert_eq!(Tokens::free_balance(SUPPORTED_CURRENCY_WITH_BALANCE, &CHARLIE), 10);
+		});
+}

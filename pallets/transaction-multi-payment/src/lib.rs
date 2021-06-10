@@ -27,6 +27,7 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
+mod traits;
 
 use frame_support::{
 	dispatch::DispatchResult,
@@ -46,10 +47,11 @@ use sp_std::prelude::*;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_std::marker::PhantomData;
 
+use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::asset::AssetPair;
-use primitives::traits::{CurrencySwap, AMM};
+use primitives::traits::AMM;
 use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
@@ -143,6 +145,12 @@ pub mod pallet {
 
 		/// Fallback price cannot be zero.
 		ZeroPrice,
+
+		/// Fallback price was not found.
+		FallbackPriceNotFound,
+
+		/// Math overflow
+		Overflow,
 	}
 
 	/// Account currency map
@@ -161,7 +169,7 @@ pub mod pallet {
 
 	/// Account to use when pool does not exist.
 	#[pallet::storage]
-	#[pallet::getter(fn fallback_acccount)]
+	#[pallet::getter(fn fallback_account)]
 	pub type FallbackAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
 
 	#[pallet::genesis_config]
@@ -330,6 +338,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	fn account_currency(who: &T::AccountId) -> AssetId {
+		Pallet::<T>::get_currency(who).unwrap_or(CORE_ASSET_ID)
+	}
+
 	/// Execute a trade to buy HDX and sell selected currency.
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
@@ -378,9 +390,34 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+use crate::traits::PaymentSwapResult;
+use frame_support::dispatch::DispatchError;
+use traits::CurrencySwap;
+
 impl<T: Config> CurrencySwap<<T as frame_system::Config>::AccountId, Balance> for Pallet<T> {
-	fn swap_currency(who: &T::AccountId, fee: u128) -> DispatchResult {
-		Self::swap_currency(who, fee)
+	fn swap(who: &T::AccountId, fee: u128) -> Result<PaymentSwapResult, DispatchError> {
+		match Self::account_currency(who) {
+			CORE_ASSET_ID => Ok(PaymentSwapResult::NATIVE),
+			currency => {
+				if T::AMMPool::exists(AssetPair {
+					asset_in: currency,
+					asset_out: CORE_ASSET_ID,
+				}) {
+					Self::swap_currency(who, fee)?;
+					Ok(PaymentSwapResult::SWAPPED)
+				} else {
+					// If pool does not exists, let's use the currency fixed price
+
+					let price = Self::currencies(currency).ok_or(Error::<T>::FallbackPriceNotFound)?;
+
+					let amount = price.checked_mul_int(fee).ok_or(Error::<T>::Overflow)?;
+
+					T::MultiCurrency::transfer(currency, who, &Self::fallback_account(), amount)?;
+
+					Ok(PaymentSwapResult::TRANSFERRED)
+				}
+			}
+		}
 	}
 }
 
@@ -423,14 +460,20 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		if SW::swap_currency(&who, fee.into()).is_err() {
-			return Err(InvalidTransaction::Payment.into());
-		}
-
-		match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-			Ok(imbalance) => Ok(Some(imbalance)),
-			Err(_) => Err(InvalidTransaction::Payment.into()),
-		}
+		return if let Some(detail) = SW::swap(&who, fee.into()).ok() {
+			match detail {
+				PaymentSwapResult::TRANSFERRED => Ok(None),
+				PaymentSwapResult::ERROR => Err(InvalidTransaction::Payment.into()),
+				PaymentSwapResult::NATIVE | PaymentSwapResult::SWAPPED => {
+					match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
+						Ok(imbalance) => Ok(Some(imbalance)),
+						Err(_) => Err(InvalidTransaction::Payment.into()),
+					}
+				}
+			}
+		} else {
+			Err(InvalidTransaction::Payment.into())
+		};
 	}
 
 	/// Hand the fee and the tip over to the `[OnUnbalanced]` implementation.

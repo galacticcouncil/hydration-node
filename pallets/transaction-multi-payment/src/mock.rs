@@ -294,7 +294,7 @@ impl ExtBuilder {
 		crate::GenesisConfig::<Test> {
 			currencies: vec![
 				(SUPPORTED_CURRENCY_NO_BALANCE, Price::from(1)),
-				(SUPPORTED_CURRENCY_WITH_BALANCE, Price::from_float(0.2)),
+				(SUPPORTED_CURRENCY_WITH_BALANCE, Price::from_float(1.5)),
 			],
 			authorities: vec![self.payment_authority],
 			fallback_account: FALLBACK_ACCOUNT,
