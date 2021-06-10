@@ -140,6 +140,9 @@ pub mod pallet {
 
 		/// Account is not a member of authorities.
 		NotAMember,
+
+		/// Fallback price cannot be zero.
+		ZeroPrice,
 	}
 
 	/// Account currency map
@@ -156,10 +159,16 @@ pub mod pallet {
 	#[pallet::getter(fn authorities)]
 	pub type Authorities<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
+	/// Account to use when pool does not exist.
+	#[pallet::storage]
+	#[pallet::getter(fn fallback_acccount)]
+	pub type FallbackAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
+
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		pub currencies: Vec<(AssetId, Price)>,
 		pub authorities: Vec<T::AccountId>,
+		pub fallback_account: T::AccountId,
 	}
 
 	#[cfg(feature = "std")]
@@ -168,6 +177,7 @@ pub mod pallet {
 			GenesisConfig {
 				authorities: vec![],
 				currencies: vec![],
+				fallback_account: Default::default(),
 			}
 		}
 	}
@@ -175,12 +185,17 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
+			if self.fallback_account == Default::default() {
+				panic!("Fallback account is not set");
+			}
+
+			FallbackAccount::<T>::put(self.fallback_account.clone());
+
 			Authorities::<T>::put(self.authorities.clone());
 
 			for (asset, price) in &self.currencies {
 				AcceptedCurrencies::<T>::insert(asset, price);
 			}
-			//AcceptedCurrencies::<T>::put(self.currencies.clone());
 		}
 	}
 	#[pallet::call]

@@ -45,6 +45,7 @@ pub const INITIAL_BALANCE: Balance = 1000_000_000_000_000u128;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const FALLBACK_ACCOUNT: AccountId = 300;
 
 pub const HDX: AssetId = 0;
 pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 2000;
@@ -296,6 +297,7 @@ impl ExtBuilder {
 				(SUPPORTED_CURRENCY_WITH_BALANCE, Price::from_float(0.2)),
 			],
 			authorities: vec![self.payment_authority],
+			fallback_account: FALLBACK_ACCOUNT,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
