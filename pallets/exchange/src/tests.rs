@@ -866,7 +866,7 @@ fn sell_trade_limits_respected_for_matched_intention() {
 				user_3_sell_intention_id,
 				DispatchError::Module {
 					index: 1,
-					error: 2,
+					error: 3,
 					message: None,
 				},
 			)

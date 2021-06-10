@@ -181,8 +181,11 @@ pub mod pallet {
 		/// Insufficient asset balance.
 		InsufficientAssetBalance,
 
-		/// Given trading limit has been exceeded (Sell) or has Not been reached (buy).
-		AssetBalanceLimitExceeded,
+		/// Given trading limit has been exceeded (buy).
+		TradeAmountExceededLimit,
+
+		/// Given trading limit has not been reached (sell).
+		TradeAmountNotReachedLimit,
 
 		/// Overflow
 		ZeroSpotPrice,
@@ -580,7 +583,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 						if dt.amount_from_a < matched_intention.trade_limit {
 							Self::send_intention_error_event(
 								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								Error::<T>::TradeAmountNotReachedLimit.into(),
 							);
 							continue;
 						}
@@ -589,7 +592,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 						if dt.amount_from_b > matched_intention.trade_limit {
 							Self::send_intention_error_event(
 								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								Error::<T>::TradeAmountExceededLimit.into(),
 							);
 							continue;
 						}
@@ -726,13 +729,13 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 				match intention.sell_or_buy {
 					IntentionType::SELL => {
 						if dt.amount_from_b < intention.trade_limit {
-							Self::send_intention_error_event(&intention, Error::<T>::AssetBalanceLimitExceeded.into());
+							Self::send_intention_error_event(&intention, Error::<T>::TradeAmountNotReachedLimit.into());
 							continue;
 						}
 					}
 					IntentionType::BUY => {
 						if dt.amount_from_a > intention.trade_limit {
-							Self::send_intention_error_event(&intention, Error::<T>::AssetBalanceLimitExceeded.into());
+							Self::send_intention_error_event(&intention, Error::<T>::TradeAmountExceededLimit.into());
 							continue;
 						}
 					}
@@ -743,7 +746,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 						if dt.amount_from_a < matched_intention.trade_limit {
 							Self::send_intention_error_event(
 								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								Error::<T>::TradeAmountNotReachedLimit.into(),
 							);
 							continue;
 						}
@@ -752,7 +755,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 						if dt.amount_from_b > matched_intention.trade_limit {
 							Self::send_intention_error_event(
 								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								Error::<T>::TradeAmountExceededLimit.into(),
 							);
 							continue;
 						}
