@@ -18,7 +18,6 @@
 #![allow(clippy::upper_case_acronyms)]
 
 use frame_support::dispatch;
-use frame_support::dispatch::DispatchResult;
 use sp_std::vec::Vec;
 
 /// Hold information to perform amm transfer
@@ -106,8 +105,4 @@ pub trait Resolver<AccountId, Intention, E> {
 	/// Resolve intentions by either directly trading with each other or via AMM pool.
 	/// Intention ```intention``` must be validated prior to call this function.
 	fn resolve_matched_intentions(pair_account: &AccountId, intention: &Intention, matched: &[Intention]);
-}
-
-pub trait CurrencySwap<AccountId, Balance> {
-	fn swap_currency(who: &AccountId, fee: Balance) -> DispatchResult;
 }

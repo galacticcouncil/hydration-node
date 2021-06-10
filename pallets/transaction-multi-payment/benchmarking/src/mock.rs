@@ -38,7 +38,6 @@ use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
 use frame_benchmarking::frame_support::weights::Pays;
-use orml_utilities::OrderedSet;
 use primitives::fee;
 
 pub type AccountId = u64;
@@ -249,8 +248,9 @@ impl ExtBuilder {
 		.unwrap();
 
 		pallet_transaction_multi_payment::GenesisConfig::<Test> {
-			currencies: OrderedSet::from(vec![]),
+			currencies: vec![],
 			authorities: vec![],
+			fallback_account: 1000,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
