@@ -234,7 +234,11 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 			.expect("Cannot fail. Checks should have been done prior to this.");
 
 			if transfer.fee_transfer {
-				let intention = if transfer.from == &self.intention_a.who { self.intention_a } else { self.intention_b };
+				let intention = if transfer.from == &self.intention_a.who {
+					self.intention_a
+				} else {
+					self.intention_b
+				};
 				Self::send_trade_fee_event(transfer.from, intention, transfer.to, transfer.asset, transfer.amount);
 			}
 		}
@@ -261,7 +265,13 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 	}
 
 	/// Send pallet event after a fee is transferred.
-	fn send_trade_fee_event(from: &T::AccountId, intention: &Intention<T>, to: &T::AccountId, asset: AssetId, amount: Balance) {
+	fn send_trade_fee_event(
+		from: &T::AccountId,
+		intention: &Intention<T>,
+		to: &T::AccountId,
+		asset: AssetId,
+		amount: Balance,
+	) {
 		Pallet::<T>::deposit_event(Event::IntentionResolvedDirectTradeFees(
 			from.clone(),
 			intention.intention_id,
