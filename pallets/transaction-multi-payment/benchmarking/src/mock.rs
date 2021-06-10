@@ -38,7 +38,6 @@ use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
 use frame_benchmarking::frame_support::weights::Pays;
-use orml_utilities::OrderedSet;
 use primitives::fee;
 
 pub type AccountId = u64;

@@ -40,14 +40,15 @@ sp-api = {default-features = false, version = '3.0.0'}
 sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
-
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}
 
-[dev-dependencies]
+# These 2 dependencies are for testing only. But need to be here for benchmarking pallet - could not figure out why yet
+pallet-asset-registry = {path = '../asset-registry', default-features = false}
 pallet-balances = {default-features = false, version = '3.0.0'}
+
+[dev-dependencies]
 orml-currencies = {default-features = false, version = "0.4.1-dev"}
 pallet-xyk = {path = '../xyk', default-features = false}
-pallet-asset-registry = {path = '../asset-registry', default-features = false}
 sp-io = {default-features = false, version = '3.0.0'}
 
 [features]
