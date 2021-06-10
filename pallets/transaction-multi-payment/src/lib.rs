@@ -397,14 +397,14 @@ use traits::CurrencySwap;
 impl<T: Config> CurrencySwap<<T as frame_system::Config>::AccountId, Balance> for Pallet<T> {
 	fn swap(who: &T::AccountId, fee: u128) -> Result<PaymentSwapResult, DispatchError> {
 		match Self::account_currency(who) {
-			CORE_ASSET_ID => Ok(PaymentSwapResult::NATIVE),
+			CORE_ASSET_ID => Ok(PaymentSwapResult::Native),
 			currency => {
 				if T::AMMPool::exists(AssetPair {
 					asset_in: currency,
 					asset_out: CORE_ASSET_ID,
 				}) {
 					Self::swap_currency(who, fee)?;
-					Ok(PaymentSwapResult::SWAPPED)
+					Ok(PaymentSwapResult::Swapped)
 				} else {
 					// If pool does not exists, let's use the currency fixed price
 
@@ -414,7 +414,7 @@ impl<T: Config> CurrencySwap<<T as frame_system::Config>::AccountId, Balance> fo
 
 					T::MultiCurrency::transfer(currency, who, &Self::fallback_account(), amount)?;
 
-					Ok(PaymentSwapResult::TRANSFERRED)
+					Ok(PaymentSwapResult::Transferred)
 				}
 			}
 		}
@@ -460,11 +460,11 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		return if let Some(detail) = SW::swap(&who, fee.into()).ok() {
+		if let Ok(detail) = SW::swap(&who, fee.into()) {
 			match detail {
-				PaymentSwapResult::TRANSFERRED => Ok(None),
-				PaymentSwapResult::ERROR => Err(InvalidTransaction::Payment.into()),
-				PaymentSwapResult::NATIVE | PaymentSwapResult::SWAPPED => {
+				PaymentSwapResult::Transferred => Ok(None),
+				PaymentSwapResult::Error => Err(InvalidTransaction::Payment.into()),
+				PaymentSwapResult::Native | PaymentSwapResult::Swapped => {
 					match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
 						Ok(imbalance) => Ok(Some(imbalance)),
 						Err(_) => Err(InvalidTransaction::Payment.into()),
@@ -473,7 +473,7 @@ where
 			}
 		} else {
 			Err(InvalidTransaction::Payment.into())
-		};
+		}
 	}
 
 	/// Hand the fee and the tip over to the `[OnUnbalanced]` implementation.

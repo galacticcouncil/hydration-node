@@ -1,9 +1,9 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PaymentSwapResult {
-	NATIVE,
-	ERROR,
-	SWAPPED,
-	TRANSFERRED,
+	Native,
+	Error,
+	Swapped,
+	Transferred,
 }
 
 pub trait CurrencySwap<AccountId, Balance> {
