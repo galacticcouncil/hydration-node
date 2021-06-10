@@ -148,8 +148,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 15,
-	impl_version: 1,
+	spec_version: 16,
+	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
 };
@@ -1009,7 +1009,7 @@ construct_runtime!(
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Pallet, Call, Storage, Config, Event<T>},
-		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Storage, Event<T>},
+		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Config<T>, Storage, Event<T>},
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config},
 	}
 );

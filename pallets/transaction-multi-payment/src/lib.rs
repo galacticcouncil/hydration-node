@@ -27,6 +27,7 @@ mod mock;
 
 #[cfg(test)]
 mod tests;
+mod traits;
 
 use frame_support::{
 	dispatch::DispatchResult,
@@ -46,13 +47,12 @@ use sp_std::prelude::*;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_std::marker::PhantomData;
 
+use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::asset::AssetPair;
-use primitives::traits::{CurrencySwap, AMM};
+use primitives::traits::AMM;
 use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
-
-use orml_utilities::OrderedSet;
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -63,6 +63,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
+	use primitives::Price;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -141,34 +142,50 @@ pub mod pallet {
 
 		/// Account is not a member of authorities.
 		NotAMember,
+
+		/// Fallback price cannot be zero.
+		ZeroPrice,
+
+		/// Fallback price was not found.
+		FallbackPriceNotFound,
+
+		/// Math overflow
+		Overflow,
 	}
 
 	/// Account currency map
 	#[pallet::storage]
 	#[pallet::getter(fn get_currency)]
-	pub type AccountCurrencyMap<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, Option<AssetId>, ValueQuery>;
+	pub type AccountCurrencyMap<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, AssetId, OptionQuery>;
 
 	/// Curated list of currencies which fees can be paid with
 	#[pallet::storage]
 	#[pallet::getter(fn currencies)]
-	pub type AcceptedCurrencies<T: Config> = StorageValue<_, OrderedSet<AssetId>, ValueQuery>;
+	pub type AcceptedCurrencies<T: Config> = StorageMap<_, Twox64Concat, AssetId, Price, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]
 	pub type Authorities<T: Config> = StorageValue<_, Vec<T::AccountId>, ValueQuery>;
 
+	/// Account to use when pool does not exist.
+	#[pallet::storage]
+	#[pallet::getter(fn fallback_account)]
+	pub type FallbackAccount<T: Config> = StorageValue<_, T::AccountId, ValueQuery>;
+
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub currencies: OrderedSet<AssetId>,
+		pub currencies: Vec<(AssetId, Price)>,
 		pub authorities: Vec<T::AccountId>,
+		pub fallback_account: T::AccountId,
 	}
 
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
 			GenesisConfig {
-				currencies: OrderedSet::new(),
 				authorities: vec![],
+				currencies: vec![],
+				fallback_account: Default::default(),
 			}
 		}
 	}
@@ -176,8 +193,17 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
+			if self.fallback_account == Default::default() {
+				panic!("Fallback account is not set");
+			}
+
+			FallbackAccount::<T>::put(self.fallback_account.clone());
+
 			Authorities::<T>::put(self.authorities.clone());
-			AcceptedCurrencies::<T>::put(self.currencies.clone());
+
+			for (asset, price) in &self.currencies {
+				AcceptedCurrencies::<T>::insert(asset, price);
+			}
 		}
 	}
 	#[pallet::call]
@@ -197,12 +223,12 @@ pub mod pallet {
 		pub fn set_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			if currency == CORE_ASSET_ID || Self::currencies().contains(&currency) {
+			if currency == CORE_ASSET_ID || AcceptedCurrencies::<T>::contains_key(&currency) {
 				if T::MultiCurrency::free_balance(currency, &who) == Balance::zero() {
 					return Err(Error::<T>::ZeroBalance.into());
 				}
 
-				<AccountCurrencyMap<T>>::insert(who.clone(), Some(currency));
+				<AccountCurrencyMap<T>>::insert(who.clone(), currency);
 
 				if T::WithdrawFeeForSetCurrency::get() == Pays::Yes {
 					Self::withdraw_set_fee(&who, currency)?;
@@ -224,7 +250,7 @@ pub mod pallet {
 		///
 		/// Emits `CurrencyAdded` event when successful.
 		#[pallet::weight((<T as Config>::WeightInfo::add_currency(), DispatchClass::Normal, Pays::No))]
-		pub fn add_currency(origin: OriginFor<T>, currency: AssetId) -> DispatchResultWithPostInfo {
+		pub fn add_currency(origin: OriginFor<T>, currency: AssetId, price: Price) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
 			ensure!(currency != CORE_ASSET_ID, Error::<T>::CoreAssetNotAllowed);
@@ -232,11 +258,15 @@ pub mod pallet {
 			// Only selected accounts can perform this action
 			ensure!(Self::authorities().contains(&who), Error::<T>::NotAllowed);
 
-			if AcceptedCurrencies::<T>::mutate(|x| x.insert(currency)) {
+			AcceptedCurrencies::<T>::try_mutate_exists(currency, |maybe_price| -> DispatchResultWithPostInfo {
+				if maybe_price.is_some() {
+					return Err(Error::<T>::AlreadyAccepted.into());
+				}
+
+				*maybe_price = Some(price);
 				Self::deposit_event(Event::CurrencyAdded(who, currency));
-				return Ok(().into());
-			}
-			Err(Error::<T>::AlreadyAccepted.into())
+				Ok(().into())
+			})
 		}
 
 		/// Remove currency from the list of supported currencies
@@ -254,12 +284,17 @@ pub mod pallet {
 			// Only selected accounts can perform this action
 			ensure!(Self::authorities().contains(&who), Error::<T>::NotAllowed);
 
-			if AcceptedCurrencies::<T>::mutate(|x| x.remove(&currency)) {
-				Self::deposit_event(Event::CurrencyRemoved(who, currency));
-				return Ok(().into());
-			}
+			AcceptedCurrencies::<T>::try_mutate(currency, |x| -> DispatchResultWithPostInfo {
+				if x.is_none() {
+					return Err(Error::<T>::UnsupportedCurrency.into());
+				}
 
-			Err(Error::<T>::UnsupportedCurrency.into())
+				*x = None;
+
+				Self::deposit_event(Event::CurrencyRemoved(who, currency));
+
+				Ok(().into())
+			})
 		}
 
 		/// Add an account as member to list of authorities who can manage list of accepted currencies
@@ -303,6 +338,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	fn account_currency(who: &T::AccountId) -> AssetId {
+		Pallet::<T>::get_currency(who).unwrap_or(CORE_ASSET_ID)
+	}
+
 	/// Execute a trade to buy HDX and sell selected currency.
 	pub fn swap_currency(who: &T::AccountId, fee: Balance) -> DispatchResult {
 		// Let's determine currency in which user would like to pay the fee
@@ -351,9 +390,34 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+use crate::traits::PaymentSwapResult;
+use frame_support::dispatch::DispatchError;
+use traits::CurrencySwap;
+
 impl<T: Config> CurrencySwap<<T as frame_system::Config>::AccountId, Balance> for Pallet<T> {
-	fn swap_currency(who: &T::AccountId, fee: u128) -> DispatchResult {
-		Self::swap_currency(who, fee)
+	fn swap(who: &T::AccountId, fee: u128) -> Result<PaymentSwapResult, DispatchError> {
+		match Self::account_currency(who) {
+			CORE_ASSET_ID => Ok(PaymentSwapResult::Native),
+			currency => {
+				if T::AMMPool::exists(AssetPair {
+					asset_in: currency,
+					asset_out: CORE_ASSET_ID,
+				}) {
+					Self::swap_currency(who, fee)?;
+					Ok(PaymentSwapResult::Swapped)
+				} else {
+					// If pool does not exists, let's use the currency fixed price
+
+					let price = Self::currencies(currency).ok_or(Error::<T>::FallbackPriceNotFound)?;
+
+					let amount = price.checked_mul_int(fee).ok_or(Error::<T>::Overflow)?;
+
+					T::MultiCurrency::transfer(currency, who, &Self::fallback_account(), amount)?;
+
+					Ok(PaymentSwapResult::Transferred)
+				}
+			}
+		}
 	}
 }
 
@@ -396,13 +460,19 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		if SW::swap_currency(&who, fee.into()).is_err() {
-			return Err(InvalidTransaction::Payment.into());
-		}
-
-		match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-			Ok(imbalance) => Ok(Some(imbalance)),
-			Err(_) => Err(InvalidTransaction::Payment.into()),
+		if let Ok(detail) = SW::swap(&who, fee.into()) {
+			match detail {
+				PaymentSwapResult::Transferred => Ok(None),
+				PaymentSwapResult::Error => Err(InvalidTransaction::Payment.into()),
+				PaymentSwapResult::Native | PaymentSwapResult::Swapped => {
+					match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
+						Ok(imbalance) => Ok(Some(imbalance)),
+						Err(_) => Err(InvalidTransaction::Payment.into()),
+					}
+				}
+			}
+		} else {
+			Err(InvalidTransaction::Payment.into())
 		}
 	}
 
