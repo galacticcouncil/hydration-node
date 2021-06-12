@@ -25,7 +25,7 @@ version = '2.0.0'
 primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
-hydra-dx-math = {default-features = false, version = "1.0.0", git = "https://github.com/galacticcouncil/hydraDX-math", tag = "v1.0.0"}
+hydra-dx-math = {default-features = false, version = "1.0.0"}
 
 # Local dependencies
 pallet-asset-registry = {path = '../asset-registry', default-features = false}
