@@ -43,7 +43,7 @@ use sp_runtime::traits::{
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::Zero,
+	traits::{ConvertInto, Zero},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, MultiSignature, Percent,
 };
@@ -206,6 +206,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Identity(_)
 			| Call::Offences(_)
 			| Call::Utility(_)
+			| Call::Vesting(_)
 			| Call::Sudo(_) => true,
 
 			Call::XYK(_)
@@ -472,6 +473,7 @@ impl pallet_claims::Config for Runtime {
 	type Prefix = ClaimMessagePrefix;
 	type WeightInfo = pallet_claims::weights::HydraWeight<Runtime>;
 	type CurrencyBalance = Balance;
+	type VestingSchedule = Vesting;
 }
 
 impl pallet_exchange::Config for Runtime {
@@ -961,6 +963,18 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MinVestedTransfer: Balance = HDX / 100_000;
+}
+
+impl pallet_vesting::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BlockNumberToBalance = ConvertInto;
+	type MinVestedTransfer = MinVestedTransfer;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -998,6 +1012,7 @@ construct_runtime!(
 		Historical: session_historical::{Pallet},
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
+		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},

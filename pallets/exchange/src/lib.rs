@@ -424,7 +424,7 @@ impl<T: Config> Pallet<T> {
 					transfer.origin.clone(),
 					IntentionType::SELL,
 					intention_id,
-					transfer.amount ,
+					transfer.amount,
 					transfer.amount_out + transfer.fee.1,
 				));
 			}

@@ -24,7 +24,7 @@ use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, ConvertInto, IdentityLookup},
 };
 
 use frame_support::traits::GenesisBuild;
@@ -41,8 +41,21 @@ frame_support::construct_runtime!(
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 ClaimsPallet: claims::{Pallet, Call, Storage, Event<T>},
 		 Balances: pallet_balances::{Pallet, Event<T>},
+		 Vesting: pallet_vesting::{Pallet, Call, Storage, Config<T>, Event<T>},
 	 }
 );
+
+parameter_types! {
+	pub const MinVestedTransfer: u64 = 0;
+}
+
+impl pallet_vesting::Config for Test {
+	type Event = Event;
+	type Currency = Balances;
+	type BlockNumberToBalance = ConvertInto;
+	type MinVestedTransfer = MinVestedTransfer;
+	type WeightInfo = ();
+}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -94,6 +107,7 @@ impl Config for Test {
 	type Prefix = Prefix;
 	type WeightInfo = ();
 	type CurrencyBalance = Balance;
+	type VestingSchedule = Vesting;
 }
 
 pub type AccountId = u64;
@@ -122,6 +136,10 @@ impl ExtBuilder {
 				// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0
 				EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
 				CLAIM_AMOUNT,
+			)],
+			vesting: vec![(
+				EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
+				(10, 1),
 			)],
 		}
 		.assimilate_storage(&mut t)

@@ -23,10 +23,10 @@ use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	sp_runtime::{
-		traits::{DispatchInfoOf, SignedExtension},
+		traits::{DispatchInfoOf, SignedExtension, One},
 		transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
 	},
-	traits::{Currency, Get, Imbalance, IsSubType},
+	traits::{Currency, Get, Imbalance, IsSubType, VestingSchedule},
 	weights::{DispatchClass, Pays},
 };
 use frame_system::ensure_signed;
@@ -48,7 +48,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type BalanceOf<T> = <CurrencyOf<T> as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type CurrencyOf<T> =
+	<<T as Config>::VestingSchedule as VestingSchedule<<T as frame_system::Config>::AccountId>>::Currency;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -72,13 +74,10 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
 		type Prefix: Get<&'static [u8]>;
-
 		type WeightInfo: WeightInfo;
-
 		type Currency: Currency<Self::AccountId>;
-
+		type VestingSchedule: VestingSchedule<Self::AccountId, Moment = Self::BlockNumber>;
 		// This type is needed to convert from Currency to Balance
 		type CurrencyBalance: From<Balance>
 			+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
@@ -105,15 +104,26 @@ pub mod pallet {
 	#[pallet::getter(fn claims)]
 	pub type Claims<T: Config> = StorageMap<_, Blake2_128Concat, EthereumAddress, BalanceOf<T>, ValueQuery>;
 
+	/// Vesting schedule for a claim.
+	/// The balance is how much should be unlocked per block.
+	/// The block number is when the vesting should start.
+	#[pallet::storage]
+	#[pallet::getter(fn vesting)]
+	pub type Vesting<T: Config> = StorageMap<_, Identity, EthereumAddress, (BalanceOf<T>, T::BlockNumber)>;
+
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		pub claims: Vec<(EthereumAddress, BalanceOf<T>)>,
+		pub vesting: Vec<(EthereumAddress, (BalanceOf<T>, T::BlockNumber))>,
 	}
 
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			GenesisConfig { claims: vec![] }
+			GenesisConfig {
+				claims: vec![],
+				vesting: vec![],
+			}
 		}
 	}
 
@@ -122,7 +132,10 @@ pub mod pallet {
 		fn build(&self) {
 			self.claims.iter().for_each(|(eth_address, initial_balance)| {
 				Claims::<T>::mutate(eth_address, |amount| *amount += *initial_balance)
-			})
+			});
+			self.vesting.iter().for_each(|(k, v)| {
+				Vesting::<T>::insert(k, v);
+			});
 		}
 	}
 
@@ -134,9 +147,16 @@ pub mod pallet {
 			let sender = ensure_signed(origin)?;
 
 			let (balance_due, address) = Self::validate_claim(&sender, &ethereum_signature)?;
+			let vesting = Vesting::<T>::get(&address);
 
-			Self::process_claim(sender, balance_due, address)?;
-
+			if vesting.is_some() {
+				// Start vesting in 10 blocks
+				let start_vesting = <frame_system::Pallet<T>>::block_number() + T::BlockNumber::from(10u32);
+				vesting.unwrap().1 = start_vesting;
+				Self::process_vested_claim(sender, balance_due, address, vesting.unwrap())?;
+			} else {
+				Self::process_claim(sender, balance_due, address)?;
+			}
 			Ok(().into())
 		}
 	}
@@ -172,14 +192,34 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Deposits the balance into the claiming account.
 	///
-	/// Emits `Claimed` when successfully.
+	/// Emits `Claimed` when successful
 	fn process_claim(dest: T::AccountId, balance_due: BalanceOf<T>, address: EthereumAddress) -> DispatchResult {
-		let imbalance = <T::Currency as Currency<T::AccountId>>::deposit_creating(&dest, balance_due);
+		let imbalance = CurrencyOf::<T>::deposit_creating(&dest, balance_due);
 		ensure!(
-			imbalance.peek() != <T::Currency as Currency<T::AccountId>>::PositiveImbalance::zero().peek(),
+			imbalance.peek() != <CurrencyOf::<T> as Currency<T::AccountId>>::PositiveImbalance::zero().peek(),
 			Error::<T>::BalanceOverflow
 		);
 
+		Claims::<T>::mutate(address, |bal| *bal = Zero::zero());
+
+		Self::deposit_event(Event::Claim(dest, address, balance_due));
+
+		Ok(())
+	}
+
+	/// Process previously verified vested claim.
+	///
+	/// Deposits the balance vested into the claiming account.
+	///
+	/// Emits `Claimed` when successful
+	fn process_vested_claim(
+		dest: T::AccountId,
+		balance_due: BalanceOf<T>,
+		address: EthereumAddress,
+		vesting_schedule: (BalanceOf<T>, T::BlockNumber),
+	) -> DispatchResult {
+		T::VestingSchedule::add_vesting_schedule(&dest, balance_due, vesting_schedule.0, vesting_schedule.1)
+			.expect("No other vesting schedule exists");
 		Claims::<T>::mutate(address, |bal| *bal = Zero::zero());
 
 		Self::deposit_event(Event::Claim(dest, address, balance_due));

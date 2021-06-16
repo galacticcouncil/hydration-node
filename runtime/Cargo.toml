@@ -78,6 +78,7 @@ pallet-sudo = {default-features = false, version = '3.0.0'}
 pallet-timestamp = {default-features = false, version = '3.0.0'}
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}
 pallet-transaction-payment-rpc-runtime-api = {default-features = false, version = '3.0.0'}
+pallet-vesting = { default-features = false, version = '3.0.0' }
 sp-api = {default-features = false, version = '3.0.0'}
 sp-block-builder = {default-features = false, version = '3.0.0'}
 sp-core = {default-features = false, version = '3.0.0'}
@@ -133,6 +134,7 @@ std = [
   'pallet-scheduler/std',
   'pallet-sudo/std',
   'pallet-utility/std',
+  'pallet-vesting/std',
   'pallet-timestamp/std',
   'pallet-tips/std',
   'pallet-transaction-payment/std',

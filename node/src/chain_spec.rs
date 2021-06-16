@@ -7,7 +7,7 @@ use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig,
 	MultiTransactionPaymentConfig, Perbill, SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig,
-	SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -405,8 +405,21 @@ fn testnet_genesis(
 		},
 		pallet_claims: ClaimsConfig {
 			claims: create_testnet_claims(),
+			// how much will be vested per block + start of vesting (block number)
+			vesting: vec![(
+				EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
+				(HDX / 10000, 10),
+			),(
+				EthereumAddress(hex!["8aF7764663644989671A71Abe9738a3cF295f384"]),
+				(HDX / 10, 10),
+			),(
+				EthereumAddress(hex!["C19A2970A13ac19898c47d59Cbd0278D428EBC7c"]),
+				(HDX * 10, 10),
+			),
+			],
 		},
 		pallet_genesis_history: GenesisHistoryConfig::default(),
+		pallet_vesting: VestingConfig { vesting: vec![] },
 	}
 }
 
@@ -542,7 +555,10 @@ fn lerna_genesis(
 			],
 			phantom: Default::default(),
 		},
-		pallet_claims: ClaimsConfig { claims: vec![] },
+		pallet_claims: ClaimsConfig {
+			claims: vec![],
+			vesting: vec![],
+		},
 		pallet_genesis_history: GenesisHistoryConfig {
 			previous_chain: Chain {
 				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"]
@@ -553,6 +569,7 @@ fn lerna_genesis(
 					.into(),
 			},
 		},
+		pallet_vesting: VestingConfig { vesting: vec![] },
 	}
 }
 
