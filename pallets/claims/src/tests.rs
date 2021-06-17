@@ -59,6 +59,7 @@ fn vested_claiming_works() {
 
 		assert_eq!(Balances::free_balance(&BOB), 0);
 
+		assert!(<Test as Config>::VestingSchedule::vesting_balance(&BOB).is_some());
 		// not working:
 		// assert_eq!(crate::mock::Vesting::vesting_balance(&BOB), Some(CLAIM_AMOUNT));
 		// also not working:

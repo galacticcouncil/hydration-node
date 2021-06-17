@@ -153,8 +153,8 @@ pub mod pallet {
 
 			if vesting_check {
 				let mut vesting = Vesting::<T>::get(&address);
-				// Start vesting in 10 blocks
-				let start_vesting: T::BlockNumber = <frame_system::Pallet<T>>::block_number() + 10_u32.into();
+				// Start vesting the next block
+				let start_vesting: T::BlockNumber = <frame_system::Pallet<T>>::block_number() + 1_u32.into();
 				vesting.1 = start_vesting;
 				Self::process_vested_claim(sender, balance_due, address, vesting)?;
 			} else {
