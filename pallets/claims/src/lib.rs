@@ -17,13 +17,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::unnecessary_wraps)]
 
 use codec::{Decode, Encode};
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
 	sp_runtime::{
-		traits::{DispatchInfoOf, SignedExtension, One},
+		traits::{DispatchInfoOf, SignedExtension},
 		transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
 	},
 	traits::{Currency, Get, Imbalance, IsSubType, VestingSchedule},
