@@ -77,7 +77,7 @@ pub mod pallet {
 		type Prefix: Get<&'static [u8]>;
 		type WeightInfo: WeightInfo;
 		type Currency: Currency<Self::AccountId>;
-		type VestingSchedule: VestingSchedule<Self::AccountId, Moment = Self::BlockNumber>;
+		type VestingSchedule: VestingSchedule<Self::AccountId, Moment=Self::BlockNumber, Currency=Self::Currency>;
 		// This type is needed to convert from Currency to Balance
 		type CurrencyBalance: From<Balance>
 			+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
@@ -109,7 +109,7 @@ pub mod pallet {
 	/// The block number is when the vesting should start.
 	#[pallet::storage]
 	#[pallet::getter(fn vesting)]
-	pub type Vesting<T: Config> = StorageMap<_, Identity, EthereumAddress, (BalanceOf<T>, T::BlockNumber)>;
+	pub type Vesting<T: Config> = StorageMap<_, Identity, EthereumAddress, (BalanceOf<T>, T::BlockNumber), ValueQuery>;
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
@@ -147,13 +147,14 @@ pub mod pallet {
 			let sender = ensure_signed(origin)?;
 
 			let (balance_due, address) = Self::validate_claim(&sender, &ethereum_signature)?;
-			let vesting = Vesting::<T>::get(&address);
+			let vesting_check = Vesting::<T>::contains_key(&address);
 
-			if vesting.is_some() {
+			if vesting_check {
+				let mut vesting = Vesting::<T>::get(&address);
 				// Start vesting in 10 blocks
-				let start_vesting = <frame_system::Pallet<T>>::block_number() + T::BlockNumber::from(10u32);
-				vesting.unwrap().1 = start_vesting;
-				Self::process_vested_claim(sender, balance_due, address, vesting.unwrap())?;
+				let start_vesting: T::BlockNumber = <frame_system::Pallet<T>>::block_number() + 10_u32.into();
+				vesting.1 = start_vesting;
+				Self::process_vested_claim(sender, balance_due, address, vesting)?;
 			} else {
 				Self::process_claim(sender, balance_due, address)?;
 			}

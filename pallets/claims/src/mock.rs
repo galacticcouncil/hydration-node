@@ -40,7 +40,7 @@ frame_support::construct_runtime!(
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 ClaimsPallet: claims::{Pallet, Call, Storage, Event<T>},
-		 Balances: pallet_balances::{Pallet, Event<T>},
+		 Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		 Vesting: pallet_vesting::{Pallet, Call, Storage, Config<T>, Event<T>},
 	 }
 );
@@ -116,6 +116,8 @@ pub const BOB: AccountId = 43;
 pub const CHARLIE: AccountId = 44;
 
 pub const CLAIM_AMOUNT: Balance = 1_000_000_000_000;
+pub const VESTED_AMOUNT_PER_BLOCK: Balance = 1_000_000_000;
+pub const VESTING_START_BLOCK: u32 = 2;
 
 pub struct ExtBuilder;
 
@@ -131,15 +133,27 @@ impl ExtBuilder {
 		.unwrap();
 
 		claims::GenesisConfig::<Test> {
-			claims: vec![(
-				// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
-				// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0
-				EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
-				CLAIM_AMOUNT,
-			)],
+			claims: vec![
+				// Test seeds & private keys decribed in the chain spec
+				(
+					// Alice
+					EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
+					CLAIM_AMOUNT,
+				),
+				(
+					// Bob
+					EthereumAddress(hex!["8aF7764663644989671A71Abe9738a3cF295f384"]),
+					CLAIM_AMOUNT,
+				),
+				(
+					// Charlie
+					EthereumAddress(hex!["C19A2970A13ac19898c47d59Cbd0278D428EBC7c"]),
+					CLAIM_AMOUNT,
+				),
+			],
 			vesting: vec![(
-				EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]),
-				(10, 1),
+				EthereumAddress(hex!["8aF7764663644989671A71Abe9738a3cF295f384"]),
+				(VESTED_AMOUNT_PER_BLOCK, VESTING_START_BLOCK.into()),
 			)],
 		}
 		.assimilate_storage(&mut t)

@@ -23,8 +23,8 @@ use primitives::Balance;
 pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
 	let version = <Pallet<T> as GetPalletVersion>::storage_version();
 	if version == None {
-		/*for (addr, amount) in claims_data.iter() {
-			//let balance: BalanceOf<T> = T::CurrencyBalance::from(*amount).into();
+		for (addr, amount) in claims_data.iter() {
+			let balance: BalanceOf<T> = T::CurrencyBalance::from(*amount).into();
 
 			Claims::<T>::insert(
 				EthereumAddress(<[u8; 20]>::from_hex(&addr[2..]).unwrap_or_else(|addr| {
@@ -33,7 +33,7 @@ pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)])
 				})),
 				balance,
 			);
-		}*/
+		}
 		T::DbWeight::get().reads_writes(2, 3)
 	} else {
 		0

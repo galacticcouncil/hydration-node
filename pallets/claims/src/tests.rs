@@ -47,6 +47,26 @@ fn claiming_works() {
 }
 
 #[test]
+fn vested_claiming_works() {
+	new_test_ext().execute_with(|| {
+		// Bob (account id = 43) signs a msg:
+		// "I hereby claim all my xHDX tokens to wallet:2b00000000000000"
+		let signature = hex!["6fe704690d901a62f607c36a1150c423bcfac63cafad7baf9580dfa85922f07723350f14a6c88117a7e4dc0633103be435aecbda81ca00808e6698cb7b533dad1c"];
+
+		assert_eq!(Balances::free_balance(&BOB), 0);
+
+		assert_ok!(ClaimsPallet::claim(Origin::signed(BOB), EcdsaSignature(signature)));
+
+		assert_eq!(Balances::free_balance(&BOB), 0);
+
+		// not working:
+		assert_eq!(crate::mock::Vesting::vesting_balance(&BOB), Some(CLAIM_AMOUNT));
+		// also not working:
+		assert_eq!(<Test as Config>::VestingSchedule::vesting_balance(&BOB), Some(CLAIM_AMOUNT));
+	})
+}
+
+#[test]
 fn invalid_signature_fail() {
 	new_test_ext().execute_with(|| {
 		let invalid_signature = hex!["a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"];
@@ -76,7 +96,7 @@ fn claim_cant_overflow() {
 fn zeroize_claimed_balance_works() {
 	new_test_ext().execute_with(|| {
 		// Alice (account id = 42) signs a msg:
-		// "I hereby claim all my HDX tokens to wallet:2a00000000000000"
+		// "I hereby claim all my xHDX tokens to wallet:2a00000000000000"
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 		let alice_eth_addr = EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]);
 
