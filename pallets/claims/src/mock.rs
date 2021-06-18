@@ -41,7 +41,7 @@ frame_support::construct_runtime!(
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 ClaimsPallet: claims::{Pallet, Call, Storage, Event<T>},
 		 Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		 Vesting: pallet_vesting::{Pallet, Call, Storage, Config<T>, Event<T>},
+		 Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>},
 	 }
 );
 
@@ -117,7 +117,7 @@ pub const CHARLIE: AccountId = 44;
 
 pub const CLAIM_AMOUNT: Balance = 1_000_000_000_000;
 pub const VESTED_AMOUNT_PER_BLOCK: Balance = 1_000_000_000;
-pub const VESTING_START_BLOCK: u32 = 2;
+pub const VESTING_START_BLOCK: u32 = 1;
 
 pub struct ExtBuilder;
 

@@ -79,7 +79,7 @@ pub mod pallet {
 		type Prefix: Get<&'static [u8]>;
 		type WeightInfo: WeightInfo;
 		type Currency: Currency<Self::AccountId>;
-		type VestingSchedule: VestingSchedule<Self::AccountId, Moment=Self::BlockNumber, Currency=Self::Currency>;
+		type VestingSchedule: VestingSchedule<Self::AccountId, Moment = Self::BlockNumber, Currency = Self::Currency>;
 		// This type is needed to convert from Currency to Balance
 		type CurrencyBalance: From<Balance>
 			+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
@@ -153,8 +153,8 @@ pub mod pallet {
 
 			if vesting_check {
 				let mut vesting = Vesting::<T>::get(&address);
-				// Start vesting the next block
-				let start_vesting: T::BlockNumber = <frame_system::Pallet<T>>::block_number() + 1_u32.into();
+				// Start vesting right away
+				let start_vesting: T::BlockNumber = <frame_system::Pallet<T>>::block_number();
 				vesting.1 = start_vesting;
 				Self::process_vested_claim(sender, balance_due, address, vesting)?;
 			} else {
@@ -221,8 +221,11 @@ impl<T: Config> Pallet<T> {
 		address: EthereumAddress,
 		vesting_schedule: (BalanceOf<T>, T::BlockNumber),
 	) -> DispatchResult {
+		CurrencyOf::<T>::deposit_creating(&dest, balance_due);
+
 		T::VestingSchedule::add_vesting_schedule(&dest, balance_due, vesting_schedule.0, vesting_schedule.1)
 			.expect("No other vesting schedule exists");
+
 		Claims::<T>::mutate(address, |bal| *bal = Zero::zero());
 
 		Self::deposit_event(Event::Claim(dest, address, balance_due));
