@@ -37,6 +37,7 @@ benchmarks! {
 		let caller = T::AccountId::decode(&mut &alice_id[..]).unwrap_or_default();
 		let eth_address = EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]);
 		Claims::<T>::insert(eth_address, T::CurrencyBalance::from(1_000_000_000_000_000_000_u128).into());
+		Vesting::<T>::insert(eth_address, (T::CurrencyBalance::from(1_000_000_000_000_000_u128).into(), T::BlockNumber::from(1u32)));
 	}: _(RawOrigin::Signed(caller.clone()), EcdsaSignature(signature))
 	verify {
 		let expected_balance = T::CurrencyBalance::from(2_000_000_000_000_000_000_u128);
@@ -44,7 +45,7 @@ benchmarks! {
 		#[cfg(test)]
 		let expected_balance = T::CurrencyBalance::from(1_000_000_000_000_000_000_u128);
 
-		assert_eq!(T::Currency::free_balance(&caller), expected_balance.into());
+		assert_eq!(T::VestingSchedule::vesting_balance(&caller), Some(expected_balance.into()));
 		assert_eq!(Claims::<T>::get(eth_address), T::CurrencyBalance::from(0u128).into());
 	}
 }
