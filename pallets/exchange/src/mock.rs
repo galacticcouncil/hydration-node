@@ -27,10 +27,10 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
-use pallet_amm as amm;
+use pallet_xyk as xyk;
 
 use frame_support::traits::GenesisBuild;
-use pallet_amm::AssetPairAccountIdFor;
+use pallet_xyk::AssetPairAccountIdFor;
 use primitives::{fee, AssetId, Balance};
 
 pub type Amount = i128;
@@ -47,6 +47,8 @@ pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ETH: AssetId = 3000;
 
+pub const ENDOWED_AMOUNT: u128 = 100_000_000_000_000_000;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -58,7 +60,7 @@ frame_support::construct_runtime!(
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 Exchange: exchange::{Pallet, Call, Storage, Event<T>},
-		 AMM: pallet_amm::{Pallet, Call, Storage, Event<T>},
+		 XYK: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		 Currency: orml_tokens::{Pallet, Event<T>},
 		 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 	 }
@@ -134,18 +136,18 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl amm::Config for Test {
+impl xyk::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
-	type HDXAssetId = HDXAssetId;
+	type NativeAssetId = HDXAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }
 
 impl Config for Test {
 	type Event = Event;
-	type AMMPool = AMM;
+	type AMMPool = XYK;
 	type Currency = Currency;
 	type Resolver = exchange::Pallet<Test>;
 	type WeightInfo = ();
@@ -159,24 +161,24 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![
-				(ALICE, HDX, 1000_000_000_000_000u128),
-				(BOB, HDX, 1000_000_000_000_000u128),
-				(CHARLIE, HDX, 1000_000_000_000_000u128),
-				(DAVE, HDX, 1000_000_000_000_000u128),
-				(FERDIE, HDX, 1000_000_000_000_000u128),
-				(GEORGE, HDX, 1000_000_000_000_000u128),
-				(ALICE, ETH, 1000_000_000_000_000u128),
-				(BOB, ETH, 1000_000_000_000_000u128),
-				(CHARLIE, ETH, 1000_000_000_000_000u128),
-				(DAVE, ETH, 1000_000_000_000_000u128),
-				(FERDIE, ETH, 1000_000_000_000_000u128),
-				(GEORGE, ETH, 1000_000_000_000_000u128),
-				(ALICE, DOT, 1000_000_000_000_000u128),
-				(BOB, DOT, 1000_000_000_000_000u128),
-				(CHARLIE, DOT, 1000_000_000_000_000u128),
-				(DAVE, DOT, 1000_000_000_000_000u128),
-				(FERDIE, DOT, 1000_000_000_000_000u128),
-				(GEORGE, DOT, 1000_000_000_000_000u128),
+				(ALICE, HDX, ENDOWED_AMOUNT),
+				(BOB, HDX, ENDOWED_AMOUNT),
+				(CHARLIE, HDX, ENDOWED_AMOUNT),
+				(DAVE, HDX, ENDOWED_AMOUNT),
+				(FERDIE, HDX, ENDOWED_AMOUNT),
+				(GEORGE, HDX, ENDOWED_AMOUNT),
+				(ALICE, ETH, ENDOWED_AMOUNT),
+				(BOB, ETH, ENDOWED_AMOUNT),
+				(CHARLIE, ETH, ENDOWED_AMOUNT),
+				(DAVE, ETH, ENDOWED_AMOUNT),
+				(FERDIE, ETH, ENDOWED_AMOUNT),
+				(GEORGE, ETH, ENDOWED_AMOUNT),
+				(ALICE, DOT, ENDOWED_AMOUNT),
+				(BOB, DOT, ENDOWED_AMOUNT),
+				(CHARLIE, DOT, ENDOWED_AMOUNT),
+				(DAVE, DOT, ENDOWED_AMOUNT),
+				(FERDIE, DOT, ENDOWED_AMOUNT),
+				(GEORGE, DOT, ENDOWED_AMOUNT),
 			],
 		}
 	}

@@ -1,12 +1,13 @@
 [package]
 authors = ['GalacticCouncil']
 edition = "2018"
-name = "module-amm-rpc"
-version = '3.0.0'
+license = 'Apache 2.0'
+name = "pallet-xyk-rpc"
+version = '1.0.0'
 
-[dependencies.module-amm-rpc-runtime-api]
+[dependencies.pallet-xyk-rpc-runtime-api]
 default-features = false
-package = 'module-amm-rpc-runtime-api'
+package = 'pallet-xyk-rpc-runtime-api'
 path = 'runtime-api'
 
 [package.metadata.docs.rs]
@@ -37,7 +38,7 @@ sp-std = {default-features = false, version = '3.0.0'}
 [features]
 default = ['std']
 std = [
-  'module-amm-rpc-runtime-api/std',
+  'pallet-xyk-rpc-runtime-api/std',
   'serde',
   'codec/std',
 ]

@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydra-dx'
 license = 'Apache 2.0'
 name = 'pallet-exchange-benchmarking'
 repository = 'https://github.com/galacticcouncil/hydra-dx'
-version = '3.0.1'
+version = '3.1.1'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -25,7 +25,7 @@ version = '2.0.0'
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependencies
-pallet-amm = {path = '../../amm', default-features = false}
+pallet-xyk = {path = '../../xyk', default-features = false}
 pallet-asset-registry = {path = '../../asset-registry', default-features = false}
 pallet-exchange = {path = '../../exchange', default-features = false}
 primitives = {path = '../../../primitives', default-features = false}

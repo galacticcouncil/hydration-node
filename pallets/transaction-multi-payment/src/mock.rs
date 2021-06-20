@@ -31,9 +31,9 @@ use sp_runtime::{
 use frame_support::weights::IdentityFee;
 use frame_support::weights::Weight;
 use orml_currencies::BasicCurrencyAdapter;
-use primitives::{Amount, AssetId, Balance};
+use primitives::{Amount, AssetId, Balance, Price};
 
-use pallet_amm::AssetPairAccountIdFor;
+use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
 use frame_support::traits::{GenesisBuild, Get};
@@ -45,6 +45,7 @@ pub const INITIAL_BALANCE: Balance = 1000_000_000_000_000u128;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const FALLBACK_ACCOUNT: AccountId = 300;
 
 pub const HDX: AssetId = 0;
 pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 2000;
@@ -76,7 +77,7 @@ frame_support::construct_runtime!(
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 PaymentPallet: multi_payment::{Pallet, Call, Storage, Event<T>},
-		 AMMPallet: pallet_amm::{Pallet, Call, Storage, Event<T>},
+		 XYKPallet: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		 Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
 		 Currencies: orml_currencies::{Pallet, Event<T>},
 		 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
@@ -145,7 +146,7 @@ impl Config for Test {
 	type Event = Event;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
-	type AMMPool = AMMPallet;
+	type AMMPool = XYKPallet;
 	type WeightInfo = ();
 	type WithdrawFeeForSetCurrency = PayForSetCurrency;
 	type WeightToFee = IdentityFee<Balance>;
@@ -188,11 +189,11 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl pallet_amm::Config for Test {
+impl pallet_xyk::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
-	type HDXAssetId = HdxAssetId;
+	type NativeAssetId = HdxAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }
@@ -291,8 +292,12 @@ impl ExtBuilder {
 		.unwrap();
 
 		crate::GenesisConfig::<Test> {
-			currencies: OrderedSet::from(vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE]),
+			currencies: vec![
+				(SUPPORTED_CURRENCY_NO_BALANCE, Price::from(1)),
+				(SUPPORTED_CURRENCY_WITH_BALANCE, Price::from_float(1.5)),
+			],
 			authorities: vec![self.payment_authority],
+			fallback_account: FALLBACK_ACCOUNT,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

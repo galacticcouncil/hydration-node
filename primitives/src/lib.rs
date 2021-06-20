@@ -23,7 +23,8 @@ use codec::{Decode, Encode};
 use primitive_types::U256;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use substrate_fixed::types::U64F64;
+
+use frame_support::sp_runtime::FixedU128;
 
 pub mod asset;
 pub mod traits;
@@ -38,7 +39,7 @@ pub type Balance = u128;
 pub type Amount = i128;
 
 /// Price
-pub type Price = U64F64;
+pub type Price = FixedU128;
 
 /// Scaled Unsigned of Balance
 pub type HighPrecisionBalance = U256;
@@ -71,9 +72,10 @@ pub struct ExchangeIntention<AccountId, Balance, IntentionID> {
 }
 
 pub mod fee {
-	use crate::Balance;
+	use super::*;
 
-	#[derive(Clone, Copy, Eq, PartialEq)]
+	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+	#[derive(Debug, Encode, Decode, Copy, Clone, PartialEq, Eq)]
 	pub struct Fee {
 		pub numerator: u32,
 		pub denominator: u32,
@@ -93,14 +95,20 @@ pub mod fee {
 		Self: Sized,
 	{
 		fn with_fee(&self, fee: Fee) -> Option<Self>;
+		fn without_fee(&self, fee: Fee) -> Option<Self>;
 		fn just_fee(&self, fee: Fee) -> Option<Self>;
 		fn discounted_fee(&self) -> Option<Self>;
 	}
 
 	impl WithFee for Balance {
 		fn with_fee(&self, fee: Fee) -> Option<Self> {
-			self.checked_mul(fee.denominator as Self - fee.numerator as Self)?
+			self.checked_mul(fee.denominator as Self + fee.numerator as Self)?
 				.checked_div(fee.denominator as Self)
+		}
+
+		fn without_fee(&self, fee: Fee) -> Option<Self> {
+			self.checked_mul(fee.denominator as Self)?
+				.checked_div(fee.denominator as Self + fee.numerator as Self)
 		}
 
 		fn just_fee(&self, fee: Fee) -> Option<Self> {
@@ -115,5 +123,24 @@ pub mod fee {
 			};
 			self.just_fee(fee)
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::fee::*;
+
+	#[test]
+	// This function tests that fee calculations return correct amounts
+	fn fee_calculations_should_work() {
+		let fee = Fee{
+			numerator: 2,
+			denominator: 1_000,
+		};
+
+		assert_eq!(1_000.with_fee(fee), Some(1_002));
+		assert_eq!(1_002.without_fee(fee), Some(1_000));
+		assert_eq!(1_000.just_fee(fee), Some(2));
+		assert_eq!(1_000_000.discounted_fee(), Some(700));
 	}
 }

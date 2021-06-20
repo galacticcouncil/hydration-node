@@ -1,0 +1,17 @@
+version: '3.3'
+services:
+  node:
+    image: ghcr.io/galacticcouncil/hydra-dx:docker-release
+    command: hydra-dx --chain lerna
+    volumes:
+      - data:/data
+    networks:
+      - default
+    logging:
+      driver: json-file
+networks:
+  default:
+    driver: overlay
+volumes:
+  data:
+    driver: local

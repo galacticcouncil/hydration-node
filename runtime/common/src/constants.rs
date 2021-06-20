@@ -86,7 +86,7 @@ pub mod chain {
 	pub const MIN_TRADING_LIMIT: Balance = 1000;
 
 	pub const RUNTIME_AUTHORING_VERSION: u32 = 1;
-	pub const RUNTIME_SPEC_VERSION: u32 = 13;
+	pub const RUNTIME_SPEC_VERSION: u32 = 17;
 	pub const RUNTIME_IMPL_VERSION: u32 = 0;
 	pub const RUNTIME_TRANSACTION_VERSION: u32 = 1;
 
@@ -117,7 +117,6 @@ mod tests {
 		// 6s per block
 		assert_eq!(SECS_PER_BLOCK, 6);
 		// 1s = 1000ms
-		pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 		assert_eq!(MILLISECS_PER_BLOCK / 1000, SECS_PER_BLOCK);
 		// Extra check for epoch time because changing it bricks the block production and requires regenesis
 		assert_eq!(EPOCH_DURATION_IN_BLOCKS, 4 * HOURS);

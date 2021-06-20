@@ -1,3 +1,51 @@
+# v10.0.0 (Sun May 30 2021)
+
+#### 💥 Breaking Change
+
+- feat(elections)!: added sane election setup [#266](https://github.com/galacticcouncil/HydraDX-node/pull/266) ([@jak-pan](https://github.com/jak-pan))
+- fix!: WithFee::with_fee method [#263](https://github.com/galacticcouncil/HydraDX-node/pull/263) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### 🚀 Enhancement
+
+- feat(exchange)!: Update IntentionResolvedDirectTradeFees event [#262](https://github.com/galacticcouncil/HydraDX-node/pull/262) ([@unordered-set](https://github.com/unordered-set) [@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Refactoring
+
+- refactor: add traits to Fee struct [#260](https://github.com/galacticcouncil/HydraDX-node/pull/260) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### Other improvements
+
+- ci: docker release workflow [#257](https://github.com/galacticcouncil/HydraDX-node/pull/257) ([@lumir-mrkva](https://github.com/lumir-mrkva) [@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 5
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+- Kostyan ([@unordered-set](https://github.com/unordered-set))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
+# v9.0.0 (Tue May 25 2021)
+
+#### 🚀 Enhancement
+
+- feat!: add utility pallet to allow batch txs execution [#246](https://github.com/galacticcouncil/HydraDX-node/pull/246) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Refactoring
+
+- refactor!: revert price type to fixedu128 [#259](https://github.com/galacticcouncil/HydraDX-node/pull/259) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- refactor: pallet improvements and xyk pallet [#242](https://github.com/galacticcouncil/HydraDX-node/pull/242) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- refactor(build-script): allow to specify runtime [#254](https://github.com/galacticcouncil/HydraDX-node/pull/254) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Authors: 2
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+---
+
 # v8.0.0 (Tue May 11 2021)
 
 #### 💥 Breaking Change

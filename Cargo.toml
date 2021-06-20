@@ -78,6 +78,7 @@ pallet-session = {git = 'https://github.com/paritytech/substrate', branch = 'roc
 pallet-staking = {git = 'https://github.com/paritytech/substrate', branch = 'rococo-v1'}
 pallet-staking-reward-curve = {git = 'https://github.com/paritytech/substrate', branch = 'rococo-v1'}
 pallet-treasury = {git = 'https://github.com/paritytech/substrate', branch = 'rococo-v1'}
+pallet-utility = {git = 'https://github.com/paritytech/substrate', branch = 'rococo-v1'}
 sc-authority-discovery = {git = "https://github.com/paritytech/substrate.git", branch = 'rococo-v1'}
 sc-consensus-babe = {git = 'https://github.com/paritytech/substrate', branch = 'rococo-v1'}
 sc-consensus-babe-rpc = {git = 'https://github.com/paritytech/substrate', branch = 'rococo-v1'}
@@ -101,11 +102,11 @@ members = [
   'runtime/common',
   'runtime/hydra-dx',
   'runtime/testing-hydra-dx',
-  'pallets/amm',
   'pallets/asset-registry',
   'pallets/exchange',
   'pallets/transaction-multi-payment',
   'pallets/genesis-history',
+  'pallets/xyk',
   'primitives',
   'utils/build-script-utils'
 ]

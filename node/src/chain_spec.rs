@@ -4,9 +4,9 @@ use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX}
 use hydra_dx_runtime::{
 	AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig, SessionConfig, StakerStatus,
-	StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, WASM_BINARY,
+	StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, WASM_BINARY, MultiTransactionPaymentConfig,
 	opaque::SessionKeys,
-	pallet_claims::EthereumAddress
+	pallet_claims::EthereumAddress,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -316,7 +316,7 @@ fn testnet_genesis(
 		pallet_grandpa: Default::default(),
 		pallet_sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: root_key.clone(),
 		},
 		pallet_asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
@@ -333,6 +333,11 @@ fn testnet_genesis(
 				(b"tUSDT".to_vec(), 10),
 			],
 			next_asset_id: 11,
+		},
+		pallet_transaction_multi_payment: MultiTransactionPaymentConfig {
+			currencies: vec![],
+			authorities: vec![],
+			fallback_account: root_key,
 		},
 		orml_tokens: TokensConfig {
 			endowed_accounts: endowed_accounts
@@ -468,6 +473,11 @@ fn lerna_genesis(
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![],
 			next_asset_id: 1,
+		},
+		pallet_transaction_multi_payment: MultiTransactionPaymentConfig {
+			currencies: vec![],
+			authorities: vec![],
+			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 		},
 		orml_tokens: TokensConfig {
 			endowed_accounts: endowed_accounts.iter().flat_map(|_x| vec![]).collect(),
@@ -737,24 +747,28 @@ pub mod testing_node {
 			pallet_grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
 			pallet_sudo: testing_runtime::SudoConfig {
 				// Assign network admin rights.
-				key: root_key,
+				key: root_key.clone(),
 			},
 			pallet_asset_registry: testing_runtime::AssetRegistryConfig {
 				core_asset_id: CORE_ASSET_ID,
 				asset_ids: vec![
-					(b"tDAI".to_vec(), 1),
-					(b"tKSM".to_vec(), 2),
-					(b"tDOT".to_vec(), 3),
-					(b"tETH".to_vec(), 4),
-					(b"tACA".to_vec(), 5),
-					(b"tEDG".to_vec(), 6),
-					(b"tUSD".to_vec(), 7),
-					(b"tPLM".to_vec(), 8),
-					(b"tFIS".to_vec(), 9),
-					(b"tPHA".to_vec(), 10),
-					(b"tUSDT".to_vec(), 11),
+					(b"tKSM".to_vec(), 1),
+					(b"tDOT".to_vec(), 2),
+					(b"tETH".to_vec(), 3),
+					(b"tACA".to_vec(), 4),
+					(b"tEDG".to_vec(), 5),
+					(b"tUSD".to_vec(), 6),
+					(b"tPLM".to_vec(), 7),
+					(b"tFIS".to_vec(), 8),
+					(b"tPHA".to_vec(), 9),
+					(b"tUSDT".to_vec(), 10),
 				],
-				next_asset_id: 12,
+				next_asset_id: 11,
+			},
+			pallet_transaction_multi_payment: testing_runtime::MultiTransactionPaymentConfig {
+				currencies: vec![],
+				authorities: vec![],
+				fallback_account: root_key,
 			},
 			orml_tokens: testing_runtime::TokensConfig {
 				endowed_accounts: endowed_accounts
