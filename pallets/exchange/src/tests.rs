@@ -540,6 +540,10 @@ fn sell_test_exact_match() {
 				user_3_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_a, 2, 1000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 3, 2000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 4000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 2000000000).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
@@ -1600,6 +1604,10 @@ fn discount_tests_no_discount() {
 				user_4_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_a, 4, 1500000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 3, 3000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 4, 6000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 3000000000).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_4,
 				user_3,
@@ -1768,6 +1776,10 @@ fn discount_tests_with_discount() {
 				user_4_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_a, 4, 1500000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 3, 3000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 4, 6000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 3000000000).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_4,
 				user_3,
@@ -1907,6 +1919,10 @@ fn buy_test_exact_match() {
 				user_3_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 1000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 2000000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 2000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 4000000000).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_3,
 				user_2,
@@ -2033,6 +2049,10 @@ fn buy_test_group_buys() {
 				user_4_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_a, 2, 2500000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 4, 5000000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 2, 5000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 4, 10000000000).into(),
 			xyk::Event::BuyExecuted(
 				user_4,
 				asset_a,
@@ -2911,6 +2931,10 @@ fn matching_limits_buy_buy_should_work() {
 				user_3_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 200000000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 100000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 400000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 200000000000).into(),
 			xyk::Event::BuyExecuted(
 				3,
 				asset_b,
@@ -3033,6 +3057,10 @@ fn matching_limits_sell_buy_should_work() {
 				user_3_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 60000000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 30000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 120000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 3, 60000000000).into(), //TODO: this is strange ?! should asset_a!!
 			xyk::Event::SellExecuted(
 				3,
 				asset_a,
@@ -3158,6 +3186,10 @@ fn exact_match_limit_should_work() {
 				user_3_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 100000000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 50000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 200000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 100000000000).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
@@ -3265,6 +3297,10 @@ fn matching_limit_scenario_2() {
 				user_3_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 180000000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 90000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 360000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 180000000000).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
@@ -3390,6 +3426,10 @@ fn matching_limit_scenario_3() {
 				user_3_sell_intention_id,
 			)
 			.into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 200000000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 100000000000000).into(),
+			orml_tokens::Event::Reserved(asset_b, 2, 400000000000).into(),
+			orml_tokens::Event::Reserved(asset_a, 3, 200000000000).into(),
 			Event::IntentionResolvedDirectTrade(
 				user_2,
 				user_3,
