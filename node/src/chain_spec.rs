@@ -422,7 +422,7 @@ fn lerna_genesis(
 		AuthorityDiscoveryId,
 	)>,
 	root_key: AccountId,
-	endowed_accounts: Vec<AccountId>,
+	_endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
@@ -482,7 +482,7 @@ fn lerna_genesis(
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 		},
 		tokens: TokensConfig {
-			balances: endowed_accounts.iter().flat_map(|_x| vec![]).collect(),
+			balances: vec![],
 		},
 		faucet: FaucetConfig {
 			rampage: false,

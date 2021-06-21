@@ -7,7 +7,6 @@ use hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
 use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_client_db::PruningMode;
-use sc_consensus_babe;
 use sc_consensus_babe::SlotProportion;
 use sc_executor::native_executor_instance;
 use sc_network::{Event, NetworkService};
