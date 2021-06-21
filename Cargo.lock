@@ -2442,9 +2442,10 @@ dependencies = [
 [[package]]
 name = "hydra-dx-math"
 version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/hydraDX-math?tag=v1.0.0#3bcb2baa335f8f3d0ccac4aea1c80b44453201c5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef1f96851e25837b8a3dc37bfa4cde2c3696fdeb5fcb279aa2ddef6b73604f31"
 dependencies = [
- "primitive-types 0.7.3",
+ "primitive-types 0.8.0",
 ]
 
 [[package]]
