@@ -27,7 +27,7 @@ tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
 pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false}
-pallet-balances = {path = '../pallets/balances', default-features = false}
+pallet-balances = {default-features = false, version = "3.0.0"}
 pallet-claims = {path = '../pallets/claims', default-features = false}
 pallet-exchange = {path = '../pallets/exchange', default-features = false}
 pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', default-features = false, optional = true}
