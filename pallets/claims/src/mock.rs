@@ -82,6 +82,8 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ();
 	type AccountStore = frame_system::Pallet<Test>;
 	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 parameter_types! {
