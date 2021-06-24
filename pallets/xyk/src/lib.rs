@@ -38,11 +38,11 @@ use primitives::{asset::AssetPair, fee, traits::AMM, AssetId, Balance, Price, MA
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
+use frame_support::sp_runtime::FixedPointNumber;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::fee::WithFee;
 use primitives::traits::AMMTransfer;
 use primitives::Amount;
-use frame_support::sp_runtime::FixedPointNumber;
 
 #[cfg(test)]
 mod mock;
@@ -159,10 +159,10 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// New liquidity was provided to the pool. [who, asset_a, asset_b, amount_a, amount_b]
+		/// New liquidity was provided to the pool. [who, asset a, asset b, amount a, amount b]
 		LiquidityAdded(T::AccountId, AssetId, AssetId, Balance, Balance),
 
-		/// Liquidity was removed from the pool. [who, asset_a, asset_b, shares]
+		/// Liquidity was removed from the pool. [who, asset a, asset b, shares]
 		LiquidityRemoved(T::AccountId, AssetId, AssetId, Balance),
 
 		/// Pool was created. [who, asset a, asset b, initial shares amount]
@@ -171,11 +171,11 @@ pub mod pallet {
 		/// Pool was destroyed. [who, asset a, asset b]
 		PoolDestroyed(T::AccountId, AssetId, AssetId),
 
-		/// Asset sale executed. [who, asset in, asset out, amount, sale price]
-		SellExecuted(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// Asset sale executed. [who, asset in, asset out, amount, sale price, fee asset, fee amount]
+		SellExecuted(T::AccountId, AssetId, AssetId, Balance, Balance, AssetId, Balance),
 
-		/// Asset purchase executed. [who, asset out, asset in, amount, buy price]
-		BuyExecuted(T::AccountId, AssetId, AssetId, Balance, Balance),
+		/// Asset purchase executed. [who, asset out, asset in, amount, buy price, fee asset, fee amount]
+		BuyExecuted(T::AccountId, AssetId, AssetId, Balance, Balance, AssetId, Balance),
 	}
 
 	/// Asset id storage for shared pool tokens
@@ -216,7 +216,10 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(!amount.is_zero(), Error::<T>::CannotCreatePoolWithZeroLiquidity);
-			ensure!(!(initial_price == Price::zero()), Error::<T>::CannotCreatePoolWithZeroInitialPrice);
+			ensure!(
+				!(initial_price == Price::zero()),
+				Error::<T>::CannotCreatePoolWithZeroInitialPrice
+			);
 
 			ensure!(asset_a != asset_b, Error::<T>::CannotCreatePoolWithSameAssets);
 
@@ -231,11 +234,7 @@ pub mod pallet {
 				.checked_mul_int(amount)
 				.ok_or(Error::<T>::CreatePoolAssetAmountInvalid)?;
 
-			let shares_added = if asset_a < asset_b {
-				amount
-			} else {
-				asset_b_amount
-			};
+			let shares_added = if asset_a < asset_b { amount } else { asset_b_amount };
 
 			ensure!(
 				T::Currency::free_balance(asset_a, &who) >= amount,
@@ -583,13 +582,13 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		amount: Balance,
 		min_bought: Balance,
 		discount: bool,
-	) -> Result<AMMTransfer<T::AccountId, AssetPair, Balance>, sp_runtime::DispatchError> {
+	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, sp_runtime::DispatchError> {
+		ensure!(Self::exists(assets), Error::<T>::TokenPoolNotFound);
+
 		ensure!(
 			T::Currency::free_balance(assets.asset_in, who) >= amount,
 			Error::<T>::InsufficientAssetBalance
 		);
-
-		ensure!(Self::exists(assets), Error::<T>::TokenPoolNotFound);
 
 		// If discount, pool for Sell asset and native asset must exist
 		if discount {
@@ -604,23 +603,30 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		let pair_account = Self::get_pair_id(assets);
 
-		let asset_in_total = T::Currency::free_balance(assets.asset_in, &pair_account);
-		let asset_out_total = T::Currency::free_balance(assets.asset_out, &pair_account);
+		let asset_in_reserve = T::Currency::free_balance(assets.asset_in, &pair_account);
+		let asset_out_reserve = T::Currency::free_balance(assets.asset_out, &pair_account);
 
-		ensure!(amount <= asset_in_total / MAX_IN_RATIO, Error::<T>::MaxInRatioExceeded);
+		ensure!(
+			amount <= asset_in_reserve / MAX_IN_RATIO,
+			Error::<T>::MaxInRatioExceeded
+		);
 
-		let transfer_fee = if discount {
-			Self::calculate_discounted_fee(amount)?
-		} else {
-			Self::calculate_fee(amount)?
-		};
-
-		let sale_price = hydra_dx_math::calculate_out_given_in(asset_in_total, asset_out_total, amount - transfer_fee)
+		let amount_out = hydra_dx_math::calculate_out_given_in(asset_in_reserve, asset_out_reserve, amount)
 			.map_err(|_| Error::<T>::SellAssetAmountInvalid)?;
 
-		ensure!(asset_out_total >= sale_price, Error::<T>::InsufficientAssetBalance);
+		let transfer_fee = if discount {
+			Self::calculate_discounted_fee(amount_out)?
+		} else {
+			Self::calculate_fee(amount_out)?
+		};
 
-		ensure!(min_bought <= sale_price, Error::<T>::AssetBalanceLimitExceeded);
+		let amount_out_without_fee = amount_out
+			.checked_sub(transfer_fee)
+			.ok_or(Error::<T>::SellAssetAmountInvalid)?;
+
+		ensure!(asset_out_reserve > amount_out, Error::<T>::InsufficientAssetBalance);
+
+		ensure!(min_bought <= amount_out_without_fee, Error::<T>::AssetBalanceLimitExceeded);
 
 		let discount_fee = if discount {
 			let native_asset = T::NativeAssetId::get();
@@ -651,9 +657,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			origin: who.clone(),
 			assets,
 			amount,
-			amount_out: sale_price,
+			amount_out: amount_out_without_fee,
 			discount,
 			discount_amount: discount_fee,
+			fee: (assets.asset_out, transfer_fee),
 		};
 
 		Ok(transfer)
@@ -663,7 +670,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	/// Perform necessary storage/state changes.
 	/// Note : the execution should not return error as everything was previously verified and validated.
 	#[transactional]
-	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
+	fn execute_sell(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
 		if transfer.discount && transfer.discount_amount > 0u128 {
@@ -690,6 +697,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			transfer.assets.asset_out,
 			transfer.amount,
 			transfer.amount_out,
+			transfer.fee.0,
+			transfer.fee.1,
 		));
 
 		Ok(())
@@ -705,7 +714,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 		amount: Balance,
 		max_limit: Balance,
 		discount: bool,
-	) -> Result<AMMTransfer<T::AccountId, AssetPair, Balance>, DispatchError> {
+	) -> Result<AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>, DispatchError> {
 		ensure!(Self::exists(assets), Error::<T>::TokenPoolNotFound);
 
 		let pair_account = Self::get_pair_id(assets);
@@ -731,27 +740,25 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			);
 		}
 
+		let buy_price = hydra_dx_math::calculate_in_given_out(asset_out_reserve, asset_in_reserve, amount)
+			.map_err(|_| Error::<T>::BuyAssetAmountInvalid)?;
+
 		let transfer_fee = if discount {
-			Self::calculate_discounted_fee(amount)?
+			Self::calculate_discounted_fee(buy_price)?
 		} else {
-			Self::calculate_fee(amount)?
+			Self::calculate_fee(buy_price)?
 		};
 
-		ensure!(
-			amount + transfer_fee <= asset_out_reserve,
-			Error::<T>::InsufficientPoolAssetBalance
-		);
+		let buy_price_with_fee = buy_price
+			.checked_add(transfer_fee)
+			.ok_or(Error::<T>::BuyAssetAmountInvalid)?;
 
-		let buy_price =
-			hydra_dx_math::calculate_in_given_out(asset_out_reserve, asset_in_reserve, amount + transfer_fee)
-				.map_err(|_| Error::<T>::BuyAssetAmountInvalid)?;
+		ensure!(max_limit >= buy_price_with_fee, Error::<T>::AssetBalanceLimitExceeded);
 
 		ensure!(
-			T::Currency::free_balance(assets.asset_in, who) >= buy_price,
+			T::Currency::free_balance(assets.asset_in, who) >= buy_price_with_fee,
 			Error::<T>::InsufficientAssetBalance
 		);
-
-		ensure!(max_limit >= buy_price, Error::<T>::AssetBalanceLimitExceeded);
 
 		let discount_fee = if discount {
 			let native_asset = T::NativeAssetId::get();
@@ -784,6 +791,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			amount_out: buy_price,
 			discount,
 			discount_amount: discount_fee,
+			fee: (assets.asset_in, transfer_fee),
 		};
 
 		Ok(transfer)
@@ -793,7 +801,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 	/// Perform necessary storage/state changes.
 	/// Note : the execution should not return error as everything was previously verified and validated.
 	#[transactional]
-	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>) -> DispatchResult {
+	fn execute_buy(transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>) -> DispatchResult {
 		let pair_account = Self::get_pair_id(transfer.assets);
 
 		if transfer.discount && transfer.discount_amount > 0 {
@@ -811,7 +819,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			transfer.assets.asset_in,
 			&transfer.origin,
 			&pair_account,
-			transfer.amount_out,
+			transfer.amount_out + transfer.fee.1,
 		)?;
 
 		Self::deposit_event(Event::<T>::BuyExecuted(
@@ -820,6 +828,8 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			transfer.assets.asset_in,
 			transfer.amount,
 			transfer.amount_out,
+			transfer.fee.0,
+			transfer.fee.1,
 		));
 
 		Ok(())
