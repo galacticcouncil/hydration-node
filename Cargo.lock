@@ -2442,7 +2442,7 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
- "pallet-balances 3.0.1",
+ "pallet-balances",
  "pallet-claims",
  "pallet-collective",
  "pallet-democracy",
@@ -4205,23 +4205,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-balances"
-version = "3.0.1"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-transaction-payment",
- "parity-scale-codec 2.1.1",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-claims"
 version = "3.1.0"
 dependencies = [
@@ -4234,7 +4217,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
- "pallet-balances 3.0.0",
+ "pallet-balances",
  "parity-scale-codec 2.1.1",
  "primitives",
  "rustc-hex",
@@ -4456,7 +4439,7 @@ dependencies = [
  "orml-traits",
  "orml-utilities",
  "pallet-asset-registry",
- "pallet-balances 3.0.0",
+ "pallet-balances",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "pallet-xyk",
@@ -4478,7 +4461,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances 3.0.0",
+ "pallet-balances",
  "parity-scale-codec 2.1.1",
  "serde",
  "sp-runtime",
@@ -4622,7 +4605,7 @@ dependencies = [
  "orml-traits",
  "orml-utilities",
  "pallet-asset-registry",
- "pallet-balances 3.0.0",
+ "pallet-balances",
  "pallet-transaction-payment",
  "pallet-xyk",
  "parity-scale-codec 2.1.1",
@@ -4689,7 +4672,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "impl-trait-for-tuples",
- "pallet-balances 3.0.0",
+ "pallet-balances",
  "parity-scale-codec 2.1.1",
  "serde",
  "sp-runtime",

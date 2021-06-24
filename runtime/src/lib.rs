@@ -185,7 +185,6 @@ impl Filter<Call> for BaseFilter {
 		match call {
 			Call::AuthorityDiscovery(_)
 			| Call::Authorship(_)
-			| Call::Balances(_)
 			| Call::Babe(_)
 			| Call::Claims(_)
 			| Call::Council(_)
@@ -209,6 +208,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Sudo(_) => true,
 
 			Call::XYK(_)
+			| Call::Balances(_)
 			| Call::AssetRegistry(_)
 			| Call::Currencies(_)
 			| Call::Exchange(_)
