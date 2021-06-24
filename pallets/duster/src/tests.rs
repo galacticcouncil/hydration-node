@@ -10,6 +10,12 @@ fn dust_account_works() {
 		.execute_with(|| {
 			assert_ok!(Duster::dust_account(Origin::signed(*DUSTER), *ALICE, 1));
 			assert_eq!(Tokens::free_balance(1, &*TREASURY), 100);
+
+			for (who, _, _) in orml_tokens::Accounts::<Test>::iter() {
+				assert_ne!(who, *ALICE, "Alice account should have been removed!");
+			}
+
+			assert_eq!(Tokens::free_balance(0, &*DUSTER), 10_000);
 		});
 }
 #[test]

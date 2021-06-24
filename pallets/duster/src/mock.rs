@@ -20,20 +20,20 @@ use frame_support::weights::Weight;
 use primitives::Amount;
 use sp_std::vec::Vec;
 
-type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+type AccountId = u64;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 lazy_static::lazy_static! {
-pub static ref ALICE: AccountId = sp_core::sr25519::Public(*b"qwertyuiopasdfghjklzxcvbnmqwerty").into_account();
-pub static ref BOB: AccountId = sp_core::sr25519::Public(*b"qwertyuiopasdfghjklzxcvbnmbobbob").into_account();
-pub static ref DUSTER: AccountId = sp_core::sr25519::Public(*b"qwertyuiopasdfghjklzxcvnmbduster").into_account();
-pub static ref TREASURY: AccountId = sp_core::sr25519::Public(*b"treasyyuiopasfghjklzxcvbnmqwerty").into_account();
+pub static ref ALICE: AccountId = 100;
+pub static ref BOB: AccountId = 200;
+pub static ref DUSTER: AccountId = 300;
+pub static ref TREASURY: AccountId = 400;
 }
 
 parameter_types! {
-	pub TreasuryAccount: AccountId = TREASURY.into_account();
+	pub TreasuryAccount: AccountId = *TREASURY;
 }
 
 frame_support::construct_runtime!(
@@ -55,7 +55,8 @@ parameter_types! {
 
 	pub const SS58Prefix: u8 = 63;
 
-	pub Reward: Balance = 1;
+	pub NativeCurrencyId: AssetId = 0;
+	pub Reward: Balance = 10_000;
 }
 
 impl system::Config for Test {
@@ -68,7 +69,7 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = sp_core::sr25519::Public;
+	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -84,43 +85,12 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 
-pub type Extrinsic = TestXt<Call, ()>;
-
-impl frame_system::offchain::SigningTypes for Test {
-	type Public = <Signature as Verify>::Signer;
-	type Signature = Signature;
-}
-
-impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
-where
-	Call: From<LocalCall>,
-{
-	type OverarchingCall = Call;
-	type Extrinsic = Extrinsic;
-}
-
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
-where
-	Call: From<LocalCall>,
-{
-	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
-		call: Call,
-		_public: <Signature as Verify>::Signer,
-		_account: AccountId,
-		nonce: u64,
-	) -> Option<(Call, <Extrinsic as ExtrinsicT>::SignaturePayload)> {
-		Some((call, (nonce, ())))
-	}
-}
-
 use sp_runtime::traits::Zero;
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
-
-
 }
 
 parameter_type_with_key! {
@@ -131,18 +101,19 @@ parameter_type_with_key! {
 			_ => 0
 		}
 	};
-
-
 }
 
 impl Config for Test {
 	type Event = Event;
-	type AuthorityId = crypto::TestAuthId;
 	type Call = Call;
+	type Balance = Balance;
+	type CurrencyId = AssetId;
+	type MultiCurrency = Tokens;
 	type MinCurrencyDeposits = MinDeposits;
 	type DustAccount = TreasuryAccount;
 	type RewardAccount = TreasuryAccount;
-	type Reward = ();
+	type Reward = Reward;
+	type NativeCurrencyId = NativeCurrencyId;
 }
 
 impl orml_tokens::Config for Test {
@@ -162,7 +133,7 @@ pub struct ExtBuilder {
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![],
+			endowed_accounts: vec![(*TREASURY, 0, 1_000_000)],
 		}
 	}
 }
