@@ -108,6 +108,7 @@ members = [
   'pallets/genesis-history',
   'pallets/xyk',
   'pallets/duster',
+  'pallets/offchain-duster',
   'primitives',
   'runtime',
   'utils/build-script-utils'

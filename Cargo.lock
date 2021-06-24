@@ -4490,6 +4490,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-offchain-duster"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "lazy_static",
+ "orml-tokens",
+ "orml-traits",
+ "orml-utilities",
+ "pallet-asset-registry",
+ "pallet-duster",
+ "parity-scale-codec 2.1.3",
+ "primitive-types 0.8.0",
+ "primitives",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-offences"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.5#9c572625f6557dfdb19f47474369a0327d51dfbc"
