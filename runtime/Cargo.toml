@@ -27,7 +27,6 @@ tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
 pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false}
-pallet-balances = {default-features = false, version = "3.0.0"}
 pallet-claims = {path = '../pallets/claims', default-features = false}
 pallet-exchange = {path = '../pallets/exchange', default-features = false}
 pallet-exchange-benchmarking = {path = '../pallets/exchange/benchmarking', default-features = false, optional = true}
@@ -48,6 +47,7 @@ orml-traits = {default-features = false, version = '0.4.1-dev'}
 pallet-authority-discovery = {default-features = false, version = '3.0.0'}
 pallet-authorship = {default-features = false, version = '3.0.0'}
 pallet-babe = {default-features = false, version = '3.0.0'}
+pallet-balances = {default-features = false, version = "3.0.0"}
 pallet-collective = {default-features = false, version = '3.0.0'}
 pallet-democracy = {default-features = false, version = '3.0.0'}
 pallet-election-provider-multi-phase = {default-features = false, version = '3.0.0'}
@@ -71,6 +71,7 @@ frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
 frame-system-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
 frame-system-rpc-runtime-api = {default-features = false, version = '3.0.0'}
+pallet-balances = {default-features = false, version = "3.0.0"}
 pallet-grandpa = {default-features = false, version = '3.0.0'}
 pallet-identity = {default-features = false, version = '3.0.0'}
 pallet-randomness-collective-flip = {default-features = false, version = '3.0.0'}
@@ -101,7 +102,7 @@ runtime-benchmarks = [
   'frame-system/runtime-benchmarks',
   'pallet-balances/runtime-benchmarks',
   'pallet-timestamp/runtime-benchmarks',
-  'pallet-multi-payment-benchmarking/std',
+  'pallet-multi-payment-benchmarking',
   "pallet-xyk/runtime-benchmarks",
   "pallet-exchange-benchmarking",
   'pallet-collective/runtime-benchmarks',
@@ -136,6 +137,7 @@ std = [
   'pallet-timestamp/std',
   'pallet-tips/std',
   'pallet-transaction-payment/std',
+  'pallet-transaction-multi-payment/std',
   'pallet-transaction-payment-rpc-runtime-api/std',
   'sp-api/std',
   'sp-block-builder/std',

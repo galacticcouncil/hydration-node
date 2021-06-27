@@ -209,6 +209,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Sudo(_) => true,
 
 			Call::XYK(_)
+			| Call::Balances(_)
 			| Call::AssetRegistry(_)
 			| Call::Balances(_)
 			| Call::Currencies(_)
