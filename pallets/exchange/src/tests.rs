@@ -2261,7 +2261,7 @@ fn discount_tests_with_error() {
 				user_4_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 19,
+					error: 20,
 					message: None,
 				},
 			)
@@ -2276,7 +2276,7 @@ fn discount_tests_with_error() {
 				user_2_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 19,
+					error: 20,
 					message: None,
 				},
 			)
@@ -2291,7 +2291,7 @@ fn discount_tests_with_error() {
 				user_3_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 19,
+					error: 20,
 					message: None,
 				},
 			)
@@ -2880,7 +2880,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 				user_2_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 8,
+					error: 9,
 					message: None,
 				},
 			)
@@ -2895,7 +2895,7 @@ fn simple_sell_sell_with_error_should_not_pass() {
 				user_3_sell_intention_id,
 				DispatchError::Module {
 					index: 2,
-					error: 8,
+					error: 9,
 					message: None,
 				},
 			)

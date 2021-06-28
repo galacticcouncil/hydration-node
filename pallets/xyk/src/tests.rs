@@ -1051,7 +1051,7 @@ fn create_pool_with_same_assets_should_not_be_allowed() {
 }
 
 #[test]
-fn sell_test_exceeding_max_limit() {
+fn sell_test_not_reaching_limit() {
 	ExtBuilder::default().build().execute_with(|| {
 		let user_1 = ALICE;
 		let asset_a = ACA;
@@ -1087,7 +1087,7 @@ fn sell_test_exceeding_max_limit() {
 				1_000_000_000_000_000,
 				false,
 			),
-			Error::<Test>::AssetBalanceLimitExceeded
+			Error::<Test>::AssetAmountNotReachedLimit
 		);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -1135,7 +1135,7 @@ fn buy_test_exceeding_max_limit() {
 				1_000_000_000,
 				false,
 			),
-			Error::<Test>::AssetBalanceLimitExceeded
+			Error::<Test>::AssetAmountExceededLimit
 		);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);

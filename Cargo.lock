@@ -2394,7 +2394,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "17.0.0"
+version = "18.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -4758,7 +4758,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-xyk"
-version = "1.2.0"
+version = "2.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
