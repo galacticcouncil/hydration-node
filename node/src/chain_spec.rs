@@ -3,11 +3,12 @@
 use hydra_dx_runtime::constants::currency::{Balance, HDX};
 use hydra_dx_runtime::opaque::SessionKeys;
 use hydra_dx_runtime::pallet_claims::EthereumAddress;
+use hydra_dx_runtime::GenesisConfig;
 use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
-	ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig,
-	MultiTransactionPaymentConfig, Perbill, SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig,
-	SystemConfig, TechnicalCommitteeConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	ElectionsConfig, FaucetConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig,
+	Perbill, SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -301,12 +302,12 @@ fn testnet_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: SystemConfig {
+		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
 		},
-		pallet_balances: BalancesConfig {
+		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1_000_000.
 			balances: endowed_accounts
 				.iter()
@@ -314,12 +315,12 @@ fn testnet_genesis(
 				.map(|k| (k, 1_000_000u128 * HDX))
 				.collect(),
 		},
-		pallet_grandpa: Default::default(),
-		pallet_sudo: SudoConfig {
+		grandpa: Default::default(),
+		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key.clone(),
 		},
-		pallet_asset_registry: AssetRegistryConfig {
+		asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![
 				(b"tKSM".to_vec(), 1),
@@ -335,13 +336,13 @@ fn testnet_genesis(
 			],
 			next_asset_id: 11,
 		},
-		pallet_transaction_multi_payment: MultiTransactionPaymentConfig {
+		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
 			authorities: vec![],
 			fallback_account: root_key,
 		},
-		orml_tokens: TokensConfig {
-			endowed_accounts: endowed_accounts
+		tokens: TokensConfig {
+			balances: endowed_accounts
 				.iter()
 				.flat_map(|x| {
 					vec![
@@ -352,19 +353,19 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		pallet_faucet: FaucetConfig {
+		faucet: FaucetConfig {
 			rampage: true,
 			mint_limit: 5,
 			mintable_currencies: vec![0, 1, 2],
 		},
-		pallet_babe: BabeConfig {
+		babe: BabeConfig {
 			authorities: vec![],
 			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
-		pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		pallet_im_online: Default::default(),
-		pallet_treasury: Default::default(),
-		pallet_session: SessionConfig {
+		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		im_online: Default::default(),
+		treasury: Default::default(),
+		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
 				.map(|x| {
@@ -376,7 +377,7 @@ fn testnet_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		pallet_staking: StakingConfig {
+		staking: StakingConfig {
 			validator_count: initial_authorities.len() as u32 * 2,
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
@@ -388,14 +389,14 @@ fn testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		},
-		pallet_elections_phragmen: ElectionsConfig {
+		elections: ElectionsConfig {
 			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
 		},
-		pallet_collective_Instance1: CouncilConfig {
+		council: CouncilConfig {
 			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 			phantom: Default::default(),
 		},
-		pallet_collective_Instance2: TechnicalCommitteeConfig {
+		technical_committee: TechnicalCommitteeConfig {
 			members: vec![
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -403,10 +404,10 @@ fn testnet_genesis(
 			],
 			phantom: Default::default(),
 		},
-		pallet_claims: ClaimsConfig {
+		claims: ClaimsConfig {
 			claims: create_testnet_claims(),
 		},
-		pallet_genesis_history: GenesisHistoryConfig::default(),
+		genesis_history: GenesisHistoryConfig::default(),
 	}
 }
 
@@ -421,16 +422,16 @@ fn lerna_genesis(
 		AuthorityDiscoveryId,
 	)>,
 	root_key: AccountId,
-	endowed_accounts: Vec<AccountId>,
+	_endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: SystemConfig {
+		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
 		},
-		pallet_balances: BalancesConfig {
+		balances: BalancesConfig {
 			// Intergalactic initial supply
 			balances: vec![
 				(
@@ -465,37 +466,37 @@ fn lerna_genesis(
 				),
 			],
 		},
-		pallet_grandpa: GrandpaConfig { authorities: vec![] },
-		pallet_sudo: SudoConfig {
+		grandpa: GrandpaConfig { authorities: vec![] },
+		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
 		},
-		pallet_asset_registry: AssetRegistryConfig {
+		asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![],
 			next_asset_id: 1,
 		},
-		pallet_transaction_multi_payment: MultiTransactionPaymentConfig {
+		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
 			authorities: vec![],
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 		},
-		orml_tokens: TokensConfig {
-			endowed_accounts: endowed_accounts.iter().flat_map(|_x| vec![]).collect(),
+		tokens: TokensConfig {
+			balances: vec![],
 		},
-		pallet_faucet: FaucetConfig {
+		faucet: FaucetConfig {
 			rampage: false,
 			mint_limit: 5,
 			mintable_currencies: vec![],
 		},
-		pallet_babe: BabeConfig {
+		babe: BabeConfig {
 			authorities: vec![],
 			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
-		pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		pallet_im_online: ImOnlineConfig { keys: vec![] },
-		pallet_treasury: Default::default(),
-		pallet_session: SessionConfig {
+		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		im_online: ImOnlineConfig { keys: vec![] },
+		treasury: Default::default(),
+		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
 				.map(|x| {
@@ -507,7 +508,7 @@ fn lerna_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		pallet_staking: StakingConfig {
+		staking: StakingConfig {
 			validator_count: 3,
 			minimum_validator_count: 3,
 			stakers: initial_authorities
@@ -519,19 +520,19 @@ fn lerna_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		},
-		pallet_elections_phragmen: ElectionsConfig {
+		elections: ElectionsConfig {
 			// Intergalactic elections
 			members: vec![(
 				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 				STASH,
 			)],
 		},
-		pallet_collective_Instance1: CouncilConfig {
+		council: CouncilConfig {
 			// Intergalactic council member
 			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
 			phantom: Default::default(),
 		},
-		pallet_collective_Instance2: TechnicalCommitteeConfig {
+		technical_committee: TechnicalCommitteeConfig {
 			members: vec![
 				hex!["d6cf8789dce651cb54a4036406f4aa0c771914d345c004ad0567b814c71fb637"].into(),
 				hex!["bc96ec00952efa8f0e3e08b36bf5096bcb877acac536e478aecb72868db5db02"].into(),
@@ -542,8 +543,8 @@ fn lerna_genesis(
 			],
 			phantom: Default::default(),
 		},
-		pallet_claims: ClaimsConfig { claims: vec![] },
-		pallet_genesis_history: GenesisHistoryConfig {
+		claims: ClaimsConfig { claims: vec![] },
+		genesis_history: GenesisHistoryConfig {
 			previous_chain: Chain {
 				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"]
 					.to_vec()

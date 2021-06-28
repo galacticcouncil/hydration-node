@@ -148,7 +148,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 17,
+	spec_version: 18,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -180,6 +180,7 @@ pub fn native_version() -> NativeVersion {
 }
 
 pub struct BaseFilter;
+
 impl Filter<Call> for BaseFilter {
 	fn filter(call: &Call) -> bool {
 		match call {
@@ -208,8 +209,8 @@ impl Filter<Call> for BaseFilter {
 			| Call::Sudo(_) => true,
 
 			Call::XYK(_)
-			| Call::Balances(_)
 			| Call::AssetRegistry(_)
+			| Call::Balances(_)
 			| Call::Currencies(_)
 			| Call::Exchange(_)
 			| Call::Faucet(_)
@@ -334,6 +335,7 @@ impl pallet_timestamp::Config for Runtime {
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
+	pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Runtime {
@@ -346,6 +348,8 @@ impl pallet_balances::Config for Runtime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
 }
 
 parameter_types! {
@@ -433,6 +437,7 @@ impl orml_tokens::Config for Runtime {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
+	type MaxLocks = MaxLocks;
 }
 
 impl orml_currencies::Config for Runtime {
@@ -491,6 +496,14 @@ pub mod constants;
 /// Staking pallets configurations
 pub mod impls;
 use constants::{currency::*, time::*};
+#[cfg(feature = "runtime-benchmarks")]
+use frame_benchmarking::frame_support::max_encoded_len::MaxEncodedLen;
+#[cfg(feature = "runtime-benchmarks")]
+use frame_benchmarking::frame_support::pallet_prelude::EnsureOrigin;
+#[cfg(feature = "runtime-benchmarks")]
+use frame_benchmarking::frame_support::pallet_prelude::{Get, Member};
+#[cfg(feature = "runtime-benchmarks")]
+use frame_benchmarking::frame_support::Parameter;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
@@ -552,6 +565,7 @@ impl pallet_staking::Config for Runtime {
 	type UnixTime = Timestamp;
 	type CurrencyToVote = U128CurrencyToVote;
 	type ElectionProvider = ElectionProviderMultiPhase;
+	type GenesisElectionProvider = ElectionProviderMultiPhase;
 	const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
 	type RewardRemainder = Treasury;
 	type Event = Event;
@@ -686,7 +700,9 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Fallback = Fallback;
 	type BenchmarkingConfig = ();
 	type WeightInfo = ();
-	type MinerMaxLength = (); // TODO: what value here ?
+	type MinerMaxLength = ();
+	type OffchainRepeat = ();
+	type ForceOrigin = EnsureRootOrHalfCouncil;
 }
 
 parameter_types! {
@@ -698,6 +714,8 @@ parameter_types! {
 	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
 				  .saturating_sub(BlockExecutionWeight::get())
 				  .saturating_sub(ExtrinsicBaseWeight::get());
+
+	pub const MaxApprovals: u32 = 100;
 }
 
 type AllCouncilMembers = pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
@@ -717,6 +735,7 @@ impl pallet_treasury::Config for Runtime {
 	type BurnDestination = ();
 	type WeightInfo = ();
 	type SpendFunds = ();
+	type MaxApprovals = MaxApprovals;
 }
 
 parameter_types! {
@@ -942,7 +961,6 @@ impl pallet_offences::Config for Runtime {
 	type Event = Event;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
 	type OnOffenceHandler = Staking;
-	type WeightSoftLimit = OffencesWeightSoftLimit;
 }
 
 parameter_types! {
@@ -961,6 +979,8 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_randomness_collective_flip::Config for Runtime {}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -970,7 +990,6 @@ construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
-
 
 		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
 
@@ -1140,10 +1159,6 @@ impl_runtime_apis! {
 			data: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			data.check_extrinsics(&block)
-		}
-
-		fn random_seed() -> <Block as BlockT>::Hash {
-			RandomnessCollectiveFlip::random_seed().0
 		}
 	}
 

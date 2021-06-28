@@ -207,6 +207,7 @@ fn add_liquidity_as_another_user_should_work() {
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_b, asset_a, 1000000000000).into(),
 			Event::LiquidityAdded(ALICE, asset_b, asset_a, 400000, 4000000000).into(),
+			orml_tokens::Event::Endowed(0, 2, 10000000000).into(),
 			Event::LiquidityAdded(BOB, asset_b, asset_a, 1000000, 10000000000).into(),
 		]);
 	});
@@ -512,6 +513,7 @@ fn work_flow_happy_path_should_work() {
 
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 350_000_000_000).into(),
+			orml_tokens::Event::Endowed(0, 2, 300000000000).into(),
 			Event::LiquidityAdded(user_2, asset_a, asset_b, 300_000_000_000, 12_000_000_000_000).into(),
 			Event::SellExecuted(
 				user_2,
@@ -673,6 +675,9 @@ fn discount_sell_fees_should_work() {
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, HDX, 10_000).into(),
 			frame_system::Event::NewAccount(pair_account).into(),
+			orml_tokens::Event::Endowed(asset_a, pair_account, 30000).into(),
+			orml_tokens::Event::Endowed(asset_b, pair_account, 60000).into(),
+			orml_tokens::Event::Endowed(1, 1, 60000).into(),
 			Event::PoolCreated(user_1, asset_a, asset_b, 60_000).into(),
 			Event::SellExecuted(user_1, asset_a, asset_b, 10_000, 14_991, asset_b, 10).into(),
 		]);
@@ -803,6 +808,9 @@ fn single_buy_with_discount_should_work() {
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 640_000_000_000).into(),
 			frame_system::Event::NewAccount(native_pair_account).into(),
+			orml_tokens::Event::Endowed(asset_a, 1003000, 50000000000).into(),
+			orml_tokens::Event::Endowed(1000, 1003000, 100000000000).into(),
+			orml_tokens::Event::Endowed(1, 1, 100000000000).into(),
 			Event::PoolCreated(user_1, asset_a, HDX, 100_000_000_000).into(),
 			Event::BuyExecuted(
 				user_1,
@@ -1021,6 +1029,9 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			Event::LiquidityRemoved(user, asset_a, asset_b, 100_000_000).into(),
 			Event::PoolDestroyed(user, asset_a, asset_b).into(),
 			frame_system::Event::NewAccount(pair_account).into(),
+			orml_tokens::Event::Endowed(asset_a, pair_account, 100000000).into(),
+			orml_tokens::Event::Endowed(asset_b, pair_account, 1000000000000).into(),
+			orml_tokens::Event::Endowed(0, 1, 100000000).into(),
 			Event::PoolCreated(user, asset_a, asset_b, 100_000_000).into(),
 		]);
 	});
