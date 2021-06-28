@@ -119,8 +119,11 @@ pub mod pallet {
 		/// Overflow
 		InvalidLiquidityAmount, // no tests
 
-		/// Given trading limit has been exceeded (Sell) or has Not been reached (buy).
-		AssetBalanceLimitExceeded,
+		/// Asset amount has exceeded given limit.
+		AssetAmountExceededLimit,
+
+		/// Asset amount has not reached given limit.
+		AssetAmountNotReachedLimit,
 
 		/// Asset balance is not sufficient.
 		InsufficientAssetBalance,
@@ -319,7 +322,7 @@ pub mod pallet {
 
 			ensure!(
 				amount_b_required <= amount_b_max_limit,
-				Error::<T>::AssetBalanceLimitExceeded
+				Error::<T>::AssetAmountExceededLimit
 			);
 
 			ensure!(shares_added > 0_u128, Error::<T>::InvalidMintedLiquidity);
@@ -626,7 +629,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		ensure!(asset_out_reserve > amount_out, Error::<T>::InsufficientAssetBalance);
 
-		ensure!(min_bought <= amount_out_without_fee, Error::<T>::AssetBalanceLimitExceeded);
+		ensure!(min_bought <= amount_out_without_fee, Error::<T>::AssetAmountNotReachedLimit);
 
 		let discount_fee = if discount {
 			let native_asset = T::NativeAssetId::get();
@@ -753,7 +756,7 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 			.checked_add(transfer_fee)
 			.ok_or(Error::<T>::BuyAssetAmountInvalid)?;
 
-		ensure!(max_limit >= buy_price_with_fee, Error::<T>::AssetBalanceLimitExceeded);
+		ensure!(max_limit >= buy_price_with_fee, Error::<T>::AssetAmountExceededLimit);
 
 		ensure!(
 			T::Currency::free_balance(assets.asset_in, who) >= buy_price_with_fee,
