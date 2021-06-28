@@ -29,12 +29,26 @@ pub struct FullDeps<C, P, SC, B> {
 	pub pool: Arc<P>,
 	/// The SelectChain Strategy
 	pub select_chain: SC,
+	/// A copy of the chain spec.
+	pub chain_spec: Box<dyn sc_chain_spec::ChainSpec>,
 	/// Whether to deny unsafe calls
 	pub deny_unsafe: DenyUnsafe,
 	/// BABE specific dependencies.
 	pub babe: BabeDeps,
 	/// GRANDPA specific dependencies.
 	pub grandpa: GrandpaDeps<B>,
+}
+
+/// Light client extra dependencies.
+pub struct LightDeps<C, F, P> {
+	/// The client instance to use.
+	pub client: Arc<C>,
+	/// Transaction pool instance.
+	pub pool: Arc<P>,
+	/// Remote access to the blockchain (async).
+	pub remote_blockchain: Arc<dyn sc_client_api::light::RemoteBlockchain<Block>>,
+	/// Fetcher instance.
+	pub fetcher: Arc<F>,
 }
 
 /// Extra dependencies for BABE.
@@ -61,6 +75,9 @@ pub struct GrandpaDeps<B> {
 	pub finality_provider: Arc<FinalityProofProvider<B, Block>>,
 }
 
+/// A IO handler that uses all Full RPC extensions.
+pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
+
 /// Instantiate all full RPC extensions.
 pub fn create_full<C, P, SC, B>(deps: FullDeps<C, P, SC, B>) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
 where
@@ -86,6 +103,7 @@ where
 		client,
 		pool,
 		select_chain,
+		chain_spec: _,
 		deny_unsafe,
 		babe,
 		grandpa,
@@ -138,6 +156,34 @@ where
 			finality_provider,
 		),
 	));
+
+	io
+}
+
+/// Instantiate all Light RPC extensions.
+pub fn create_light<C, P, M, F>(deps: LightDeps<C, F, P>) -> jsonrpc_core::IoHandler<M>
+where
+	C: sp_blockchain::HeaderBackend<Block>,
+	C: Send + Sync + 'static,
+	F: sc_client_api::light::Fetcher<Block> + 'static,
+	P: TransactionPool + 'static,
+	M: jsonrpc_core::Metadata + Default,
+{
+	use substrate_frame_rpc_system::{LightSystem, SystemApi};
+
+	let LightDeps {
+		client,
+		pool,
+		remote_blockchain,
+		fetcher,
+	} = deps;
+	let mut io = jsonrpc_core::IoHandler::default();
+	io.extend_with(SystemApi::<Hash, AccountId, Index>::to_delegate(LightSystem::new(
+		client,
+		remote_blockchain,
+		fetcher,
+		pool,
+	)));
 
 	io
 }
