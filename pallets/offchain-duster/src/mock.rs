@@ -1,5 +1,5 @@
 use super::*;
-use crate as duster;
+use crate as offchain_duster;
 
 use frame_support::parameter_types;
 use frame_support::traits::GenesisBuild;
@@ -18,6 +18,7 @@ use sp_runtime::{
 
 use frame_support::weights::Weight;
 use primitives::Amount;
+use primitives::{AssetId, Balance};
 use sp_std::vec::Vec;
 
 type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -43,7 +44,8 @@ frame_support::construct_runtime!(
 	UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Duster: duster::{Pallet, Call, Storage, Event<T>},
+		Duster: pallet_duster::{Pallet, Call, Storage, Event<T>},
+		OffchainDuster: offchain_duster::{Pallet},
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -55,7 +57,8 @@ parameter_types! {
 
 	pub const SS58Prefix: u8 = 63;
 
-	pub Reward: Balance = 1;
+	pub NativeCurrencyId: AssetId = 0;
+	pub Reward: Balance = 10_000;
 }
 
 impl system::Config for Test {
@@ -136,13 +139,20 @@ parameter_type_with_key! {
 }
 
 impl Config for Test {
-	type Event = Event;
 	type AuthorityId = crypto::TestAuthId;
-	type Call = Call;
+}
+
+impl pallet_duster::Config for Test {
+	type Event = Event;
+	type Balance = Balance;
+	type CurrencyId = AssetId;
+	type MultiCurrency = Tokens;
 	type MinCurrencyDeposits = MinDeposits;
 	type DustAccount = TreasuryAccount;
 	type RewardAccount = TreasuryAccount;
-	type Reward = ();
+	type Reward = Reward;
+	type NativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {
