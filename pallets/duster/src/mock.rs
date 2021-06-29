@@ -1,23 +1,24 @@
-use super::*;
 use crate as duster;
 
 use frame_support::parameter_types;
 use frame_support::traits::GenesisBuild;
 
 use orml_traits::parameter_type_with_key;
+use primitives::{AssetId, Balance};
 
 use crate::Config;
 use frame_system as system;
 
-use sp_core::{sr25519::Signature, H256};
+use sp_core::H256;
 
 use sp_runtime::{
-	testing::{Header, TestXt},
-	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
 };
 
 use frame_support::weights::Weight;
 use primitives::Amount;
+use sp_runtime::traits::Zero;
 use sp_std::vec::Vec;
 
 type AccountId = u64;
@@ -85,8 +86,6 @@ impl system::Config for Test {
 	type OnSetCode = ();
 }
 
-use sp_runtime::traits::Zero;
-
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
@@ -105,7 +104,6 @@ parameter_type_with_key! {
 
 impl Config for Test {
 	type Event = Event;
-	type Call = Call;
 	type Balance = Balance;
 	type CurrencyId = AssetId;
 	type MultiCurrency = Tokens;
@@ -114,6 +112,7 @@ impl Config for Test {
 	type RewardAccount = TreasuryAccount;
 	type Reward = Reward;
 	type NativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
 }
 
 impl orml_tokens::Config for Test {

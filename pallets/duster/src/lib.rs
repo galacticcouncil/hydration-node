@@ -24,14 +24,13 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+mod weights;
+
 use frame_support::{dispatch::DispatchResult, traits::Get};
-use primitives::{AssetId, Balance};
-use sp_std::marker;
 
 use orml_traits::MultiCurrencyExtended;
-use orml_traits::{GetByKey, MultiCurrency, OnDust};
-
-use sp_runtime::traits::Saturating;
+use orml_traits::{GetByKey, MultiCurrency};
 
 use frame_system::ensure_signed;
 
@@ -41,6 +40,7 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::weights::WeightInfo;
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
@@ -56,8 +56,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type Call: From<Call<Self>>;
-
 		type Balance: Parameter
 			+ Member
 			+ AtLeast32BitUnsigned
@@ -66,7 +64,7 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen;
 
-		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
+		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord + From<u32>;
 
 		type MultiCurrency: MultiCurrencyExtended<
 			Self::AccountId,
@@ -88,6 +86,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type NativeCurrencyId: Get<Self::CurrencyId>;
+
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::error]
@@ -98,12 +98,12 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		Dusted,
+		Dusted(T::AccountId, T::Balance),
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight((0, Pays::No))]
+		#[pallet::weight((<T as Config>::WeightInfo::dust_account(), DispatchClass::Normal, Pays::Yes))]
 		pub fn dust_account(
 			origin: OriginFor<T>,
 			account: T::AccountId,
@@ -117,7 +117,7 @@ pub mod pallet {
 
 			Self::transfer_dust(&account, &T::DustAccount::get(), currency_id, dust)?;
 
-			Self::deposit_event(Event::Dusted);
+			Self::deposit_event(Event::Dusted(account, dust));
 
 			// Ignore the result, it fails - no problem.
 			let _ = Self::reward_duster(&who, currency_id, dust);
@@ -150,27 +150,5 @@ impl<T: Config> Pallet<T> {
 		dust: T::Balance,
 	) -> DispatchResult {
 		T::MultiCurrency::transfer(currency_id, from, dest, dust)
-	}
-}
-
-impl<T: Config> GetByKey<AssetId, Balance> for Pallet<T>
-where
-	Balance: From<T::Balance>,
-	AssetId: Into<T::CurrencyId>,
-{
-	fn get(k: &AssetId) -> u128 {
-		T::MinCurrencyDeposits::get(&k.clone().into()).into()
-	}
-}
-
-pub struct TransferDust<T, GetAccountId>(marker::PhantomData<(T, GetAccountId)>);
-
-impl<T, GetAccountId> OnDust<T::AccountId, T::CurrencyId, T::Balance> for TransferDust<T, GetAccountId>
-where
-	T: Config,
-	GetAccountId: Get<T::AccountId>,
-{
-	fn on_dust(who: &T::AccountId, currency_id: T::CurrencyId, amount: T::Balance) {
-		let _ = <Pallet<T>>::transfer_dust(who, &GetAccountId::get(), currency_id, amount);
 	}
 }
