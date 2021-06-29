@@ -24,6 +24,7 @@ version = '2.0.0'
 hex-literal = {optional = true, version = '0.3.1'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 tracing-core = {optional = true, version = '0.1.17'}
+smallvec = "1.6.1"
 
 # local dependencies
 pallet-asset-registry = {path = '../pallets/asset-registry', default-features = false}
@@ -90,6 +91,7 @@ sp-staking = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
 sp-transaction-pool = {default-features = false, version = '3.0.0'}
 sp-version = {default-features = false, version = '3.0.0'}
+sp-io = {default-features = false, version = "3.0.0"}
 
 [features]
 default = ['std']
@@ -120,6 +122,7 @@ std = [
   'orml-tokens/std',
   'orml-traits/std',
   'pallet-xyk/std',
+  'pallet-xyk-rpc-runtime-api/std',
   'pallet-claims/std',
   'pallet-asset-registry/std',
   'pallet-democracy/std',
