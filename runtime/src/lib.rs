@@ -37,13 +37,12 @@ use sp_core::{
 	u32_trait::{_1, _2, _3},
 	OpaqueMetadata,
 };
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, NumberFor, OpaqueKeys,
-	SaturatedConversion, Verify,
-};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::Zero,
+	traits::{
+		AccountIdConversion, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup,
+		NumberFor, OpaqueKeys, SaturatedConversion, Verify, Zero,
+	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, MultiSignature, Percent,
 };
@@ -52,11 +51,11 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_system::{limits, EnsureOneOf, EnsureRoot};
+use frame_system::{limits, EnsureOneOf, EnsureRoot, RawOrigin};
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
+	traits::{EnsureOrigin, Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Pays, Weight,
@@ -148,7 +147,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 18,
+	spec_version: 19,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -206,6 +205,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Identity(_)
 			| Call::Offences(_)
 			| Call::Utility(_)
+			| Call::Vesting(_)
 			| Call::Sudo(_) => true,
 
 			Call::XYK(_)
@@ -979,6 +979,44 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct EnsureRootOrTreasury;
+impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
+	type Success = AccountId;
+
+	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+			RawOrigin::Root => Ok(TreasuryPalletId::get().into_account()),
+			RawOrigin::Signed(caller) => {
+				if caller == TreasuryPalletId::get().into_account() {
+					Ok(caller)
+				} else {
+					Err(Origin::from(Some(caller)))
+				}
+			}
+			r => Err(Origin::from(r)),
+		})
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn successful_origin() -> Origin {
+		Origin::from(RawOrigin::Signed(Default::default()))
+	}
+}
+
+parameter_types! {
+	pub MinVestedTransfer: Balance = 1_000 * HDX;
+	pub const MaxVestingSchedules: u32 = 100;
+}
+
+impl orml_vesting::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type VestedTransferOrigin = EnsureRootOrTreasury;
+	type WeightInfo = ();
+	type MaxVestingSchedules = MaxVestingSchedules;
+}
+
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -1017,6 +1055,7 @@ construct_runtime!(
 		Historical: session_historical::{Pallet},
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
+		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},

@@ -8,7 +8,7 @@ use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
 	ElectionsConfig, FaucetConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig,
 	Perbill, SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	TokensConfig, VestingConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -408,6 +408,7 @@ fn testnet_genesis(
 			claims: create_testnet_claims(),
 		},
 		genesis_history: GenesisHistoryConfig::default(),
+		vesting: VestingConfig { vesting: vec![] },
 	}
 }
 
@@ -481,9 +482,7 @@ fn lerna_genesis(
 			authorities: vec![],
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 		},
-		tokens: TokensConfig {
-			balances: vec![],
-		},
+		tokens: TokensConfig { balances: vec![] },
 		faucet: FaucetConfig {
 			rampage: false,
 			mint_limit: 5,
@@ -554,6 +553,7 @@ fn lerna_genesis(
 					.into(),
 			},
 		},
+		vesting: VestingConfig { vesting: vec![] },
 	}
 }
 
