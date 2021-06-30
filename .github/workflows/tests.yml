@@ -90,11 +90,6 @@ jobs:
         with:
           # token:                ${{secrets.CODECOV_TOKEN}} # not required for public repos
           fail_ci_if_error: true
-      - name: Coveralls
-        uses: coverallsapp/github-action@v1.1.2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ./lcov.info
       - name: Build release
         run: time cargo build --release --quiet --locked
       - name: Version info
