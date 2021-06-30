@@ -28,17 +28,26 @@ use orml_traits::GetByKey;
 
 use frame_system::offchain::{CreateSignedTransaction, SendSignedTransaction, Signer};
 
+use frame_support::sp_runtime::offchain::storage_lock::{StorageLock, Time};
+use frame_support::sp_runtime::offchain::Duration;
+use orml_utilities::OffchainErr;
+use sp_core::crypto::KeyTypeId;
+use sp_runtime::traits::Saturating;
+
 pub use pallet_duster::Call as DusterCall;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+pub const OFFCHAIN_WORKER_LOCK: &[u8] = b"hydradx/offchain-duster/lock/";
+pub const LOCK_DURATION: u64 = 100;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::log;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::BlockNumberFor;
-	use sp_runtime::traits::Saturating;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -49,14 +58,20 @@ pub mod pallet {
 		<T as orml_tokens::Config>::Balance: From<<T as pallet_duster::Config>::Balance>,
 		<T as pallet_duster::Config>::CurrencyId: From<<T as orml_tokens::Config>::CurrencyId>,
 	{
-		fn offchain_worker(_block_number: <T as frame_system::Config>::BlockNumber) {
-			for (who, asset, account) in orml_tokens::Accounts::<T>::iter() {
-				let ed = T::MinCurrencyDeposits::get(&asset.into());
-				let total = account.free.saturating_add(account.reserved);
-
-				if total < ed.into() {
-					let _ = Self::dust_account_signed(&who, asset.into());
-				}
+		fn offchain_worker(block_number: <T as frame_system::Config>::BlockNumber) {
+			if let Err(e) = Self::_offchain_worker() {
+				log::info!(
+					target: "duster offchain worker",
+					"failed to run offchain worker at {:?}: {:?}",
+					block_number,
+					e,
+				);
+			} else {
+				log::debug!(
+					target: "duster offchain worker",
+					"offchain worker at block: {:?} completed!",
+					block_number,
+				);
 			}
 		}
 	}
@@ -75,6 +90,36 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {}
 }
 impl<T: Config> Pallet<T> {
+
+	fn _offchain_worker() -> Result<(), OffchainErr>
+	where
+		<T as orml_tokens::Config>::Balance: From<<T as pallet_duster::Config>::Balance>,
+		<T as pallet_duster::Config>::CurrencyId: From<<T as orml_tokens::Config>::CurrencyId>,
+	{
+		if !sp_io::offchain::is_validator() {
+			return Err(OffchainErr::NotValidator);
+		}
+
+		let lock_expiration = Duration::from_millis(LOCK_DURATION);
+		let mut lock = StorageLock::<'_, Time>::with_deadline(&OFFCHAIN_WORKER_LOCK, lock_expiration);
+		let mut guard = lock.try_lock().map_err(|_| OffchainErr::OffchainLock)?;
+
+		for (who, asset, account) in orml_tokens::Accounts::<T>::iter() {
+			let ed = T::MinCurrencyDeposits::get(&asset.into());
+			let total = account.free.saturating_add(account.reserved);
+
+			if total < ed.into() {
+				let _ = Self::dust_account_signed(&who, asset.into());
+			}
+
+			guard.extend_lock().map_err(|_| OffchainErr::OffchainLock)?;
+		}
+
+		guard.forget();
+
+		Ok(())
+	}
+
 	fn dust_account_signed(
 		from: &T::AccountId,
 		currency_id: <T as pallet_duster::Config>::CurrencyId,
@@ -100,8 +145,6 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 }
-
-use sp_core::crypto::KeyTypeId;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"dust");
 
