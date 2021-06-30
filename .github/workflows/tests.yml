@@ -84,15 +84,17 @@ jobs:
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Test && Generate code coverage
-        run: cargo tarpaulin --all-features --workspace --locked --out Xml
+        run: cargo tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files utils/* -o Xml -o lcov
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
         with:
           # token:                ${{secrets.CODECOV_TOKEN}} # not required for public repos
           fail_ci_if_error: true
-
-      - name: Benchmarking tests
-        run: cd node && cargo test --release --features runtime-benchmarks -p pallet-exchange-benchmarking -p pallet-xyk -p pallet-multi-payment-benchmarking -p pallet-claims
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ./lcov.info
       - name: Build release
         run: time cargo build --release --quiet --locked
       - name: Version info
