@@ -134,7 +134,7 @@ fn create_pool_with_insufficient_balance_should_not_work() {
 			XYK::create_pool(
 				Origin::signed(user),
 				asset_a,
-                4000,
+				4000,
 				100_000_000_000_000,
 				Price::from(10)
 			),
@@ -306,7 +306,7 @@ fn remove_liquidity_without_shares_should_not_work() {
 		let share_token = XYK::share_token(pair_account);
 		let shares = Currency::free_balance(share_token, &user);
 
-        assert_ok!(Currency::transfer(Origin::signed(ALICE), BOB, share_token, shares));
+		assert_ok!(Currency::transfer(Origin::signed(ALICE), BOB, share_token, shares));
 
 		assert_noop!(
 			XYK::remove_liquidity(Origin::signed(user), asset_a, asset_b, 355_000),
@@ -315,7 +315,7 @@ fn remove_liquidity_without_shares_should_not_work() {
 
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_a, asset_b, 100000000).into(),
-            orml_tokens::Event::Endowed(share_token, BOB, shares).into(),
+			orml_tokens::Event::Endowed(share_token, BOB, shares).into(),
 			orml_tokens::Event::Transfer(share_token, ALICE, BOB, shares).into(),
 		]);
 	});
@@ -342,8 +342,13 @@ fn remove_liquidity_from_reduced_pool_should_not_work() {
 			asset_out: asset_b,
 		});
 
-        // remove some amount from the pool
-        assert_ok!(Currency::transfer(Origin::signed(pair_account), BOB, asset_a, 90_000_000));
+		// remove some amount from the pool
+		assert_ok!(Currency::transfer(
+			Origin::signed(pair_account),
+			BOB,
+			asset_a,
+			90_000_000
+		));
 
 		assert_noop!(
 			XYK::remove_liquidity(Origin::signed(user), asset_a, asset_b, 200_000_000),
@@ -351,11 +356,21 @@ fn remove_liquidity_from_reduced_pool_should_not_work() {
 		);
 
 		// return it back to the pool
-		assert_ok!(Currency::transfer(Origin::signed(BOB), pair_account, asset_a, 90_000_000));
-        // do it again with asset_b
-		assert_ok!(Currency::transfer(Origin::signed(pair_account), BOB, asset_b, 90_000_000));
+		assert_ok!(Currency::transfer(
+			Origin::signed(BOB),
+			pair_account,
+			asset_a,
+			90_000_000
+		));
+		// do it again with asset_b
+		assert_ok!(Currency::transfer(
+			Origin::signed(pair_account),
+			BOB,
+			asset_b,
+			90_000_000
+		));
 
-        assert_noop!(
+		assert_noop!(
 			XYK::remove_liquidity(Origin::signed(user), asset_a, asset_b, 200_000_000),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -413,7 +428,13 @@ fn add_zero_liquidity_should_not_work() {
 #[test]
 fn add_liquidity_exceeding_max_limit_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(XYK::create_pool(Origin::signed(ALICE), HDX, ACA, 100_000_000_000_000, Price::from(1)));
+		assert_ok!(XYK::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			ACA,
+			100_000_000_000_000,
+			Price::from(1)
+		));
 
 		assert_noop!(
 			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 10_000_000, 1_000_000),
@@ -832,8 +853,8 @@ fn sell_without_sufficient_balance_should_not_work() {
 
 		assert_ok!(Currency::transfer(Origin::signed(user), BOB, ACA, 999_998_999_999_999));
 
-        assert_noop!(
-			XYK::sell(Origin::signed(user),	ACA, DOT, 1_000, 100, false),
+		assert_noop!(
+			XYK::sell(Origin::signed(user), ACA, DOT, 1_000, 100, false),
 			Error::<Test>::InsufficientAssetBalance
 		);
 	});
@@ -864,8 +885,8 @@ fn sell_without_sufficient_discount_balance_should_not_work() {
 
 		assert_ok!(Currency::transfer(Origin::signed(user), BOB, HDX, 998_999_999_999_999));
 
-        assert_noop!(
-			XYK::sell(Origin::signed(user),	ACA, DOT, 1_000_000_000, 100, true),
+		assert_noop!(
+			XYK::sell(Origin::signed(user), ACA, DOT, 1_000_000_000, 100, true),
 			Error::<Test>::InsufficientNativeCurrencyBalance
 		);
 	});
@@ -888,7 +909,7 @@ fn buy_without_sufficient_balance_should_not_work() {
 
 		assert_ok!(Currency::transfer(Origin::signed(user), BOB, ACA, 999_998_999_999_999));
 
-        assert_noop!(
+		assert_noop!(
 			XYK::buy(Origin::signed(user), DOT, ACA, 1_000, 10_000, false),
 			Error::<Test>::InsufficientAssetBalance
 		);
@@ -920,7 +941,7 @@ fn buy_without_sufficient_discount_balance_should_not_work() {
 
 		assert_ok!(Currency::transfer(Origin::signed(user), BOB, HDX, 998_999_999_999_999));
 
-        assert_noop!(
+		assert_noop!(
 			XYK::buy(Origin::signed(user), DOT, ACA, 1_000_000_000, 10_000_000_000, true),
 			Error::<Test>::InsufficientNativeCurrencyBalance
 		);
