@@ -331,13 +331,6 @@ pub mod pallet {
 				.checked_add(shares_added)
 				.ok_or(Error::<T>::InvalidLiquidityAmount)?;
 
-			let asset_b_balance = T::Currency::free_balance(asset_b, &who);
-
-			ensure!(
-				asset_b_balance >= amount_b_required,
-				Error::<T>::InsufficientAssetBalance
-			);
-
 			T::Currency::transfer(asset_a, &who, &pair_account, amount_a)?;
 			T::Currency::transfer(asset_b, &who, &pair_account, amount_b_required)?;
 
