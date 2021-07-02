@@ -84,7 +84,7 @@ jobs:
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Test && Generate code coverage
-        run: cargo tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files utils/* --ignore-tests -o Xml -o lcov
+        run: cargo tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files utils/* --exclude-files **/weights.rs --ignore-tests -o Xml -o lcov
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
         with:
