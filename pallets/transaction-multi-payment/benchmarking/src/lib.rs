@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod mock;
@@ -8,17 +25,16 @@ use sp_std::vec;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use orml_utilities::OrderedSet;
-use pallet_transaction_multi_payment::Module as MultiPaymentModule;
+use pallet_transaction_multi_payment::Pallet as MultiPaymentModule;
 use primitives::{Amount, AssetId, Balance, Price};
 
 use frame_support::dispatch;
-use pallet_amm as ammpool;
+use pallet_xyk as xykpool;
 
-pub struct Module<T: Config>(pallet_transaction_multi_payment::Module<T>);
+pub struct Pallet<T: Config>(pallet_transaction_multi_payment::Pallet<T>);
 
 pub trait Config:
-	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + ammpool::Config
+	pallet_transaction_payment::Config + pallet_transaction_multi_payment::Config + xykpool::Config
 {
 }
 
@@ -44,7 +60,7 @@ fn initialize_pool<T: Config>(
 	amount: Balance,
 	price: Price,
 ) -> dispatch::DispatchResultWithPostInfo {
-	ammpool::Module::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
+	xykpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), HDX, asset, amount, price)?;
 	Ok(().into())
 }
 
@@ -53,7 +69,7 @@ benchmarks! {
 		let maker = funded_account::<T>("maker", 1);
 		initialize_pool::<T>(maker.clone(), ASSET_ID, 1000, Price::from(1))?;
 		MultiPaymentModule::<T>::add_new_member(&maker);
-		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID)?;
+		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID, Price::from(10))?;
 
 		let caller = funded_account::<T>("caller", 2);
 		MultiPaymentModule::<T>::set_currency(RawOrigin::Signed(caller.clone()).into(), ASSET_ID)?;
@@ -67,7 +83,7 @@ benchmarks! {
 	set_currency {
 		let maker = funded_account::<T>("maker", 1);
 		MultiPaymentModule::<T>::add_new_member(&maker);
-		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID)?;
+		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(maker).into(), ASSET_ID, Price::from(10))?;
 
 		let caller = funded_account::<T>("caller", 123);
 
@@ -81,21 +97,24 @@ benchmarks! {
 	add_currency {
 		let caller = funded_account::<T>("maker", 1);
 		MultiPaymentModule::<T>::add_new_member(&caller);
-	}: { MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10)? }
+
+		let price = Price::from(10);
+
+	}: { MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10, price)? }
 	verify {
-		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::from(vec![10]));
+		assert_eq!(MultiPaymentModule::<T>::currencies(10), Some(price));
 	}
 
 	remove_currency {
 		let caller = funded_account::<T>("maker", 1);
 		MultiPaymentModule::<T>::add_new_member(&caller);
-		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10)?;
+		MultiPaymentModule::<T>::add_currency(RawOrigin::Signed(caller.clone()).into(), 10, Price::from(2))?;
 
-		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::from(vec![10]));
+		assert_eq!(MultiPaymentModule::<T>::currencies(10), Some(Price::from(2)));
 
 	}: { MultiPaymentModule::<T>::remove_currency(RawOrigin::Signed(caller.clone()).into(), 10)? }
 	verify {
-		assert_eq!(MultiPaymentModule::<T>::currencies(), OrderedSet::<AssetId>::new())
+		assert_eq!(MultiPaymentModule::<T>::currencies(10), None)
 	}
 
 	add_member{

@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![cfg(test)]
 
 use crate::Config;
@@ -17,11 +34,10 @@ use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 use primitives::{Amount, AssetId, Balance};
 
 use frame_support::traits::Get;
-use pallet_amm::AssetPairAccountIdFor;
+use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
 use frame_benchmarking::frame_support::weights::Pays;
-use orml_utilities::OrderedSet;
 use primitives::fee;
 
 pub type AccountId = u64;
@@ -46,13 +62,13 @@ frame_support::construct_runtime!(
 		 NodeBlock = Block,
 		 UncheckedExtrinsic = UncheckedExtrinsic,
 		 {
-				 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-				 PaymentModule: pallet_transaction_multi_payment::{Module, Call, Storage, Event<T>},
-				 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
-				 Balances: pallet_balances::{Module,Call, Storage,Config<T>, Event<T>},
-				 Currencies: orml_currencies::{Module, Event<T>},
-				 Tokens: orml_tokens::{Module, Event<T>},
-				 AssetRegistry: pallet_asset_registry::{Module, Storage},
+				 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+				 PaymentPallet: pallet_transaction_multi_payment::{Pallet, Call, Storage, Event<T>},
+				 XYKPallet: pallet_xyk::{Pallet, Call, Storage, Event<T>},
+				 Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
+				 Currencies: orml_currencies::{Pallet, Event<T>},
+				 Tokens: orml_tokens::{Pallet, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 		 }
 
 );
@@ -91,6 +107,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
+	type OnSetCode = ();
 }
 impl Config for Test {}
 
@@ -98,7 +115,7 @@ impl pallet_transaction_multi_payment::Config for Test {
 	type Event = Event;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
-	type AMMPool = AMMModule;
+	type AMMPool = XYKPallet;
 	type WeightInfo = ();
 	type WithdrawFeeForSetCurrency = PayForSetCurrency;
 	type WeightToFee = IdentityFee<Balance>;
@@ -118,10 +135,12 @@ impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type WeightInfo = ();
 	type MaxLocks = MaxLocks;
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 impl pallet_transaction_payment::Config for Test {
-	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), PaymentModule>;
+	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), PaymentPallet>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
@@ -142,11 +161,11 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 	}
 }
 
-impl pallet_amm::Config for Test {
+impl pallet_xyk::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currencies;
-	type HDXAssetId = HdxAssetId;
+	type NativeAssetId = HdxAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }
@@ -165,6 +184,7 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
+	type MaxLocks = ();
 }
 
 impl orml_currencies::Config for Test {
@@ -210,7 +230,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
-			endowed_accounts: self.endowed_accounts,
+			balances: self.endowed_accounts,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
@@ -231,8 +251,9 @@ impl ExtBuilder {
 		.unwrap();
 
 		pallet_transaction_multi_payment::GenesisConfig::<Test> {
-			currencies: OrderedSet::from(vec![]),
+			currencies: vec![],
 			authorities: vec![],
+			fallback_account: 1000,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

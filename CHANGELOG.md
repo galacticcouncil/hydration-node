@@ -1,3 +1,157 @@
+# v10.0.0 (Sun May 30 2021)
+
+#### 💥 Breaking Change
+
+- feat(elections)!: added sane election setup [#266](https://github.com/galacticcouncil/HydraDX-node/pull/266) ([@jak-pan](https://github.com/jak-pan))
+- fix!: WithFee::with_fee method [#263](https://github.com/galacticcouncil/HydraDX-node/pull/263) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### 🚀 Enhancement
+
+- feat(exchange)!: Update IntentionResolvedDirectTradeFees event [#262](https://github.com/galacticcouncil/HydraDX-node/pull/262) ([@unordered-set](https://github.com/unordered-set) [@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Refactoring
+
+- refactor: add traits to Fee struct [#260](https://github.com/galacticcouncil/HydraDX-node/pull/260) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### Other improvements
+
+- ci: docker release workflow [#257](https://github.com/galacticcouncil/HydraDX-node/pull/257) ([@lumir-mrkva](https://github.com/lumir-mrkva) [@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 5
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+- Kostyan ([@unordered-set](https://github.com/unordered-set))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
+# v9.0.0 (Tue May 25 2021)
+
+#### 🚀 Enhancement
+
+- feat!: add utility pallet to allow batch txs execution [#246](https://github.com/galacticcouncil/HydraDX-node/pull/246) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Refactoring
+
+- refactor!: revert price type to fixedu128 [#259](https://github.com/galacticcouncil/HydraDX-node/pull/259) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- refactor: pallet improvements and xyk pallet [#242](https://github.com/galacticcouncil/HydraDX-node/pull/242) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- refactor(build-script): allow to specify runtime [#254](https://github.com/galacticcouncil/HydraDX-node/pull/254) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Authors: 2
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+---
+
+# v8.0.0 (Tue May 11 2021)
+
+#### 💥 Breaking Change
+
+- feat!: genesis3 reborn [#253](https://github.com/galacticcouncil/HydraDX-node/pull/253) ([@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 1
+
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+
+---
+
+# v7.0.0 (Sun May 09 2021)
+
+#### 💥 Breaking Change
+
+- feat!: genesis 3 [#251](https://github.com/galacticcouncil/HydraDX-node/pull/251) ([@jak-pan](https://github.com/jak-pan))
+
+#### 🐛 Bug Fix
+
+- fix(chore): discard patch for libsrock-db [#247](https://github.com/galacticcouncil/HydraDX-node/pull/247) ([@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 1
+
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+
+---
+
+# v6.0.0 (Wed May 05 2021)
+
+#### 💥 Breaking Change
+
+- fix!: add election fallback on-chain [#221](https://github.com/galacticcouncil/HydraDX-node/pull/221) ([@jak-pan](https://github.com/jak-pan))
+- fix!: set babe epoch config at genesis [#241](https://github.com/galacticcouncil/HydraDX-node/pull/241) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@jak-pan](https://github.com/jak-pan))
+
+#### 🚀 Enhancement
+
+- feat: change Price type [#235](https://github.com/galacticcouncil/HydraDX-node/pull/235) ([@martinfridrich](https://github.com/martinfridrich) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- feat: add tests for time units [#212](https://github.com/galacticcouncil/HydraDX-node/pull/212) ([@green-jay](https://github.com/green-jay) [@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### 🐛 Bug Fix
+
+- fix(multi-payment): move balances dependency to dev-dependency [#239](https://github.com/galacticcouncil/HydraDX-node/pull/239) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix(node): configure justification import for full node [#225](https://github.com/galacticcouncil/HydraDX-node/pull/225) ([@andresilva](https://github.com/andresilva) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- fix(ci): tag version workflow [#216](https://github.com/galacticcouncil/HydraDX-node/pull/216) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Refactoring
+
+- refactor(amm): changed event names to past tense [#215](https://github.com/galacticcouncil/HydraDX-node/pull/215) ([@jareknowotka](https://github.com/jareknowotka) [@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Other improvements
+
+- chore: Substrate update [#224](https://github.com/galacticcouncil/HydraDX-node/pull/224) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- ci: Build workflow from fork PR [#230](https://github.com/galacticcouncil/HydraDX-node/pull/230) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- ci: automatically creates an EC2 instance for builds [#220](https://github.com/galacticcouncil/HydraDX-node/pull/220) ([@lumir-mrkva](https://github.com/lumir-mrkva) ayoub.fakir@vodafoneziggo.com [@fakirAyoub](https://github.com/fakirAyoub))
+
+#### 📝 Documentation
+
+- docs: Code docs update [#238](https://github.com/galacticcouncil/HydraDX-node/pull/238) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 9
+
+- [@jareknowotka](https://github.com/jareknowotka)
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- André Silva ([@andresilva](https://github.com/andresilva))
+- Ayoub (ayoub.fakir@vodafoneziggo.com)
+- Ayoub Fakir ([@fakirAyoub](https://github.com/fakirAyoub))
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+- Jindrich Zeleny ([@green-jay](https://github.com/green-jay))
+- martin fridrich ([@martinfridrich](https://github.com/martinfridrich))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+---
+
+# v5.0.0 (Tue Apr 20 2021)
+
+#### 💥 Breaking Change
+
+- feat!: Snakenet gen2 - governance, epoch times and treasury [#188](https://github.com/galacticcouncil/HydraDX-node/pull/188) ([@Roznovjak](https://github.com/Roznovjak) [@green-jay](https://github.com/green-jay) [@jak-pan](https://github.com/jak-pan) [@lumir-mrkva](https://github.com/lumir-mrkva) [@martinfridrich](https://github.com/martinfridrich) [@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix(runtime)!: add tx fee multiplier [#208](https://github.com/galacticcouncil/HydraDX-node/pull/208) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- feat!: genesis history pallet [#202](https://github.com/galacticcouncil/HydraDX-node/pull/202) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- fix!:  set DOLLARS constant to correct number [#200](https://github.com/galacticcouncil/HydraDX-node/pull/200) ([@jak-pan](https://github.com/jak-pan))
+- fix!: offence is reported but slashing is not applied [#199](https://github.com/galacticcouncil/HydraDX-node/pull/199) ([@martinfridrich](https://github.com/martinfridrich) [@jak-pan](https://github.com/jak-pan))
+- feat!: governance [#183](https://github.com/galacticcouncil/HydraDX-node/pull/183) ([@Roznovjak](https://github.com/Roznovjak) [@green-jay](https://github.com/green-jay) [@jak-pan](https://github.com/jak-pan))
+- feat!: change epoch to 4 hours [#187](https://github.com/galacticcouncil/HydraDX-node/pull/187) ([@jak-pan](https://github.com/jak-pan))
+- feat!: setup technical committee [#174](https://github.com/galacticcouncil/HydraDX-node/pull/174) ([@Roznovjak](https://github.com/Roznovjak) [@green-jay](https://github.com/green-jay))
+
+#### 🚀 Enhancement
+
+- feat: version consistent with tagged release [#194](https://github.com/galacticcouncil/HydraDX-node/pull/194) ([@lumir-mrkva](https://github.com/lumir-mrkva) [@jak-pan](https://github.com/jak-pan))
+
+#### Refactoring
+
+- refactor(genesis-history): derived default genesis chain [#211](https://github.com/galacticcouncil/HydraDX-node/pull/211) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 6
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+- Jindrich Zeleny ([@green-jay](https://github.com/green-jay))
+- martin fridrich ([@martinfridrich](https://github.com/martinfridrich))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
 # v4.0.1 (Tue Mar 30 2021)
 
 #### 🐛 Bug Fix

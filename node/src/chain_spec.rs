@@ -3,10 +3,12 @@
 use hydra_dx_runtime::constants::currency::{Balance, HDX};
 use hydra_dx_runtime::opaque::SessionKeys;
 use hydra_dx_runtime::pallet_claims::EthereumAddress;
+use hydra_dx_runtime::GenesisConfig;
 use hydra_dx_runtime::{
 	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
-	ElectionsConfig, FaucetConfig, GenesisConfig, GrandpaConfig, ImOnlineConfig, Perbill, SessionConfig, Signature,
-	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+	ElectionsConfig, FaucetConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig,
+	Perbill, SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	TokensConfig, CORE_ASSET_ID, WASM_BINARY,
 };
 use pallet_staking::Forcing;
 use sc_service::ChainType;
@@ -17,12 +19,16 @@ use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 use hex_literal::hex;
+use hydra_dx_runtime::pallet_genesis_history::Chain;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
-// The URL for the telemetry server.
-const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
+// The URL for the telemetry server.
+const TELEMETRY_URLS: [&str; 2] = [
+	"wss://telemetry.polkadot.io/submit/",
+	"wss://telemetry.hydradx.io:9000/submit/",
+];
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
@@ -107,6 +113,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
 			)
@@ -137,7 +145,7 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"HydraDX Snakenet",
+		"HydraDX Snakenet Gen2",
 		// ID
 		"lerna",
 		ChainType::Live,
@@ -197,18 +205,24 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 		},
 		// Bootnodes TODO: BOOT NODES
 		vec![
-			"/dns/p2p-01.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWAJ8t7rsWvV7d1CRCT7afwtmBQBrRT7mMNDVCWK7n9CrD"
+			"/dns/p2p-01.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWAJ8t7rsWvV7d1CRCT7afwtmBQBrRT7mMNDVCWK7n9CrD"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-02.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWErP8DjDoVFjsCCzvD9mFZBA6Y1VKMEBNH8vKCWDZDHz5"
+			"/dns/p2p-02.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWErP8DjDoVFjsCCzvD9mFZBA6Y1VKMEBNH8vKCWDZDHz5"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-03.snakenet.hydradx.io/tcp/30333/p2p/12D3KooWH9rsDFq3wo13eKR5PWCvEDieK8uUKd1C1dLQNNxeU5AU"
+			"/dns/p2p-03.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWH9rsDFq3wo13eKR5PWCvEDieK8uUKd1C1dLQNNxeU5AU"
 				.parse()
 				.unwrap(),
 		],
 		// Telemetry
-		Some(TelemetryEndpoints::new(vec![(TELEMETRY_URL.to_string(), 0)]).expect("Telemetry url is valid")),
+		Some(
+			TelemetryEndpoints::new(vec![
+				(TELEMETRY_URLS[0].to_string(), 0),
+				(TELEMETRY_URLS[1].to_string(), 0),
+			])
+			.expect("Telemetry url is valid"),
+		),
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
@@ -253,6 +267,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
 			)
@@ -286,25 +302,25 @@ fn testnet_genesis(
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1_000_000.
 			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, 1_000_000u128 * HDX))
 				.collect(),
-		}),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
-		pallet_sudo: Some(SudoConfig {
+		},
+		grandpa: Default::default(),
+		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
-		}),
-		pallet_asset_registry: Some(AssetRegistryConfig {
+			key: root_key.clone(),
+		},
+		asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![
 				(b"tKSM".to_vec(), 1),
@@ -319,9 +335,14 @@ fn testnet_genesis(
 				(b"tUSDT".to_vec(), 10),
 			],
 			next_asset_id: 11,
-		}),
-		orml_tokens: Some(TokensConfig {
-			endowed_accounts: endowed_accounts
+		},
+		multi_transaction_payment: MultiTransactionPaymentConfig {
+			currencies: vec![],
+			authorities: vec![],
+			fallback_account: root_key,
+		},
+		tokens: TokensConfig {
+			balances: endowed_accounts
 				.iter()
 				.flat_map(|x| {
 					vec![
@@ -331,17 +352,20 @@ fn testnet_genesis(
 					]
 				})
 				.collect(),
-		}),
-		pallet_faucet: Some(FaucetConfig {
+		},
+		faucet: FaucetConfig {
 			rampage: true,
 			mint_limit: 5,
 			mintable_currencies: vec![0, 1, 2],
-		}),
-		pallet_babe: Some(BabeConfig { authorities: vec![] }),
-		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-		pallet_treasury: Some(Default::default()),
-		pallet_session: Some(SessionConfig {
+		},
+		babe: BabeConfig {
+			authorities: vec![],
+			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
+		},
+		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		im_online: Default::default(),
+		treasury: Default::default(),
+		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
 				.map(|x| {
@@ -352,8 +376,8 @@ fn testnet_genesis(
 					)
 				})
 				.collect::<Vec<_>>(),
-		}),
-		pallet_staking: Some(StakingConfig {
+		},
+		staking: StakingConfig {
 			validator_count: initial_authorities.len() as u32 * 2,
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
@@ -364,12 +388,26 @@ fn testnet_genesis(
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
-		}),
-		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
-		pallet_claims: Some(ClaimsConfig {
+		},
+		elections: ElectionsConfig {
+			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
+		},
+		council: CouncilConfig {
+			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			phantom: Default::default(),
+		},
+		technical_committee: TechnicalCommitteeConfig {
+			members: vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+			],
+			phantom: Default::default(),
+		},
+		claims: ClaimsConfig {
 			claims: create_testnet_claims(),
-		}),
+		},
+		genesis_history: GenesisHistoryConfig::default(),
 	}
 }
 
@@ -384,16 +422,16 @@ fn lerna_genesis(
 		AuthorityDiscoveryId,
 	)>,
 	root_key: AccountId,
-	endowed_accounts: Vec<AccountId>,
+	_endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
 	GenesisConfig {
-		frame_system: Some(SystemConfig {
+		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
+		},
+		balances: BalancesConfig {
 			// Intergalactic initial supply
 			balances: vec![
 				(
@@ -421,31 +459,44 @@ fn lerna_genesis(
 					hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
 					STASH,
 				),
+				(
+					// Unsold tokens treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					56873469471297884942_u128,
+				),
 			],
-		}),
-		pallet_grandpa: Some(GrandpaConfig { authorities: vec![] }),
-		pallet_sudo: Some(SudoConfig {
+		},
+		grandpa: GrandpaConfig { authorities: vec![] },
+		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
-		}),
-		pallet_asset_registry: Some(AssetRegistryConfig {
+		},
+		asset_registry: AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
 			asset_ids: vec![],
 			next_asset_id: 1,
-		}),
-		orml_tokens: Some(TokensConfig {
-			endowed_accounts: endowed_accounts.iter().flat_map(|_x| vec![]).collect(),
-		}),
-		pallet_faucet: Some(FaucetConfig {
+		},
+		multi_transaction_payment: MultiTransactionPaymentConfig {
+			currencies: vec![],
+			authorities: vec![],
+			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+		},
+		tokens: TokensConfig {
+			balances: vec![],
+		},
+		faucet: FaucetConfig {
 			rampage: false,
 			mint_limit: 5,
 			mintable_currencies: vec![],
-		}),
-		pallet_babe: Some(BabeConfig { authorities: vec![] }),
-		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-		pallet_treasury: Some(Default::default()),
-		pallet_session: Some(SessionConfig {
+		},
+		babe: BabeConfig {
+			authorities: vec![],
+			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
+		},
+		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		im_online: ImOnlineConfig { keys: vec![] },
+		treasury: Default::default(),
+		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
 				.map(|x| {
@@ -456,8 +507,8 @@ fn lerna_genesis(
 					)
 				})
 				.collect::<Vec<_>>(),
-		}),
-		pallet_staking: Some(StakingConfig {
+		},
+		staking: StakingConfig {
 			validator_count: 3,
 			minimum_validator_count: 3,
 			stakers: initial_authorities
@@ -468,10 +519,41 @@ fn lerna_genesis(
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
-		}),
-		pallet_elections_phragmen: Some(ElectionsConfig { members: vec![] }),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
-		pallet_claims: Some(ClaimsConfig { claims: vec![] }),
+		},
+		elections: ElectionsConfig {
+			// Intergalactic elections
+			members: vec![(
+				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
+				STASH,
+			)],
+		},
+		council: CouncilConfig {
+			// Intergalactic council member
+			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
+			phantom: Default::default(),
+		},
+		technical_committee: TechnicalCommitteeConfig {
+			members: vec![
+				hex!["d6cf8789dce651cb54a4036406f4aa0c771914d345c004ad0567b814c71fb637"].into(),
+				hex!["bc96ec00952efa8f0e3e08b36bf5096bcb877acac536e478aecb72868db5db02"].into(),
+				hex!["2875dd47bc1bcb70e23de79e7538c312be12c716033bbae425130e46f5f2b35e"].into(),
+				hex!["644643bf953233d08c4c9bae0acd49f3baa7658d9b342b7e6879bb149ee6e44c"].into(),
+				hex!["ccdb435892c9883656d0398b2b67023ba1e11bda0c7f213f70fdac54c6abab3f"].into(),
+				hex!["f461c5ae6e80bf4af5b84452789c17b0b0a095a2d77c2a407978147de2d5b572"].into(),
+			],
+			phantom: Default::default(),
+		},
+		claims: ClaimsConfig { claims: vec![] },
+		genesis_history: GenesisHistoryConfig {
+			previous_chain: Chain {
+				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"]
+					.to_vec()
+					.into(),
+				last_block_hash: hex!["f3c43294255f2d0cd8b3bc8787d18cc2adcec581f74d23df15ca75b8b77cd507"]
+					.to_vec()
+					.into(),
+			},
+		},
 	}
 }
 

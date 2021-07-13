@@ -1,50 +1,42 @@
-
 use super::*;
 use crate as price_fetch;
 
 use frame_support::parameter_types;
 
-use frame_system as system;
 use crate::Config;
+use frame_system as system;
 
-use sp_core::{
-	H256,
-	sr25519::Signature,
-};
+use sp_core::{sr25519::Signature, H256};
 
 use sp_runtime::{
 	testing::{Header, TestXt},
-	traits::{
-		BlakeTwo256, IdentityLookup, Extrinsic as ExtrinsicT, Verify, IdentifyAccount
-	},
+	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
 };
 
-use frame_support::{
-	weights::Weight,
-};
+use frame_support::weights::Weight;
 use sp_std::vec::Vec;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
-    pub enum Test where
-    Block = Block,
-    NodeBlock = Block,
-    UncheckedExtrinsic = UncheckedExtrinsic,
-    {
-        System: frame_system::{Module, Call, Config, Storage, Event<T>},
-        PriceFetch: price_fetch::{Module, Call, Storage, Event<T>},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-    }
+	pub enum Test where
+	Block = Block,
+	NodeBlock = Block,
+	UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		PriceFetch: price_fetch::{Pallet, Call, Storage, Event<T>},
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+	}
 );
 
 parameter_types! {
-    pub const BlockHashCount: u64 = 250;
+	pub const BlockHashCount: u64 = 250;
 	pub const MaximumBlockWeight: Weight = 1024;
 	pub const MaximumBlockLength: u32 = 2 * 1024;
 
-    pub const SS58Prefix: u8 = 63;
+	pub const SS58Prefix: u8 = 63;
 }
 
 impl system::Config for Test {
@@ -69,7 +61,8 @@ impl system::Config for Test {
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-    type SS58Prefix = SS58Prefix;
+	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
 }
 
 pub type Extrinsic = TestXt<Call, ()>;

@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![cfg(test)]
 
 use super::*;
@@ -11,7 +28,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
-use pallet_amm::AssetPairAccountIdFor;
+use pallet_xyk::AssetPairAccountIdFor;
 use primitives::{fee, AssetId, Balance};
 
 pub type Amount = i128;
@@ -37,11 +54,11 @@ frame_support::construct_runtime!(
 		 NodeBlock = Block,
 		 UncheckedExtrinsic = UncheckedExtrinsic,
 		 {
-				 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-				 Exchange: pallet_exchange::{Module, Call, Storage, Event<T>},
-				 AMMModule: pallet_amm::{Module, Call, Storage, Event<T>},
-				 Currency: orml_tokens::{Module, Event<T>},
-				 AssetRegistry: pallet_asset_registry::{Module, Storage},
+				 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+				 Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
+				 XYKPallet: pallet_xyk::{Pallet, Call, Storage, Event<T>},
+				 Currency: orml_tokens::{Pallet, Event<T>},
+				 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
 		 }
 
 );
@@ -75,6 +92,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
+	type OnSetCode = ();
 }
 
 parameter_type_with_key! {
@@ -91,6 +109,7 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
+	type MaxLocks = ();
 }
 
 pub struct AssetPairAccountIdTest();
@@ -112,20 +131,20 @@ impl pallet_asset_registry::Config for Test {
 	type AssetId = AssetId;
 }
 
-impl pallet_amm::Config for Test {
+impl pallet_xyk::Config for Test {
 	type Event = Event;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
-	type HDXAssetId = HDXAssetId;
+	type NativeAssetId = HDXAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
 }
 
 impl pallet_exchange::Config for Test {
 	type Event = Event;
-	type AMMPool = AMMModule;
+	type AMMPool = XYKPallet;
 	type Currency = Currency;
-	type Resolver = pallet_exchange::Module<Test>;
+	type Resolver = pallet_exchange::Pallet<Test>;
 	type WeightInfo = ();
 }
 
@@ -169,7 +188,7 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
-			endowed_accounts: self.endowed_accounts,
+			balances: self.endowed_accounts,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

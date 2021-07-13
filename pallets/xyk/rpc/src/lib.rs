@@ -1,9 +1,26 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![allow(clippy::upper_case_acronyms)]
 
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use module_amm_rpc_runtime_api::BalanceInfo;
+use pallet_xyk_rpc_runtime_api::BalanceInfo;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
@@ -13,8 +30,8 @@ use sp_runtime::{
 };
 use std::sync::Arc;
 
-pub use self::gen_client::Client as AMMClient;
-pub use module_amm_rpc_runtime_api::AMMApi as AMMRuntimeApi;
+pub use self::gen_client::Client as XYKClient;
+pub use pallet_xyk_rpc_runtime_api::XYKApi as XYKRuntimeApi;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,21 +41,21 @@ pub struct BalanceRequest<Balance> {
 }
 
 #[rpc]
-pub trait AMMApi<BlockHash, AccountId, AssetId, Balance, ResponseType> {
-	#[rpc(name = "amm_getPoolBalances")]
+pub trait XYKApi<BlockHash, AccountId, AssetId, Balance, ResponseType> {
+	#[rpc(name = "xyk_getPoolBalances")]
 	fn get_pool_balances(&self, pool_address: AccountId, at: Option<BlockHash>) -> Result<Vec<ResponseType>>;
 }
 
-/// A struct that implements the [`AMMApi`].
-pub struct AMM<C, B> {
+/// A struct that implements the [`XYKApi`].
+pub struct XYK<C, B> {
 	client: Arc<C>,
 	_marker: std::marker::PhantomData<B>,
 }
 
-impl<C, B> AMM<C, B> {
-	/// Create new `AMM` with the given reference to the client.
+impl<C, B> XYK<C, B> {
+	/// Create new `XYK` with the given reference to the client.
 	pub fn new(client: Arc<C>) -> Self {
-		AMM {
+		XYK {
 			client,
 			_marker: Default::default(),
 		}
@@ -59,11 +76,11 @@ impl From<Error> for i64 {
 }
 
 impl<C, Block, AccountId, AssetId, Balance>
-	AMMApi<<Block as BlockT>::Hash, AccountId, AssetId, Balance, BalanceInfo<AssetId, Balance>> for AMM<C, Block>
+	XYKApi<<Block as BlockT>::Hash, AccountId, AssetId, Balance, BalanceInfo<AssetId, Balance>> for XYK<C, Block>
 where
 	Block: BlockT,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-	C::Api: AMMRuntimeApi<Block, AccountId, AssetId, Balance>,
+	C::Api: XYKRuntimeApi<Block, AccountId, AssetId, Balance>,
 	AccountId: Codec,
 	AssetId: Codec,
 	Balance: Codec + MaybeDisplay + MaybeFromStr,

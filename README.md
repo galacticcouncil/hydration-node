@@ -70,39 +70,66 @@ Then open settings screen -> developer and paste
 
 ```
 {
-  "Amount": "i128",
-  "AmountOf": "Amount",
-  "Address": "AccountId",
-  "BalanceInfo": {
-    "amount": "Balance",
-    "assetId": "AssetId"
-  },
-  "CurrencyId": "AssetId",
-  "CurrencyIdOf": "AssetId",
-  "Intention": {
-    "who": "AccountId",
-    "asset_sell": "AssetId",
-    "asset_buy": "AssetId",
-    "amount": "Balance",
-    "discount": "bool",
-    "sell_or_buy": "IntentionType"
-  },
-  "IntentionId": "u128",
-  "IntentionType": {
-    "_enum": [
-      "SELL",
-      "BUY"
-    ]
-  },
-  "LookupSource": "AccountId",
-  "Price": "Balance"
+  "types": [
+    {
+      "AssetPair": {
+        "asset_in": "AssetId",
+        "asset_out": "AssetId"
+      },
+      "Amount": "i128",
+      "AmountOf": "Amount",
+      "Address": "AccountId",
+      "OrmlAccountData": {
+        "free": "Balance",
+        "frozen": "Balance",
+        "reserved": "Balance"
+      },
+      "BalanceInfo": {
+        "amount": "Balance",
+        "assetId": "AssetId"
+      },
+      "Chain": {
+        "genesisHash": "Vec<u8>",
+        "lastBlockHash": "Vec<u8>"
+      },
+      "CurrencyId": "AssetId",
+      "CurrencyIdOf": "AssetId",
+      "Intention": {
+        "who": "AccountId",
+        "asset_sell": "AssetId",
+        "asset_buy": "AssetId",
+        "amount": "Balance",
+        "discount": "bool",
+        "sell_or_buy": "IntentionType"
+      },
+      "IntentionId": "Hash",
+      "IntentionType": {
+        "_enum": [
+          "SELL",
+          "BUY"
+        ]
+      },
+      "LookupSource": "AccountId",
+      "OrderedSet": "Vec<AssetId>",
+      "Price": "Balance",
+      "Fee": {
+        "numerator": "u32",
+        "denominator": "u32",
+      },
+    }
+  ],
+  "alias": {
+    "tokens": {
+      "AccountData": 'OrmlAccountData',
+    }
+  }
 }
 ```
 
-Connect to the 
-- Hacknet: `wss://hack.hydradx.io:9944` 
+Connect to the
+- Hacknet: `wss://hack.hydradx.io:9944`
 - [Stakenet](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Frpc-01.snakenet.hydradx.io): `wss://rpc-01.snakenet.hydradx.io`
-- or local node.
+- or local node – if you are on chromium based browser, set chrome://flags/#allow-insecure-localhost
 
 ### Performance check
 
@@ -117,7 +144,7 @@ From the top-level node directory:
 ./scripts/check_performance.sh
 ```
 
-This will run series of benchmarks ( which may take a while). 
+This will run series of benchmarks ( which may take a while).
 The output will show benchmark results of HydraDX pallets and comparison against reference values.
 
 The most interesting information would be the difference between the HydraDx benchmark value and the local machine's benchmark.

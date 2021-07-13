@@ -1,14 +1,14 @@
 use super::*;
 use crate::mock::*;
 
-use sp_runtime::offchain::{
-    testing::{TestOffchainExt, self},
-    OffchainExt, TransactionPoolExt
-};
+use frame_support::{assert_noop, assert_ok};
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
-use frame_support::{assert_ok, assert_noop};
-use std::sync::Arc;
+use sp_runtime::offchain::{
+	testing::{self, TestOffchainExt},
+	OffchainDbExt, OffchainWorkerExt, TransactionPoolExt,
+};
 use sp_std::vec::Vec;
+use std::sync::Arc;
 
 #[test]
 fn parse_res_from_dia_should_work() {
@@ -16,7 +16,7 @@ fn parse_res_from_dia_should_work() {
 
 	let p = PriceFetch::parse_dia_res(data).unwrap();
 
-	assert_eq!(p.price, Price::from_fraction(17202.936692749197));
+	assert_eq!(p.price, Price::from_float(17202.936692749197));
 	assert_eq!(p.time, "2020-11-26T20:02:19.699386233Z".as_bytes());
 	assert_eq!(p.symbol, "BTC".as_bytes());
 
@@ -32,8 +32,7 @@ fn fetch_price_req_should_work() {
 	let (offchain, state) = sp_core::offchain::testing::TestOffchainExt::new();
 	let mut t = sp_io::TestExternalities::default();
 
-	t.register_extension(OffchainExt::new(offchain));
-
+	t.register_extension(OffchainWorkerExt::new(offchain));
 	{
 		let mut state = state.write();
 		state.expect_request(sp_core::offchain::testing::PendingRequest {
@@ -44,9 +43,9 @@ fn fetch_price_req_should_work() {
 			..Default::default()
 		});
 	}
- 
+
 	let p1 = DiaPriceRecord {
-		price: Price::from_fraction(599.5155962856843),
+		price: Price::from_float(599.5155962856843),
 		time: b"2020-12-04T17:22:35.694940893Z".to_vec(),
 		symbol: b"ETH".to_vec(),
 	};
@@ -100,14 +99,14 @@ fn add_new_price_to_storage_should_work() {
 		};
 
 		let p2 = FetchedPrice {
-			price: Price::from_fraction(8.23455),
+			price: Price::from_float(8.23455_f64),
 			symbol: key.clone(),
 			time: "2020-12-16T20:02:19.699386233Z".as_bytes().to_vec(),
 			author: Default::default(),
 		};
 
 		let p3 = FetchedPrice {
-			price: Price::from_fraction(11.432),
+			price: Price::from_float(11.432),
 			symbol: key.clone(),
 			time: "2020-10-20T20:02:19.699386233Z".as_bytes().to_vec(),
 			author: Default::default(),
@@ -142,18 +141,18 @@ fn cal_avg_price_and_submit_should_work() {
 	SyncCryptoStore::sr25519_generate_new(&keystore, KEY_TYPE, Some(&format!("{}/hunter1", PHRASE))).unwrap();
 
 	let mut t = sp_io::TestExternalities::default();
-	t.register_extension(OffchainExt::new(offchain));
+	t.register_extension(OffchainDbExt::new(offchain));
 	t.register_extension(TransactionPoolExt::new(pool));
 	t.register_extension(KeystoreExt(Arc::new(keystore)));
 
 	t.execute_with(|| {
 		let key = b"ETH".to_vec();
 		let prices: Vec<Price> = [
-			Price::from_fraction(1232.032342323423),
-			Price::from_fraction(3223332.32032890342),
-			Price::from_fraction(82339.3203842),
-			Price::from_fraction(812341241234214.320381241242),
-			Price::from_fraction(234214.1241242),
+			Price::from_float(1232.032342323423),
+			Price::from_float(3223332.32032890342),
+			Price::from_float(82339.3203842),
+			Price::from_float(812341241234214.320381241242),
+			Price::from_float(234214.1241242),
 		]
 		.to_vec();
 
@@ -209,11 +208,12 @@ fn cal_avg_price_and_submit_should_work() {
 		assert!(pool_state.read().transactions.is_empty());
 		let tx = mock::Extrinsic::decode(&mut &*tx).unwrap();
 		assert_eq!(tx.signature.unwrap().0, 0);
-		assert_eq!(tx.call, mock::Call::PriceFetch(crate::Call::submit_new_avg_price(key.clone(), avg)));
-        
+		assert_eq!(
+			tx.call,
+			mock::Call::PriceFetch(crate::Call::submit_new_avg_price(key.clone(), avg))
+		);
 	})
 }
-
 
 /*
 #[test]
@@ -222,7 +222,7 @@ fn offchain_should_work() {
 	let mut ext = new_test_ext();
 	let (offchain, _state) = TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
-	ext.register_extension(OffchainExt::new(offchain));
+	ext.register_extension(OffchainDbExt::new(offchain));
 	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let keystore = KeyStore::new();
 	keystore.write().sr25519_generate_new(
@@ -230,7 +230,7 @@ fn offchain_should_work() {
 		Some(&format!("{}/hunter1", PHRASE))
 	).unwrap();
 	let mut t = sp_io::TestExternalities::default();
-	t.register_extension(OffchainExt::new(offchain));
+	t.register_extension(OffchainDbExt::new(offchain));
 	t.register_extension(TransactionPoolExt::new(pool));
 	t.register_extension(KeystoreExt(keystore));
 	ext.execute_with(|| {

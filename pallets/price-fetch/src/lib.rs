@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 
@@ -18,17 +17,15 @@
 ///
 /// We assume proof of stake environment, thus we can be sure this process is secured by validators stake.
 ///
-
 use codec::{Decode, Encode};
-use sp_core::crypto::KeyTypeId;
-use sp_std::vec::Vec;
-use primitives::Price;
-use frame_support::debug;
 use frame_system::{
-    ensure_signed,
-    offchain::{Signer, SendSignedTransaction, CreateSignedTransaction}
+	ensure_signed,
+	offchain::{CreateSignedTransaction, SendSignedTransaction, Signer},
 };
+use primitives::Price;
+use sp_core::crypto::KeyTypeId;
 use sp_runtime::offchain::{http, Duration};
+use sp_std::vec::Vec;
 
 use alt_serde::{Deserialize, Deserializer};
 
@@ -101,34 +98,33 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use super::*;
+	use super::*;
 
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
 
-
-    #[pallet::config]
-    pub trait Config: CreateSignedTransaction<Call<Self>> + pallet_timestamp::Config + frame_system::Config {
-        /// The overarching event type.
-        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+	#[pallet::config]
+	pub trait Config: CreateSignedTransaction<Call<Self>> + pallet_timestamp::Config + frame_system::Config {
+		/// The overarching event type.
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// The overarching dispatch call type.
 		type Call: From<Call<Self>>;
 
-        /// The identifier type for an offchain worker.
-        type AuthorityId: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>;
+		/// The identifier type for an offchain worker.
+		type AuthorityId: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>;
 
-        /// Grace period between submitting prices. Submit price only every GracePeriod block
-        #[pallet::constant]
-        type GracePeriod: Get<Self::BlockNumber>;
-    }
+		/// Grace period between submitting prices. Submit price only every GracePeriod block
+		#[pallet::constant]
+		type GracePeriod: Get<Self::BlockNumber>;
+	}
 
-    #[pallet::pallet]
-    pub struct Pallet<T>(_);
+	#[pallet::pallet]
+	pub struct Pallet<T>(_);
 
-    #[pallet::event]
-    #[pallet::generate_deposit(pub(crate) fn deposit_event)]
-    pub enum Event<T: Config> {
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
 		//New fetcher was initialized
 		NewFetcher(T::AccountId, Symbol, <T as pallet_timestamp::Config>::Moment),
 
@@ -137,99 +133,108 @@ pub mod pallet {
 
 		//New avg price was calculated and old fetcher was destroyed
 		NewAvgPrice(T::AccountId, Symbol, <T as pallet_timestamp::Config>::Moment, Price),
-    }
+	}
 
-    #[pallet::error]
-    pub enum Error<T> {
-        //Fetcher for required symbol is already running
-        FetcherAlreadyExist,
-        //start fetcher for unsupported symbol (currency/token, e.g ETH
-        SymbolNotFound,
+	#[pallet::error]
+	pub enum Error<T> {
+		//Fetcher for required symbol is already running
+		FetcherAlreadyExist,
+		//start fetcher for unsupported symbol (currency/token, e.g ETH
+		SymbolNotFound,
 
-        FetcherNotFound,
-    }
+		FetcherNotFound,
+	}
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
 			//NOTE: sp_io::offchain::is_validator()
 
 			//NOTE: for higher amount of fetchers it would be better to use different storage structure to
 			//minimize storage access
 			<Fetchers<T>>::iter().for_each(|(_, f)| {
-
 				//TASK I.: check fetchers that should end - calculate avg, submit price, and clear
 				//storage
 				if f.end_fetching_at <= block_number {
 					if let Err(e) = Self::calc_and_submit_avg_price(f) {
-						debug::error!("Error: {}", e);
+						log::error!("Error: {}", e);
 					}
 				} else if block_number % T::GracePeriod::get() == 0u32.into() {
 					//TASK II.: Fetch and submit price
 					if let Err(e) = Self::fetch_price_and_submit(f) {
-						debug::error!("Error: {}", e);
+						log::error!("Error: {}", e);
 					}
 				}
 			});
 		}
-    }
+	}
 
-    #[pallet::call]
-    impl<T: Config> Pallet<T> {
-        ///Start fetching price for 600 blocks
-        //TODO: add fetched duration and symbol
-        #[pallet::weight((0, Pays::No))]
-        pub fn start_fetcher(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
-            ensure!(!<Fetchers<T>>::contains_key(&SYM.to_vec()), Error::<T>::FetcherAlreadyExist);
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		///Start fetching price for 600 blocks
+		//TODO: add fetched duration and symbol
+		#[pallet::weight((0, Pays::No))]
+		pub fn start_fetcher(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			ensure!(
+				!<Fetchers<T>>::contains_key(&SYM.to_vec()),
+				Error::<T>::FetcherAlreadyExist
+			);
 
-            //TODO: duration should be param of function
-            let end_at = <frame_system::Module<T>>::block_number() + T::BlockNumber::from(600u32); //600 blocs is 1hour at 1 block/6s
-            let url = match SYMBOLS.iter().find(|(s, _)| s == SYM) {
-                Some (p) => Ok(p.1),
-                None => Err(Error::<T>::SymbolNotFound)
-            }?;
+			//TODO: duration should be param of function
+			let end_at = <frame_system::Pallet<T>>::block_number() + T::BlockNumber::from(600u32); //600 blocs is 1hour at 1 block/6s
+			let url = match SYMBOLS.iter().find(|(s, _)| s == SYM) {
+				Some(p) => Ok(p.1),
+				None => Err(Error::<T>::SymbolNotFound),
+			}?;
 
-            let new_fetcher = Fetcher {
-                symbol: SYM.to_vec(),
-                end_fetching_at: end_at,
-                url: url.to_vec()
-            };
+			let new_fetcher = Fetcher {
+				symbol: SYM.to_vec(),
+				end_fetching_at: end_at,
+				url: url.to_vec(),
+			};
 
-            <Fetchers<T>>::insert(SYM.to_vec(), new_fetcher);
+			<Fetchers<T>>::insert(SYM.to_vec(), new_fetcher);
 
-            let now = <pallet_timestamp::Pallet<T>>::get();
-            Self::deposit_event(Event::NewFetcher(who, SYM.to_vec(), now));
+			let now = <pallet_timestamp::Pallet<T>>::get();
+			Self::deposit_event(Event::NewFetcher(who, SYM.to_vec(), now));
 
-            Ok(().into())
-        }
-    
-        #[pallet::weight((0, Pays::No))]
-        pub fn submit_new_price(origin: OriginFor<T>, price_record: DiaPriceRecord) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
+			Ok(().into())
+		}
 
-            ensure!(<Fetchers<T>>::contains_key(&price_record.symbol), Error::<T>::FetcherNotFound);
-
-            let new_price = FetchedPrice {
-                price: price_record.price,
-                time: price_record.time,
-                symbol: price_record.symbol.clone(),
-                author: who.clone()
-            };
-
-            Self::add_new_price_to_list(new_price);
-
-            let now = <pallet_timestamp::Pallet<T>>::get();
-            Self::deposit_event(Event::NewPricePoint(who, price_record.symbol, now, price_record.price));
-
-            Ok(().into())
-        }
-
-        #[pallet::weight((0, Pays::No))]
-		pub fn submit_new_avg_price(origin: OriginFor<T>, symbol: Symbol, avg_price:Price) -> DispatchResultWithPostInfo {
+		#[pallet::weight((0, Pays::No))]
+		pub fn submit_new_price(origin: OriginFor<T>, price_record: DiaPriceRecord) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			let now = <pallet_timestamp::Module<T>>::get();
+			ensure!(
+				<Fetchers<T>>::contains_key(&price_record.symbol),
+				Error::<T>::FetcherNotFound
+			);
+
+			let new_price = FetchedPrice {
+				price: price_record.price,
+				time: price_record.time,
+				symbol: price_record.symbol.clone(),
+				author: who.clone(),
+			};
+
+			Self::add_new_price_to_list(new_price);
+
+			let now = <pallet_timestamp::Pallet<T>>::get();
+			Self::deposit_event(Event::NewPricePoint(who, price_record.symbol, now, price_record.price));
+
+			Ok(().into())
+		}
+
+		#[pallet::weight((0, Pays::No))]
+		pub fn submit_new_avg_price(
+			origin: OriginFor<T>,
+			symbol: Symbol,
+			avg_price: Price,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let now = <pallet_timestamp::Pallet<T>>::get();
 			<AvgPrices<T>>::insert(symbol.clone(), (now, avg_price, who.clone()));
 
 			//delete finished fetcher and remove old data
@@ -240,24 +245,23 @@ pub mod pallet {
 
 			Ok(().into())
 		}
-    }
+	}
 
 	///Map of currently running fetchers
-    #[pallet::storage]
-    #[pallet::getter(fn fetcher)]
+	#[pallet::storage]
+	#[pallet::getter(fn fetcher)]
 	pub type Fetchers<T: Config> = StorageMap<_, Identity, Vec<u8>, Fetcher<T::BlockNumber>, ValueQuery>;
 
-    ///Map of raw fetched_prices from oracle. Key is hash of symbol e.g hash('ETH')
-    #[pallet::storage]
-    #[pallet::getter(fn fetched_prices)]
-    pub type FetchedPrices<T: Config> = StorageMap<_, Identity, Vec<u8>, Vec<FetchedPrice<T::AccountId>>, ValueQuery>;
+	///Map of raw fetched_prices from oracle. Key is hash of symbol e.g hash('ETH')
+	#[pallet::storage]
+	#[pallet::getter(fn fetched_prices)]
+	pub type FetchedPrices<T: Config> = StorageMap<_, Identity, Vec<u8>, Vec<FetchedPrice<T::AccountId>>, ValueQuery>;
 
 	///Map of aggregated prices
-    #[pallet::storage]
-    #[pallet::getter(fn avg_price)]
-	pub type AvgPrices<T:Config> = StorageMap<_, Identity, Vec<u8>, (T::Moment, Price, T::AccountId), ValueQuery>;
+	#[pallet::storage]
+	#[pallet::getter(fn avg_price)]
+	pub type AvgPrices<T: Config> = StorageMap<_, Identity, Vec<u8>, (T::Moment, Price, T::AccountId), ValueQuery>;
 }
-
 
 impl<T: Config> Pallet<T> {
 	fn add_new_price_to_list(price: FetchedPrice<T::AccountId>) {
@@ -296,8 +300,8 @@ impl<T: Config> Pallet<T> {
 
 		for (acc, res) in &results {
 			match res {
-				Ok(()) => debug::info!("New price submitted by [{:?}]", acc.id),
-				Err(e) => debug::error!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
+				Ok(()) => log::info!("New price submitted by [{:?}]", acc.id),
+				Err(e) => log::error!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
 			}
 		}
 
@@ -322,8 +326,8 @@ impl<T: Config> Pallet<T> {
 
 		for (acc, res) in &results {
 			match res {
-				Ok(()) => debug::info!("New price submitted by [{:?}]", acc.id),
-				Err(e) => debug::error!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
+				Ok(()) => log::info!("New price submitted by [{:?}]", acc.id),
+				Err(e) => log::error!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
 			}
 		}
 
@@ -341,20 +345,20 @@ impl<T: Config> Pallet<T> {
 		let response = pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
 
 		if response.code != 200 {
-			debug::warn!("Unexpected status code: {}", response.code);
+			log::warn!("Unexpected status code: {}", response.code);
 			return Err(http::Error::Unknown);
 		}
 
 		let body = response.body().collect::<Vec<u8>>();
 		let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
-			debug::warn!("No UTF8 body");
+			log::warn!("No UTF8 body");
 			http::Error::Unknown
 		})?;
 
 		let price = match Self::parse_dia_res(body_str) {
 			Some(price) => Ok(price),
 			None => {
-				debug::warn!("Unable to parse response: {:?}", body_str);
+				log::warn!("Unable to parse response: {:?}", body_str);
 				Err(http::Error::Unknown)
 			}
 		}?;
@@ -397,4 +401,3 @@ pub mod crypto {
 		type GenericPublic = sp_core::sr25519::Public;
 	}
 }
-

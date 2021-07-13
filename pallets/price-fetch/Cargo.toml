@@ -33,12 +33,13 @@ sp-core = {default-features = false, version = '3.0.0'}
 sp-io = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
+log = { version = "0.4.14", default-features = false }
 
 # Local dependencies
-primitives = {path = '../../primitives', default-features = false, version = '3.0.0'}
+primitives = {path = '../../primitives', default-features = false, version = '4.2.0'}
 
 [dev-dependencies]
-sp-keystore = { git = "https://github.com/paritytech/substrate", rev = "e84d2ae4e519d77f59ef68c8efd48909a70d58e8" }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
 serde = {version = "1.0.0", default-features = false, features = ["derive"]}
 
 
@@ -52,4 +53,5 @@ std = [
   'sp-core/std',
   'sp-api/std',
   'pallet-timestamp/std',
+  'log/std',
 ]

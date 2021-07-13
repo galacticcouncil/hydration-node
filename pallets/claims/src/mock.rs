@@ -1,3 +1,20 @@
+// This file is part of HydraDX.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate as claims;
 use crate::{Config, EthereumAddress};
 use frame_support::parameter_types;
@@ -21,9 +38,9 @@ frame_support::construct_runtime!(
 	 NodeBlock = Block,
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
-		 System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		 ClaimsModule: claims::{Module, Call, Storage, Event<T>},
-		 Balances: pallet_balances::{Module, Event<T>},
+		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		 ClaimsPallet: claims::{Pallet, Call, Storage, Event<T>},
+		 Balances: pallet_balances::{Pallet, Event<T>},
 	 }
 );
 
@@ -54,6 +71,7 @@ impl frame_system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
+	type OnSetCode = ();
 }
 
 impl pallet_balances::Config for Test {
@@ -62,8 +80,10 @@ impl pallet_balances::Config for Test {
 	type Event = Event;
 	type DustRemoval = ();
 	type ExistentialDeposit = ();
-	type AccountStore = frame_system::Module<Test>;
+	type AccountStore = frame_system::Pallet<Test>;
 	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 parameter_types! {
