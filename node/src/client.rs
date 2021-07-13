@@ -3,7 +3,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 pub use crate::service::{FullBackend, FullClient, HydraExecutor, LightBackend, LightClient, TestingHydraExecutor};
-use common_runtime::{AccountId, AssetId, Balance, BlockNumber, Hash, Index, Block, Header};
+use common_runtime::{AccountId, AssetId, Balance, Block, BlockNumber, Hash, Header, Index};
 use sc_client_api::{Backend as BackendT, BlockchainEvents, KeyIterator};
 use sp_api::{CallApiAt, NumberFor, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
@@ -193,6 +193,13 @@ impl sc_client_api::BlockBackend<Block> for Client {
 		match self {
 			Self::HydraDX(client) => client.indexed_transaction(id),
 			Self::TestingHydraDX(client) => client.indexed_transaction(id),
+		}
+	}
+
+	fn block_indexed_body(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Vec<Vec<u8>>>> {
+		match self {
+			Self::HydraDX(client) => client.block_indexed_body(id),
+			Self::TestingHydraDX(client) => client.block_indexed_body(id),
 		}
 	}
 }

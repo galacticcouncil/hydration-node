@@ -86,7 +86,7 @@ pub mod chain {
 	pub const MIN_TRADING_LIMIT: Balance = 1000;
 
 	pub const RUNTIME_AUTHORING_VERSION: u32 = 1;
-	pub const RUNTIME_SPEC_VERSION: u32 = 18;
+	pub const RUNTIME_SPEC_VERSION: u32 = 19;
 	pub const RUNTIME_IMPL_VERSION: u32 = 0;
 	pub const RUNTIME_TRANSACTION_VERSION: u32 = 1;
 
@@ -122,4 +122,3 @@ mod tests {
 		assert_eq!(EPOCH_DURATION_IN_BLOCKS, 4 * HOURS);
 	}
 }
-

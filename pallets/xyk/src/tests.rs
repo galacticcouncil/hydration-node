@@ -114,6 +114,36 @@ fn create_pool_overflowing_amount_should_not_work() {
 }
 
 #[test]
+fn create_pool_with_insufficient_balance_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+
+		assert_noop!(
+			XYK::create_pool(
+				Origin::signed(user),
+				4000,
+				asset_a,
+				100_000_000_000_000,
+				Price::from(10)
+			),
+			Error::<Test>::InsufficientAssetBalance
+		);
+
+		assert_noop!(
+			XYK::create_pool(
+				Origin::signed(user),
+				asset_a,
+				4000,
+				100_000_000_000_000,
+				Price::from(10)
+			),
+			Error::<Test>::InsufficientAssetBalance
+		);
+	});
+}
+
+#[test]
 fn add_liquidity_should_work() {
 	new_test_ext().execute_with(|| {
 		let user = ALICE;
@@ -207,6 +237,7 @@ fn add_liquidity_as_another_user_should_work() {
 		expect_events(vec![
 			Event::PoolCreated(ALICE, asset_b, asset_a, 1000000000000).into(),
 			Event::LiquidityAdded(ALICE, asset_b, asset_a, 400000, 4000000000).into(),
+			orml_tokens::Event::Endowed(0, 2, 10000000000).into(),
 			Event::LiquidityAdded(BOB, asset_b, asset_a, 1000000, 10000000000).into(),
 		]);
 	});
@@ -254,6 +285,105 @@ fn remove_liquidity_should_work() {
 }
 
 #[test]
+fn remove_liquidity_without_shares_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000,
+			Price::from(1)
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+		let share_token = XYK::share_token(pair_account);
+		let shares = Currency::free_balance(share_token, &user);
+
+		assert_ok!(Currency::transfer(Origin::signed(ALICE), BOB, share_token, shares));
+
+		assert_noop!(
+			XYK::remove_liquidity(Origin::signed(user), asset_a, asset_b, 355_000),
+			Error::<Test>::InsufficientAssetBalance
+		);
+
+		expect_events(vec![
+			Event::PoolCreated(ALICE, asset_a, asset_b, 100000000).into(),
+			orml_tokens::Event::Endowed(share_token, BOB, shares).into(),
+			orml_tokens::Event::Transfer(share_token, ALICE, BOB, shares).into(),
+		]);
+	});
+}
+
+// events in the following test do not occur during standard chain operation
+#[test]
+fn remove_liquidity_from_reduced_pool_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = HDX;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			100_000_000,
+			Price::from(1)
+		));
+
+		let pair_account = XYK::get_pair_id(AssetPair {
+			asset_in: asset_a,
+			asset_out: asset_b,
+		});
+
+		// remove some amount from the pool
+		assert_ok!(Currency::transfer(
+			Origin::signed(pair_account),
+			BOB,
+			asset_a,
+			90_000_000
+		));
+
+		assert_noop!(
+			XYK::remove_liquidity(Origin::signed(user), asset_a, asset_b, 200_000_000),
+			Error::<Test>::InsufficientAssetBalance
+		);
+
+		// return it back to the pool
+		assert_ok!(Currency::transfer(
+			Origin::signed(BOB),
+			pair_account,
+			asset_a,
+			90_000_000
+		));
+		// do it again with asset_b
+		assert_ok!(Currency::transfer(
+			Origin::signed(pair_account),
+			BOB,
+			asset_b,
+			90_000_000
+		));
+
+		assert_noop!(
+			XYK::remove_liquidity(Origin::signed(user), asset_a, asset_b, 200_000_000),
+			Error::<Test>::InsufficientAssetBalance
+		);
+		expect_events(vec![
+			Event::PoolCreated(ALICE, asset_a, asset_b, 100000000).into(),
+			orml_tokens::Event::Transfer(asset_a, pair_account, BOB, 90_000_000).into(),
+			orml_tokens::Event::Transfer(asset_a, BOB, pair_account, 90_000_000).into(),
+			orml_tokens::Event::Transfer(asset_b, pair_account, BOB, 90_000_000).into(),
+		]);
+	});
+}
+
+#[test]
 fn add_liquidity_more_than_owner_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(XYK::create_pool(
@@ -268,6 +398,11 @@ fn add_liquidity_more_than_owner_should_not_work() {
 
 		assert_noop!(
 			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 200_000_000_000_000_000, 600_000_000),
+			Error::<Test>::InsufficientAssetBalance
+		);
+
+		assert_noop!(
+			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 600_000_000, 200_000_000_000_000_000),
 			Error::<Test>::InsufficientAssetBalance
 		);
 	});
@@ -286,6 +421,24 @@ fn add_zero_liquidity_should_not_work() {
 		assert_noop!(
 			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 100, 0),
 			Error::<Test>::CannotAddZeroLiquidity
+		);
+	});
+}
+
+#[test]
+fn add_liquidity_exceeding_max_limit_should_not_work() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(XYK::create_pool(
+			Origin::signed(ALICE),
+			HDX,
+			ACA,
+			100_000_000_000_000,
+			Price::from(1)
+		));
+
+		assert_noop!(
+			XYK::add_liquidity(Origin::signed(ALICE), HDX, ACA, 10_000_000, 1_000_000),
+			Error::<Test>::AssetAmountExceededLimit
 		);
 	});
 }
@@ -512,6 +665,7 @@ fn work_flow_happy_path_should_work() {
 
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 350_000_000_000).into(),
+			orml_tokens::Event::Endowed(0, 2, 300000000000).into(),
 			Event::LiquidityAdded(user_2, asset_a, asset_b, 300_000_000_000, 12_000_000_000_000).into(),
 			Event::SellExecuted(
 				user_2,
@@ -673,9 +827,124 @@ fn discount_sell_fees_should_work() {
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, HDX, 10_000).into(),
 			frame_system::Event::NewAccount(pair_account).into(),
+			orml_tokens::Event::Endowed(asset_a, pair_account, 30000).into(),
+			orml_tokens::Event::Endowed(asset_b, pair_account, 60000).into(),
+			orml_tokens::Event::Endowed(1, 1, 60000).into(),
 			Event::PoolCreated(user_1, asset_a, asset_b, 60_000).into(),
 			Event::SellExecuted(user_1, asset_a, asset_b, 10_000, 14_991, asset_b, 10).into(),
 		]);
+	});
+}
+
+#[test]
+fn sell_without_sufficient_balance_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			1_000_000_000,
+			Price::from(1)
+		));
+
+		assert_ok!(Currency::transfer(Origin::signed(user), BOB, ACA, 999_998_999_999_999));
+
+		assert_noop!(
+			XYK::sell(Origin::signed(user), ACA, DOT, 1_000, 100, false),
+			Error::<Test>::InsufficientAssetBalance
+		);
+	});
+}
+
+#[test]
+fn sell_without_sufficient_discount_balance_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			Price::from(1)
+		));
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_a,
+			HDX,
+			1_000_000_000_000,
+			Price::from(1)
+		));
+
+		assert_ok!(Currency::transfer(Origin::signed(user), BOB, HDX, 998_999_999_999_999));
+
+		assert_noop!(
+			XYK::sell(Origin::signed(user), ACA, DOT, 1_000_000_000, 100, true),
+			Error::<Test>::InsufficientNativeCurrencyBalance
+		);
+	});
+}
+
+#[test]
+fn buy_without_sufficient_balance_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			1_000_000_000,
+			Price::from(1)
+		));
+
+		assert_ok!(Currency::transfer(Origin::signed(user), BOB, ACA, 999_998_999_999_999));
+
+		assert_noop!(
+			XYK::buy(Origin::signed(user), DOT, ACA, 1_000, 10_000, false),
+			Error::<Test>::InsufficientAssetBalance
+		);
+	});
+}
+
+#[test]
+fn buy_without_sufficient_discount_balance_should_not_work() {
+	new_test_ext().execute_with(|| {
+		let user = ALICE;
+		let asset_a = ACA;
+		let asset_b = DOT;
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_a,
+			asset_b,
+			1_000_000_000_000,
+			Price::from(1)
+		));
+
+		assert_ok!(XYK::create_pool(
+			Origin::signed(user),
+			asset_b,
+			HDX,
+			1_000_000_000_000,
+			Price::from(1)
+		));
+
+		assert_ok!(Currency::transfer(Origin::signed(user), BOB, HDX, 998_999_999_999_999));
+
+		assert_noop!(
+			XYK::buy(Origin::signed(user), DOT, ACA, 1_000_000_000, 10_000_000_000, true),
+			Error::<Test>::InsufficientNativeCurrencyBalance
+		);
 	});
 }
 
@@ -803,6 +1072,9 @@ fn single_buy_with_discount_should_work() {
 		expect_events(vec![
 			Event::PoolCreated(user_1, asset_a, asset_b, 640_000_000_000).into(),
 			frame_system::Event::NewAccount(native_pair_account).into(),
+			orml_tokens::Event::Endowed(asset_a, 1003000, 50000000000).into(),
+			orml_tokens::Event::Endowed(1000, 1003000, 100000000000).into(),
+			orml_tokens::Event::Endowed(1, 1, 100000000000).into(),
 			Event::PoolCreated(user_1, asset_a, HDX, 100_000_000_000).into(),
 			Event::BuyExecuted(
 				user_1,
@@ -1021,6 +1293,9 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 			Event::LiquidityRemoved(user, asset_a, asset_b, 100_000_000).into(),
 			Event::PoolDestroyed(user, asset_a, asset_b).into(),
 			frame_system::Event::NewAccount(pair_account).into(),
+			orml_tokens::Event::Endowed(asset_a, pair_account, 100000000).into(),
+			orml_tokens::Event::Endowed(asset_b, pair_account, 1000000000000).into(),
+			orml_tokens::Event::Endowed(0, 1, 100000000).into(),
 			Event::PoolCreated(user, asset_a, asset_b, 100_000_000).into(),
 		]);
 	});
@@ -1040,7 +1315,7 @@ fn create_pool_with_same_assets_should_not_be_allowed() {
 }
 
 #[test]
-fn sell_test_exceeding_max_limit() {
+fn sell_test_not_reaching_limit() {
 	ExtBuilder::default().build().execute_with(|| {
 		let user_1 = ALICE;
 		let asset_a = ACA;
@@ -1076,7 +1351,7 @@ fn sell_test_exceeding_max_limit() {
 				1_000_000_000_000_000,
 				false,
 			),
-			Error::<Test>::AssetBalanceLimitExceeded
+			Error::<Test>::AssetAmountNotReachedLimit
 		);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);
@@ -1124,7 +1399,7 @@ fn buy_test_exceeding_max_limit() {
 				1_000_000_000,
 				false,
 			),
-			Error::<Test>::AssetBalanceLimitExceeded
+			Error::<Test>::AssetAmountExceededLimit
 		);
 
 		assert_eq!(Currency::free_balance(asset_a, &user_1), 999800000000000);

@@ -5,7 +5,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'hydra-dx-runtime'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '18.0.0'
+version = '19.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -24,11 +24,11 @@ version = '2.0.0'
 hex-literal = {optional = true, version = '0.3.1'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 tracing-core = {optional = true, version = '0.1.17'}
+smallvec = "1.6.1"
 
 # local dependencies
 common-runtime = {path = '../common', default-features = false}
 pallet-asset-registry = {path = '../../pallets/asset-registry', default-features = false}
-pallet-balances = {path = '../../pallets/balances', default-features = false}
 pallet-claims = {path = '../../pallets/claims', default-features = false}
 pallet-exchange = {path = '../../pallets/exchange', default-features = false}
 pallet-exchange-benchmarking = {path = '../../pallets/exchange/benchmarking', default-features = false, optional = true}
@@ -72,6 +72,7 @@ frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
 frame-system-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
 frame-system-rpc-runtime-api = {default-features = false, version = '3.0.0'}
+pallet-balances = {default-features = false, version = "3.0.0"}
 pallet-grandpa = {default-features = false, version = '3.0.0'}
 pallet-identity = {default-features = false, version = '3.0.0'}
 pallet-randomness-collective-flip = {default-features = false, version = '3.0.0'}
@@ -91,6 +92,7 @@ sp-staking = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
 sp-transaction-pool = {default-features = false, version = '3.0.0'}
 sp-version = {default-features = false, version = '3.0.0'}
+sp-io = {default-features = false, version = "3.0.0"}
 
 [features]
 default = ['std']
@@ -102,7 +104,7 @@ runtime-benchmarks = [
   'frame-system/runtime-benchmarks',
   'pallet-balances/runtime-benchmarks',
   'pallet-timestamp/runtime-benchmarks',
-  'pallet-multi-payment-benchmarking/std',
+  'pallet-multi-payment-benchmarking',
   "pallet-xyk/runtime-benchmarks",
   "pallet-exchange-benchmarking",
   'pallet-collective/runtime-benchmarks',
@@ -121,6 +123,7 @@ std = [
   'orml-tokens/std',
   'orml-traits/std',
   'pallet-xyk/std',
+  'pallet-xyk-rpc-runtime-api/std',
   'pallet-claims/std',
   'pallet-asset-registry/std',
   'pallet-democracy/std',
@@ -137,6 +140,7 @@ std = [
   'pallet-timestamp/std',
   'pallet-tips/std',
   'pallet-transaction-payment/std',
+  'pallet-transaction-multi-payment/std',
   'pallet-transaction-payment-rpc-runtime-api/std',
   'sp-api/std',
   'sp-block-builder/std',

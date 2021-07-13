@@ -24,7 +24,9 @@ pub use frame_support::{
 };
 pub use frame_system::limits;
 pub mod constants;
+use codec::alloc::vec;
 pub use constants::{chain::*, currency::*, time::*};
+pub use frame_support::PalletId;
 use pallet_transaction_payment::Multiplier;
 pub use primitives::{fee, Amount, AssetId, Balance};
 use sp_runtime::{
@@ -35,8 +37,6 @@ use sp_runtime::{
 pub use sp_runtime::{
 	transaction_validity::TransactionPriority, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
-pub use frame_support::PalletId;
-use codec::alloc::vec;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -92,18 +92,25 @@ parameter_types! {
 parameter_types! {
 	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
+	pub const MaxReserves: u32 = 50;
 }
 
 // pallet transaction payment
 parameter_types! {
+	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
+	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
+	/// change the fees more rapidly.
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
+	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
+	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
-// pallet transaction payment
+// pallet transaction multi payment
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
 	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
 }
 
