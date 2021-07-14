@@ -508,7 +508,6 @@ use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::fee;
-use frame_support::traits::OnKilledAccount;
 
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;
