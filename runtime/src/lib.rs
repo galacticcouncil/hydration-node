@@ -293,13 +293,20 @@ impl frame_system::Config for Runtime {
 	/// What to do if a new account is created.
 	type OnNewAccount = ();
 	/// What to do if an account is fully reaped from the system.
-	type OnKilledAccount = ();
+	type OnKilledAccount = CallKillAccount<Runtime>;
 	/// The data to be stored in an account.
 	type AccountData = pallet_balances::AccountData<Balance>;
 	/// Weight information for the extrinsics of this pallet.
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
+}
+
+use sp_std::marker::PhantomData;
+pub struct CallKillAccount<T>(PhantomData<T>);
+impl<T: pallet_balances::Config> OnKilledAccount<T::AccountId> for CallKillAccount<T> {
+    fn on_killed_account(who: &T::AccountId) {
+    }
 }
 
 impl pallet_grandpa::Config for Runtime {
@@ -508,6 +515,7 @@ use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use primitives::fee;
+use frame_support::traits::OnKilledAccount;
 
 parameter_types! {
 	pub const UncleGenerations: BlockNumber = 5;

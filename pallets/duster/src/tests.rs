@@ -31,6 +31,7 @@ fn dust_account_with_sufficient_balance_fails() {
 			assert_eq!(Tokens::free_balance(1, &*TREASURY), 0);
 		});
 }
+
 #[test]
 fn dust_account_with_exact_dust_fails() {
 	ExtBuilder::default()
@@ -43,4 +44,29 @@ fn dust_account_with_exact_dust_fails() {
 			);
 			assert_eq!(Tokens::free_balance(1, &*TREASURY), 0);
 		});
+}
+
+#[test]
+fn dust_account_with_zero_fails() {
+	ExtBuilder::default()
+		.with_balance(*ALICE, 1, 0)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Duster::dust_account(Origin::signed(*DUSTER), *ALICE, 1),
+				Error::<Test>::ZeroBalance
+			);
+			assert_eq!(Tokens::free_balance(1, &*TREASURY), 0);
+		});
+}
+
+#[test]
+fn dust_nonexisting_account_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Duster::dust_account(Origin::signed(*DUSTER), 123456, 1),
+			Error::<Test>::ZeroBalance
+		); // Fails with zero balance because total_balance for non-existing account returns default value = Zero.
+		assert_eq!(Tokens::free_balance(1, &*TREASURY), 0);
+	});
 }

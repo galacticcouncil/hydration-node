@@ -56,6 +56,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		/// Balance type
 		type Balance: Parameter
 			+ Member
 			+ AtLeast32BitUnsigned
@@ -64,8 +65,10 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen;
 
+		/// Asset type
 		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord + From<u32>;
 
+		/// Currency for transfers
 		type MultiCurrency: MultiCurrencyExtended<
 			Self::AccountId,
 			CurrencyId = Self::CurrencyId,
@@ -73,31 +76,42 @@ pub mod pallet {
 			Amount = Amount,
 		>;
 
+		/// The minimum amount required to keep an account.
 		type MinCurrencyDeposits: GetByKey<Self::CurrencyId, Self::Balance>;
 
+		/// Account to send dust to.
 		#[pallet::constant]
 		type DustAccount: Get<Self::AccountId>;
 
+		/// Account to take reward from.
 		#[pallet::constant]
 		type RewardAccount: Get<Self::AccountId>;
 
+		/// Reward amount
 		#[pallet::constant]
 		type Reward: Get<Self::Balance>;
 
+		/// Native Asset Id
 		#[pallet::constant]
 		type NativeCurrencyId: Get<Self::CurrencyId>;
 
+		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The balance is zero.
+		ZeroBalance,
+
+		/// The balance is sufficient to keep account open.
 		BalanceSufficient,
 	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Account dusted.
 		Dusted(T::AccountId, T::Balance),
 	}
 
@@ -113,6 +127,8 @@ pub mod pallet {
 
 			let (dustable, dust) = Self::is_dustable(&account, currency_id);
 
+			ensure!(dust != T::Balance::from(0u32), Error::<T>::ZeroBalance);
+
 			ensure!(dustable, Error::<T>::BalanceSufficient);
 
 			Self::transfer_dust(&account, &T::DustAccount::get(), currency_id, dust)?;
@@ -127,6 +143,7 @@ pub mod pallet {
 	}
 }
 impl<T: Config> Pallet<T> {
+	/// Check is account's balance is below minimum deposit.
 	fn is_dustable(account: &T::AccountId, currency_id: T::CurrencyId) -> (bool, T::Balance) {
 		let ed = T::MinCurrencyDeposits::get(&currency_id);
 
@@ -135,14 +152,17 @@ impl<T: Config> Pallet<T> {
 		(total < ed, total)
 	}
 
+	/// Send reward to account which ddid the dusting.
 	fn reward_duster(_duster: &T::AccountId, _currency_id: T::CurrencyId, _dust: T::Balance) -> DispatchResult {
 		let reserve_account = T::RewardAccount::get();
 		let reward = T::Reward::get();
 
 		T::MultiCurrency::transfer(T::NativeCurrencyId::get(), &reserve_account, _duster, reward)?;
+
 		Ok(())
 	}
 
+	/// Transfer dust amount to selected DustAccount ( usually treasury)
 	fn transfer_dust(
 		from: &T::AccountId,
 		dest: &T::AccountId,
