@@ -23,6 +23,9 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 
+#[cfg(test)]
+mod tests;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -59,7 +62,7 @@ pub use frame_support::{
 	traits::{Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass, IdentityFee, Pays, Weight,
+		DispatchClass, Pays, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 	PalletId, StorageValue,
 };
@@ -148,7 +151,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
 	authoring_version: 1,
-	spec_version: 18,
+	spec_version: 19,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -169,6 +172,34 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_perthousand(25);
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 2 seconds of compute with a 6 second average block time.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
+
+use smallvec::smallvec;
+pub struct WeightToFee;
+impl WeightToFeePolynomial for WeightToFee {
+	type Balance = Balance;
+
+	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
+	/// node's balance type.
+	///
+	/// This should typically create a mapping between the following ranges:
+	///   - [0, MAXIMUM_BLOCK_WEIGHT]
+	///   - [Balance::min, Balance::max]
+	///
+	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+	///   - Setting it to `0` will essentially disable the weight fee.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
+	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
+		let p = CENTS; // 100_000_000_000
+		let q = 10 * Balance::from(ExtrinsicBaseWeight::get()); // 8_079_830_000
+		smallvec![WeightToFeeCoefficient {
+			degree: 1,
+			negative: false,
+			coeff_frac: Perbill::from_rational(p % q, q),
+			coeff_integer: p / q, // 12
+		}]
+	}
+}
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -353,18 +384,23 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
+	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
 	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
-
+	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
+	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
+	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
+	/// change the fees more rapidly.
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
+	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
+	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), MultiTransactionPayment>;
 	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = IdentityFee<Balance>;
+	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate = TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
@@ -375,7 +411,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type AMMPool = XYK;
 	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
-	type WeightToFee = IdentityFee<Balance>;
+	type WeightToFee = WeightToFee;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
