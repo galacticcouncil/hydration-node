@@ -70,3 +70,13 @@ fn dust_nonexisting_account_fails() {
 		assert_eq!(Tokens::free_balance(1, &*TREASURY), 0);
 	});
 }
+
+#[test]
+fn dust_treasury_account_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Duster::dust_account(Origin::signed(*DUSTER), *TREASURY, 1),
+			Error::<Test>::AccountBlacklisted
+		);
+	});
+}

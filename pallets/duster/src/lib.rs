@@ -49,6 +49,11 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
+	#[pallet::storage]
+	#[pallet::getter(fn blacklisted)]
+	/// Accounts excluded from dusting.
+	pub type AccountBlacklist<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (), OptionQuery>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -99,8 +104,34 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub account_blacklist: Vec<T::AccountId>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			GenesisConfig {
+				account_blacklist: vec![],
+			}
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			self.account_blacklist.iter().for_each(|account_id| {
+				AccountBlacklist::<T>::insert(account_id, ());
+			})
+		}
+	}
+
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Account is excluded from dusting.
+		AccountBlacklisted,
+
 		/// The balance is zero.
 		ZeroBalance,
 
@@ -124,6 +155,8 @@ pub mod pallet {
 			currency_id: T::CurrencyId,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
+
+			ensure!(Self::blacklisted(&account).is_none(), Error::<T>::AccountBlacklisted);
 
 			let (dustable, dust) = Self::is_dustable(&account, currency_id);
 

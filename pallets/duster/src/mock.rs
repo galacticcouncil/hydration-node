@@ -152,6 +152,12 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
+		duster::GenesisConfig::<Test> {
+			account_blacklist: vec![*TREASURY],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
 		t.into()
 	}
 }
