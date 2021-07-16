@@ -171,6 +171,10 @@ impl ExtBuilder {
 		self.endowed_accounts.push((account, currency_id, amount));
 		self
 	}
+	pub fn with_native_balance(mut self, account: AccountId, amount: Balance) -> Self {
+		self.native_balances.push((account, amount));
+		self
+	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
