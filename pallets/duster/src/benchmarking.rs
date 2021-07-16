@@ -37,7 +37,9 @@ benchmarks! {
 		let caller = funded_account::<T>("caller", 0);
 		let to_dust_account = funded_account::<T>("dust", 0);
 
-		T::MultiCurrency::update_balance(1u32.into(), &to_dust_account, 1_000).unwrap();
+		let dust_amount : T::Amount = 1_000u32.into();
+
+		T::MultiCurrency::update_balance(1u32.into(), &to_dust_account, dust_amount).unwrap();
 		assert_eq!(T::MultiCurrency::free_balance(1u32.into(), &to_dust_account), 1000u32.into());
 
 	}: _(RawOrigin::Signed(caller.clone()), to_dust_account.clone(),1u32.into())

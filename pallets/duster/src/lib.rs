@@ -29,10 +29,14 @@ mod weights;
 
 use frame_support::{dispatch::DispatchResult, traits::Get};
 
-use orml_traits::MultiCurrencyExtended;
-use orml_traits::{GetByKey, MultiCurrency};
+use orml_traits::{
+	arithmetic::{Signed, SimpleArithmetic},
+	GetByKey, MultiCurrency, MultiCurrencyExtended,
+};
 
 use frame_system::ensure_signed;
+
+use sp_std::convert::{TryFrom, TryInto};
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -44,7 +48,6 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
 	use frame_system::pallet_prelude::{BlockNumberFor, OriginFor};
-	use primitives::Amount;
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -70,6 +73,17 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen;
 
+		/// The amount type, should be signed version of `Balance`
+		type Amount: Signed
+			+ TryInto<Self::Balance>
+			+ TryFrom<Self::Balance>
+			+ Parameter
+			+ Member
+			+ SimpleArithmetic
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize;
+
 		/// Asset type
 		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord + From<u32>;
 
@@ -78,7 +92,7 @@ pub mod pallet {
 			Self::AccountId,
 			CurrencyId = Self::CurrencyId,
 			Balance = Self::Balance,
-			Amount = Amount,
+			Amount = Self::Amount,
 		>;
 
 		/// The minimum amount required to keep an account.

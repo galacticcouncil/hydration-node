@@ -105,6 +105,7 @@ parameter_type_with_key! {
 impl Config for Test {
 	type Event = Event;
 	type Balance = Balance;
+	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type MultiCurrency = Tokens;
 	type MinCurrencyDeposits = MinDeposits;
