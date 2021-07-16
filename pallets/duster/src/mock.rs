@@ -1,7 +1,7 @@
 use crate as duster;
 
 use frame_support::parameter_types;
-use frame_support::traits::GenesisBuild;
+use frame_support::traits::{GenesisBuild, OnKilledAccount};
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
@@ -20,6 +20,7 @@ use sp_runtime::{
 use frame_support::weights::Weight;
 use primitives::Amount;
 use sp_runtime::traits::Zero;
+use sp_std::cell::RefCell;
 use sp_std::vec::Vec;
 
 type AccountId = u64;
@@ -66,6 +67,17 @@ parameter_types! {
 	pub Reward: Balance = 10_000;
 }
 
+thread_local! {
+	pub static KILLED: RefCell<Vec<u64>> = RefCell::new(vec![]);
+}
+
+pub struct RecordKilled;
+impl OnKilledAccount<u64> for RecordKilled {
+	fn on_killed_account(who: &u64) {
+		KILLED.with(|r| r.borrow_mut().push(*who))
+	}
+}
+
 impl system::Config for Test {
 	type BaseCallFilter = ();
 	type BlockWeights = ();
@@ -86,7 +98,7 @@ impl system::Config for Test {
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<u128>;
 	type OnNewAccount = ();
-	type OnKilledAccount = ();
+	type OnKilledAccount = RecordKilled;
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();

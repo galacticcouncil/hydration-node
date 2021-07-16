@@ -180,6 +180,11 @@ pub mod pallet {
 
 			Self::transfer_dust(&account, &T::DustAccount::get(), currency_id, dust)?;
 
+			if currency_id == T::NativeCurrencyId::get() {
+				// Not sure if we should fail here?
+				let _ = frame_system::Pallet::<T>::dec_providers(&account);
+			}
+
 			Self::deposit_event(Event::Dusted(account, dust));
 
 			// Ignore the result, it fails - no problem.

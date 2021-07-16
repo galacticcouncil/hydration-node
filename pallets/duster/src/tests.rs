@@ -1,6 +1,6 @@
 use super::*;
 use crate::mock::{
-	Currencies, Duster, Event as TestEvent, ExtBuilder, Origin, System, Test, Tokens, ALICE, DUSTER, TREASURY,
+	Currencies, Duster, Event as TestEvent, ExtBuilder, Origin, System, Test, Tokens, ALICE, DUSTER, KILLED, TREASURY,
 };
 use frame_support::{assert_noop, assert_ok};
 use primitives::AssetId;
@@ -110,24 +110,93 @@ fn dust_account_native_works() {
 	ext.execute_with(|| {
 		let currency_id: AssetId = 0;
 
+		assert!(KILLED.with(|r| r.borrow().is_empty()));
+
 		assert_ok!(Duster::dust_account(Origin::signed(*DUSTER), *ALICE, currency_id));
 		assert_eq!(Currencies::free_balance(currency_id, &*TREASURY), 990_500);
 
-		for (who, _, _) in orml_tokens::Accounts::<Test>::iter() {
-			assert_ne!(who, *ALICE, "Alice account should have been removed!");
-		}
-
 		assert_eq!(Currencies::free_balance(0, &*DUSTER), 110_000);
+
+		assert_eq!(KILLED.with(|r| r.borrow().clone()), vec![*ALICE]);
+		for (a, _) in frame_system::Account::<Test>::iter() {
+			assert_ne!(a, *ALICE, "Alice account should have been removed!");
+		}
 
 		expect_events(vec![
 			// dust transfer
 			pallet_balances::Event::Transfer(*ALICE, *TREASURY, 500).into(),
 			orml_currencies::Event::Transferred(currency_id, *ALICE, *TREASURY, 500).into(),
+			// system
+			frame_system::Event::KilledAccount(*ALICE).into(),
 			// duster
 			Event::Dusted(*ALICE, 500).into(),
 			//reward transfer
 			pallet_balances::Event::Transfer(*TREASURY, *DUSTER, 10_000).into(),
 			orml_currencies::Event::Transferred(currency_id, *TREASURY, *DUSTER, 10_000).into(),
+		]);
+	});
+}
+
+#[test]
+fn native_existential_deposit() {
+	let mut ext = ExtBuilder::default()
+		.with_native_balance(*DUSTER, 100_000)
+		.with_balance(*DUSTER, 1, 100_000)
+		.with_balance(*DUSTER, 2, 100_000)
+		.build();
+	ext.execute_with(|| {
+		System::set_block_number(1);
+	});
+	ext.execute_with(|| {
+		let currency_id: AssetId = 2;
+
+		assert_ok!(Currencies::transfer(Origin::signed(*DUSTER), *ALICE, 2, 20_000));
+		assert_ok!(Currencies::transfer(Origin::signed(*DUSTER), *ALICE, 0, 600));
+		assert_ok!(Currencies::transfer(Origin::signed(*ALICE), *DUSTER, 0, 300));
+
+		assert_eq!(Currencies::free_balance(0, &*ALICE), 300);
+
+		assert_ok!(Duster::dust_account(Origin::signed(*DUSTER), *ALICE, 0));
+
+		assert_eq!(Currencies::free_balance(0, &*ALICE), 0);
+
+		// should be empty, because there is one provider (tokens)( for alice account, so not killed
+		assert!(KILLED.with(|r| r.borrow().is_empty()));
+
+		expect_events(vec![
+			// first transfer
+			frame_system::Event::NewAccount(*ALICE).into(),
+			orml_tokens::Event::Endowed(currency_id, *ALICE, 20_000).into(),
+			orml_currencies::Event::Transferred(currency_id, *DUSTER, *ALICE, 20_000).into(),
+			//second tranfer
+			pallet_balances::Event::Endowed(*ALICE, 600).into(),
+			pallet_balances::Event::Transfer(*DUSTER, *ALICE, 600).into(),
+			orml_currencies::Event::Transferred(0, *DUSTER, *ALICE, 600).into(),
+			// 3rd transfer
+			pallet_balances::Event::Transfer(*ALICE, *DUSTER, 300).into(),
+			orml_currencies::Event::Transferred(0, *ALICE, *DUSTER, 300).into(),
+			// dust transfer
+			pallet_balances::Event::Transfer(*ALICE, *TREASURY, 300).into(),
+			orml_currencies::Event::Transferred(0, *ALICE, *TREASURY, 300).into(),
+			// duster
+			Event::Dusted(*ALICE, 300).into(),
+			//reward transfer
+			pallet_balances::Event::Transfer(*TREASURY, *DUSTER, 10_000).into(),
+			orml_currencies::Event::Transferred(0, *TREASURY, *DUSTER, 10_000).into(),
+		]);
+
+		System::reset_events();
+
+		// TTransfer all remaining tokens from Alice accounts - should kill the account
+
+		assert_ok!(Currencies::transfer(Origin::signed(*ALICE), *DUSTER, 2, 20_000));
+
+		assert_eq!(KILLED.with(|r| r.borrow().clone()), vec![*ALICE]);
+
+		expect_events(vec![
+			// first transfer
+			frame_system::Event::KilledAccount(*ALICE).into(),
+			orml_currencies::Event::Transferred(currency_id, *ALICE, *DUSTER, 20_000).into(),
 		]);
 	});
 }
