@@ -3,6 +3,7 @@ use crate as duster;
 use frame_support::parameter_types;
 use frame_support::traits::GenesisBuild;
 
+use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use primitives::{AssetId, Balance};
 
@@ -46,6 +47,8 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Duster: duster::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
+		Currencies: orml_currencies::{Pallet, Event<T>},
+		Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
 	}
 );
 
@@ -55,6 +58,9 @@ parameter_types! {
 	pub const MaximumBlockLength: u32 = 2 * 1024;
 
 	pub const SS58Prefix: u8 = 63;
+	pub const MaxLocks: u32 = 50;
+
+	pub const NativeExistentialDeposit: u128 = 0;
 
 	pub NativeCurrencyId: AssetId = 0;
 	pub Reward: Balance = 10_000;
@@ -78,7 +84,7 @@ impl system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u128>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -107,7 +113,7 @@ impl Config for Test {
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type MultiCurrency = Tokens;
+	type MultiCurrency = Currencies;
 	type MinCurrencyDeposits = MinDeposits;
 	type DustAccount = TreasuryAccount;
 	type RewardAccount = TreasuryAccount;
@@ -127,13 +133,35 @@ impl orml_tokens::Config for Test {
 	type MaxLocks = ();
 }
 
+impl orml_currencies::Config for Test {
+	type Event = Event;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
+}
+
+impl pallet_balances::Config for Test {
+	type MaxLocks = MaxLocks;
+	type Balance = Balance;
+	type Event = Event;
+	type DustRemoval = ();
+	type ExistentialDeposit = NativeExistentialDeposit;
+	type AccountStore = System;
+	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
+}
+
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+	native_balances: Vec<(AccountId, Balance)>,
 }
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
-			endowed_accounts: vec![(*TREASURY, 0, 1_000_000)],
+			endowed_accounts: vec![],
+			native_balances: vec![(*TREASURY, 1_000_000)],
 		}
 	}
 }
@@ -146,6 +174,12 @@ impl ExtBuilder {
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+		pallet_balances::GenesisConfig::<Test> {
+			balances: self.native_balances,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self.endowed_accounts,

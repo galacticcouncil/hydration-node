@@ -44,6 +44,7 @@ primitives = {path = '../../primitives', default-features = false}
 lazy_static = {features = ['spin_no_std'], version = "1.4.0"}
 sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
+pallet-balances = {default-features = false, version = '3.0.0'}
 
 [features]
 default = ['std']
@@ -64,4 +65,5 @@ std = [
   'orml-traits/std',
   'primitives/std',
   'lazy_static/spin_no_std',
+  'pallet-balances/default',
 ]

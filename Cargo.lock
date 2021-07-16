@@ -4283,6 +4283,7 @@ dependencies = [
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
+ "pallet-balances",
  "parity-scale-codec 2.1.3",
  "primitives",
  "serde",

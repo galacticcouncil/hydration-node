@@ -1,5 +1,5 @@
 use super::*;
-use crate::mock::{Duster, ExtBuilder, Origin, Test, Tokens, ALICE, DUSTER, TREASURY};
+use crate::mock::{Currencies, Duster, ExtBuilder, Origin, Test, Tokens, ALICE, DUSTER, TREASURY};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -15,7 +15,7 @@ fn dust_account_works() {
 				assert_ne!(who, *ALICE, "Alice account should have been removed!");
 			}
 
-			assert_eq!(Tokens::free_balance(0, &*DUSTER), 10_000);
+			assert_eq!(Currencies::free_balance(0, &*DUSTER), 10_000);
 		});
 }
 #[test]
