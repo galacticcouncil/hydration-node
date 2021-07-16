@@ -122,8 +122,6 @@ parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		Zero::zero()
 	};
-
-
 }
 
 parameter_type_with_key! {
@@ -134,8 +132,6 @@ parameter_type_with_key! {
 			_ => 0
 		}
 	};
-
-
 }
 
 impl Config for Test {
@@ -145,6 +141,7 @@ impl Config for Test {
 impl pallet_duster::Config for Test {
 	type Event = Event;
 	type Balance = Balance;
+	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type MultiCurrency = Tokens;
 	type MinCurrencyDeposits = MinDeposits;
