@@ -17,7 +17,7 @@
 
 use crate::cli::{Cli, Subcommand};
 use crate::service::IdentifyVariant;
-use crate::{chain_spec, service};
+use crate::{chain_spec, testing_chain_spec, service};
 use hydra_dx_runtime::Block;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 
@@ -66,9 +66,9 @@ impl SubstrateCli for Cli {
 		};
 		if self.run.runtime.is_testing_runtime() {
 			Ok(match id {
-				"dev" => Box::new(chain_spec::testing_node::development_config()?),
-				"local" => Box::new(chain_spec::testing_node::local_testnet_config()?),
-				path => Box::new(chain_spec::testing_node::ChainSpec::from_json_file(
+				"dev" => Box::new(testing_chain_spec::development_config()?),
+				"local" => Box::new(testing_chain_spec::local_testnet_config()?),
+				path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
 					std::path::PathBuf::from(path),
 				)?),
 			})
