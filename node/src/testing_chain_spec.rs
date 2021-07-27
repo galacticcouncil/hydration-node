@@ -20,7 +20,7 @@ fn testing_session_keys(
 
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary =
-		testing_runtime::WASM_BINARY.ok_or("Testing and development wasm binary not available".to_string())?;
+		testing_runtime::WASM_BINARY.ok_or_else(|| "Testing and development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
@@ -65,7 +65,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 }
 
 pub fn local_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary = testing_runtime::WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+	let wasm_binary = testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
