@@ -659,7 +659,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 parameter_types! {
 	pub const ReportLongevity: u64 =
-		BondingDuration::get() as u64 * testing::SessionsPerEra::get() as u64 * testing::EpochDuration::get();
+		testing::BondingDuration::get() as u64 * testing::SessionsPerEra::get() as u64 * testing::EpochDuration::get();
 }
 
 impl pallet_babe::Config for Runtime {
