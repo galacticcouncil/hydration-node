@@ -128,7 +128,12 @@ mod testing {
 		pub const LaunchPeriod: BlockNumber = MINUTES;
 		pub const VotingPeriod: BlockNumber = MINUTES;
 		pub const EpochDuration: u64 = 10 * MINUTES as u64;
-		pub const SessionsPerEra: sp_staking::SessionIndex = 1;
+		pub const SessionsPerEra: sp_staking::SessionIndex = 4;
+		// Funds are bonded for 32 hours
+		pub const BondingDuration: pallet_staking::EraIndex = 2;
+		// SlashDeferDuration should be less than BondingDuration
+		// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
+		pub const SlashDeferDuration: pallet_staking::EraIndex =  1;
 	}
 }
 
@@ -449,12 +454,6 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
-	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	// Funds are bonded for 28 Days
-	pub const BondingDuration: pallet_staking::EraIndex = 28;
-	// SlashDeferDuration should be less than BondingDuration
-	// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
-	pub const SlashDeferDuration: pallet_staking::EraIndex =  28 - 1;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
@@ -473,8 +472,8 @@ impl pallet_staking::Config for Runtime {
 	type Slash = Treasury;
 	type Reward = ();
 	type SessionsPerEra = testing::SessionsPerEra;
-	type BondingDuration = BondingDuration;
-	type SlashDeferDuration = SlashDeferDuration;
+	type BondingDuration = testing::BondingDuration;
+	type SlashDeferDuration = testing::SlashDeferDuration;
 	// A super-majority of the council can cancel the slash.
 	type SlashCancelOrigin = SlashCancelOrigin;
 	type SessionInterface = Self;
