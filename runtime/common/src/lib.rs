@@ -161,8 +161,6 @@ parameter_types! {
 
 // pallet democracy
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
-	pub const VotingPeriod: BlockNumber = 7 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
 	pub const EnactmentPeriod: BlockNumber = 6 * DAYS;
@@ -226,7 +224,6 @@ parameter_types! {
 
 // pallet babe
 parameter_types! {
-	pub const EpochDuration: u64 = EPOCH_DURATION_IN_BLOCKS as u64;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 }
 

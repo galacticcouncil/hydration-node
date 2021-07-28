@@ -120,23 +120,6 @@ impl_opaque_keys! {
 	}
 }
 
-mod testing {
-	use super::{parameter_types, BlockNumber, MINUTES};
-	pub type BaseFilter = ();
-
-	parameter_types! {
-		pub const LaunchPeriod: BlockNumber = MINUTES;
-		pub const VotingPeriod: BlockNumber = MINUTES;
-		pub const EpochDuration: u64 = 10 * MINUTES as u64;
-		pub const SessionsPerEra: sp_staking::SessionIndex = 4;
-		// Funds are bonded for 32 hours
-		pub const BondingDuration: pallet_staking::EraIndex = 2;
-		// SlashDeferDuration should be less than BondingDuration
-		// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
-		pub const SlashDeferDuration: pallet_staking::EraIndex =  1;
-	}
-}
-
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydra-dx"),
 	impl_name: create_runtime_str!("testing-hydra-dx"),
@@ -221,7 +204,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = testing::BaseFilter;
+	type BaseCallFilter = ();
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -454,6 +437,12 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
+	pub const SessionsPerEra: sp_staking::SessionIndex = 4;
+    // Funds are bonded for 32 hours
+	pub const BondingDuration: pallet_staking::EraIndex = 2;
+	// SlashDeferDuration should be less than BondingDuration
+	// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
+	pub const SlashDeferDuration: pallet_staking::EraIndex =  1;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
@@ -471,9 +460,9 @@ impl pallet_staking::Config for Runtime {
 	type Event = Event;
 	type Slash = Treasury;
 	type Reward = ();
-	type SessionsPerEra = testing::SessionsPerEra;
-	type BondingDuration = testing::BondingDuration;
-	type SlashDeferDuration = testing::SlashDeferDuration;
+	type SessionsPerEra = SessionsPerEra;
+	type BondingDuration = BondingDuration;
+	type SlashDeferDuration = SlashDeferDuration;
 	// A super-majority of the council can cancel the slash.
 	type SlashCancelOrigin = SlashCancelOrigin;
 	type SessionInterface = Self;
@@ -483,13 +472,18 @@ impl pallet_staking::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const LaunchPeriod: BlockNumber = MINUTES;
+	pub const VotingPeriod: BlockNumber = MINUTES;
+}
+
 impl pallet_democracy::Config for Runtime {
 	type Proposal = Call;
 	type Event = Event;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
-	type LaunchPeriod = testing::LaunchPeriod;
-	type VotingPeriod = testing::VotingPeriod;
+	type LaunchPeriod = LaunchPeriod;
+	type VotingPeriod = VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin = frame_system::EnsureOneOf<
@@ -659,11 +653,15 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 parameter_types! {
 	pub const ReportLongevity: u64 =
-		testing::BondingDuration::get() as u64 * testing::SessionsPerEra::get() as u64 * testing::EpochDuration::get();
+		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
+}
+
+parameter_types! {
+	pub const EpochDuration: u64 = 10 * MINUTES as u64;
 }
 
 impl pallet_babe::Config for Runtime {
-	type EpochDuration = testing::EpochDuration;
+	type EpochDuration = EpochDuration;
 	type ExpectedBlockTime = ExpectedBlockTime;
 	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
 
@@ -896,7 +894,7 @@ impl_runtime_apis! {
 			// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
 			sp_consensus_babe::BabeGenesisConfiguration {
 				slot_duration: Babe::slot_duration(),
-				epoch_length: testing::EpochDuration::get(),
+				epoch_length: EpochDuration::get(),
 				c: PRIMARY_PROBABILITY,
 				genesis_authorities: Babe::authorities(),
 				randomness: Babe::randomness(),

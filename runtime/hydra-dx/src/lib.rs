@@ -516,6 +516,11 @@ impl pallet_staking::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
+	pub const VotingPeriod: BlockNumber = 7 * DAYS;
+}
+
 impl pallet_democracy::Config for Runtime {
 	type Proposal = Call;
 	type Event = Event;
@@ -693,6 +698,10 @@ impl pallet_elections_phragmen::Config for Runtime {
 parameter_types! {
 	pub const ReportLongevity: u64 =
 		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
+}
+
+parameter_types! {
+	pub const EpochDuration: u64 = EPOCH_DURATION_IN_BLOCKS as u64;
 }
 
 impl pallet_babe::Config for Runtime {
