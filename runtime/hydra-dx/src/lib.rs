@@ -41,14 +41,14 @@ use sp_core::{
 	OpaqueMetadata,
 };
 use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, NumberFor, OpaqueKeys,
-	SaturatedConversion, Verify,
+	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys, SaturatedConversion,
+	Verify,
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::Zero,
-	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, MultiSignature, Percent,
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -68,9 +68,9 @@ pub use frame_support::{
 };
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
+pub use sp_runtime::curve::PiecewiseLinear;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{curve::PiecewiseLinear, Perbill, Permill, Perquintill};
 
 use pallet_session::historical as session_historical;
 
@@ -79,38 +79,14 @@ use pallet_xyk_rpc_runtime_api as xyk_rpc;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 
-pub use primitives::{Amount, AssetId, Balance, Moment, CORE_ASSET_ID};
+pub use common_runtime::*;
 
 /// Import HydraDX pallets
 pub use pallet_asset_registry;
 pub use pallet_claims;
 pub use pallet_faucet;
 pub use pallet_genesis_history;
-
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
-
-/// An index to a block.
-pub type BlockNumber = u32;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
-/// never know...
-pub type AccountIndex = u32;
-
-/// Index of a transaction in the chain.
-pub type Index = u32;
-
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
-
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -150,11 +126,11 @@ impl_opaque_keys! {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydra-dx"),
 	impl_name: create_runtime_str!("hydra-dx"),
-	authoring_version: 1,
-	spec_version: 19,
-	impl_version: 0,
+	authoring_version: RUNTIME_AUTHORING_VERSION,
+	spec_version: RUNTIME_SPEC_VERSION,
+	impl_version: RUNTIME_IMPL_VERSION,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
+	transaction_version: RUNTIME_TRANSACTION_VERSION,
 };
 
 /// The BABE epoch configuration at genesis.
@@ -163,43 +139,6 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 		c: PRIMARY_PROBABILITY,
 		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
 	};
-
-/// We assume that an on-initialize consumes 2.5% of the weight on average, hence a single extrinsic
-/// will not be allowed to consume more than `AvailableBlockRatio - 2.5%`.
-pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_perthousand(25);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
-/// by  Operational  extrinsics.
-const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
-
-use smallvec::smallvec;
-pub struct WeightToFee;
-impl WeightToFeePolynomial for WeightToFee {
-	type Balance = Balance;
-
-	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-	/// node's balance type.
-	///
-	/// This should typically create a mapping between the following ranges:
-	///   - [0, MAXIMUM_BLOCK_WEIGHT]
-	///   - [Balance::min, Balance::max]
-	///
-	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
-	///   - Setting it to `0` will essentially disable the weight fee.
-	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
-	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
-		let p = CENTS; // 100_000_000_000
-		let q = 10 * Balance::from(ExtrinsicBaseWeight::get()); // 8_079_830_000
-		smallvec![WeightToFeeCoefficient {
-			degree: 1,
-			negative: false,
-			coeff_frac: Perbill::from_rational(p % q, q),
-			coeff_integer: p / q, // 12
-		}]
-	}
-}
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -251,12 +190,36 @@ impl Filter<Call> for BaseFilter {
 	}
 }
 
+use smallvec::smallvec;
+pub struct WeightToFee;
+impl WeightToFeePolynomial for WeightToFee {
+	type Balance = Balance;
+
+	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
+	/// node's balance type.
+	///
+	/// This should typically create a mapping between the following ranges:
+	///   - [0, MAXIMUM_BLOCK_WEIGHT]
+	///   - [Balance::min, Balance::max]
+	///
+	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+	///   - Setting it to `0` will essentially disable the weight fee.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
+	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
+		let p = CENTS; // 100_000_000_000
+		let q = 10 * Balance::from(ExtrinsicBaseWeight::get()); // 8_079_830_000
+		smallvec![WeightToFeeCoefficient {
+			degree: 1,
+			negative: false,
+			coeff_frac: Perbill::from_rational(p % q, q),
+			coeff_integer: p / q, // 12
+		}]
+	}
+}
+
 parameter_types! {
-	pub const BlockHashCount: BlockNumber = 2400;
 	pub const Version: RuntimeVersion = VERSION;
-	/// Maximum length of block. Up to 5MB.
-	pub BlockLength: limits::BlockLength =
-		limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	/// Block weights base values and limits.
 	pub BlockWeights: limits::BlockWeights = limits::BlockWeights::builder()
 		.base_block(BlockExecutionWeight::get())
@@ -279,7 +242,6 @@ parameter_types! {
 
 	pub ExtrinsicPaymentExtraWeight: Weight =  <Runtime as pallet_transaction_multi_payment::Config>::WeightInfo::swap_currency();
 	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
-	pub const SS58Prefix: u8 = 63;
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -350,23 +312,12 @@ impl pallet_grandpa::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
-	pub const HDXAssetId: AssetId = CORE_ASSET_ID;
-}
-
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
 	type OnTimestampSet = Babe;
 	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const ExistentialDeposit: u128 = 0;
-	pub const MaxLocks: u32 = 50;
-	pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Runtime {
@@ -381,20 +332,6 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-}
-
-parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
-	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
-	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
-	/// than this will decrease the weight and more will increase.
-	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
-	/// change the fees more rapidly.
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
-	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
-	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
-	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -432,15 +369,6 @@ type EnsureRootOrHalfCouncil = EnsureOneOf<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
 >;
-
-parameter_types! {
-	pub const BasicDeposit: Balance = 5 * DOLLARS;
-	pub const FieldDeposit: Balance = DOLLARS;
-	pub const SubAccountDeposit: Balance = 5 * DOLLARS;
-	pub const MaxSubAccounts: u32 = 100;
-	pub const MaxAdditionalFields: u32 = 100;
-	pub const MaxRegistrars: u32 = 20;
-}
 
 impl pallet_identity::Config for Runtime {
 	type Event = Event;
@@ -490,10 +418,6 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetId = AssetId;
 }
 
-parameter_types! {
-	pub ExchangeFee: fee::Fee = fee::Fee::default();
-}
-
 impl pallet_xyk::Config for Runtime {
 	type Event = Event;
 	type AssetPairAccountId = pallet_xyk::AssetPairAccountId<Self>;
@@ -501,10 +425,6 @@ impl pallet_xyk::Config for Runtime {
 	type NativeAssetId = HDXAssetId;
 	type WeightInfo = pallet_xyk::weights::HydraWeight<Runtime>;
 	type GetExchangeFee = ExchangeFee;
-}
-
-parameter_types! {
-	pub ClaimMessagePrefix: &'static [u8] = b"I hereby claim all my HDX tokens to wallet:";
 }
 
 impl pallet_claims::Config for Runtime {
@@ -528,10 +448,8 @@ impl pallet_faucet::Config for Runtime {
 	type Currency = Currencies;
 }
 
-pub mod constants;
 /// Staking pallets configurations
 pub mod impls;
-use constants::{currency::*, time::*};
 #[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking::frame_support::max_encoded_len::MaxEncodedLen;
 #[cfg(feature = "runtime-benchmarks")]
@@ -542,12 +460,7 @@ use frame_benchmarking::frame_support::pallet_prelude::{Get, Member};
 use frame_benchmarking::frame_support::Parameter;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-use primitives::fee;
-
-parameter_types! {
-	pub const UncleGenerations: BlockNumber = 5;
-}
+use pallet_transaction_payment::TargetedFeeAdjustment;
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
@@ -567,15 +480,6 @@ pallet_staking_reward_curve::build! {
 	);
 }
 
-sp_npos_elections::generate_solution_type!(
-	#[compact]
-	pub struct NposCompactSolution16::<
-		VoterIndex = u32,
-		TargetIndex = u16,
-		Accuracy = sp_runtime::PerU16,
-	>(16)
-);
-
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
 	// Funds are bonded for 28 Days
@@ -584,17 +488,10 @@ parameter_types! {
 	// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
 	pub const SlashDeferDuration: pallet_staking::EraIndex =  28 - 1;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-	pub const MaxNominatorRewardedPerValidator: u32 = 64;
-	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
-	pub const MaxIterations: u32 = 10;
-	// 0.05%. The higher the value, the more strict solution acceptance becomes.
-	pub MinSolutionScoreBump: Perbill = Perbill::from_rational(5u32, 10_000);
 }
 
 type SlashCancelOrigin =
 	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, CouncilCollective>>;
-
-pub const MAX_NOMINATIONS: u32 = <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
 
 impl pallet_staking::Config for Runtime {
 	type Currency = Balances;
@@ -622,14 +519,6 @@ impl pallet_staking::Config for Runtime {
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
 	pub const VotingPeriod: BlockNumber = 7 * DAYS;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
-	pub const EnactmentPeriod: BlockNumber = 6 * DAYS;
-	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	pub const PreimageByteDeposit: Balance = CENTS;
-	pub const InstantAllowed: bool = true;
-	pub const MaxVotes: u32 = 30;
-	pub const MaxProposals: u32 = 30;
 }
 
 impl pallet_democracy::Config for Runtime {
@@ -702,19 +591,9 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	// phase durations. 1/4 of the last session for each.
-	pub const SignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
-	pub const UnsignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
-
 	// fallback: run election on-chain.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
 		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
-
-	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
-
-	// miner configs
-	pub const MultiPhaseUnsignedPriority: TransactionPriority = StakingUnsignedPriority::get() - 1u64;
-	pub const MinerMaxIterations: u32 = 10;
 	pub MinerMaxWeight: Weight = BlockWeights::get()
 		.get(DispatchClass::Normal)
 		.max_extrinsic.expect("Normal extrinsics have a weight limit configured; qed")
@@ -742,11 +621,6 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = FORTUNE;
-	pub const SpendPeriod: BlockNumber = DAYS;
-	pub const Burn: Permill = Permill::from_percent(0);
-	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
 				  .saturating_sub(BlockExecutionWeight::get())
 				  .saturating_sub(ExtrinsicBaseWeight::get());
@@ -774,15 +648,6 @@ impl pallet_treasury::Config for Runtime {
 	type MaxApprovals = MaxApprovals;
 }
 
-parameter_types! {
-	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 4 * HOURS;
-	pub const TipFindersFee: Percent = Percent::from_percent(2);
-	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
-	pub const TipReportDepositPerByte: Balance = CENTS;
-	pub const MaximumReasonLength: u32 = 1024;
-}
-
 impl pallet_tips::Config for Runtime {
 	type Event = Event;
 	type DataDepositPerByte = DataDepositPerByte;
@@ -792,10 +657,6 @@ impl pallet_tips::Config for Runtime {
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
 }
 
 impl pallet_session::Config for Runtime {
@@ -814,19 +675,6 @@ impl pallet_session::Config for Runtime {
 impl pallet_session::historical::Config for Runtime {
 	type FullIdentification = pallet_staking::Exposure<AccountId, Balance>;
 	type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
-}
-
-parameter_types! {
-	// Don't allow runner-ups
-	pub const CandidacyBond: Balance = 5_000_000 * DOLLARS;
-	// 1 storage item created, key size is 32 bytes, value size is 16+16.
-	pub const VotingBondBase: Balance = CENTS;
-	// additional data per vote is 32 bytes (account id).
-	pub const VotingBondFactor: Balance = CENTS;
-	pub const TermDuration: BlockNumber = 7 * DAYS;
-	pub const DesiredMembers: u32 = 1;
-	pub const DesiredRunnersUp: u32 = 0;
-	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -848,10 +696,12 @@ impl pallet_elections_phragmen::Config for Runtime {
 }
 
 parameter_types! {
-	pub const EpochDuration: u64 = EPOCH_DURATION_IN_BLOCKS as u64;
-	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub const ReportLongevity: u64 =
 		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
+}
+
+parameter_types! {
+	pub const EpochDuration: u64 = EPOCH_DURATION_IN_BLOCKS as u64;
 }
 
 impl pallet_babe::Config for Runtime {
@@ -871,13 +721,6 @@ impl pallet_babe::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
-	pub const CouncilMaxProposals: u32 = 20;
-	pub const ProposalVotesRequired: u32 = 1;
-	pub const CouncilMaxMembers: u32 = 1;
-}
-
 type CouncilCollective = pallet_collective::Instance1;
 impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type Origin = Origin;
@@ -888,12 +731,6 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 20;
-	pub const TechnicalMaxMembers: u32 = 10;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
@@ -909,13 +746,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 }
 
 impl pallet_authority_discovery::Config for Runtime {}
-
-parameter_types! {
-	pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
-	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
-	/// We prioritize im-online heartbeats over election solution submission.
-	pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
-}
 
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 

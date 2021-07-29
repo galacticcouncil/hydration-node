@@ -2,50 +2,124 @@
 
 #![allow(clippy::all)]
 
-use hydra_dx_runtime::{self, opaque::Block, RuntimeApi};
-
+pub use crate::client::{AbstractClient, Client, ClientHandle, ExecuteWithClient, RuntimeApiCollection};
+use crate::rpc as node_rpc;
+use common_runtime::Block;
 use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_client_db::PruningMode;
 use sc_consensus_babe::SlotProportion;
-use sc_executor::native_executor_instance;
+pub use sc_executor::NativeExecutor;
+use sc_executor::{native_executor_instance, NativeExecutionDispatch};
+use sc_finality_grandpa as grandpa;
 use sc_network::{Event, NetworkService};
-use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
+use sc_service::{config::Configuration, error::Error as ServiceError, ChainSpec, RpcHandlers, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
-use sp_runtime::traits::Block as BlockT;
+pub use sp_api::{ConstructRuntimeApi, ProvideRuntimeApi, StateBackend};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
+use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
 // Our native executor instance.
 native_executor_instance!(
-	   pub Executor,
-	   hydra_dx_runtime::api::dispatch,
-	   hydra_dx_runtime::native_version,
-	   frame_benchmarking::benchmarking::HostFunctions,
+	pub HydraExecutor,
+	hydra_dx_runtime::api::dispatch,
+	hydra_dx_runtime::native_version,
+	frame_benchmarking::benchmarking::HostFunctions,
 );
 
-use crate::rpc as node_rpc;
-use sc_finality_grandpa as grandpa;
+native_executor_instance!(
+	pub TestingHydraExecutor,
+	testing_hydra_dx_runtime::api::dispatch,
+	testing_hydra_dx_runtime::native_version,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
 
-type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
-type FullBackend = sc_service::TFullBackend<Block>;
-type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-type FullGrandpaBlockImport = grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
-type LightClient = sc_service::TLightClient<Block, RuntimeApi, Executor>;
+pub type FullBackend = sc_service::TFullBackend<Block>;
+pub type LightBackend = sc_service::TLightBackendWithHash<Block, sp_runtime::traits::BlakeTwo256>;
 
-pub fn new_partial(
+pub type FullClient<RuntimeApi, Executor> = sc_service::TFullClient<Block, RuntimeApi, Executor>;
+pub type LightClient<RuntimeApi, Executor> =
+	sc_service::TLightClientWithBackend<Block, RuntimeApi, Executor, LightBackend>;
+
+pub type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+pub type FullGrandpaBlockImport<RuntimeApi, Executor> =
+	grandpa::GrandpaBlockImport<FullBackend, Block, FullClient<RuntimeApi, Executor>, FullSelectChain>;
+
+/// Can be called for a `Configuration` to check what node it belongs to.
+pub trait IdentifyVariant {
+	/// Returns if this is a configuration for the `Hydra DX` node.
+	fn is_hydra_dx_runtime(&self) -> bool;
+
+	/// Returns if this is a configuration for the `Testing Hydra DX` node.
+	fn is_testing_runtime(&self) -> bool;
+}
+
+impl IdentifyVariant for Box<dyn ChainSpec> {
+	fn is_hydra_dx_runtime(&self) -> bool {
+		self.name().to_lowercase().starts_with("hydra") || self.name().to_lowercase().starts_with("hdx")
+	}
+	fn is_testing_runtime(&self) -> bool {
+		self.name().to_lowercase().starts_with("test")
+	}
+}
+
+pub fn new_chain_ops(
+	mut config: &mut Configuration,
+) -> Result<
+	(
+		Arc<Client>,
+		Arc<FullBackend>,
+		sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
+		TaskManager,
+	),
+	ServiceError,
+> {
+	config.keystore = sc_service::config::KeystoreConfig::InMemory;
+	if config.chain_spec.is_testing_runtime() {
+		let sc_service::PartialComponents {
+			client,
+			backend,
+			import_queue,
+			task_manager,
+			..
+		} = new_partial::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)?;
+		Ok((
+			Arc::new(Client::TestingHydraDX(client)),
+			backend,
+			import_queue,
+			task_manager,
+		))
+	} else {
+		let sc_service::PartialComponents {
+			client,
+			backend,
+			import_queue,
+			task_manager,
+			..
+		} = new_partial::<hydra_dx_runtime::RuntimeApi, HydraExecutor>(config)?;
+		Ok((Arc::new(Client::HydraDX(client)), backend, import_queue, task_manager))
+	}
+}
+
+pub fn new_partial<RuntimeApi, Executor>(
 	config: &Configuration,
 ) -> Result<
 	sc_service::PartialComponents<
-		FullClient,
+		FullClient<RuntimeApi, Executor>,
 		FullBackend,
 		FullSelectChain,
-		sp_consensus::DefaultImportQueue<Block, FullClient>,
-		sc_transaction_pool::FullPool<Block, FullClient>,
+		sp_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
+		sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi, Executor>>,
 		(
 			impl Fn(node_rpc::DenyUnsafe, sc_rpc::SubscriptionTaskExecutor) -> node_rpc::IoHandler,
 			(
-				sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
-				grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
+				sc_consensus_babe::BabeBlockImport<
+					Block,
+					FullClient<RuntimeApi, Executor>,
+					FullGrandpaBlockImport<RuntimeApi, Executor>,
+				>,
+				grandpa::LinkHalf<Block, FullClient<RuntimeApi, Executor>, FullSelectChain>,
 				sc_consensus_babe::BabeLink<Block>,
 			),
 			grandpa::SharedVoterState,
@@ -53,7 +127,12 @@ pub fn new_partial(
 		),
 	>,
 	ServiceError,
-> {
+>
+where
+	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, Executor>> + Send + Sync + 'static,
+	RuntimeApi::RuntimeApi: RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
+	Executor: NativeExecutionDispatch + 'static,
+{
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -191,21 +270,41 @@ pub fn new_partial(
 	})
 }
 
-pub struct NewFullBase {
+pub struct NewFull<C> {
 	pub task_manager: TaskManager,
-	pub client: Arc<FullClient>,
+	pub client: C,
 	pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-	pub transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
+}
+
+impl<C> NewFull<C> {
+	/// Convert the client type using the given `func`.
+	pub fn with_client<NC>(self, func: impl FnOnce(C) -> NC) -> NewFull<NC> {
+		NewFull {
+			task_manager: self.task_manager,
+			client: func(self.client),
+			network: self.network,
+		}
+	}
+}
+
+pub fn build_full(config: Configuration, run_testing_runtime: bool) -> Result<NewFull<Client>, ServiceError> {
+	if run_testing_runtime {
+		new_full::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)
+			.map(|full| full.with_client(Client::TestingHydraDX))
+	} else {
+		new_full(config).map(|full| full.with_client(Client::HydraDX))
+	}
 }
 
 /// Creates a full service from the configuration.
-pub fn new_full_base(
+pub fn new_full<RuntimeApi, Executor>(
 	mut config: Configuration,
-	with_startup_data: impl FnOnce(
-		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
-		&sc_consensus_babe::BabeLink<Block>,
-	),
-) -> Result<NewFullBase, ServiceError> {
+) -> Result<NewFull<Arc<FullClient<RuntimeApi, Executor>>>, ServiceError>
+where
+	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, Executor>> + Send + Sync + 'static,
+	RuntimeApi::RuntimeApi: RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
+	Executor: NativeExecutionDispatch + 'static,
+{
 	let sc_service::PartialComponents {
 		client,
 		backend,
@@ -215,7 +314,7 @@ pub fn new_full_base(
 		select_chain,
 		transaction_pool,
 		other: (rpc_extensions_builder, import_setup, rpc_setup, mut telemetry),
-	} = new_partial(&config)?;
+	} = new_partial::<RuntimeApi, Executor>(&config)?;
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
@@ -270,8 +369,6 @@ pub fn new_full_base(
 	})?;
 
 	let (block_import, grandpa_link, babe_link) = import_setup;
-
-	(with_startup_data)(&block_import, &babe_link);
 
 	if let sc_service::config::Role::Authority { .. } = &role {
 		let proposer = sc_basic_authorship::ProposerFactory::new(
@@ -393,31 +490,47 @@ pub fn new_full_base(
 	}
 
 	network_starter.start_network();
-	Ok(NewFullBase {
+	Ok(NewFull {
 		task_manager,
 		client,
 		network,
-		transaction_pool,
 	})
 }
 
-/// Builds a new service for a full client.
-pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
-	new_full_base(config, |_, _| ()).map(|NewFullBase { task_manager, .. }| task_manager)
+pub fn build_light(config: Configuration, is_testing_runtime: bool) -> Result<TaskManager, ServiceError> {
+	if is_testing_runtime {
+		new_light::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)
+			.map(|(task_manager, _, _, _, _)| task_manager)
+	} else {
+		new_light::<hydra_dx_runtime::RuntimeApi, HydraExecutor>(config).map(|(task_manager, _, _, _, _)| task_manager)
+	}
 }
 
-pub fn new_light_base(
+/// Builds a new service for a light client.
+pub fn new_light<RuntimeApi, Executor>(
 	mut config: Configuration,
 ) -> Result<
 	(
 		TaskManager,
 		RpcHandlers,
-		Arc<LightClient>,
+		Arc<LightClient<RuntimeApi, Executor>>,
 		Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-		Arc<sc_transaction_pool::LightPool<Block, LightClient, sc_network::config::OnDemand<Block>>>,
+		Arc<
+			sc_transaction_pool::LightPool<
+				Block,
+				LightClient<RuntimeApi, Executor>,
+				sc_network::config::OnDemand<Block>,
+			>,
+		>,
 	),
 	ServiceError,
-> {
+>
+where
+	RuntimeApi: 'static + Send + Sync + ConstructRuntimeApi<Block, LightClient<RuntimeApi, Executor>>,
+	<RuntimeApi as ConstructRuntimeApi<Block, LightClient<RuntimeApi, Executor>>>::RuntimeApi:
+		RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>>,
+	Executor: NativeExecutionDispatch + 'static,
+{
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -558,9 +671,4 @@ pub fn new_light_base(
 
 	network_starter.start_network();
 	Ok((task_manager, rpc_handlers, client, network, transaction_pool))
-}
-
-/// Builds a new service for a light client.
-pub fn new_light(config: Configuration) -> Result<TaskManager, ServiceError> {
-	new_light_base(config).map(|(task_manager, _, _, _, _)| task_manager)
 }

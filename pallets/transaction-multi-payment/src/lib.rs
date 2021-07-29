@@ -52,7 +52,8 @@ use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::asset::AssetPair;
 use primitives::traits::AMM;
-use primitives::{Amount, AssetId, Balance, CORE_ASSET_ID};
+use primitives::{Amount, AssetId, Balance};
+use common_runtime::constants::chain::CORE_ASSET_ID;
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 // Re-export pallet items so that they can be accessed from the crate namespace.
