@@ -114,13 +114,13 @@ Then open settings screen -> developer and paste
       "Price": "Balance",
       "Fee": {
         "numerator": "u32",
-        "denominator": "u32",
-      },
+        "denominator": "u32"
+      }
     }
   ],
   "alias": {
     "tokens": {
-      "AccountData": 'OrmlAccountData',
+      "AccountData": "OrmlAccountData"
     }
   }
 }
