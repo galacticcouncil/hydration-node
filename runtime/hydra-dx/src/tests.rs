@@ -6,6 +6,7 @@ use frame_support::storage::StorageValue;
 use frame_support::weights::{DispatchClass, GetDispatchInfo, WeightToFeePolynomial};
 use sp_runtime::traits::Convert;
 use sp_runtime::FixedPointNumber;
+use pallet_transaction_payment::Multiplier;
 
 #[test]
 fn full_block_cost() {

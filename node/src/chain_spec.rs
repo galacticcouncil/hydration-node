@@ -1,31 +1,28 @@
 #![allow(clippy::or_fun_call)]
 
-use hydra_dx_runtime::constants::currency::{Balance, HDX};
-use hydra_dx_runtime::opaque::SessionKeys;
-use hydra_dx_runtime::pallet_claims::EthereumAddress;
-use hydra_dx_runtime::GenesisConfig;
-use hydra_dx_runtime::{
-	AccountId, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ClaimsConfig, CouncilConfig,
-	ElectionsConfig, FaucetConfig, GenesisHistoryConfig, GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig,
-	Perbill, SessionConfig, Signature, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	TokensConfig, CORE_ASSET_ID, WASM_BINARY,
+pub use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
+pub use hydra_dx_runtime::{
+	opaque::SessionKeys, pallet_claims::EthereumAddress, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig,
+	BalancesConfig, ClaimsConfig, CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig,
+	GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig, SessionConfig, StakerStatus, StakingConfig,
+	SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, WASM_BINARY,
 };
-use pallet_staking::Forcing;
-use sc_service::ChainType;
-use sc_telemetry::TelemetryEndpoints;
-use serde_json::map::Map;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
-use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify};
+pub use pallet_staking::Forcing;
+pub use sc_service::ChainType;
+pub use sc_telemetry::TelemetryEndpoints;
+pub use serde_json::map::Map;
+pub use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
+pub use sp_finality_grandpa::AuthorityId as GrandpaId;
+pub use sp_runtime::traits::{IdentifyAccount, Verify};
 
-use hex_literal::hex;
-use hydra_dx_runtime::pallet_genesis_history::Chain;
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_consensus_babe::AuthorityId as BabeId;
+pub use hex_literal::hex;
+pub use hydra_dx_runtime::pallet_genesis_history::Chain;
+pub use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+pub use sp_consensus_babe::AuthorityId as BabeId;
 
 // The URL for the telemetry server.
-const TELEMETRY_URLS: [&str; 2] = [
+pub const TELEMETRY_URLS: [&str; 2] = [
 	"wss://telemetry.polkadot.io/submit/",
 	"wss://telemetry.hydradx.io:9000/submit/",
 ];
@@ -84,8 +81,8 @@ fn session_keys(
 	}
 }
 
-const STASH: Balance = 100 * HDX;
-const DEFAULT_PROTOCOL_ID: &str = "hdx";
+pub const STASH: Balance = 100 * HDX;
+pub const DEFAULT_PROTOCOL_ID: &str = "hdx";
 
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
@@ -481,9 +478,7 @@ fn lerna_genesis(
 			authorities: vec![],
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 		},
-		tokens: TokensConfig {
-			balances: vec![],
-		},
+		tokens: TokensConfig { balances: vec![] },
 		faucet: FaucetConfig {
 			rampage: false,
 			mint_limit: 5,
@@ -557,7 +552,7 @@ fn lerna_genesis(
 	}
 }
 
-fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
+pub fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
 	let mut claims = Vec::<(EthereumAddress, Balance)>::new();
 
 	// Alice's claim

@@ -28,10 +28,10 @@ use codec::Encode;
 use sp_std::vec::Vec;
 
 use primitives::{
+	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
 	asset::AssetPair,
-	traits::{Resolver, AMM},
-	Amount, AssetId, Balance, ExchangeIntention, IntentionType, MIN_TRADING_LIMIT,
-};
+	traits::{Resolver, AMM}};
+use common_runtime::constants::chain::MIN_TRADING_LIMIT;
 use sp_std::borrow::ToOwned;
 
 use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};

@@ -27,6 +27,7 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependecies
 primitives = {path = '../../primitives', default-features = false}
+common-runtime = {path = '../../runtime/common', default-features = false}
 
 # ORML dependencies
 orml-tokens = {default-features = false, version = "0.4.1-dev"}

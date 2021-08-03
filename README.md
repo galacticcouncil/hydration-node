@@ -57,6 +57,15 @@ Or, start a dev chain with detailed logging:
 RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hydra-dx -lruntime=debug --dev
 ```
 
+There is also an option to run the testing runtime with less restrictive settings to facilitate testing of new features.
+The following command starts a dev chain, and the testing runtime is used as a runtime for our node.
+```bash
+./target/release/hydra-dx --dev --runtime=testing
+```
+The testing runtime currently supports only two chain specifications: _dev_ and _local_ testnet.
+Both runtimes store blockchain data in the same directories( e.g. the _dev_ directory is shared for both runtimes 
+started with the `--dev` parameter. That's why it is important to purge chain data when switching to different runtime( note: `--runtime` parameter can't be used when purging chain data)
+
 ### Interaction with the node
 
 Go to the polkadot apps at https://dotapps.io

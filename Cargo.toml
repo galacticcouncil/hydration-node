@@ -100,14 +100,15 @@ panic = 'unwind'
 
 [workspace]
 members = [
-  # 'pallets/proposal', Update this
   'node',
+  'runtime/common',
+  'runtime/hydra-dx',
+  'runtime/testing-hydra-dx',
   'pallets/asset-registry',
   'pallets/exchange',
   'pallets/transaction-multi-payment',
   'pallets/genesis-history',
   'pallets/xyk',
   'primitives',
-  'runtime',
   'utils/build-script-utils'
 ]
