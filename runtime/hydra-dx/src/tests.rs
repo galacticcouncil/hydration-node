@@ -2,7 +2,6 @@
 
 use crate::*;
 use codec::Encode;
-use frame_support::storage::StorageValue;
 use frame_support::weights::{DispatchClass, GetDispatchInfo, WeightToFeePolynomial};
 use pallet_transaction_payment::Multiplier;
 use sp_runtime::traits::Convert;
@@ -42,7 +41,7 @@ fn transfer_cost() {
 
 	let mut ext = sp_io::TestExternalities::new_empty();
 	ext.execute_with(|| {
-		pallet_transaction_payment::NextFeeMultiplier::put(Multiplier::saturating_from_integer(1));
+		pallet_transaction_payment::NextFeeMultiplier::<Runtime>::put(Multiplier::saturating_from_integer(1));
 		let fee_raw = TransactionPayment::compute_fee_details(len, &info, 0);
 		let fee = fee_raw.final_fee();
 		println!(
