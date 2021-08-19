@@ -77,6 +77,7 @@ frame_support::construct_runtime!(
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 PaymentPallet: multi_payment::{Pallet, Call, Storage, Event<T>},
+		 TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 		 XYKPallet: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		 Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
 		 Currencies: orml_currencies::{Pallet, Event<T>},
