@@ -28,17 +28,19 @@ smallvec = "1.6.1"
 
 # local dependencies
 common-runtime = {path = '../common', default-features = false}
-pallet-asset-registry = {path = '../../pallets/asset-registry', default-features = false}
 pallet-claims = {path = '../../pallets/claims', default-features = false}
-pallet-exchange = {path = '../../pallets/exchange', default-features = false}
-pallet-exchange-benchmarking = {path = '../../pallets/exchange/benchmarking', default-features = false, optional = true}
 pallet-faucet = {path = '../../pallets/faucet', default-features = false}
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
-pallet-multi-payment-benchmarking = {path = '../../pallets/transaction-multi-payment/benchmarking', default-features = false, optional = true}
-pallet-transaction-multi-payment = {path = '../../pallets/transaction-multi-payment', default-features = false}
-pallet-xyk = {path = '../../pallets/xyk', default-features = false}
-pallet-xyk-rpc-runtime-api = {path = '../../pallets/xyk/rpc/runtime-api', default-features = false}
-primitives = {path = '../../primitives', default-features = false}
+
+pallet-asset-registry = {default-features = false, version = "0.1.0"}
+pallet-exchange = {default-features = false, version = "4.0.1"}
+pallet-exchange-benchmarking = {version = "3.1.1", default-features = false, optional = true}
+pallet-multi-payment-benchmarking = {version = "4.0.0", default-features = false, optional = true}
+pallet-transaction-multi-payment = {version = "4.1.0", default-features = false}
+pallet-xyk = {version = "1.3.0", default-features = false}
+pallet-xyk-rpc-runtime-api = {version = "3.0.0", default-features = false}
+
+primitives = {version = "4.2.0", default-features = false}
 
 # ORML dependencies
 orml-currencies = {default-features = false, version = '0.4.1-dev'}

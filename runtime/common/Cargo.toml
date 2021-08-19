@@ -20,7 +20,7 @@ package = 'parity-scale-codec'
 version = '2.0.0'
 
 [dependencies]
-primitives = {path = '../../primitives', default-features = false}
+primitives = {version = "4.2.0", default-features = false}
 
 # Substrate dependencies
 frame-support = {default-features = false, version = '3.0.0'}

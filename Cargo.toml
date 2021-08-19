@@ -88,12 +88,25 @@ sp-authority-discovery = {git = 'https://github.com/paritytech/substrate', branc
 sp-consensus-babe = {git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.8'}
 sp-keystore = {git = "https://github.com/paritytech/substrate.git", branch = 'polkadot-v0.9.8'}
 sp-authorship = {git = "https://github.com/paritytech/substrate.git", branch = 'polkadot-v0.9.8'}
+max-encoded-len = {git = "https://github.com/paritytech/substrate.git", branch = 'polkadot-v0.9.8'}
 
 # ORML dependencies
 orml-currencies = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a' }
 orml-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a' }
 orml-traits = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a' }
 orml-utilities = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a' }
+
+# Hydra pallets - from Basilisk repo
+pallet-asset-registry = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+#pallet-asset-registry = { path = '../Basilisk-node/pallets/asset-registry' }
+pallet-exchange = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+pallet-exchange-benchmarking = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+pallet-transaction-multi-payment = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+pallet-multi-payment-benchmarking = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+pallet-xyk= { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+pallet-xyk-rpc = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+pallet-xyk-rpc-runtime-api = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
+primitives = { git = 'https://github.com/galacticcouncil/Basilisk-node', rev = '3663055f5c651c6cae9413b43231a082a78d2aa4' }
 
 [profile.release]
 panic = 'unwind'
@@ -104,11 +117,6 @@ members = [
   'runtime/common',
   'runtime/hydra-dx',
   'runtime/testing-hydra-dx',
-  'pallets/asset-registry',
-  'pallets/exchange',
-  'pallets/transaction-multi-payment',
   'pallets/genesis-history',
-  'pallets/xyk',
-  'primitives',
   'utils/build-script-utils'
 ]

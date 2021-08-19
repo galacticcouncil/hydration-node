@@ -33,7 +33,7 @@ sp-runtime = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
 
 # Local dependencies
-primitives = {path = '../../primitives', default-features = false}
+primitives = {default-features = false, version = "4.2.0"}
 
 # ORML dependencies
 orml-tokens = {default-features = false, version = '0.4.1-dev'}
@@ -59,7 +59,6 @@ std = [
   'orml-traits/std',
   'orml-tokens/std',
   'orml-utilities/std',
-  'primitives/std',
   'rustc-hex/std',
   'serde/std',
 ]

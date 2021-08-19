@@ -26,7 +26,7 @@ primitive-types = {default-features = false, version = '0.7.2'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependencies
-primitives = {path = '../../primitives', default-features = false}
+primitives = {default-features = false, version = "4.2.0"}
 
 # ORML dependencies
 orml-tokens = {default-features = false, version = "0.4.1-dev"}

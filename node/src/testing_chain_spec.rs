@@ -65,7 +65,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 }
 
 pub fn local_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary = testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
+	let wasm_binary =
+		testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
@@ -154,20 +155,19 @@ fn testnet_genesis(
 			key: root_key.clone(),
 		},
 		asset_registry: testing_runtime::AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![
-				(b"tKSM".to_vec(), 1),
-				(b"tDOT".to_vec(), 2),
-				(b"tETH".to_vec(), 3),
-				(b"tACA".to_vec(), 4),
-				(b"tEDG".to_vec(), 5),
-				(b"tUSD".to_vec(), 6),
-				(b"tPLM".to_vec(), 7),
-				(b"tFIS".to_vec(), 8),
-				(b"tPHA".to_vec(), 9),
-				(b"tUSDT".to_vec(), 10),
+			asset_names: vec![
+				b"tKSM".to_vec(),
+				b"tDOT".to_vec(),
+				b"tETH".to_vec(),
+				b"tACA".to_vec(),
+				b"tEDG".to_vec(),
+				b"tUSD".to_vec(),
+				b"tPLM".to_vec(),
+				b"tFIS".to_vec(),
+				b"tPHA".to_vec(),
+				b"tUSDT".to_vec(),
 			],
-			next_asset_id: 11,
+			native_asset_name: b"HDX".to_vec(),
 		},
 		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
 			currencies: vec![],

@@ -79,10 +79,6 @@ use orml_traits::parameter_type_with_key;
 pub use common_runtime::*;
 
 /// Import HydraDX pallets
-pub use pallet_asset_registry;
-pub use pallet_claims;
-pub use pallet_faucet;
-pub use pallet_genesis_history;
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
@@ -198,6 +194,8 @@ parameter_types! {
 
 	pub ExtrinsicPaymentExtraWeight: Weight =  <Runtime as pallet_transaction_multi_payment::Config>::WeightInfo::swap_currency();
 	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
+
+	pub const AssetRegistryStrLimit: u32 = 32;
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -369,13 +367,20 @@ impl orml_currencies::Config for Runtime {
 }
 
 /// HydraDX Pallets configurations
-
+///
 impl pallet_asset_registry::Config for Runtime {
+	type Event = Event;
+	type RegistryOrigin = EnsureRoot<AccountId>;
 	type AssetId = AssetId;
+	type AssetNativeLocation = u8; // not used in HydraDX yet - so let's use u8 for now
+	type StringLimit = AssetRegistryStrLimit;
+	type NativeAssetId = HDXAssetId;
+	type WeightInfo = ();
 }
 
 impl pallet_xyk::Config for Runtime {
 	type Event = Event;
+	type AssetRegistry = AssetRegistry;
 	type AssetPairAccountId = pallet_xyk::AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type NativeAssetId = HDXAssetId;
@@ -857,7 +862,7 @@ construct_runtime!(
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
 
 		// HydraDX related modules
-		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},
+		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config, Event<T>},
 		XYK: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
