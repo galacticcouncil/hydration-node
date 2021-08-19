@@ -4,9 +4,9 @@ use crate::*;
 use codec::Encode;
 use frame_support::storage::StorageValue;
 use frame_support::weights::{DispatchClass, GetDispatchInfo, WeightToFeePolynomial};
+use pallet_transaction_payment::Multiplier;
 use sp_runtime::traits::Convert;
 use sp_runtime::FixedPointNumber;
-use pallet_transaction_payment::Multiplier;
 
 #[test]
 fn full_block_cost() {
@@ -78,7 +78,10 @@ fn multiplier_can_grow_from_zero() {
 	// if the min is too small, then this will not change, and we are doomed forever.
 	// the weight is 1/100th bigger than target.
 	run_with_system_weight(target * 101 / 100, || {
-		let next = TargetedFeeAdjustment::<Runtime, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>::convert(minimum_multiplier);
+		let next =
+			TargetedFeeAdjustment::<Runtime, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>::convert(
+				minimum_multiplier,
+			);
 		assert!(next > minimum_multiplier, "{:?} !>= {:?}", next, minimum_multiplier);
 	})
 }
@@ -91,7 +94,10 @@ fn multiplier_growth_simulator() {
 	let block_weight = BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap();
 	for _block_num in 1..=24 * HOURS {
 		run_with_system_weight(block_weight, || {
-			let next = TargetedFeeAdjustment::<Runtime, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>::convert(multiplier);
+			let next =
+				TargetedFeeAdjustment::<Runtime, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>::convert(
+					multiplier,
+				);
 			// ensure that it is growing as well.
 			assert!(next > multiplier, "{:?} !>= {:?}", next, multiplier);
 			multiplier = next;
