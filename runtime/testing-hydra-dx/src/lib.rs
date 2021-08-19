@@ -548,9 +548,9 @@ impl pallet_democracy::Config for Runtime {
 
 parameter_types! {
 	pub const SignedMaxSubmissions: u32 = 10;
-	pub const SignedRewardBase: Balance = 1 * DOLLARS;
-	pub const SignedDepositBase: Balance = 1 * DOLLARS;
-	pub const SignedDepositByte: Balance = 1 * CENTS;
+	pub const SignedRewardBase: Balance = DOLLARS;
+	pub const SignedDepositBase: Balance = DOLLARS;
+	pub const SignedDepositByte: Balance = CENTS;
 	// fallback: run election on-chain.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
 		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
