@@ -28,6 +28,7 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 
+use common_runtime::constants::chain::{MAX_IN_RATIO, MAX_OUT_RATIO};
 use frame_support::sp_runtime::{
 	traits::{Hash, Zero},
 	DispatchError,
@@ -35,7 +36,6 @@ use frame_support::sp_runtime::{
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, transactional};
 use frame_system::ensure_signed;
 use primitives::{asset::AssetPair, fee, traits::AMM, AssetId, Balance, Price};
-use common_runtime::constants::chain::{MAX_IN_RATIO, MAX_OUT_RATIO};
 use sp_std::{marker::PhantomData, vec, vec::Vec};
 
 use frame_support::sp_runtime::app_crypto::sp_core::crypto::UncheckedFrom;
@@ -169,11 +169,11 @@ pub mod pallet {
 		/// Liquidity was removed from the pool. [who, asset a, asset b, shares]
 		LiquidityRemoved(T::AccountId, AssetId, AssetId, Balance),
 
-		/// Pool was created. [who, asset a, asset b, initial shares amount, pool id]
-		PoolCreated(T::AccountId, AssetId, AssetId, Balance, AssetId),
+		/// Pool was created. [who, asset a, asset b, initial shares amount, share token, pool account id]
+		PoolCreated(T::AccountId, AssetId, AssetId, Balance, AssetId, T::AccountId),
 
-		/// Pool was destroyed. [who, asset a, asset b, pool id]
-		PoolDestroyed(T::AccountId, AssetId, AssetId, AssetId),
+		/// Pool was destroyed. [who, asset a, asset b, share token, pool account id]
+		PoolDestroyed(T::AccountId, AssetId, AssetId, AssetId, T::AccountId),
 
 		/// Asset sale executed. [who, asset in, asset out, amount, sale price, fee asset, fee amount]
 		SellExecuted(T::AccountId, AssetId, AssetId, Balance, Balance, AssetId, Balance),
@@ -266,7 +266,14 @@ pub mod pallet {
 
 			<TotalLiquidity<T>>::insert(&pair_account, shares_added);
 
-			Self::deposit_event(Event::PoolCreated(who, asset_a, asset_b, shares_added, share_token));
+			Self::deposit_event(Event::PoolCreated(
+				who,
+				asset_a,
+				asset_b,
+				shares_added,
+				share_token,
+				pair_account,
+			));
 
 			Ok(().into())
 		}
@@ -429,7 +436,7 @@ pub mod pallet {
 				<ShareToken<T>>::remove(&pair_account);
 				<PoolAssets<T>>::remove(&pair_account);
 
-				Self::deposit_event(Event::PoolDestroyed(who, asset_a, asset_b, share_token));
+				Self::deposit_event(Event::PoolDestroyed(who, asset_a, asset_b, share_token, pair_account));
 			}
 
 			Ok(().into())
@@ -623,7 +630,10 @@ impl<T: Config> AMM<T::AccountId, AssetId, AssetPair, Balance> for Pallet<T> {
 
 		ensure!(asset_out_reserve > amount_out, Error::<T>::InsufficientAssetBalance);
 
-		ensure!(min_bought <= amount_out_without_fee, Error::<T>::AssetAmountNotReachedLimit);
+		ensure!(
+			min_bought <= amount_out_without_fee,
+			Error::<T>::AssetAmountNotReachedLimit
+		);
 
 		let discount_fee = if discount {
 			let native_asset = T::NativeAssetId::get();

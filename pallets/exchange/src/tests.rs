@@ -84,7 +84,14 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	});
 	let share_token = XYKPallet::share_token(pair_account);
 
-	expect_event(xyk::Event::PoolCreated(user, asset_a, asset_b, shares, share_token));
+	expect_event(xyk::Event::PoolCreated(
+		user,
+		asset_a,
+		asset_b,
+		shares,
+		share_token,
+		pair_account,
+	));
 
 	let amount_b = price.saturating_mul_int(amount);
 
