@@ -27,7 +27,7 @@ variable "ec2_pwd" {
 
 
 resource "aws_instance" "runner-aws" {
-    ami = "ami-0814bae4faec53b79"
+    ami = "ami-0589e001078ff4c3f"
     instance_type = "c5ad.4xlarge"
     subnet_id = "subnet-0ba99ac0d4aea3dc6"
     key_name = "aws-ec2-key"
