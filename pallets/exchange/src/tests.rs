@@ -78,14 +78,20 @@ fn initialize_pool(asset_a: u32, asset_b: u32, user: u64, amount: u128, price: P
 	} else {
 		price.checked_mul_int(amount).unwrap()
 	};
-
-	expect_event(xyk::Event::PoolCreated(user, asset_a, asset_b, shares));
-
 	let pair_account = XYKPallet::get_pair_id(AssetPair {
 		asset_in: asset_a,
 		asset_out: asset_b,
 	});
 	let share_token = XYKPallet::share_token(pair_account);
+
+	expect_event(xyk::Event::PoolCreated(
+		user,
+		asset_a,
+		asset_b,
+		shares,
+		share_token,
+		pair_account,
+	));
 
 	let amount_b = price.saturating_mul_int(amount);
 
