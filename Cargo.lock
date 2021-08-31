@@ -2346,7 +2346,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -4344,7 +4344,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-exchange"
-version = "4.0.0"
+version = "4.1.0"
 dependencies = [
  "common-runtime",
  "frame-support",
