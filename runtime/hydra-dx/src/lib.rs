@@ -154,8 +154,7 @@ pub struct BaseFilter;
 impl Filter<Call> for BaseFilter {
 	fn filter(call: &Call) -> bool {
 		match call {
-			Call::AuthorityDiscovery(_)
-			| Call::Authorship(_)
+			Call::Authorship(_)
 			| Call::Babe(_)
 			| Call::Claims(_)
 			| Call::Council(_)
@@ -164,7 +163,6 @@ impl Filter<Call> for BaseFilter {
 			| Call::Elections(_)
 			| Call::Grandpa(_)
 			| Call::ImOnline(_)
-			| Call::RandomnessCollectiveFlip(_)
 			| Call::Scheduler(_)
 			| Call::Session(_)
 			| Call::Staking(_)
@@ -174,7 +172,6 @@ impl Filter<Call> for BaseFilter {
 			| Call::Tips(_)
 			| Call::Treasury(_)
 			| Call::Identity(_)
-			| Call::Offences(_)
 			| Call::Utility(_)
 			| Call::Sudo(_) => true,
 
@@ -591,6 +588,11 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
+	pub const SignedMaxSubmissions: u32 = 10;
+	pub const SignedRewardBase: Balance = DOLLARS;
+	pub const SignedDepositBase: Balance = DOLLARS;
+	pub const SignedDepositByte: Balance = CENTS;
+
 	// fallback: run election on-chain.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
 		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
@@ -618,6 +620,14 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type MinerMaxLength = ();
 	type OffchainRepeat = ();
 	type ForceOrigin = EnsureRootOrHalfCouncil;
+	type SignedMaxSubmissions = SignedMaxSubmissions;
+	type SignedMaxWeight = MinerMaxWeight;
+	type SignedRewardBase = SignedRewardBase;
+	type SignedDepositBase = SignedDepositBase;
+	type SignedDepositByte = SignedDepositByte;
+	type SignedDepositWeight = ();
+	type SlashHandler = (); // burn slashes
+	type RewardHandler = (); // nothing to do
 }
 
 parameter_types! {
@@ -855,7 +865,7 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
 
 		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned},
 
@@ -877,9 +887,9 @@ construct_runtime!(
 		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>},
-		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config},
+		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config},
 		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-		Offences: pallet_offences::{Pallet, Call, Storage, Event},
+		Offences: pallet_offences::{Pallet, Storage, Event},
 		Historical: session_historical::{Pallet},
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
@@ -1032,8 +1042,9 @@ impl_runtime_apis! {
 		fn validate_transaction(
 			source: TransactionSource,
 			tx: <Block as BlockT>::Extrinsic,
+			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
-			Executive::validate_transaction(source, tx)
+			Executive::validate_transaction(source, tx, block_hash)
 		}
 	}
 

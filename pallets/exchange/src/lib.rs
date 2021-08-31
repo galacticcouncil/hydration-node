@@ -95,8 +95,8 @@ pub mod pallet {
 				Self::process_exchange_intentions(&pair_account, &asset_a_ins, &asset_b_ins);
 			}
 
-			ExchangeAssetsIntentionCount::<T>::remove_all();
-			ExchangeAssetsIntentions::<T>::remove_all();
+			ExchangeAssetsIntentionCount::<T>::remove_all(None);
+			ExchangeAssetsIntentions::<T>::remove_all(None);
 		}
 
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
