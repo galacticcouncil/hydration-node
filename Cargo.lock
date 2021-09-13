@@ -839,7 +839,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "21.0.0"
+version = "22.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -2429,7 +2429,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "21.0.0"
+version = "22.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -8196,7 +8196,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydra-dx-runtime"
-version = "21.0.0"
+version = "22.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
