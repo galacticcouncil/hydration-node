@@ -162,7 +162,7 @@ parameter_types! {
 // pallet democracy
 parameter_types! {
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
+	pub const MinimumDeposit: Balance = 50 * DOLLARS;
 	pub const EnactmentPeriod: BlockNumber = 6 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const PreimageByteDeposit: Balance = CENTS;
@@ -187,8 +187,8 @@ parameter_types! {
 // pallet treasury
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = FORTUNE;
-	pub const SpendPeriod: BlockNumber = DAYS;
+	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
+	pub const SpendPeriod: BlockNumber = 20 * DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 }
@@ -196,8 +196,8 @@ parameter_types! {
 // pallet tips
 parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 4 * HOURS;
-	pub const TipFindersFee: Percent = Percent::from_percent(2);
+	pub const TipCountdown: BlockNumber = 24 * HOURS;
+	pub TipFindersFee: Percent = Percent::from_rational(1u32, 4);
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
 	pub const MaximumReasonLength: u32 = 1024;
@@ -211,14 +211,14 @@ parameter_types! {
 // pallet elections phragmen
 parameter_types! {
 	// Don't allow runner-ups
-	pub const CandidacyBond: Balance = 5_000_000 * DOLLARS;
+	pub const CandidacyBond: Balance = 50 * DOLLARS;
 	// 1 storage item created, key size is 32 bytes, value size is 16+16.
 	pub const VotingBondBase: Balance = CENTS;
 	// additional data per vote is 32 bytes (account id).
 	pub const VotingBondFactor: Balance = CENTS;
 	pub const TermDuration: BlockNumber = 7 * DAYS;
-	pub const DesiredMembers: u32 = 1;
-	pub const DesiredRunnersUp: u32 = 0;
+	pub const DesiredMembers: u32 = 13;
+	pub const DesiredRunnersUp: u32 = 15;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 
@@ -230,9 +230,8 @@ parameter_types! {
 // pallet collective Instance1 - CouncilCollective
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
-	pub const CouncilMaxProposals: u32 = 20;
-	pub const ProposalVotesRequired: u32 = 1;
-	pub const CouncilMaxMembers: u32 = 1;
+	pub const CouncilMaxProposals: u32 = 30;
+	pub const CouncilMaxMembers: u32 = 13;
 }
 
 // pallet collective Instance2 - TechnicalCollective
