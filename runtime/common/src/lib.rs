@@ -162,13 +162,13 @@ parameter_types! {
 // pallet democracy
 parameter_types! {
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 50 * DOLLARS;
+	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
 	pub const EnactmentPeriod: BlockNumber = 6 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const PreimageByteDeposit: Balance = CENTS;
 	pub const InstantAllowed: bool = true;
-	pub const MaxVotes: u32 = 30;
-	pub const MaxProposals: u32 = 30;
+	pub const MaxVotes: u32 = 100;
+	pub const MaxProposals: u32 = 100;
 }
 
 // pallet election provider multi phase
@@ -210,7 +210,6 @@ parameter_types! {
 
 // pallet elections phragmen
 parameter_types! {
-	// Don't allow runner-ups
 	pub const CandidacyBond: Balance = 50 * DOLLARS;
 	// 1 storage item created, key size is 32 bytes, value size is 16+16.
 	pub const VotingBondBase: Balance = CENTS;
