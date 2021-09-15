@@ -27,10 +27,11 @@ use frame_system::{self as system, ensure_signed};
 use codec::Encode;
 use sp_std::vec::Vec;
 
+use common_runtime::constants::chain::MIN_TRADING_LIMIT;
 use primitives::{
 	asset::AssetPair,
 	traits::{Resolver, AMM},
-	Amount, AssetId, Balance, ExchangeIntention, IntentionType, MIN_TRADING_LIMIT,
+	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
 };
 use sp_std::borrow::ToOwned;
 
@@ -95,8 +96,8 @@ pub mod pallet {
 				Self::process_exchange_intentions(&pair_account, &asset_a_ins, &asset_b_ins);
 			}
 
-			ExchangeAssetsIntentionCount::<T>::remove_all();
-			ExchangeAssetsIntentions::<T>::remove_all();
+			ExchangeAssetsIntentionCount::<T>::remove_all(None);
+			ExchangeAssetsIntentions::<T>::remove_all(None);
 		}
 
 		fn on_initialize(_n: T::BlockNumber) -> Weight {
@@ -181,8 +182,11 @@ pub mod pallet {
 		/// Insufficient asset balance.
 		InsufficientAssetBalance,
 
-		/// Given trading limit has been exceeded (Sell) or has Not been reached (buy).
-		AssetBalanceLimitExceeded,
+		/// Given trading limit has been exceeded (buy).
+		TradeAmountExceededLimit,
+
+		/// Given trading limit has not been reached (sell).
+		TradeAmountNotReachedLimit,
 
 		/// Overflow
 		ZeroSpotPrice,
@@ -411,7 +415,7 @@ impl<T: Config> Pallet<T> {
 	fn execute_amm_transfer(
 		amm_tranfer_type: IntentionType,
 		intention_id: IntentionId<T>,
-		transfer: &AMMTransfer<T::AccountId, AssetPair, Balance>,
+		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
 	) -> dispatch::DispatchResult {
 		match amm_tranfer_type {
 			IntentionType::SELL => {
@@ -422,7 +426,7 @@ impl<T: Config> Pallet<T> {
 					IntentionType::SELL,
 					intention_id,
 					transfer.amount,
-					transfer.amount_out,
+					transfer.amount_out + transfer.fee.1,
 				));
 			}
 			IntentionType::BUY => {
@@ -433,7 +437,7 @@ impl<T: Config> Pallet<T> {
 					IntentionType::BUY,
 					intention_id,
 					transfer.amount,
-					transfer.amount_out,
+					transfer.amount_out + transfer.fee.1,
 				));
 			}
 		};
@@ -533,11 +537,11 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 			Ok(x) => match Self::execute_amm_transfer(intention.sell_or_buy, intention.intention_id, &x) {
 				Ok(_) => {}
 				Err(error) => {
-					Self::send_intention_error_event(&intention, error);
+					Self::send_intention_error_event(intention, error);
 				}
 			},
 			Err(error) => {
-				Self::send_intention_error_event(&intention, error);
+				Self::send_intention_error_event(intention, error);
 			}
 		};
 	}
@@ -568,7 +572,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 				// 3. Sets new amount (rest amount) and trade limit accordingly.
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
-					intention_b: &matched_intention,
+					intention_b: matched_intention,
 					amount_from_a: amount_b_out,
 					amount_from_b: amount_b_in,
 					transfers: Vec::<Transfer<T>>::new(),
@@ -579,17 +583,17 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 					IntentionType::SELL => {
 						if dt.amount_from_a < matched_intention.trade_limit {
 							Self::send_intention_error_event(
-								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								matched_intention,
+								Error::<T>::TradeAmountNotReachedLimit.into(),
 							);
 							continue;
 						}
 					}
 					IntentionType::BUY => {
-						if dt.amount_from_a > matched_intention.trade_limit {
+						if dt.amount_from_b > matched_intention.trade_limit {
 							Self::send_intention_error_event(
-								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								matched_intention,
+								Error::<T>::TradeAmountExceededLimit.into(),
 							);
 							continue;
 						}
@@ -600,8 +604,17 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 					true => {
 						dt.execute();
 
-						intention_copy.amount_in = amount_a_in - amount_b_out;
-						intention_copy.amount_out = amount_a_out - amount_b_in;
+						intention_copy.amount_in = amount_a_in.checked_sub(amount_b_out).unwrap(); // Conditionally checked
+						intention_copy.amount_out = if let Some(value) = amount_a_out.checked_sub(amount_b_in) {
+							value
+						} else {
+							// This cannot really happen. IF this happens, that would mean that in/out calculation are wrong.
+							// It is simply because if amount of one asset of intention A is < amount of the asset of intention B,
+							// that means - the second asset's amounts have to be in the same way ( intention A amount < Intention B Amount )
+
+							// however, we can send an error event just to be sure but we can actually panic here because the math is wrong!
+							panic!("In/out calculations are wrong! Intention B amount has to be less that Intention A amount!");
+						};
 
 						intention_copy.trade_limit = match intention_copy.sell_or_buy {
 							IntentionType::SELL => intention_copy.trade_limit.saturating_sub(amount_b_in),
@@ -621,73 +634,58 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 				// 3. Verify if direct trade can be successfully performed
 				// 4. If both ok - execute
 				// 5. Main intention is empty at this point - just set amount to 0.
-				let rest_in_diff = amount_b_in.checked_sub(amount_a_out);
-				let rest_out_diff = amount_b_out.checked_sub(amount_a_in);
 
-				if rest_in_diff.is_none() || rest_out_diff.is_none() {
-					Self::send_intention_error_event(
-						&matched_intention,
-						Error::<T>::AssetBalanceLimitExceeded.into(), // TODO: better error here ?!
-					);
-					continue;
-				}
+				let rest_out_amount = amount_b_out.checked_sub(amount_a_in).unwrap(); //Note: Conditionally checked
 
-				let rest_in_amount = rest_in_diff.unwrap();
-				let rest_out_amount = rest_out_diff.unwrap();
+				let rest_in_amount = if let Some(value) = amount_b_in.checked_sub(amount_a_out) {
+					value
+				} else {
+					// This cannot really happen. IF this happens, that would mean that in/out calculation are wrong.
+					// It is simply because if amount of one asset of intention A is < amount of the asset of intention B,
+					// that means - the second asset's amounts have to be in the same way ( intention A amount < Intention B Amount )
 
-				let rest_limit = matched_intention.trade_limit.saturating_sub(amount_a_in);
+					// however, we can send an error event just to be sure but we can actually panic here because the math is wrong!
+					panic!("In/out calculations are wrong! Intention B amount has to be less that Intention A amount!");
+				};
 
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
-					intention_b: &matched_intention,
+					intention_b: matched_intention,
 					amount_from_a: amount_a_in,
-					amount_from_b: amount_b_in - rest_in_amount,
+					amount_from_b: amount_a_out,
 					transfers: Vec::<Transfer<T>>::new(),
 				};
 
 				let amm_transfer_result = match matched_intention.sell_or_buy {
-					IntentionType::SELL => T::AMMPool::validate_sell(
-						&matched_intention.who,
-						matched_intention.assets,
-						rest_in_amount,
-						rest_limit,
-						matched_intention.discount,
-					),
-					IntentionType::BUY => T::AMMPool::validate_buy(
-						&matched_intention.who,
-						matched_intention.assets,
-						rest_out_amount,
-						rest_limit,
-						matched_intention.discount,
-					),
+					IntentionType::SELL => {
+						let rest_limit = matched_intention.trade_limit.saturating_sub(amount_a_in);
+
+						T::AMMPool::validate_sell(
+							&matched_intention.who,
+							matched_intention.assets,
+							rest_in_amount,
+							rest_limit,
+							matched_intention.discount,
+						)
+					}
+					IntentionType::BUY => {
+						let rest_limit = matched_intention.trade_limit.saturating_sub(amount_a_out);
+
+						T::AMMPool::validate_buy(
+							&matched_intention.who,
+							matched_intention.assets,
+							rest_out_amount,
+							rest_limit,
+							matched_intention.discount,
+						)
+					}
 				};
 
 				let amm_transfer = match amm_transfer_result {
 					Ok(x) => x,
 					Err(error) => {
-						Self::send_intention_error_event(&matched_intention, error);
+						Self::send_intention_error_event(matched_intention, error);
 						continue;
-					}
-				};
-
-				match matched_intention.sell_or_buy {
-					IntentionType::SELL => {
-						if dt.amount_from_b < matched_intention.trade_limit - amm_transfer.amount_out {
-							Self::send_intention_error_event(
-								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
-							);
-							continue;
-						}
-					}
-					IntentionType::BUY => {
-						if dt.amount_from_b > matched_intention.trade_limit - amm_transfer.amount_out {
-							Self::send_intention_error_event(
-								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
-							);
-							continue;
-						}
 					}
 				};
 
@@ -703,7 +701,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 								intention_copy.amount_in = 0;
 							}
 							Err(error) => {
-								Self::send_intention_error_event(&matched_intention, error);
+								Self::send_intention_error_event(matched_intention, error);
 								dt.revert();
 								continue;
 							}
@@ -722,7 +720,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 				// 3. Main intention is emtpy at this point -set amount to 0.
 				let mut dt = DirectTradeData::<T> {
 					intention_a: &intention_copy,
-					intention_b: &matched_intention,
+					intention_b: matched_intention,
 					amount_from_a: amount_a_in,
 					amount_from_b: amount_b_in,
 					transfers: Vec::<Transfer<T>>::new(),
@@ -732,13 +730,13 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 				match intention.sell_or_buy {
 					IntentionType::SELL => {
 						if dt.amount_from_b < intention.trade_limit {
-							Self::send_intention_error_event(&intention, Error::<T>::AssetBalanceLimitExceeded.into());
+							Self::send_intention_error_event(intention, Error::<T>::TradeAmountNotReachedLimit.into());
 							continue;
 						}
 					}
 					IntentionType::BUY => {
-						if dt.amount_from_b > intention.trade_limit {
-							Self::send_intention_error_event(&intention, Error::<T>::AssetBalanceLimitExceeded.into());
+						if dt.amount_from_a > intention.trade_limit {
+							Self::send_intention_error_event(intention, Error::<T>::TradeAmountExceededLimit.into());
 							continue;
 						}
 					}
@@ -748,17 +746,17 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 					IntentionType::SELL => {
 						if dt.amount_from_a < matched_intention.trade_limit {
 							Self::send_intention_error_event(
-								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								matched_intention,
+								Error::<T>::TradeAmountNotReachedLimit.into(),
 							);
 							continue;
 						}
 					}
 					IntentionType::BUY => {
-						if dt.amount_from_a > matched_intention.trade_limit {
+						if dt.amount_from_b > matched_intention.trade_limit {
 							Self::send_intention_error_event(
-								&matched_intention,
-								Error::<T>::AssetBalanceLimitExceeded.into(),
+								matched_intention,
+								Error::<T>::TradeAmountExceededLimit.into(),
 							);
 							continue;
 						}

@@ -57,6 +57,15 @@ Or, start a dev chain with detailed logging:
 RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hydra-dx -lruntime=debug --dev
 ```
 
+There is also an option to run the testing runtime with less restrictive settings to facilitate testing of new features.
+The following command starts a dev chain, and the testing runtime is used as a runtime for our node.
+```bash
+./target/release/hydra-dx --dev --runtime=testing
+```
+The testing runtime currently supports only two chain specifications: _dev_ and _local_ testnet.
+Both runtimes store blockchain data in the same directories( e.g. the _dev_ directory is shared for both runtimes 
+started with the `--dev` parameter. That's why it is important to purge chain data when switching to different runtime( note: `--runtime` parameter can't be used when purging chain data)
+
 ### Interaction with the node
 
 Go to the polkadot apps at https://dotapps.io
@@ -70,39 +79,58 @@ Then open settings screen -> developer and paste
 
 ```
 {
-  "Amount": "i128",
-  "AmountOf": "Amount",
-  "Address": "AccountId",
-  "Fee": {
-    "numerator": "u32",
-    "denominator": "u32"
-  },
-  "BalanceInfo": {
-    "amount": "Balance",
-    "assetId": "AssetId"
-  },
-  "CurrencyId": "AssetId",
-  "CurrencyIdOf": "AssetId",
-  "Intention": {
-    "who": "AccountId",
-    "asset_sell": "AssetId",
-    "asset_buy": "AssetId",
-    "amount": "Balance",
-    "discount": "bool",
-    "sell_or_buy": "IntentionType"
-  },
-  "IntentionId": "u128",
-  "IntentionType": {
-    "_enum": [
-      "SELL",
-      "BUY"
-    ]
-  },
-  "LookupSource": "AccountId",
-  "Price": "Balance",
-  "Chain": {
-    "genesisHash": "Vec<u8>",
-    "lastBlockHash": "Vec<u8>"
+  "types": [
+    {
+      "AssetPair": {
+        "asset_in": "AssetId",
+        "asset_out": "AssetId"
+      },
+      "Amount": "i128",
+      "AmountOf": "Amount",
+      "Address": "AccountId",
+      "OrmlAccountData": {
+        "free": "Balance",
+        "frozen": "Balance",
+        "reserved": "Balance"
+      },
+      "BalanceInfo": {
+        "amount": "Balance",
+        "assetId": "AssetId"
+      },
+      "Chain": {
+        "genesisHash": "Vec<u8>",
+        "lastBlockHash": "Vec<u8>"
+      },
+      "CurrencyId": "AssetId",
+      "CurrencyIdOf": "AssetId",
+      "Intention": {
+        "who": "AccountId",
+        "asset_sell": "AssetId",
+        "asset_buy": "AssetId",
+        "amount": "Balance",
+        "discount": "bool",
+        "sell_or_buy": "IntentionType"
+      },
+      "IntentionId": "Hash",
+      "IntentionType": {
+        "_enum": [
+          "SELL",
+          "BUY"
+        ]
+      },
+      "LookupSource": "AccountId",
+      "OrderedSet": "Vec<AssetId>",
+      "Price": "Balance",
+      "Fee": {
+        "numerator": "u32",
+        "denominator": "u32"
+      }
+    }
+  ],
+  "alias": {
+    "tokens": {
+      "AccountData": "OrmlAccountData"
+    }
   }
 }
 ```

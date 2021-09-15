@@ -31,7 +31,7 @@ use sp_runtime::{
 use frame_support::weights::IdentityFee;
 use frame_support::weights::Weight;
 use orml_currencies::BasicCurrencyAdapter;
-use primitives::{Amount, AssetId, Balance};
+use primitives::{Amount, AssetId, Balance, Price};
 
 use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
@@ -45,6 +45,7 @@ pub const INITIAL_BALANCE: Balance = 1000_000_000_000_000u128;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const FALLBACK_ACCOUNT: AccountId = 300;
 
 pub const HDX: AssetId = 0;
 pub const SUPPORTED_CURRENCY_NO_BALANCE: AssetId = 2000;
@@ -76,6 +77,7 @@ frame_support::construct_runtime!(
 	 {
 		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		 PaymentPallet: multi_payment::{Pallet, Call, Storage, Event<T>},
+		 TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 		 XYKPallet: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		 Balances: pallet_balances::{Pallet,Call, Storage,Config<T>, Event<T>},
 		 Currencies: orml_currencies::{Pallet, Event<T>},
@@ -165,6 +167,8 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 impl pallet_transaction_payment::Config for Test {
@@ -211,6 +215,7 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
+	type MaxLocks = ();
 }
 
 impl orml_currencies::Config for Test {
@@ -270,7 +275,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
-			endowed_accounts: self.endowed_accounts,
+			balances: self.endowed_accounts,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
@@ -291,8 +296,12 @@ impl ExtBuilder {
 		.unwrap();
 
 		crate::GenesisConfig::<Test> {
-			currencies: OrderedSet::from(vec![SUPPORTED_CURRENCY_NO_BALANCE, SUPPORTED_CURRENCY_WITH_BALANCE]),
+			currencies: vec![
+				(SUPPORTED_CURRENCY_NO_BALANCE, Price::from(1)),
+				(SUPPORTED_CURRENCY_WITH_BALANCE, Price::from_float(1.5)),
+			],
 			authorities: vec![self.payment_authority],
+			fallback_account: FALLBACK_ACCOUNT,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

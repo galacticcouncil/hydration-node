@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydra-dx'
 license = 'Apache 2.0'
 name = 'pallet-transaction-multi-payment'
 repository = 'https://github.com/galacticcouncil/hydra-dx'
-version = '3.1.0'
+version = '4.0.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -27,6 +27,7 @@ serde = {features = ['derive'], optional = true, version = '1.0.101'}
 
 # Local dependecies
 primitives = {path = '../../primitives', default-features = false}
+common-runtime = {path = '../../runtime/common', default-features = false}
 
 # ORML dependencies
 orml-tokens = {default-features = false, version = "0.4.1-dev"}
@@ -40,14 +41,15 @@ sp-api = {default-features = false, version = '3.0.0'}
 sp-core = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 sp-std = {default-features = false, version = '3.0.0'}
-
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}
 
-[dev-dependencies]
+# These 2 dependencies are for testing only. But need to be here for benchmarking pallet - could not figure out why yet
+pallet-asset-registry = {path = '../asset-registry', default-features = false}
 pallet-balances = {default-features = false, version = '3.0.0'}
+
+[dev-dependencies]
 orml-currencies = {default-features = false, version = "0.4.1-dev"}
 pallet-xyk = {path = '../xyk', default-features = false}
-pallet-asset-registry = {path = '../asset-registry', default-features = false}
 sp-io = {default-features = false, version = '3.0.0'}
 
 [features]
@@ -62,4 +64,6 @@ std = [
   'sp-runtime/std',
   'orml-tokens/std',
   'orml-traits/std',
+  'pallet-balances/std',
+  'pallet-asset-registry/std',
 ]

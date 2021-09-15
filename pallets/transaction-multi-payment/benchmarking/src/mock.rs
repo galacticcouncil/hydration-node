@@ -38,7 +38,6 @@ use pallet_xyk::AssetPairAccountIdFor;
 use std::cell::RefCell;
 
 use frame_benchmarking::frame_support::weights::Pays;
-use orml_utilities::OrderedSet;
 use primitives::fee;
 
 pub type AccountId = u64;
@@ -136,6 +135,8 @@ impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type WeightInfo = ();
 	type MaxLocks = MaxLocks;
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 impl pallet_transaction_payment::Config for Test {
@@ -183,6 +184,7 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
+	type MaxLocks = ();
 }
 
 impl orml_currencies::Config for Test {
@@ -228,7 +230,7 @@ impl ExtBuilder {
 		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
-			endowed_accounts: self.endowed_accounts,
+			balances: self.endowed_accounts,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
@@ -249,8 +251,9 @@ impl ExtBuilder {
 		.unwrap();
 
 		pallet_transaction_multi_payment::GenesisConfig::<Test> {
-			currencies: OrderedSet::from(vec![]),
+			currencies: vec![],
 			authorities: vec![],
+			fallback_account: 1000,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

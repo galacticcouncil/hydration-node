@@ -47,6 +47,8 @@ pub const HDX: AssetId = 1000;
 pub const DOT: AssetId = 2000;
 pub const ETH: AssetId = 3000;
 
+pub const ENDOWED_AMOUNT: u128 = 100_000_000_000_000_000;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -113,6 +115,7 @@ impl orml_tokens::Config for Test {
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
+	type MaxLocks = ();
 }
 
 impl pallet_asset_registry::Config for Test {
@@ -159,24 +162,24 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![
-				(ALICE, HDX, 1000_000_000_000_000u128),
-				(BOB, HDX, 1000_000_000_000_000u128),
-				(CHARLIE, HDX, 1000_000_000_000_000u128),
-				(DAVE, HDX, 1000_000_000_000_000u128),
-				(FERDIE, HDX, 1000_000_000_000_000u128),
-				(GEORGE, HDX, 1000_000_000_000_000u128),
-				(ALICE, ETH, 1000_000_000_000_000u128),
-				(BOB, ETH, 1000_000_000_000_000u128),
-				(CHARLIE, ETH, 1000_000_000_000_000u128),
-				(DAVE, ETH, 1000_000_000_000_000u128),
-				(FERDIE, ETH, 1000_000_000_000_000u128),
-				(GEORGE, ETH, 1000_000_000_000_000u128),
-				(ALICE, DOT, 1000_000_000_000_000u128),
-				(BOB, DOT, 1000_000_000_000_000u128),
-				(CHARLIE, DOT, 1000_000_000_000_000u128),
-				(DAVE, DOT, 1000_000_000_000_000u128),
-				(FERDIE, DOT, 1000_000_000_000_000u128),
-				(GEORGE, DOT, 1000_000_000_000_000u128),
+				(ALICE, HDX, ENDOWED_AMOUNT),
+				(BOB, HDX, ENDOWED_AMOUNT),
+				(CHARLIE, HDX, ENDOWED_AMOUNT),
+				(DAVE, HDX, ENDOWED_AMOUNT),
+				(FERDIE, HDX, ENDOWED_AMOUNT),
+				(GEORGE, HDX, ENDOWED_AMOUNT),
+				(ALICE, ETH, ENDOWED_AMOUNT),
+				(BOB, ETH, ENDOWED_AMOUNT),
+				(CHARLIE, ETH, ENDOWED_AMOUNT),
+				(DAVE, ETH, ENDOWED_AMOUNT),
+				(FERDIE, ETH, ENDOWED_AMOUNT),
+				(GEORGE, ETH, ENDOWED_AMOUNT),
+				(ALICE, DOT, ENDOWED_AMOUNT),
+				(BOB, DOT, ENDOWED_AMOUNT),
+				(CHARLIE, DOT, ENDOWED_AMOUNT),
+				(DAVE, DOT, ENDOWED_AMOUNT),
+				(FERDIE, DOT, ENDOWED_AMOUNT),
+				(GEORGE, DOT, ENDOWED_AMOUNT),
 			],
 		}
 	}
@@ -189,7 +192,7 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
-			endowed_accounts: self.endowed_accounts,
+			balances: self.endowed_accounts,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

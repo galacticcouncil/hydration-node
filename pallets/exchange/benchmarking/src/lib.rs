@@ -288,7 +288,7 @@ benchmarks! {
 	}: { xykpool::Pallet::<T>::sell(RawOrigin::Signed(seller.clone()).into(), asset_a, asset_b, 1_000_000_000, min_bought, false)?; }
 	verify {
 		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
-		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907272729);
 	}
 
 	on_finalize_for_one_sell_extrinsic {
@@ -317,7 +317,7 @@ benchmarks! {
 	verify {
 		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &seller), 999_999_000_000_000);
-		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907437716);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &seller), 1000000907272729);
 	}
 
 	buy_extrinsic {
@@ -335,7 +335,7 @@ benchmarks! {
 	}: { xykpool::Pallet::<T>::buy(RawOrigin::Signed(buyer.clone()).into(), asset_a, asset_b, 1_000_000_000, max_sold, false)?; }
 	verify {
 		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
-		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886666666);
 	}
 
 	on_finalize_for_one_buy_extrinsic {
@@ -367,7 +367,7 @@ benchmarks! {
 	verify {
 		assert_eq!(pallet_exchange::Pallet::<T>::get_intentions_count((asset_a, asset_b)), 0);
 		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_a, &buyer), 1000001000000000);
-		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886419204);
+		assert_eq!(<T as xykpool::Config>::Currency::free_balance(asset_b, &buyer), 999998886666666);
 	}
 }
 
