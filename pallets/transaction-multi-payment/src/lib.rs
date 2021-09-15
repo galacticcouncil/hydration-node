@@ -47,13 +47,13 @@ use sp_std::prelude::*;
 use pallet_transaction_payment::OnChargeTransaction;
 use sp_std::marker::PhantomData;
 
+use common_runtime::constants::chain::CORE_ASSET_ID;
 use frame_support::sp_runtime::FixedPointNumber;
 use frame_support::weights::{Pays, Weight};
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use primitives::asset::AssetPair;
 use primitives::traits::AMM;
 use primitives::{Amount, AssetId, Balance};
-use common_runtime::constants::chain::CORE_ASSET_ID;
 
 type NegativeImbalanceOf<C, T> = <C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 // Re-export pallet items so that they can be accessed from the crate namespace.
@@ -354,7 +354,7 @@ impl<T: Config> Pallet<T> {
 		// If not native currency, let's buy CORE asset first and then pay with that.
 		if fee_currency != CORE_ASSET_ID {
 			T::AMMPool::buy(
-				&who,
+				who,
 				AssetPair {
 					asset_out: CORE_ASSET_ID,
 					asset_in: fee_currency,
@@ -461,7 +461,7 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		if let Ok(detail) = SW::swap(&who, fee.into()) {
+		if let Ok(detail) = SW::swap(who, fee.into()) {
 			match detail {
 				PaymentSwapResult::Transferred => Ok(None),
 				PaymentSwapResult::Error => Err(InvalidTransaction::Payment.into()),
@@ -498,7 +498,7 @@ where
 			// account might have dropped below the existential balance. In
 			// that case we don't refund anything.
 			let refund_imbalance =
-				C::deposit_into_existing(&who, refund_amount).unwrap_or_else(|_| C::PositiveImbalance::zero());
+				C::deposit_into_existing(who, refund_amount).unwrap_or_else(|_| C::PositiveImbalance::zero());
 			// merge the imbalance caused by paying the fees and refunding parts of it again.
 			let adjusted_paid = paid
 				.offset(refund_imbalance)

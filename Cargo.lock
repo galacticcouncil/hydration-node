@@ -839,10 +839,11 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "21.0.0"
+version = "22.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "pallet-collective",
  "pallet-transaction-payment",
  "parity-scale-codec 2.1.3",
  "primitives",
@@ -2429,7 +2430,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "21.0.0"
+version = "22.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -8196,7 +8197,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydra-dx-runtime"
-version = "21.0.0"
+version = "22.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",

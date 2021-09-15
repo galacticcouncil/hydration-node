@@ -47,6 +47,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					// Treasury
+					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
 			)
@@ -65,7 +67,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 }
 
 pub fn local_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary = testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
+	let wasm_binary =
+		testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), 12.into());
@@ -151,7 +154,7 @@ fn testnet_genesis(
 		grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
 		sudo: testing_runtime::SudoConfig {
 			// Assign network admin rights.
-			key: root_key.clone(),
+			key: root_key,
 		},
 		asset_registry: testing_runtime::AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,
@@ -172,7 +175,7 @@ fn testnet_genesis(
 		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
 			currencies: vec![],
 			authorities: vec![],
-			fallback_account: root_key,
+			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 		},
 		tokens: testing_runtime::TokensConfig {
 			balances: endowed_accounts
