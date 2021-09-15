@@ -25,6 +25,7 @@ primitives = {path = '../../primitives', default-features = false}
 # Substrate dependencies
 frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
+pallet-collective = {default-features = false, version = '3.0.0'}
 pallet-transaction-payment = {default-features = false, version = '3.0.0'}
 sp-core = {default-features = false, version = '3.0.0'}
 sp-npos-elections = {version = '3.0.0', default-features = false}

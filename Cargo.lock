@@ -843,6 +843,7 @@ version = "22.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "pallet-collective",
  "pallet-transaction-payment",
  "parity-scale-codec 2.1.3",
  "primitives",

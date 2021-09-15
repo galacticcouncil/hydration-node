@@ -28,22 +28,18 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::Encode;
-use pallet_grandpa::fg_primitives;
-use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_core::{
-	crypto::KeyTypeId,
-	u32_trait::{_1, _2, _3},
-	OpaqueMetadata,
-};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys, SaturatedConversion,
-	Verify,
-};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::Zero,
+	create_runtime_str,
+	curve::PiecewiseLinear,
+	generic, impl_opaque_keys,
+	traits::{
+		BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys,
+		SaturatedConversion, Verify, Zero,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -52,20 +48,18 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_system::{limits, EnsureOneOf, EnsureRoot};
+use frame_system::{limits, EnsureRoot};
 // A few exports that help ease life for downstream crates.
-pub use frame_support::{
+use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Filter, KeyOwnerProofSystem, LockIdentifier, Randomness, U128CurrencyToVote},
+	traits::{KeyOwnerProofSystem, U128CurrencyToVote},
 	weights::{
-		constants::{BlockExecutionWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass, Pays, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+		constants::{BlockExecutionWeight, RocksDbWeight},
+		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
-	PalletId, StorageValue,
 };
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
-pub use sp_runtime::curve::PiecewiseLinear;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
@@ -320,12 +314,6 @@ parameter_type_with_key! {
 	};
 }
 
-type EnsureRootOrHalfCouncil = EnsureOneOf<
-	AccountId,
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
->;
-
 impl pallet_identity::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -336,8 +324,8 @@ impl pallet_identity::Config for Runtime {
 	type MaxAdditionalFields = MaxAdditionalFields;
 	type MaxRegistrars = MaxRegistrars;
 	type Slashed = Treasury;
-	type ForceOrigin = EnsureRootOrHalfCouncil;
-	type RegistrarOrigin = EnsureRootOrHalfCouncil;
+	type ForceOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = MoreThanHalfCouncil;
 	type WeightInfo = ();
 }
 
@@ -446,9 +434,6 @@ parameter_types! {
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
-type SlashCancelOrigin =
-	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, CouncilCollective>>;
-
 impl pallet_staking::Config for Runtime {
 	type Currency = Balances;
 	type UnixTime = Timestamp;
@@ -491,51 +476,23 @@ impl pallet_democracy::Config for Runtime {
 	type VotingPeriod = VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
-	type ExternalOrigin = frame_system::EnsureOneOf<
-		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
-		frame_system::EnsureRoot<AccountId>,
-	>;
+	type ExternalOrigin = MoreThanHalfCouncil;
 	/// A 66% super-majority can have the next scheduled referendum be a straight majority-carries vote.
-	type ExternalMajorityOrigin = frame_system::EnsureOneOf<
-		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
-		frame_system::EnsureRoot<AccountId>,
-	>;
+	type ExternalMajorityOrigin = MajorityOfCouncil;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
-	type ExternalDefaultOrigin = frame_system::EnsureOneOf<
-		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
-		frame_system::EnsureRoot<AccountId>,
-	>;
+	type ExternalDefaultOrigin = AllCouncilMembers;
 	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
 	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin = frame_system::EnsureOneOf<
-		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
-		frame_system::EnsureRoot<AccountId>,
-	>;
-	type InstantOrigin = frame_system::EnsureOneOf<
-		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
-		frame_system::EnsureRoot<AccountId>,
-	>;
+	type FastTrackOrigin = MajorityOfTechnicalCommittee;
+	type InstantOrigin = AllTechnicalCommitteeMembers;
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-	type CancellationOrigin = EnsureOneOf<
-		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
-		EnsureRoot<AccountId>,
-	>;
+	type CancellationOrigin = MajorityOfCouncil;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
 	// Root must agree.
-	type CancelProposalOrigin = EnsureOneOf<
-		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
-		EnsureRoot<AccountId>,
-	>;
+	type CancelProposalOrigin = AllTechnicalCommitteeMembers;
 	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// Any single technical committee member may veto a coming council proposal, however they can
 	// only do it once and it lasts only for the cooloff period.
@@ -582,7 +539,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type WeightInfo = ();
 	type MinerMaxLength = ();
 	type OffchainRepeat = ();
-	type ForceOrigin = EnsureRootOrHalfCouncil;
+	type ForceOrigin = MajorityOfCouncil;
 	type SignedMaxSubmissions = SignedMaxSubmissions;
 	type SignedMaxWeight = MinerMaxWeight;
 	type SignedRewardBase = SignedRewardBase;
@@ -594,23 +551,17 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 }
 
 parameter_types! {
-	pub OffchainSolutionWeightLimit: Weight = BlockWeights::get().max_block
-				  .saturating_sub(BlockExecutionWeight::get())
-				  .saturating_sub(ExtrinsicBaseWeight::get());
-
+	pub const SpendPeriod: BlockNumber = MINUTES;
 	pub const MaxApprovals: u32 = 100;
 }
-
-type AllCouncilMembers = pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>;
-type ManageOrigin = EnsureOneOf<AccountId, EnsureRoot<AccountId>, AllCouncilMembers>;
 
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type ApproveOrigin = ManageOrigin;
-	type RejectOrigin = ManageOrigin;
+	type ApproveOrigin = TreasuryApproveOrigin;
+	type RejectOrigin = MoreThanHalfCouncil;
 	type Event = Event;
-	type OnSlash = ();
+	type OnSlash = Treasury;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ProposalBondMinimum;
 	type SpendPeriod = SpendPeriod;
@@ -681,7 +632,7 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub const EpochDuration: u64 = 10 * MINUTES as u64;
+	pub const EpochDuration: u64 = 2 * MINUTES as u64;
 }
 
 impl pallet_babe::Config for Runtime {
@@ -816,7 +767,7 @@ impl pallet_offences::Config for Runtime {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(10) * BlockWeights::get().max_block;
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
 }
 
@@ -826,7 +777,7 @@ impl pallet_scheduler::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type Call = Call;
 	type MaximumWeight = MaximumSchedulerWeight;
-	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type ScheduleOrigin = MoreThanHalfCouncil;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
 }

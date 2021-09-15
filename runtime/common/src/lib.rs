@@ -22,13 +22,18 @@ pub use frame_support::{
 	traits::LockIdentifier,
 	weights::{DispatchClass, Pays},
 };
-pub use frame_system::limits;
+use frame_system::{limits, EnsureOneOf, EnsureRoot};
 pub mod constants;
 use codec::alloc::vec;
 pub use constants::{chain::*, currency::*, time::*};
 pub use frame_support::PalletId;
+use pallet_collective;
 use pallet_transaction_payment::Multiplier;
 pub use primitives::{fee, Amount, AssetId, Balance};
+use sp_core::{
+	u32_trait::{_1, _2, _3, _5},
+	H256,
+};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -56,7 +61,7 @@ pub type AccountIndex = u32;
 pub type Index = u32;
 
 /// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
+pub type Hash = H256;
 
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;
@@ -72,6 +77,49 @@ pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 
 /// Type used for expressing timestamp.
 pub type Moment = u64;
+
+pub type CouncilCollective = pallet_collective::Instance1;
+pub type TechnicalCollective = pallet_collective::Instance2;
+
+pub type MoreThanHalfCouncil = EnsureOneOf<
+	AccountId,
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+>;
+
+pub type TreasuryApproveOrigin = EnsureOneOf<
+	AccountId,
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+>;
+
+pub type MajorityOfCouncil = EnsureOneOf<
+	AccountId,
+	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
+	EnsureRoot<AccountId>,
+>;
+
+pub type AllCouncilMembers = EnsureOneOf<
+	AccountId,
+	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
+	frame_system::EnsureRoot<AccountId>,
+>;
+
+pub type MajorityOfTechnicalCommittee = EnsureOneOf<
+	AccountId,
+	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+	frame_system::EnsureRoot<AccountId>,
+>;
+
+pub type AllTechnicalCommitteeMembers = EnsureOneOf<
+	AccountId,
+	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+	frame_system::EnsureRoot<AccountId>,
+>;
+
+// During the testnet slashes can be canceled by single technical collective members
+pub type SlashCancelOrigin =
+	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, TechnicalCollective>>;
 
 // frame system
 parameter_types! {
@@ -182,9 +230,8 @@ parameter_types! {
 
 // pallet treasury
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBond: Permill = Permill::from_percent(3);
 	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
-	pub const SpendPeriod: BlockNumber = 20 * DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 }
