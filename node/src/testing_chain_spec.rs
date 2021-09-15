@@ -154,7 +154,7 @@ fn testnet_genesis(
 		grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
 		sudo: testing_runtime::SudoConfig {
 			// Assign network admin rights.
-			key: root_key.clone(),
+			key: root_key,
 		},
 		asset_registry: testing_runtime::AssetRegistryConfig {
 			core_asset_id: CORE_ASSET_ID,

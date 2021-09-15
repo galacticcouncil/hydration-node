@@ -654,8 +654,8 @@ impl pallet_babe::Config for Runtime {
 
 // Council settings
 parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 1 * MINUTES;
-	pub const TechnicalMotionDuration: BlockNumber = 1 * MINUTES;
+	pub const CouncilMotionDuration: BlockNumber = MINUTES;
+	pub const TechnicalMotionDuration: BlockNumber = MINUTES;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
