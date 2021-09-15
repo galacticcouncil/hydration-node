@@ -534,7 +534,7 @@ impl pallet_democracy::Config for Runtime {
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin = frame_system::EnsureOneOf<
 		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
+		pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
 	/// A 66% super-majority can have the next scheduled referendum be a straight majority-carries vote.

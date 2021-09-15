@@ -493,7 +493,7 @@ impl pallet_democracy::Config for Runtime {
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin = frame_system::EnsureOneOf<
 		AccountId,
-		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
+		pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
 	/// A 66% super-majority can have the next scheduled referendum be a straight majority-carries vote.
@@ -703,8 +703,8 @@ impl pallet_babe::Config for Runtime {
 
 // Council settings
 parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 2 * MINUTES;
-	pub const TechnicalMotionDuration: BlockNumber = 2 * MINUTES;
+	pub const CouncilMotionDuration: BlockNumber = 1 * MINUTES;
+	pub const TechnicalMotionDuration: BlockNumber = 1 * MINUTES;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
