@@ -472,7 +472,12 @@ impl pallet_staking::Config for Runtime {
 	type WeightInfo = ();
 }
 
+// Democracy
 parameter_types! {
+	pub const FastTrackVotingPeriod: BlockNumber = MINUTES / 2;
+	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
+	pub const EnactmentPeriod: BlockNumber = 2 * MINUTES;
+	pub const CooloffPeriod: BlockNumber = MINUTES;
 	pub const LaunchPeriod: BlockNumber = MINUTES;
 	pub const VotingPeriod: BlockNumber = MINUTES;
 }
@@ -645,6 +650,13 @@ impl pallet_session::historical::Config for Runtime {
 	type FullIdentificationOf = pallet_staking::ExposureOf<Runtime>;
 }
 
+// Election settings
+parameter_types! {
+	pub const DesiredMembers: u32 = 3;
+	pub const DesiredRunnersUp: u32 = 5;
+	pub const TermDuration: BlockNumber = 2 * MINUTES;
+}
+
 impl pallet_elections_phragmen::Config for Runtime {
 	type Event = Event;
 	type PalletId = ElectionsPhragmenPalletId;
@@ -687,6 +699,12 @@ impl pallet_babe::Config for Runtime {
 
 	type HandleEquivocation = pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 	type WeightInfo = ();
+}
+
+// Council settings
+parameter_types! {
+	pub const CouncilMotionDuration: BlockNumber = 2 * MINUTES;
+	pub const TechnicalMotionDuration: BlockNumber = 2 * MINUTES;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
