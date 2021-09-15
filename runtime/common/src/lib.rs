@@ -27,7 +27,6 @@ pub mod constants;
 use codec::alloc::vec;
 pub use constants::{chain::*, currency::*, time::*};
 pub use frame_support::PalletId;
-use pallet_collective;
 use pallet_transaction_payment::Multiplier;
 pub use primitives::{fee, Amount, AssetId, Balance};
 use sp_core::{
