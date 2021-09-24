@@ -239,7 +239,7 @@ parameter_types! {
 parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
 	pub const TipCountdown: BlockNumber = 24 * HOURS;
-	pub TipFindersFee: Percent = Percent::from_rational(1u32, 4);
+	pub const TipFindersFee: Percent = Percent::from_percent(1);
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
 	pub const MaximumReasonLength: u32 = 1024;

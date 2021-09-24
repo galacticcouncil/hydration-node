@@ -1,3 +1,15 @@
+# v11.0.1 (Fri Sep 24 2021)
+
+#### 🐛 Bug Fix
+
+- fix: Set TipFindersFee to 1% [#308](https://github.com/galacticcouncil/HydraDX-node/pull/308) ([@green-jay](https://github.com/green-jay))
+
+#### Authors: 1
+
+- [@green-jay](https://github.com/green-jay)
+
+---
+
 # v11.0.0 (Wed Sep 15 2021)
 
 #### 💥 Breaking Change

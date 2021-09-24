@@ -3,8 +3,6 @@ name: docker release
 on:
   push:
     branches:
-      - master
-      - stable
       - docker-release
     tags:
 
