@@ -238,7 +238,7 @@ parameter_types! {
 // pallet tips
 parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 24 * HOURS;
+	pub const TipCountdown: BlockNumber = 2 * HOURS;
 	pub const TipFindersFee: Percent = Percent::from_percent(1);
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
