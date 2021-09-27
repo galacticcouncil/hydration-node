@@ -1,3 +1,27 @@
+# v11.1.0 (Mon Sep 27 2021)
+
+#### 🐛 Bug Fix
+
+- fix: change tip payout time, slashes are cancellable by council and technical committee [#310](https://github.com/galacticcouncil/HydraDX-node/pull/310) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- bump runtime version ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- fix: Set TipFindersFee to 1% [#308](https://github.com/galacticcouncil/HydraDX-node/pull/308) ([@green-jay](https://github.com/green-jay))
+
+#### ⚠️ Pushed to `master`
+
+- disable docker build in master/stable ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Other improvements
+
+- chore: Merge master for linear history [#306](https://github.com/galacticcouncil/HydraDX-node/pull/306) ([@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 14
+
+- [@green-jay](https://github.com/green-jay)
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+
+---
+
 # v11.0.1 (Fri Sep 24 2021)
 
 #### 🐛 Bug Fix
