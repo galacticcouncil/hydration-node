@@ -208,7 +208,7 @@ parameter_types! {
 
 // pallet democracy
 parameter_types! {
-	pub const PreimageByteDeposit: Balance = CENTS;
+	pub const PreimageByteDeposit: Balance = 10 * MILLICENTS;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
