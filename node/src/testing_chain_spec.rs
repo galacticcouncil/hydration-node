@@ -45,6 +45,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
 					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
 					// Treasury
@@ -226,10 +227,18 @@ fn testnet_genesis(
 			..Default::default()
 		},
 		elections: testing_runtime::ElectionsConfig {
-			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
+			members: vec![
+				(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
+				(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
+				(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
+			],
 		},
 		council: testing_runtime::CouncilConfig {
-			members: vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			members: vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+			],
 			phantom: Default::default(),
 		},
 		technical_committee: testing_runtime::TechnicalCommitteeConfig {
