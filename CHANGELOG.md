@@ -1,3 +1,15 @@
+# v11.1.1 (Tue Sep 28 2021)
+
+#### 🐛 Bug Fix
+
+- fix: external propose origin voting treshold, reduce preimage bond [#311](https://github.com/galacticcouncil/HydraDX-node/pull/311) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 1
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+
+---
+
 # v11.1.0 (Mon Sep 27 2021)
 
 #### 🐛 Bug Fix
