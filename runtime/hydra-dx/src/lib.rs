@@ -519,14 +519,11 @@ impl pallet_democracy::Config for Runtime {
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin = MoreThanHalfCouncil;
-	/// A 66% super-majority can have the next scheduled referendum be a straight majority-carries vote.
-	type ExternalMajorityOrigin = MajorityOfCouncil;
+	type ExternalMajorityOrigin = MoreThanHalfCouncil;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
 	type ExternalDefaultOrigin = AllCouncilMembers;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin = MajorityOfTechnicalCommittee;
+	type FastTrackOrigin = MoreThanHalfTechCommittee;
 	type InstantOrigin = AllTechnicalCommitteeMembers;
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
