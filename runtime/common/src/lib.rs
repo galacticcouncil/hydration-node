@@ -116,9 +116,9 @@ pub type AllTechnicalCommitteeMembers = EnsureOneOf<
 	frame_system::EnsureRoot<AccountId>,
 >;
 
-// During the testnet slashes can be canceled by single technical collective members
+// During the testnet slashes can be canceled by majority of council or technical committee
 pub type SlashCancelOrigin =
-	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, TechnicalCollective>>;
+	EnsureOneOf<AccountId, MajorityOfTechnicalCommittee, MajorityOfCouncil>;
 
 // frame system
 parameter_types! {
@@ -238,7 +238,7 @@ parameter_types! {
 // pallet tips
 parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 24 * HOURS;
+	pub const TipCountdown: BlockNumber = 2 * HOURS;
 	pub const TipFindersFee: Percent = Percent::from_percent(1);
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
