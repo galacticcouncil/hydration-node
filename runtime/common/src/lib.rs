@@ -116,9 +116,9 @@ pub type AllTechnicalCommitteeMembers = EnsureOneOf<
 	frame_system::EnsureRoot<AccountId>,
 >;
 
-// During the testnet slashes can be canceled by majority of council or technical committee
+// During the testnet slashes can be canceled by single technical collective members
 pub type SlashCancelOrigin =
-	EnsureOneOf<AccountId, EnsureRoot<AccountId>, MajorityOfCouncil, MajorityOfTechnicalCommittee;
+	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, TechnicalCollective>>;
 
 // frame system
 parameter_types! {
