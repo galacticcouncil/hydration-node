@@ -104,9 +104,9 @@ pub type AllCouncilMembers = EnsureOneOf<
 	frame_system::EnsureRoot<AccountId>,
 >;
 
-pub type MajorityOfTechnicalCommittee = EnsureOneOf<
+pub type MoreThanHalfTechCommittee = EnsureOneOf<
 	AccountId,
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, TechnicalCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
 
@@ -116,9 +116,9 @@ pub type AllTechnicalCommitteeMembers = EnsureOneOf<
 	frame_system::EnsureRoot<AccountId>,
 >;
 
-// During the testnet slashes can be canceled by single technical collective members
+// During the testnet slashes can be canceled by majority of council or technical committee
 pub type SlashCancelOrigin =
-	EnsureOneOf<AccountId, EnsureRoot<AccountId>, pallet_collective::EnsureMember<AccountId, TechnicalCollective>>;
+	EnsureOneOf<AccountId, MoreThanHalfTechCommittee, MoreThanHalfCouncil>;
 
 // frame system
 parameter_types! {
@@ -208,7 +208,7 @@ parameter_types! {
 
 // pallet democracy
 parameter_types! {
-	pub const PreimageByteDeposit: Balance = CENTS;
+	pub const PreimageByteDeposit: Balance = 10 * MILLICENTS;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
@@ -238,7 +238,7 @@ parameter_types! {
 // pallet tips
 parameter_types! {
 	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 24 * HOURS;
+	pub const TipCountdown: BlockNumber = 2 * HOURS;
 	pub const TipFindersFee: Percent = Percent::from_percent(1);
 	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
 	pub const TipReportDepositPerByte: Balance = CENTS;
