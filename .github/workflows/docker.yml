@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - docker-release
-    tags:
 
 jobs:
   pop-runner-instance:
@@ -77,7 +76,7 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/galacticcouncil/hydra-dx:${{ steps.extract_branch.outputs.branch }}
+          tags: ghcr.io/galacticcouncil/hydra-dx:latest
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
 
