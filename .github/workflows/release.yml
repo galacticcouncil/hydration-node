@@ -1,0 +1,17 @@
+name: Trigger docker release from stable
+on:
+  push:
+    branches:
+      - stable
+jobs:
+  sync-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Merge stable -> docker-release
+        uses: devmasx/merge-branch@v1.4.0
+        with:
+          type: now
+          from_branch: stable
+          target_branch: docker-release
