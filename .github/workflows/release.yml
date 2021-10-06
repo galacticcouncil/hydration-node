@@ -15,3 +15,4 @@ jobs:
           type: now
           from_branch: stable
           target_branch: docker-release
+          github_token: ${{ github.token }}
