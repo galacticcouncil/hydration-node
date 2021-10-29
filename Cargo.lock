@@ -839,7 +839,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "25.0.0"
+version = "26.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -2347,7 +2347,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "6.0.0"
+version = "6.1.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -2430,7 +2430,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "18.0.0"
+version = "26.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -4164,7 +4164,7 @@ dependencies = [
 [[package]]
 name = "orml-vesting"
 version = "0.4.1-dev"
-source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=ded28318c23e2d263beeb1235f040f51826fe11e#ded28318c23e2d263beeb1235f040f51826fe11e"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=33d9ac0927ba61e15763ee438721ef92d408271a#33d9ac0927ba61e15763ee438721ef92d408271a"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8213,7 +8213,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydra-dx-runtime"
-version = "25.0.0"
+version = "26.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -8226,6 +8226,7 @@ dependencies = [
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
+ "orml-vesting",
  "pallet-asset-registry",
  "pallet-authority-discovery",
  "pallet-authorship",

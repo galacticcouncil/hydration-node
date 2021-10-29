@@ -31,6 +31,7 @@ mod tests;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::Encode;
+use hex_literal::hex;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
@@ -38,11 +39,10 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys, SaturatedConversion,
-	Verify,
+	Verify, Zero
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -51,11 +51,11 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_system::{limits, EnsureRoot};
+use frame_system::{limits, EnsureRoot, EnsureSigned, RawOrigin};
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Filter, KeyOwnerProofSystem, U128CurrencyToVote},
+	traits::{Filter, KeyOwnerProofSystem, U128CurrencyToVote, EnsureOrigin},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -821,15 +821,14 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
-pub struct EnsureRootOrTreasury;
-impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
+pub struct OnlyGalacticCouncil;
+impl EnsureOrigin<Origin> for OnlyGalacticCouncil {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-			RawOrigin::Root => Ok(TreasuryPalletId::get().into_account()),
 			RawOrigin::Signed(caller) => {
-				if caller == TreasuryPalletId::get().into_account() {
+				if caller == hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into() {
 					Ok(caller)
 				} else {
 					Err(Origin::from(Some(caller)))
@@ -845,18 +844,14 @@ impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
 	}
 }
 
-parameter_types! {
-	pub MinVestedTransfer: Balance = 1_000 * HDX;
-	pub const MaxVestingSchedules: u32 = 100;
-}
-
 impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = EnsureRootOrTreasury;
+	type VestedTransferOrigin = OnlyGalacticCouncil;
 	type WeightInfo = ();
 	type MaxVestingSchedules = MaxVestingSchedules;
+	type BlockNumberProvider = System;
 }
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
@@ -897,11 +892,11 @@ construct_runtime!(
 		Historical: session_historical::{Pallet},
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
-		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
+		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},

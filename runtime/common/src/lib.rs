@@ -277,6 +277,12 @@ parameter_types! {
 	pub const TechnicalMaxMembers: u32 = 10;
 }
 
+// pallet vesting
+parameter_types! {
+	pub MinVestedTransfer: Balance = 1_000 * HDX;
+	pub const MaxVestingSchedules: u32 = 100;
+}
+
 parameter_types! {
 	pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();

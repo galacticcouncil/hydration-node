@@ -48,7 +48,7 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_system::{limits, EnsureRoot};
+use frame_system::{limits, EnsureRoot, EnsureSigned};
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -779,6 +779,16 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl orml_vesting::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type VestedTransferOrigin = EnsureSigned<AccountId>;
+	type WeightInfo = ();
+	type MaxVestingSchedules = MaxVestingSchedules;
+	type BlockNumberProvider = System;
+}
+
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -821,6 +831,7 @@ construct_runtime!(
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
+		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},
