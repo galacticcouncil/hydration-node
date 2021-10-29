@@ -1,3 +1,109 @@
+# v11.1.1 (Tue Sep 28 2021)
+
+#### 🐛 Bug Fix
+
+- fix: external propose origin voting treshold, reduce preimage bond [#311](https://github.com/galacticcouncil/HydraDX-node/pull/311) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 1
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+
+---
+
+# v11.1.0 (Mon Sep 27 2021)
+
+#### 🐛 Bug Fix
+
+- fix: change tip payout time, slashes are cancellable by council and technical committee [#310](https://github.com/galacticcouncil/HydraDX-node/pull/310) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- bump runtime version ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- fix: Set TipFindersFee to 1% [#308](https://github.com/galacticcouncil/HydraDX-node/pull/308) ([@green-jay](https://github.com/green-jay))
+
+#### ⚠️ Pushed to `master`
+
+- disable docker build in master/stable ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Other improvements
+
+- chore: Merge master for linear history [#306](https://github.com/galacticcouncil/HydraDX-node/pull/306) ([@jak-pan](https://github.com/jak-pan))
+
+#### Authors: 14
+
+- [@green-jay](https://github.com/green-jay)
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+
+---
+
+# v11.0.1 (Fri Sep 24 2021)
+
+#### 🐛 Bug Fix
+
+- fix: Set TipFindersFee to 1% [#308](https://github.com/galacticcouncil/HydraDX-node/pull/308) ([@green-jay](https://github.com/green-jay))
+
+#### Authors: 1
+
+- [@green-jay](https://github.com/green-jay)
+
+---
+
+# v11.0.0 (Wed Sep 15 2021)
+
+#### 💥 Breaking Change
+
+- feat!: governance launch [#304](https://github.com/galacticcouncil/HydraDX-node/pull/304) ([@jak-pan](https://github.com/jak-pan))
+- feat!: update fee calculation [#289](https://github.com/galacticcouncil/HydraDX-node/pull/289) ([@Roznovjak](https://github.com/Roznovjak) [@jak-pan](https://github.com/jak-pan))
+- fix(xyk)!: change xyk pallet errors [#284](https://github.com/galacticcouncil/HydraDX-node/pull/284) (naskin@restream.rt.ru [@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva) [@nasqn](https://github.com/nasqn))
+- chore!: v0.9.5 [#283](https://github.com/galacticcouncil/HydraDX-node/pull/283) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### 🚀 Enhancement
+
+- feat: create testing runtime [#226](https://github.com/galacticcouncil/HydraDX-node/pull/226) ([@Roznovjak](https://github.com/Roznovjak) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- feat!: multi payment fallback price [#277](https://github.com/galacticcouncil/HydraDX-node/pull/277) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- feat: add fee to AMMTransfer [#270](https://github.com/galacticcouncil/HydraDX-node/pull/270) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### 🐛 Bug Fix
+
+- fix: add pool id to xyk pool created/destroyed events [#300](https://github.com/galacticcouncil/HydraDX-node/pull/300) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@fakirAyoub](https://github.com/fakirAyoub))
+- fix: Onboarding JSON fixes [#297](https://github.com/galacticcouncil/HydraDX-node/pull/297) ([@chrisk700](https://github.com/chrisk700))
+- fix(exchange): change pallet errors [#271](https://github.com/galacticcouncil/HydraDX-node/pull/271) (naskin@restream.rt.ru [@nasqn](https://github.com/nasqn))
+- fix(exchange): fix limit calculation in exchange matching algorithm [#276](https://github.com/galacticcouncil/HydraDX-node/pull/276) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix(amm): buy_price calculation [#269](https://github.com/galacticcouncil/HydraDX-node/pull/269) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### Refactoring
+
+- refactor: remove custom balances pallet [#264](https://github.com/galacticcouncil/HydraDX-node/pull/264) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@Roznovjak](https://github.com/Roznovjak))
+
+#### ⚠️ Pushed to `master`
+
+- ci: exlude weights.rs files from test coverage ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Other improvements
+
+- test(xyk): add missing tests [#294](https://github.com/galacticcouncil/HydraDX-node/pull/294) ([@Roznovjak](https://github.com/Roznovjak) [@enthusiastmartin](https://github.com/enthusiastmartin))
+- chore: v0.9.8 [#298](https://github.com/galacticcouncil/HydraDX-node/pull/298) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@jak-pan](https://github.com/jak-pan) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- chore: fix benchmarks build [#286](https://github.com/galacticcouncil/HydraDX-node/pull/286) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- chore(xyk): use math from crates.io [#278](https://github.com/galacticcouncil/HydraDX-node/pull/278) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- ci: fix ami image [#301](https://github.com/galacticcouncil/HydraDX-node/pull/301) ([@fakirAyoub](https://github.com/fakirAyoub) [@jak-pan](https://github.com/jak-pan))
+- ci: code coverage [#293](https://github.com/galacticcouncil/HydraDX-node/pull/293) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### 📝 Documentation
+
+- docs: Update types config Readme [#281](https://github.com/galacticcouncil/HydraDX-node/pull/281) ([@mckrava](https://github.com/mckrava))
+
+#### Authors: 9
+
+- [@chrisk700](https://github.com/chrisk700)
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Alexander ([@nasqn](https://github.com/nasqn))
+- Alexander Naskin (naskin@restream.rt.ru)
+- Ayoub Fakir ([@fakirAyoub](https://github.com/fakirAyoub))
+- Jakub Pánik ([@jak-pan](https://github.com/jak-pan))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Max Kravchuk ([@mckrava](https://github.com/mckrava))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
 # v10.0.0 (Sun May 30 2021)
 
 #### 💥 Breaking Change
