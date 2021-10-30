@@ -93,6 +93,7 @@ Then open settings screen -> developer and paste
         "frozen": "Balance",
         "reserved": "Balance"
       },
+      "BlockNumber": "u32",
       "BalanceInfo": {
         "amount": "Balance",
         "assetId": "AssetId"
@@ -124,6 +125,12 @@ Then open settings screen -> developer and paste
       "Fee": {
         "numerator": "u32",
         "denominator": "u32"
+      },
+      "VestingScheduleOf": {
+        "start": "BlockNumber",
+        "period": "BlockNumber",
+        "period_count": "u32",
+        "per_period": "Balance"
       }
     }
   ],
