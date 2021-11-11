@@ -41,7 +41,7 @@ use primitives::fee;
 
 pub type AccountId = u64;
 
-pub const INITIAL_BALANCE: Balance = 1000_000_000_000_000u128;
+pub const INITIAL_BALANCE: Balance = 1_000_000_000_000_000u128;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -184,11 +184,9 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 		let mut a = asset_a as u128;
 		let mut b = asset_b as u128;
 		if a > b {
-			let tmp = a;
-			a = b;
-			b = tmp;
+			std::mem::swap(&mut a, &mut b)
 		}
-		return (a * 1000 + b) as u64;
+		(a * 1000 + b) as u64
 	}
 }
 

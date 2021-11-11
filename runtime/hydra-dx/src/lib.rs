@@ -31,7 +31,6 @@ mod tests;
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::Encode;
-use hex_literal::hex;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
@@ -813,19 +812,21 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
-pub struct OnlyGalacticCouncil;
-impl EnsureOrigin<Origin> for OnlyGalacticCouncil {
+//
+pub struct GalacticCouncilOrRoot;
+impl EnsureOrigin<Origin> for GalacticCouncilOrRoot {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
 			RawOrigin::Signed(caller) => {
-				if caller == hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into() {
+				if caller == common_runtime::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into() {
 					Ok(caller)
 				} else {
 					Err(Origin::from(Some(caller)))
 				}
 			}
+			RawOrigin::Root => Ok(common_runtime::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()),
 			r => Err(Origin::from(r)),
 		})
 	}
@@ -840,7 +841,7 @@ impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = OnlyGalacticCouncil;
+	type VestedTransferOrigin = GalacticCouncilOrRoot;
 	type WeightInfo = ();
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = System;

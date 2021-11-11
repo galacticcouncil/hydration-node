@@ -117,11 +117,9 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 		let mut a = asset_a as u128;
 		let mut b = asset_b as u128;
 		if a > b {
-			let tmp = a;
-			a = b;
-			b = tmp;
+			std::mem::swap(&mut a, &mut b)
 		}
-		return (a * 1000 + b) as u64;
+		(a * 1000 + b) as u64
 	}
 }
 
@@ -143,12 +141,12 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			endowed_accounts: vec![
-				(ALICE, HDX, 1000_000_000_000_000u128),
-				(BOB, HDX, 1000_000_000_000_000u128),
-				(ALICE, ACA, 1000_000_000_000_000u128),
-				(BOB, ACA, 1000_000_000_000_000u128),
-				(ALICE, DOT, 1000_000_000_000_000u128),
-				(BOB, DOT, 1000_000_000_000_000u128),
+				(ALICE, HDX, 1_000_000_000_000_000u128),
+				(BOB, HDX, 1_000_000_000_000_000u128),
+				(ALICE, ACA, 1_000_000_000_000_000u128),
+				(BOB, ACA, 1_000_000_000_000_000u128),
+				(ALICE, DOT, 1_000_000_000_000_000u128),
+				(BOB, DOT, 1_000_000_000_000_000u128),
 			],
 		}
 	}

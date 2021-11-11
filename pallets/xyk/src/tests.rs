@@ -726,12 +726,12 @@ fn work_flow_happy_path_should_work() {
 #[test]
 fn sell_with_correct_fees_should_work() {
 	let accounts = vec![
-		(ALICE, HDX, 1000_000_000_000_000u128),
-		(BOB, HDX, 1000_000_000_000_000u128),
-		(ALICE, ACA, 1000_000_000_000_000u128),
-		(BOB, ACA, 1000_000_000_000_000u128),
-		(ALICE, DOT, 1000_000_000_000_000u128),
-		(BOB, DOT, 1000_000_000_000_000u128),
+		(ALICE, HDX, 1_000_000_000_000_000u128),
+		(BOB, HDX, 1_000_000_000_000_000u128),
+		(ALICE, ACA, 1_000_000_000_000_000u128),
+		(BOB, ACA, 1_000_000_000_000_000u128),
+		(ALICE, DOT, 1_000_000_000_000_000u128),
+		(BOB, DOT, 1_000_000_000_000_000u128),
 	];
 
 	let mut ext: sp_io::TestExternalities = ExtBuilder::default().with_accounts(accounts).build();
@@ -1322,7 +1322,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 		let pair_account = XYK::get_pair_id(asset_pair);
 		let share_token = XYK::share_token(pair_account);
 
-		assert_eq!(XYK::exists(asset_pair), true);
+		assert!(XYK::exists(asset_pair));
 
 		assert_ok!(XYK::remove_liquidity(
 			Origin::signed(user),
@@ -1333,7 +1333,7 @@ fn destroy_pool_on_remove_liquidity_and_recreate_should_work() {
 
 		assert_eq!(XYK::total_liquidity(&pair_account), 0);
 
-		assert_eq!(XYK::exists(asset_pair), false);
+		assert!(!XYK::exists(asset_pair));
 
 		// It should be possible to recreate the pool again
 
