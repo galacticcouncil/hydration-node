@@ -38,6 +38,6 @@ fn create_asset() {
 		assert_eq!(AssetRegistryPallet::next_asset_id(), current_asset_id);
 
 		assert_eq!(AssetRegistryPallet::asset_ids(b"DOT".to_vec()).unwrap(), 1u32);
-		assert_eq!(AssetRegistryPallet::asset_ids(b"AAA".to_vec()).is_none(), true);
+		assert!(AssetRegistryPallet::asset_ids(b"AAA".to_vec()).is_none());
 	});
 }
