@@ -98,6 +98,8 @@ pub mod chain {
 	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 	/// We allow for 2 seconds of compute with a 6 second average block time.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
+
+	pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] = hex_literal::hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
 }
 
 #[cfg(test)]

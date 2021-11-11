@@ -20,6 +20,7 @@ package = 'parity-scale-codec'
 version = '2.0.0'
 
 [dependencies]
+hex-literal = {version = '0.3.1'}
 primitives = {path = '../../primitives', default-features = false}
 
 # Substrate dependencies

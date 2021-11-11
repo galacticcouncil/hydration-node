@@ -21,7 +21,6 @@ package = 'parity-scale-codec'
 version = '2.0.0'
 
 [dependencies]
-hex-literal = {version = '0.3.1'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
 smallvec = "1.6.1"
 tracing-core = {optional = true, version = '0.1.17'}

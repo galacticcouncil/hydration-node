@@ -843,6 +843,7 @@ version = "26.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hex-literal",
  "pallet-collective",
  "pallet-transaction-payment",
  "parity-scale-codec 2.1.3",
@@ -2439,7 +2440,6 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
- "hex-literal",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
@@ -8222,7 +8222,6 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
- "hex-literal",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
