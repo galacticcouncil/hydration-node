@@ -82,7 +82,7 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		let build = pallet_genesis_history::GenesisConfig {
-			previous_chain: self.chain.clone(),
+			previous_chain: self.chain,
 		};
 		build.assimilate_storage::<Test>(&mut t).unwrap();
 		t.into()

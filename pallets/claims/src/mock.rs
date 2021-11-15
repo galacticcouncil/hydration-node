@@ -18,7 +18,6 @@
 use crate as claims;
 use crate::{Config, EthereumAddress};
 use frame_support::parameter_types;
-use frame_system;
 use hex_literal::hex;
 use primitives::Balance;
 use sp_core::H256;

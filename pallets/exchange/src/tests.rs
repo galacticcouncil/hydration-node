@@ -1414,7 +1414,7 @@ fn sell_test_mixed_buy_sells() {
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			1400_000_000_000,
+			1_400_000_000_000,
 			false,
 		));
 		let user_3_sell_intention_id = generate_intention_id(&user_3, 1);
@@ -1423,7 +1423,7 @@ fn sell_test_mixed_buy_sells() {
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			2000_000_000_000,
+			2_000_000_000_000,
 			false,
 		));
 		let user_4_sell_intention_id = generate_intention_id(&user_4, 2);
@@ -1579,7 +1579,7 @@ fn discount_tests_no_discount() {
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			1400_000_000_000,
+			1_400_000_000_000,
 			false,
 		));
 		let user_3_sell_intention_id = generate_intention_id(&user_3, 1);
@@ -1588,7 +1588,7 @@ fn discount_tests_no_discount() {
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			2000_000_000_000,
+			2_000_000_000_000,
 			false,
 		));
 		let user_4_sell_intention_id = generate_intention_id(&user_4, 2);
@@ -1747,7 +1747,7 @@ fn discount_tests_with_discount() {
 			asset_b,
 			asset_a,
 			3_000_000_000_000,
-			1400_000_000_000,
+			1_400_000_000_000,
 			true,
 		));
 		let user_3_sell_intention_id = generate_intention_id(&user_3, 1);
@@ -1756,7 +1756,7 @@ fn discount_tests_with_discount() {
 			asset_a,
 			asset_b,
 			10_000_000_000_000,
-			2000_000_000_000,
+			2_000_000_000_000,
 			true,
 		));
 		let user_4_sell_intention_id = generate_intention_id(&user_4, 2);
@@ -2759,7 +2759,7 @@ fn single_buy_intention_test() {
 			asset_a,
 			asset_b,
 			2_000_000_000_000,
-			15000_000_000_000,
+			15_000_000_000_000,
 			false,
 		));
 

@@ -436,14 +436,6 @@ impl pallet_faucet::Config for Runtime {
 
 /// Staking pallets configurations
 pub mod impls;
-#[cfg(feature = "runtime-benchmarks")]
-use frame_benchmarking::frame_support::max_encoded_len::MaxEncodedLen;
-#[cfg(feature = "runtime-benchmarks")]
-use frame_benchmarking::frame_support::pallet_prelude::EnsureOrigin;
-#[cfg(feature = "runtime-benchmarks")]
-use frame_benchmarking::frame_support::pallet_prelude::{Get, Member};
-#[cfg(feature = "runtime-benchmarks")]
-use frame_benchmarking::frame_support::Parameter;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::TargetedFeeAdjustment;

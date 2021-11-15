@@ -107,6 +107,7 @@ mod tests {
 
 	#[test]
 	// This function tests that time units are set up correctly
+	#[allow(clippy::unnecessary_cast)]
 	fn time_units_work() {
 		// 24 hours in a day
 		assert_eq!(DAYS / 24, HOURS);
