@@ -117,8 +117,7 @@ pub type AllTechnicalCommitteeMembers = EnsureOneOf<
 >;
 
 // During the testnet slashes can be canceled by majority of council or technical committee
-pub type SlashCancelOrigin =
-	EnsureOneOf<AccountId, MoreThanHalfTechCommittee, MoreThanHalfCouncil>;
+pub type SlashCancelOrigin = EnsureOneOf<AccountId, MoreThanHalfTechCommittee, MoreThanHalfCouncil>;
 
 // frame system
 parameter_types! {
@@ -279,7 +278,7 @@ parameter_types! {
 
 // pallet vesting
 parameter_types! {
-	pub MinVestedTransfer: Balance = 1_000 * HDX;
+	pub MinVestedTransfer: Balance = ExistentialDeposit::get();
 	pub const MaxVestingSchedules: u32 = 100;
 }
 

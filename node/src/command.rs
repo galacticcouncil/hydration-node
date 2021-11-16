@@ -17,7 +17,7 @@
 
 use crate::cli::{Cli, Subcommand};
 use crate::service::IdentifyVariant;
-use crate::{chain_spec, testing_chain_spec, service};
+use crate::{chain_spec, service, testing_chain_spec};
 use hydra_dx_runtime::Block;
 use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 

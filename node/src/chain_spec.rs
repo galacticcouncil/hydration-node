@@ -5,7 +5,7 @@ pub use hydra_dx_runtime::{
 	opaque::SessionKeys, pallet_claims::EthereumAddress, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig,
 	BalancesConfig, ClaimsConfig, CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig,
 	GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig, SessionConfig, StakerStatus, StakingConfig,
-	SudoConfig, SystemConfig, VestingConfig, TechnicalCommitteeConfig, TokensConfig, WASM_BINARY,
+	SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
 };
 pub use pallet_staking::Forcing;
 pub use sc_service::ChainType;
