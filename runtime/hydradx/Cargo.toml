@@ -2,7 +2,7 @@
 name = "hydradx-runtime"
 version = "1.0.0"
 authors = ["GalacticCouncil"]
-edition = "2021"
+edition = "2018"
 license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 

@@ -25,7 +25,7 @@ use hydradx_runtime::{
 	SessionConfig, Signature, SudoConfig, SystemConfig, UNITS, WASM_BINARY,
 };
 use primitives::{AssetId, BlockNumber, Price};
-use sc_chain_spec::ChainSpecExtension;
+use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
@@ -45,7 +45,7 @@ const TELEMETRY_URLS: [&str; 2] = [
 const PARA_ID: u32 = 2090;
 
 /// The extensions for the [`ChainSpec`].
-#[derive(Debug, Clone, Serialize, Deserialize, ChainSpecExtension)]
+#[derive(Debug, Clone, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
 #[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.

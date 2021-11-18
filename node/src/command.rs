@@ -130,7 +130,7 @@ impl SubstrateCli for Cli {
 		if spec.is_testing_runtime() {
 			&testing_hydradx_runtime::VERSION
 		} else {
-			&hydradx_runtime_runtime::VERSION
+			&hydradx_runtime::VERSION
 		}
 	}
 }
