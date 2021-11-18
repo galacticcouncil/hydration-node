@@ -51,12 +51,9 @@ fn load_spec(
 		})
 	} else {
 		Ok(match id {
-			"" => Box::new(chain_spec::hydradx_parachain_config()?),
-			"dev" => Box::new(chain_spec::parachain_development_config(para_id)?),
-			"benchmarks" => Box::new(chain_spec::benchmarks_development_config(para_id)?),
-			"testnet" => Box::new(chain_spec::testnet_parachain_config(para_id)?),
-			"local" => Box::new(chain_spec::local_parachain_config(para_id)?),
-			"staging" => Box::new(chain_spec::kusama_staging_parachain_config()?),
+			"" => Box::new(chain_spec::hydradx::parachain_config()?),
+			"dev" => Box::new(chain_spec::dev::parachain_config(para_id)?),
+			"local" => Box::new(chain_spec::local::parachain_config(para_id)?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
@@ -115,12 +112,9 @@ impl SubstrateCli for Cli {
 			})
 		} else {
 			Ok(match id {
-				"hydradx" => Box::new(chain_spec::hydradx_parachain_config()?),
-				"dev" => Box::new(chain_spec::parachain_development_config(para_id)?),
-				"benchmarks" => Box::new(chain_spec::benchmarks_development_config(para_id)?),
-				"testnet" => Box::new(chain_spec::testnet_parachain_config(para_id)?),
-				"local" => Box::new(chain_spec::local_parachain_config(para_id)?),
-				"staging" => Box::new(chain_spec::kusama_staging_parachain_config()?),
+				"hydradx" => Box::new(chain_spec::hydradx::parachain_config()?),
+				"dev" => Box::new(chain_spec::dev::parachain_config(para_id)?),
+				"local" => Box::new(chain_spec::local::parachain_config(para_id)?),
 				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 			})
 		}

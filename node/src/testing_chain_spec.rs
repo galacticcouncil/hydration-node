@@ -225,12 +225,12 @@ fn testnet_parachain_genesis(
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 	parachain_id: ParaId,
-	council_members: Vec<AccountId>,
-	tech_committee_members: Vec<AccountId>,
-	tx_fee_payment_account: AccountId,
-	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
-	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
-	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+	_council_members: Vec<AccountId>,
+	_tech_committee_members: Vec<AccountId>,
+	_tx_fee_payment_account: AccountId,
+	_vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
+	_registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
+	_accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
