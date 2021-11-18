@@ -1,9 +1,9 @@
-//! HydraDX Client abstractions
+//! Client abstractions
 
 #![allow(clippy::upper_case_acronyms)]
 
-pub use crate::service::{FullBackend, FullClient, HydraExecutor, LightBackend, LightClient, TestingHydraExecutor};
-use common_runtime::{AccountId, AssetId, Balance, Block, BlockNumber, Hash, Header, Index};
+use crate::service::{FullBackend, FullClient, HydraDXExecutorDispatch, TestingHydraDXExecutorDispatch};
+use common_runtime::{AccountId, Balance, Block, BlockNumber, Hash, Header, Index};
 use sc_client_api::{Backend as BackendT, BlockchainEvents, KeyIterator};
 use sp_api::{CallApiAt, NumberFor, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
@@ -20,16 +20,12 @@ use std::sync::Arc;
 pub trait RuntimeApiCollection:
 	sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 	+ sp_api::ApiExt<Block>
-	+ sp_consensus_babe::BabeApi<Block>
-	+ pallet_grandpa::fg_primitives::GrandpaApi<Block>
 	+ sp_block_builder::BlockBuilder<Block>
 	+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 	+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
 	+ sp_api::Metadata<Block>
 	+ sp_offchain::OffchainWorkerApi<Block>
 	+ sp_session::SessionKeys<Block>
-	+ sp_authority_discovery::AuthorityDiscoveryApi<Block>
-	+ pallet_xyk_rpc_runtime_api::XYKApi<Block, AccountId, AssetId, Balance>
 where
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
@@ -39,16 +35,12 @@ impl<Api> RuntimeApiCollection for Api
 where
 	Api: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		+ sp_api::ApiExt<Block>
-		+ sp_consensus_babe::BabeApi<Block>
-		+ pallet_grandpa::fg_primitives::GrandpaApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 		+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
-		+ sp_session::SessionKeys<Block>
-		+ sp_authority_discovery::AuthorityDiscoveryApi<Block>
-		+ pallet_xyk_rpc_runtime_api::XYKApi<Block, AccountId, AssetId, Balance>,
+		+ sp_session::SessionKeys<Block>,
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
 }
@@ -131,8 +123,8 @@ pub trait ClientHandle {
 /// See [`ExecuteWithClient`] for more information.
 #[derive(Clone)]
 pub enum Client {
-	HydraDX(Arc<FullClient<hydra_dx_runtime::RuntimeApi, HydraExecutor>>),
-	TestingHydraDX(Arc<FullClient<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>>),
+	HydraDX(Arc<FullClient<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>>),
+	TestingHydraDX(Arc<FullClient<testing_hydradx_runtime::RuntimeApi, TestingHydraDXExecutorDispatch>>),
 }
 
 impl ClientHandle for Client {
@@ -274,6 +266,19 @@ impl sc_client_api::StorageProvider<Block, FullBackend> for Client {
 		match self {
 			Self::HydraDX(client) => client.child_storage_keys(id, child_info, key_prefix),
 			Self::TestingHydraDX(client) => client.child_storage_keys(id, child_info, key_prefix),
+		}
+	}
+
+	fn child_storage_keys_iter<'a>(
+		&self,
+		id: &BlockId<Block>,
+		child_info: ChildInfo,
+		prefix: Option<&'a StorageKey>,
+		start_key: Option<&StorageKey>,
+	) -> sp_blockchain::Result<KeyIterator<'a, <FullBackend as sc_client_api::Backend<Block>>::State, Block>> {
+		match self {
+			Self::HydraDX(client) => client.child_storage_keys_iter(id, child_info, prefix, start_key),
+			Self::TestingHydraDX(client) => client.child_storage_keys_iter(id, child_info, prefix, start_key),
 		}
 	}
 

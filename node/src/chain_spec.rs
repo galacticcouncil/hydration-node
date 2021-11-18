@@ -1,33 +1,69 @@
+// This file is part of HydraDX-node.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![allow(clippy::or_fun_call)]
+#![allow(clippy::too_many_arguments)]
 
-pub use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
-pub use hydra_dx_runtime::{
-	opaque::SessionKeys, pallet_claims::EthereumAddress, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig,
-	BalancesConfig, ClaimsConfig, CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig,
-	GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig, SessionConfig, StakerStatus, StakingConfig,
-	SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, WASM_BINARY,
+use cumulus_primitives_core::ParaId;
+use hex_literal::hex;
+use hydradx_runtime::{
+	AccountId, AuraId, Balance, BalancesConfig, CollatorSelectionConfig, GenesisConfig, ParachainInfoConfig,
+	SessionConfig, Signature, SudoConfig, SystemConfig, UNITS, WASM_BINARY,
 };
-pub use pallet_staking::Forcing;
-pub use sc_service::ChainType;
-pub use sc_telemetry::TelemetryEndpoints;
-pub use serde_json::map::Map;
-pub use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
-pub use sp_finality_grandpa::AuthorityId as GrandpaId;
-pub use sp_runtime::traits::{IdentifyAccount, Verify};
+use primitives::{AssetId, BlockNumber, Price};
+use sc_chain_spec::ChainSpecExtension;
+use sc_service::ChainType;
+use sc_telemetry::TelemetryEndpoints;
+use serde::{Deserialize, Serialize};
+use serde_json::map::Map;
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
+use sp_runtime::traits::{IdentifyAccount, Verify};
 
-pub use hex_literal::hex;
-pub use hydra_dx_runtime::pallet_genesis_history::Chain;
-pub use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-pub use sp_consensus_babe::AuthorityId as BabeId;
-
+const TOKEN_DECIMALS: u8 = 12;
+const TOKEN_SYMBOL: &str = "HDX";
+const PROTOCOL_ID: &str = "hdx";
 // The URL for the telemetry server.
-pub const TELEMETRY_URLS: [&str; 2] = [
+const TELEMETRY_URLS: [&str; 2] = [
 	"wss://telemetry.polkadot.io/submit/",
 	"wss://telemetry.hydradx.io:9000/submit/",
 ];
+//Kusama parachain id
+const PARA_ID: u32 = 2090;
+
+/// The extensions for the [`ChainSpec`].
+#[derive(Debug, Clone, Serialize, Deserialize, ChainSpecExtension)]
+#[serde(deny_unknown_fields)]
+pub struct Extensions {
+	/// The relay chain of the Parachain.
+	pub relay_chain: String,
+	/// The id of the Parachain.
+	pub para_id: u32,
+}
+
+impl Extensions {
+	/// Try to get the extension from the given `ChainSpec`.
+	#[allow(clippy::borrowed_box)]
+	pub fn try_get(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Option<&Self> {
+		sc_chain_spec::get_extension(chain_spec.extensions())
+	}
+}
+
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
+pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 /// Generate a crypto pair from seed.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -46,173 +82,60 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Helper function to generate stash, controller and session key from seed
-pub fn authority_keys_from_seed(
-	seed: &str,
-) -> (
-	AccountId,
-	AccountId,
-	GrandpaId,
-	BabeId,
-	ImOnlineId,
-	AuthorityDiscoveryId,
-) {
-	(
-		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
-		get_account_id_from_seed::<sr25519::Public>(seed),
-		get_from_seed::<GrandpaId>(seed),
-		get_from_seed::<BabeId>(seed),
-		get_from_seed::<ImOnlineId>(seed),
-		get_from_seed::<AuthorityDiscoveryId>(seed),
-	)
+pub fn hydradx_parachain_config() -> Result<ChainSpec, String> {
+	ChainSpec::from_json_bytes(&include_bytes!("../res/hydradx.json")[..])
 }
 
-fn session_keys(
-	grandpa: GrandpaId,
-	babe: BabeId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> SessionKeys {
-	SessionKeys {
-		grandpa,
-		babe,
-		im_online,
-		authority_discovery,
-	}
-}
-
-pub const STASH: Balance = 100 * HDX;
-pub const DEFAULT_PROTOCOL_ID: &str = "hdx";
-
-pub fn development_config() -> Result<ChainSpec, String> {
+pub fn kusama_staging_parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
-	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"HydraDX Development chain",
+		"HydraDX",
 		// ID
-		"dev",
-		ChainType::Development,
+		"hydradx",
+		ChainType::Live,
 		move || {
-			testnet_genesis(
+			parachain_genesis(
 				wasm_binary,
-				// Initial PoA authorities
-				vec![authority_keys_from_seed("Alice")],
 				// Sudo account
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				// Pre-funded accounts
+				hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(), //TODO intergalactic
+				//initial authorities & invulnerables
 				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					// Treasury
-					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					(
+						hex!["f25e5d7b43266a5b4cca762c9be917f18852d7a5db85e734776206eeb539dd4f"].into(),
+						hex!["f25e5d7b43266a5b4cca762c9be917f18852d7a5db85e734776206eeb539dd4f"].unchecked_into(),
+					),
+					(
+						hex!["e84a7090cb18fe39eafebdae9a3ac1111c955247a202a3ab2a3cfe8573c03c60"].into(),
+						hex!["e84a7090cb18fe39eafebdae9a3ac1111c955247a202a3ab2a3cfe8573c03c60"].unchecked_into(),
+					),
+					(
+						hex!["c49e3fbebac92027e0d19c2fc1ddc288eb549971831e336550832a476727f601"].into(),
+						hex!["c49e3fbebac92027e0d19c2fc1ddc288eb549971831e336550832a476727f601"].unchecked_into(),
+					),
+					(
+						hex!["c856aabea6e433be2dfe233c6118d156133e4e663a1223da06421058ddb56712"].into(),
+						hex!["c856aabea6e433be2dfe233c6118d156133e4e663a1223da06421058ddb56712"].unchecked_into(),
+					),
+					(
+						hex!["e02a753fc885bde7ea5839df8619ab80b67be6c869bc19b41f20f865a2f90578"].into(),
+						hex!["e02a753fc885bde7ea5839df8619ab80b67be6c869bc19b41f20f865a2f90578"].unchecked_into(),
+					),
 				],
+				// Pre-funded accounts
+				vec![],
 				true,
+				PARA_ID.into(),
+				//technical committee
+				hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), // TREASURY - Fallback for multi tx payment
 			)
 		},
 		// Bootnodes
 		vec![],
-		// Telemetry
-		None,
-		// Protocol ID
-		Some(DEFAULT_PROTOCOL_ID),
-		// Properties
-		Some(properties),
-		// Extensions
-		None,
-	))
-}
-
-pub fn lerna_config() -> Result<ChainSpec, String> {
-	ChainSpec::from_json_bytes(&include_bytes!("../res/lerna.json")[..])
-}
-
-pub fn lerna_staging_config() -> Result<ChainSpec, String> {
-	let wasm_binary = WASM_BINARY.ok_or("Stakenet wasm binary not available".to_string())?;
-	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
-	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
-
-	Ok(ChainSpec::from_genesis(
-		// Name
-		"HydraDX Snakenet Gen2",
-		// ID
-		"lerna",
-		ChainType::Live,
-		move || {
-			lerna_genesis(
-				wasm_binary,
-				vec![
-					(
-						//5DvaWvPYpPo6aMKBZhCTtCmfbZntA9y5tmsMvVg5sD75aPRQ
-						hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
-						//5DvaWvPYpPo6aMKBZhCTtCmfbZntA9y5tmsMvVg5sD75aPRQ
-						hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
-						//5DdKFiVQx8R7cNW5FckvftE7NfQCPW1GF9p8FUKnB3o6AvMu
-						hex!["451b3e9b67ffea5e90b61e23396451a336e1449620bba3e13fbb96e187007c1a"].unchecked_into(),
-						//5GTyALyDv9EFARPWrotf8yBJ3F3zSyk8NtUqcrtiBDVkbFLb
-						hex!["c2af193a251dee1765136b0ae47647c110ac1225b23a157d6ef6629b1c93fe39"].unchecked_into(),
-						//5GTyALyDv9EFARPWrotf8yBJ3F3zSyk8NtUqcrtiBDVkbFLb
-						hex!["c2af193a251dee1765136b0ae47647c110ac1225b23a157d6ef6629b1c93fe39"].unchecked_into(),
-						//5GTyALyDv9EFARPWrotf8yBJ3F3zSyk8NtUqcrtiBDVkbFLb
-						hex!["c2af193a251dee1765136b0ae47647c110ac1225b23a157d6ef6629b1c93fe39"].unchecked_into(),
-					),
-					(
-						//5GNR5oNz2ouy3vpKvfb79u9yZ5WW1fpX9aS9vMHbqcuhUkDC
-						hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
-						//5GNR5oNz2ouy3vpKvfb79u9yZ5WW1fpX9aS9vMHbqcuhUkDC
-						hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
-						//5HWDxcXHPxSowKDXSSKLEkUxXymXw2FA9zKyAwYw7nJ8KpYL
-						hex!["f0a3a2eab48b0e51e8d89732d15da0164eb36951c4db3bd33879b0b343619ba7"].unchecked_into(),
-						//5Fgn5eu1dhHemGLbHRgFuhdjjTHPuGt6UbLmwd2bi7JonwAG
-						hex!["a037c0f83b7ebea2179165f987c6094d5b39e7addc1d2e09edf4a5fa6ebcac32"].unchecked_into(),
-						//5Fgn5eu1dhHemGLbHRgFuhdjjTHPuGt6UbLmwd2bi7JonwAG
-						hex!["a037c0f83b7ebea2179165f987c6094d5b39e7addc1d2e09edf4a5fa6ebcac32"].unchecked_into(),
-						//5Fgn5eu1dhHemGLbHRgFuhdjjTHPuGt6UbLmwd2bi7JonwAG
-						hex!["a037c0f83b7ebea2179165f987c6094d5b39e7addc1d2e09edf4a5fa6ebcac32"].unchecked_into(),
-					),
-					(
-						//5Hiqm2wJATfFWdq9oDzQXBA7LhPbBNPRz4axdg4APjcRhUdQ
-						hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
-						//5Hiqm2wJATfFWdq9oDzQXBA7LhPbBNPRz4axdg4APjcRhUdQ
-						hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
-						//5H1TccKGpCsVM4STCELgHQAq5cMXXXBRSnJETy7hiZAUGZav
-						hex!["dab37ca3624720b03aa2fdf4f2b436041ff151f0e3975f7b9c79e52030ae781e"].unchecked_into(),
-						//5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
-						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
-						//5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
-						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
-						//5HGxatQ8j4HtoDiwUvT8gL3HMrXBwP4dMBQQPaYpvR6W2Ztc
-						hex!["7a256c0498e35373006232ae18e18ec44c80c9d73aed563100fc8b7e0cf99001"].unchecked_into(),
-					),
-				],
-				// Sudo account
-				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
-				// Pre-funded accounts
-				vec![],
-				true,
-			)
-		},
-		// Bootnodes TODO: BOOT NODES
-		vec![
-			"/dns/p2p-01.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWAJ8t7rsWvV7d1CRCT7afwtmBQBrRT7mMNDVCWK7n9CrD"
-				.parse()
-				.unwrap(),
-			"/dns/p2p-02.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWErP8DjDoVFjsCCzvD9mFZBA6Y1VKMEBNH8vKCWDZDHz5"
-				.parse()
-				.unwrap(),
-			"/dns/p2p-03.snakenet.hydradx.io/tcp/40444/p2p/12D3KooWH9rsDFq3wo13eKR5PWCvEDieK8uUKd1C1dLQNNxeU5AU"
-				.parse()
-				.unwrap(),
-		],
 		// Telemetry
 		Some(
 			TelemetryEndpoints::new(vec![
@@ -222,21 +145,229 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 			.expect("Telemetry url is valid"),
 		),
 		// Protocol ID
-		Some(DEFAULT_PROTOCOL_ID),
+		Some(PROTOCOL_ID),
 		// Properties
 		Some(properties),
 		// Extensions
-		None,
+		Extensions {
+			relay_chain: "kusama".into(),
+			para_id: PARA_ID,
+		},
 	))
 }
 
-pub fn local_testnet_config() -> Result<ChainSpec, String> {
+pub fn testnet_parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+	let mut properties = Map::new();
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+
+	Ok(ChainSpec::from_genesis(
+		// Name
+		"HydraDX Egg",
+		// ID
+		"hydradx_egg",
+		ChainType::Live,
+		move || {
+			testnet_parachain_genesis(
+				wasm_binary,
+				// Sudo account
+				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+				//initial authorities & invulnerables
+				vec![
+					(
+						hex!["da0fa4ab419def66fb4ac5224e594e82c34ee795268fc7787c8a096c4ff14f11"].into(),
+						hex!["da0fa4ab419def66fb4ac5224e594e82c34ee795268fc7787c8a096c4ff14f11"].unchecked_into(),
+					),
+					(
+						hex!["ecd7a5439c6ab0cd6550bc2f1cef5299d425bb95bb6d7afb32aa3d95ee4f7f1f"].into(),
+						hex!["ecd7a5439c6ab0cd6550bc2f1cef5299d425bb95bb6d7afb32aa3d95ee4f7f1f"].unchecked_into(),
+					),
+					(
+						hex!["f0ad6f1aae7a445c1e80cac883096ec8177eda276fec53ad9ccbe570f3090a26"].into(),
+						hex!["f0ad6f1aae7a445c1e80cac883096ec8177eda276fec53ad9ccbe570f3090a26"].unchecked_into(),
+					),
+				],
+				// Pre-funded accounts
+				vec![hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into()],
+				true,
+				para_id,
+				//council
+				vec![hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into()],
+				//technical committee
+				vec![hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into()],
+				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(), // SAME AS ROOT
+				vec![],
+				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+			)
+		},
+		// Bootnodes
+		vec![],
+		// Telemetry
+		Some(
+			TelemetryEndpoints::new(vec![
+				(TELEMETRY_URLS[0].to_string(), 0),
+				(TELEMETRY_URLS[1].to_string(), 0),
+			])
+			.expect("Telemetry url is valid"),
+		),
+		// Protocol ID
+		Some(PROTOCOL_ID),
+		// Properties
+		Some(properties),
+		// Extensions
+		Extensions {
+			relay_chain: "westend".into(),
+			para_id: para_id.into(),
+		},
+	))
+}
+
+pub fn parachain_development_config(para_id: ParaId) -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+	let mut properties = Map::new();
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+
+	Ok(ChainSpec::from_genesis(
+		// Name
+		"HydraDX Development",
+		// ID
+		"dev",
+		ChainType::Development,
+		move || {
+			testnet_parachain_genesis(
+				wasm_binary,
+				// Sudo account
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				//initial authorities & invulnerables
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuraId>("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuraId>("Bob"),
+					),
+				],
+				// Pre-funded accounts
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Duster"),
+				],
+				true,
+				para_id,
+				//council
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				//technical_committe
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				vec![],
+				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+			)
+		},
+		// Bootnodes
+		vec![],
+		// Telemetry
+		None,
+		// Protocol ID
+		Some(PROTOCOL_ID),
+		// Properties
+		Some(properties),
+		// Extensions
+		Extensions {
+			relay_chain: "rococo-dev".into(),
+			para_id: para_id.into(),
+		},
+	))
+}
+
+// This is used when benchmarking pallets
+// Originally dev config was used - but benchmarking needs empty asset registry
+pub fn benchmarks_development_config(para_id: ParaId) -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+	let mut properties = Map::new();
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+
+	Ok(ChainSpec::from_genesis(
+		// Name
+		"HydraDX Benchmarks",
+		// ID
+		"benchmarks",
+		ChainType::Development,
+		move || {
+			testnet_parachain_genesis(
+				wasm_binary,
+				// Sudo account
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				//initial authorities & invulnerables
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuraId>("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuraId>("Bob"),
+					),
+				],
+				// Pre-funded accounts
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Duster"),
+				],
+				true,
+				para_id,
+				//council
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				//technical_committe
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				vec![],
+				vec![],
+				vec![],
+			)
+		},
+		// Bootnodes
+		vec![],
+		// Telemetry
+		None,
+		// Protocol ID
+		Some(PROTOCOL_ID),
+		// Properties
+		Some(properties),
+		// Extensions
+		Extensions {
+			relay_chain: "rococo-dev".into(),
+			para_id: para_id.into(),
+		},
+	))
+}
+
+pub fn local_parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
-	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
@@ -245,12 +376,21 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		"local_testnet",
 		ChainType::Local,
 		move || {
-			testnet_genesis(
+			testnet_parachain_genesis(
 				wasm_binary,
-				// Initial PoA authorities
-				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				//initial authorities & invulnerables
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuraId>("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuraId>("Bob"),
+					),
+				],
 				// Pre-funded accounts
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -265,10 +405,21 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-					// Treasury
-					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
+				para_id,
+				//council
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				//technical_committe
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				vec![],
+				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
 			)
 		},
 		// Bootnodes
@@ -276,160 +427,26 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Telemetry
 		None,
 		// Protocol ID
-		Some(DEFAULT_PROTOCOL_ID),
+		Some(PROTOCOL_ID),
 		// Properties
 		Some(properties),
 		// Extensions
-		None,
+		Extensions {
+			relay_chain: "rococo-local".into(),
+			para_id: para_id.into(),
+		},
 	))
 }
 
 /// Configure initial storage state for FRAME modules.
-fn testnet_genesis(
+fn parachain_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
 	root_key: AccountId,
-	endowed_accounts: Vec<AccountId>,
-	_enable_println: bool,
-) -> GenesisConfig {
-	GenesisConfig {
-		system: SystemConfig {
-			// Add Wasm runtime to storage.
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
-		},
-		balances: BalancesConfig {
-			// Configure endowed accounts with initial balance of 1_000_000.
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, 1_000_000u128 * HDX))
-				.collect(),
-		},
-		grandpa: Default::default(),
-		sudo: SudoConfig {
-			// Assign network admin rights.
-			key: root_key.clone(),
-		},
-		asset_registry: AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![
-				(b"tKSM".to_vec(), 1),
-				(b"tDOT".to_vec(), 2),
-				(b"tETH".to_vec(), 3),
-				(b"tACA".to_vec(), 4),
-				(b"tEDG".to_vec(), 5),
-				(b"tUSD".to_vec(), 6),
-				(b"tPLM".to_vec(), 7),
-				(b"tFIS".to_vec(), 8),
-				(b"tPHA".to_vec(), 9),
-				(b"tUSDT".to_vec(), 10),
-			],
-			next_asset_id: 11,
-		},
-		multi_transaction_payment: MultiTransactionPaymentConfig {
-			currencies: vec![],
-			authorities: vec![],
-			fallback_account: root_key,
-		},
-		tokens: TokensConfig {
-			balances: endowed_accounts
-				.iter()
-				.flat_map(|x| {
-					vec![
-						(x.clone(), 1, 100_000u128 * HDX),
-						(x.clone(), 2, 100_000u128 * HDX),
-						(x.clone(), 3, 100_000u128 * HDX),
-					]
-				})
-				.collect(),
-		},
-		faucet: FaucetConfig {
-			rampage: true,
-			mint_limit: 5,
-			mintable_currencies: vec![0, 1, 2],
-		},
-		babe: BabeConfig {
-			authorities: vec![],
-			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		im_online: Default::default(),
-		treasury: Default::default(),
-		session: SessionConfig {
-			keys: initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		staking: StakingConfig {
-			validator_count: initial_authorities.len() as u32 * 2,
-			minimum_validator_count: initial_authorities.len() as u32,
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
-				.collect(),
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::ForceNone,
-			slash_reward_fraction: Perbill::from_percent(10),
-			..Default::default()
-		},
-		elections: ElectionsConfig {
-			members: vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-			],
-		},
-		council: CouncilConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
-			phantom: Default::default(),
-		},
-		technical_committee: TechnicalCommitteeConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
-			phantom: Default::default(),
-		},
-		claims: ClaimsConfig {
-			claims: create_testnet_claims(),
-		},
-		genesis_history: GenesisHistoryConfig::default(),
-	}
-}
-
-fn lerna_genesis(
-	wasm_binary: &[u8],
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
-	root_key: AccountId,
+	initial_authorities: Vec<(AccountId, AuraId)>,
 	_endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
+	parachain_id: ParaId,
+	tx_fee_payment_account: AccountId,
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
@@ -438,164 +455,108 @@ fn lerna_genesis(
 			changes_trie_config: Default::default(),
 		},
 		balances: BalancesConfig {
-			// Intergalactic initial supply
+			// Configure endowed accounts with initial balance of a lot.
 			balances: vec![
 				(
 					// Intergalactic HDX Tokens 15%
-					hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
-					(1_500_000_000u128 * HDX) - (3 * STASH),
+					hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(),
+					15_000_000_000u128 * UNITS,
 				),
 				(
-					// Treasury for rewards 3%
-					hex!["84d0959b84b3b12013430ea136b0c26e83412ea3bc46a8620abb8c8db7e53d0c"].into(),
-					300_000_000 * HDX,
-				),
-				(
-					// Intergalactic Validator01
-					hex!["5245cb1e9e810f66940ec82a23a485491347bdbdc2726f3e2d40d9650cbc4103"].into(),
-					STASH,
-				),
-				(
-					// Intergalactic Validator02
-					hex!["be72e2daa41acfd97eed4c09a086dc84b99df8e8ddddb67e90b71c36e4826378"].into(),
-					STASH,
-				),
-				(
-					// Intergalactic Validator03
-					hex!["fa431893b2d8196ab179793714d653ce840fcac1847c1cb32522496989c0e556"].into(),
-					STASH,
-				),
-				(
-					// Unsold tokens treasury
+					// Treasury 9%
 					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
-					56873469471297884942_u128,
+					9_000_000_000 * UNITS,
 				),
 			],
 		},
-		grandpa: GrandpaConfig { authorities: vec![] },
 		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
 		},
-		asset_registry: AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![],
-			next_asset_id: 1,
+		collator_selection: CollatorSelectionConfig {
+			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: 10_000,
+			..Default::default()
 		},
-		multi_transaction_payment: MultiTransactionPaymentConfig {
-			currencies: vec![],
-			authorities: vec![],
-			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
-		},
-		tokens: TokensConfig { balances: vec![] },
-		faucet: FaucetConfig {
-			rampage: false,
-			mint_limit: 5,
-			mintable_currencies: vec![],
-		},
-		babe: BabeConfig {
-			authorities: vec![],
-			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		im_online: ImOnlineConfig { keys: vec![] },
-		treasury: Default::default(),
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
-				.map(|x| {
+				.cloned()
+				.map(|(acc, aura)| {
 					(
-						x.0.clone(),
-						x.0.clone(),
-						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+						acc.clone(),                                   // account id
+						acc,                                           // validator id
+						hydradx_runtime::opaque::SessionKeys { aura }, // session keys
 					)
 				})
-				.collect::<Vec<_>>(),
-		},
-		staking: StakingConfig {
-			validator_count: 3,
-			minimum_validator_count: 3,
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
 				.collect(),
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::ForceNone,
-			slash_reward_fraction: Perbill::from_percent(10),
-			..Default::default()
 		},
-		elections: ElectionsConfig {
-			// Intergalactic elections
-			members: vec![(
-				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
-				STASH,
-			)],
-		},
-		council: CouncilConfig {
-			// Intergalactic council member
-			members: vec![hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into()],
-			phantom: Default::default(),
-		},
-		technical_committee: TechnicalCommitteeConfig {
-			members: vec![
-				hex!["d6cf8789dce651cb54a4036406f4aa0c771914d345c004ad0567b814c71fb637"].into(),
-				hex!["bc96ec00952efa8f0e3e08b36bf5096bcb877acac536e478aecb72868db5db02"].into(),
-				hex!["2875dd47bc1bcb70e23de79e7538c312be12c716033bbae425130e46f5f2b35e"].into(),
-				hex!["644643bf953233d08c4c9bae0acd49f3baa7658d9b342b7e6879bb149ee6e44c"].into(),
-				hex!["ccdb435892c9883656d0398b2b67023ba1e11bda0c7f213f70fdac54c6abab3f"].into(),
-				hex!["f461c5ae6e80bf4af5b84452789c17b0b0a095a2d77c2a407978147de2d5b572"].into(),
-			],
-			phantom: Default::default(),
-		},
-		claims: ClaimsConfig { claims: vec![] },
-		genesis_history: GenesisHistoryConfig {
-			previous_chain: Chain {
-				genesis_hash: hex!["0ed32bfcab4a83517fac88f2aa7cbc2f88d3ab93be9a12b6188a036bf8a943c2"]
-					.to_vec()
-					.into(),
-				last_block_hash: hex!["f3c43294255f2d0cd8b3bc8787d18cc2adcec581f74d23df15ca75b8b77cd507"]
-					.to_vec()
-					.into(),
-			},
-		},
+
+		// no need to pass anything, it will panic if we do. Session will take care
+		// of this.
+		aura: Default::default(),
+		treasury: Default::default(),
+		parachain_info: ParachainInfoConfig { parachain_id },
+		aura_ext: Default::default(),
 	}
 }
 
-pub fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
-	let mut claims = Vec::<(EthereumAddress, Balance)>::new();
+fn testnet_parachain_genesis(
+	wasm_binary: &[u8],
+	root_key: AccountId,
+	initial_authorities: Vec<(AccountId, AuraId)>,
+	endowed_accounts: Vec<AccountId>,
+	_enable_println: bool,
+	parachain_id: ParaId,
+	council_members: Vec<AccountId>,
+	tech_committee_members: Vec<AccountId>,
+	tx_fee_payment_account: AccountId,
+	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
+	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
+	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+) -> GenesisConfig {
+	GenesisConfig {
+		system: SystemConfig {
+			// Add Wasm runtime to storage.
+			code: wasm_binary.to_vec(),
+			changes_trie_config: Default::default(),
+		},
+		balances: BalancesConfig {
+			// Configure endowed accounts with initial balance of a lot.
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, 1_000_000_000u128 * UNITS))
+				.collect(),
+		},
+		sudo: SudoConfig {
+			// Assign network admin rights.
+			key: root_key,
+		},
+		collator_selection: CollatorSelectionConfig {
+			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: 10_000,
+			..Default::default()
+		},
+		session: SessionConfig {
+			keys: initial_authorities
+				.iter()
+				.cloned()
+				.map(|(acc, aura)| {
+					(
+						acc.clone(),                                   // account id
+						acc,                                           // validator id
+						hydradx_runtime::opaque::SessionKeys { aura }, // session keys
+					)
+				})
+				.collect(),
+		},
 
-	// Alice's claim
-	// Signature: 0xbcae7d4f96f71cf974c173ae936a1a79083af7f76232efbf8a568b7f990eceed73c2465bba769de959b7f6ac5690162b61eb90949901464d0fa158a83022a0741c
-	// Message: "I hereby claim all my HDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
-	let claim_address_1 = (
-		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
-		// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0
-		EthereumAddress(hex!["8202C0aF5962B750123CE1A9B12e1C30A4973557"]),
-		HDX / 1_000,
-	);
-
-	// Bob's claim
-	// Signature: 0x60f3d2541b0ff09982f70844a7f645f4681cbbad2f138fee18404c932bd02cb738d577d53ce94cf067bae87a0b6fa1ec532ceea78d71f4e81a9c27193649c6291b
-	// Message: "I hereby claim all my HDX tokens to wallet:8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
-	let claim_address_2 = (
-		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
-		// private key (m/44'/60'/0'/0/1) : 0x9b5ef380c0a59008df32ba71ab3c7645950f986fc3f43fd4f9dffc8b2b4e7a5d
-		EthereumAddress(hex!["8aF7764663644989671A71Abe9738a3cF295f384"]),
-		HDX,
-	);
-
-	// Charlie's claim
-	// Signature: 0x52485aece74eb503fb998f0ca08bcc283fa731613db213af4e7fe153faed3de97ea0873d3889622b41d2d989a9e2a0bef160cff1ba8845875d4bc15431136a811c
-	// Message: "I hereby claim all my HDX tokens to wallet:90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
-	let claim_address_3 = (
-		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
-		// private key (m/44'/60'/0'/0/2) : 0x653a29ac0c93de0e9f7d7ea2d60338e68f407b18d16d6ff84db996076424f8fa
-		EthereumAddress(hex!["C19A2970A13ac19898c47d59Cbd0278D428EBC7c"]),
-		1_000 * HDX,
-	);
-
-	claims.push(claim_address_1);
-	claims.push(claim_address_2);
-	claims.push(claim_address_3);
-	claims
+		// no need to pass anything, it will panic if we do. Session will take care
+		// of this.
+		aura: Default::default(),
+		treasury: Default::default(),
+		parachain_info: ParachainInfoConfig { parachain_id },
+		aura_ext: Default::default(),
+	}
 }

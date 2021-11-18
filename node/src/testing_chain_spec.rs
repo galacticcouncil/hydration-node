@@ -1,57 +1,129 @@
-use crate::chain_spec::*;
-use testing_hydra_dx_runtime as testing_runtime;
+// This file is part of HydraDX-node.
 
-/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<testing_runtime::GenesisConfig>;
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
 
-fn testing_session_keys(
-	grandpa: GrandpaId,
-	babe: BabeId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> testing_runtime::opaque::SessionKeys {
-	testing_runtime::opaque::SessionKeys {
-		grandpa,
-		babe,
-		im_online,
-		authority_discovery,
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::too_many_arguments)]
+
+use cumulus_primitives_core::ParaId;
+use primitives::{AssetId, BlockNumber, Price};
+use sc_chain_spec::ChainSpecExtension;
+use sc_service::ChainType;
+use serde::{Deserialize, Serialize};
+use serde_json::map::Map;
+use sp_core::{sr25519, Pair, Public};
+use sp_runtime::traits::{IdentifyAccount, Verify};
+use testing_hydradx_runtime::{
+	AccountId, AuraId, Balance, BalancesConfig, CollatorSelectionConfig, GenesisConfig, ParachainInfoConfig,
+	SessionConfig, Signature, SudoConfig, SystemConfig, UNITS, WASM_BINARY,
+};
+
+const TOKEN_DECIMALS: u8 = 12;
+const TOKEN_SYMBOL: &str = "HDX";
+const PROTOCOL_ID: &str = "hdx";
+
+/// The extensions for the [`ChainSpec`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecExtension)]
+#[serde(deny_unknown_fields)]
+pub struct Extensions {
+	/// The relay chain of the Parachain.
+	pub relay_chain: String,
+	/// The id of the Parachain.
+	pub para_id: u32,
+}
+
+impl Extensions {
+	/// Try to get the extension from the given `ChainSpec`.
+	#[allow(clippy::borrowed_box)]
+	#[allow(dead_code)]
+	pub fn try_get(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Option<&Self> {
+		sc_chain_spec::get_extension(chain_spec.extensions())
 	}
 }
 
-pub fn development_config() -> Result<ChainSpec, String> {
-	let wasm_binary =
-		testing_runtime::WASM_BINARY.ok_or_else(|| "Testing and development wasm binary not available".to_string())?;
+/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
+pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+
+/// Generate a crypto pair from seed.
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+	TPublic::Pair::from_string(&format!("//{}", seed), None)
+		.expect("static values are valid; qed")
+		.public()
+}
+
+type AccountPublic = <Signature as Verify>::Signer;
+
+/// Generate an account ID from seed.
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+{
+	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+}
+
+pub fn parachain_development_config(para_id: ParaId) -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
-	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 
 	Ok(ChainSpec::from_genesis(
-		// Config names for the testing runtime have to start with `Testing` string literal
-		// because ChainSpecs are used to identify runtimes.
 		// Name
-		"Testing HydraDX Development chain",
+		"Testing HydraDX Development",
 		// ID
 		"dev",
 		ChainType::Development,
 		move || {
-			testnet_genesis(
+			testnet_parachain_genesis(
 				wasm_binary,
-				// Initial PoA authorities
-				vec![authority_keys_from_seed("Alice")],
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				//initial authorities & invulnerables
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuraId>("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuraId>("Bob"),
+					),
+				],
 				// Pre-funded accounts
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Eve"),
 					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					// Treasury
-					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					get_account_id_from_seed::<sr25519::Public>("Duster"),
 				],
 				true,
+				para_id,
+				//council
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				//technical_committe
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				vec![],
+				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
 			)
 		},
 		// Bootnodes
@@ -59,38 +131,46 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// Telemetry
 		None,
 		// Protocol ID
-		Some(DEFAULT_PROTOCOL_ID),
+		Some(PROTOCOL_ID),
 		// Properties
 		Some(properties),
 		// Extensions
-		None,
+		Extensions {
+			relay_chain: "rococo-dev".into(),
+			para_id: para_id.into(),
+		},
 	))
 }
 
-pub fn local_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary =
-		testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
+pub fn local_parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
-	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 
 	Ok(ChainSpec::from_genesis(
-		// Config names for the testing runtime have to start with `Testing` string literal
-		// because ChainSpecs are used to identify runtimes.
 		// Name
 		"Testing HydraDX Local Testnet",
 		// ID
 		"local_testnet",
 		ChainType::Local,
 		move || {
-			testnet_genesis(
+			testnet_parachain_genesis(
 				wasm_binary,
-				// Initial PoA authorities
-				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				//initial authorities & invulnerables
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuraId>("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuraId>("Bob"),
+					),
+				],
 				// Pre-funded accounts
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -105,10 +185,21 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-					// Treasury
-					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
 				true,
+				para_id,
+				//council
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				//technical_committe
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				vec![],
+				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
 			)
 		},
 		// Bootnodes
@@ -116,142 +207,73 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Telemetry
 		None,
 		// Protocol ID
-		Some(DEFAULT_PROTOCOL_ID),
+		Some(PROTOCOL_ID),
 		// Properties
 		Some(properties),
 		// Extensions
-		None,
+		Extensions {
+			relay_chain: "rococo-local".into(),
+			para_id: para_id.into(),
+		},
 	))
 }
 
-fn testnet_genesis(
+fn testnet_parachain_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
 	root_key: AccountId,
+	initial_authorities: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
-) -> testing_runtime::GenesisConfig {
-	testing_runtime::GenesisConfig {
-		system: testing_runtime::SystemConfig {
+	parachain_id: ParaId,
+	council_members: Vec<AccountId>,
+	tech_committee_members: Vec<AccountId>,
+	tx_fee_payment_account: AccountId,
+	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
+	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
+	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+) -> GenesisConfig {
+	GenesisConfig {
+		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
 		},
-		balances: testing_runtime::BalancesConfig {
-			// Configure endowed accounts with initial balance of 1_000_000.
+		balances: BalancesConfig {
+			// Configure endowed accounts with initial balance of a lot.
 			balances: endowed_accounts
 				.iter()
 				.cloned()
-				.map(|k| (k, 1_000_000u128 * HDX))
+				.map(|k| (k, 1_000_000_000u128 * UNITS))
 				.collect(),
 		},
-		grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
-		sudo: testing_runtime::SudoConfig {
+		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
 		},
-		asset_registry: testing_runtime::AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![
-				(b"tKSM".to_vec(), 1),
-				(b"tDOT".to_vec(), 2),
-				(b"tETH".to_vec(), 3),
-				(b"tACA".to_vec(), 4),
-				(b"tEDG".to_vec(), 5),
-				(b"tUSD".to_vec(), 6),
-				(b"tPLM".to_vec(), 7),
-				(b"tFIS".to_vec(), 8),
-				(b"tPHA".to_vec(), 9),
-				(b"tUSDT".to_vec(), 10),
-			],
-			next_asset_id: 11,
-		},
-		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
-			currencies: vec![],
-			authorities: vec![],
-			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
-		},
-		tokens: testing_runtime::TokensConfig {
-			balances: endowed_accounts
-				.iter()
-				.flat_map(|x| {
-					vec![
-						(x.clone(), 1, 100_000u128 * HDX),
-						(x.clone(), 2, 100_000u128 * HDX),
-						(x.clone(), 3, 100_000u128 * HDX),
-					]
-				})
-				.collect(),
-		},
-		faucet: testing_runtime::FaucetConfig {
-			rampage: true,
-			mint_limit: 5,
-			mintable_currencies: vec![0, 1, 2],
-		},
-		babe: testing_runtime::BabeConfig {
-			authorities: vec![],
-			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		authority_discovery: testing_runtime::AuthorityDiscoveryConfig { keys: vec![] },
-		im_online: testing_runtime::ImOnlineConfig { keys: vec![] },
-		treasury: Default::default(),
-		session: testing_runtime::SessionConfig {
-			keys: initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						testing_session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		staking: testing_runtime::StakingConfig {
-			validator_count: initial_authorities.len() as u32 * 2,
-			minimum_validator_count: initial_authorities.len() as u32,
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
-				.collect(),
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::ForceNone,
-			slash_reward_fraction: Perbill::from_percent(10),
+		collator_selection: CollatorSelectionConfig {
+			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: 10_000,
 			..Default::default()
 		},
-		elections: testing_runtime::ElectionsConfig {
-			members: vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-			],
+		session: SessionConfig {
+			keys: initial_authorities
+				.iter()
+				.cloned()
+				.map(|(acc, aura)| {
+					(
+						acc.clone(),                                           // account id
+						acc,                                                   // validator id
+						testing_hydradx_runtime::opaque::SessionKeys { aura }, // session keys
+					)
+				})
+				.collect(),
 		},
-		council: testing_runtime::CouncilConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
-			phantom: Default::default(),
-		},
-		technical_committee: testing_runtime::TechnicalCommitteeConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
-			phantom: Default::default(),
-		},
-		claims: testing_runtime::ClaimsConfig {
-			claims: create_testnet_claims(),
-		},
-		genesis_history: testing_runtime::GenesisHistoryConfig::default(),
+
+		// no need to pass anything, it will panic if we do. Session will take care
+		// of this.
+		aura: Default::default(),
+		treasury: Default::default(),
+		parachain_info: ParachainInfoConfig { parachain_id },
+		aura_ext: Default::default(),
 	}
 }
