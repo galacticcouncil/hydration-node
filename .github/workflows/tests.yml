@@ -92,17 +92,17 @@ jobs:
       - name: Build release
         run: time cargo build --release --quiet --locked
       - name: Version info
-        run: ./target/release/hydra-dx --version
+        run: ./target/release/hydradx --version
       - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
-          name: hydra-dx
-          path: target/release/hydra-dx
+          name: hydradx
+          path: target/release/hydradx
       - name: Upload release wasm
         uses: actions/upload-artifact@v2
         with:
-          name: hydra_dx_runtime.wasm
-          path: target/release/wbuild/hydra-dx-runtime/hydra_dx_runtime.compact.wasm
+          name: hydradx_runtime.wasm
+          path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.wasm
 
 
   destroy-runner-instance:
