@@ -7244,16 +7244,9 @@ name = "primitives"
 version = "1.0.0"
 dependencies = [
  "frame-support",
- "frame-system",
  "parity-scale-codec",
- "primitive-types",
  "scale-info",
  "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
 ]
 
 [[package]]

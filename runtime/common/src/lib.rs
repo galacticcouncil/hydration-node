@@ -17,18 +17,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{parameter_types, traits::LockIdentifier, weights::Pays, PalletId};
+use frame_support::{parameter_types, weights::Pays, PalletId};
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
-pub use primitives::{fee, Amount, AssetId, Balance};
+pub use primitives::{Amount, AssetId, Balance, BlockNumber};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
+	FixedPointNumber, MultiSignature, Perbill, Permill, Perquintill,
 };
-
-/// An index to a block.
-pub type BlockNumber = u32;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -108,80 +105,6 @@ parameter_types! {
 	pub const MultiPaymentCurrencySetFee: Pays = Pays::Yes;
 }
 
-// pallet xyk
-parameter_types! {
-	pub ExchangeFee: fee::Fee = fee::Fee::default();
-	pub const MinTradingLimit: Balance = MIN_TRADING_LIMIT;
-	pub const MinPoolLiquidity: Balance = MIN_POOL_LIQUIDITY;
-	pub const MaxInRatio: u128 = MAX_IN_RATIO;
-	pub const MaxOutRatio: u128 = MAX_OUT_RATIO;
-	pub const RegistryStrLimit: u32 = 32;
-}
-
-// pallet duster
-parameter_types! {
-	pub const DustingReward: u128 = 0;
-}
-
-// pallet lbp
-parameter_types! {
-	pub LBPExchangeFee: fee::Fee = fee::Fee::default();
-}
-
-// pallet nft
-parameter_types! {
-	pub ClassBondAmount: Balance = 10_000 * UNITS;
-}
-
-// pallet orml_nft
-parameter_types! {
-	pub const MaxClassMetadata: u32 = 1024;
-	pub const MaxTokenMetadata: u32 = 1024;
-}
-
-// pallet democracy
-parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
-	pub const VotingPeriod: BlockNumber = 7 * DAYS;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
-	pub const EnactmentPeriod: BlockNumber = 7 * DAYS;
-	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	// $10,000 / MB
-	pub const PreimageByteDeposit: Balance = 10 * MILLICENTS;
-	pub const InstantAllowed: bool = true;
-	pub const MaxVotes: u32 = 100;
-	pub const MaxProposals: u32 = 100;
-}
-
-// pallet elections_phragmen
-parameter_types! {
-	// Bond for candidacy into governance
-	pub const CandidacyBond: Balance = 10_000 * DOLLARS;
-	// 1 storage item created, key size is 32 bytes, value size is 16+16.
-	pub const VotingBondBase: Balance = DOLLARS;
-	// additional data per vote is 32 bytes (account id).
-	pub const VotingBondFactor: Balance = 50 * CENTS;
-	pub const TermDuration: BlockNumber = 7 * DAYS;
-	pub const DesiredMembers: u32 = 1;
-	pub const DesiredRunnersUp: u32 = 0;
-	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
-}
-
-// pallet collective - council collective
-parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 4 * DAYS;
-	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 1;
-}
-
-// pallet collective - technical collective
-parameter_types! {
-	pub const TechnicalMotionDuration: BlockNumber = 4 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 20;
-	pub const TechnicalMaxMembers: u32 = 10;
-}
-
 // pallet treasury
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
@@ -197,16 +120,6 @@ parameter_types! {
 	pub const UncleGenerations: u32 = 0;
 }
 
-// pallet tips
-parameter_types! {
-	pub const DataDepositPerByte: Balance = CENTS;
-	pub const TipCountdown: BlockNumber = 24 * HOURS;
-	pub const TipFindersFee: Percent = Percent::from_percent(1);
-	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
-	pub const TipReportDepositPerByte: Balance = CENTS;
-	pub const MaximumReasonLength: u32 = 1024;
-}
-
 // pallet collator selection
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
@@ -219,10 +132,4 @@ parameter_types! {
 parameter_types! {
 	pub const Period: u32 = 4 * HOURS;
 	pub const Offset: u32 = 0;
-}
-
-// pallet vesting
-parameter_types! {
-	pub MinVestedTransfer: Balance = 100_000 * UNITS;
-	pub const MaxVestingSchedules: u32 = 100;
 }
