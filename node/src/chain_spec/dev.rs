@@ -1,5 +1,7 @@
 use super::*;
 
+const INITIAL_BALANCE: u128 = 10_000;
+
 pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
@@ -13,7 +15,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 		"dev",
 		ChainType::Development,
 		move || {
-			testnet_parachain_genesis(
+			parachain_genesis(
 				wasm_binary,
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -30,11 +32,17 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 				],
 				// Pre-funded accounts
 				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Duster"),
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), INITIAL_BALANCE),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+						INITIAL_BALANCE,
+					),
+					(get_account_id_from_seed::<sr25519::Public>("Duster"), INITIAL_BALANCE),
 				],
 				true,
 				para_id,

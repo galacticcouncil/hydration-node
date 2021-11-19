@@ -58,11 +58,32 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 					),
 				],
 				// Pre-funded accounts
-				vec![],
+				vec![
+					(
+						// Intergalactic HDX Tokens 15%
+						hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(), //TODO: @jak-pan
+						15_000_000_000u128,
+					),
+					(
+						// Treasury 9%
+						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), //TODO: @jak-pan
+						9_000_000_000,
+					),
+				],
 				true,
 				PARA_ID.into(),
+				//council
+				vec![],
 				//technical committee
-				hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), // TREASURY - Fallback for multi tx payment TODO: @jak-pan
+				vec![],
+				//_tx_fee_payment_account
+				hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(), //TODO @jak-pan
+				//vesting
+				vec![],
+				//registered_assets
+				vec![],
+				//accepted_assets
+				vec![],
 			)
 		},
 		// Bootnodes
@@ -95,67 +116,4 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			para_id: PARA_ID,
 		},
 	))
-}
-
-/// Configure initial storage state for FRAME modules.
-fn parachain_genesis(
-	wasm_binary: &[u8],
-	root_key: AccountId,
-	initial_authorities: Vec<(AccountId, AuraId)>,
-	_endowed_accounts: Vec<AccountId>,
-	_enable_println: bool,
-	parachain_id: ParaId,
-	_tx_fee_payment_account: AccountId,
-) -> GenesisConfig {
-	GenesisConfig {
-		system: SystemConfig {
-			// Add Wasm runtime to storage.
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
-		},
-		balances: BalancesConfig {
-			// Configure endowed accounts with initial balance of a lot.
-			balances: vec![
-				(
-					// Intergalactic HDX Tokens 15%
-					hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(), //TODO: @jak-pan
-					15_000_000_000u128 * UNITS,
-				),
-				(
-					// Treasury 9%
-					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), //TODO: @jak-pan
-					9_000_000_000 * UNITS,
-				),
-			],
-		},
-		sudo: SudoConfig {
-			// Assign network admin rights.
-			key: root_key,
-		},
-		collator_selection: CollatorSelectionConfig {
-			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: 10_000,
-			..Default::default()
-		},
-		session: SessionConfig {
-			keys: initial_authorities
-				.iter()
-				.cloned()
-				.map(|(acc, aura)| {
-					(
-						acc.clone(),                                   // account id
-						acc,                                           // validator id
-						hydradx_runtime::opaque::SessionKeys { aura }, // session keys
-					)
-				})
-				.collect(),
-		},
-
-		// no need to pass anything, it will panic if we do. Session will take care
-		// of this.
-		aura: Default::default(),
-		treasury: Default::default(),
-		parachain_info: ParachainInfoConfig { parachain_id },
-		aura_ext: Default::default(),
-	}
 }

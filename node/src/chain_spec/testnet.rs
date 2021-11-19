@@ -15,7 +15,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 		"hydradx_testnet",
 		ChainType::Live,
 		move || {
-			testnet_parachain_genesis(
+			parachain_genesis(
 				wasm_binary,
 				// Sudo account
 				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
@@ -35,7 +35,10 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 					),
 				],
 				// Pre-funded accounts
-				vec![hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into()],
+				vec![(
+					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+					1_000_000_000,
+				)],
 				true,
 				para_id.into(),
 				//Endowd  accounts

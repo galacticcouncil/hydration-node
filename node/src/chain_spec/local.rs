@@ -1,5 +1,7 @@
 use super::*;
 
+const INITIAL_BALANCE: u128 = 10_000;
+
 pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
@@ -14,7 +16,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 		"local_testnet",
 		ChainType::Local,
 		move || {
-			testnet_parachain_genesis(
+			parachain_genesis(
 				wasm_binary,
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -31,18 +33,36 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 				],
 				// Pre-funded accounts
 				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie"),
-					get_account_id_from_seed::<sr25519::Public>("Dave"),
-					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), INITIAL_BALANCE),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+						INITIAL_BALANCE,
+					),
 				],
 				true,
 				para_id,

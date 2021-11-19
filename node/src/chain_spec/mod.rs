@@ -79,11 +79,11 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-pub fn testnet_parachain_genesis(
+pub fn parachain_genesis(
 	wasm_binary: &[u8],
 	root_key: AccountId,
 	initial_authorities: Vec<(AccountId, AuraId)>,
-	endowed_accounts: Vec<AccountId>,
+	endowed_accounts: Vec<(AccountId, Balance)>,
 	_enable_println: bool,
 	parachain_id: ParaId,
 	_council_members: Vec<AccountId>,
@@ -101,11 +101,7 @@ pub fn testnet_parachain_genesis(
 		},
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of a lot.
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, 1_000_000_000u128 * UNITS))
-				.collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1 * UNITS)).collect(),
 		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
