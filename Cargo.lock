@@ -3029,6 +3029,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-utility",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",

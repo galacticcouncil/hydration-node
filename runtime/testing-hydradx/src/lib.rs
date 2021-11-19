@@ -351,6 +351,12 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_utility::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type WeightInfo = ();
+}
+
 pub struct EnsureRootOrTreasury;
 impl EnsureOrigin<Origin> for EnsureRootOrTreasury {
 	type Success = AccountId;
@@ -388,17 +394,18 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 3,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 4,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 5,
+		Utility: pallet_utility::{Pallet, Call, Event} = 6,
 
 		// Parachain
-		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>, ValidateUnsigned} = 6,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 7,
+		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>, ValidateUnsigned} = 7,
+		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 8,
 
 		// Collator support
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 8,
-		CollatorSelection: pallet_collator_selection::{Pallet, Call, Storage, Event<T>, Config<T>} = 9,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 10,
-		Aura: pallet_aura::{Pallet, Config<T>} = 11,
-		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 12,
+		Authorship: pallet_authorship::{Pallet, Call, Storage} = 9,
+		CollatorSelection: pallet_collator_selection::{Pallet, Call, Storage, Event<T>, Config<T>} = 10,
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 11,
+		Aura: pallet_aura::{Pallet, Config<T>} = 12,
+		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 13,
 
 		// TEMPORARY
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 255, // Let's make it last one.
