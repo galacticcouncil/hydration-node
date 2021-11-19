@@ -54,9 +54,7 @@ where
 		deny_unsafe,
 	)));
 
-	io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
-		client,
-	)));
+	io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(client)));
 
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed

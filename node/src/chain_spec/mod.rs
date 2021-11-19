@@ -21,6 +21,8 @@
 pub mod dev;
 pub mod hydradx;
 pub mod local;
+pub mod staging;
+pub mod testnet;
 
 use cumulus_primitives_core::ParaId;
 use hydradx_runtime::{
@@ -32,7 +34,7 @@ use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use serde_json::map::Map;
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 const TOKEN_DECIMALS: u8 = 12;

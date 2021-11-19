@@ -19,10 +19,10 @@ use crate::cli::{Cli, RelayChainCli, Subcommand};
 use crate::service::IdentifyVariant;
 use crate::{chain_spec, service, testing_chain_spec};
 
-use hydradx_runtime::Block;
 use codec::Encode;
 use cumulus_client_service::genesis::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
+use hydradx_runtime::Block;
 use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
@@ -54,6 +54,8 @@ fn load_spec(
 			"" => Box::new(chain_spec::hydradx::parachain_config()?),
 			"dev" => Box::new(chain_spec::dev::parachain_config(para_id)?),
 			"local" => Box::new(chain_spec::local::parachain_config(para_id)?),
+			"testnet" => Box::new(chain_spec::testnet::parachain_config(para_id)?),
+			"staging" => Box::new(chain_spec::staging::parachain_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
@@ -115,6 +117,8 @@ impl SubstrateCli for Cli {
 				"hydradx" => Box::new(chain_spec::hydradx::parachain_config()?),
 				"dev" => Box::new(chain_spec::dev::parachain_config(para_id)?),
 				"local" => Box::new(chain_spec::local::parachain_config(para_id)?),
+				"testnet" => Box::new(chain_spec::testnet::parachain_config(para_id)?),
+				"staging" => Box::new(chain_spec::staging::parachain_config()?),
 				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 			})
 		}
@@ -317,10 +321,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let task_manager = sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 					.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
-				Ok((
-					cmd.run::<Block, service::HydraDXExecutorDispatch>(config),
-					task_manager,
-				))
+				Ok((cmd.run::<Block, service::HydraDXExecutorDispatch>(config), task_manager))
 			})
 		}
 		#[cfg(not(feature = "try-runtime"))]
