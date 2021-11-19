@@ -38,11 +38,10 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys, SaturatedConversion,
-	Verify,
+	Verify, Zero,
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::Zero,
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
@@ -51,11 +50,11 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_system::{limits, EnsureRoot};
+use frame_system::{limits, EnsureRoot, RawOrigin};
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Filter, KeyOwnerProofSystem, U128CurrencyToVote},
+	traits::{EnsureOrigin, Filter, KeyOwnerProofSystem, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -168,6 +167,7 @@ impl Filter<Call> for BaseFilter {
 			| Call::Treasury(_)
 			| Call::Identity(_)
 			| Call::Utility(_)
+			| Call::Vesting(_)
 			| Call::Sudo(_) => true,
 
 			Call::XYK(_)
@@ -812,6 +812,41 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
+//
+pub struct GalacticCouncilOrRoot;
+impl EnsureOrigin<Origin> for GalacticCouncilOrRoot {
+	type Success = AccountId;
+
+	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+			RawOrigin::Signed(caller) => {
+				if caller == common_runtime::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into() {
+					Ok(caller)
+				} else {
+					Err(Origin::from(Some(caller)))
+				}
+			}
+			RawOrigin::Root => Ok(common_runtime::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()),
+			r => Err(Origin::from(r)),
+		})
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn successful_origin() -> Origin {
+		Origin::from(RawOrigin::Signed(Default::default()))
+	}
+}
+
+impl orml_vesting::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type VestedTransferOrigin = GalacticCouncilOrRoot;
+	type WeightInfo = ();
+	type MaxVestingSchedules = MaxVestingSchedules;
+	type BlockNumberProvider = System;
+}
+
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -854,6 +889,7 @@ construct_runtime!(
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
+		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},

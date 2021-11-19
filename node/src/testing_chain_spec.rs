@@ -253,5 +253,6 @@ fn testnet_genesis(
 			claims: create_testnet_claims(),
 		},
 		genesis_history: testing_runtime::GenesisHistoryConfig::default(),
+		vesting: testing_runtime::VestingConfig { vesting: vec![] },
 	}
 }

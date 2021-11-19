@@ -839,10 +839,11 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "25.0.0"
+version = "26.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hex-literal",
  "pallet-collective",
  "pallet-transaction-payment",
  "parity-scale-codec 2.1.3",
@@ -2347,7 +2348,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx"
-version = "6.1.0"
+version = "6.2.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -2430,7 +2431,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "25.0.0"
+version = "26.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -2443,6 +2444,7 @@ dependencies = [
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
+ "orml-vesting",
  "pallet-asset-registry",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -4153,6 +4155,21 @@ version = "0.4.1-dev"
 source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=33d9ac0927ba61e15763ee438721ef92d408271a#33d9ac0927ba61e15763ee438721ef92d408271a"
 dependencies = [
  "frame-support",
+ "parity-scale-codec 2.1.3",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "orml-vesting"
+version = "0.4.1-dev"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?rev=33d9ac0927ba61e15763ee438721ef92d408271a#33d9ac0927ba61e15763ee438721ef92d408271a"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "max-encoded-len",
  "parity-scale-codec 2.1.3",
  "serde",
  "sp-io",
@@ -8197,7 +8214,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydra-dx-runtime"
-version = "25.0.0"
+version = "26.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -8210,6 +8227,7 @@ dependencies = [
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
+ "orml-vesting",
  "pallet-asset-registry",
  "pallet-authority-discovery",
  "pallet-authorship",

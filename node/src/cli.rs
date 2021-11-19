@@ -1,16 +1,16 @@
 #![allow(clippy::upper_case_acronyms)]
 
-use structopt::StructOpt;
 use std::{fmt, str::FromStr};
+use structopt::StructOpt;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeInstanceError(String);
 
 impl fmt::Display for RuntimeInstanceError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let RuntimeInstanceError(message) = self;
-        write!(f, "RuntimeInstanceError: {}", message)
-    }
+		write!(f, "RuntimeInstanceError: {}", message)
+	}
 }
 
 #[derive(Debug, StructOpt)]
@@ -21,8 +21,8 @@ pub enum RuntimeInstance {
 
 impl RuntimeInstance {
 	fn variants() -> [&'static str; 2] {
-        ["hydradx", "testing"]
-    }
+		["hydradx", "testing"]
+	}
 
 	pub fn is_testing_runtime(&self) -> bool {
 		match self {
@@ -33,16 +33,18 @@ impl RuntimeInstance {
 }
 
 impl fmt::Display for RuntimeInstance {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
 			Self::HydraDX => write!(f, "hydradx"),
 			Self::Testing => write!(f, "testing"),
 		}
-    }
+	}
 }
 
 impl Default for RuntimeInstance {
-	fn default() -> Self { RuntimeInstance::HydraDX }
+	fn default() -> Self {
+		RuntimeInstance::HydraDX
+	}
 }
 
 impl FromStr for RuntimeInstance {
@@ -51,9 +53,9 @@ impl FromStr for RuntimeInstance {
 	fn from_str(input: &str) -> Result<Self, Self::Err> {
 		let input_lower = input.to_lowercase();
 		match input_lower.as_str() {
-			"testing" => Ok( RuntimeInstance::Testing ),
-			"hydradx" | "" => Ok( RuntimeInstance::HydraDX ),
-			other => Err(RuntimeInstanceError( format!("Invalid variant: `{}`", other)))
+			"testing" => Ok(RuntimeInstance::Testing),
+			"hydradx" | "" => Ok(RuntimeInstance::HydraDX),
+			other => Err(RuntimeInstanceError(format!("Invalid variant: `{}`", other))),
 		}
 	}
 }

@@ -94,6 +94,7 @@ orml-currencies = { git = 'https://github.com/open-web3-stack/open-runtime-modul
 orml-tokens = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a' }
 orml-traits = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a' }
 orml-utilities = { git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a' }
+orml-vesting = {git = 'https://github.com/open-web3-stack/open-runtime-module-library', rev = '33d9ac0927ba61e15763ee438721ef92d408271a'}
 
 [profile.release]
 panic = 'unwind'

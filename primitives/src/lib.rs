@@ -133,7 +133,7 @@ mod tests {
 	#[test]
 	// This function tests that fee calculations return correct amounts
 	fn fee_calculations_should_work() {
-		let fee = Fee{
+		let fee = Fee {
 			numerator: 2,
 			denominator: 1_000,
 		};

@@ -48,11 +48,11 @@ use sp_std::prelude::*;
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-use frame_system::{limits, EnsureRoot};
+use frame_system::{limits, EnsureRoot, RawOrigin};
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{KeyOwnerProofSystem, U128CurrencyToVote},
+	traits::{EnsureOrigin, KeyOwnerProofSystem, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -771,6 +771,40 @@ impl pallet_scheduler::Config for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct BobOrRoot;
+impl EnsureOrigin<Origin> for BobOrRoot {
+	type Success = AccountId;
+
+	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
+		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
+			RawOrigin::Signed(caller) => {
+				if caller == common_runtime::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into() {
+					Ok(caller)
+				} else {
+					Err(Origin::from(Some(caller)))
+				}
+			}
+			RawOrigin::Root => Ok(common_runtime::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()),
+			r => Err(Origin::from(r)),
+		})
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn successful_origin() -> Origin {
+		Origin::from(RawOrigin::Signed(Default::default()))
+	}
+}
+
+impl orml_vesting::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type MinVestedTransfer = MinVestedTransfer;
+	type VestedTransferOrigin = BobOrRoot;
+	type WeightInfo = ();
+	type MaxVestingSchedules = MaxVestingSchedules;
+	type BlockNumberProvider = System;
+}
+
 impl pallet_randomness_collective_flip::Config for Runtime {}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -813,6 +847,7 @@ construct_runtime!(
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
+		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},
