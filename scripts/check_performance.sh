@@ -39,7 +39,7 @@ else
   exit 1
 fi
 
-EXPECTED_BENCHWIZARD_VERSION="0.4.1"
+EXPECTED_BENCHWIZARD_VERSION="0.4.3"
 
 echo -n "benchwizard >= $EXPECTED_BENCHWIZARD_VERSION ..... "
 

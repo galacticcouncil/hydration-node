@@ -89,5 +89,6 @@ default = [
 ]
 runtime-benchmarks = [
   'hydra-dx-runtime/runtime-benchmarks',
+  'testing-hydra-dx-runtime/runtime-benchmarks',
   "frame-benchmarking-cli",
 ]
