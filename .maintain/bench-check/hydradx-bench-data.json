@@ -8,7 +8,7 @@
     },
     "exchange": {
         "sell_intention": 102.0,
-        "buy_intention": 142.0,
+        "buy_intention": 102.0,
         "sell_extrinsic": 102.0,
         "on_finalize_for_one_sell_extrinsic": 142.0,
         "buy_extrinsic": 102.0,
