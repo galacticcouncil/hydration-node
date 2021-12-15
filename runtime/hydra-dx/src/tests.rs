@@ -17,7 +17,7 @@ fn full_block_cost() {
 	let weight_fee = WeightToFee::calc(&max_weight);
 	assert_eq!(weight_fee, 19149775500000);
 
-	let target_fee = 395 * DOLLARS + 725_555_013_000;
+	let target_fee = 3951310558799000;
 	assert_eq!(ExtrinsicBaseWeight::get() as u128 + length_fee + weight_fee, target_fee);
 }
 
