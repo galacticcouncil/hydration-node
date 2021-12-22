@@ -186,10 +186,10 @@ jobs:
           name: hydradx_runtime.compact.compressed.wasm
           path: scripts/upgrade-runtime
       - uses: dawidd6/action-download-artifact@v2
-        name: Download node binary from master
+        name: Download node binary from base
         with:
           workflow: tests.yml
-          branch: master
+          branch: ${{ github.event.pull_request.base.ref }}
           name: hydradx
           path: target/release
       - uses: robinraju/release-downloader@v1.2
