@@ -4,6 +4,7 @@
 
 set -ex
 
+RUNTIME_CRATE="hydra-dx-runtime"
 PROJECT_PATH=$(cargo locate-project --workspace --message-format plain)
 PROJECT_PATH=${PROJECT_PATH%Cargo.toml}
 
@@ -28,7 +29,7 @@ for crate in "${CRATE_ARR_MASTER[@]}"; do
 done
 
 # test that the same runtime versions are used
-IFS=$'\n' read -r -d '' -a RUNTIMES_MASTER < <( printf '%s\n' "${CRATE_ARR_MASTER[@]}" | grep "hydradx-runtime" && printf '\0' )
+IFS=$'\n' read -r -d '' -a RUNTIMES_MASTER < <( printf '%s\n' "${CRATE_ARR_MASTER[@]}" | grep $RUNTIME_CRATE && printf '\0' )
 
 RUNTIME_SPEC_VERSIONS_MASTER=()
 RUNTIME_NAMES_MASTER=()
@@ -114,7 +115,7 @@ for crate in "${MODIFIED_CRATES_ARR[@]}"; do
 done
 
 # test that the same runtime versions are used
-IFS=$'\n' read -r -d '' -a RUNTIMES < <( printf '%s\n' "${CRATE_ARR[@]}" | grep "hydradx-runtime" && printf '\0' )
+IFS=$'\n' read -r -d '' -a RUNTIMES < <( printf '%s\n' "${CRATE_ARR[@]}" | grep $RUNTIME_CRATE && printf '\0' )
 
 RUNTIME_CARGO_VERSIONS=()
 RUNTIME_SPEC_VERSIONS=()
