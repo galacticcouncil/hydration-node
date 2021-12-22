@@ -40,7 +40,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 					1_000_000_000,
 				)],
 				true,
-				para_id.into(),
+				para_id,
 				//Endowd  accounts
 				vec![],
 				vec![],
