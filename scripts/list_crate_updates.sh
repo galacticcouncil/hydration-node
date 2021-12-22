@@ -9,7 +9,7 @@ PROJECT_PATH=$(cargo locate-project --workspace --message-format plain)
 PROJECT_PATH=${PROJECT_PATH%Cargo.toml}
 
 ACTUAL_COMMIT=$(git rev-parse HEAD)
-MASTER_COMMIT=$(git rev-parse ${TARGET_BRANCH:=origin/master})
+MASTER_COMMIT=$(git rev-parse origin/${TARGET_BRANCH:=master})
 
 git fetch --quiet --depth 1 origin "$MASTER_COMMIT"
 git checkout --quiet "$MASTER_COMMIT"
