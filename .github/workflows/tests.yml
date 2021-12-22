@@ -135,3 +135,114 @@ jobs:
         id: apply
         working-directory: ./infrastructure
         run: terraform destroy -var="ec2_pwd=$EC2_SECRET" -var="branch_name=${{ needs.pop-runner-instance.outputs.runner }}" -auto-approve
+
+  test-inclusion:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/download-artifact@v2
+        name: Download node binary
+        with:
+          name: hydradx
+          path: target/release
+      - uses: robinraju/release-downloader@v1
+        name: Download relay chain binary
+        with:
+          repository: paritytech/polkadot
+          tag: v0.9.12
+          fileName: polkadot
+          out-file-path: ../polkadot/target/release
+      - run: chmod +x ./hydradx && ./hydradx --version
+        name: HydraDX version
+        working-directory: target/release
+      - run: chmod +x ./polkadot && ./polkadot --version
+        name: Polkadot version
+        working-directory: ../polkadot/target/release
+      - uses: actions/setup-node@v2
+        name: Setup node.js
+        with:
+          node-version: '14'
+          check-latest: true
+      - run: npm install && npm start
+        name: Launch rococo local & wait for inclusion
+        working-directory: scripts/wait-for-inclusion
+
+  test-upgrade-runtime:
+    needs: [build, version-check]
+    runs-on: ubuntu-latest
+    if: ${{ needs.version-check.outputs.runtime-upgraded == 'true' }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/download-artifact@v2
+        name: Download runtime wasm from pipeline
+        with:
+          name: hydradx_runtime.compact.compressed.wasm
+          path: scripts/upgrade-runtime
+      - uses: dawidd6/action-download-artifact@v2
+        name: Download node binary from master
+        with:
+          workflow: tests.yml
+          branch: master
+          name: hydradx
+          path: target/release
+      - uses: robinraju/release-downloader@v1.2
+        name: Download relay chain binary release
+        with:
+          repository: paritytech/polkadot
+          latest: true
+          fileName: polkadot
+          out-file-path: ../polkadot/target/release
+      - run: chmod +x ./hydradx && ./hydradx --version
+        name: HydraDX version
+        working-directory: target/release
+      - run: chmod +x ./polkadot && ./polkadot --version
+        name: Polkadot version
+        working-directory: ../polkadot/target/release
+      - uses: actions/setup-node@v2
+        name: Setup node.js
+        with:
+          node-version: '14'
+          check-latest: true
+      - run: npm install && npm run start
+        name: Test runtime upgrade
+        working-directory: scripts/upgrade-runtime
+
+  version-check:
+    runs-on: ubuntu-latest
+    outputs:
+      runtime-upgraded: ${{ steps.check-runtime.outputs.upgraded }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install Rust
+        uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
+        with:
+          profile: minimal
+      - name: Get crate versions
+        run: |
+          VERSION_UPDATE=$(./scripts/list_crate_updates.sh)
+          VERSION_UPDATE=$(cat << EOF
+          $VERSION_UPDATE
+          EOF
+          )
+          echo "VERSION_UPDATE<<EOF" >> $GITHUB_ENV
+          echo "$VERSION_UPDATE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      - name: Check runtime upgrade
+        id: check-runtime
+        if: contains(env.VERSION_UPDATE, 'Runtime version has been increased.')
+        run: echo "::set-output name=upgraded::true"
+      - name: Sticky Pull Request Comment
+        uses: marocchino/sticky-pull-request-comment@v2.1.0
+        with:
+          message: |
+            ${{ env.VERSION_UPDATE }}
