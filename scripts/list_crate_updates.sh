@@ -2,7 +2,7 @@
 
 # this script is used in github workflow to print an overview of crates and its version
 
-set -e
+set -ex
 
 PROJECT_PATH=$(cargo locate-project --workspace --message-format plain)
 PROJECT_PATH=${PROJECT_PATH%Cargo.toml}
