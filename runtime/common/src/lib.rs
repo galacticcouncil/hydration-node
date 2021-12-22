@@ -69,7 +69,7 @@ parameter_types! {
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
 		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub const SS58Prefix: u16 = 10041;
+	pub const SS58Prefix: u16 = 63;
 }
 
 // pallet timestamp

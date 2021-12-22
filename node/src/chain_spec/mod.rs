@@ -109,7 +109,7 @@ pub fn parachain_genesis(
 		},
 		collator_selection: CollatorSelectionConfig {
 			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: 10_000,
+			candidacy_bond: 10_000 * UNITS,
 			..Default::default()
 		},
 		session: SessionConfig {

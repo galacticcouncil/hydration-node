@@ -20,7 +20,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"Hydra",
+		"HydraDX",
 		// ID
 		"hydra",
 		ChainType::Live,
@@ -28,11 +28,13 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			parachain_genesis(
 				wasm_binary,
 				// Sudo account
-				hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(), //TODO @jak-pan
-				//initial authorities & invulnerables
+				// Galactic Council
+				// 7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf
+				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
+				// initial authorities & invulnerable collators
 				vec![
 					(
-						//5G3t6yhAonQHGUEqrByWQPgP9R8fcSSL6Vujphc89ysdTpKF
+						// 5G3t6yhAonQHGUEqrByWQPgP9R8fcSSL6Vujphc89ysdTpKF
 						hex!["b0502e92d738d528922e8963b8a58a3c7c3b693db51b0972a6981836d67b8835"].into(),
 						hex!["b0502e92d738d528922e8963b8a58a3c7c3b693db51b0972a6981836d67b8835"].unchecked_into(),
 					),
@@ -42,17 +44,17 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 						hex!["12aa36d6c1b055b9a7ab5d39f4fd9a9fe42912163c90e122fb7997e890a53d7e"].unchecked_into(),
 					),
 					(
-						//5DFGmHjpxS6Xveg4YDw2hSp62JJ9h8oLCkeZUAoVR7hVtQ3k
+						// 5DFGmHjpxS6Xveg4YDw2hSp62JJ9h8oLCkeZUAoVR7hVtQ3k
 						hex!["344b7693389189ad0be0c83630b02830a568f7cb0f2d4b3483bcea323cc85f70"].into(),
 						hex!["344b7693389189ad0be0c83630b02830a568f7cb0f2d4b3483bcea323cc85f70"].unchecked_into(),
 					),
 					(
-						//5H178NL4DLM9DGgAgZz1kbrX2TReP3uPk7svPtsg1VcYnuXH
+						// 5H178NL4DLM9DGgAgZz1kbrX2TReP3uPk7svPtsg1VcYnuXH
 						hex!["da6e859211b1140369a73af533ecea4e4c0e985ad122ac4c663cc8b81d4fcd12"].into(),
 						hex!["da6e859211b1140369a73af533ecea4e4c0e985ad122ac4c663cc8b81d4fcd12"].unchecked_into(),
 					),
 					(
-						//5Ca1iV2RNV253FzYJo12XtKJMPWCjv5CsPK9HdmwgJarD1sJ
+						// 5Ca1iV2RNV253FzYJo12XtKJMPWCjv5CsPK9HdmwgJarD1sJ
 						hex!["165a3c2eb21341bf170fd1fa728bd9a7d02b7dc3b4968a46f2b1d494ee8c2b5d"].into(),
 						hex!["165a3c2eb21341bf170fd1fa728bd9a7d02b7dc3b4968a46f2b1d494ee8c2b5d"].unchecked_into(),
 					),
@@ -60,15 +62,11 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				// Pre-funded accounts
 				vec![
 					(
-						// Intergalactic HDX Tokens 15%
-						hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(), //TODO: @jak-pan
-						15_000_000_000u128,
-					),
-					(
-						// Treasury 9%
-						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), //TODO: @jak-pan
-						9_000_000_000,
-					),
+						// Galactic Council
+						// 7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf
+						hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
+						1_500_000_000 * UNITS,
+					)
 				],
 				true,
 				PARA_ID.into(),
@@ -77,7 +75,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				//technical committee
 				vec![],
 				//_tx_fee_payment_account
-				hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(), //TODO @jak-pan
+				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 				//vesting
 				vec![],
 				//registered_assets
