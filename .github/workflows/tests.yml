@@ -218,6 +218,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runtime-upgraded: ${{ steps.check-runtime.outputs.upgraded }}
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     steps:
       - uses: actions/checkout@v2
         with:
