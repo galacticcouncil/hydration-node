@@ -4,7 +4,7 @@
 
 set -ex
 
-RUNTIME_CRATE="hydra-dx-runtime"
+RUNTIME_CRATE="hydradx-runtime"
 PROJECT_PATH=$(cargo locate-project --workspace --message-format plain)
 PROJECT_PATH=${PROJECT_PATH%Cargo.toml}
 
