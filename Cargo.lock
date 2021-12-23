@@ -3000,9 +3000,7 @@ version = "1.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
- "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
- "cumulus-pallet-xcmp-queue",
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
@@ -3022,7 +3020,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
- "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
