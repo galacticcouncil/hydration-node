@@ -1123,7 +1123,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "1.0.0"
+version = "100.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -2920,7 +2920,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "1.0.0"
+version = "7.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-client-cli",
@@ -2996,7 +2996,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "2.0.0"
+version = "100.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -7217,7 +7217,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "1.0.0"
+version = "5.0.0"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -10264,7 +10264,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "2.0.0"
+version = "100.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
