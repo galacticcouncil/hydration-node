@@ -1,3 +1,7 @@
+# v12.0.0 (Thu Dec 23 2021)
+
+- shell parachain release to be registered in Polkadot relaychain and receive Snakenet state migration when onboarded
+
 # v11.1.1 (Tue Sep 28 2021)
 
 #### 🐛 Bug Fix
