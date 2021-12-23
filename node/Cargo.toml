@@ -1,6 +1,6 @@
 [package]
 name = "hydradx"
-version = "1.0.0"
+version = "7.0.0"
 description = "HydraDX node"
 authors = ["GalacticCouncil"]
 edition = "2018"
