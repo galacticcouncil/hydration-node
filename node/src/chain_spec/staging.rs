@@ -9,8 +9,8 @@ const TELEMETRY_URLS: [&str; 2] = [
 	"wss://telemetry.hydradx.io:9000/submit/",
 ];
 
-//Polkadot parachain id
-const PARA_ID: u32 = 2000; //TODO: @jak-pan
+// Polkadot parachain id
+const PARA_ID: u32 = 2034;
 
 pub fn parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
