@@ -23,7 +23,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use frame_system::{EnsureRoot};
+use frame_system::EnsureRoot;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
 use sp_runtime::{
@@ -50,6 +50,7 @@ use frame_support::{
 };
 use pallet_transaction_payment::{CurrencyAdapter, TargetedFeeAdjustment};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_runtime::traits::BlockNumberProvider;
 
 pub use common_runtime::*;
 
@@ -121,6 +122,36 @@ impl WeightToFeePolynomial for WeightToFee {
 			coeff_frac: Perbill::from_rational(p % q, q),
 			coeff_integer: p / q, // 124
 		}]
+	}
+}
+
+// Relay chain Block number provider.
+// Reason why the implementation is different for benchmarks is that it is not possible
+// to set or change the block number in a benchmark using parachain system pallet.
+// That's why we revert to using the system pallet in the benchmark.
+pub struct RelayChainBlockNumberProvider<T>(sp_std::marker::PhantomData<T>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
+	type BlockNumber = BlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		let maybe_data = cumulus_pallet_parachain_system::Pallet::<T>::validation_data();
+
+		if let Some(data) = maybe_data {
+			data.relay_parent_number
+		} else {
+			Self::BlockNumber::default()
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
+	type BlockNumber = <T as frame_system::Config>::BlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		frame_system::Pallet::<T>::current_block_number()
 	}
 }
 
@@ -261,7 +292,7 @@ parameter_types! {
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type Event = Event;
-	type OnValidationData = ();
+	type OnValidationData = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
 	type SelfParaId = ParachainInfo;
 	type OutboundXcmpMessageSource = ();
 	type DmpMessageHandler = ();
@@ -340,6 +371,11 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_relaychain_info::Config for Runtime {
+	type Event = Event;
+	type RelaychainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -364,6 +400,9 @@ construct_runtime!(
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 11,
 		Aura: pallet_aura::{Pallet, Config<T>} = 12,
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 13,
+
+		// Warehouse - let's allocate indices 100+ for warehouse pallets
+		RelayChainInfo: pallet_relaychain_info::{Pallet, Event<T>} = 100,
 
 		// TEMPORARY
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 255, // Let's make it last one.
