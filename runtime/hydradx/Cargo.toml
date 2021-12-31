@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "100.0.0"
+version = "101.0.0"
 authors = ["GalacticCouncil"]
 edition = "2018"
 license = "Apache 2.0"
@@ -39,6 +39,9 @@ pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "polka
 pallet-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
+
+# Warehouse
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev="35ee94a4daf3e4e8b56c20d6f6e85716d5641562", default-features = false }
 
 # collator support
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.12", default-features = false }

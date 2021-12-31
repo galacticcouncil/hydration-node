@@ -3020,6 +3020,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
+ "pallet-relaychain-info",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
@@ -5473,6 +5474,20 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-relaychain-info"
+version = "0.2.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=35ee94a4daf3e4e8b56c20d6f6e85716d5641562#35ee94a4daf3e4e8b56c20d6f6e85716d5641562"
+dependencies = [
+ "cumulus-primitives-core",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
  "sp-std",
 ]
 
@@ -10290,6 +10305,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
+ "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
