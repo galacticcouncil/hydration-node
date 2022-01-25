@@ -138,7 +138,7 @@ pub fn parachain_development_config() -> Result<ChainSpec, String> {
 		// Extensions
 		Extensions {
 			relay_chain: "rococo-dev".into(),
-			para_id: PARA_ID.into(),
+			para_id: PARA_ID,
 		},
 	))
 }
@@ -214,7 +214,7 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 		// Extensions
 		Extensions {
 			relay_chain: "rococo-local".into(),
-			para_id: PARA_ID.into(),
+			para_id: PARA_ID,
 		},
 	))
 }

@@ -71,7 +71,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		// Extensions
 		Extensions {
 			relay_chain: "westend".into(),
-			para_id: PARA_ID.into(),
+			para_id: PARA_ID,
 		},
 	))
 }
