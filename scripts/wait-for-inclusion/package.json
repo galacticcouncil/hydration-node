@@ -4,12 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "chain:main": "polkadot-launch ../../rococo-local/config.json",
-    "chain:testing": "polkadot-launch ../../rococo-local/testing-config.json",
-    "test-inclusion": "node index.js 2034",
-    "main": "run-p -lr chain:main test-inclusion logs:parachain",
-    "testing": "run-p -lr chain:testing test-inclusion logs:parachain",
-    "logs:parachain": "wait-on 9988.log && tail -f -n 100000 9988.log"
+    "chain": "polkadot-launch ../../rococo-local/config.json",
+    "test-inclusion": "node index.js 200",
+    "start": "run-p -lr chain test-inclusion"
   },
   "author": "",
   "license": "Apache-2.0",
