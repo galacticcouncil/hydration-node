@@ -41,7 +41,6 @@
   "parachains": [
     {
       "bin": "../target/release/hydradx",
-      "id": "200",
       "chain":"local",
       "balance": "1000000000000000000000",
       "nodes": [
