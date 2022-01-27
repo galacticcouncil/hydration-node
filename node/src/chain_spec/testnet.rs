@@ -2,7 +2,7 @@ use super::*;
 
 use hex_literal::hex;
 
-pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
+pub fn parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
@@ -40,7 +40,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 					1_000_000_000,
 				)],
 				true,
-				para_id,
+				PARA_ID.into(),
 				//Endowd  accounts
 				vec![],
 				vec![],
@@ -71,7 +71,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 		// Extensions
 		Extensions {
 			relay_chain: "westend".into(),
-			para_id: para_id.into(),
+			para_id: PARA_ID,
 		},
 	))
 }

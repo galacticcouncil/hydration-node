@@ -153,7 +153,7 @@ jobs:
         name: Download relay chain binary
         with:
           repository: paritytech/polkadot
-          tag: v0.9.12
+          tag: v0.9.15
           fileName: polkadot
           out-file-path: ../polkadot/target/release
       - run: chmod +x ./hydradx && ./hydradx --version

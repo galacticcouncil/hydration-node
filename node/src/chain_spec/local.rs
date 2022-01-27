@@ -2,7 +2,7 @@ use super::*;
 
 const INITIAL_BALANCE: u128 = 10_000;
 
-pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
+pub fn parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
@@ -65,7 +65,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 					),
 				],
 				true,
-				para_id,
+				PARA_ID.into(),
 				//council
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 				//technical_committe
@@ -91,7 +91,7 @@ pub fn parachain_config(para_id: ParaId) -> Result<ChainSpec, String> {
 		// Extensions
 		Extensions {
 			relay_chain: "rococo-local".into(),
-			para_id: para_id.into(),
+			para_id: PARA_ID,
 		},
 	))
 }

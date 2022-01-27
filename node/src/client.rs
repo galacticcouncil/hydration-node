@@ -13,7 +13,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, Block as BlockT},
 	Justifications,
 };
-use sp_storage::{ChildInfo, PrefixedStorageKey, StorageData, StorageKey};
+use sp_storage::{ChildInfo, StorageData, StorageKey};
 use std::sync::Arc;
 
 /// A set of APIs that HydraDX-like runtimes must implement.
@@ -291,30 +291,6 @@ impl sc_client_api::StorageProvider<Block, FullBackend> for Client {
 		match self {
 			Self::HydraDX(client) => client.child_storage_hash(id, child_info, key),
 			Self::TestingHydraDX(client) => client.child_storage_hash(id, child_info, key),
-		}
-	}
-
-	fn max_key_changes_range(
-		&self,
-		first: NumberFor<Block>,
-		last: BlockId<Block>,
-	) -> sp_blockchain::Result<Option<(NumberFor<Block>, BlockId<Block>)>> {
-		match self {
-			Self::HydraDX(client) => client.max_key_changes_range(first, last),
-			Self::TestingHydraDX(client) => client.max_key_changes_range(first, last),
-		}
-	}
-
-	fn key_changes(
-		&self,
-		first: NumberFor<Block>,
-		last: BlockId<Block>,
-		storage_key: Option<&PrefixedStorageKey>,
-		key: &StorageKey,
-	) -> sp_blockchain::Result<Vec<(NumberFor<Block>, u32)>> {
-		match self {
-			Self::HydraDX(client) => client.key_changes(first, last, storage_key, key),
-			Self::TestingHydraDX(client) => client.key_changes(first, last, storage_key, key),
 		}
 	}
 }

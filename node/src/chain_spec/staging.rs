@@ -9,9 +9,6 @@ const TELEMETRY_URLS: [&str; 2] = [
 	"wss://telemetry.hydradx.io:9000/submit/",
 ];
 
-// Polkadot parachain id
-const PARA_ID: u32 = 2034;
-
 pub fn parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
@@ -60,14 +57,12 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 					),
 				],
 				// Pre-funded accounts
-				vec![
-					(
-						// Galactic Council
-						// 7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf
-						hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
-						1_500_000_000 * UNITS,
-					)
-				],
+				vec![(
+					// Galactic Council
+					// 7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf
+					hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
+					1_500_000_000 * UNITS,
+				)],
 				true,
 				PARA_ID.into(),
 				//council

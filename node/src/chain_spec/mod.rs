@@ -37,12 +37,13 @@ use serde_json::map::Map;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
+const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
 const TOKEN_SYMBOL: &str = "HDX";
 const PROTOCOL_ID: &str = "hdx";
 
 /// The extensions for the [`ChainSpec`].
-#[derive(Debug, Clone, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
 #[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.
@@ -97,7 +98,6 @@ pub fn parachain_genesis(
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
 		},
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of a lot.

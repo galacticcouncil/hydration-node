@@ -34,17 +34,14 @@ use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::Block as BlockT;
 use std::{io::Write, net::SocketAddr};
 
-const DEFAULT_PARA_ID: u32 = 200;
-
 fn load_spec(
 	id: &str,
-	para_id: ParaId,
 	is_testing: bool,
 ) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	if is_testing {
 		Ok(match id {
-			"dev" => Box::new(testing_chain_spec::parachain_development_config(para_id)?),
-			"local" => Box::new(testing_chain_spec::local_parachain_config(para_id)?),
+			"dev" => Box::new(testing_chain_spec::parachain_development_config()?),
+			"local" => Box::new(testing_chain_spec::local_parachain_config()?),
 			path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
 			)?),
@@ -52,9 +49,9 @@ fn load_spec(
 	} else {
 		Ok(match id {
 			"" => Box::new(chain_spec::hydradx::parachain_config()?),
-			"dev" => Box::new(chain_spec::dev::parachain_config(para_id)?),
-			"local" => Box::new(chain_spec::local::parachain_config(para_id)?),
-			"testnet" => Box::new(chain_spec::testnet::parachain_config(para_id)?),
+			"dev" => Box::new(chain_spec::dev::parachain_config()?),
+			"local" => Box::new(chain_spec::local::parachain_config()?),
+			"testnet" => Box::new(chain_spec::testnet::parachain_config()?),
 			"staging" => Box::new(chain_spec::staging::parachain_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
@@ -94,8 +91,6 @@ impl SubstrateCli for Cli {
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		let para_id: ParaId = self.run.base.parachain_id.unwrap_or(DEFAULT_PARA_ID).into();
-
 		let id = if id.is_empty() { "hydradx" } else { id };
 
 		let is_testing_runtime = if get_exec_name().unwrap_or_default().starts_with("testing") {
@@ -106,8 +101,8 @@ impl SubstrateCli for Cli {
 
 		if is_testing_runtime {
 			Ok(match id {
-				"dev" => Box::new(testing_chain_spec::parachain_development_config(para_id)?),
-				"local" => Box::new(testing_chain_spec::local_parachain_config(para_id)?),
+				"dev" => Box::new(testing_chain_spec::parachain_development_config()?),
+				"local" => Box::new(testing_chain_spec::local_parachain_config()?),
 				path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
 					std::path::PathBuf::from(path),
 				)?),
@@ -115,9 +110,9 @@ impl SubstrateCli for Cli {
 		} else {
 			Ok(match id {
 				"hydradx" => Box::new(chain_spec::hydradx::parachain_config()?),
-				"dev" => Box::new(chain_spec::dev::parachain_config(para_id)?),
-				"local" => Box::new(chain_spec::local::parachain_config(para_id)?),
-				"testnet" => Box::new(chain_spec::testnet::parachain_config(para_id)?),
+				"dev" => Box::new(chain_spec::dev::parachain_config()?),
+				"local" => Box::new(chain_spec::local::parachain_config()?),
+				"testnet" => Box::new(chain_spec::testnet::parachain_config()?),
 				"staging" => Box::new(chain_spec::staging::parachain_config()?),
 				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 			})
@@ -262,7 +257,6 @@ pub fn run() -> sc_cli::Result<()> {
 
 			let block: Block = generate_genesis_block(&load_spec(
 				&params.chain.clone().unwrap_or_default(),
-				params.parachain_id.into(),
 				is_testing_runtime,
 			)?)?;
 			let raw_header = block.header().encode();
@@ -291,10 +285,8 @@ pub fn run() -> sc_cli::Result<()> {
 				params.runtime.is_testing_runtime()
 			};
 
-			let para_id: ParaId = cli.run.base.parachain_id.unwrap_or(DEFAULT_PARA_ID).into();
 			let raw_wasm_blob = extract_genesis_wasm(&load_spec(
 				&params.chain.clone().unwrap_or_default(),
-				para_id,
 				is_testing_runtime,
 			)?)?;
 			let output_buf = if params.raw {
@@ -336,8 +328,6 @@ pub fn run() -> sc_cli::Result<()> {
 					return Err("It is not allowed to run a collator node with the benchmarking runtime.".into());
 				};
 
-				let para_id = chain_spec::Extensions::try_get(&config.chain_spec).map(|e| e.para_id);
-
 				let polkadot_cli = RelayChainCli::new(
 					&config,
 					[RelayChainCli::executable_name()]
@@ -345,10 +335,14 @@ pub fn run() -> sc_cli::Result<()> {
 						.chain(cli.relaychain_args.iter()),
 				);
 
-				let para_id = ParaId::from(cli.run.base.parachain_id.or(para_id).unwrap_or(DEFAULT_PARA_ID));
+				let para_id = chain_spec::Extensions::try_get(&config.chain_spec)
+                    .map(|e| e.para_id)
+                    .expect("Could not find parachain ID in chain-spec.");
+
+				let id = ParaId::from(para_id);
 
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&para_id);
+					AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&id);
 
 				let block: Block = generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
 				let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
@@ -365,7 +359,7 @@ pub fn run() -> sc_cli::Result<()> {
 					if config.role.is_authority() { "yes" } else { "no" }
 				);
 
-				crate::service::start_node(config, polkadot_config, para_id)
+				crate::service::start_node(config, polkadot_config, id)
 					.await
 					.map(|r| r.task_manager)
 					.map_err(Into::into)
