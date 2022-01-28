@@ -1,4 +1,4 @@
-// This file is part of HydraDX.
+// This file is part of Basilisk-node.
 
 // Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
@@ -17,8 +17,6 @@
 
 use super::*;
 use frame_support::traits::BalanceStatus;
-
-use primitives::fee::{Fee, WithFee};
 
 /// Hold info about each transfer which has to be made to resolve a direct trade.
 pub struct Transfer<'a, T: Config> {
@@ -56,42 +54,10 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 			return false;
 		}
 
-		if !Self::reserve_if_can(
-			self.intention_a.assets.asset_in,
-			&self.intention_a.who,
-			self.amount_from_a,
-		) {
-			return false;
-		}
-		if !Self::reserve_if_can(
-			self.intention_a.assets.asset_out,
-			&self.intention_b.who,
-			self.amount_from_b,
-		) {
-			return false;
-		}
-
-		let transfer = Transfer::<T> {
-			from: &self.intention_a.who,
-			to: &self.intention_b.who,
-			asset: self.intention_a.assets.asset_in,
-			amount: self.amount_from_a,
-			fee_transfer: false,
-		};
-		self.transfers.push(transfer);
-		let transfer = Transfer::<T> {
-			from: &self.intention_b.who,
-			to: &self.intention_a.who,
-			asset: self.intention_a.assets.asset_out,
-			amount: self.amount_from_b,
-			fee_transfer: false,
-		};
-		self.transfers.push(transfer);
-
 		// Let's handle the fees now for registered transfers.
-
-		let fee_a = self.amount_from_a.just_fee(Fee::default());
-		let fee_b = self.amount_from_b.just_fee(Fee::default());
+		let fee = T::AMMPool::get_fee(pool_account);
+		let fee_a = hydra_dx_math::fee::calculate_pool_trade_fee(self.amount_from_a, fee);
+		let fee_b = hydra_dx_math::fee::calculate_pool_trade_fee(self.amount_from_b, fee);
 
 		if fee_a.is_none() || fee_b.is_none() {
 			return false;
@@ -100,6 +66,9 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 		// Unwrapping is correct as None case is handled in previous statement.
 		let transfer_a_fee = fee_a.unwrap();
 		let transfer_b_fee = fee_b.unwrap();
+		if transfer_a_fee > self.amount_from_a || transfer_b_fee > self.amount_from_b {
+			return false;
+		}
 
 		// Work out where to take a fee from.
 		// There are multiple possible scenarios to consider
@@ -110,18 +79,45 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 		// Each one is handled slightly different, hence the complicated match statement.
 		match (&self.intention_a.sell_or_buy, &self.intention_b.sell_or_buy) {
 			(IntentionType::SELL, IntentionType::SELL) => {
-				if !Self::reserve_if_can(self.intention_a.assets.asset_out, &self.intention_a.who, transfer_b_fee) {
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_in,
+					&self.intention_a.who,
+					self.amount_from_a,
+				) {
 					return false;
 				}
-				if !Self::reserve_if_can(self.intention_b.assets.asset_out, &self.intention_b.who, transfer_a_fee) {
+
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_out,
+					&self.intention_b.who,
+					self.amount_from_b,
+				) {
 					return false;
 				}
 
 				let transfer = Transfer::<T> {
 					from: &self.intention_a.who,
-					to: pool_account,
+					to: &self.intention_b.who,
+					asset: self.intention_a.assets.asset_in,
+					amount: self.amount_from_a - transfer_a_fee,
+					fee_transfer: false,
+				};
+				self.transfers.push(transfer);
+
+				let transfer = Transfer::<T> {
+					from: &self.intention_b.who,
+					to: &self.intention_a.who,
 					asset: self.intention_a.assets.asset_out,
-					amount: transfer_b_fee,
+					amount: self.amount_from_b - transfer_b_fee,
+					fee_transfer: false,
+				};
+				self.transfers.push(transfer);
+
+				let transfer = Transfer::<T> {
+					from: &self.intention_a.who,
+					to: pool_account,
+					asset: self.intention_a.assets.asset_in,
+					amount: transfer_a_fee,
 					fee_transfer: true,
 				};
 				self.transfers.push(transfer);
@@ -129,19 +125,46 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 				let transfer = Transfer::<T> {
 					from: &self.intention_b.who,
 					to: pool_account,
-					asset: self.intention_b.assets.asset_out,
-					amount: transfer_a_fee,
+					asset: self.intention_b.assets.asset_in,
+					amount: transfer_b_fee,
 					fee_transfer: true,
 				};
 				self.transfers.push(transfer);
 			}
 			(IntentionType::BUY, IntentionType::BUY) => {
-				if !Self::reserve_if_can(self.intention_a.assets.asset_in, &self.intention_a.who, transfer_a_fee) {
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_in,
+					&self.intention_a.who,
+					self.amount_from_a + transfer_a_fee,
+				) {
 					return false;
 				}
-				if !Self::reserve_if_can(self.intention_b.assets.asset_in, &self.intention_b.who, transfer_b_fee) {
+
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_out,
+					&self.intention_b.who,
+					self.amount_from_b + transfer_b_fee,
+				) {
 					return false;
 				}
+
+				let transfer = Transfer::<T> {
+					from: &self.intention_a.who,
+					to: &self.intention_b.who,
+					asset: self.intention_a.assets.asset_in,
+					amount: self.amount_from_a,
+					fee_transfer: false,
+				};
+				self.transfers.push(transfer);
+
+				let transfer = Transfer::<T> {
+					from: &self.intention_b.who,
+					to: &self.intention_a.who,
+					asset: self.intention_a.assets.asset_out,
+					amount: self.amount_from_b,
+					fee_transfer: false,
+				};
+				self.transfers.push(transfer);
 
 				let transfer = Transfer::<T> {
 					from: &self.intention_a.who,
@@ -162,45 +185,81 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 				self.transfers.push(transfer);
 			}
 			(IntentionType::BUY, IntentionType::SELL) => {
-				if !Self::reserve_if_can(self.intention_a.assets.asset_in, &self.intention_a.who, transfer_a_fee) {
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_in,
+					&self.intention_a.who,
+					self.amount_from_a + transfer_a_fee,
+				) {
 					return false;
 				}
-				if !Self::reserve_if_can(self.intention_b.assets.asset_out, &self.intention_b.who, transfer_b_fee) {
+
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_out,
+					&self.intention_b.who,
+					self.amount_from_b,
+				) {
 					return false;
 				}
 
 				let transfer = Transfer::<T> {
 					from: &self.intention_a.who,
-					to: pool_account,
+					to: &self.intention_b.who,
 					asset: self.intention_a.assets.asset_in,
-					amount: transfer_a_fee,
-					fee_transfer: true,
+					amount: self.amount_from_a - transfer_a_fee,
+					fee_transfer: false,
 				};
 				self.transfers.push(transfer);
 
 				let transfer = Transfer::<T> {
 					from: &self.intention_b.who,
+					to: &self.intention_a.who,
+					asset: self.intention_a.assets.asset_out,
+					amount: self.amount_from_b,
+					fee_transfer: false,
+				};
+				self.transfers.push(transfer);
+
+				let transfer = Transfer::<T> {
+					from: &self.intention_a.who,
 					to: pool_account,
-					asset: self.intention_b.assets.asset_out,
-					amount: transfer_b_fee,
+					asset: self.intention_a.assets.asset_in,
+					amount: 2 * transfer_a_fee,
 					fee_transfer: true,
 				};
 				self.transfers.push(transfer);
 			}
 			(IntentionType::SELL, IntentionType::BUY) => {
-				if !Self::reserve_if_can(self.intention_a.assets.asset_out, &self.intention_a.who, transfer_a_fee) {
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_in,
+					&self.intention_a.who,
+					self.amount_from_a,
+				) {
 					return false;
 				}
-				if !Self::reserve_if_can(self.intention_b.assets.asset_in, &self.intention_b.who, transfer_b_fee) {
+
+				if !Self::reserve_if_can(
+					self.intention_a.assets.asset_out,
+					&self.intention_b.who,
+					self.amount_from_b + transfer_b_fee,
+				) {
 					return false;
 				}
 
 				let transfer = Transfer::<T> {
 					from: &self.intention_a.who,
-					to: pool_account,
+					to: &self.intention_b.who,
+					asset: self.intention_a.assets.asset_in,
+					amount: self.amount_from_a,
+					fee_transfer: false,
+				};
+				self.transfers.push(transfer);
+
+				let transfer = Transfer::<T> {
+					from: &self.intention_b.who,
+					to: &self.intention_a.who,
 					asset: self.intention_a.assets.asset_out,
-					amount: transfer_a_fee,
-					fee_transfer: true,
+					amount: self.amount_from_b - transfer_b_fee,
+					fee_transfer: false,
 				};
 				self.transfers.push(transfer);
 
@@ -208,7 +267,7 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 					from: &self.intention_b.who,
 					to: pool_account,
 					asset: self.intention_b.assets.asset_in,
-					amount: transfer_b_fee,
+					amount: 2 * transfer_b_fee,
 					fee_transfer: true,
 				};
 				self.transfers.push(transfer);
@@ -224,14 +283,17 @@ impl<'a, T: Config> DirectTradeData<'a, T> {
 		self.send_direct_trade_resolve_event();
 
 		for transfer in &self.transfers {
-			T::Currency::repatriate_reserved(
+			if T::Currency::repatriate_reserved(
 				transfer.asset,
 				transfer.from,
 				transfer.to,
 				transfer.amount,
 				BalanceStatus::Free,
 			)
-			.expect("Cannot fail. Checks should have been done prior to this.");
+			.is_err()
+			{
+				return false;
+			}
 
 			if transfer.fee_transfer {
 				let intention = if transfer.from == &self.intention_a.who {

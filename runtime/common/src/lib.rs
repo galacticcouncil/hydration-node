@@ -17,29 +17,34 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use sp_std::prelude::*;
+
 pub use frame_support::{
-	parameter_types,
-	traits::LockIdentifier,
-	weights::{DispatchClass, Pays},
+    parameter_types,
+    traits::LockIdentifier,
+    weights::{DispatchClass, Pays},
 };
-use frame_system::{limits, EnsureOneOf, EnsureRoot};
+use frame_system::{EnsureOneOf, EnsureRoot, limits};
 pub mod constants;
+pub mod weights;
+
 use codec::alloc::vec;
 pub use constants::{chain::*, currency::*, time::*};
 pub use frame_support::PalletId;
+use frame_support::traits::Contains;
 use pallet_transaction_payment::Multiplier;
-pub use primitives::{fee, Amount, AssetId, Balance};
+pub use primitives::{Amount, AssetId, Balance, fee};
 use sp_core::{
-	u32_trait::{_1, _2, _3, _5},
-	H256,
+    H256,
+    u32_trait::{_1, _2, _3, _5},
 };
 use sp_runtime::{
-	generic,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	MultiSignature,
+    generic,
+    MultiSignature,
+    traits::{BlakeTwo256, IdentifyAccount, Verify, AccountIdConversion},
 };
 pub use sp_runtime::{
-	transaction_validity::TransactionPriority, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
+    FixedPointNumber, Perbill, Percent, Permill, Perquintill, transaction_validity::TransactionPriority,
 };
 
 /// An index to a block.
@@ -61,9 +66,6 @@ pub type Index = u32;
 
 /// A hash of some data used by the chain.
 pub type Hash = H256;
-
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
 
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
@@ -194,7 +196,7 @@ sp_npos_elections::generate_solution_type!(
 	>(16)
 );
 
-pub const MAX_NOMINATIONS: u32 = <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
+pub const MAX_NOMINATIONS: u32 = 16;
 
 // pallet staking
 parameter_types! {
@@ -282,9 +284,36 @@ parameter_types! {
 	pub const MaxVestingSchedules: u32 = 100;
 }
 
+// pallet xyk
+parameter_types! {
+	pub const MinTradingLimit: Balance = MIN_TRADING_LIMIT;
+	pub const MinPoolLiquidity: Balance = MIN_POOL_LIQUIDITY;
+	pub const MaxInRatio: u128 = MAX_IN_RATIO;
+	pub const MaxOutRatio: u128 = MAX_OUT_RATIO;
+	pub const RegistryStrLimit: u32 = 32;
+}
+
+parameter_types! {
+	pub const MaxAuthorities: u32 = 32;
+}
+
 parameter_types! {
 	pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
 	/// We prioritize im-online heartbeats over election solution submission.
 	pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
+}
+
+pub fn get_all_module_accounts() -> Vec<AccountId> {
+    vec![
+        TreasuryPalletId::get().into_account(),
+    ]
+}
+
+pub struct DustRemovalWhitelist;
+
+impl Contains<AccountId> for DustRemovalWhitelist {
+    fn contains(a: &AccountId) -> bool {
+        get_all_module_accounts().contains(a)
+    }
 }

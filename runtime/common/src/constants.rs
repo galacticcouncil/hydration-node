@@ -84,6 +84,7 @@ pub mod chain {
 
 	/// Trading limit
 	pub const MIN_TRADING_LIMIT: Balance = 1000;
+	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
 
 	pub const RUNTIME_AUTHORING_VERSION: u32 = 1;
 	pub const RUNTIME_SPEC_VERSION: u32 = 26;

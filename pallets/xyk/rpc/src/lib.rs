@@ -1,4 +1,4 @@
-// This file is part of HydraDX.
+// This file is part of Basilisk-node.
 
 // Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
@@ -44,6 +44,9 @@ pub struct BalanceRequest<Balance> {
 pub trait XYKApi<BlockHash, AccountId, AssetId, Balance, ResponseType> {
 	#[rpc(name = "xyk_getPoolBalances")]
 	fn get_pool_balances(&self, pool_address: AccountId, at: Option<BlockHash>) -> Result<Vec<ResponseType>>;
+
+	#[rpc(name = "xyk_getPoolAccount")]
+	fn get_pool_id(&self, asset_a: AssetId, asset_b: AssetId) -> Result<AccountId>;
 }
 
 /// A struct that implements the [`XYKApi`].
@@ -98,6 +101,17 @@ where
 		api.get_pool_balances(&at, pool_address).map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
 			message: "Unable to retrieve pool balances.".into(),
+			data: Some(format!("{:?}", e).into()),
+		})
+	}
+
+	fn get_pool_id(&self, asset_a: AssetId, asset_b: AssetId) -> Result<AccountId> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+
+		api.get_pool_id(&at, asset_a, asset_b).map_err(|e| RpcError {
+			code: ErrorCode::ServerError(Error::RuntimeError.into()),
+			message: "Unable to retrieve pool account address.".into(),
 			data: Some(format!("{:?}", e).into()),
 		})
 	}

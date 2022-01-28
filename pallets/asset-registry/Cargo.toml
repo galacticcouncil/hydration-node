@@ -24,19 +24,20 @@ version = '2.0.0'
 [dependencies]
 primitive-types = {default-features = false, version = '0.8.0'}
 serde = {features = ['derive'], optional = true, version = '1.0.101'}
+scale-info = { version = "1.0", default-features = false, features = ["derive"] }
 
 # Local dependencies
 primitives = {path = '../../primitives', default-features = false}
 
 # Substrate dependencies
-frame-support = {default-features = false, version = '3.0.0'}
-frame-system = {default-features = false, version = '3.0.0'}
-sp-core = {default-features = false, version = '3.0.0'}
-sp-runtime = {default-features = false, version = '3.0.0'}
-sp-std = {default-features = false, version = '3.0.0'}
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [dev-dependencies]
-sp-io = {default-features = false, version = '3.0.0'}
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [features]
 default = ['std']
@@ -49,4 +50,5 @@ std = [
   'sp-core/std',
   'sp-std/std',
   'primitives/std',
+  'scale-info/std',
 ]

@@ -1,4 +1,4 @@
-// This file is part of HydraDX.
+// This file is part of Basilisk-node.
 
 // Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
@@ -63,5 +63,10 @@ sp_api::decl_runtime_apis! {
 		fn get_pool_balances(
 			pool_address: AccountId,
 		) -> Vec<BalanceInfo<AssetId, Balance>>;
+
+		fn get_pool_id(
+			asset_a: AssetId,
+			asset_b: AssetId
+		) -> AccountId;
 	}
 }

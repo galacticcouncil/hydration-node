@@ -1,70 +1,71 @@
 [package]
-authors = ['GalacticCouncil']
-description = 'HydraDX XYK Pallet'
-edition = '2018'
-homepage = 'https://github.com/galacticcouncil/hydradx-node'
-license = 'Apache 2.0'
 name = 'pallet-xyk'
-repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '2.0.0'
+version = '3.4.3'
+description = 'XYK automated market maker'
+authors = ['GalacticCouncil']
+edition = '2021'
+homepage = 'https://github.com/galacticcouncil/basilisk-node'
+license = 'Apache 2.0'
+repository = 'https://github.com/galacticcouncil/basilisk-node'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
-
-# alias "parity-scale-code" to "codec"
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '2.0.0'
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15" }
 
 [dependencies]
-primitive-types = {default-features = false, version = '0.8.0'}
-serde = {features = ['derive'], optional = true, version = '1.0.101'}
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.3.1" }
+scale-info = { version = "1.0", default-features = false, features = ["derive"] }
+primitive-types = { default-features = false, version = '0.8.0' }
+serde = { features = ['derive'], optional = true, version = '1.0.101' }
 
-hydra-dx-math = {default-features = false, version = "1.0.0"}
+hydra-dx-math = { default-features = false, version = "4.1.1" }
 
 # Local dependencies
-pallet-asset-registry = {path = '../asset-registry', default-features = false}
 primitives = {path = '../../primitives', default-features = false}
-common-runtime = {path = '../../runtime/common', default-features = false}
 
 # ORML dependencies
-orml-tokens = {default-features = false, version = "0.4.1-dev"}
-orml-traits = {default-features = false, version = "0.4.1-dev"}
-orml-utilities = {default-features = false, version = "0.4.1-dev"}
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "6392ab8496cd9e9a996ef9f1b67aff389be41b8b", default-features = false }
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "6392ab8496cd9e9a996ef9f1b67aff389be41b8b", default-features = false }
+orml-utilities = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "6392ab8496cd9e9a996ef9f1b67aff389be41b8b", default-features = false }
+
+# HydraDX dependencies
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", branch = "main", default-features = false }
 
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
-frame-support = {default-features = false, version = '3.0.0'}
-frame-system = {default-features = false, version = '3.0.0'}
-frame-system-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
-sp-core = {default-features = false, version = '3.0.0'}
-sp-runtime = {default-features = false, version = '3.0.0'}
-sp-std = {default-features = false, version = '3.0.0'}
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false, optional = true }
+sp-core = { git = 'https://github.com/paritytech/substrate', branch = "polkadot-v0.9.15", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [dev-dependencies]
-sp-io = {default-features = false, version = '3.0.0'}
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+pallet-asset-registry = {path = '../asset-registry', default-features = false}
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15" }
 
 [features]
 default = ['std']
 runtime-benchmarks = [
-  "frame-benchmarking",
-  "frame-system/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
 ]
 std = [
-  'serde',
-  'codec/std',
-  'frame-support/std',
-  'frame-system/std',
-  'sp-runtime/std',
-  'sp-core/std',
-  'sp-std/std',
-  'orml-tokens/std',
-  'orml-traits/std',
-  'primitives/std',
+    'serde',
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-std/std',
+    'orml-traits/std',
+    'primitives/std',
+    "hydradx-traits/std",
+    'orml-tokens/std',
+    'frame-benchmarking/std',
+    "scale-info/std",
 ]

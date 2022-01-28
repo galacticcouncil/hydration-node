@@ -24,10 +24,13 @@ hex-literal = {version = '0.3.1'}
 primitives = {path = '../../primitives', default-features = false}
 
 # Substrate dependencies
-frame-support = {default-features = false, version = '3.0.0'}
-frame-system = {default-features = false, version = '3.0.0'}
-pallet-collective = {default-features = false, version = '3.0.0'}
-pallet-transaction-payment = {default-features = false, version = '3.0.0'}
-sp-core = {default-features = false, version = '3.0.0'}
-sp-npos-elections = {version = '3.0.0', default-features = false}
-sp-runtime = {default-features = false, version = '3.0.0'}
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-npos-elections = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", branch="main", default-features = false}

@@ -1,4 +1,4 @@
-// This file is part of HydraDX.
+// This file is part of Basilisk-node.
 
 // Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
@@ -19,7 +19,7 @@
 
 use super::*;
 use frame_support::parameter_types;
-use frame_support::traits::GenesisBuild;
+use frame_support::traits::{Everything, GenesisBuild};
 use frame_system as system;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -28,8 +28,12 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, Zero},
 };
 
-use pallet_xyk::AssetPairAccountIdFor;
-use primitives::{fee, AssetId, Balance};
+use frame_system::EnsureSigned;
+use hydradx_traits::AssetPairAccountIdFor;
+use primitives::{
+	constants::chain::{MAX_IN_RATIO, MAX_OUT_RATIO, MIN_POOL_LIQUIDITY, MIN_TRADING_LIMIT},
+	AssetId, Balance,
+};
 
 pub type Amount = i128;
 pub type AccountId = u64;
@@ -58,7 +62,7 @@ frame_support::construct_runtime!(
 				 Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
 				 XYKPallet: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 				 Currency: orml_tokens::{Pallet, Event<T>},
-				 AssetRegistry: pallet_asset_registry::{Pallet, Storage},
+				 AssetRegistry: pallet_asset_registry::{Pallet, Storage, Event<T>},
 		 }
 
 );
@@ -66,11 +70,12 @@ frame_support::construct_runtime!(
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const HDXAssetId: AssetId = HDX;
-	pub ExchangeFeeRate: fee::Fee = fee::Fee::default();
+	pub ExchangeFeeRate: (u32, u32) = (2, 1_000);
+	pub RegistryStringLimit: u32 = 100;
 }
 
 impl system::Config for Test {
-	type BaseCallFilter = ();
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
@@ -110,12 +115,13 @@ impl orml_tokens::Config for Test {
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
 	type MaxLocks = ();
+	type DustRemovalWhitelist = Everything;
 }
 
 pub struct AssetPairAccountIdTest();
 
 impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-	fn from_assets(asset_a: AssetId, asset_b: AssetId) -> u64 {
+	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
 		let mut a = asset_a as u128;
 		let mut b = asset_b as u128;
 		if a > b {
@@ -126,16 +132,37 @@ impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
 }
 
 impl pallet_asset_registry::Config for Test {
+	type Event = Event;
+	type RegistryOrigin = EnsureSigned<AccountId>;
 	type AssetId = AssetId;
+	type Balance = Balance;
+	type AssetNativeLocation = u8;
+	type StringLimit = RegistryStringLimit;
+	type NativeAssetId = HDXAssetId;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MinTradingLimit: Balance = MIN_TRADING_LIMIT;
+	pub const MinPoolLiquidity: Balance = MIN_POOL_LIQUIDITY;
+	pub const MaxInRatio: u128 = MAX_IN_RATIO;
+	pub const MaxOutRatio: u128 = MAX_OUT_RATIO;
 }
 
 impl pallet_xyk::Config for Test {
 	type Event = Event;
+	type AssetRegistry = AssetRegistry;
 	type AssetPairAccountId = AssetPairAccountIdTest;
 	type Currency = Currency;
 	type NativeAssetId = HDXAssetId;
 	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFeeRate;
+	type MinTradingLimit = MinTradingLimit;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type CanCreatePool = pallet_xyk::AllowAllPools;
+	type AMMHandler = ();
 }
 
 impl pallet_exchange::Config for Test {

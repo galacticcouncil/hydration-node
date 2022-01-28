@@ -1,4 +1,4 @@
-// This file is part of HydraDX.
+// This file is part of Basilisk-node.
 
 // Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
@@ -20,6 +20,7 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::unnecessary_wraps)]
+#![feature(drain_filter)]
 
 use frame_support::{dispatch, ensure};
 use frame_system::{self as system, ensure_signed};
@@ -27,21 +28,15 @@ use frame_system::{self as system, ensure_signed};
 use codec::Encode;
 use sp_std::vec::Vec;
 
-use common_runtime::constants::chain::MIN_TRADING_LIMIT;
-use primitives::{
-	asset::AssetPair,
-	traits::{Resolver, AMM},
-	Amount, AssetId, Balance, ExchangeIntention, IntentionType,
-};
-use sp_std::borrow::ToOwned;
-
-use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
-
 use direct::{DirectTradeData, Transfer};
 use frame_support::weights::Weight;
-use primitives::traits::AMMTransfer;
+use hydradx_traits::{AMMTransfer, Resolver, AMM};
+use orml_traits::{MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency};
+use primitives::{
+	asset::AssetPair, constants::chain::MIN_TRADING_LIMIT, Amount, AssetId, Balance, ExchangeIntention, IntentionType,
+};
 
-use frame_support::sp_runtime::offchain::storage_lock::BlockNumberProvider;
+use frame_support::sp_runtime::traits::BlockNumberProvider;
 use frame_support::sp_runtime::traits::Hash;
 
 #[cfg(test)]
@@ -60,12 +55,12 @@ type IntentionId<T> = <T as system::Config>::Hash;
 pub type Intention<T> = ExchangeIntention<<T as system::Config>::AccountId, Balance, IntentionId<T>>;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
+use frame_support::pallet_prelude::*;
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
 
 	#[pallet::pallet]
@@ -88,12 +83,12 @@ pub mod pallet {
 
 				let pair_account = T::AMMPool::get_pair_id(pair);
 
-				let asset_a_ins = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
-				let asset_b_ins = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
+				let mut asset_a_ins = <ExchangeAssetsIntentions<T>>::get((asset_2, asset_1));
+				let mut asset_b_ins = <ExchangeAssetsIntentions<T>>::get((asset_1, asset_2));
 
 				//TODO: we can short circuit here if nothing in asset_b_sells and just resolve asset_a sells.
 
-				Self::process_exchange_intentions(&pair_account, &asset_a_ins, &asset_b_ins);
+				Self::process_exchange_intentions(&pair_account, &mut asset_a_ins, &mut asset_b_ins);
 			}
 
 			ExchangeAssetsIntentionCount::<T>::remove_all(None);
@@ -127,17 +122,22 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Intention registered event
-		/// who, asset a, asset b, amount, intention type, intention id
+		/// [who, asset a, asset b, amount, intention type, intention id]
 		IntentionRegistered(T::AccountId, AssetId, AssetId, Balance, IntentionType, IntentionId<T>),
 
 		/// Intention resolved as AMM Trade
-		/// who, intention type, intention id, amount, amount sold/bought
-		IntentionResolvedAMMTrade(T::AccountId, IntentionType, IntentionId<T>, Balance, Balance),
+		/// [who, intention type, intention id, amount, amount sold/bought, pool account id]
+		IntentionResolvedAMMTrade(
+			T::AccountId,
+			IntentionType,
+			IntentionId<T>,
+			Balance,
+			Balance,
+			T::AccountId,
+		),
 
 		/// Intention resolved as Direct Trade
-		/// who, who - account between which direct trade happens
-		/// intention id, intention id - intentions which are being resolved ( fully or partially )
-		/// Balance, Balance  - corresponding amounts
+		/// [account A, account B, intention id A, intention id B, amount A, amount B]
 		IntentionResolvedDirectTrade(
 			T::AccountId,
 			T::AccountId,
@@ -148,12 +148,10 @@ pub mod pallet {
 		),
 
 		/// Paid fees event
-		/// who - account which paid feed
-		/// intention id - intention which was resolved
-		/// account paid to, asset, amount
+		/// [who, intention id, fee receiver, asset id, fee amount]
 		IntentionResolvedDirectTradeFees(T::AccountId, IntentionId<T>, T::AccountId, AssetId, Balance),
 
-		/// Error event - insuficient balance of specified asset
+		/// Error event - insufficient balance of specified asset
 		/// who, asset, intention type, intention id, error detail
 		InsufficientAssetBalanceEvent(
 			T::AccountId,
@@ -163,7 +161,7 @@ pub mod pallet {
 			dispatch::DispatchError,
 		),
 
-		/// Intetion Error Event
+		/// Intention Error Event
 		/// who, assets, sell or buy, intention id, error detail
 		IntentionResolveErrorEvent(
 			T::AccountId,
@@ -193,6 +191,9 @@ pub mod pallet {
 
 		/// Trade amount is too low.
 		MinimumTradeLimitNotReached,
+
+		/// Overflow
+		IntentionCountOverflow,
 	}
 
 	/// Intention count for current block
@@ -208,6 +209,38 @@ pub mod pallet {
 	pub type ExchangeAssetsIntentions<T: Config> =
 		StorageMap<_, Blake2_128Concat, (AssetId, AssetId), Vec<Intention<T>>, ValueQuery>;
 
+	#[allow(dead_code)]
+	#[pallet::extra_constants]
+	impl<T: Config> Pallet<T> {
+		fn min_trading_limit() -> Balance {
+			T::AMMPool::get_min_trading_limit()
+		}
+	}
+
+	#[allow(dead_code)]
+	#[pallet::extra_constants]
+	impl<T: Config> Pallet<T> {
+		fn min_pool_liquidity() -> Balance {
+			T::AMMPool::get_min_pool_liquidity()
+		}
+	}
+
+	#[allow(dead_code)]
+	#[pallet::extra_constants]
+	impl<T: Config> Pallet<T> {
+		fn max_in_ratio() -> u128 {
+			T::AMMPool::get_max_in_ratio()
+		}
+	}
+
+	#[allow(dead_code)]
+	#[pallet::extra_constants]
+	impl<T: Config> Pallet<T> {
+		fn max_out_ratio() -> u128 {
+			T::AMMPool::get_max_out_ratio()
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create sell intention
@@ -220,7 +253,7 @@ pub mod pallet {
 			amount_sell: Balance,
 			min_bought: Balance,
 			discount: bool,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure! {
@@ -254,7 +287,7 @@ pub mod pallet {
 				discount,
 			)?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Create buy intention
@@ -267,7 +300,7 @@ pub mod pallet {
 			amount_buy: Balance,
 			max_sold: Balance,
 			discount: bool,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure! {
@@ -301,7 +334,7 @@ pub mod pallet {
 				discount,
 			)?;
 
-			Ok(().into())
+			Ok(())
 		}
 	}
 }
@@ -317,7 +350,7 @@ impl<T: Config> Pallet<T> {
 		amount_out: Balance,
 		limit: Balance,
 		discount: bool,
-	) -> dispatch::DispatchResult {
+	) -> DispatchResult {
 		let intention_count = ExchangeAssetsIntentionCount::<T>::get(assets.ordered_pair());
 
 		let intention_id = Self::generate_intention_id(who, intention_count, &assets);
@@ -332,10 +365,14 @@ impl<T: Config> Pallet<T> {
 			intention_id,
 			trade_limit: limit,
 		};
+
+		ExchangeAssetsIntentionCount::<T>::try_mutate(assets.ordered_pair(), |total| -> DispatchResult {
+			*total = total.checked_add(1).ok_or(Error::<T>::IntentionCountOverflow)?;
+			Ok(())
+		})?;
+
 		// Note: cannot use ordered tuple pair, as this must be stored as (in,out) pair
 		<ExchangeAssetsIntentions<T>>::append((assets.asset_in, assets.asset_out), intention);
-
-		ExchangeAssetsIntentionCount::<T>::mutate(assets.ordered_pair(), |total| *total += 1u32);
 
 		match intention_type {
 			IntentionType::SELL => {
@@ -372,41 +409,46 @@ impl<T: Config> Pallet<T> {
 	/// Intention A must be valid - that means that it is verified first by validating if it was possible to do AMM trade.
 	fn process_exchange_intentions(
 		pair_account: &T::AccountId,
-		a_in_intentions: &[Intention<T>],
-		b_in_intentions: &[Intention<T>],
+		a_in_intentions: &mut [Intention<T>],
+		b_in_intentions: &mut [Intention<T>],
 	) {
-		let mut b_copy = b_in_intentions.to_owned();
-		let mut a_copy = a_in_intentions.to_owned();
+		b_in_intentions.sort_by(|a, b| b.amount_in.cmp(&a.amount_in));
+		a_in_intentions.sort_by(|a, b| b.amount_in.cmp(&a.amount_in));
 
-		b_copy.sort_by(|a, b| b.amount_in.cmp(&a.amount_in));
-		a_copy.sort_by(|a, b| b.amount_in.cmp(&a.amount_in));
+		// indication of how many have been already matched
+		let mut to_skip: usize = 0;
 
-		b_copy.reverse();
-
-		for intention in a_copy {
-			if !Self::verify_intention(&intention) {
+		for intention in a_in_intentions {
+			if !Self::verify_intention(intention) {
 				continue;
 			}
 
-			let mut bvec = Vec::<Intention<T>>::new();
-			let mut total = 0;
+			let mut total_left = intention.amount_in;
 
-			while let Some(matched) = b_copy.pop() {
-				bvec.push(matched.clone());
-				total += matched.amount_in;
+			let matched_intentions: Vec<&Intention<T>> = b_in_intentions
+				.iter()
+				.skip(to_skip)
+				.take_while(|x| {
+					if total_left > 0 {
+						total_left = total_left.saturating_sub(x.amount_out);
+						true
+					} else {
+						false
+					}
+				})
+				.collect();
 
-				if total >= intention.amount_in {
-					break;
-				}
-			}
+			// We need to remember how many we already resolved so for next A intention,
+			// we skip those
+			to_skip += matched_intentions.len();
 
-			T::Resolver::resolve_matched_intentions(pair_account, &intention, &bvec);
+			T::Resolver::resolve_matched_intentions(pair_account, intention, &matched_intentions);
 		}
 
 		// If something left in b_in_intentions, just run it through AMM.
-		while let Some(b_intention) = b_copy.pop() {
-			T::Resolver::resolve_single_intention(&b_intention);
-		}
+		b_in_intentions.iter().skip(to_skip).for_each(|x| {
+			T::Resolver::resolve_single_intention(x);
+		});
 	}
 
 	/// Execute AMM trade.
@@ -416,7 +458,7 @@ impl<T: Config> Pallet<T> {
 		amm_tranfer_type: IntentionType,
 		intention_id: IntentionId<T>,
 		transfer: &AMMTransfer<T::AccountId, AssetId, AssetPair, Balance>,
-	) -> dispatch::DispatchResult {
+	) -> DispatchResult {
 		match amm_tranfer_type {
 			IntentionType::SELL => {
 				T::AMMPool::execute_sell(transfer)?;
@@ -427,6 +469,7 @@ impl<T: Config> Pallet<T> {
 					intention_id,
 					transfer.amount,
 					transfer.amount_out + transfer.fee.1,
+					T::AMMPool::get_pair_id(transfer.assets),
 				));
 			}
 			IntentionType::BUY => {
@@ -438,6 +481,7 @@ impl<T: Config> Pallet<T> {
 					intention_id,
 					transfer.amount,
 					transfer.amount_out + transfer.fee.1,
+					T::AMMPool::get_pair_id(transfer.assets),
 				));
 			}
 		};
@@ -550,7 +594,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 	///
 	/// For each matched intention - work out how much can be traded directly and rest is AMM traded.
 	/// If there is anything left in the main intention - it is AMM traded.
-	fn resolve_matched_intentions(pair_account: &T::AccountId, intention: &Intention<T>, matched: &[Intention<T>]) {
+	fn resolve_matched_intentions(pair_account: &T::AccountId, intention: &Intention<T>, matched: &[&Intention<T>]) {
 		let mut intention_copy = intention.clone();
 
 		for matched_intention in matched.iter() {
@@ -560,7 +604,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 			let amount_b_out = matched_intention.amount_out;
 
 			// There are multiple scenarios to handle
-			// !. Main intention amount left > matched intention amount
+			// 1. Main intention amount left > matched intention amount
 			// 2. Main intention amount left < matched intention amount
 			// 3. Main intention amount left = matched intention amount
 
@@ -618,7 +662,7 @@ impl<T: Config> Resolver<T::AccountId, Intention<T>, Error<T>> for Pallet<T> {
 
 						intention_copy.trade_limit = match intention_copy.sell_or_buy {
 							IntentionType::SELL => intention_copy.trade_limit.saturating_sub(amount_b_in),
-							IntentionType::BUY => intention_copy.trade_limit - amount_b_in,
+							IntentionType::BUY => intention_copy.trade_limit - amount_b_out,
 						};
 					}
 					false => {

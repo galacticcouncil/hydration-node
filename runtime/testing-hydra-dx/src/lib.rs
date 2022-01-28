@@ -27,11 +27,14 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use sp_std::marker::PhantomData;
 use codec::Encode;
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata,
+			  u32_trait::{_1, _2, _3},
+};
 use sp_runtime::{
 	create_runtime_str,
 	curve::PiecewiseLinear,
@@ -47,6 +50,8 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+
+use hydradx_traits::AssetPairAccountIdFor;
 
 use frame_system::{limits, EnsureRoot, RawOrigin};
 // A few exports that help ease life for downstream crates.
@@ -78,6 +83,12 @@ pub use pallet_claims;
 pub use pallet_faucet;
 pub use pallet_genesis_history;
 use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
+
+type EnsureSuperMajorityTechCommitteeOrRoot = frame_system::EnsureOneOf<
+	AccountId,
+	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+	frame_system::EnsureRoot<AccountId>,
+>;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -198,7 +209,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = ();
+	type BaseCallFilter = frame_support::traits::Everything;
 	/// The identifier used to distinguish between accounts.
 	type AccountId = AccountId;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -260,6 +271,7 @@ impl pallet_grandpa::Config for Runtime {
 		pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
 	type WeightInfo = ();
+	type MaxAuthorities = MaxAuthorities;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -287,18 +299,20 @@ impl pallet_balances::Config for Runtime {
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), MultiTransactionPayment>;
 	type TransactionByteFee = TransactionByteFee;
+	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate = TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
-	type Currency = Balances;
-	type MultiCurrency = Currencies;
-	type AMMPool = XYK;
-	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
+	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
+	type Currencies = Currencies;
+	type SpotPriceProvider = pallet_xyk::XYKSpotPrice<Runtime>;
+	type WeightInfo = common_runtime::weights::payment::PalletWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
+	type NativeAssetId = HDXAssetId;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
@@ -332,6 +346,7 @@ impl pallet_identity::Config for Runtime {
 impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
+	type PalletsOrigin = OriginCaller;
 	type WeightInfo = ();
 }
 
@@ -346,6 +361,7 @@ impl orml_tokens::Config for Runtime {
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
 	type MaxLocks = MaxLocks;
+	type DustRemovalWhitelist = common_runtime::DustRemovalWhitelist;
 }
 
 impl orml_currencies::Config for Runtime {
@@ -356,19 +372,45 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// HydraDX Pallets configurations
+pub struct AssetPairAccountId<T: frame_system::Config>(PhantomData<T>);
+impl<T: frame_system::Config> AssetPairAccountIdFor<AssetId, T::AccountId> for AssetPairAccountId<T>
+where
+	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
+{
+	fn from_assets(asset_a: AssetId, asset_b: AssetId, identifier: &str) -> T::AccountId {
+		let mut buf: Vec<u8> = identifier.as_bytes().to_vec();
 
+		if asset_a < asset_b {
+			buf.extend_from_slice(&asset_a.to_le_bytes());
+			buf.extend_from_slice(&asset_b.to_le_bytes());
+		} else {
+			buf.extend_from_slice(&asset_b.to_le_bytes());
+			buf.extend_from_slice(&asset_a.to_le_bytes());
+		}
+		T::AccountId::unchecked_from(<T::Hashing as frame_support::sp_runtime::traits::Hash>::hash(&buf[..]))
+	}
+}
+
+
+/// HydraDX Pallets configurations
 impl pallet_asset_registry::Config for Runtime {
 	type AssetId = AssetId;
 }
 
 impl pallet_xyk::Config for Runtime {
 	type Event = Event;
-	type AssetPairAccountId = pallet_xyk::AssetPairAccountId<Self>;
+	type AssetRegistry = AssetRegistry;
+	type AssetPairAccountId = AssetPairAccountId<Self>;
 	type Currency = Currencies;
 	type NativeAssetId = HDXAssetId;
-	type WeightInfo = pallet_xyk::weights::HydraWeight<Runtime>;
+	type WeightInfo = ();
 	type GetExchangeFee = ExchangeFee;
+	type MinTradingLimit = MinTradingLimit;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type CanCreatePool = ();
+	type AMMHandler = ();
 }
 
 impl pallet_claims::Config for Runtime {
@@ -397,6 +439,7 @@ pub mod impls;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::TargetedFeeAdjustment;
+use sp_core::crypto::UncheckedFrom;
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
@@ -502,14 +545,22 @@ parameter_types! {
 	pub const SignedRewardBase: Balance = DOLLARS;
 	pub const SignedDepositBase: Balance = DOLLARS;
 	pub const SignedDepositByte: Balance = CENTS;
-	// fallback: run election on-chain.
-	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
 	pub MinerMaxWeight: Weight = BlockWeights::get()
 		.get(DispatchClass::Normal)
 		.max_extrinsic.expect("Normal extrinsics have a weight limit configured; qed")
 		.saturating_sub(BlockExecutionWeight::get());
+
+	pub const VoterSnapshotPerBlock: u32 = 22_500;
 }
+
+sp_npos_elections::generate_solution_type!(
+    #[compact]
+    pub struct NposCompactSolution16::<
+        VoterIndex = u32,
+        TargetIndex = u16,
+        Accuracy = sp_runtime::PerU16,
+    >(16)
+);
 
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Event = Event;
@@ -517,13 +568,10 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type SignedPhase = SignedPhase;
 	type UnsignedPhase = UnsignedPhase;
 	type SolutionImprovementThreshold = MinSolutionScoreBump;
-	type MinerMaxIterations = MinerMaxIterations;
 	type MinerMaxWeight = MinerMaxWeight;
 	type MinerTxPriority = MultiPhaseUnsignedPriority;
 	type DataProvider = Staking;
-	type OnChainAccuracy = Perbill;
-	type CompactSolution = NposCompactSolution16;
-	type Fallback = Fallback;
+	type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
 	type BenchmarkingConfig = ();
 	type WeightInfo = ();
 	type MinerMaxLength = ();
@@ -536,7 +584,11 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type SignedDepositByte = SignedDepositByte;
 	type SignedDepositWeight = ();
 	type SlashHandler = (); // burn slashes
-	type RewardHandler = (); // nothing to do
+	type RewardHandler = ();
+	type EstimateCallFee = TransactionPayment;
+	type VoterSnapshotPerBlock = VoterSnapshotPerBlock;
+	type Solution = NposCompactSolution16;
+	type Solver = (); // nothing to do
 }
 
 parameter_types! {
@@ -581,7 +633,6 @@ impl pallet_session::Config for Runtime {
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
 	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
-	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
 	type WeightInfo = ();
 }
 
@@ -887,7 +938,9 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPallets>;
+	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime,
+		AllPalletsReversedWithSystemFirst,
+		>;
 
 impl_runtime_apis! {
 	impl sp_consensus_babe::BabeApi<Block> for Runtime {

@@ -1,44 +1,41 @@
 [package]
-authors = ['GalacticCouncil']
-edition = "2018"
-license = 'Apache 2.0'
 name = "pallet-xyk-rpc"
-version = '1.0.0'
+version = "1.0.3"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/basilisk-node"
 
 [dependencies.pallet-xyk-rpc-runtime-api]
 default-features = false
-package = 'pallet-xyk-rpc-runtime-api'
-path = 'runtime-api'
+package = "pallet-xyk-rpc-runtime-api"
+path = "runtime-api"
 
 [package.metadata.docs.rs]
-targets = ['x86_64-unknown-linux-gnu']
+targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
-
-# alias "parity-scale-code" to "codec"
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '2.0.0'
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15" }
 
 [dependencies]
-jsonrpc-core = {default-features = false, version = '15.0.0'}
-jsonrpc-core-client = {default-features = false, version = '15.0.0'}
-jsonrpc-derive = {default-features = false, version = '15.0.0'}
-serde = {features = ['derive'], optional = true, version = '1.0.101'}
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.3.1" }
+scale-info = { version = "1.0", default-features = false, features = ["derive"] }
+jsonrpc-core = { default-features = false, version = "18.0.0" }
+jsonrpc-core-client = { default-features = false, version = "18.0.0" }
+jsonrpc-derive = { default-features = false, version = "18.0.0" }
+serde = { features = ["derive"], optional = true, version = "1.0.101" }
 
 # Substrate dependencies
-sp-api = {default-features = false, version = '3.0.0'}
-sp-blockchain = {default-features = false, version = '3.0.0'}
-sp-runtime = {default-features = false, version = '3.0.0'}
-sp-std = {default-features = false, version = '3.0.0'}
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-  'pallet-xyk-rpc-runtime-api/std',
-  'serde',
-  'codec/std',
+    "pallet-xyk-rpc-runtime-api/std",
+    "serde",
+    "codec/std",
+    "scale-info/std",
 ]

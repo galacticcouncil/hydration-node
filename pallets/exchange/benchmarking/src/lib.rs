@@ -1,4 +1,4 @@
-// This file is part of HydraDX.
+// This file is part of Basilisk-node.
 
 // Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
@@ -68,10 +68,10 @@ fn initialize_pool<T: Config>(
 	asset_b: AssetId,
 	amount: Balance,
 	price: Price,
-) -> dispatch::DispatchResultWithPostInfo {
+) -> dispatch::DispatchResult {
 	xykpool::Pallet::<T>::create_pool(RawOrigin::Signed(caller).into(), asset_a, asset_b, amount, price)?;
 
-	Ok(().into())
+	Ok(())
 }
 
 const SELL_INTENTION_AMOUNT: Balance = 1_000_000_000;
@@ -84,7 +84,7 @@ fn feed_intentions<T: Config>(
 	asset_b: AssetId,
 	number: u32,
 	amounts: &[u32],
-) -> dispatch::DispatchResultWithPostInfo {
+) -> dispatch::DispatchResult {
 	for idx in 0..number / 2 {
 		let user = funded_account::<T>("user", idx + 2);
 		pallet_exchange::Pallet::<T>::sell(
@@ -107,7 +107,7 @@ fn feed_intentions<T: Config>(
 		)?;
 	}
 
-	Ok(().into())
+	Ok(())
 }
 
 fn validate_finalize<T: Config>(
@@ -380,16 +380,16 @@ mod tests {
 	#[test]
 	fn test_benchmarks() {
 		new_test_ext().execute_with(|| {
-			assert_ok!(test_benchmark_known_overhead_for_on_finalize::<Test>());
-			assert_ok!(test_benchmark_sell_intention::<Test>());
-			assert_ok!(test_benchmark_buy_intention::<Test>());
-			assert_ok!(test_benchmark_on_finalize::<Test>());
-			assert_ok!(test_benchmark_on_finalize_buys_no_matches::<Test>());
-			assert_ok!(test_benchmark_on_finalize_sells_no_matches::<Test>());
-			assert_ok!(test_benchmark_sell_extrinsic::<Test>());
-			assert_ok!(test_benchmark_on_finalize_for_one_sell_extrinsic::<Test>());
-			assert_ok!(test_benchmark_buy_extrinsic::<Test>());
-			assert_ok!(test_benchmark_on_finalize_for_one_buy_extrinsic::<Test>());
+			assert_ok!(Pallet::<Test>::test_benchmark_known_overhead_for_on_finalize());
+			assert_ok!(Pallet::<Test>::test_benchmark_sell_intention());
+			assert_ok!(Pallet::<Test>::test_benchmark_buy_intention());
+			assert_ok!(Pallet::<Test>::test_benchmark_on_finalize());
+			assert_ok!(Pallet::<Test>::test_benchmark_on_finalize_buys_no_matches());
+			assert_ok!(Pallet::<Test>::test_benchmark_on_finalize_sells_no_matches());
+			assert_ok!(Pallet::<Test>::test_benchmark_sell_extrinsic());
+			assert_ok!(Pallet::<Test>::test_benchmark_on_finalize_for_one_sell_extrinsic());
+			assert_ok!(Pallet::<Test>::test_benchmark_buy_extrinsic());
+			assert_ok!(Pallet::<Test>::test_benchmark_on_finalize_for_one_buy_extrinsic());
 		});
 	}
 }
