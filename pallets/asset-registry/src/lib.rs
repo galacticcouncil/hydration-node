@@ -21,6 +21,9 @@ use frame_support::dispatch::DispatchError;
 use frame_support::sp_runtime::traits::{AtLeast32Bit, CheckedAdd, One};
 use sp_std::vec::Vec;
 
+use hydradx_traits::{Registry, ShareTokenRegistry};
+use primitives::Balance;
+
 #[cfg(test)]
 mod mock;
 
@@ -54,6 +57,9 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Asset Id is not available. This only happens when it reaches the MAX value of given id type.
 		NoIdAvailable,
+
+		/// Asset does not exist
+		AssetNotFound,
 	}
 
 	/// Core Asset Id
@@ -112,5 +118,45 @@ impl<T: Config> Pallet<T> {
 			<AssetIds<T>>::insert(name, Some(asset_id));
 			Ok(asset_id)
 		}
+	}
+
+	pub fn retrieve_asset(name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
+		if let Some(asset_id) = AssetIds::<T>::get(name) {
+			Ok(asset_id)
+		} else {
+			Err(Error::<T>::AssetNotFound.into())
+		}
+	}
+}
+
+impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for Pallet<T> {
+	fn exists(asset_id: T::AssetId) -> bool {
+		NextAssetId::<T>::get() > asset_id
+	}
+
+	fn retrieve_asset(name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
+		if let Some(asset_id) = AssetIds::<T>::get(&name) {
+			Ok(asset_id)
+		} else {
+			Err(Error::<T>::AssetNotFound.into())
+		}
+	}
+
+	fn create_asset(name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+		Self::get_or_create_asset(name.clone())
+	}
+}
+
+impl<T: Config> ShareTokenRegistry<T::AssetId, Vec<u8>, primitives::Balance, DispatchError> for Pallet<T> {
+	fn retrieve_shared_asset(name: &Vec<u8>, _assets: &[T::AssetId]) -> Result<T::AssetId, DispatchError> {
+		Self::retrieve_asset(name)
+	}
+
+	fn create_shared_asset(
+		name: &Vec<u8>,
+		_assets: &[T::AssetId],
+		_existential_deposit: primitives::Balance,
+	) -> Result<T::AssetId, DispatchError> {
+		Self::get_or_create_asset(name.clone())
 	}
 }

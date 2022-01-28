@@ -31,7 +31,7 @@ pub mod weights;
 use codec::alloc::vec;
 pub use constants::{chain::*, currency::*, time::*};
 pub use frame_support::PalletId;
-use frame_support::traits::Contains;
+use frame_support::traits::{ConstU32, Contains};
 use pallet_transaction_payment::Multiplier;
 pub use primitives::{Amount, AssetId, Balance, fee};
 use sp_core::{
@@ -298,6 +298,12 @@ parameter_types! {
 }
 
 parameter_types! {
+	pub const MaxKeys: u32 = 10_000;
+    pub const MaxPeerInHeartbeats: u32 = 10_000;
+    pub const MaxPeerDataEncodingSize: u32 = 1_000;
+}
+
+parameter_types! {
 	pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
 	/// We prioritize im-online heartbeats over election solution submission.
@@ -317,3 +323,39 @@ impl Contains<AccountId> for DustRemovalWhitelist {
         get_all_module_accounts().contains(a)
     }
 }
+
+use hydradx_traits::CanCreatePool;
+pub struct AllowAnyPool;
+
+impl CanCreatePool<AssetId> for AllowAnyPool {
+	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		true
+	}
+}
+
+
+use pallet_staking::BenchmarkingConfig;
+
+pub struct StakingBenchmarkingConfig;
+
+impl BenchmarkingConfig for StakingBenchmarkingConfig{
+	type MaxValidators = ConstU32<100>;
+	type MaxNominators = ConstU32<100>;
+}
+
+use pallet_election_provider_multi_phase::BenchmarkingConfig as ElectionMPBenchmarkingConfig;
+
+pub struct ElectionBenchmarkingConfig;
+
+impl ElectionMPBenchmarkingConfig for ElectionBenchmarkingConfig{
+	const VOTERS: [u32; 2] = [0,0];
+	const TARGETS: [u32; 2] = [0,0];
+	const ACTIVE_VOTERS: [u32; 2] = [0,0];
+	const DESIRED_TARGETS: [u32; 2] = [0,0];
+	const SNAPSHOT_MAXIMUM_VOTERS: u32 = 0;
+	const MINER_MAXIMUM_VOTERS: u32 = 0;
+	const MAXIMUM_TARGETS: u32 = 0;
+}
+
+
+

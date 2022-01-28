@@ -819,12 +819,15 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "26.0.0"
+version = "27.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
  "hex-literal",
+ "hydradx-traits",
  "pallet-collective",
+ "pallet-election-provider-multi-phase",
+ "pallet-staking",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -2335,10 +2338,11 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "26.0.0"
+version = "27.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
+ "frame-election-provider-support",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -4233,10 +4237,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "hydradx-traits",
  "parity-scale-codec",
  "primitive-types 0.8.0",
  "primitives",
@@ -4321,7 +4326,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -4482,7 +4487,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "derive_more",
  "frame-support",
@@ -5255,7 +5260,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "4.2.0"
+version = "4.3.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8037,10 +8042,11 @@ dependencies = [
 
 [[package]]
 name = "testing-hydra-dx-runtime"
-version = "26.0.0"
+version = "27.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
+ "frame-election-provider-support",
  "frame-executive",
  "frame-support",
  "frame-system",

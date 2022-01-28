@@ -27,13 +27,14 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use sp_std::marker::PhantomData;
 use codec::Encode;
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata,
-			  u32_trait::{_1, _2, _3},
+use sp_core::{
+	crypto::KeyTypeId,
+	u32_trait::{_1, _2, _3},
+	OpaqueMetadata,
 };
 use sp_runtime::{
 	create_runtime_str,
@@ -46,6 +47,8 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
+use sp_std::cmp::Ordering;
+use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -55,6 +58,7 @@ use hydradx_traits::AssetPairAccountIdFor;
 
 use frame_system::{limits, EnsureRoot, RawOrigin};
 // A few exports that help ease life for downstream crates.
+use frame_support::traits::{ConstU32, PrivilegeCmp};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{EnsureOrigin, KeyOwnerProofSystem, U128CurrencyToVote},
@@ -201,8 +205,7 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 
-	pub ExtrinsicPaymentExtraWeight: Weight =  <Runtime as pallet_transaction_multi_payment::Config>::WeightInfo::swap_currency();
-	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
+	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -391,7 +394,6 @@ where
 	}
 }
 
-
 /// HydraDX Pallets configurations
 impl pallet_asset_registry::Config for Runtime {
 	type AssetId = AssetId;
@@ -409,7 +411,7 @@ impl pallet_xyk::Config for Runtime {
 	type MinPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
-	type CanCreatePool = ();
+	type CanCreatePool = common_runtime::AllowAnyPool;
 	type AMMHandler = ();
 }
 
@@ -489,6 +491,9 @@ impl pallet_staking::Config for Runtime {
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type NextNewSession = Session;
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+	type OffendingValidatorsThreshold = ();
+	type SortedListProvider = pallet_staking::UseNominatorsMap<Self>;
+	type BenchmarkingConfig = common_runtime::StakingBenchmarkingConfig;
 	type WeightInfo = ();
 }
 
@@ -538,6 +543,7 @@ impl pallet_democracy::Config for Runtime {
 	type MaxVotes = MaxVotes;
 	type WeightInfo = ();
 	type MaxProposals = MaxProposals;
+	type VoteLockingPeriod = EnactmentPeriod;
 }
 
 parameter_types! {
@@ -554,12 +560,12 @@ parameter_types! {
 }
 
 sp_npos_elections::generate_solution_type!(
-    #[compact]
-    pub struct NposCompactSolution16::<
-        VoterIndex = u32,
-        TargetIndex = u16,
-        Accuracy = sp_runtime::PerU16,
-    >(16)
+	#[compact]
+	pub struct NposCompactSolution16::<
+		VoterIndex = u32,
+		TargetIndex = u16,
+		Accuracy = sp_runtime::PerU16,
+	>(16)
 );
 
 impl pallet_election_provider_multi_phase::Config for Runtime {
@@ -572,7 +578,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type MinerTxPriority = MultiPhaseUnsignedPriority;
 	type DataProvider = Staking;
 	type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
-	type BenchmarkingConfig = ();
+	type BenchmarkingConfig = common_runtime::ElectionBenchmarkingConfig;
 	type WeightInfo = ();
 	type MinerMaxLength = ();
 	type OffchainRepeat = ();
@@ -588,7 +594,11 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type EstimateCallFee = TransactionPayment;
 	type VoterSnapshotPerBlock = VoterSnapshotPerBlock;
 	type Solution = NposCompactSolution16;
-	type Solver = (); // nothing to do
+	type Solver = frame_election_provider_support::SequentialPhragmen<
+		AccountId,
+		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
+		(),
+	>;
 }
 
 parameter_types! {
@@ -690,6 +700,8 @@ impl pallet_babe::Config for Runtime {
 
 	type HandleEquivocation = pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 	type WeightInfo = ();
+	type DisabledValidators = Session;
+	type MaxAuthorities = MaxAuthorities;
 }
 
 // Council settings
@@ -722,7 +734,9 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_authority_discovery::Config for Runtime {}
+impl pallet_authority_discovery::Config for Runtime {
+	type MaxAuthorities = MaxAuthorities;
+}
 
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 
@@ -788,6 +802,9 @@ where
 
 impl pallet_im_online::Config for Runtime {
 	type AuthorityId = ImOnlineId;
+	type MaxKeys = MaxKeys;
+	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
+	type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
 	type Event = Event;
 	type ValidatorSet = Historical;
 	type NextSessionRotation = Babe;
@@ -811,6 +828,29 @@ parameter_types! {
 	pub const MaxScheduledPerBlock: u32 = 50;
 }
 
+/// Used the compare the privilege of an origin inside the scheduler.
+pub struct OriginPrivilegeCmp;
+
+impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
+	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
+		if left == right {
+			return Some(Ordering::Equal);
+		}
+
+		match (left, right) {
+			// Root is greater than anything.
+			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
+			// Check which one has more yes votes.
+			(
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
+			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
+			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
+			_ => None,
+		}
+	}
+}
+
 impl pallet_scheduler::Config for Runtime {
 	type Event = Event;
 	type Origin = Origin;
@@ -818,6 +858,7 @@ impl pallet_scheduler::Config for Runtime {
 	type Call = Call;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = MoreThanHalfCouncil;
+	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
 }
@@ -937,10 +978,13 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime,
-		AllPalletsReversedWithSystemFirst,
-		>;
+pub type Executive = frame_executive::Executive<
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPalletsReversedWithSystemFirst,
+>;
 
 impl_runtime_apis! {
 	impl sp_consensus_babe::BabeApi<Block> for Runtime {
@@ -954,7 +998,7 @@ impl_runtime_apis! {
 				slot_duration: Babe::slot_duration(),
 				epoch_length: EpochDuration::get(),
 				c: PRIMARY_PROBABILITY,
-				genesis_authorities: Babe::authorities(),
+				genesis_authorities: Babe::authorities().to_vec(),
 				randomness: Babe::randomness(),
 				allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
 			}
@@ -1017,7 +1061,7 @@ impl_runtime_apis! {
 
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
-			Runtime::metadata().into()
+			OpaqueMetadata::new(Runtime::metadata().into())
 		}
 	}
 
@@ -1074,6 +1118,11 @@ impl_runtime_apis! {
 		fn grandpa_authorities() -> GrandpaAuthorityList {
 			Grandpa::grandpa_authorities()
 		}
+
+		 fn current_set_id() -> fg_primitives::SetId {
+			Grandpa::current_set_id()
+		}
+
 
 		fn submit_report_equivocation_unsigned_extrinsic(
 			equivocation_proof: fg_primitives::EquivocationProof<
@@ -1132,20 +1181,24 @@ impl_runtime_apis! {
 		) -> Vec<xyk_rpc::BalanceInfo<AssetId, Balance>> {
 			let mut vec = Vec::new();
 
-			let pool_balances = XYK::get_pool_balances(pool_address).unwrap();
+			if let Some(pool_balances) = XYK::get_pool_balances(pool_address){
+				for b in pool_balances {
+					let item  = xyk_rpc::BalanceInfo{
+					 asset: Some(b.0),
+						amount: b.1
+					};
 
-			for b in pool_balances {
-				let item  = xyk_rpc::BalanceInfo{
-				 asset: Some(b.0),
-					amount: b.1
-				};
-
-				vec.push(item);
+					vec.push(item);
+				}
 			}
 
 			vec
 		}
 
+
+		fn get_pool_id(asset_a: AssetId, asset_b: AssetId) -> AccountId{
+			XYK::pair_account_from_assets(asset_a, asset_b)
+		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]

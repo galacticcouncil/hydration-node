@@ -87,7 +87,7 @@ pub mod chain {
 	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
 
 	pub const RUNTIME_AUTHORING_VERSION: u32 = 1;
-	pub const RUNTIME_SPEC_VERSION: u32 = 26;
+	pub const RUNTIME_SPEC_VERSION: u32 = 27;
 	pub const RUNTIME_IMPL_VERSION: u32 = 0;
 	pub const RUNTIME_TRANSACTION_VERSION: u32 = 1;
 

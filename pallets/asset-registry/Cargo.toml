@@ -6,7 +6,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'pallet-asset-registry'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '3.1.0'
+version = '3.2.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -28,6 +28,8 @@ scale-info = { version = "1.0", default-features = false, features = ["derive"] 
 
 # Local dependencies
 primitives = {path = '../../primitives', default-features = false}
+
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", branch = "main", default-features = false }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
