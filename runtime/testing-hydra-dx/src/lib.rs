@@ -33,7 +33,7 @@ use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{
 	crypto::KeyTypeId,
-	u32_trait::{_1, _2, _3},
+	u32_trait::{_2, _3},
 	OpaqueMetadata,
 };
 use sp_runtime::{
@@ -58,7 +58,7 @@ use hydradx_traits::AssetPairAccountIdFor;
 
 use frame_system::{limits, EnsureRoot, RawOrigin};
 // A few exports that help ease life for downstream crates.
-use frame_support::traits::{ConstU32, PrivilegeCmp};
+use frame_support::traits::PrivilegeCmp;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{EnsureOrigin, KeyOwnerProofSystem, U128CurrencyToVote},
@@ -86,7 +86,7 @@ pub use pallet_asset_registry;
 pub use pallet_claims;
 pub use pallet_faucet;
 pub use pallet_genesis_history;
-use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
+use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 
 type EnsureSuperMajorityTechCommitteeOrRoot = frame_system::EnsureOneOf<
 	AccountId,

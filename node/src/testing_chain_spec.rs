@@ -142,7 +142,6 @@ fn testnet_genesis(
 		system: testing_runtime::SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
 		},
 		balances: testing_runtime::BalancesConfig {
 			// Configure endowed accounts with initial balance of 1_000_000.
@@ -175,8 +174,8 @@ fn testnet_genesis(
 		},
 		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
 			currencies: vec![],
-			authorities: vec![],
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+			account_currencies: vec![],
 		},
 		tokens: testing_runtime::TokensConfig {
 			balances: endowed_accounts

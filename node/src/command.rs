@@ -92,24 +92,19 @@ impl SubstrateCli for Cli {
 	}
 }
 
-fn set_ss58() {
-	use sp_core::crypto::Ss58AddressFormat;
-	sp_core::crypto::set_default_ss58_version(Ss58AddressFormat::HydraDXAccount);
-}
-
 /// Parse and run command line arguments
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
-	set_ss58();
 
 	match &cli.subcommand {
 		None => {
-			let run_testing_runtime = cli.run.runtime.is_testing_runtime();
+			//let runner = cli.create_runner(&cli.run.base.normalize())?;
 			let runner = cli.create_runner(&cli.run.base)?;
+
 			runner.run_node_until_exit(|config| async move {
 				match config.role {
-					Role::Light => service::build_light(config, run_testing_runtime),
-					_ => service::build_full(config, run_testing_runtime).map(|full| full.task_manager),
+					Role::Light => panic!("Light is not supported"),
+					_ => service::build_full(config, false).map(|full| full.task_manager),
 				}
 				.map_err(sc_cli::Error::Service)
 			})
@@ -121,28 +116,28 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
-				let (client, _, import_queue, task_manager) = service::new_chain_ops(&mut config)?;
+				let (client, _, import_queue, task_manager) = service::new_partial(&mut config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
-				let (client, _, _, task_manager) = service::new_chain_ops(&mut config)?;
+				let (client, _, _, task_manager) = service::new_partial(&mut config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		}
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
-				let (client, _, _, task_manager) = service::new_chain_ops(&mut config)?;
+				let (client, _, _, task_manager) = service::new_partial(&mut config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
-				let (client, _, import_queue, task_manager) = service::new_chain_ops(&mut config)?;
+				let (client, _, import_queue, task_manager) = service::new_partial(&mut config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
@@ -153,7 +148,7 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
-				let (client, backend, _, task_manager) = service::new_chain_ops(&mut config)?;
+				let (client, backend, _, task_manager) = service::new_partial(&mut config)?;
 				Ok((cmd.run(client, backend), task_manager))
 			})
 		}
@@ -161,7 +156,7 @@ pub fn run() -> sc_cli::Result<()> {
 			if cfg!(feature = "runtime-benchmarks") {
 				let runner = cli.create_runner(cmd)?;
 
-				runner.sync_run(|config| cmd.run::<Block, service::HydraExecutor>(config))
+				runner.sync_run(|config| cmd.run::<Block, service::HydraExecutorDispatch>(config))
 			} else {
 				Err("Benchmarking wasn't enabled when building the node. \
 				You can enable it with `--features runtime-benchmarks`."

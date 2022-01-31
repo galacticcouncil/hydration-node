@@ -303,7 +303,6 @@ fn testnet_genesis(
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
 		},
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1_000_000.
@@ -336,8 +335,8 @@ fn testnet_genesis(
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
-			authorities: vec![],
 			fallback_account: root_key,
+			account_currencies: vec![],
 		},
 		tokens: TokensConfig {
 			balances: endowed_accounts
@@ -436,7 +435,6 @@ fn lerna_genesis(
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
 		},
 		balances: BalancesConfig {
 			// Intergalactic initial supply
@@ -485,8 +483,8 @@ fn lerna_genesis(
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
-			authorities: vec![],
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+			account_currencies: vec![],
 		},
 		tokens: TokensConfig { balances: vec![] },
 		faucet: FaucetConfig {
