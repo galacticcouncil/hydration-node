@@ -831,7 +831,7 @@ dependencies = [
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "parity-scale-codec",
- "primitives",
+ "primitives 4.3.0",
  "sp-core",
  "sp-npos-elections",
  "sp-runtime",
@@ -2268,7 +2268,7 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-xyk-rpc",
  "pallet-xyk-rpc-runtime-api",
- "primitives",
+ "primitives 4.3.0",
  "sc-authority-discovery",
  "sc-basic-authorship",
  "sc-chain-spec",
@@ -2357,7 +2357,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
- "pallet-asset-registry",
+ "pallet-asset-registry 3.2.0",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -2391,7 +2391,7 @@ dependencies = [
  "pallet-xyk",
  "pallet-xyk-rpc-runtime-api",
  "parity-scale-codec",
- "primitives",
+ "primitives 4.3.0",
  "scale-info",
  "serde",
  "smallvec",
@@ -4227,6 +4227,29 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
+version = "1.1.8"
+source = "git+https://github.com/galacticcouncil/Basilisk-node?branch=master#21a45a23cdfec74c0b3a5e6d4709c34d2dc6bcb1"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitive-types 0.8.0",
+ "primitives 6.1.4",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 5.0.0-dev",
+]
+
+[[package]]
+name = "pallet-asset-registry"
 version = "3.2.0"
 dependencies = [
  "frame-support",
@@ -4234,7 +4257,7 @@ dependencies = [
  "hydradx-traits",
  "parity-scale-codec",
  "primitive-types 0.8.0",
- "primitives",
+ "primitives 4.3.0",
  "scale-info",
  "serde",
  "sp-core",
@@ -4329,7 +4352,7 @@ dependencies = [
  "orml-utilities",
  "pallet-balances",
  "parity-scale-codec",
- "primitives",
+ "primitives 4.3.0",
  "rustc-hex",
  "scale-info",
  "serde",
@@ -4419,11 +4442,11 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-asset-registry",
+ "pallet-asset-registry 1.1.8",
  "pallet-xyk",
  "parity-scale-codec",
  "primitive-types 0.8.0",
- "primitives",
+ "primitives 4.3.0",
  "scale-info",
  "serde",
  "sp-core",
@@ -4444,11 +4467,11 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
- "pallet-asset-registry",
+ "pallet-asset-registry 1.1.8",
  "pallet-exchange",
  "pallet-xyk",
  "parity-scale-codec",
- "primitives",
+ "primitives 4.3.0",
  "scale-info",
  "serde",
  "sp-core",
@@ -4807,10 +4830,10 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-utilities",
- "pallet-asset-registry",
+ "pallet-asset-registry 1.1.8",
  "parity-scale-codec",
  "primitive-types 0.8.0",
- "primitives",
+ "primitives 4.3.0",
  "scale-info",
  "serde",
  "sp-api",
@@ -5263,6 +5286,21 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder 3.0.0",
+]
+
+[[package]]
+name = "primitives"
+version = "6.1.4"
+source = "git+https://github.com/galacticcouncil/Basilisk-node?branch=master#21a45a23cdfec74c0b3a5e6d4709c34d2dc6bcb1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "primitive-types 0.10.1",
+ "scale-info",
+ "serde",
+ "sp-std",
+ "substrate-wasm-builder 5.0.0-dev",
 ]
 
 [[package]]
@@ -8075,7 +8113,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
- "pallet-asset-registry",
+ "pallet-asset-registry 3.2.0",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -8109,7 +8147,7 @@ dependencies = [
  "pallet-xyk",
  "pallet-xyk-rpc-runtime-api",
  "parity-scale-codec",
- "primitives",
+ "primitives 4.3.0",
  "scale-info",
  "serde",
  "smallvec",

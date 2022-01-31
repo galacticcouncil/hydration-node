@@ -22,7 +22,6 @@ serde = { features = ["derive"], optional = true, version = "1.0.101" }
 
 # Local dependencies
 pallet-xyk = { path = "../xyk", default-features = false }
-pallet-asset-registry = { path = "../asset-registry", default-features = false }
 primitives = { path = "../../primitives", default-features = false }
 
 # ORML dependencies
@@ -42,6 +41,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [dev-dependencies]
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", branch = "main", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [features]

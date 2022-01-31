@@ -44,7 +44,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-pallet-asset-registry = {path = '../asset-registry', default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", branch = "main", default-features = false }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15" }
 
 [features]

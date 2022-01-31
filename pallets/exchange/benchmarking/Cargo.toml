@@ -21,9 +21,10 @@ serde = { features = ["derive"], optional = true, version = "1.0.101" }
 
 # Local dependencies
 pallet-xyk = { path = "../../xyk", default-features = false }
-pallet-asset-registry = { path = "../../asset-registry", default-features = false }
 pallet-exchange = { path = "../../exchange", default-features = false }
 primitives = { path = "../../../primitives", default-features = false }
+
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", branch = "main", default-features = false }
 
 # ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "6392ab8496cd9e9a996ef9f1b67aff389be41b8b", default-features = false }
