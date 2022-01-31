@@ -73,6 +73,7 @@ impl system::Config for Test {
 
 impl pallet_genesis_history::Config for Test {}
 
+#[derive(Default)]
 pub struct ExtBuilder {
 	pub chain: Chain,
 }
@@ -87,13 +88,5 @@ impl ExtBuilder {
 		};
 		build.assimilate_storage::<Test>(&mut t).unwrap();
 		t.into()
-	}
-}
-
-impl Default for ExtBuilder {
-	fn default() -> Self {
-		Self {
-			chain: Default::default(),
-		}
 	}
 }

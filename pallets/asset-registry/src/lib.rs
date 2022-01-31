@@ -120,7 +120,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	pub fn retrieve_asset(name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
+	pub fn retrieve_asset(name: &[u8]) -> Result<T::AssetId, DispatchError> {
 		if let Some(asset_id) = AssetIds::<T>::get(name) {
 			Ok(asset_id)
 		} else {

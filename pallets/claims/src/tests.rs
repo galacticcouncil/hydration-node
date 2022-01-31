@@ -118,7 +118,7 @@ fn signed_extention_success() {
 		let info = DispatchInfo::default();
 
 		assert_eq!(
-			ValidateClaim::<Test>(PhantomData).validate(&ALICE, &call, &info, 150),
+			ValidateClaim::<Test>(PhantomData).validate(&ALICE, call, &info, 150),
 			Ok(ValidTransaction::default())
 		);
 	});
@@ -133,7 +133,7 @@ fn signed_extention_invalid_sig() {
 		let info = DispatchInfo::default();
 
 		assert_eq!(
-			ValidateClaim::<Test>(PhantomData).validate(&ALICE, &call, &info, 150),
+			ValidateClaim::<Test>(PhantomData).validate(&ALICE, call, &info, 150),
 			InvalidTransaction::Custom(Error::<Test>::InvalidEthereumSignature.as_u8()).into()
 		);
 	});
@@ -148,7 +148,7 @@ fn signed_extention_no_claim_error() {
 		let info = DispatchInfo::default();
 
 		assert_eq!(
-			ValidateClaim::<Test>(PhantomData).validate(&BOB, &call, &info, 150),
+			ValidateClaim::<Test>(PhantomData).validate(&BOB, call, &info, 150),
 			InvalidTransaction::Custom(Error::<Test>::NoClaimOrAlreadyClaimed.as_u8()).into()
 		);
 	});

@@ -105,6 +105,7 @@ pub const CHARLIE: AccountId = 44;
 
 pub const CLAIM_AMOUNT: Balance = 1_000_000_000_000;
 
+#[derive(Default)]
 pub struct ExtBuilder;
 
 impl ExtBuilder {
@@ -130,11 +131,5 @@ impl ExtBuilder {
 		.unwrap();
 
 		t.into()
-	}
-}
-
-impl Default for ExtBuilder {
-	fn default() -> Self {
-		Self {}
 	}
 }
