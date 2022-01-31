@@ -2,7 +2,7 @@
 authors = ['GalacticCouncil']
 build = 'build.rs'
 description = 'Hydra DX'
-edition = '2018'
+edition = '2021'
 homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'hydra-dx'

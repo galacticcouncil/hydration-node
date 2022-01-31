@@ -1,6 +1,6 @@
 [package]
 authors = ['GalacticCouncil']
-edition = '2018'
+edition = '2021'
 name = 'primitives'
 version = '4.3.0'
 
