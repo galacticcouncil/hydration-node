@@ -1,8 +1,7 @@
 //! Tests for the HydraDX Runtime Configuration
 
 use crate::*;
-use codec::Encode;
-use frame_support::weights::{DispatchClass, GetDispatchInfo, WeightToFeePolynomial};
+use frame_support::weights::{DispatchClass, WeightToFeePolynomial};
 use pallet_transaction_payment::Multiplier;
 use sp_runtime::traits::Convert;
 use sp_runtime::FixedPointNumber;
