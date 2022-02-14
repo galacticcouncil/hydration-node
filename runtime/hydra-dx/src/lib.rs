@@ -162,17 +162,15 @@ pub struct BaseFilter;
 
 impl Contains<Call> for BaseFilter {
 	fn contains(call: &Call) -> bool {
-		match call {
+		!matches!(
+			call,
 			Call::XYK(_)
-			| Call::AssetRegistry(_)
-			| Call::Balances(_)
-			| Call::Currencies(_)
-			| Call::Exchange(_)
-			| Call::Faucet(_)
-			| Call::MultiTransactionPayment(_)
-			| Call::Tokens(_) => false,
-			_ => true
-		}
+				| Call::AssetRegistry(_)
+				| Call::Balances(_)
+				| Call::Currencies(_)
+				| Call::Exchange(_)
+				| Call::Faucet(_)
+		)
 	}
 }
 
