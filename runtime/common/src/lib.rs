@@ -339,8 +339,8 @@ use pallet_staking::BenchmarkingConfig;
 pub struct StakingBenchmarkingConfig;
 
 impl BenchmarkingConfig for StakingBenchmarkingConfig{
-	type MaxValidators = ConstU32<100>;
-	type MaxNominators = ConstU32<100>;
+	type MaxValidators = ConstU32<165>;
+	type MaxNominators = ConstU32<64>;
 }
 
 use pallet_election_provider_multi_phase::BenchmarkingConfig as ElectionMPBenchmarkingConfig;
