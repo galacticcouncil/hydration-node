@@ -98,12 +98,13 @@ pub fn run() -> sc_cli::Result<()> {
 
 	match &cli.subcommand {
 		None => {
+			let run_testing_runtime = cli.run.runtime.is_testing_runtime();
 			let runner = cli.create_runner(&cli.run.base)?;
 
 			runner.run_node_until_exit(|config| async move {
 				match config.role {
 					Role::Light => panic!("Light is not supported"),
-					_ => service::build_full(config, false).map(|full| full.task_manager),
+					_ => service::build_full(config, run_testing_runtime).map(|full| full.task_manager),
 				}
 				.map_err(sc_cli::Error::Service)
 			})
