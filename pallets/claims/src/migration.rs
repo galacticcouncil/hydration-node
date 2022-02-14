@@ -15,16 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 use super::*;
 use hex::FromHex;
 use primitives::Balance;
 use frame_support::traits::GetStorageVersion;
 
+#[allow(dead_code)]
 pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
 	let version = <Pallet<T> as GetStorageVersion>::current_storage_version();
-
-	//TODO: it used to return None if it did not exists, so what do now ?
-	// I believe
 
 	if version == 0 {
 		for (addr, amount) in claims_data.iter() {

@@ -7,10 +7,7 @@ members = [
   'runtime/common',
   'runtime/hydra-dx',
   'runtime/testing-hydra-dx',
-  'pallets/asset-registry',
-  'pallets/exchange',
   'pallets/genesis-history',
-  'pallets/xyk',
   'primitives',
   'utils/build-script-utils'
 ]
@@ -20,4 +17,3 @@ members = [
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil//warehouse", rev = "aef26bc6baf9020910b86f63019ae966a4ebcdb2"}
 pallet-faucet= { git = "https://github.com/galacticcouncil//warehouse", rev = "aef26bc6baf9020910b86f63019ae966a4ebcdb2"}
 hydradx-traits = { git = "https://github.com/galacticcouncil//warehouse", rev = "aef26bc6baf9020910b86f63019ae966a4ebcdb2"}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/Basilisk-node", branch = "master"}

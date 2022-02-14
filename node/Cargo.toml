@@ -29,8 +29,6 @@ hex-literal = "0.3.1"
 common-runtime = {path = '../runtime/common'}
 hydra-dx-runtime = {path = '../runtime/hydra-dx'}
 testing-hydra-dx-runtime = {path = '../runtime/testing-hydra-dx'}
-pallet-xyk-rpc = {path = '../pallets/xyk/rpc'}
-pallet-xyk-rpc-runtime-api = {path = '../pallets/xyk/rpc/runtime-api', default-features = false}
 primitives = {path = '../primitives'}
 
 # Substrate dependencies

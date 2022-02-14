@@ -69,6 +69,7 @@ use frame_support::{
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
+use hydradx_traits::pools::SpotPriceProvider;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_runtime::curve::PiecewiseLinear;
@@ -77,15 +78,12 @@ pub use sp_runtime::BuildStorage;
 
 use pallet_session::historical as session_historical;
 
-use pallet_xyk_rpc_runtime_api as xyk_rpc;
-
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 
 pub use common_runtime::*;
 
 /// Import HydraDX pallets
-pub use pallet_asset_registry;
 pub use pallet_claims;
 pub use pallet_faucet;
 pub use pallet_genesis_history;
@@ -162,15 +160,7 @@ pub struct BaseFilter;
 
 impl Contains<Call> for BaseFilter {
 	fn contains(call: &Call) -> bool {
-		!matches!(
-			call,
-			Call::XYK(_)
-				| Call::AssetRegistry(_)
-				| Call::Balances(_)
-				| Call::Currencies(_)
-				| Call::Exchange(_)
-				| Call::Faucet(_)
-		)
+		!matches!(call, Call::Balances(_) | Call::Currencies(_) | Call::Faucet(_))
 	}
 }
 
@@ -326,11 +316,24 @@ impl pallet_transaction_payment::Config for Runtime {
 	type FeeMultiplierUpdate = TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
+pub struct NoSpotPriceProvider;
+impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
+	type Price = Price;
+
+	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		false
+	}
+
+	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
+		None
+	}
+}
+
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
 	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
 	type Currencies = Currencies;
-	type SpotPriceProvider = pallet_xyk::XYKSpotPrice<Runtime>;
+	type SpotPriceProvider = NoSpotPriceProvider;
 	type WeightInfo = common_runtime::weights::payment::PalletWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
@@ -415,40 +418,12 @@ where
 
 /// HydraDX Pallets configurations
 
-impl pallet_asset_registry::Config for Runtime {
-	type AssetId = AssetId;
-}
-
-impl pallet_xyk::Config for Runtime {
-	type Event = Event;
-	type AssetRegistry = AssetRegistry;
-	type AssetPairAccountId = AssetPairAccountId<Self>;
-	type Currency = Currencies;
-	type NativeAssetId = HDXAssetId;
-	type WeightInfo = ();
-	type GetExchangeFee = ExchangeFee;
-	type MinTradingLimit = MinTradingLimit;
-	type MinPoolLiquidity = MinPoolLiquidity;
-	type MaxInRatio = MaxInRatio;
-	type MaxOutRatio = MaxOutRatio;
-	type CanCreatePool = common_runtime::AllowAnyPool;
-	type AMMHandler = ();
-}
-
 impl pallet_claims::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type Prefix = ClaimMessagePrefix;
 	type WeightInfo = pallet_claims::weights::HydraWeight<Runtime>;
 	type CurrencyBalance = Balance;
-}
-
-impl pallet_exchange::Config for Runtime {
-	type Event = Event;
-	type AMMPool = XYK;
-	type Resolver = Exchange;
-	type Currency = Currencies;
-	type WeightInfo = pallet_exchange::weights::HydraWeight<Runtime>;
 }
 
 impl pallet_faucet::Config for Runtime {
@@ -462,6 +437,7 @@ pub mod impls;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::TargetedFeeAdjustment;
+use primitives::Price;
 use sp_core::crypto::UncheckedFrom;
 
 impl pallet_authorship::Config for Runtime {
@@ -961,10 +937,7 @@ construct_runtime!(
 		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// HydraDX related modules
-		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},
-		XYK: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>},
-		Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Pallet, Call, Storage, Config, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Config<T>, Storage, Event<T>},
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config},
@@ -1188,38 +1161,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xyk_rpc::XYKApi<
-		Block,
-		AccountId,
-		AssetId,
-		Balance,
-	> for Runtime {
-		fn get_pool_balances(
-			pool_address: AccountId,
-		) -> Vec<xyk_rpc::BalanceInfo<AssetId, Balance>> {
-			let mut vec = Vec::new();
-
-			if let Some(pool_balances) = XYK::get_pool_balances(pool_address){
-				for b in pool_balances {
-					let item  = xyk_rpc::BalanceInfo{
-					 asset: Some(b.0),
-						amount: b.1
-					};
-
-					vec.push(item);
-				}
-			}
-
-			vec
-		}
-
-
-		fn get_pool_id(asset_a: AssetId, asset_b: AssetId) -> AccountId{
-			XYK::pair_account_from_assets(asset_a, asset_b)
-		}
-
-	}
-
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
@@ -1234,9 +1175,7 @@ impl_runtime_apis! {
 
 			let mut list = Vec::<BenchmarkList>::new();
 
-			list_benchmark!(list, extra, pallet_xyk, XYK);
 			list_benchmark!(list, extra, pallet_claims, XYK);
-			list_benchmark!(list, extra, pallet_exchange, ExchangeBench::<Runtime>);
 			list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
@@ -1271,10 +1210,8 @@ impl_runtime_apis! {
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
 
-			add_benchmark!(params, batches, xyk, XYK);
 			add_benchmark!(params, batches, claims, Claims);
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, exchange, ExchangeBench::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

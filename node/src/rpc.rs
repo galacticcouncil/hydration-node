@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use hydra_dx_runtime::{opaque::Block, AccountId, AssetId, Balance, BlockNumber, Hash, Index};
+use hydra_dx_runtime::{opaque::Block, AccountId, Balance, BlockNumber, Hash, Index};
 use sc_consensus_babe::Epoch;
 use sc_consensus_babe_rpc::BabeRpcHandler;
 use sc_finality_grandpa::FinalityProofProvider;
@@ -76,14 +76,12 @@ where
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BabeApi<Block>,
 	C::Api: BlockBuilder<Block>,
-	C::Api: pallet_xyk_rpc::XYKRuntimeApi<Block, AccountId, AssetId, Balance>,
 	P: TransactionPool + Sync + Send + 'static,
 	SC: SelectChain<Block> + 'static,
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::StateBackend<sp_runtime::traits::HashFor<Block>>,
 {
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
-	use pallet_xyk_rpc::{XYKApi, XYK};
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 
 	let mut io = jsonrpc_core::IoHandler::default();
@@ -124,8 +122,6 @@ where
 	// `YourRpcStruct` should have a reference to a client, which is needed
 	// to call into the runtime.
 	// `io.extend_with(YourRpcTrait::to_delegate(YourRpcStruct::new(ReferenceToClient, ...)));`
-
-	io.extend_with(XYKApi::to_delegate(XYK::new(client.clone())));
 
 	io.extend_with(sc_consensus_babe_rpc::BabeApi::to_delegate(BabeRpcHandler::new(
 		client,

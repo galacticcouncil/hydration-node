@@ -361,12 +361,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
-name = "az"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f771a5d1f5503f7f4279a30f3643d3421ba149848b89ecaaec0ea2acf04a5ac4"
-
-[[package]]
 name = "backtrace"
 version = "0.3.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -612,12 +606,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 
 [[package]]
-name = "bytemuck"
-version = "1.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "439989e6b8c38d1b6570a384ef1e49c8848128f5a97f3914baef02920842712f"
-
-[[package]]
 name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -644,15 +632,6 @@ name = "cache-padded"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1db59621ec70f09c5e9b597b220c7a2b43611f4710dc03ceb8748637775692c"
-
-[[package]]
-name = "camino"
-version = "1.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f3132262930b0522068049f5870a856ab8affc80c70d08b6ecb785771a6fc23"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "cargo-lock"
@@ -686,19 +665,6 @@ dependencies = [
  "cargo-platform",
  "semver 0.11.0",
  "semver-parser 0.10.2",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "cargo_metadata"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba2ae6de944143141f6155a473a6b02f66c7c3f9f47316f802f80204ebfe6e12"
-dependencies = [
- "camino",
- "cargo-platform",
- "semver 1.0.4",
  "serde",
  "serde_json",
 ]
@@ -831,7 +797,7 @@ dependencies = [
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "parity-scale-codec",
- "primitives 4.3.0",
+ "primitives",
  "sp-core",
  "sp-npos-elections",
  "sp-runtime",
@@ -1481,18 +1447,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fixed"
-version = "1.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80a9a8cb2e34880a498f09367089339bda5e12d6f871640f947850f7113058c0"
-dependencies = [
- "az",
- "bytemuck",
- "half",
- "typenum",
-]
-
-[[package]]
 name = "fixed-hash"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2077,12 +2031,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "half"
-version = "1.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
-
-[[package]]
 name = "handlebars"
 version = "4.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2266,9 +2214,7 @@ dependencies = [
  "pallet-staking",
  "pallet-transaction-payment-rpc",
  "pallet-transaction-payment-rpc-runtime-api",
- "pallet-xyk-rpc",
- "pallet-xyk-rpc-runtime-api",
- "primitives 4.3.0",
+ "primitives",
  "sc-authority-discovery",
  "sc-basic-authorship",
  "sc-chain-spec",
@@ -2328,18 +2274,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hydra-dx-math"
-version = "4.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4009ee334bd759322746adb417e40b7ae7f5adac5ea016c9ba0a91f5c65c847d"
-dependencies = [
- "fixed",
- "lazy_static",
- "num-traits",
- "primitive-types 0.8.0",
-]
-
-[[package]]
 name = "hydra-dx-runtime"
 version = "27.0.0"
 dependencies = [
@@ -2357,7 +2291,6 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
- "pallet-asset-registry 3.2.0",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -2367,8 +2300,6 @@ dependencies = [
  "pallet-democracy",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
- "pallet-exchange",
- "pallet-exchange-benchmarking",
  "pallet-faucet",
  "pallet-genesis-history",
  "pallet-grandpa",
@@ -2388,10 +2319,8 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
  "pallet-utility",
- "pallet-xyk",
- "pallet-xyk-rpc-runtime-api",
  "parity-scale-codec",
- "primitives 4.3.0",
+ "primitives",
  "scale-info",
  "serde",
  "smallvec",
@@ -2410,7 +2339,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
- "substrate-wasm-builder 3.0.0",
+ "substrate-wasm-builder",
  "tracing-core",
 ]
 
@@ -4226,48 +4155,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-asset-registry"
-version = "1.1.8"
-source = "git+https://github.com/galacticcouncil/Basilisk-node?branch=master#21a45a23cdfec74c0b3a5e6d4709c34d2dc6bcb1"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "orml-traits",
- "parity-scale-codec",
- "primitive-types 0.8.0",
- "primitives 6.1.4",
- "scale-info",
- "serde",
- "sp-api",
- "sp-arithmetic",
- "sp-core",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 5.0.0-dev",
-]
-
-[[package]]
-name = "pallet-asset-registry"
-version = "3.2.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "parity-scale-codec",
- "primitive-types 0.8.0",
- "primitives 4.3.0",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 3.0.0",
-]
-
-[[package]]
 name = "pallet-authority-discovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.15#d36550a8da62fc968fac415c3379ad95d85105d1"
@@ -4352,7 +4239,7 @@ dependencies = [
  "orml-utilities",
  "pallet-balances",
  "parity-scale-codec",
- "primitives 4.3.0",
+ "primitives",
  "rustc-hex",
  "scale-info",
  "serde",
@@ -4430,55 +4317,6 @@ dependencies = [
  "sp-npos-elections",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-exchange"
-version = "5.2.5"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydra-dx-math",
- "hydradx-traits",
- "orml-tokens",
- "orml-traits",
- "pallet-asset-registry 1.1.8",
- "pallet-xyk",
- "parity-scale-codec",
- "primitive-types 0.8.0",
- "primitives 4.3.0",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 5.0.0-dev",
-]
-
-[[package]]
-name = "pallet-exchange-benchmarking"
-version = "3.3.7"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "hydradx-traits",
- "orml-tokens",
- "orml-traits",
- "pallet-asset-registry 1.1.8",
- "pallet-exchange",
- "pallet-xyk",
- "parity-scale-codec",
- "primitives 4.3.0",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 5.0.0-dev",
 ]
 
 [[package]]
@@ -4818,64 +4656,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-xyk"
-version = "3.4.3"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "hydra-dx-math",
- "hydradx-traits",
- "orml-tokens",
- "orml-traits",
- "orml-utilities",
- "pallet-asset-registry 1.1.8",
- "parity-scale-codec",
- "primitive-types 0.8.0",
- "primitives 4.3.0",
- "scale-info",
- "serde",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 5.0.0-dev",
-]
-
-[[package]]
-name = "pallet-xyk-rpc"
-version = "1.0.3"
-dependencies = [
- "jsonrpc-core",
- "jsonrpc-core-client",
- "jsonrpc-derive",
- "pallet-xyk-rpc-runtime-api",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-api",
- "sp-blockchain",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 5.0.0-dev",
-]
-
-[[package]]
-name = "pallet-xyk-rpc-runtime-api"
-version = "3.0.3"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-api",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 5.0.0-dev",
-]
-
-[[package]]
 name = "parity-db"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4951,7 +4731,7 @@ dependencies = [
  "impl-trait-for-tuples",
  "parity-util-mem-derive",
  "parking_lot",
- "primitive-types 0.10.1",
+ "primitive-types",
  "smallvec",
  "winapi 0.3.9",
 ]
@@ -5250,16 +5030,6 @@ checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
 
 [[package]]
 name = "primitive-types"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3824ae2c5e27160113b9e029a10ec9e3f0237bad8029f69c7724393c9fdefd8"
-dependencies = [
- "fixed-hash",
- "uint",
-]
-
-[[package]]
-name = "primitive-types"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05e4722c697a58a99d5d06a08c30821d7c082a4632198de1eaa5a6c22ef42373"
@@ -5278,29 +5048,14 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
- "primitive-types 0.10.1",
+ "primitive-types",
  "scale-info",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
- "substrate-wasm-builder 3.0.0",
-]
-
-[[package]]
-name = "primitives"
-version = "6.1.4"
-source = "git+https://github.com/galacticcouncil/Basilisk-node?branch=master#21a45a23cdfec74c0b3a5e6d4709c34d2dc6bcb1"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "primitive-types 0.10.1",
- "scale-info",
- "serde",
- "sp-std",
- "substrate-wasm-builder 5.0.0-dev",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -6939,9 +6694,6 @@ name = "semver"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "568a8e6258aa33c13358f81fd834adb854c6f7c9468520910a9b1e8fac068012"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "semver-parser"
@@ -7378,7 +7130,7 @@ dependencies = [
  "parity-scale-codec",
  "parity-util-mem",
  "parking_lot",
- "primitive-types 0.10.1",
+ "primitive-types",
  "rand 0.7.3",
  "regex",
  "scale-info",
@@ -7633,7 +7385,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.15#d3
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
- "primitive-types 0.10.1",
+ "primitive-types",
  "sp-externalities",
  "sp-runtime-interface-proc-macro",
  "sp-std",
@@ -8003,22 +7755,7 @@ dependencies = [
  "ansi_term",
  "atty",
  "build-helper",
- "cargo_metadata 0.12.3",
- "tempfile",
- "toml",
- "walkdir",
- "wasm-gc-api",
-]
-
-[[package]]
-name = "substrate-wasm-builder"
-version = "5.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.15#d36550a8da62fc968fac415c3379ad95d85105d1"
-dependencies = [
- "ansi_term",
- "build-helper",
- "cargo_metadata 0.14.1",
- "sp-maybe-compressed-blob",
+ "cargo_metadata",
  "tempfile",
  "toml",
  "walkdir",
@@ -8113,7 +7850,6 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
- "pallet-asset-registry 3.2.0",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -8123,8 +7859,6 @@ dependencies = [
  "pallet-democracy",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
- "pallet-exchange",
- "pallet-exchange-benchmarking",
  "pallet-faucet",
  "pallet-genesis-history",
  "pallet-grandpa",
@@ -8144,10 +7878,8 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
  "pallet-utility",
- "pallet-xyk",
- "pallet-xyk-rpc-runtime-api",
  "parity-scale-codec",
- "primitives 4.3.0",
+ "primitives",
  "scale-info",
  "serde",
  "smallvec",
@@ -8166,7 +7898,7 @@ dependencies = [
  "sp-std",
  "sp-transaction-pool",
  "sp-version",
- "substrate-wasm-builder 3.0.0",
+ "substrate-wasm-builder",
  "tracing-core",
 ]
 

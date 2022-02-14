@@ -23,13 +23,8 @@ tracing-core = {optional = true, version = '0.1.17'}
 
 # local dependencies
 common-runtime = {path = '../common', default-features = false}
-pallet-asset-registry = {path = '../../pallets/asset-registry', default-features = false}
 pallet-claims = {path = '../../pallets/claims', default-features = false}
-pallet-exchange = {path = '../../pallets/exchange', default-features = false}
-pallet-exchange-benchmarking = {path = '../../pallets/exchange/benchmarking', default-features = false, optional = true}
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
-pallet-xyk = {path = '../../pallets/xyk', default-features = false}
-pallet-xyk-rpc-runtime-api = {path = '../../pallets/xyk/rpc/runtime-api', default-features = false}
 primitives = {path = '../../primitives', default-features = false}
 
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", branch="main", default-features = false }
@@ -101,8 +96,6 @@ runtime-benchmarks = [
   'frame-system/runtime-benchmarks',
   'pallet-balances/runtime-benchmarks',
   'pallet-timestamp/runtime-benchmarks',
-  "pallet-xyk/runtime-benchmarks",
-  "pallet-exchange-benchmarking",
   'pallet-collective/runtime-benchmarks',
   'pallet-identity/runtime-benchmarks',
   'sp-runtime/runtime-benchmarks',
@@ -119,12 +112,8 @@ std = [
   'orml-tokens/std',
   'orml-traits/std',
   'orml-vesting/std',
-  'pallet-xyk/std',
-  'pallet-xyk-rpc-runtime-api/std',
   'pallet-claims/std',
-  'pallet-asset-registry/std',
   'pallet-democracy/std',
-  'pallet-exchange/std',
   'pallet-faucet/std',
   'pallet-balances/std',
   'pallet-genesis-history/std',

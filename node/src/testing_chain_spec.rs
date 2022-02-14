@@ -156,22 +156,6 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			key: root_key,
 		},
-		asset_registry: testing_runtime::AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![
-				(b"tKSM".to_vec(), 1),
-				(b"tDOT".to_vec(), 2),
-				(b"tETH".to_vec(), 3),
-				(b"tACA".to_vec(), 4),
-				(b"tEDG".to_vec(), 5),
-				(b"tUSD".to_vec(), 6),
-				(b"tPLM".to_vec(), 7),
-				(b"tFIS".to_vec(), 8),
-				(b"tPHA".to_vec(), 9),
-				(b"tUSDT".to_vec(), 10),
-			],
-			next_asset_id: 11,
-		},
 		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
 			currencies: vec![],
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),

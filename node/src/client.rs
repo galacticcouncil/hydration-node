@@ -3,7 +3,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 pub use crate::service::{FullBackend, FullClient, HydraExecutorDispatch, TestingHydraExecutorDispatch};
-use common_runtime::{AccountId, AssetId, Balance, Block, BlockNumber, Hash, Header, Index};
+use common_runtime::{AccountId, Balance, Block, BlockNumber, Hash, Header, Index};
 use sc_client_api::{Backend as BackendT, BlockchainEvents, KeyIterator};
 use sp_api::{CallApiAt, NumberFor, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
@@ -29,7 +29,6 @@ pub trait RuntimeApiCollection:
 	+ sp_offchain::OffchainWorkerApi<Block>
 	+ sp_session::SessionKeys<Block>
 	+ sp_authority_discovery::AuthorityDiscoveryApi<Block>
-	+ pallet_xyk_rpc_runtime_api::XYKApi<Block, AccountId, AssetId, Balance>
 where
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
@@ -47,8 +46,7 @@ where
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_authority_discovery::AuthorityDiscoveryApi<Block>
-		+ pallet_xyk_rpc_runtime_api::XYKApi<Block, AccountId, AssetId, Balance>,
+		+ sp_authority_discovery::AuthorityDiscoveryApi<Block>,
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
 }
