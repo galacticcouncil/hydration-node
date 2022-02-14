@@ -98,7 +98,6 @@ pub fn run() -> sc_cli::Result<()> {
 
 	match &cli.subcommand {
 		None => {
-			//let runner = cli.create_runner(&cli.run.base.normalize())?;
 			let runner = cli.create_runner(&cli.run.base)?;
 
 			runner.run_node_until_exit(|config| async move {

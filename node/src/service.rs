@@ -140,7 +140,7 @@ pub fn new_partial_impl<RuntimeApi, Executor>(
 where
 	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, Executor>> + Send + Sync + 'static,
 	RuntimeApi::RuntimeApi: RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
-	Executor: NativeExecutionDispatch + 'static, //+ sp_core::traits::CodeExecutor + sc_executor::RuntimeVersionOf ,
+	Executor: NativeExecutionDispatch + 'static,
 {
 	let telemetry = config
 		.telemetry_endpoints

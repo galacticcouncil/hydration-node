@@ -113,7 +113,6 @@ fn signed_extention_success() {
 	new_test_ext().execute_with(|| {
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 
-		//let call = <pallet_claims::Call<Test>>::claim(EcdsaSignature(signature));//.into();
 		let call: &<Test as frame_system::Config>::Call = &Call::ClaimsPallet(crate::Call::claim{ethereum_signature: EcdsaSignature(signature)});
 		let info = DispatchInfo::default();
 
