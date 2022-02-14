@@ -65,9 +65,6 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			migration::import_initial_claims::<T>(&claims_data::CLAIMS_DATA)
-		}
 	}
 
 	#[pallet::config]
