@@ -163,28 +163,6 @@ pub struct BaseFilter;
 impl Contains<Call> for BaseFilter {
 	fn contains(call: &Call) -> bool {
 		match call {
-			Call::Authorship(_)
-			| Call::Babe(_)
-			| Call::Claims(_)
-			| Call::Council(_)
-			| Call::Democracy(_)
-			| Call::ElectionProviderMultiPhase(_)
-			| Call::Elections(_)
-			| Call::Grandpa(_)
-			| Call::ImOnline(_)
-			| Call::Scheduler(_)
-			| Call::Session(_)
-			| Call::Staking(_)
-			| Call::System(_)
-			| Call::TechnicalCommittee(_)
-			| Call::Timestamp(_)
-			| Call::Tips(_)
-			| Call::Treasury(_)
-			| Call::Identity(_)
-			| Call::Utility(_)
-			| Call::Vesting(_)
-			| Call::Sudo(_) => true,
-
 			Call::XYK(_)
 			| Call::AssetRegistry(_)
 			| Call::Balances(_)
@@ -193,6 +171,7 @@ impl Contains<Call> for BaseFilter {
 			| Call::Faucet(_)
 			| Call::MultiTransactionPayment(_)
 			| Call::Tokens(_) => false,
+			_ => true
 		}
 	}
 }
