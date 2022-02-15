@@ -86,8 +86,7 @@ pub use pallet_faucet;
 pub use pallet_genesis_history;
 use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 
-type EnsureSuperMajorityTechCommitteeOrRoot = frame_system::EnsureOneOf<
-	AccountId,
+type EnsureSuperMajorityTechCommitteeOrRoot = frame_support::traits::EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
@@ -135,6 +134,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_version: RUNTIME_IMPL_VERSION,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: RUNTIME_TRANSACTION_VERSION,
+	state_version: 0,
 };
 
 /// The BABE epoch configuration at genesis.
@@ -255,6 +255,7 @@ impl frame_system::Config for Runtime {
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_grandpa::Config for Runtime {
@@ -448,10 +449,10 @@ pallet_staking_reward_curve::build! {
 parameter_types! {
 	pub const SessionsPerEra: sp_staking::SessionIndex = 4;
 	// Funds are bonded for 32 hours
-	pub const BondingDuration: pallet_staking::EraIndex = 2;
+	pub const BondingDuration: u32 = 2;
 	// SlashDeferDuration should be less than BondingDuration
 	// https://github.com/paritytech/substrate/blob/49a4103f4bfef55be20a5c6d26e18ff3003c3353/frame/staking/src/lib.rs#L1402
-	pub const SlashDeferDuration: pallet_staking::EraIndex =  1;
+	pub const SlashDeferDuration: u32 =  1;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 }
 
@@ -599,6 +600,7 @@ impl pallet_treasury::Config for Runtime {
 	type OnSlash = Treasury;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ProposalBondMinimum;
+	type ProposalBondMaximum = ProposalBondMaximum;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type BurnDestination = ();
@@ -835,6 +837,26 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	}
 }
 
+parameter_types! {
+	pub const PreimageMaxSize: u32 = 4096 * 1024;
+	pub PreimageBaseDeposit: Balance = deposit(2, 64);
+	pub PreimageByteDeposit: Balance = deposit(0, 1);
+}
+
+impl pallet_preimage::Config for Runtime {
+	type WeightInfo = ();
+	type Event = Event;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	type MaxSize = PreimageMaxSize;
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = PreimageByteDeposit;
+}
+
+parameter_types! {
+	pub const NoPreimagePostponement: Option<u32> = Some(5 * MINUTES);
+}
+
 impl pallet_scheduler::Config for Runtime {
 	type Event = Event;
 	type Origin = Origin;
@@ -845,6 +867,8 @@ impl pallet_scheduler::Config for Runtime {
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
+	type PreimageProvider = Preimage;
+	type NoPreimagePostponement = NoPreimagePostponement;
 }
 
 pub struct BobOrRoot;
@@ -902,6 +926,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
 		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>},
 
 		//Staking related modules
 		Authorship: pallet_authorship::{Pallet, Call, Storage, Inherent},

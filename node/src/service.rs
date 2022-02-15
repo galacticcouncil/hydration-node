@@ -159,6 +159,7 @@ where
 		config.wasm_method,
 		config.default_heap_pages,
 		config.max_runtime_instances,
+		config.runtime_cache_size,
 	);
 
 	let (client, backend, keystore_container, task_manager) =
@@ -193,7 +194,7 @@ where
 	let justification_import = grandpa_block_import.clone();
 
 	let (block_import, babe_link) = sc_consensus_babe::block_import(
-		sc_consensus_babe::Config::get_or_compute(&*client)?,
+		sc_consensus_babe::Config::get(&*client)?,
 		grandpa_block_import,
 		client.clone(),
 	)?;
@@ -344,7 +345,10 @@ where
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 
-	config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
+	config
+		.network
+		.extra_sets
+		.push(sc_finality_grandpa::grandpa_peers_set_config(Default::default()));
 
 	#[cfg(feature = "cli")]
 	config
@@ -487,6 +491,7 @@ where
 		keystore,
 		local_role: role,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
+		protocol_name: Default::default(),
 	};
 
 	if enable_grandpa {

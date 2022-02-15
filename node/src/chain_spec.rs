@@ -2,10 +2,10 @@
 
 pub use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
 pub use hydra_dx_runtime::{
-	opaque::SessionKeys, pallet_claims::EthereumAddress, AuthorityDiscoveryConfig, BabeConfig,
-	BalancesConfig, ClaimsConfig, CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig,
-	GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig, SessionConfig, StakerStatus, StakingConfig,
-	SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
+	opaque::SessionKeys, pallet_claims::EthereumAddress, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig,
+	ClaimsConfig, CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig, GrandpaConfig,
+	ImOnlineConfig, MultiTransactionPaymentConfig, SessionConfig, StakerStatus, StakingConfig, SudoConfig,
+	SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
 };
 pub use pallet_staking::Forcing;
 pub use sc_service::ChainType;
@@ -87,9 +87,9 @@ pub const DEFAULT_PROTOCOL_ID: &str = "hdx";
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 12u8.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("ss58Format".into(), 63u8.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
@@ -123,6 +123,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -137,9 +139,9 @@ pub fn lerna_config() -> Result<ChainSpec, String> {
 pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Stakenet wasm binary not available".to_string())?;
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 12u8.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("ss58Format".into(), 63u8.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Name
@@ -223,6 +225,8 @@ pub fn lerna_staging_config() -> Result<ChainSpec, String> {
 		),
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -278,6 +282,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
 		// Properties
+		// Fork ID
+		None,
 		Some(properties),
 		// Extensions
 		None,
@@ -315,11 +321,11 @@ fn testnet_genesis(
 		grandpa: Default::default(),
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key.clone(),
+			key: Some(root_key.clone()),
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
-			fallback_account: root_key,
+			fallback_account: Some(root_key),
 			account_currencies: vec![],
 		},
 		tokens: TokensConfig {
@@ -458,11 +464,11 @@ fn lerna_genesis(
 		grandpa: GrandpaConfig { authorities: vec![] },
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: Some(root_key),
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
-			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+			fallback_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
 			account_currencies: vec![],
 		},
 		tokens: TokensConfig { balances: vec![] },

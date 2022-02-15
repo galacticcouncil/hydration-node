@@ -16,7 +16,10 @@
 // limitations under the License.
 
 use crate::mock::*;
-use crate::{Error, EcdsaSignature, EthereumAddress, Claims, ValidateClaim, ValidTransaction, SignedExtension, InvalidTransaction};
+use crate::{
+	Claims, EcdsaSignature, Error, EthereumAddress, InvalidTransaction, SignedExtension, ValidTransaction,
+	ValidateClaim,
+};
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;

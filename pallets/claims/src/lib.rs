@@ -31,10 +31,10 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 use primitives::Balance;
+use scale_info::TypeInfo;
 use sp_runtime::traits::Zero;
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
 use weights::WeightInfo;
-use scale_info::TypeInfo;
 
 mod benchmarking;
 mod claims_data;
@@ -61,11 +61,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 
 	#[pallet::pallet]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-	}
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -230,12 +230,22 @@ where
 		_len: usize,
 	) -> TransactionValidity {
 		match call.is_sub_type() {
-			Some(Call::claim{ethereum_signature}) => match Pallet::<T>::validate_claim(who, ethereum_signature) {
+			Some(Call::claim { ethereum_signature }) => match Pallet::<T>::validate_claim(who, ethereum_signature) {
 				Ok(_) => Ok(ValidTransaction::default()),
 				Err(error) => InvalidTransaction::Custom(error.as_u8()).into(),
 			},
 			_ => Ok(Default::default()),
 		}
+	}
+
+	fn pre_dispatch(
+		self,
+		who: &Self::AccountId,
+		call: &Self::Call,
+		info: &DispatchInfoOf<Self::Call>,
+		len: usize,
+	) -> Result<Self::Pre, TransactionValidityError> {
+		self.validate(who, call, info, len).map(|_| ())
 	}
 }
 

@@ -24,6 +24,10 @@ pub mod currency {
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 
 	pub const FORTUNE: Balance = u128::MAX;
+
+	pub fn deposit(items: u32, bytes: u32) -> Balance {
+		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
+	}
 }
 
 pub mod time {
