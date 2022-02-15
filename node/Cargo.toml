@@ -7,7 +7,7 @@ homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'hydra-dx'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '6.2.0'
+version = '6.3.0'
 
 [[bin]]
 name = 'hydra-dx'

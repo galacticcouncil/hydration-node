@@ -1,6 +1,6 @@
 [package]
 name = "pallet-genesis-history"
-version = "1.1.0"
+version = "1.2.0"
 description = "Keeping track of the past chain generations."
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"

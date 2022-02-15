@@ -2,7 +2,7 @@
 authors = ['GalacticCouncil']
 edition = '2021'
 name = 'primitives'
-version = '4.3.0'
+version = '4.4.0'
 
 [build-dependencies]
 substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
