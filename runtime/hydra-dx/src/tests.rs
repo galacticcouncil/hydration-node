@@ -1,8 +1,7 @@
 //! Tests for the HydraDX Runtime Configuration
 
 use crate::*;
-use codec::Encode;
-use frame_support::weights::{DispatchClass, GetDispatchInfo, WeightToFeePolynomial};
+use frame_support::weights::{DispatchClass, WeightToFeePolynomial};
 use pallet_transaction_payment::Multiplier;
 use sp_runtime::traits::Convert;
 use sp_runtime::FixedPointNumber;
@@ -15,9 +14,9 @@ fn full_block_cost() {
 
 	let max_weight = BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap_or(1);
 	let weight_fee = WeightToFee::calc(&max_weight);
-	assert_eq!(weight_fee, 19149775500000);
+	assert_eq!(weight_fee, 120000000000000);
 
-	let target_fee = 3951310558799000;
+	let target_fee = 4052160125000000;
 	assert_eq!(ExtrinsicBaseWeight::get() as u128 + length_fee + weight_fee, target_fee);
 }
 
@@ -28,32 +27,6 @@ fn extrinsic_base_fee_is_correct() {
 	let base_fee = WeightToFee::calc(&ExtrinsicBaseWeight::get());
 	let base_fee_expected = CENTS / 10;
 	assert!(base_fee.max(base_fee_expected) - base_fee.min(base_fee_expected) < MILLICENTS);
-}
-
-#[test]
-#[ignore]
-fn transfer_cost() {
-	let call = <pallet_balances::Call<Runtime>>::transfer(Default::default(), Default::default());
-	let info = call.get_dispatch_info();
-	// convert to outer call
-	let call = Call::Balances(call);
-	let len = call.using_encoded(|e| e.len()) as u32;
-
-	let mut ext = sp_io::TestExternalities::new_empty();
-	ext.execute_with(|| {
-		pallet_transaction_payment::NextFeeMultiplier::<Runtime>::put(Multiplier::saturating_from_integer(1));
-		let fee_raw = TransactionPayment::compute_fee_details(len, &info, 0);
-		let fee = fee_raw.final_fee();
-		println!(
-			"len = {:?} // weight = {:?} // base fee = {:?} // len fee = {:?} // adjusted weight_fee = {:?} // full transfer fee = {:?}\n",
-			len,
-			info.weight,
-			fee_raw.inclusion_fee.clone().unwrap().base_fee,
-			fee_raw.inclusion_fee.clone().unwrap().len_fee,
-			fee_raw.inclusion_fee.unwrap().adjusted_weight_fee,
-			fee,
-		);
-	});
 }
 
 fn run_with_system_weight<F>(w: Weight, mut assertions: F)

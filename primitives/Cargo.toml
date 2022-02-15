@@ -1,32 +1,27 @@
 [package]
 authors = ['GalacticCouncil']
-edition = '2018'
+edition = '2021'
 name = 'primitives'
-version = '4.2.0'
+version = '4.3.0'
 
 [build-dependencies]
 substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
 
-# alias "parity-scale-code" to "codec"
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '2.0.0'
-
 [dependencies]
-primitive-types = {default-features = false, version = '0.8.0'}
-serde = {features = ['derive'], optional = true, version = '1.0.101'}
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.3.1" }
+scale-info = { version = "1.0", default-features = false, features = ["derive"] }
+primitive-types = { default-features = false, version = "0.10.1" }
+serde = { features = ["derive"], optional = true, version = "1.0.101" }
 
 # Substrate dependencies
-frame-support = {default-features = false, version = '3.0.0'}
-frame-system = {default-features = false, version = '3.0.0'}
-sp-std = {default-features = false, version = '3.0.0'}
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [dev-dependencies]
-sp-core = {default-features = false, version = '3.0.0'}
-sp-io = {default-features = false, version = '3.0.0'}
-sp-runtime = {default-features = false, version = '3.0.0'}
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
 
 [features]
 default = ['std']

@@ -72,7 +72,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-06-01
+          toolchain: nightly-2021-11-30
           target: wasm32-unknown-unknown
           override: true
           default: true
@@ -88,7 +88,7 @@ jobs:
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
         with:
-          fail_ci_if_error: true
+          fail_ci_if_error: false
       - name: Build release
         run: time cargo build --release --quiet --locked
       - name: Version info

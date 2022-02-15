@@ -35,7 +35,11 @@ use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{
+	crypto::KeyTypeId,
+	u32_trait::{_2, _3},
+	OpaqueMetadata,
+};
 use sp_runtime::traits::{
 	BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys, SaturatedConversion,
 	Verify, Zero,
@@ -45,21 +49,27 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult,
 };
+use sp_std::cmp::Ordering;
+use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use hydradx_traits::AssetPairAccountIdFor;
+
 use frame_system::{limits, EnsureRoot, RawOrigin};
 // A few exports that help ease life for downstream crates.
+use frame_support::traits::{Contains, PrivilegeCmp};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{EnsureOrigin, Filter, KeyOwnerProofSystem, U128CurrencyToVote},
+	traits::{EnsureOrigin, KeyOwnerProofSystem, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
+use hydradx_traits::pools::SpotPriceProvider;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_runtime::curve::PiecewiseLinear;
@@ -68,19 +78,22 @@ pub use sp_runtime::BuildStorage;
 
 use pallet_session::historical as session_historical;
 
-use pallet_xyk_rpc_runtime_api as xyk_rpc;
-
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 
 pub use common_runtime::*;
 
 /// Import HydraDX pallets
-pub use pallet_asset_registry;
 pub use pallet_claims;
 pub use pallet_faucet;
 pub use pallet_genesis_history;
-use pallet_transaction_multi_payment::{weights::WeightInfo, MultiCurrencyAdapter};
+use pallet_transaction_multi_payment::MultiCurrencyAdapter;
+
+type EnsureSuperMajorityTechCommitteeOrRoot = frame_system::EnsureOneOf<
+	AccountId,
+	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+	frame_system::EnsureRoot<AccountId>,
+>;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -145,40 +158,9 @@ pub fn native_version() -> NativeVersion {
 
 pub struct BaseFilter;
 
-impl Filter<Call> for BaseFilter {
-	fn filter(call: &Call) -> bool {
-		match call {
-			Call::Authorship(_)
-			| Call::Babe(_)
-			| Call::Claims(_)
-			| Call::Council(_)
-			| Call::Democracy(_)
-			| Call::ElectionProviderMultiPhase(_)
-			| Call::Elections(_)
-			| Call::Grandpa(_)
-			| Call::ImOnline(_)
-			| Call::Scheduler(_)
-			| Call::Session(_)
-			| Call::Staking(_)
-			| Call::System(_)
-			| Call::TechnicalCommittee(_)
-			| Call::Timestamp(_)
-			| Call::Tips(_)
-			| Call::Treasury(_)
-			| Call::Identity(_)
-			| Call::Utility(_)
-			| Call::Vesting(_)
-			| Call::Sudo(_) => true,
-
-			Call::XYK(_)
-			| Call::AssetRegistry(_)
-			| Call::Balances(_)
-			| Call::Currencies(_)
-			| Call::Exchange(_)
-			| Call::Faucet(_)
-			| Call::MultiTransactionPayment(_)
-			| Call::Tokens(_) => false,
-		}
+impl Contains<Call> for BaseFilter {
+	fn contains(call: &Call) -> bool {
+		!matches!(call, Call::Balances(_) | Call::Currencies(_) | Call::Faucet(_))
 	}
 }
 
@@ -232,8 +214,7 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 
-	pub ExtrinsicPaymentExtraWeight: Weight =  <Runtime as pallet_transaction_multi_payment::Config>::WeightInfo::swap_currency();
-	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get() + ExtrinsicPaymentExtraWeight::get();
+	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -302,6 +283,7 @@ impl pallet_grandpa::Config for Runtime {
 		pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
 	type WeightInfo = ();
+	type MaxAuthorities = MaxAuthorities;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -329,18 +311,33 @@ impl pallet_balances::Config for Runtime {
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), MultiTransactionPayment>;
 	type TransactionByteFee = TransactionByteFee;
+	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate = TargetedFeeAdjustment<Self, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 }
 
+pub struct NoSpotPriceProvider;
+impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
+	type Price = Price;
+
+	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		false
+	}
+
+	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
+		None
+	}
+}
+
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
-	type Currency = Balances;
-	type MultiCurrency = Currencies;
-	type AMMPool = XYK;
-	type WeightInfo = pallet_transaction_multi_payment::weights::HydraWeight<Runtime>;
+	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
+	type Currencies = Currencies;
+	type SpotPriceProvider = NoSpotPriceProvider;
+	type WeightInfo = common_runtime::weights::payment::PalletWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
+	type NativeAssetId = HDXAssetId;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
@@ -374,6 +371,7 @@ impl pallet_identity::Config for Runtime {
 impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
+	type PalletsOrigin = OriginCaller;
 	type WeightInfo = ();
 }
 
@@ -388,6 +386,7 @@ impl orml_tokens::Config for Runtime {
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
 	type MaxLocks = MaxLocks;
+	type DustRemovalWhitelist = common_runtime::DustRemovalWhitelist;
 }
 
 impl orml_currencies::Config for Runtime {
@@ -398,20 +397,26 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct AssetPairAccountId<T: frame_system::Config>(PhantomData<T>);
+impl<T: frame_system::Config> AssetPairAccountIdFor<AssetId, T::AccountId> for AssetPairAccountId<T>
+where
+	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
+{
+	fn from_assets(asset_a: AssetId, asset_b: AssetId, identifier: &str) -> T::AccountId {
+		let mut buf: Vec<u8> = identifier.as_bytes().to_vec();
+
+		if asset_a < asset_b {
+			buf.extend_from_slice(&asset_a.to_le_bytes());
+			buf.extend_from_slice(&asset_b.to_le_bytes());
+		} else {
+			buf.extend_from_slice(&asset_b.to_le_bytes());
+			buf.extend_from_slice(&asset_a.to_le_bytes());
+		}
+		T::AccountId::unchecked_from(<T::Hashing as frame_support::sp_runtime::traits::Hash>::hash(&buf[..]))
+	}
+}
+
 /// HydraDX Pallets configurations
-
-impl pallet_asset_registry::Config for Runtime {
-	type AssetId = AssetId;
-}
-
-impl pallet_xyk::Config for Runtime {
-	type Event = Event;
-	type AssetPairAccountId = pallet_xyk::AssetPairAccountId<Self>;
-	type Currency = Currencies;
-	type NativeAssetId = HDXAssetId;
-	type WeightInfo = pallet_xyk::weights::HydraWeight<Runtime>;
-	type GetExchangeFee = ExchangeFee;
-}
 
 impl pallet_claims::Config for Runtime {
 	type Event = Event;
@@ -421,14 +426,6 @@ impl pallet_claims::Config for Runtime {
 	type CurrencyBalance = Balance;
 }
 
-impl pallet_exchange::Config for Runtime {
-	type Event = Event;
-	type AMMPool = XYK;
-	type Resolver = Exchange;
-	type Currency = Currencies;
-	type WeightInfo = pallet_exchange::weights::HydraWeight<Runtime>;
-}
-
 impl pallet_faucet::Config for Runtime {
 	type Event = Event;
 	type Currency = Currencies;
@@ -436,9 +433,12 @@ impl pallet_faucet::Config for Runtime {
 
 /// Staking pallets configurations
 pub mod impls;
+
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::TargetedFeeAdjustment;
+use primitives::Price;
+use sp_core::crypto::UncheckedFrom;
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
@@ -488,6 +488,9 @@ impl pallet_staking::Config for Runtime {
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type NextNewSession = Session;
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+	type OffendingValidatorsThreshold = ();
+	type SortedListProvider = pallet_staking::UseNominatorsMap<Self>;
+	type BenchmarkingConfig = common_runtime::StakingBenchmarkingConfig;
 	type WeightInfo = ();
 }
 
@@ -537,6 +540,7 @@ impl pallet_democracy::Config for Runtime {
 	type MaxVotes = MaxVotes;
 	type WeightInfo = ();
 	type MaxProposals = MaxProposals;
+	type VoteLockingPeriod = EnactmentPeriod;
 }
 
 parameter_types! {
@@ -545,14 +549,22 @@ parameter_types! {
 	pub const SignedDepositBase: Balance = DOLLARS;
 	pub const SignedDepositByte: Balance = CENTS;
 
-	// fallback: run election on-chain.
-	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-		pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
 	pub MinerMaxWeight: Weight = BlockWeights::get()
 		.get(DispatchClass::Normal)
 		.max_extrinsic.expect("Normal extrinsics have a weight limit configured; qed")
 		.saturating_sub(BlockExecutionWeight::get());
+
+	pub const VoterSnapshotPerBlock: u32 = 22_500;
 }
+
+sp_npos_elections::generate_solution_type!(
+	#[compact]
+	pub struct NposCompactSolution16::<
+		VoterIndex = u32,
+		TargetIndex = u16,
+		Accuracy = sp_runtime::PerU16,
+	>(16)
+);
 
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Event = Event;
@@ -560,14 +572,11 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type SignedPhase = SignedPhase;
 	type UnsignedPhase = UnsignedPhase;
 	type SolutionImprovementThreshold = MinSolutionScoreBump;
-	type MinerMaxIterations = MinerMaxIterations;
 	type MinerMaxWeight = MinerMaxWeight;
 	type MinerTxPriority = MultiPhaseUnsignedPriority;
 	type DataProvider = Staking;
-	type OnChainAccuracy = Perbill;
-	type CompactSolution = NposCompactSolution16;
-	type Fallback = Fallback;
-	type BenchmarkingConfig = ();
+	type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
+	type BenchmarkingConfig = common_runtime::ElectionBenchmarkingConfig;
 	type WeightInfo = ();
 	type MinerMaxLength = ();
 	type OffchainRepeat = ();
@@ -579,7 +588,15 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type SignedDepositByte = SignedDepositByte;
 	type SignedDepositWeight = ();
 	type SlashHandler = (); // burn slashes
-	type RewardHandler = (); // nothing to do
+	type RewardHandler = ();
+	type EstimateCallFee = TransactionPayment;
+	type VoterSnapshotPerBlock = VoterSnapshotPerBlock;
+	type Solution = NposCompactSolution16;
+	type Solver = frame_election_provider_support::SequentialPhragmen<
+		AccountId,
+		pallet_election_provider_multi_phase::SolutionAccuracyOf<Self>,
+		(),
+	>;
 }
 
 parameter_types! {
@@ -624,7 +641,6 @@ impl pallet_session::Config for Runtime {
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
 	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
-	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
 	type WeightInfo = ();
 }
 
@@ -682,6 +698,8 @@ impl pallet_babe::Config for Runtime {
 
 	type HandleEquivocation = pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 	type WeightInfo = ();
+	type DisabledValidators = Session;
+	type MaxAuthorities = MaxAuthorities;
 }
 
 // Council settings
@@ -712,7 +730,9 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_authority_discovery::Config for Runtime {}
+impl pallet_authority_discovery::Config for Runtime {
+	type MaxAuthorities = MaxAuthorities;
+}
 
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 
@@ -778,6 +798,9 @@ where
 
 impl pallet_im_online::Config for Runtime {
 	type AuthorityId = ImOnlineId;
+	type MaxKeys = MaxKeys;
+	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
+	type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
 	type Event = Event;
 	type ValidatorSet = Historical;
 	type NextSessionRotation = Babe;
@@ -800,7 +823,28 @@ parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
 }
+/// Used the compare the privilege of an origin inside the scheduler.
+pub struct OriginPrivilegeCmp;
 
+impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
+	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
+		if left == right {
+			return Some(Ordering::Equal);
+		}
+
+		match (left, right) {
+			// Root is greater than anything.
+			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
+			// Check which one has more yes votes.
+			(
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
+				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
+			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
+			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
+			_ => None,
+		}
+	}
+}
 impl pallet_scheduler::Config for Runtime {
 	type Event = Event;
 	type Origin = Origin;
@@ -808,6 +852,7 @@ impl pallet_scheduler::Config for Runtime {
 	type Call = Call;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = MoreThanHalfCouncil;
+	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = ();
 }
@@ -892,10 +937,7 @@ construct_runtime!(
 		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
 		// HydraDX related modules
-		AssetRegistry: pallet_asset_registry::{Pallet, Call, Storage, Config<T>},
-		XYK: pallet_xyk::{Pallet, Call, Storage, Event<T>},
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>},
-		Exchange: pallet_exchange::{Pallet, Call, Storage, Event<T>},
 		Faucet: pallet_faucet::{Pallet, Call, Storage, Config, Event<T>},
 		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Config<T>, Storage, Event<T>},
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config},
@@ -928,8 +970,13 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPallets>;
+pub type Executive = frame_executive::Executive<
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPalletsReversedWithSystemFirst,
+>;
 
 impl_runtime_apis! {
 	impl sp_consensus_babe::BabeApi<Block> for Runtime {
@@ -943,7 +990,7 @@ impl_runtime_apis! {
 				slot_duration: Babe::slot_duration(),
 				epoch_length: EpochDuration::get(),
 				c: PRIMARY_PROBABILITY,
-				genesis_authorities: Babe::authorities(),
+				genesis_authorities: Babe::authorities().to_vec(),
 				randomness: Babe::randomness(),
 				allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
 			}
@@ -1006,7 +1053,7 @@ impl_runtime_apis! {
 
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
-			Runtime::metadata().into()
+			OpaqueMetadata::new(Runtime::metadata().into())
 		}
 	}
 
@@ -1064,6 +1111,10 @@ impl_runtime_apis! {
 			Grandpa::grandpa_authorities()
 		}
 
+		 fn current_set_id() -> fg_primitives::SetId {
+			Grandpa::current_set_id()
+		}
+
 		fn submit_report_equivocation_unsigned_extrinsic(
 			equivocation_proof: fg_primitives::EquivocationProof<
 				<Block as BlockT>::Hash,
@@ -1110,47 +1161,35 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl xyk_rpc::XYKApi<
-		Block,
-		AccountId,
-		AssetId,
-		Balance,
-	> for Runtime {
-		fn get_pool_balances(
-			pool_address: AccountId,
-		) -> Vec<xyk_rpc::BalanceInfo<AssetId, Balance>> {
-			let mut vec = Vec::new();
-
-			let pool_balances = XYK::get_pool_balances(pool_address).unwrap();
-
-			for b in pool_balances {
-				let item  = xyk_rpc::BalanceInfo{
-				 asset: Some(b.0),
-					amount: b.1
-				};
-
-				vec.push(item);
-			}
-
-			vec
-		}
-
-	}
-
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
+		fn benchmark_metadata(extra: bool) -> (
+			Vec<frame_benchmarking::BenchmarkList>,
+			Vec<frame_support::traits::StorageInfo>,
+		) {
+			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
+			use frame_support::traits::StorageInfoTrait;
+
+			use frame_system_benchmarking::Pallet as SystemBench;
+
+			let mut list = Vec::<BenchmarkList>::new();
+
+			list_benchmark!(list, extra, pallet_claims, Claims);
+			list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
+
+			let storage_info = AllPalletsWithSystem::storage_info();
+
+			(list, storage_info)
+		}
+
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
-			use pallet_exchange_benchmarking::Pallet as ExchangeBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
-			use pallet_multi_payment_benchmarking::Pallet as MultiBench;
 
 			impl frame_system_benchmarking::Config for Runtime {}
-			impl pallet_exchange_benchmarking::Config for Runtime {}
-			impl pallet_multi_payment_benchmarking::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1168,15 +1207,8 @@ impl_runtime_apis! {
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
 
-			add_benchmark!(params, batches, xyk, XYK);
 			add_benchmark!(params, batches, claims, Claims);
-			add_benchmark!(params, batches, transaction_multi_payment, MultiBench::<Runtime>);
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, exchange, ExchangeBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_balances, Balances);
-			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, pallet_collective, Council);
-			add_benchmark!(params, batches, pallet_identity, Identity);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

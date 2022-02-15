@@ -6,42 +6,50 @@ pub use crate::client::{AbstractClient, Client, ClientHandle, ExecuteWithClient,
 use crate::rpc as node_rpc;
 use common_runtime::Block;
 use futures::prelude::*;
-use sc_client_api::{ExecutorProvider, RemoteBackend};
+use sc_client_api::ExecutorProvider;
 use sc_client_db::PruningMode;
 use sc_consensus_babe::SlotProportion;
-pub use sc_executor::NativeExecutor;
-use sc_executor::{native_executor_instance, NativeExecutionDispatch};
+use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion};
 use sc_finality_grandpa as grandpa;
 use sc_network::{Event, NetworkService};
-use sc_service::{config::Configuration, error::Error as ServiceError, ChainSpec, RpcHandlers, TaskManager};
-use sc_telemetry::{Telemetry, TelemetryWorker};
+use sc_service::{config::Configuration, error::Error as ServiceError, ChainSpec, TaskManager};
+use sc_telemetry::{Telemetry, TelemetryWorker, TelemetryWorkerHandle};
 pub use sp_api::{ConstructRuntimeApi, ProvideRuntimeApi, StateBackend};
 use sp_runtime::traits::{BlakeTwo256, Block as BlockT};
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
-// Our native executor instance.
-native_executor_instance!(
-	pub HydraExecutor,
-	hydra_dx_runtime::api::dispatch,
-	hydra_dx_runtime::native_version,
-	frame_benchmarking::benchmarking::HostFunctions,
-);
+pub struct HydraExecutorDispatch;
+impl sc_executor::NativeExecutionDispatch for HydraExecutorDispatch {
+	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
-native_executor_instance!(
-	pub TestingHydraExecutor,
-	testing_hydra_dx_runtime::api::dispatch,
-	testing_hydra_dx_runtime::native_version,
-	frame_benchmarking::benchmarking::HostFunctions,
-);
+	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+		hydra_dx_runtime::api::dispatch(method, data)
+	}
+
+	fn native_version() -> NativeVersion {
+		hydra_dx_runtime::native_version()
+	}
+}
+
+// native testing executor instance.
+pub struct TestingHydraExecutorDispatch;
+impl sc_executor::NativeExecutionDispatch for TestingHydraExecutorDispatch {
+	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+		testing_hydra_dx_runtime::api::dispatch(method, data)
+	}
+
+	fn native_version() -> NativeVersion {
+		testing_hydra_dx_runtime::native_version()
+	}
+}
 
 pub type FullBackend = sc_service::TFullBackend<Block>;
-pub type LightBackend = sc_service::TLightBackendWithHash<Block, sp_runtime::traits::BlakeTwo256>;
 
-pub type FullClient<RuntimeApi, Executor> = sc_service::TFullClient<Block, RuntimeApi, Executor>;
-pub type LightClient<RuntimeApi, Executor> =
-	sc_service::TLightClientWithBackend<Block, RuntimeApi, Executor, LightBackend>;
-
+pub type FullClient<RuntimeApi, Executor> =
+	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>;
 pub type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 pub type FullGrandpaBlockImport<RuntimeApi, Executor> =
 	grandpa::GrandpaBlockImport<FullBackend, Block, FullClient<RuntimeApi, Executor>, FullSelectChain>;
@@ -64,16 +72,16 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 	}
 }
 
-pub fn new_chain_ops(
+pub fn new_partial(
 	mut config: &mut Configuration,
 ) -> Result<
 	(
 		Arc<Client>,
 		Arc<FullBackend>,
-		sp_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
+		sc_consensus::import_queue::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
 		TaskManager,
 	),
-	ServiceError,
+	sc_service::Error,
 > {
 	config.keystore = sc_service::config::KeystoreConfig::InMemory;
 	if config.chain_spec.is_testing_runtime() {
@@ -83,7 +91,7 @@ pub fn new_chain_ops(
 			import_queue,
 			task_manager,
 			..
-		} = new_partial::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)?;
+		} = new_partial_impl::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutorDispatch>(config)?;
 		Ok((
 			Arc::new(Client::TestingHydraDX(client)),
 			backend,
@@ -97,22 +105,22 @@ pub fn new_chain_ops(
 			import_queue,
 			task_manager,
 			..
-		} = new_partial::<hydra_dx_runtime::RuntimeApi, HydraExecutor>(config)?;
+		} = new_partial_impl::<hydra_dx_runtime::RuntimeApi, HydraExecutorDispatch>(config)?;
 		Ok((Arc::new(Client::HydraDX(client)), backend, import_queue, task_manager))
 	}
 }
 
-pub fn new_partial<RuntimeApi, Executor>(
+pub fn new_partial_impl<RuntimeApi, Executor>(
 	config: &Configuration,
 ) -> Result<
 	sc_service::PartialComponents<
 		FullClient<RuntimeApi, Executor>,
 		FullBackend,
 		FullSelectChain,
-		sp_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
+		sc_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
 		sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi, Executor>>,
 		(
-			impl Fn(node_rpc::DenyUnsafe, sc_rpc::SubscriptionTaskExecutor) -> node_rpc::IoHandler,
+			impl sc_service::RpcExtensionBuilder,
 			(
 				sc_consensus_babe::BabeBlockImport<
 					Block,
@@ -124,6 +132,7 @@ pub fn new_partial<RuntimeApi, Executor>(
 			),
 			grandpa::SharedVoterState,
 			Option<Telemetry>,
+			Option<TelemetryWorkerHandle>,
 		),
 	>,
 	ServiceError,
@@ -144,14 +153,24 @@ where
 		})
 		.transpose()?;
 
-	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
-		&config,
-		telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
-	)?;
+	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
+
+	let executor = NativeElseWasmExecutor::<Executor>::new(
+		config.wasm_method,
+		config.default_heap_pages,
+		config.max_runtime_instances,
+	);
+
+	let (client, backend, keystore_container, task_manager) =
+		sc_service::new_full_parts::<Block, RuntimeApi, NativeElseWasmExecutor<Executor>>(
+			&config,
+			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
+			executor,
+		)?;
 	let client = Arc::new(client);
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", worker.run());
+		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -252,7 +271,7 @@ where
 			};
 
 			let io = node_rpc::create_full(deps);
-			io
+			io.map_err(Into::into)
 		};
 
 		(rpc_extensions_builder, rpc_setup)
@@ -266,7 +285,13 @@ where
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry),
+		other: (
+			rpc_extensions_builder,
+			import_setup,
+			rpc_setup,
+			telemetry,
+			telemetry_worker_handle,
+		),
 	})
 }
 
@@ -289,7 +314,7 @@ impl<C> NewFull<C> {
 
 pub fn build_full(config: Configuration, run_testing_runtime: bool) -> Result<NewFull<Client>, ServiceError> {
 	if run_testing_runtime {
-		new_full::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)
+		new_full::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutorDispatch>(config)
 			.map(|full| full.with_client(Client::TestingHydraDX))
 	} else {
 		new_full(config).map(|full| full.with_client(Client::HydraDX))
@@ -313,8 +338,8 @@ where
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, mut telemetry),
-	} = new_partial::<RuntimeApi, Executor>(&config)?;
+		other: (rpc_extensions_builder, import_setup, rpc_setup, mut telemetry, _),
+	} = new_partial_impl::<RuntimeApi, Executor>(&config)?;
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
@@ -338,8 +363,8 @@ where
 		transaction_pool: transaction_pool.clone(),
 		spawn_handle: task_manager.spawn_handle(),
 		import_queue,
-		on_demand: None,
 		block_announce_validator_builder: None,
+		warp_sync: None,
 	})?;
 
 	if config.offchain_worker.enabled {
@@ -362,8 +387,6 @@ where
 		rpc_extensions_builder: Box::new(rpc_extensions_builder),
 		transaction_pool: transaction_pool.clone(),
 		task_manager: &mut task_manager,
-		on_demand: None,
-		remote_blockchain: None,
 		system_rpc_tx,
 		telemetry: telemetry.as_mut(),
 	})?;
@@ -418,7 +441,7 @@ where
 		let babe = sc_consensus_babe::start_babe(babe_config)?;
 		task_manager
 			.spawn_essential_handle()
-			.spawn_blocking("babe-proposer", babe);
+			.spawn_blocking("babe-proposer", None, babe);
 	}
 
 	// Spawn authority discovery module.
@@ -444,7 +467,7 @@ where
 
 		task_manager
 			.spawn_handle()
-			.spawn("authority-discovery-worker", authority_discovery_worker.run());
+			.spawn("authority-discovery-worker", None, authority_discovery_worker.run());
 	}
 
 	// if the node isn't actively participating in consensus then it doesn't
@@ -485,9 +508,11 @@ where
 
 		// the GRANDPA voter task is considered infallible, i.e.
 		// if it fails we take down the service with it.
-		task_manager
-			.spawn_essential_handle()
-			.spawn_blocking("grandpa-voter", grandpa::run_grandpa_voter(grandpa_config)?);
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"grandpa-voter",
+			None,
+			grandpa::run_grandpa_voter(grandpa_config)?,
+		);
 	}
 
 	network_starter.start_network();
@@ -496,180 +521,4 @@ where
 		client,
 		network,
 	})
-}
-
-pub fn build_light(config: Configuration, is_testing_runtime: bool) -> Result<TaskManager, ServiceError> {
-	if is_testing_runtime {
-		new_light::<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>(config)
-			.map(|(task_manager, _, _, _, _)| task_manager)
-	} else {
-		new_light::<hydra_dx_runtime::RuntimeApi, HydraExecutor>(config).map(|(task_manager, _, _, _, _)| task_manager)
-	}
-}
-
-/// Builds a new service for a light client.
-pub fn new_light<RuntimeApi, Executor>(
-	mut config: Configuration,
-) -> Result<
-	(
-		TaskManager,
-		RpcHandlers,
-		Arc<LightClient<RuntimeApi, Executor>>,
-		Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-		Arc<
-			sc_transaction_pool::LightPool<
-				Block,
-				LightClient<RuntimeApi, Executor>,
-				sc_network::config::OnDemand<Block>,
-			>,
-		>,
-	),
-	ServiceError,
->
-where
-	RuntimeApi: 'static + Send + Sync + ConstructRuntimeApi<Block, LightClient<RuntimeApi, Executor>>,
-	<RuntimeApi as ConstructRuntimeApi<Block, LightClient<RuntimeApi, Executor>>>::RuntimeApi:
-		RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<LightBackend, Block>>,
-	Executor: NativeExecutionDispatch + 'static,
-{
-	let telemetry = config
-		.telemetry_endpoints
-		.clone()
-		.filter(|x| !x.is_empty())
-		.map(|endpoints| -> Result<_, sc_telemetry::Error> {
-			#[cfg(feature = "browser")]
-			let transport = Some(sc_telemetry::ExtTransport::new(
-				libp2p_wasm_ext::ffi::websocket_transport(),
-			));
-			#[cfg(not(feature = "browser"))]
-			let transport = None;
-
-			let worker = TelemetryWorker::with_transport(16, transport)?;
-			let telemetry = worker.handle().new_telemetry(endpoints);
-			Ok((worker, telemetry))
-		})
-		.transpose()?;
-
-	let (client, backend, keystore_container, mut task_manager, on_demand) =
-		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(
-			&config,
-			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
-		)?;
-
-	let mut telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", worker.run());
-		telemetry
-	});
-
-	config.network.extra_sets.push(grandpa::grandpa_peers_set_config());
-
-	let select_chain = sc_consensus::LongestChain::new(backend.clone());
-
-	let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_light(
-		config.transaction_pool.clone(),
-		config.prometheus_registry(),
-		task_manager.spawn_essential_handle(),
-		client.clone(),
-		on_demand.clone(),
-	));
-
-	let (grandpa_block_import, grandpa_link) = grandpa::block_import(
-		client.clone(),
-		&(client.clone() as Arc<_>),
-		select_chain.clone(),
-		telemetry.as_ref().map(|x| x.handle()),
-	)?;
-	let justification_import = grandpa_block_import.clone();
-
-	let (babe_block_import, babe_link) = sc_consensus_babe::block_import(
-		sc_consensus_babe::Config::get_or_compute(&*client)?,
-		grandpa_block_import,
-		client.clone(),
-	)?;
-
-	let slot_duration = babe_link.config().slot_duration();
-	let import_queue = sc_consensus_babe::import_queue(
-		babe_link,
-		babe_block_import,
-		Some(Box::new(justification_import)),
-		client.clone(),
-		select_chain.clone(),
-		move |_, ()| async move {
-			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-
-			let slot = sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
-				*timestamp,
-				slot_duration,
-			);
-
-			let uncles = sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
-
-			Ok((timestamp, slot, uncles))
-		},
-		&task_manager.spawn_essential_handle(),
-		config.prometheus_registry(),
-		sp_consensus::NeverCanAuthor,
-		telemetry.as_ref().map(|x| x.handle()),
-	)?;
-
-	let (network, system_rpc_tx, network_starter) = sc_service::build_network(sc_service::BuildNetworkParams {
-		config: &config,
-		client: client.clone(),
-		transaction_pool: transaction_pool.clone(),
-		spawn_handle: task_manager.spawn_handle(),
-		import_queue,
-		on_demand: Some(on_demand.clone()),
-		block_announce_validator_builder: None,
-	})?;
-
-	let enable_grandpa = !config.disable_grandpa;
-	if enable_grandpa {
-		let name = config.network.node_name.clone();
-
-		let config = grandpa::Config {
-			gossip_duration: std::time::Duration::from_millis(333),
-			justification_period: 512,
-			name: Some(name),
-			observer_enabled: false,
-			keystore: None,
-			local_role: config.role.clone(),
-			telemetry: telemetry.as_ref().map(|x| x.handle()),
-		};
-
-		task_manager.spawn_handle().spawn_blocking(
-			"grandpa-observer",
-			grandpa::run_grandpa_observer(config, grandpa_link, network.clone())?,
-		);
-	}
-
-	if config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(&config, task_manager.spawn_handle(), client.clone(), network.clone());
-	}
-
-	let light_deps = node_rpc::LightDeps {
-		remote_blockchain: backend.remote_blockchain(),
-		fetcher: on_demand.clone(),
-		client: client.clone(),
-		pool: transaction_pool.clone(),
-	};
-
-	let rpc_extensions = node_rpc::create_light(light_deps);
-
-	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-		on_demand: Some(on_demand),
-		remote_blockchain: Some(backend.remote_blockchain()),
-		rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
-		client: client.clone(),
-		transaction_pool: transaction_pool.clone(),
-		keystore: keystore_container.sync_keystore(),
-		config,
-		backend,
-		system_rpc_tx,
-		network: network.clone(),
-		task_manager: &mut task_manager,
-		telemetry: telemetry.as_mut(),
-	})?;
-
-	network_starter.start_network();
-	Ok((task_manager, rpc_handlers, client, network, transaction_pool))
 }

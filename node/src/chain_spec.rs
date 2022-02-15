@@ -2,7 +2,7 @@
 
 pub use common_runtime::{AccountId, Balance, Perbill, Signature, CORE_ASSET_ID, HDX};
 pub use hydra_dx_runtime::{
-	opaque::SessionKeys, pallet_claims::EthereumAddress, AssetRegistryConfig, AuthorityDiscoveryConfig, BabeConfig,
+	opaque::SessionKeys, pallet_claims::EthereumAddress, AuthorityDiscoveryConfig, BabeConfig,
 	BalancesConfig, ClaimsConfig, CouncilConfig, ElectionsConfig, FaucetConfig, GenesisConfig, GenesisHistoryConfig,
 	GrandpaConfig, ImOnlineConfig, MultiTransactionPaymentConfig, SessionConfig, StakerStatus, StakingConfig,
 	SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, WASM_BINARY,
@@ -303,7 +303,6 @@ fn testnet_genesis(
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
 		},
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of 1_000_000.
@@ -318,26 +317,10 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			key: root_key.clone(),
 		},
-		asset_registry: AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![
-				(b"tKSM".to_vec(), 1),
-				(b"tDOT".to_vec(), 2),
-				(b"tETH".to_vec(), 3),
-				(b"tACA".to_vec(), 4),
-				(b"tEDG".to_vec(), 5),
-				(b"tUSD".to_vec(), 6),
-				(b"tPLM".to_vec(), 7),
-				(b"tFIS".to_vec(), 8),
-				(b"tPHA".to_vec(), 9),
-				(b"tUSDT".to_vec(), 10),
-			],
-			next_asset_id: 11,
-		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
-			authorities: vec![],
 			fallback_account: root_key,
+			account_currencies: vec![],
 		},
 		tokens: TokensConfig {
 			balances: endowed_accounts
@@ -436,7 +419,6 @@ fn lerna_genesis(
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
 		},
 		balances: BalancesConfig {
 			// Intergalactic initial supply
@@ -478,15 +460,10 @@ fn lerna_genesis(
 			// Assign network admin rights.
 			key: root_key,
 		},
-		asset_registry: AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![],
-			next_asset_id: 1,
-		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
-			authorities: vec![],
 			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+			account_currencies: vec![],
 		},
 		tokens: TokensConfig { balances: vec![] },
 		faucet: FaucetConfig {

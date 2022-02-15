@@ -18,6 +18,7 @@
 use super::*;
 pub use crate as pallet_genesis_history;
 use frame_support::parameter_types;
+use frame_support::traits::Everything;
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -45,7 +46,7 @@ parameter_types! {
 }
 
 impl system::Config for Test {
-	type BaseCallFilter = ();
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
@@ -72,6 +73,7 @@ impl system::Config for Test {
 
 impl pallet_genesis_history::Config for Test {}
 
+#[derive(Default)]
 pub struct ExtBuilder {
 	pub chain: Chain,
 }
@@ -86,13 +88,5 @@ impl ExtBuilder {
 		};
 		build.assimilate_storage::<Test>(&mut t).unwrap();
 		t.into()
-	}
-}
-
-impl Default for ExtBuilder {
-	fn default() -> Self {
-		Self {
-			chain: Default::default(),
-		}
 	}
 }

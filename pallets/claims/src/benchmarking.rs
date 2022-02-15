@@ -59,7 +59,7 @@ mod tests {
 	#[test]
 	fn test_benchmarks() {
 		new_test_ext().execute_with(|| {
-			assert_ok!(test_benchmark_claim::<Test>());
+			assert_ok!(Pallet::<Test>::test_benchmark_claim());
 		});
 	}
 }
