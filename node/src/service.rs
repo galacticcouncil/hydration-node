@@ -6,7 +6,7 @@ pub use crate::client::{AbstractClient, Client, ClientHandle, ExecuteWithClient,
 use crate::rpc as node_rpc;
 use common_runtime::Block;
 use futures::prelude::*;
-use sc_client_api::ExecutorProvider;
+use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_client_db::PruningMode;
 use sc_consensus_babe::SlotProportion;
 use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion};
@@ -345,6 +345,11 @@ where
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 
+	let grandpa_protocol_name = grandpa::protocol_standard_name(
+		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
+		&config.chain_spec,
+	);
+
 	config
 		.network
 		.extra_sets
@@ -491,7 +496,7 @@ where
 		keystore,
 		local_role: role,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		protocol_name: Default::default(),
+		protocol_name: grandpa_protocol_name,
 	};
 
 	if enable_grandpa {
