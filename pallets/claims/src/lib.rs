@@ -29,6 +29,7 @@ use frame_support::{
 	traits::{Currency, Get, Imbalance, IsSubType},
 	weights::{DispatchClass, Pays},
 };
+use frame_support::transactional;
 use frame_system::ensure_signed;
 use primitives::Balance;
 use scale_info::TypeInfo;
@@ -128,6 +129,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Claim xHDX by providing signed message with Ethereum address.
 		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
+		#[transactional]
 		pub fn claim(origin: OriginFor<T>, ethereum_signature: EcdsaSignature) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
