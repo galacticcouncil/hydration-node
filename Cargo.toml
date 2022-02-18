@@ -14,6 +14,6 @@ members = [
 
 
 [patch."https://github.com/galacticcouncil/warehouse"]
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil//warehouse", rev = "aef26bc6baf9020910b86f63019ae966a4ebcdb2"}
-pallet-faucet= { git = "https://github.com/galacticcouncil//warehouse", rev = "aef26bc6baf9020910b86f63019ae966a4ebcdb2"}
-hydradx-traits = { git = "https://github.com/galacticcouncil//warehouse", rev = "aef26bc6baf9020910b86f63019ae966a4ebcdb2"}
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil//warehouse", rev = "16b149f13fc5361a693bccf45883aabeb008f0cf"}
+pallet-faucet= { git = "https://github.com/galacticcouncil//warehouse", rev = "16b149f13fc5361a693bccf45883aabeb008f0cf"}
+hydradx-traits = { git = "https://github.com/galacticcouncil//warehouse", rev = "16b149f13fc5361a693bccf45883aabeb008f0cf"}

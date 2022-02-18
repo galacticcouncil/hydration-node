@@ -15,11 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::*;
+use frame_support::traits::GetStorageVersion;
 use hex::FromHex;
 use primitives::Balance;
-use frame_support::traits::GetStorageVersion;
 
 #[allow(dead_code)]
 pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {

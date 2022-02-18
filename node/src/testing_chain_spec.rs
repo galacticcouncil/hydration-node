@@ -22,9 +22,9 @@ pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary =
 		testing_runtime::WASM_BINARY.ok_or_else(|| "Testing and development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 12u8.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("ss58Format".into(), 63u8.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Config names for the testing runtime have to start with `Testing` string literal
@@ -60,6 +60,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -72,9 +74,9 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 12u8.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("ss58Format".into(), 63u8.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Config names for the testing runtime have to start with `Testing` string literal
@@ -117,6 +119,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -154,11 +158,11 @@ fn testnet_genesis(
 		grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
 		sudo: testing_runtime::SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: Some(root_key),
 		},
 		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
 			currencies: vec![],
-			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+			fallback_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
 			account_currencies: vec![],
 		},
 		tokens: testing_runtime::TokensConfig {

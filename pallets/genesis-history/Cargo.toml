@@ -1,6 +1,6 @@
 [package]
 name = "pallet-genesis-history"
-version = "1.1.0"
+version = "1.2.0"
 description = "Keeping track of the past chain generations."
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
@@ -17,12 +17,12 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
 derive_more = "0.99.11"
 
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
 [dev-dependencies]
 hex-literal = '0.3.1'

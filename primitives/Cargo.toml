@@ -2,7 +2,7 @@
 authors = ['GalacticCouncil']
 edition = '2021'
 name = 'primitives'
-version = '4.3.0'
+version = '4.4.0'
 
 [build-dependencies]
 substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
@@ -14,14 +14,14 @@ primitive-types = { default-features = false, version = "0.10.1" }
 serde = { features = ["derive"], optional = true, version = "1.0.101" }
 
 # Substrate dependencies
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.15", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
 [features]
 default = ['std']

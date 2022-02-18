@@ -24,6 +24,10 @@ pub mod currency {
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 
 	pub const FORTUNE: Balance = u128::MAX;
+
+	pub fn deposit(items: u32, bytes: u32) -> Balance {
+		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
+	}
 }
 
 pub mod time {
@@ -87,7 +91,7 @@ pub mod chain {
 	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
 
 	pub const RUNTIME_AUTHORING_VERSION: u32 = 1;
-	pub const RUNTIME_SPEC_VERSION: u32 = 27;
+	pub const RUNTIME_SPEC_VERSION: u32 = 28;
 	pub const RUNTIME_IMPL_VERSION: u32 = 0;
 	pub const RUNTIME_TRANSACTION_VERSION: u32 = 1;
 
