@@ -353,7 +353,7 @@ where
 	config
 		.network
 		.extra_sets
-		.push(sc_finality_grandpa::grandpa_peers_set_config(Default::default()));
+		.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
 
 	#[cfg(feature = "cli")]
 	config
