@@ -1,3 +1,40 @@
+# v11.2.0 (Wed Feb 23 2022)
+
+#### 🐛 Bug Fix
+
+- fix: update AMI image with new key [#356](https://github.com/galacticcouncil/HydraDX-node/pull/356) ([@fakirAyoub](https://github.com/fakirAyoub))
+- feat: add db benchmark to check perf script [#347](https://github.com/galacticcouncil/HydraDX-node/pull/347) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- feat: vesting [#291](https://github.com/galacticcouncil/HydraDX-node/pull/291) ([@green-jay](https://github.com/green-jay) [@lumir-mrkva](https://github.com/lumir-mrkva) [@Roznovjak](https://github.com/Roznovjak))
+- feat: update vesting [#336](https://github.com/galacticcouncil/HydraDX-node/pull/336) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### ⚠️ Pushed to `master`
+
+- ci: fixed dockerhub login ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- ci: used merge token ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- passing github token ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- ci: fixed merge branch version ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- push docker release into dockerhub & ghcr ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- stable triggers docker release ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- docker build only on docker release ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- removed arm64 from docker build ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Other improvements
+
+- chore: upgrade snakenet to v0.9.16 [#363](https://github.com/galacticcouncil/HydraDX-node/pull/363) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- chore: upgrade snakenet to polkadot v0.9.15 [#358](https://github.com/galacticcouncil/HydraDX-node/pull/358) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva) [@Roznovjak](https://github.com/Roznovjak))
+- chore: update weights and reference weights [#342](https://github.com/galacticcouncil/HydraDX-node/pull/342) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- ci: add Makefile [#337](https://github.com/galacticcouncil/HydraDX-node/pull/337) ([@Roznovjak](https://github.com/Roznovjak))
+
+#### Authors: 5
+
+- [@green-jay](https://github.com/green-jay)
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- Ayoub Fakir ([@fakirAyoub](https://github.com/fakirAyoub))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
 # v11.1.1 (Tue Sep 28 2021)
 
 #### 🐛 Bug Fix
