@@ -2,8 +2,8 @@
 
 #![allow(clippy::upper_case_acronyms)]
 
-pub use crate::service::{FullBackend, FullClient, HydraExecutor, LightBackend, LightClient, TestingHydraExecutor};
-use common_runtime::{AccountId, AssetId, Balance, Block, BlockNumber, Hash, Header, Index};
+pub use crate::service::{FullBackend, FullClient, HydraExecutorDispatch, TestingHydraExecutorDispatch};
+use common_runtime::{AccountId, Balance, Block, BlockNumber, Hash, Header, Index};
 use sc_client_api::{Backend as BackendT, BlockchainEvents, KeyIterator};
 use sp_api::{CallApiAt, NumberFor, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
@@ -13,7 +13,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, Block as BlockT},
 	Justifications,
 };
-use sp_storage::{ChildInfo, PrefixedStorageKey, StorageData, StorageKey};
+use sp_storage::{ChildInfo, StorageData, StorageKey};
 use std::sync::Arc;
 
 /// A set of APIs that HydraDX-like runtimes must implement.
@@ -29,7 +29,6 @@ pub trait RuntimeApiCollection:
 	+ sp_offchain::OffchainWorkerApi<Block>
 	+ sp_session::SessionKeys<Block>
 	+ sp_authority_discovery::AuthorityDiscoveryApi<Block>
-	+ pallet_xyk_rpc_runtime_api::XYKApi<Block, AccountId, AssetId, Balance>
 where
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
@@ -47,8 +46,7 @@ where
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_authority_discovery::AuthorityDiscoveryApi<Block>
-		+ pallet_xyk_rpc_runtime_api::XYKApi<Block, AccountId, AssetId, Balance>,
+		+ sp_authority_discovery::AuthorityDiscoveryApi<Block>,
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
 }
@@ -131,8 +129,8 @@ pub trait ClientHandle {
 /// See [`ExecuteWithClient`] for more information.
 #[derive(Clone)]
 pub enum Client {
-	HydraDX(Arc<FullClient<hydra_dx_runtime::RuntimeApi, HydraExecutor>>),
-	TestingHydraDX(Arc<FullClient<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutor>>),
+	HydraDX(Arc<FullClient<hydra_dx_runtime::RuntimeApi, HydraExecutorDispatch>>),
+	TestingHydraDX(Arc<FullClient<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutorDispatch>>),
 }
 
 impl ClientHandle for Client {
@@ -277,6 +275,19 @@ impl sc_client_api::StorageProvider<Block, FullBackend> for Client {
 		}
 	}
 
+	fn child_storage_keys_iter<'a>(
+		&self,
+		id: &BlockId<Block>,
+		child_info: ChildInfo,
+		prefix: Option<&'a StorageKey>,
+		start_key: Option<&StorageKey>,
+	) -> sp_blockchain::Result<KeyIterator<'a, <FullBackend as sc_client_api::Backend<Block>>::State, Block>> {
+		match self {
+			Self::HydraDX(client) => client.child_storage_keys_iter(id, child_info, prefix, start_key),
+			Self::TestingHydraDX(client) => client.child_storage_keys_iter(id, child_info, prefix, start_key),
+		}
+	}
+
 	fn child_storage_hash(
 		&self,
 		id: &BlockId<Block>,
@@ -286,30 +297,6 @@ impl sc_client_api::StorageProvider<Block, FullBackend> for Client {
 		match self {
 			Self::HydraDX(client) => client.child_storage_hash(id, child_info, key),
 			Self::TestingHydraDX(client) => client.child_storage_hash(id, child_info, key),
-		}
-	}
-
-	fn max_key_changes_range(
-		&self,
-		first: NumberFor<Block>,
-		last: BlockId<Block>,
-	) -> sp_blockchain::Result<Option<(NumberFor<Block>, BlockId<Block>)>> {
-		match self {
-			Self::HydraDX(client) => client.max_key_changes_range(first, last),
-			Self::TestingHydraDX(client) => client.max_key_changes_range(first, last),
-		}
-	}
-
-	fn key_changes(
-		&self,
-		first: NumberFor<Block>,
-		last: BlockId<Block>,
-		storage_key: Option<&PrefixedStorageKey>,
-		key: &StorageKey,
-	) -> sp_blockchain::Result<Vec<(NumberFor<Block>, u32)>> {
-		match self {
-			Self::HydraDX(client) => client.key_changes(first, last, storage_key, key),
-			Self::TestingHydraDX(client) => client.key_changes(first, last, storage_key, key),
 		}
 	}
 }

@@ -26,17 +26,19 @@ use sp_core::bytes;
 use sp_core::RuntimeDebug;
 use sp_std::vec::Vec;
 
+use scale_info::TypeInfo;
+
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
 
-#[derive(PartialEq, Eq, Clone, PartialOrd, Ord, Default, Encode, Decode, RuntimeDebug, derive_more::From)]
+#[derive(PartialEq, Eq, Clone, PartialOrd, Ord, Default, Encode, Decode, RuntimeDebug, derive_more::From, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash))]
 pub struct BlockHash(#[cfg_attr(feature = "std", serde(with = "bytes"))] pub Vec<u8>);
 
-#[derive(Debug, Encode, Decode, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Encode, Decode, Clone, Default, PartialEq, Eq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Chain {
 	pub genesis_hash: BlockHash,
@@ -56,6 +58,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {}
 
 	#[pallet::pallet]
+	#[pallet::without_storage_info]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 

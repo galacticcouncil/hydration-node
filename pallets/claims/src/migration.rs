@@ -16,13 +16,15 @@
 // limitations under the License.
 
 use super::*;
-use frame_support::traits::GetPalletVersion;
+use frame_support::traits::GetStorageVersion;
 use hex::FromHex;
 use primitives::Balance;
 
+#[allow(dead_code)]
 pub fn import_initial_claims<T: Config>(claims_data: &[(&'static str, Balance)]) -> frame_support::weights::Weight {
-	let version = <Pallet<T> as GetPalletVersion>::storage_version();
-	if version == None {
+	let version = <Pallet<T> as GetStorageVersion>::current_storage_version();
+
+	if version == 0 {
 		for (addr, amount) in claims_data.iter() {
 			let balance: BalanceOf<T> = T::CurrencyBalance::from(*amount).into();
 

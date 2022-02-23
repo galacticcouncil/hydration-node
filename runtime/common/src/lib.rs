@@ -17,15 +17,20 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use sp_std::prelude::*;
+
 pub use frame_support::{
 	parameter_types,
 	traits::LockIdentifier,
 	weights::{DispatchClass, Pays},
 };
-use frame_system::{limits, EnsureOneOf, EnsureRoot};
+use frame_system::{limits, EnsureRoot};
 pub mod constants;
+pub mod weights;
+
 use codec::alloc::vec;
 pub use constants::{chain::*, currency::*, time::*};
+use frame_support::traits::{ConstU32, Contains, EnsureOneOf};
 pub use frame_support::PalletId;
 use pallet_transaction_payment::Multiplier;
 pub use primitives::{fee, Amount, AssetId, Balance};
@@ -35,7 +40,7 @@ use sp_core::{
 };
 use sp_runtime::{
 	generic,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
 pub use sp_runtime::{
@@ -62,9 +67,6 @@ pub type Index = u32;
 /// A hash of some data used by the chain.
 pub type Hash = H256;
 
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
-
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -81,44 +83,37 @@ pub type CouncilCollective = pallet_collective::Instance1;
 pub type TechnicalCollective = pallet_collective::Instance2;
 
 pub type MoreThanHalfCouncil = EnsureOneOf<
-	AccountId,
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
 >;
 
 pub type TreasuryApproveOrigin = EnsureOneOf<
-	AccountId,
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
 >;
 
 pub type MajorityOfCouncil = EnsureOneOf<
-	AccountId,
 	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
 	EnsureRoot<AccountId>,
 >;
 
 pub type AllCouncilMembers = EnsureOneOf<
-	AccountId,
 	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
 
 pub type MoreThanHalfTechCommittee = EnsureOneOf<
-	AccountId,
 	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, TechnicalCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
 
 pub type AllTechnicalCommitteeMembers = EnsureOneOf<
-	AccountId,
 	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
 
 // During the testnet slashes can be canceled by majority of council or technical committee
-pub type SlashCancelOrigin =
-	EnsureOneOf<AccountId, MoreThanHalfTechCommittee, MoreThanHalfCouncil>;
+pub type SlashCancelOrigin = EnsureOneOf<MoreThanHalfTechCommittee, MoreThanHalfCouncil>;
 
 // frame system
 parameter_types! {
@@ -195,7 +190,7 @@ sp_npos_elections::generate_solution_type!(
 	>(16)
 );
 
-pub const MAX_NOMINATIONS: u32 = <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
+pub const MAX_NOMINATIONS: u32 = 16;
 
 // pallet staking
 parameter_types! {
@@ -231,6 +226,7 @@ parameter_types! {
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(3);
 	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
+	pub const ProposalBondMaximum: Balance = 500 * DOLLARS;
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 }
@@ -277,9 +273,78 @@ parameter_types! {
 	pub const TechnicalMaxMembers: u32 = 10;
 }
 
+// pallet vesting
+parameter_types! {
+	pub MinVestedTransfer: Balance = ExistentialDeposit::get();
+	pub const MaxVestingSchedules: u32 = 100;
+}
+
+// pallet xyk
+parameter_types! {
+	pub const MinTradingLimit: Balance = MIN_TRADING_LIMIT;
+	pub const MinPoolLiquidity: Balance = MIN_POOL_LIQUIDITY;
+	pub const MaxInRatio: u128 = MAX_IN_RATIO;
+	pub const MaxOutRatio: u128 = MAX_OUT_RATIO;
+	pub const RegistryStrLimit: u32 = 32;
+}
+
+parameter_types! {
+	pub const MaxAuthorities: u32 = 32;
+}
+
+parameter_types! {
+	pub const MaxKeys: u32 = 10_000;
+	pub const MaxPeerInHeartbeats: u32 = 10_000;
+	pub const MaxPeerDataEncodingSize: u32 = 1_000;
+}
+
 parameter_types! {
 	pub const SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS as _;
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
 	/// We prioritize im-online heartbeats over election solution submission.
 	pub const StakingUnsignedPriority: TransactionPriority = TransactionPriority::max_value() / 2;
+}
+
+pub fn get_all_module_accounts() -> Vec<AccountId> {
+	vec![TreasuryPalletId::get().into_account()]
+}
+
+pub struct DustRemovalWhitelist;
+
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		get_all_module_accounts().contains(a)
+	}
+}
+
+use hydradx_traits::CanCreatePool;
+pub struct AllowAnyPool;
+
+impl CanCreatePool<AssetId> for AllowAnyPool {
+	fn can_create(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		true
+	}
+}
+
+use pallet_staking::BenchmarkingConfig;
+
+pub struct StakingBenchmarkingConfig;
+
+impl BenchmarkingConfig for StakingBenchmarkingConfig {
+	type MaxValidators = ConstU32<165>;
+	type MaxNominators = ConstU32<64>;
+}
+
+use pallet_election_provider_multi_phase::BenchmarkingConfig as ElectionMPBenchmarkingConfig;
+
+pub struct ElectionBenchmarkingConfig;
+
+impl ElectionMPBenchmarkingConfig for ElectionBenchmarkingConfig {
+	const VOTERS: [u32; 2] = [0, 0];
+	const TARGETS: [u32; 2] = [0, 0];
+	const ACTIVE_VOTERS: [u32; 2] = [0, 0];
+	const DESIRED_TARGETS: [u32; 2] = [0, 0];
+	const SNAPSHOT_MAXIMUM_VOTERS: u32 = 0;
+	const MINER_MAXIMUM_VOTERS: u32 = 0;
+	const MAXIMUM_TARGETS: u32 = 0;
 }

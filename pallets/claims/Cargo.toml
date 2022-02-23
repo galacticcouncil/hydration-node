@@ -1,49 +1,44 @@
 [package]
 authors = ['GalacticCouncil']
 description = 'HydraDX Claims Module'
-edition = '2018'
+edition = '2021'
 homepage = 'https://github.com/galacticcouncil/hydradx-node'
 license = 'Apache 2.0'
 name = 'pallet-claims'
 repository = 'https://github.com/galacticcouncil/hydradx-node'
-version = '3.1.0'
+version = '3.3.0'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-# alias "parity-scale-code" to "codec"
-[dependencies.codec]
-default-features = false
-features = ['derive']
-package = 'parity-scale-codec'
-version = '2.0.0'
-
 [dependencies]
-# Substrate dependencies
-frame-benchmarking = {version = "3.0.0", default-features = false, optional = true}
-frame-support = {default-features = false, version = '3.0.0'}
-frame-system = {default-features = false, version = '3.0.0'}
+scale-info = { version = "1.0", default-features = false, features = ["derive"] }
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.3.1" }
+serde = {optional = true, version = '1.0.101', features = ['derive']}
 hex = {default-features = false, version = "0.4.2"}
 hex-literal = '0.3.1'
 lazy_static = {features = ['spin_no_std'], version = "1.4.0"}
 rustc-hex = {version = '2.1.0', default-features = false}
-serde = {optional = true, version = '1.0.101', features = ['derive']}
-sp-io = {default-features = false, version = '3.0.0'}
-sp-runtime = {default-features = false, version = '3.0.0'}
-sp-std = {default-features = false, version = '3.0.0'}
+
+# Substrate dependencies
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false , optional = true}
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
 # Local dependencies
 primitives = {path = '../../primitives', default-features = false}
 
 # ORML dependencies
-orml-tokens = {default-features = false, version = '0.4.1-dev'}
-orml-traits = {default-features = false, version = '0.4.1-dev'}
-orml-utilities = {default-features = false, version = '0.4.1-dev'}
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
+orml-utilities = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
 
 [dev-dependencies]
-hex-literal = '0.3.1'
-pallet-balances = {version = "3.0.0"}
-sp-core = {default-features = false, version = '3.0.0'}
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
 [features]
 default = ['std']
@@ -62,4 +57,5 @@ std = [
   'primitives/std',
   'rustc-hex/std',
   'serde/std',
+  'scale-info/std',
 ]

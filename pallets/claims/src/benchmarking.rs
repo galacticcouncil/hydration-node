@@ -34,7 +34,7 @@ benchmarks! {
 		#[cfg(test)]
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 
-		let caller = T::AccountId::decode(&mut &alice_id[..]).unwrap_or_default();
+		let caller = T::AccountId::decode(&mut &alice_id[..]).unwrap();
 		let eth_address = EthereumAddress(hex!["8202c0af5962b750123ce1a9b12e1c30a4973557"]);
 		Claims::<T>::insert(eth_address, T::CurrencyBalance::from(1_000_000_000_000_000_000_u128).into());
 	}: _(RawOrigin::Signed(caller.clone()), EcdsaSignature(signature))
@@ -59,7 +59,7 @@ mod tests {
 	#[test]
 	fn test_benchmarks() {
 		new_test_ext().execute_with(|| {
-			assert_ok!(test_benchmark_claim::<Test>());
+			assert_ok!(Pallet::<Test>::test_benchmark_claim());
 		});
 	}
 }

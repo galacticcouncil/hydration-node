@@ -15,10 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::*;
 use crate as claims;
 use crate::{Config, EthereumAddress};
 use frame_support::parameter_types;
-use frame_system;
 use hex_literal::hex;
 use primitives::Balance;
 use sp_core::H256;
@@ -27,7 +27,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
-use frame_support::traits::GenesisBuild;
+use frame_support::traits::{Everything, GenesisBuild};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -49,7 +49,7 @@ parameter_types! {
 }
 
 impl frame_system::Config for Test {
-	type BaseCallFilter = ();
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
@@ -72,6 +72,7 @@ impl frame_system::Config for Test {
 	type SystemWeightInfo = ();
 	type SS58Prefix = ();
 	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_balances::Config for Test {
@@ -105,6 +106,7 @@ pub const CHARLIE: AccountId = 44;
 
 pub const CLAIM_AMOUNT: Balance = 1_000_000_000_000;
 
+#[derive(Default)]
 pub struct ExtBuilder;
 
 impl ExtBuilder {
@@ -130,11 +132,5 @@ impl ExtBuilder {
 		.unwrap();
 
 		t.into()
-	}
-}
-
-impl Default for ExtBuilder {
-	fn default() -> Self {
-		Self {}
 	}
 }

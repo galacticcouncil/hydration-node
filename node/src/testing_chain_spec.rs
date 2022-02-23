@@ -22,9 +22,9 @@ pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary =
 		testing_runtime::WASM_BINARY.ok_or_else(|| "Testing and development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 12u8.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("ss58Format".into(), 63u8.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Config names for the testing runtime have to start with `Testing` string literal
@@ -60,6 +60,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -72,9 +74,9 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 12u8.into());
 	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63.into());
+	properties.insert("ss58Format".into(), 63u8.into());
 
 	Ok(ChainSpec::from_genesis(
 		// Config names for the testing runtime have to start with `Testing` string literal
@@ -117,6 +119,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(DEFAULT_PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -142,7 +146,6 @@ fn testnet_genesis(
 		system: testing_runtime::SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
 		},
 		balances: testing_runtime::BalancesConfig {
 			// Configure endowed accounts with initial balance of 1_000_000.
@@ -155,28 +158,12 @@ fn testnet_genesis(
 		grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
 		sudo: testing_runtime::SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
-		},
-		asset_registry: testing_runtime::AssetRegistryConfig {
-			core_asset_id: CORE_ASSET_ID,
-			asset_ids: vec![
-				(b"tKSM".to_vec(), 1),
-				(b"tDOT".to_vec(), 2),
-				(b"tETH".to_vec(), 3),
-				(b"tACA".to_vec(), 4),
-				(b"tEDG".to_vec(), 5),
-				(b"tUSD".to_vec(), 6),
-				(b"tPLM".to_vec(), 7),
-				(b"tFIS".to_vec(), 8),
-				(b"tPHA".to_vec(), 9),
-				(b"tUSDT".to_vec(), 10),
-			],
-			next_asset_id: 11,
+			key: Some(root_key),
 		},
 		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
 			currencies: vec![],
-			authorities: vec![],
-			fallback_account: hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+			fallback_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
+			account_currencies: vec![],
 		},
 		tokens: testing_runtime::TokensConfig {
 			balances: endowed_accounts
@@ -253,5 +240,6 @@ fn testnet_genesis(
 			claims: create_testnet_claims(),
 		},
 		genesis_history: testing_runtime::GenesisHistoryConfig::default(),
+		vesting: testing_runtime::VestingConfig { vesting: vec![] },
 	}
 }
