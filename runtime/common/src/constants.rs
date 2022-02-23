@@ -24,6 +24,10 @@ pub mod currency {
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 
 	pub const FORTUNE: Balance = u128::MAX;
+
+	pub fn deposit(items: u32, bytes: u32) -> Balance {
+		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
+	}
 }
 
 pub mod time {
@@ -84,9 +88,10 @@ pub mod chain {
 
 	/// Trading limit
 	pub const MIN_TRADING_LIMIT: Balance = 1000;
+	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
 
 	pub const RUNTIME_AUTHORING_VERSION: u32 = 1;
-	pub const RUNTIME_SPEC_VERSION: u32 = 25;
+	pub const RUNTIME_SPEC_VERSION: u32 = 28;
 	pub const RUNTIME_IMPL_VERSION: u32 = 0;
 	pub const RUNTIME_TRANSACTION_VERSION: u32 = 1;
 
@@ -98,6 +103,9 @@ pub mod chain {
 	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 	/// We allow for 2 seconds of compute with a 6 second average block time.
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
+
+	pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] =
+		hex_literal::hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
 }
 
 #[cfg(test)]
@@ -107,6 +115,7 @@ mod tests {
 
 	#[test]
 	// This function tests that time units are set up correctly
+	#[allow(clippy::unnecessary_cast)]
 	fn time_units_work() {
 		// 24 hours in a day
 		assert_eq!(DAYS / 24, HOURS);

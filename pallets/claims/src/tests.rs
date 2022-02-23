@@ -15,11 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
 use crate::mock::*;
+use crate::{
+	Claims, EcdsaSignature, Error, EthereumAddress, InvalidTransaction, SignedExtension, ValidTransaction,
+	ValidateClaim,
+};
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
+use sp_std::marker::PhantomData;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -112,11 +116,11 @@ fn signed_extention_success() {
 	new_test_ext().execute_with(|| {
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 
-		let call = <crate::Call<Test>>::claim(EcdsaSignature(signature)).into();
+		let call: &<Test as frame_system::Config>::Call = &Call::ClaimsPallet(crate::Call::claim{ethereum_signature: EcdsaSignature(signature)});
 		let info = DispatchInfo::default();
 
 		assert_eq!(
-			ValidateClaim::<Test>(PhantomData).validate(&ALICE, &call, &info, 150),
+			ValidateClaim::<Test>(PhantomData).validate(&ALICE, call, &info, 150),
 			Ok(ValidTransaction::default())
 		);
 	});
@@ -127,11 +131,11 @@ fn signed_extention_invalid_sig() {
 	new_test_ext().execute_with(|| {
 		let invalid_signature = hex!["a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"];
 
-		let call = <crate::Call<Test>>::claim(EcdsaSignature(invalid_signature)).into();
+		let call: &<Test as frame_system::Config>::Call = &Call::ClaimsPallet(crate::Call::claim{ethereum_signature: EcdsaSignature(invalid_signature)});
 		let info = DispatchInfo::default();
 
 		assert_eq!(
-			ValidateClaim::<Test>(PhantomData).validate(&ALICE, &call, &info, 150),
+			ValidateClaim::<Test>(PhantomData).validate(&ALICE, call, &info, 150),
 			InvalidTransaction::Custom(Error::<Test>::InvalidEthereumSignature.as_u8()).into()
 		);
 	});
@@ -142,11 +146,11 @@ fn signed_extention_no_claim_error() {
 	new_test_ext().execute_with(|| {
 		let signature = hex!["5b2b46b0162f4b4431f154c4b9fc5ba923690b98b0c2063720799da54cb35a354304102ede62977ba556f0b03e67710522d4b7523547c62fcdc5acea59c99aa41b"];
 
-		let call = <crate::Call<Test>>::claim(EcdsaSignature(signature)).into();
+		let call: &<Test as frame_system::Config>::Call = &Call::ClaimsPallet(crate::Call::claim{ethereum_signature: EcdsaSignature(signature)});
 		let info = DispatchInfo::default();
 
 		assert_eq!(
-			ValidateClaim::<Test>(PhantomData).validate(&BOB, &call, &info, 150),
+			ValidateClaim::<Test>(PhantomData).validate(&BOB, call, &info, 150),
 			InvalidTransaction::Custom(Error::<Test>::NoClaimOrAlreadyClaimed.as_u8()).into()
 		);
 	});

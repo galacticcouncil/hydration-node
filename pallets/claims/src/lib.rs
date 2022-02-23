@@ -29,17 +29,19 @@ use frame_support::{
 	traits::{Currency, Get, Imbalance, IsSubType},
 	weights::{DispatchClass, Pays},
 };
+use frame_support::transactional;
 use frame_system::ensure_signed;
 use primitives::Balance;
+use scale_info::TypeInfo;
 use sp_runtime::traits::Zero;
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
-pub use traits::*;
 use weights::WeightInfo;
 
 mod benchmarking;
 mod claims_data;
 mod migration;
 mod traits;
+pub use traits::*;
 pub mod weights;
 
 #[cfg(test)]
@@ -60,14 +62,11 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 
 	#[pallet::pallet]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_runtime_upgrade() -> frame_support::weights::Weight {
-			migration::import_initial_claims::<T>(&claims_data::CLAIMS_DATA)
-		}
-	}
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -130,6 +129,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Claim xHDX by providing signed message with Ethereum address.
 		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
+		#[transactional]
 		pub fn claim(origin: OriginFor<T>, ethereum_signature: EcdsaSignature) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
@@ -200,7 +200,8 @@ fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 }
 
 /// Signed extension that checks for the `claim` call and in that case, it verifies an Ethereum signature
-#[derive(Encode, Decode, Clone, Eq, PartialEq)]
+#[derive(Encode, Decode, Clone, Eq, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct ValidateClaim<T: Config + Send + Sync>(PhantomData<T>);
 
 impl<T: Config + Send + Sync> sp_std::fmt::Debug for ValidateClaim<T> {
@@ -231,12 +232,22 @@ where
 		_len: usize,
 	) -> TransactionValidity {
 		match call.is_sub_type() {
-			Some(Call::claim(signature)) => match Pallet::<T>::validate_claim(who, signature) {
+			Some(Call::claim { ethereum_signature }) => match Pallet::<T>::validate_claim(who, ethereum_signature) {
 				Ok(_) => Ok(ValidTransaction::default()),
 				Err(error) => InvalidTransaction::Custom(error.as_u8()).into(),
 			},
 			_ => Ok(Default::default()),
 		}
+	}
+
+	fn pre_dispatch(
+		self,
+		who: &Self::AccountId,
+		call: &Self::Call,
+		info: &DispatchInfoOf<Self::Call>,
+		len: usize,
+	) -> Result<Self::Pre, TransactionValidityError> {
+		self.validate(who, call, info, len).map(|_| ())
 	}
 }
 
