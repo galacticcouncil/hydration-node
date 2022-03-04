@@ -24,6 +24,10 @@ pub mod currency {
 	pub const CENTS: Balance = DOLLARS / 100; // 1 UNITS ~= 1 cent
 	pub const MILLICENTS: Balance = CENTS / 1_000;
 	pub const NATIVE_EXISTENTIAL_DEPOSIT: Balance = CENTS;
+
+	pub fn deposit(items: u32, bytes: u32) -> Balance {
+		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
+	}
 }
 
 pub mod time {
