@@ -337,10 +337,57 @@ const sendAndWaitFinalization = ({from, tx, printEvents = []}) => new Promise(re
         log(status)
     }));
 
+const validate_triple = async (source_url, target_url) => {
+    log("Validating triple balances")
+    const api = await createClient(source_url);
+    const target_api = await createClient(target_url);
+
+    const assertBalances = async (address, balance) => {
+        const account = await target_api.query.system.account(address);
+        const bal = account.data.free;
+        const tripled = balance.imuln(3);
+        assert( bal.eq(tripled), `Incorrect amount for ${address}`);
+    }
+
+    let balances = [];
+
+    await api.query.system.account.entries().then( accounts => {
+        accounts.map( ([key, {data}]) => {
+            const [address] = key.toHuman()
+            //Skip Alice - only for testing purposes
+            if (address !== "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba") {
+                const balance = data.free;
+                balances.push({address, balance});
+            }
+
+        });
+    })
+
+    for (let idx in balances){
+        log(`Checking ${balances[idx].address}`)
+        await assertBalances(balances[idx].address, balances[idx].balance);
+    }
+    log("Validating triple claims...")
+
+    const source_claims = await api.query.claims.claims.entries()
+    const source_unclaimed_count = source_claims.filter((b)=>b[1] !== 0).length
+    let source_unclaimed = source_claims.filter((b)=>b[1] !== 0).map( (val) => new BN(val[1])).reduce( (a,b) => a.add(b))
+
+    const target_claims = await target_api.query.claims.claims.entries()
+    const target_unclaimed_count = target_claims.filter((b)=>b[1] !== 0).length
+    const target_unclaimed = target_claims.filter((b)=>b[1] !== 0).map( (val) => new BN(val[1])).reduce( (a,b) => a.add(b))
+
+    source_unclaimed = new BN(source_unclaimed).imuln(3);
+
+    assert( source_unclaimed_count ===  target_unclaimed_count, "Unclaimed count does not match")
+    assert( source_unclaimed.eq(target_unclaimed), "Unclaimed balance does not match")
+
+    log(chalk.green("We good.Bye."))
+}
 const validate = async (source_url, target_url) => {
     log("Validating balances")
     const api = await createClient(source_url);
-    //const target_api = await createClient(target_url);
+    const target_api = await createClient(target_url);
 
     const assertBalances = async (address, balance) => {
         const account = await target_api.query.system.account(address);
@@ -370,12 +417,15 @@ const validate = async (source_url, target_url) => {
     log("Validating claims...")
 
     const source_claims = await api.query.claims.claims.entries()
-    const source_unclaimed = source_claims.filter((b)=>b[1] !== 0).length
+    const source_unclaimed_count = source_claims.filter((b)=>b[1] !== 0).length
+    const source_unclaimed = source_claims.filter((b)=>b[1] !== 0).map( (val) => new BN(val[1])).reduce( (a,b) => a.add(b))
 
     const target_claims = await target_api.query.claims.claims.entries()
-    const target_unclaimed = target_claims.filter((b)=>b[1] !== 0).length
+    const target_unclaimed_count = target_claims.filter((b)=>b[1] !== 0).length
+    const target_unclaimed = target_claims.filter((b)=>b[1] !== 0).map( (val) => new BN(val[1])).reduce( (a,b) => a.add(b))
 
-    assert( source_unclaimed === target_unclaimed, "Unclaimed balance does not match")
+    assert( source_unclaimed_count ===  target_unclaimed_count, "Unclaimed count does not match")
+    assert( source_unclaimed.eq(target_unclaimed), "Unclaimed balance does not match")
 
     log(chalk.green("We good.Bye."))
 }
@@ -416,7 +466,16 @@ const tripleBalance = (registry, value) => {
 }
 
 const tripleClaims = (registry, value) => {
-    return value;
+    let newValue = value;
+
+    if (value > 0 ) {
+        let balanceBN = new BN(value.substring(2), 16, "le");
+        balanceBN = balanceBN.imuln(3);
+        let buffer = balanceBN.toBuffer("le", 16);
+        newValue = "0x".concat(Buffer.from(buffer).toString("hex"));
+    }
+
+    return newValue;
 }
 
 const triple = async (destination) => {
@@ -440,6 +499,8 @@ const triple = async (destination) => {
 
             if ( excludeFromTripling.indexOf(address) === -1 ) {
                 newValue = tripleBalance(registry, value);
+            }else{
+                log(`Balance tripling - excluding ${chalk.yellow(address)}`)
             }
         }else if (key.startsWith(claimsPrefix)){
             newValue = tripleClaims(registry, value);
@@ -463,6 +524,8 @@ async function main() {
         })
         .command('validate', 'Validate balances and claims', {
         })
+        .command('validate-triple', 'Validate triple balances and claims', {
+        })
         .command('migrate', 'Perform migration', {
         })
         .command('triple', 'Triple balances', {
@@ -481,6 +544,11 @@ async function main() {
 
     if (argv._.includes('validate')) {
         await validate(SOURCE_RPC, TARGET_RPC);
+        process.exit();
+    }
+
+    if (argv._.includes('validate-triple')) {
+        await validate_triple(SOURCE_RPC, TARGET_RPC);
         process.exit();
     }
 
@@ -515,7 +583,7 @@ async function main() {
 
         const from = keyring.addFromUri(ACCOUNT_SECRET);
 
-        const storage = JSON.parse(fs.readFileSync(storagePath, "utf8"));
+        const storage = JSON.parse(fs.readFileSync(tripleStoragePath, "utf8"));
 
         log(`Key-value pairs to insert: ${chalk.yellow(storage.length)}`)
 
