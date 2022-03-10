@@ -66,6 +66,8 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions

@@ -133,6 +133,8 @@ pub fn parachain_development_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -209,6 +211,8 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 		None,
 		// Protocol ID
 		Some(PROTOCOL_ID),
+		// Fork ID
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -248,7 +252,7 @@ fn testnet_parachain_genesis(
 		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: Some(root_key),
 		},
 		collator_selection: CollatorSelectionConfig {
 			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),

@@ -34,10 +34,7 @@ use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::Block as BlockT;
 use std::{io::Write, net::SocketAddr};
 
-fn load_spec(
-	id: &str,
-	is_testing: bool,
-) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+fn load_spec(id: &str, is_testing: bool) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	if is_testing {
 		Ok(match id {
 			"dev" => Box::new(testing_chain_spec::parachain_development_config()?),
@@ -255,10 +252,13 @@ pub fn run() -> sc_cli::Result<()> {
 				params.runtime.is_testing_runtime()
 			};
 
-			let block: Block = generate_genesis_block(&load_spec(
-				&params.chain.clone().unwrap_or_default(),
-				is_testing_runtime,
-			)?)?;
+			let spec = load_spec(&params.chain.clone().unwrap_or_default(), false)?;
+			let state_version = Cli::native_runtime_version(&spec).state_version();
+
+			let block: Block = generate_genesis_block(
+				&load_spec(&params.chain.clone().unwrap_or_default(), is_testing_runtime)?,
+				state_version,
+			)?;
 			let raw_header = block.header().encode();
 			let output_buf = if params.raw {
 				raw_header
@@ -336,15 +336,17 @@ pub fn run() -> sc_cli::Result<()> {
 				);
 
 				let para_id = chain_spec::Extensions::try_get(&config.chain_spec)
-                    .map(|e| e.para_id)
-                    .expect("Could not find parachain ID in chain-spec.");
+					.map(|e| e.para_id)
+					.expect("Could not find parachain ID in chain-spec.");
 
 				let id = ParaId::from(para_id);
 
-				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&id);
+				let parachain_account = AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&id);
 
-				let block: Block = generate_genesis_block(&config.chain_spec).map_err(|e| format!("{:?}", e))?;
+				let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
+
+				let block: Block =
+					generate_genesis_block(&config.chain_spec, state_version).map_err(|e| format!("{:?}", e))?;
 				let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
 
 				let task_executor = config.tokio_handle.clone();
@@ -422,11 +424,24 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.rpc_ws(default_listen_port)
 	}
 
-	fn prometheus_config(&self, default_listen_port: u16) -> Result<Option<PrometheusConfig>> {
-		self.base.base.prometheus_config(default_listen_port)
+	fn prometheus_config(
+		&self,
+		default_listen_port: u16,
+		chain_spec: &Box<dyn ChainSpec>,
+	) -> Result<Option<PrometheusConfig>> {
+		self.base.base.prometheus_config(default_listen_port, chain_spec)
 	}
 
-	fn init<C: SubstrateCli>(&self) -> Result<()> {
+	fn init<F>(
+		&self,
+		_support_url: &String,
+		_impl_version: &String,
+		_logger_hook: F,
+		_config: &sc_service::Configuration,
+	) -> Result<()>
+	where
+		F: FnOnce(&mut sc_cli::LoggerBuilder, &sc_service::Configuration),
+	{
 		unreachable!("PolkadotCli is never initialized; qed");
 	}
 
