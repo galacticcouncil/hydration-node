@@ -1,4 +1,5 @@
 const {ApiPromise, WsProvider, Keyring} = require("@polkadot/api");
+const {Metadata, TypeRegistry} = require("@polkadot/types");
 const chalk = require("chalk");
 const path  = require("path");
 const fs = require("fs");
@@ -19,6 +20,7 @@ const SOURCE_RPC = process.env.SOURCE_RPC_SERVER || FORK_OFF;
 const TARGET_RPC = process.env.TARGET_RPC_SERVER || LOCAL;
 
 const storagePath = path.join(__dirname, "data", "storage.json");
+const tripleStoragePath = path.join(__dirname, "data", "tripleStorage.json");
 
 const snakenet_modules = [
     ["System.Account", "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9"],
@@ -26,6 +28,12 @@ const snakenet_modules = [
     ["Tokens.TotalIssuance", "0x99971b5749ac43e0235e41b0d378691857c875e4cff74148e4628f264b974c80"],
     ["Tokens.Locks", "0x99971b5749ac43e0235e41b0d3786918218f26c73add634897550b4003b26bc6"],
     ["Tokens.Accounts", "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d51"],
+    ["Balances.TotalIssuance", "0xc2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80"],
+    ["Balances.Account", "0xc2261276cc9d1f8598ea4b6a74b15c2fb99d880ec681799c0cf30e8886371da9"],
+    ["Balances.Locks", "0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6"],
+    ["Balances.Reserves", "0xc2261276cc9d1f8598ea4b6a74b15c2f60c9ab7384f36f3de79a685fa22b4491"],
+    ["Balances.StorageVersion", "0xc2261276cc9d1f8598ea4b6a74b15c2f308ce9615de0775a82f8a94dc3d285a1"],
+ 
 ]
 
 
@@ -253,6 +261,7 @@ const downloadData = async (url, destination, block_number = undefined) => {
 
                     const values = JSON.parse(JSON.stringify(resp, null, 4));
 
+                    // filter alice
                     const pairs  = keys.filter((key) => key !== "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").map(function(e, idx) {
                         return [e, values[idx]];
                     });
@@ -328,7 +337,7 @@ const sendAndWaitFinalization = ({from, tx, printEvents = []}) => new Promise(re
 const validate = async (source_url, target_url) => {
     log("Validating balances")
     const api = await createClient(source_url);
-    const target_api = await createClient(target_url);
+    //const target_api = await createClient(target_url);
 
     const assertBalances = async (address, balance) => {
         const account = await target_api.query.system.account(address);
@@ -368,6 +377,68 @@ const validate = async (source_url, target_url) => {
     log(chalk.green("We good.Bye."))
 }
 
+const loadStorage = async () => {
+    if (fs.existsSync(storagePath)) {
+        log(
+            chalk.white(
+                "Using ./data/storage.json"
+            )
+        );
+    } else {
+        const msg = `Storage not found ${storagePath}`;
+        log(chalk.red(msg));
+        process.exit(1);
+    }
+
+    return JSON.parse(fs.readFileSync(storagePath, "utf8"));
+
+}
+
+const tripleBalance = (registry, value) => {
+    let aInfo = registry.createType("AccountInfo", value);
+    let balance = new BN(aInfo.data.free.toString())
+
+    balance = balance.imuln(3);
+
+    let b = registry.createType("Balance", balance.toString(10,0));
+
+    let newData = registry.createType("AccountData", { free: b,
+        reserved: aInfo.data.reserved,
+        miscFrozen: aInfo.data.miscFrozen,
+        feeFrozen: aInfo.data.feeFrozen})
+
+    let newInfo = registry.createType("AccountInfo", { ...aInfo, data: newData});
+
+    return newInfo.toHex();
+}
+
+const triple = async (destination) => {
+    const registry = new TypeRegistry();
+    const storage = await loadStorage();
+
+    const systemAccountPrefix ="0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9";
+
+    const storageAdjusted = storage.map( ( keyValue ) => {
+        const key = keyValue[0];
+        const value = keyValue[1];
+
+        let newValue = value;
+
+        if ( key.startsWith(systemAccountPrefix)) {
+            // Tripling balances
+            const accountId = key.substring(systemAccountPrefix.length);
+            let address =  registry.createType("AccountId", `0x${accountId}`);
+
+            //TODO: exclude selected addresses
+
+            newValue = tripleBalance(registry, value);
+        }
+        return [key, newValue];
+    });
+    fs.writeFileSync(destination, JSON.stringify(storageAdjusted));
+    log(`Balance and claims tripled. Stored in ${destination}`);
+}
+
 
 async function main() {
 
@@ -382,6 +453,8 @@ async function main() {
         .command('validate', 'Validate balances and claims', {
         })
         .command('migrate', 'Perform migration', {
+        })
+        .command('triple', 'Triple balances', {
         })
         .option('--dry-run', {
             description: 'Process and generate batch files. Exit before sending transactions',
@@ -399,6 +472,12 @@ async function main() {
         await validate(SOURCE_RPC, TARGET_RPC);
         process.exit();
     }
+
+    if (argv._.includes('triple')) {
+        await triple(tripleStoragePath);
+        process.exit();
+    }
+
 
     if (argv._.includes('migrate')) {
         if (fs.existsSync(storagePath)) {
