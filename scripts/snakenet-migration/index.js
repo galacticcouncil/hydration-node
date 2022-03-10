@@ -1,5 +1,6 @@
 const {ApiPromise, WsProvider, Keyring} = require("@polkadot/api");
 const {Metadata, TypeRegistry} = require("@polkadot/types");
+const {encodeAddress} = require("@polkadot/util-crypto");
 const chalk = require("chalk");
 const path  = require("path");
 const fs = require("fs");
@@ -414,11 +415,16 @@ const tripleBalance = (registry, value) => {
     return newInfo.toHex();
 }
 
+const tripleClaims = (registry, value) => {
+    return value;
+}
+
 const triple = async (destination) => {
     const registry = new TypeRegistry();
     const storage = await loadStorage();
 
     const systemAccountPrefix ="0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9";
+    const claimsPrefix ="0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397";
 
     const storageAdjusted = storage.map( ( keyValue ) => {
         const key = keyValue[0];
@@ -430,10 +436,13 @@ const triple = async (destination) => {
             // Tripling balances
             const accountId = key.substring(systemAccountPrefix.length);
             let address =  registry.createType("AccountId", `0x${accountId}`);
+            address = encodeAddress(address, 63);
 
             if ( excludeFromTripling.indexOf(address) === -1 ) {
                 newValue = tripleBalance(registry, value);
             }
+        }else if (key.startsWith(claimsPrefix)){
+            newValue = tripleClaims(registry, value);
         }
         return [key, newValue];
     });
