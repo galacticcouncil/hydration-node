@@ -1,3 +1,52 @@
+# v11.2.1 (Thu Mar 10 2022)
+
+#### 🐛 Bug Fix
+
+- feat: add relaychain-info pallet [#346](https://github.com/galacticcouncil/HydraDX-node/pull/346) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- dynamic version target branch ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- fixed runtime crate name ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- debug version check ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- chainspec fixes ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- added inclusion and upgrade test to ci ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- removed redundant cast ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- enabled ci ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- use same parachain_genesis() for all chains ([@martinfridrich](https://github.com/martinfridrich))
+- Added testnet and staging chain_spec ([@martinfridrich](https://github.com/martinfridrich))
+- add utility pallet ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix hydradx command in gh workflow ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix runtime-benchmark build; remove unused crates ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- remove unused stuff ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- update chain spec and add local launch config ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix node client build ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- initial hydradx shell parachain ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### ⚠️ Pushed to `master`
+
+- 12.0.0 ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- hydra parachain chainspec ([@martinfridrich](https://github.com/martinfridrich))
+- set parachain id ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- Revert "bump runtime version" ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- bump runtime version ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- removed scheduler ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- only run version check in pull request ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- ci: run withour pr ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Other improvements
+
+- chore: upgrade to polkadot-v0.9.16 [#372](https://github.com/galacticcouncil/HydraDX-node/pull/372) ([@Roznovjak](https://github.com/Roznovjak))
+- chore: polkadot-v0.9.15 [#355](https://github.com/galacticcouncil/HydraDX-node/pull/355) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- chore: increase versions to avoid confict with snakenet [#345](https://github.com/galacticcouncil/HydraDX-node/pull/345) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- ci: runtime upgrade test [#344](https://github.com/galacticcouncil/HydraDX-node/pull/344) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 4
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- martin fridrich ([@martinfridrich](https://github.com/martinfridrich))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- Richard Roznovjak ([@Roznovjak](https://github.com/Roznovjak))
+
+---
+
 # v12.0.0 (Thu Dec 23 2021)
 
 - shell parachain release to be registered in Polkadot relaychain and receive Snakenet state migration when onboarded
