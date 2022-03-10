@@ -213,6 +213,8 @@ const all_modules = [
     ["GenesisHistory.PreviousChain", "0x1754677a24055221d22db56f83f5e21390895d6c6b21a85c004b8942c3bc35ae"],
 ]
 
+const excludeFromTripling = ["7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba"];
+
 const log = (msg) => {
     let m = moment().format('YYYY-MM-DD HH:mm:ss') ;
     console.log(`${m} snakenet-migration \t${msg}`);
@@ -429,9 +431,9 @@ const triple = async (destination) => {
             const accountId = key.substring(systemAccountPrefix.length);
             let address =  registry.createType("AccountId", `0x${accountId}`);
 
-            //TODO: exclude selected addresses
-
-            newValue = tripleBalance(registry, value);
+            if ( excludeFromTripling.indexOf(address) === -1 ) {
+                newValue = tripleBalance(registry, value);
+            }
         }
         return [key, newValue];
     });
