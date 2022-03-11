@@ -534,7 +534,7 @@ const triple = async (destination) => {
         return true;
     })
 
-    fs.writeFileSync(destination, JSON.stringify(storageAdjusted));
+    fs.writeFileSync(destination, JSON.stringify(storageUpdatedWithoutEmptyLocks));
     log(`Balance and claims tripled. Stored in ${destination}`);
 }
 
