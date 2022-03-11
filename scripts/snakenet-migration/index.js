@@ -447,6 +447,16 @@ const loadStorage = async () => {
 
 }
 
+const removeStakingLocks = (registry, value) => {
+    let stakingId = registry.createType("LockIdentifier", "staking ");
+
+    let locks = registry.createType("Vec<BalanceLock<Balance>>", value);
+
+    const updateLocks = locks.filter( (lock) => lock.id.toString() !== stakingId.toString());
+
+    return registry.createType("Vec<BalanceLock<Balance>>", updateLocks).toHex();
+}
+
 const tripleBalance = (registry, value) => {
     let aInfo = registry.createType("AccountInfo", value);
     let balance = new BN(aInfo.data.free.toString())
@@ -484,6 +494,7 @@ const triple = async (destination) => {
 
     const systemAccountPrefix ="0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9";
     const claimsPrefix ="0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397";
+    const balanceLocksPrefix ="0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6";
 
     const storageAdjusted = storage.map( ( keyValue ) => {
         const key = keyValue[0];
@@ -504,9 +515,25 @@ const triple = async (destination) => {
             }
         }else if (key.startsWith(claimsPrefix)){
             newValue = tripleClaims(registry, value);
+        }else if (key.startsWith(balanceLocksPrefix)){
+            newValue = removeStakingLocks(registry, value);
         }
         return [key, newValue];
     });
+
+    // I guess this could part of the previous statement
+    const storageUpdatedWithoutEmptyLocks = storageAdjusted.filter( (keyValue) => {
+        const key = keyValue[0];
+        const value = keyValue[1];
+
+        if (key.startsWith(balanceLocksPrefix)){
+            if (value === "0x00"){
+                return false;
+            }
+        }
+        return true;
+    })
+
     fs.writeFileSync(destination, JSON.stringify(storageAdjusted));
     log(`Balance and claims tripled. Stored in ${destination}`);
 }
@@ -556,7 +583,6 @@ async function main() {
         await triple(tripleStoragePath);
         process.exit();
     }
-
 
     if (argv._.includes('migrate')) {
         if (fs.existsSync(storagePath)) {
