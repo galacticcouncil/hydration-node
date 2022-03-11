@@ -22,6 +22,7 @@ const TARGET_RPC = process.env.TARGET_RPC_SERVER || LOCAL;
 
 const storagePath = path.join(__dirname, "data", "storage.json");
 const tripleStoragePath = path.join(__dirname, "data", "tripleStorage.json");
+const tempStoragePath = path.join(__dirname, "data", "tempStorage.json");
 
 const snakenet_modules = [
     ["System.Account", "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9"],
@@ -447,6 +448,55 @@ const loadStorage = async () => {
 
 }
 
+const purgeStakingLocks = async (destination) => {
+    log("Puring staking locks")
+    const registry = new TypeRegistry();
+
+    const storage = await loadStorage();
+
+    let accounts = [];
+
+    const balanceLocksPrefix ="0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6";
+
+    const adjusted = storage.map( (keyValue) => {
+
+        const key = keyValue[0];
+        const value = keyValue[1];
+
+        let newValue = value;
+
+        if (key.startsWith(balanceLocksPrefix)){
+            newValue = removeStakingLocks(registry, value);
+            if ( newValue !== value){
+                // Staking lock has been removed
+                const accountId = key.substring(balanceLocksPrefix.length);
+                let address =  registry.createType("AccountId", `0x${accountId}`);
+                accounts.push(address);
+            }
+        }
+
+        return [key,newValue];
+    })
+
+    // I guess this could part of the previous statement
+    const storageUpdatedWithoutEmptyLocks = adjusted.filter( (keyValue) => {
+        const key = keyValue[0];
+        const value = keyValue[1];
+
+        if (key.startsWith(balanceLocksPrefix)){
+            if (value === "0x00"){
+                return false;
+            }
+        }
+        return true;
+    })
+
+
+    fs.writeFileSync(destination, JSON.stringify(storageUpdatedWithoutEmptyLocks));
+    log(`Purged ${chalk.yellow(accounts.length)} staking locks`)
+    return accounts;
+}
+
 const removeStakingLocks = (registry, value) => {
     let stakingId = registry.createType("LockIdentifier", "staking ");
 
@@ -494,7 +544,6 @@ const triple = async (destination) => {
 
     const systemAccountPrefix ="0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9";
     const claimsPrefix ="0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397";
-    const balanceLocksPrefix ="0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6";
 
     const storageAdjusted = storage.map( ( keyValue ) => {
         const key = keyValue[0];
@@ -515,26 +564,13 @@ const triple = async (destination) => {
             }
         }else if (key.startsWith(claimsPrefix)){
             newValue = tripleClaims(registry, value);
-        }else if (key.startsWith(balanceLocksPrefix)){
-            newValue = removeStakingLocks(registry, value);
         }
+
         return [key, newValue];
     });
 
-    // I guess this could part of the previous statement
-    const storageUpdatedWithoutEmptyLocks = storageAdjusted.filter( (keyValue) => {
-        const key = keyValue[0];
-        const value = keyValue[1];
 
-        if (key.startsWith(balanceLocksPrefix)){
-            if (value === "0x00"){
-                return false;
-            }
-        }
-        return true;
-    })
-
-    fs.writeFileSync(destination, JSON.stringify(storageUpdatedWithoutEmptyLocks));
+    fs.writeFileSync(destination, JSON.stringify(storageAdjusted));
     log(`Balance and claims tripled. Stored in ${destination}`);
 }
 
@@ -557,6 +593,9 @@ async function main() {
         })
         .command('triple', 'Triple balances', {
         })
+        .command('prepare', 'Prepare storage - remove locks, triple balances and claims', {
+        })
+
         .option('--dry-run', {
             description: 'Process and generate batch files. Exit before sending transactions',
             type: 'boolean'
@@ -583,6 +622,11 @@ async function main() {
         await triple(tripleStoragePath);
         process.exit();
     }
+    if (argv._.includes('prepare')) {
+        const stakingLocksAccounts = await purgeStakingLocks(tempStoragePath);
+        process.exit();
+    }
+
 
     if (argv._.includes('migrate')) {
         if (fs.existsSync(storagePath)) {
