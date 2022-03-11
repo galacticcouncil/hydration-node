@@ -431,28 +431,28 @@ const validate = async (source_url, target_url) => {
     log(chalk.green("We good.Bye."))
 }
 
-const loadStorage = async () => {
-    if (fs.existsSync(storagePath)) {
+const loadStorage = async ( path ) => {
+    if (fs.existsSync(path)) {
         log(
             chalk.white(
-                "Using ./data/storage.json"
+                `Loading data from ${path}`
             )
         );
     } else {
-        const msg = `Storage not found ${storagePath}`;
+        const msg = `Storage not found ${path}`;
         log(chalk.red(msg));
         process.exit(1);
     }
 
-    return JSON.parse(fs.readFileSync(storagePath, "utf8"));
+    return JSON.parse(fs.readFileSync(path, "utf8"));
 
 }
 
-const purgeStakingLocks = async (destination) => {
+const purgeStakingLocks = async (source, destination) => {
     log("Puring staking locks")
     const registry = new TypeRegistry();
 
-    const storage = await loadStorage();
+    const storage = await loadStorage(source);
 
     let accounts = [];
 
@@ -471,7 +471,7 @@ const purgeStakingLocks = async (destination) => {
                 // Staking lock has been removed
                 const accountId = key.substring(balanceLocksPrefix.length);
                 let address =  registry.createType("AccountId", `0x${accountId}`);
-                accounts.push(address);
+                accounts.push(address.toString());
             }
         }
 
@@ -507,7 +507,7 @@ const removeStakingLocks = (registry, value) => {
     return registry.createType("Vec<BalanceLock<Balance>>", updateLocks).toHex();
 }
 
-const tripleBalance = (registry, value) => {
+const tripleBalance = (registry, value, decreaseConsumers) => {
     let aInfo = registry.createType("AccountInfo", value);
     let balance = new BN(aInfo.data.free.toString())
 
@@ -520,7 +520,12 @@ const tripleBalance = (registry, value) => {
         miscFrozen: aInfo.data.miscFrozen,
         feeFrozen: aInfo.data.feeFrozen})
 
-    let newInfo = registry.createType("AccountInfo", { ...aInfo, data: newData});
+    let consumers = aInfo.consumers;
+    if (decreaseConsumers === true){
+        consumers -= 1;
+    }
+
+    let newInfo = registry.createType("AccountInfo", { ...aInfo, nonce: 0, consumers: consumers,  data: newData});
 
     return newInfo.toHex();
 }
@@ -538,9 +543,9 @@ const tripleClaims = (registry, value) => {
     return newValue;
 }
 
-const triple = async (destination) => {
+const triple = async (source, destination, stakingAccountsRemoved = []) => {
     const registry = new TypeRegistry();
-    const storage = await loadStorage();
+    const storage = await loadStorage(source);
 
     const systemAccountPrefix ="0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9";
     const claimsPrefix ="0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397";
@@ -555,10 +560,10 @@ const triple = async (destination) => {
             // Tripling balances
             const accountId = key.substring(systemAccountPrefix.length);
             let address =  registry.createType("AccountId", `0x${accountId}`);
-            address = encodeAddress(address, 63);
+            let hdxAddress = encodeAddress(address, 63);
 
-            if ( excludeFromTripling.indexOf(address) === -1 ) {
-                newValue = tripleBalance(registry, value);
+            if ( excludeFromTripling.indexOf(hdxAddress) === -1 ) {
+                newValue = tripleBalance(registry, value, stakingAccountsRemoved.indexOf(address.toString()) >= 0);
             }else{
                 log(`Balance tripling - excluding ${chalk.yellow(address)}`)
             }
@@ -619,14 +624,14 @@ async function main() {
     }
 
     if (argv._.includes('triple')) {
-        await triple(tripleStoragePath);
+        await triple(storagePath, tripleStoragePath);
         process.exit();
     }
     if (argv._.includes('prepare')) {
-        const stakingLocksAccounts = await purgeStakingLocks(tempStoragePath);
+        const stakingLocksAccounts = await purgeStakingLocks(storagePath, tempStoragePath);
+        await triple(tempStoragePath, tripleStoragePath, stakingLocksAccounts);
         process.exit();
     }
-
 
     if (argv._.includes('migrate')) {
         if (fs.existsSync(storagePath)) {
