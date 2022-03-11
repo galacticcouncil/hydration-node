@@ -23,6 +23,7 @@ const TARGET_RPC = process.env.TARGET_RPC_SERVER || LOCAL;
 const storagePath = path.join(__dirname, "data", "storage.json");
 const tripleStoragePath = path.join(__dirname, "data", "tripleStorage.json");
 const tempStoragePath = path.join(__dirname, "data", "tempStorage.json");
+const finalStoragePath = path.join(__dirname, "data", "finalStorage.json");
 
 const snakenet_modules = [
     ["System.Account", "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9"],
@@ -629,19 +630,19 @@ async function main() {
     }
     if (argv._.includes('prepare')) {
         const stakingLocksAccounts = await purgeStakingLocks(storagePath, tempStoragePath);
-        await triple(tempStoragePath, tripleStoragePath, stakingLocksAccounts);
+        await triple(tempStoragePath, finalStoragePath, stakingLocksAccounts);
         process.exit();
     }
 
     if (argv._.includes('migrate')) {
-        if (fs.existsSync(storagePath)) {
+        if (fs.existsSync(finalStoragePath)) {
             log(
                 chalk.white(
-                    "Using ./data/storage.json"
+                    "Using ./data/finalStorage.json"
                 )
             );
         } else {
-            const msg = `Storage not found ${storagePath}`;
+            const msg = `Storage not found ${finalStoragePath}`;
             log(chalk.red(msg));
             process.exit(1);
         }
@@ -658,7 +659,7 @@ async function main() {
 
         const from = keyring.addFromUri(ACCOUNT_SECRET);
 
-        const storage = JSON.parse(fs.readFileSync(tripleStoragePath, "utf8"));
+        const storage = JSON.parse(fs.readFileSync(finalStoragePath, "utf8"));
 
         log(`Key-value pairs to insert: ${chalk.yellow(storage.length)}`)
 
