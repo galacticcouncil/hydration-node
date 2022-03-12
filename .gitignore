@@ -32,3 +32,6 @@
 
 # Custom chainspec(frido)
 balice*
+
+**/node_modules
+**/package-lock.json
