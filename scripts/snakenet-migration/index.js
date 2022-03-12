@@ -347,9 +347,12 @@ const validate = async (source_url, target_url) => {
 
     const assertBalances = async (address, balance) => {
         const account = await target_api.query.system.account(address);
-        const bal = account.data.free;
+        const bal = new BN(account.data.free.toString());
+        const reserved = new BN(account.data.reserved.toString());
+        const expected = bal.add(reserved);
+
         const tripled = balance.imuln(3);
-        assert( bal.eq(tripled), `Incorrect amount for ${address}`);
+        assert( expected.eq(tripled), `Incorrect amount for ${address}`);
     }
 
     let balances = [];
@@ -464,8 +467,9 @@ const removeStakingLocks = (registry, value) => {
 const tripleBalance = (registry, value, decreaseConsumers) => {
     let aInfo = registry.createType("AccountInfo", value);
     let balance = new BN(aInfo.data.free.toString())
+    let reserved = new BN(aInfo.data.reserved.toString())
 
-    balance = balance.imuln(3);
+    balance = balance.imuln(3).add(reserved.imuln(2)); // Only * 2 for reserved because the amount remains in reserved.
 
     let b = registry.createType("Balance", balance.toString(10,0));
 
@@ -475,6 +479,7 @@ const tripleBalance = (registry, value, decreaseConsumers) => {
         feeFrozen: aInfo.data.feeFrozen})
 
     let consumers = aInfo.consumers;
+
     if (decreaseConsumers === true){
         consumers -= 1;
     }
