@@ -216,7 +216,9 @@ const all_modules = [
     ["GenesisHistory.PreviousChain", "0x1754677a24055221d22db56f83f5e21390895d6c6b21a85c004b8942c3bc35ae"],
 ]
 
-const excludeFromTripling = ["7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba"];
+const excludeFromTripling = [
+    "7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf", // Galactic council
+];
 
 const log = (msg) => {
     let m = moment().format('YYYY-MM-DD HH:mm:ss') ;
@@ -266,8 +268,7 @@ const downloadData = async (url, destination, block_number = undefined) => {
 
                     const values = JSON.parse(JSON.stringify(resp, null, 4));
 
-                    // filter alice
-                    const pairs  = keys.filter((key) => key !== "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9de1e86a9a8c739864cf3cc5ec2bea59fd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d").map(function(e, idx) {
+                    const pairs  = keys.map(function(e, idx) {
                         return [e, values[idx]];
                     });
 
@@ -339,7 +340,7 @@ const sendAndWaitFinalization = ({from, tx, printEvents = []}) => new Promise(re
         log(status)
     }));
 
-const validate_triple = async (source_url, target_url) => {
+const validate = async (source_url, target_url) => {
     log("Validating triple balances")
     const api = await createClient(source_url);
     const target_api = await createClient(target_url);
@@ -353,15 +354,12 @@ const validate_triple = async (source_url, target_url) => {
 
     let balances = [];
 
+    //TODO: exclude accounts using excluded list
     await api.query.system.account.entries().then( accounts => {
         accounts.map( ([key, {data}]) => {
             const [address] = key.toHuman()
-            //Skip Alice - only for testing purposes
-            if (address !== "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba") {
-                const balance = data.free;
-                balances.push({address, balance});
-            }
-
+            const balance = data.free;
+            balances.push({address, balance});
         });
     })
 
@@ -380,51 +378,6 @@ const validate_triple = async (source_url, target_url) => {
     const target_unclaimed = target_claims.filter((b)=>b[1] !== 0).map( (val) => new BN(val[1])).reduce( (a,b) => a.add(b))
 
     source_unclaimed = new BN(source_unclaimed).imuln(3);
-
-    assert( source_unclaimed_count ===  target_unclaimed_count, "Unclaimed count does not match")
-    assert( source_unclaimed.eq(target_unclaimed), "Unclaimed balance does not match")
-
-    log(chalk.green("We good.Bye."))
-}
-const validate = async (source_url, target_url) => {
-    log("Validating balances")
-    const api = await createClient(source_url);
-    const target_api = await createClient(target_url);
-
-    const assertBalances = async (address, balance) => {
-        const account = await target_api.query.system.account(address);
-        const bal = account.data.free;
-        assert( bal.eq(balance), `Incorrect amount for ${address}`);
-    }
-
-    let balances = [];
-
-    await api.query.system.account.entries().then( accounts => {
-        accounts.map( ([key, {data}]) => {
-            const [address] = key.toHuman()
-            //Skip Alice - only for testing purposes
-            if (address !== "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba") {
-                const balance = data.free;
-                balances.push({address, balance});
-            }
-
-        });
-    })
-
-    for (let idx in balances){
-        log(`Checking ${balances[idx].address}`)
-        await assertBalances(balances[idx].address, balances[idx].balance);
-    }
-
-    log("Validating claims...")
-
-    const source_claims = await api.query.claims.claims.entries()
-    const source_unclaimed_count = source_claims.filter((b)=>b[1] !== 0).length
-    const source_unclaimed = source_claims.filter((b)=>b[1] !== 0).map( (val) => new BN(val[1])).reduce( (a,b) => a.add(b))
-
-    const target_claims = await target_api.query.claims.claims.entries()
-    const target_unclaimed_count = target_claims.filter((b)=>b[1] !== 0).length
-    const target_unclaimed = target_claims.filter((b)=>b[1] !== 0).map( (val) => new BN(val[1])).reduce( (a,b) => a.add(b))
 
     assert( source_unclaimed_count ===  target_unclaimed_count, "Unclaimed count does not match")
     assert( source_unclaimed.eq(target_unclaimed), "Unclaimed balance does not match")
@@ -531,7 +484,7 @@ const tripleBalance = (registry, value, decreaseConsumers) => {
     return newInfo.toHex();
 }
 
-const tripleClaims = (registry, value) => {
+const tripleClaim = (registry, value) => {
     let newValue = value;
 
     if (value > 0 ) {
@@ -569,7 +522,7 @@ const triple = async (source, destination, stakingAccountsRemoved = []) => {
                 log(`Balance tripling - excluding ${chalk.yellow(address)}`)
             }
         }else if (key.startsWith(claimsPrefix)){
-            newValue = tripleClaims(registry, value);
+            newValue = tripleClaim(registry, value);
         }
 
         return [key, newValue];
@@ -593,8 +546,6 @@ async function main() {
         })
         .command('validate', 'Validate balances and claims', {
         })
-        .command('validate-triple', 'Validate triple balances and claims', {
-        })
         .command('migrate', 'Perform migration', {
         })
         .command('triple', 'Triple balances', {
@@ -616,11 +567,6 @@ async function main() {
 
     if (argv._.includes('validate')) {
         await validate(SOURCE_RPC, TARGET_RPC);
-        process.exit();
-    }
-
-    if (argv._.includes('validate-triple')) {
-        await validate_triple(SOURCE_RPC, TARGET_RPC);
         process.exit();
     }
 
