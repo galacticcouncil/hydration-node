@@ -319,17 +319,25 @@ const validate = async (source_url, target_url) => {
         const reserved = new BN(account.data.reserved.toString());
         const expected = bal.add(reserved);
 
-        const tripled = balance.imuln(3);
+        let tripled;
+        if ( excludeFromTripling.indexOf(address) === -1){
+            tripled = balance.imuln(3);
+        }else{
+            tripled = balance;
+        }
         assert( expected.eq(tripled), `Incorrect amount for ${address}`);
     }
 
     let balances = [];
 
-    //TODO: exclude accounts using excluded list
     await api.query.system.account.entries().then( accounts => {
         accounts.map( ([key, {data}]) => {
             const [address] = key.toHuman()
-            const balance = data.free;
+            const free = new BN(data.free);
+            const reserved = new BN(data.reserved);
+
+            const balance = free.add(reserved);
+
             balances.push({address, balance});
         });
     })
