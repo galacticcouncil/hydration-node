@@ -433,15 +433,21 @@ const loadStorage = async ( path ) => {
 
 }
 
-const purgeStakingLocks = async (source, destination) => {
+const purgeBalancesLocks = async (source, destination) => {
     log("Puring staking locks")
     const registry = new TypeRegistry();
 
     const storage = await loadStorage(source);
 
-    let accounts = [];
+    let stakingAccounts = [];
+    let democracyAccounts = [];
 
-    const balanceLocksPrefix ="0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6";
+    const balanceLocksPrefix = modulePrefixes.get("Balances.Locks");
+
+    if (!balanceLocksPrefix){
+        log(chalk.red("Balance locks prefix not found in populated prefixes"))
+        process.exit(1);
+    }
 
     const adjusted = storage.map( (keyValue) => {
 
@@ -451,12 +457,23 @@ const purgeStakingLocks = async (source, destination) => {
         let newValue = value;
 
         if (key.startsWith(balanceLocksPrefix)){
+            let initialValue = newValue;
             newValue = removeStakingLocks(registry, value);
-            if ( newValue !== value){
+            if ( newValue !== initialValue){
                 // Staking lock has been removed
                 const accountId = key.substring(balanceLocksPrefix.length);
                 let address =  registry.createType("AccountId", `0x${accountId}`);
-                accounts.push(address.toString());
+                stakingAccounts.push(address.toString());
+                initialValue = newValue;
+            }
+
+            newValue = removeDemocracyLocks(registry, newValue);
+
+            if ( newValue !== initialValue){
+                // Staking lock has been removed
+                const accountId = key.substring(balanceLocksPrefix.length);
+                let address =  registry.createType("AccountId", `0x${accountId}`);
+                democracyAccounts.push(address.toString());
             }
         }
 
@@ -478,12 +495,23 @@ const purgeStakingLocks = async (source, destination) => {
 
 
     fs.writeFileSync(destination, JSON.stringify(storageUpdatedWithoutEmptyLocks));
-    log(`Purged ${chalk.yellow(accounts.length)} staking locks`)
-    return accounts;
+    log(`Purged ${chalk.yellow(stakingAccounts.length)} staking locks`)
+    log(`Purged ${chalk.yellow(democracyAccounts.length)} democracy locks`)
+    return [stakingAccounts, democracyAccounts];
 }
 
 const removeStakingLocks = (registry, value) => {
     let stakingId = registry.createType("LockIdentifier", "staking ");
+
+    let locks = registry.createType("Vec<BalanceLock<Balance>>", value);
+
+    const updateLocks = locks.filter( (lock) => lock.id.toString() !== stakingId.toString());
+
+    return registry.createType("Vec<BalanceLock<Balance>>", updateLocks).toHex();
+}
+
+const removeDemocracyLocks = (registry, value) => {
+    let stakingId = registry.createType("LockIdentifier", "democrac");
 
     let locks = registry.createType("Vec<BalanceLock<Balance>>", value);
 
@@ -506,10 +534,11 @@ const tripleBalance = (registry, value, decreaseConsumers) => {
         miscFrozen: aInfo.data.miscFrozen,
         feeFrozen: aInfo.data.feeFrozen})
 
-    let consumers = aInfo.consumers;
+    let consumers = aInfo.consumers - decreaseConsumers;
 
-    if (decreaseConsumers === true){
-        consumers -= 1;
+    if ( consumers < 0){
+        log(chalk.red("Consumers decreased below 0"))
+        process.exit(1)
     }
 
     let newInfo = registry.createType("AccountInfo", { ...aInfo, nonce: 0, consumers: consumers,  data: newData});
@@ -530,7 +559,7 @@ const tripleClaim = (registry, value) => {
     return newValue;
 }
 
-const triple = async (source, destination, stakingAccountsRemoved = []) => {
+const triple = async (source, destination, stakingAccountsRemoved = [], democracyLocksAccounts = []) => {
     const registry = new TypeRegistry();
     const storage = await loadStorage(source);
 
@@ -550,7 +579,16 @@ const triple = async (source, destination, stakingAccountsRemoved = []) => {
             let hdxAddress = encodeAddress(address, 63);
 
             if ( excludeFromTripling.indexOf(hdxAddress) === -1 ) {
-                newValue = tripleBalance(registry, value, stakingAccountsRemoved.indexOf(address.toString()) >= 0);
+                let decraseConsumers = 0;
+                if ( stakingAccountsRemoved.includes(address.toString())){
+                    decraseConsumers += 1;
+                }
+
+                if ( democracyLocksAccounts.includes(address.toString())){
+                    decraseConsumers += 1;
+                }
+
+                newValue = tripleBalance(registry, value, decraseConsumers);
             }else{
                 log(`Balance tripling - excluding ${chalk.yellow(address)}`)
             }
@@ -610,8 +648,8 @@ async function main() {
         process.exit();
     }
     if (argv._.includes('prepare')) {
-        const stakingLocksAccounts = await purgeStakingLocks(storagePath, tempStoragePath);
-        await triple(tempStoragePath, finalStoragePath, stakingLocksAccounts);
+        const [stakingLocksAccounts, democracyLocksAccounts] = await purgeBalancesLocks(storagePath, tempStoragePath);
+        await triple(tempStoragePath, finalStoragePath, stakingLocksAccounts, democracyLocksAccounts);
         process.exit();
     }
 
