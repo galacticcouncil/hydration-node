@@ -1,5 +1,6 @@
 const {ApiPromise, WsProvider, Keyring} = require("@polkadot/api");
 const {Metadata, TypeRegistry} = require("@polkadot/types");
+const { xxhashAsHex } = require("@polkadot/util-crypto");
 const {encodeAddress} = require("@polkadot/util-crypto");
 const chalk = require("chalk");
 const path  = require("path");
@@ -25,20 +26,44 @@ const tripleStoragePath = path.join(__dirname, "data", "tripleStorage.json");
 const tempStoragePath = path.join(__dirname, "data", "tempStorage.json");
 const finalStoragePath = path.join(__dirname, "data", "finalStorage.json");
 
-const snakenet_modules = [
-    ["System.Account", "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9"],
-    ["Claims.Claims", "0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397"],
-    ["Tokens.TotalIssuance", "0x99971b5749ac43e0235e41b0d378691857c875e4cff74148e4628f264b974c80"],
-    ["Tokens.Locks", "0x99971b5749ac43e0235e41b0d3786918218f26c73add634897550b4003b26bc6"],
-    ["Tokens.Accounts", "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d51"],
-    ["Balances.TotalIssuance", "0xc2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80"],
-    ["Balances.Account", "0xc2261276cc9d1f8598ea4b6a74b15c2fb99d880ec681799c0cf30e8886371da9"],
-    ["Balances.Locks", "0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6"],
-    ["Balances.Reserves", "0xc2261276cc9d1f8598ea4b6a74b15c2f60c9ab7384f36f3de79a685fa22b4491"],
-    ["Balances.StorageVersion", "0xc2261276cc9d1f8598ea4b6a74b15c2f308ce9615de0775a82f8a94dc3d285a1"],
- 
-]
+const includedModules = [
+    "System.Account",
+    "Claims.Claims",
+    "Tokens.TotalIssuance",
+    "Tokens.Locks",
+    "Tokens.Accounts",
+    "Balances.TotalIssuance",
+    "Balances.Account",
+    "Balances.Locks",
+    "Balances.Reserves",
+    "Balances.StorageVersion",
 
+    "Elections.Members",
+    "Elections.RunnersUp",
+    "Elections.Candidates",
+    "Elections.ElectionRounds",
+    "Elections.Voting",
+    "Council.Proposals",
+    "Council.ProposalOf",
+    "Council.Voting",
+    "Council.ProposalCount",
+    "Council.Members",
+    "Council.Prime",
+    "TechnicalCommittee.Proposals",
+    "TechnicalCommittee.ProposalOf",
+    "TechnicalCommittee.Voting",
+    "TechnicalCommittee.ProposalCount",
+    "TechnicalCommittee.Members",
+    "TechnicalCommittee.Prime",
+
+    "Identity.IdentityOf",
+    "Identity.SuperOf",
+    "Identity.SubsOf",
+    "Identity.Registrars",
+
+    "Tips.Tips",
+    "Tips.Reasons",
+]
 
 const all_modules = [
     ["System.Account", "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9"],
@@ -225,6 +250,33 @@ const log = (msg) => {
     console.log(`${m} snakenet-migration \t${msg}`);
 }
 
+
+
+let modulePrefixes = new Map();
+
+const prefixes = async (url) => {
+
+    const api = await createClient(url);
+    const metadata = await api.rpc.state.getMetadata();
+    // Populate the prefixes array
+    const modules = JSON.parse(JSON.stringify(metadata.asLatest.pallets));
+    modules.forEach((module) => {
+        //console.log("MODULES->", module);
+        if (module.storage) {
+            module.storage.items.forEach( (item) => {
+                //console.log(item.name)
+                const storageModule = `${module.storage.prefix.toString()}.${item.name}`;
+                if (includedModules.includes((storageModule))){
+                    const modPrefix = xxhashAsHex(module.storage.prefix, 128);
+                    const itemPrefix = xxhashAsHex(item.name, 128);
+                    const storagePrefix = modPrefix.concat(itemPrefix.substring(2));
+                    modulePrefixes.set(storageModule, storagePrefix);
+                }
+            })
+        }
+  });
+}
+
 const downloadData = async (url, destination, block_number = undefined) => {
     if (fs.existsSync(destination)) {
         log(
@@ -255,11 +307,11 @@ const downloadData = async (url, destination, block_number = undefined) => {
 
         let allPairs = [];
 
-        for (const elem of snakenet_modules) {
-            const pairs = await api.rpc.state.getPairs(elem[1]);
+        for (const [key,value] of modulePrefixes) {
+            const pairs = await api.rpc.state.getPairs(value);
             let p = pairs.map((elem) => JSON.parse(JSON.stringify(elem)));
             if (p.length > 0) {
-                log(`Downloading ${elem[0]} - found ${chalk.yellow(p.length)}`);
+                log(`Downloading ${key} - found ${chalk.yellow(p.length)}`);
                 allPairs.push(...p);
             }
         }
@@ -540,6 +592,8 @@ async function main() {
         })
         .help()
         .alias('help', 'h').argv;
+
+    await prefixes(SOURCE_RPC);
 
     if (argv._.includes('download')) {
         await downloadData(SOURCE_RPC, storagePath, argv.block);
