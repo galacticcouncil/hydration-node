@@ -256,48 +256,16 @@ const downloadData = async (url, destination, block_number = undefined) => {
         let allPairs = [];
 
         for (const elem of snakenet_modules) {
-            let prefix = elem[1];
-            let start_prefix = prefix;
-            log(`Downloading ${elem[0]}`);
-            let modulePairCount = 0;
-            while (1 === 1 ){
-                const keys = await api.rpc.state.getKeysPaged(prefix, 1000,start_prefix, block_hash);
-
-                if (keys.length > 0 ){
-                    const resp = await api.rpc.state.queryStorageAt(keys, block_hash);
-
-                    const values = JSON.parse(JSON.stringify(resp, null, 4));
-
-                    const pairs  = keys.map(function(e, idx) {
-                        return [e, values[idx]];
-                    });
-
-                    allPairs.push(...pairs);
-                }
-
-                modulePairCount += keys.length;
-
-                if ( keys.length < 1000){
-                    break;
-                }
-
-                start_prefix = keys[999];
-            }
-            log(`Downloading ${elem[0]} - found ${chalk.yellow(modulePairCount)}`);
-            /*
-             // using get pairs to get all - better paginated as above
-             // leaving here only for future reference
             const pairs = await api.rpc.state.getPairs(elem[1]);
             let p = pairs.map((elem) => JSON.parse(JSON.stringify(elem)));
             if (p.length > 0) {
-                console.log(`${elem[0]} - ${p.length}`)
+                log(`Downloading ${elem[0]} - found ${chalk.yellow(p.length)}`);
                 allPairs.push(...p);
             }
-             */
         }
         stream.write(JSON.stringify(allPairs));
         stream.end();
-        console.log(destination)
+        log(destination)
     }
 }
 
