@@ -17,15 +17,24 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{parameter_types, weights::Pays, PalletId};
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use frame_system::EnsureRoot;
+use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
+use frame_support::traits::{Contains, EnsureOneOf, LockIdentifier};
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber};
 use sp_runtime::{
 	generic,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	FixedPointNumber, MultiSignature, Perbill, Permill, Perquintill,
+	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
+	FixedPointNumber, MultiSignature, Perbill, Permill, Perquintill, Percent,
 };
+use sp_core::{
+	u32_trait::{_1, _2},
+};
+use sp_std::prelude::*;
+use codec::alloc::vec;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -59,6 +68,26 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_perthousand(25);
 /// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
 /// by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+
+pub type CouncilCollective = pallet_collective::Instance1;
+pub type TechnicalCollective = pallet_collective::Instance2;
+
+pub type MoreThanHalfCouncil = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+>;
+
+pub fn get_all_module_accounts() -> Vec<AccountId> {
+	vec![TreasuryPalletId::get().into_account()]
+}
+
+pub struct DustRemovalWhitelist;
+
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		get_all_module_accounts().contains(a)
+	}
+}
 
 // frame system
 parameter_types! {
@@ -99,7 +128,6 @@ parameter_types! {
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
-	pub const MultiPaymentCurrencySetFee: Pays = Pays::Yes;
 }
 
 // pallet treasury
@@ -136,5 +164,112 @@ parameter_types! {
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
-	pub PreimageByteDeposit: Balance = deposit(0, 1);
+	pub PreimageByteDeposit: Balance = 10 * MILLICENTS;
 }
+
+// pallet identity
+parameter_types! {
+	pub const BasicDeposit: Balance = 5 * DOLLARS;
+	pub const FieldDeposit: Balance = DOLLARS;
+	pub const SubAccountDeposit: Balance = 5 * DOLLARS;
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxAdditionalFields: u32 = 100;
+	pub const MaxRegistrars: u32 = 20;
+}
+
+// pallet collective Instance1 - CouncilCollective
+parameter_types! {
+	pub const CouncilMaxProposals: u32 = 30;
+	pub const CouncilMaxMembers: u32 = 13;
+	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+}
+
+// pallet collective Instance2 - TechnicalCollective
+parameter_types! {
+	pub const TechnicalMaxProposals: u32 = 20;
+	pub const TechnicalMaxMembers: u32 = 10;
+	pub const TechnicalMotionDuration: BlockNumber = 5 * DAYS;
+}
+
+// pallet democracy
+parameter_types! {
+	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
+	pub const VotingPeriod: BlockNumber = 7 * DAYS;
+	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
+	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
+	pub const EnactmentPeriod: BlockNumber = 7 * DAYS;
+	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
+	pub const InstantAllowed: bool = true;
+	pub const MaxVotes: u32 = 100;
+	pub const MaxProposals: u32 = 100;
+}
+
+// pallet elections_phragmen
+parameter_types! {
+	// Bond for candidacy into governance
+	pub const CandidacyBond: Balance = 10_000 * DOLLARS;
+	// 1 storage item created, key size is 32 bytes, value size is 16+16.
+	pub const VotingBondBase: Balance = DOLLARS;
+	// additional data per vote is 32 bytes (account id).
+	pub const VotingBondFactor: Balance = 50 * CENTS;
+	pub const TermDuration: BlockNumber = 7 * DAYS;
+	pub const DesiredMembers: u32 = 1;
+	pub const DesiredRunnersUp: u32 = 0;
+	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
+}
+
+// pallet tips
+parameter_types! {
+	pub const DataDepositPerByte: Balance = CENTS;
+	pub const TipCountdown: BlockNumber = 2 * HOURS;
+	pub const TipFindersFee: Percent = Percent::from_percent(1);
+	pub const TipReportDepositBase: Balance = 10 * DOLLARS;
+	pub const TipReportDepositPerByte: Balance = CENTS;
+	pub const MaximumReasonLength: u32 = 1024;
+}
+
+// pallet vesting
+parameter_types! {
+	pub MinVestedTransfer: Balance = NativeExistentialDeposit::get();
+	pub const MaxVestingSchedules: u32 = 100;
+}
+
+// pallet proxy
+/// The type used to represent the kinds of proxying allowed.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum ProxyType {
+	Any,
+	CancelProxy,
+	Governance,
+	Transfer,
+}
+impl Default for ProxyType {
+	fn default() -> Self {
+		Self::Any
+	}
+}
+
+parameter_types! {
+	pub ProxyDepositBase: Balance = 4 * DOLLARS + 480 * MILLICENTS;
+	pub ProxyDepositFactor: Balance = 1_980 * MILLICENTS;
+	pub const MaxProxies: u16 = 32;
+	pub AnnouncementDepositBase: Balance = 4 * DOLLARS + 480 * MILLICENTS;
+	pub AnnouncementDepositFactor: Balance = 3_960 * MILLICENTS;
+	pub const MaxPending: u16 = 32;
+}
+
+// pallet claims
+parameter_types! {
+	pub ClaimMessagePrefix: &'static [u8] = b"I hereby claim all my HDX tokens to wallet:";
+}
+
+// pallet transaction multi payment
+parameter_types! {
+	pub const MultiPaymentCurrencySetFee: Pays = Pays::Yes;
+}
+
+// pallet asset registry
+parameter_types! {
+	pub const RegistryStrLimit: u32 = 32;
+}
+

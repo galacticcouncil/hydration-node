@@ -58,6 +58,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				vec![],
 				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
 			)
 		},
 		// Bootnodes
