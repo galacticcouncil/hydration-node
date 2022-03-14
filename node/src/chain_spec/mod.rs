@@ -94,7 +94,6 @@ pub fn parachain_genesis(
 	_vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	_registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
 	_accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
-	tx_fee_payment_account: AccountId,
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
@@ -138,7 +137,7 @@ pub fn parachain_genesis(
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: vec![],
-			fallback_account: Some(tx_fee_payment_account),
+			fallback_account: Some(_tx_fee_payment_account),
 			account_currencies: vec![],
 		},
 		tokens: TokensConfig { balances: vec![] },

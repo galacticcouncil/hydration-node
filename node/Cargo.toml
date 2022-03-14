@@ -15,7 +15,7 @@ name = "hydradx"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-hydra-dx-build-script-utils = { git = "https://github.com/galacticcouncil/HydraDX-node", branch = "master" }
+hydra-dx-build-script-utils = { path = "../utils/build-script-utils" }
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3.1" }

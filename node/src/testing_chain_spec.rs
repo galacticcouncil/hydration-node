@@ -19,7 +19,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use cumulus_primitives_core::ParaId;
-use primitives::{AssetId, BlockNumber, Price};
+use primitives::{AssetId, BlockNumber, Price, constants::currency::NATIVE_EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -27,9 +27,10 @@ use serde_json::map::Map;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use testing_hydradx_runtime::{
-	AccountId, AuraId, Balance, BalancesConfig, CollatorSelectionConfig, GenesisConfig, ParachainInfoConfig,
-	SessionConfig, Signature, SudoConfig, SystemConfig, UNITS, WASM_BINARY,
+	AccountId, AuraId, Balance, AssetRegistryConfig, BalancesConfig, ClaimsConfig, CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, MultiTransactionPaymentConfig, ParachainInfoConfig,
+	SessionConfig, Signature, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
+use hex_literal::hex;
 
 const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
@@ -276,8 +277,45 @@ fn testnet_parachain_genesis(
 		// no need to pass anything, it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
+		asset_registry: AssetRegistryConfig {
+			asset_names: vec![],
+			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
+			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
+		},
+		multi_transaction_payment: MultiTransactionPaymentConfig {
+			currencies: vec![],
+			fallback_account: Some(_tx_fee_payment_account),
+			account_currencies: vec![],
+		},
+		tokens: TokensConfig { balances: vec![] },
 		treasury: Default::default(),
+		elections: ElectionsConfig {
+			// Intergalactic elections
+			members: vec![(
+				hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into(),
+				14_999_900_000u128 * UNITS,
+			)],
+		},
+		council: CouncilConfig {
+			// Intergalactic council member
+			members: vec![hex!["bca8eeb9c7cf74fc28ebe4091d29ae1c12ed622f7e3656aae080b54d5ff9a23c"].into()],
+			phantom: Default::default(),
+		},
+		technical_committee: TechnicalCommitteeConfig {
+			members: vec![
+				hex!["d6cf8789dce651cb54a4036406f4aa0c771914d345c004ad0567b814c71fb637"].into(),
+				hex!["bc96ec00952efa8f0e3e08b36bf5096bcb877acac536e478aecb72868db5db02"].into(),
+				hex!["2875dd47bc1bcb70e23de79e7538c312be12c716033bbae425130e46f5f2b35e"].into(),
+				hex!["644643bf953233d08c4c9bae0acd49f3baa7658d9b342b7e6879bb149ee6e44c"].into(),
+				hex!["ccdb435892c9883656d0398b2b67023ba1e11bda0c7f213f70fdac54c6abab3f"].into(),
+				hex!["f461c5ae6e80bf4af5b84452789c17b0b0a095a2d77c2a407978147de2d5b572"].into(),
+			],
+			phantom: Default::default(),
+		},
+		vesting: VestingConfig { vesting: vec![] },
+		claims: ClaimsConfig { claims: vec![] },
 		parachain_info: ParachainInfoConfig { parachain_id },
 		aura_ext: Default::default(),
+		polkadot_xcm: Default::default(),
 	}
 }

@@ -77,7 +77,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				vec![],
 				//accepted_assets
 				vec![],
-				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
 			)
 		},
 		// Bootnodes

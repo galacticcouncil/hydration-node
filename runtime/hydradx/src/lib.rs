@@ -47,7 +47,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Currency as PalletCurrency, ContainsLengthBound, EnsureOrigin, EnsureOneOf, Everything, Get, Imbalance, InstanceFilter, OnUnbalanced, PrivilegeCmp, SortedMembers, U128CurrencyToVote},
+	traits::{Currency as PalletCurrency, EnsureOrigin, EnsureOneOf, Everything, Get, Imbalance, InstanceFilter, OnUnbalanced, PrivilegeCmp, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -68,7 +68,6 @@ mod benchmarking;
 
 /// Import HydraDX pallets
 pub use pallet_claims;
-use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -391,12 +390,6 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const PreimageMaxSize: u32 = 4096 * 1024;
-	pub PreimageBaseDeposit: Balance = deposit(2, 64);
-	pub PreimageByteDeposit: Balance = deposit(0, 1);
-}
-
 impl pallet_preimage::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
@@ -579,12 +572,6 @@ impl pallet_tips::Config for Runtime {
 
 /// ORML Configurations
 
-parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		Zero::zero()
-	};
-}
-
 impl orml_tokens::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
@@ -595,6 +582,12 @@ impl orml_tokens::Config for Runtime {
 	type OnDust = ();
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = common_runtime::DustRemovalWhitelist;
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+		Zero::zero()
+	};
 }
 
 impl orml_currencies::Config for Runtime {

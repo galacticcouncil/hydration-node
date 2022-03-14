@@ -26,8 +26,9 @@ trie-db = { version = "0.22.6", default-features = false }
 smallvec = "1.6.1"
 
 # local dependencies
-primitives = { default-features = false, path = "../../primitives" }
+primitives = { path = "../../primitives", default-features = false }
 common-runtime = { path = '../common', default-features = false }
+pallet-claims = { path = '../../pallets/claims', default-features = false }
 
 # pallets
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
@@ -48,14 +49,11 @@ pallet-proxy = { git = "https://github.com/paritytech/substrate", branch = "polk
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
-# Warehouse
+# Warehouse dependencies
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", branch="polkadot-v0.9.16", default-features = false }
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.16", default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", branch="polkadot-v0.9.16", default-features = false}
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "c832f453b19f1439d1199d2f15923705e6e5c005", default-features = false}
-
-# Warehouse
-pallet-claims = { git = "https://github.com/galacticcouncil/HydraDX-node", branch = "polkadot-v0.9.16-solochain", default-features = false }
 
 # ORML dependencies
 orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
@@ -171,7 +169,6 @@ std = [
     "cumulus-pallet-xcmp-queue/std",
     "cumulus-pallet-dmp-queue/std",
     "polkadot-xcm/std",
-    "polkadot-parachain/std",
     "xcm-executor/std",
     "xcm-builder/std",
     "orml-currencies/std",
