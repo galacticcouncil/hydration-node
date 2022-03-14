@@ -10,6 +10,3 @@ members = [
   'primitives',
   'utils/build-script-utils'
 ]
-
-[patch."https://github.com/galacticcouncil/warehouse"]
-hydradx-traits = { git = "https://github.com/galacticcouncil//warehouse", branch = "polkadot-v0.9.16"}

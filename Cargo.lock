@@ -3061,7 +3061,7 @@ dependencies = [
  "getrandom 0.2.5",
  "hash-db",
  "hex-literal",
- "hydradx-traits",
+ "hydradx-traits 0.5.0 (git+https://github.com/galacticcouncil/warehouse?rev=d250a168ff2f16ce2101dde72a6d9471d2b1aaf1)",
  "memory-db 0.27.0",
  "orml-benchmarking",
  "orml-currencies",
@@ -3130,7 +3130,19 @@ dependencies = [
 [[package]]
 name = "hydradx-traits"
 version = "0.5.0"
-source = "git+https://github.com/galacticcouncil//warehouse?branch=polkadot-v0.9.16#d250a168ff2f16ce2101dde72a6d9471d2b1aaf1"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-std",
+]
+
+[[package]]
+name = "hydradx-traits"
+version = "0.5.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=d250a168ff2f16ce2101dde72a6d9471d2b1aaf1#d250a168ff2f16ce2101dde72a6d9471d2b1aaf1"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -5190,13 +5202,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "1.1.10"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=c832f453b19f1439d1199d2f15923705e6e5c005#c832f453b19f1439d1199d2f15923705e6e5c005"
+version = "1.1.9"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydradx-traits",
+ "hydradx-traits 0.5.0 (git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78)",
  "orml-traits",
  "parity-scale-codec",
  "primitive-types 0.8.0",
@@ -5831,7 +5843,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.16#d250a168ff2f16ce2101dde72a6d9471d2b1aaf1"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=d250a168ff2f16ce2101dde72a6d9471d2b1aaf1#d250a168ff2f16ce2101dde72a6d9471d2b1aaf1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6007,11 +6019,11 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "7.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.16#d250a168ff2f16ce2101dde72a6d9471d2b1aaf1"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=d250a168ff2f16ce2101dde72a6d9471d2b1aaf1#d250a168ff2f16ce2101dde72a6d9471d2b1aaf1"
 dependencies = [
  "frame-support",
  "frame-system",
- "hydradx-traits",
+ "hydradx-traits 0.5.0 (git+https://github.com/galacticcouncil/warehouse?rev=d250a168ff2f16ce2101dde72a6d9471d2b1aaf1)",
  "orml-traits",
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -10736,7 +10748,7 @@ dependencies = [
  "getrandom 0.2.5",
  "hash-db",
  "hex-literal",
- "hydradx-traits",
+ "hydradx-traits 0.5.0 (git+https://github.com/galacticcouncil/warehouse?rev=d250a168ff2f16ce2101dde72a6d9471d2b1aaf1)",
  "memory-db 0.27.0",
  "orml-benchmarking",
  "orml-currencies",
