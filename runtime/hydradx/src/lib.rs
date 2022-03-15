@@ -68,6 +68,7 @@ mod benchmarking;
 
 /// Import HydraDX pallets
 pub use pallet_claims;
+pub use pallet_genesis_history;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -684,6 +685,8 @@ impl pallet_claims::Config for Runtime {
 	type CurrencyBalance = Balance;
 }
 
+impl pallet_genesis_history::Config for Runtime {}
+
 pub struct NoSpotPriceProvider;
 impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
 	type Price = Price;
@@ -784,6 +787,7 @@ construct_runtime!(
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 33,
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 34,
+		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 35,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info::{Pallet, Event<T>} = 100,
@@ -967,9 +971,12 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_collator_selection, CollatorSelection);
 			list_benchmark!(list, extra, pallet_timestamp, Timestamp);
 			list_benchmark!(list, extra, pallet_treasury, Treasury);
+			list_benchmark!(list, extra, pallet_preimage, Preimage);
 			list_benchmark!(list, extra, pallet_scheduler, Scheduler);
-			list_benchmark!(list, extra, pallet_utility, Utility);
+			list_benchmark!(list, extra, pallet_identity, Identity);
 			list_benchmark!(list, extra, pallet_tips, Tips);
+			list_benchmark!(list, extra, pallet_proxy, Proxy);
+			list_benchmark!(list, extra, pallet_utility, Utility);
 			list_benchmark!(list, extra, pallet_democracy, Democracy);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
@@ -1015,9 +1022,12 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_collator_selection, CollatorSelection);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_treasury, Treasury);
+			add_benchmark!(params, batches, pallet_preimage, Preimage);
 			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
-			add_benchmark!(params, batches, pallet_utility, Utility);
+			add_benchmark!(params, batches, pallet_identity, Identity);
 			add_benchmark!(params, batches, pallet_tips, Tips);
+			add_benchmark!(params, batches, pallet_proxy, Proxy);
+			add_benchmark!(params, batches, pallet_utility, Utility);
 			add_benchmark!(params, batches, pallet_democracy, Democracy);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);

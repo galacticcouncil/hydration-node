@@ -27,7 +27,7 @@ use serde_json::map::Map;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use testing_hydradx_runtime::{
-	AccountId, AuraId, Balance, AssetRegistryConfig, BalancesConfig, ClaimsConfig, CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, MultiTransactionPaymentConfig, ParachainInfoConfig,
+	AccountId, AuraId, Balance, AssetRegistryConfig, BalancesConfig, ClaimsConfig, CollatorSelectionConfig, CouncilConfig, GenesisHistoryConfig, ElectionsConfig, GenesisConfig, MultiTransactionPaymentConfig, ParachainInfoConfig,
 	SessionConfig, Signature, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
 use hex_literal::hex;
@@ -312,6 +312,7 @@ fn testnet_parachain_genesis(
 			],
 			phantom: Default::default(),
 		},
+		genesis_history: GenesisHistoryConfig::default(),
 		vesting: VestingConfig { vesting: vec![] },
 		claims: ClaimsConfig { claims: vec![] },
 		parachain_info: ParachainInfoConfig { parachain_id },

@@ -26,7 +26,7 @@ pub mod testnet;
 
 use cumulus_primitives_core::ParaId;
 use hydradx_runtime::{
-	AccountId, AuraId, Balance, AssetRegistryConfig, BalancesConfig, ClaimsConfig, CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, MultiTransactionPaymentConfig, ParachainInfoConfig,
+	AccountId, AuraId, Balance, AssetRegistryConfig, BalancesConfig, ClaimsConfig, CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig, MultiTransactionPaymentConfig, ParachainInfoConfig,
 	SessionConfig, Signature, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
 use primitives::{AssetId, BlockNumber, Price, constants::currency::NATIVE_EXISTENTIAL_DEPOSIT};
@@ -165,6 +165,7 @@ pub fn parachain_genesis(
 			],
 			phantom: Default::default(),
 		},
+		genesis_history: GenesisHistoryConfig::default(),
 		vesting: VestingConfig { vesting: vec![] },
 		claims: ClaimsConfig { claims: vec![] },
 		parachain_info: ParachainInfoConfig { parachain_id },
