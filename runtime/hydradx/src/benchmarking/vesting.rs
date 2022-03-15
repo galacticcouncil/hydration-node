@@ -3,14 +3,11 @@ use crate::{BlockNumber, Currencies, MaxVestingSchedules, System, Vesting};
 
 use super::BSX;
 
-use common_runtime::TreasuryPalletId;
-
 use sp_std::prelude::*;
 
 use frame_benchmarking::{account, whitelisted_caller};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
-use sp_runtime::traits::AccountIdConversion;
 
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrency;
@@ -28,7 +25,7 @@ const SEED: u32 = 0;
 const NATIVE: AssetId = NativeAssetId::get();
 
 fn get_vesting_account() -> AccountId {
-	TreasuryPalletId::get().into_account()
+	primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()
 }
 
 fn lookup_of_account(who: AccountId) -> <<Runtime as frame_system::Config>::Lookup as StaticLookup>::Source {
