@@ -369,15 +369,16 @@ const validate = async (source_url, target_url) => {
         const account = await target_api.query.system.account(address);
         const bal = new BN(account.data.free.toString());
         const reserved = new BN(account.data.reserved.toString());
-        const expected = bal.add(reserved);
+        const actual = bal.add(reserved);
 
         let tripled;
-        if ( excludeFromTripling.indexOf(address) === -1){
+        if ( ! excludeFromTripling.includes(address)){
+            log(`${address} tripling`);
             tripled = balance.imuln(3);
         }else{
             tripled = balance;
         }
-        assert( expected.eq(tripled), `Incorrect amount for ${address}`);
+        assert( actual.eq(tripled), `Incorrect amount for ${address} - actual ${actual} expected ${tripled}`);
     }
 
     let balances = [];
@@ -434,7 +435,7 @@ const loadStorage = async ( path ) => {
 }
 
 const purgeBalancesLocks = async (source, destination) => {
-    log("Puring staking locks")
+    log("Purging staking locks")
     const registry = new TypeRegistry();
 
     const storage = await loadStorage(source);
@@ -578,17 +579,17 @@ const triple = async (source, destination, stakingAccountsRemoved = [], democrac
             let address =  registry.createType("AccountId", `0x${accountId}`);
             let hdxAddress = encodeAddress(address, 63);
 
-            if ( excludeFromTripling.indexOf(hdxAddress) === -1 ) {
-                let decraseConsumers = 0;
+            if ( ! excludeFromTripling.includes(hdxAddress) ) {
+               let decreaseConsumers = 0;
                 if ( stakingAccountsRemoved.includes(address.toString())){
-                    decraseConsumers += 1;
+                    decreaseConsumers += 1;
                 }
 
                 if ( democracyLocksAccounts.includes(address.toString())){
-                    decraseConsumers += 1;
+                    decreaseConsumers += 1;
                 }
 
-                newValue = tripleBalance(registry, value, decraseConsumers);
+                newValue = tripleBalance(registry, value, decreaseConsumers);
             }else{
                 log(`Balance tripling - excluding ${chalk.yellow(address)}`)
             }
@@ -619,8 +620,6 @@ async function main() {
         })
         .command('migrate', 'Perform migration', {
         })
-        .command('triple', 'Triple balances', {
-        })
         .command('prepare', 'Prepare storage - remove locks, triple balances and claims', {
         })
 
@@ -643,10 +642,6 @@ async function main() {
         process.exit();
     }
 
-    if (argv._.includes('triple')) {
-        await triple(storagePath, tripleStoragePath);
-        process.exit();
-    }
     if (argv._.includes('prepare')) {
         const [stakingLocksAccounts, democracyLocksAccounts] = await purgeBalancesLocks(storagePath, tempStoragePath);
         await triple(tempStoragePath, finalStoragePath, stakingLocksAccounts, democracyLocksAccounts);
