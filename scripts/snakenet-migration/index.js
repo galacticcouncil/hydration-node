@@ -2,6 +2,10 @@ const {ApiPromise, WsProvider, Keyring} = require("@polkadot/api");
 const {Metadata, TypeRegistry} = require("@polkadot/types");
 const { xxhashAsHex } = require("@polkadot/util-crypto");
 const {encodeAddress} = require("@polkadot/util-crypto");
+const { stringToU8a } = require("@polkadot/util");
+const {compactStripLength, hexToU8a, u8aToHex}  = require('@polkadot/util');
+
+
 const chalk = require("chalk");
 const path  = require("path");
 const fs = require("fs");
@@ -243,6 +247,7 @@ const all_modules = [
 
 const excludeFromTripling = [
     "7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf", // Galactic council
+    "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba", // Alice.
 ];
 
 const log = (msg) => {
@@ -251,6 +256,11 @@ const log = (msg) => {
 }
 
 
+const hdxAddressFromKey = (key, prefix) => {
+    const registry = new TypeRegistry();
+    const account  = registry.createType("AccountId32", `0x${key.substring(prefix.length+32)}`);
+    return encodeAddress(account, 63);
+}
 
 let modulePrefixes = new Map();
 
@@ -264,7 +274,6 @@ const prefixes = async (url) => {
         //console.log("MODULES->", module);
         if (module.storage) {
             module.storage.items.forEach( (item) => {
-                //console.log(item.name)
                 const storageModule = `${module.storage.prefix.toString()}.${item.name}`;
                 if (includedModules.includes((storageModule))){
                     const modPrefix = xxhashAsHex(module.storage.prefix, 128);
@@ -373,7 +382,6 @@ const validate = async (source_url, target_url) => {
 
         let tripled;
         if ( ! excludeFromTripling.includes(address)){
-            log(`${address} tripling`);
             tripled = balance.imuln(3);
         }else{
             tripled = balance;
@@ -435,7 +443,7 @@ const loadStorage = async ( path ) => {
 }
 
 const purgeBalancesLocks = async (source, destination) => {
-    log("Purging staking locks")
+    log("Purging balances locks - removing staking and democracy locks")
     const registry = new TypeRegistry();
 
     const storage = await loadStorage(source);
@@ -462,8 +470,7 @@ const purgeBalancesLocks = async (source, destination) => {
             newValue = removeStakingLocks(registry, value);
             if ( newValue !== initialValue){
                 // Staking lock has been removed
-                const accountId = key.substring(balanceLocksPrefix.length);
-                let address =  registry.createType("AccountId", `0x${accountId}`);
+                const address = hdxAddressFromKey(key, balanceLocksPrefix);
                 stakingAccounts.push(address.toString());
                 initialValue = newValue;
             }
@@ -472,8 +479,7 @@ const purgeBalancesLocks = async (source, destination) => {
 
             if ( newValue !== initialValue){
                 // Staking lock has been removed
-                const accountId = key.substring(balanceLocksPrefix.length);
-                let address =  registry.createType("AccountId", `0x${accountId}`);
+                const address = hdxAddressFromKey(key, balanceLocksPrefix);
                 democracyAccounts.push(address.toString());
             }
         }
@@ -564,8 +570,8 @@ const triple = async (source, destination, stakingAccountsRemoved = [], democrac
     const registry = new TypeRegistry();
     const storage = await loadStorage(source);
 
-    const systemAccountPrefix ="0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9";
-    const claimsPrefix ="0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397";
+    const systemAccountPrefix = modulePrefixes.get("System.Account");
+    const claimsPrefix = modulePrefixes.get("Claims.Claims");
 
     const storageAdjusted = storage.map( ( keyValue ) => {
         const key = keyValue[0];
@@ -575,23 +581,22 @@ const triple = async (source, destination, stakingAccountsRemoved = [], democrac
 
         if ( key.startsWith(systemAccountPrefix)) {
             // Tripling balances
-            const accountId = key.substring(systemAccountPrefix.length);
-            let address =  registry.createType("AccountId", `0x${accountId}`);
-            let hdxAddress = encodeAddress(address, 63);
+            const hdxAddress = hdxAddressFromKey(key, systemAccountPrefix);
 
             if ( ! excludeFromTripling.includes(hdxAddress) ) {
                let decreaseConsumers = 0;
-                if ( stakingAccountsRemoved.includes(address.toString())){
+                if ( stakingAccountsRemoved.includes(hdxAddress)){
                     decreaseConsumers += 1;
                 }
 
-                if ( democracyLocksAccounts.includes(address.toString())){
+                if ( democracyLocksAccounts.includes(hdxAddress)){
                     decreaseConsumers += 1;
                 }
 
                 newValue = tripleBalance(registry, value, decreaseConsumers);
             }else{
-                log(`Balance tripling - excluding ${chalk.yellow(address)}`)
+                //TODO: staking locks and democracy locks for excluded address ?!!
+                log(`Balance tripling - excluding ${chalk.yellow(hdxAddress)}`)
             }
         }else if (key.startsWith(claimsPrefix)){
             newValue = tripleClaim(registry, value);
