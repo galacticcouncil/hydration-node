@@ -41,7 +41,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				)],
 				true,
 				PARA_ID.into(),
-				//Endowd  accounts
+				//Endowed  accounts
 				vec![],
 				vec![],
 				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
