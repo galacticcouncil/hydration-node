@@ -250,6 +250,10 @@ const excludeFromTripling = [
     "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba", // Alice.
 ];
 
+const ignoreInValidate = [
+    "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba", // Alice.
+]
+
 const log = (msg) => {
     let m = moment().format('YYYY-MM-DD HH:mm:ss') ;
     console.log(`${m} snakenet-migration \t${msg}`);
@@ -405,7 +409,9 @@ const validate = async (source_url, target_url) => {
 
     for (let idx in balances){
         log(`Checking ${balances[idx].address}`)
-        await assertBalances(balances[idx].address, balances[idx].balance);
+        if (!ignoreInValidate.includes(balances[idx].address)){
+            await assertBalances(balances[idx].address, balances[idx].balance);
+        }
     }
     log("Validating triple claims...")
 
