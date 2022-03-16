@@ -270,11 +270,11 @@ impl Default for ProxyType {
 }
 
 parameter_types! {
-	pub ProxyDepositBase: Balance = 4 * DOLLARS + 480 * MILLICENTS;
-	pub ProxyDepositFactor: Balance = 1_980 * MILLICENTS;
+	pub ProxyDepositBase: Balance = deposit(1, 8);
+	pub ProxyDepositFactor: Balance = deposit(0, 33);
 	pub const MaxProxies: u16 = 32;
-	pub AnnouncementDepositBase: Balance = 4 * DOLLARS + 480 * MILLICENTS;
-	pub AnnouncementDepositFactor: Balance = 3_960 * MILLICENTS;
+	pub AnnouncementDepositBase: Balance = deposit(1, 8);
+	pub AnnouncementDepositFactor: Balance = deposit(0, 66);
 	pub const MaxPending: u16 = 32;
 }
 

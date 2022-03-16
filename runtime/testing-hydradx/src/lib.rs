@@ -91,6 +91,16 @@ pub mod opaque {
 	}
 }
 
+mod testing {
+	use super::{parameter_types, BlockNumber, MINUTES};
+
+	parameter_types! {
+		pub const LaunchPeriod: BlockNumber = MINUTES;
+		pub const VotingPeriod: BlockNumber = MINUTES;
+		pub const Period: u32 = 10 * MINUTES;
+	}
+}
+
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
@@ -362,7 +372,7 @@ impl pallet_collator_selection::Config for Runtime {
 	type MinCandidates = MinCandidates;
 	type MaxInvulnerables = MaxInvulnerables;
 	// should be a multiple of session or things will get inconsistent
-	type KickThreshold = Period;
+	type KickThreshold = testing::Period;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ValidatorRegistration = Session;
@@ -495,8 +505,8 @@ impl pallet_democracy::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
-	type LaunchPeriod = LaunchPeriod;
-	type VotingPeriod = VotingPeriod;
+	type LaunchPeriod = testing::LaunchPeriod;
+	type VotingPeriod = testing::VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
 	type ExternalOrigin = MoreThanHalfCouncil;
