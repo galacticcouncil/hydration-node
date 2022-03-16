@@ -25,7 +25,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use frame_system::{RawOrigin, EnsureRoot};
+use frame_system::{EnsureRoot, RawOrigin};
 use sp_api::impl_runtime_apis;
 use sp_core::{
 	u32_trait::{_1, _2, _3},
@@ -392,8 +392,8 @@ impl pallet_utility::Config for Runtime {
 }
 
 impl pallet_preimage::Config for Runtime {
-	type WeightInfo = ();
 	type Event = Event;
+	type WeightInfo = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type MaxSize = PreimageMaxSize;
@@ -484,22 +484,12 @@ type EnsureMajorityCouncilOrRoot = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
-type EnsureUnanimousCouncilOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
-type EnsureSuperMajorityCouncilOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
+
 type EnsureSuperMajorityTechCommitteeOrRoot = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
-type EnsureUnanimousTechCommitteOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
+
 impl pallet_democracy::Config for Runtime {
 	type Proposal = Call;
 	type Event = Event;
@@ -509,23 +499,20 @@ impl pallet_democracy::Config for Runtime {
 	type VotingPeriod = VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
-	type ExternalOrigin = EnsureMajorityCouncilOrRoot;
-	/// A majority can have the next scheduled referendum be a straight majority-carries vote
-	type ExternalMajorityOrigin = EnsureMajorityCouncilOrRoot;
+	type ExternalOrigin = MoreThanHalfCouncil;
+	type ExternalMajorityOrigin = MoreThanHalfCouncil;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
-	type ExternalDefaultOrigin = EnsureUnanimousCouncilOrRoot;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
-	type InstantOrigin = EnsureUnanimousTechCommitteOrRoot;
+	type ExternalDefaultOrigin = AllCouncilMembers;
+	type FastTrackOrigin = MoreThanHalfTechCommittee;
+	type InstantOrigin = AllTechnicalCommitteeMembers;
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-	type CancellationOrigin = EnsureSuperMajorityCouncilOrRoot;
+	type CancellationOrigin = MajorityOfCouncil;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
 	// Root must agree.
-	type CancelProposalOrigin = EnsureUnanimousTechCommitteOrRoot;
+	type CancelProposalOrigin = AllTechnicalCommitteeMembers;
 	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// Any single technical committee member may veto a coming council proposal, however they can
 	// only do it once and it lasts only for the cooloff period.

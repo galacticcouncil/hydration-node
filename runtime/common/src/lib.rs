@@ -31,7 +31,7 @@ use sp_runtime::{
 	FixedPointNumber, MultiSignature, Perbill, Permill, Perquintill, Percent,
 };
 use sp_core::{
-	u32_trait::{_1, _2},
+	u32_trait::{_1, _2, _3},
 };
 use sp_std::prelude::*;
 use codec::alloc::vec;
@@ -75,6 +75,26 @@ pub type TechnicalCollective = pallet_collective::Instance2;
 pub type MoreThanHalfCouncil = EnsureOneOf<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+>;
+
+pub type MajorityOfCouncil = EnsureOneOf<
+	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
+	EnsureRoot<AccountId>,
+>;
+
+pub type AllCouncilMembers = EnsureOneOf<
+	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
+	frame_system::EnsureRoot<AccountId>,
+>;
+
+pub type MoreThanHalfTechCommittee = EnsureOneOf<
+	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, TechnicalCollective>,
+	frame_system::EnsureRoot<AccountId>,
+>;
+
+pub type AllTechnicalCommitteeMembers = EnsureOneOf<
+	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+	frame_system::EnsureRoot<AccountId>,
 >;
 
 pub fn get_all_module_accounts() -> Vec<AccountId> {
@@ -164,7 +184,7 @@ parameter_types! {
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
-	pub PreimageByteDeposit: Balance = 10 * MILLICENTS;
+	pub PreimageByteDeposit: Balance = deposit(0, 1);
 }
 
 // pallet identity
@@ -193,11 +213,11 @@ parameter_types! {
 
 // pallet democracy
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
-	pub const VotingPeriod: BlockNumber = 7 * DAYS;
+	pub const LaunchPeriod: BlockNumber = 3 * DAYS;
+	pub const VotingPeriod: BlockNumber = 3 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
-	pub const EnactmentPeriod: BlockNumber = 7 * DAYS;
+	pub const EnactmentPeriod: BlockNumber = 6 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
@@ -207,14 +227,14 @@ parameter_types! {
 // pallet elections_phragmen
 parameter_types! {
 	// Bond for candidacy into governance
-	pub const CandidacyBond: Balance = 10_000 * DOLLARS;
+	pub const CandidacyBond: Balance = 5 * DOLLARS;
 	// 1 storage item created, key size is 32 bytes, value size is 16+16.
-	pub const VotingBondBase: Balance = DOLLARS;
+	pub const VotingBondBase: Balance = CENTS;
 	// additional data per vote is 32 bytes (account id).
-	pub const VotingBondFactor: Balance = 50 * CENTS;
+	pub const VotingBondFactor: Balance = CENTS;
 	pub const TermDuration: BlockNumber = 7 * DAYS;
-	pub const DesiredMembers: u32 = 1;
-	pub const DesiredRunnersUp: u32 = 0;
+	pub const DesiredMembers: u32 = 13;
+	pub const DesiredRunnersUp: u32 = 15;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 

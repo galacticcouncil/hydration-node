@@ -47,7 +47,7 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Currency as PalletCurrency, EnsureOrigin, EnsureOneOf, Get, InstanceFilter, PrivilegeCmp, EqualPrivilegeOnly, Everything, OnUnbalanced, Imbalance, U128CurrencyToVote},
+	traits::{Currency as PalletCurrency, EnsureOrigin, EnsureOneOf, Get, Imbalance, InstanceFilter, OnUnbalanced, PrivilegeCmp, EqualPrivilegeOnly, Everything, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
@@ -311,7 +311,6 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type Event = Event;
 	type OnSystemEvent = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
 	type SelfParaId = ParachainInfo;
-
 	type OutboundXcmpMessageSource = ();
 	type DmpMessageHandler = ();
 	type ReservedDmpWeight = ReservedDmpWeight;
@@ -392,8 +391,8 @@ impl pallet_utility::Config for Runtime {
 }
 
 impl pallet_preimage::Config for Runtime {
-	type WeightInfo = ();
 	type Event = Event;
+	type WeightInfo = ();
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type MaxSize = PreimageMaxSize;
@@ -425,7 +424,7 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(10) * BlockWeights::get().max_block;
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
 	pub const NoPreimagePostponement: Option<u32> = Some(5 * MINUTES);
 }
@@ -439,9 +438,9 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type WeightInfo = ();
 	type PreimageProvider = Preimage;
 	type NoPreimagePostponement = NoPreimagePostponement;
-	type WeightInfo = ();
 }
 
 impl pallet_identity::Config for Runtime {
@@ -485,22 +484,12 @@ type EnsureMajorityCouncilOrRoot = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
-type EnsureUnanimousCouncilOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
-type EnsureSuperMajorityCouncilOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
+
 type EnsureSuperMajorityTechCommitteeOrRoot = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
 	frame_system::EnsureRoot<AccountId>,
 >;
-type EnsureUnanimousTechCommitteOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
+
 impl pallet_democracy::Config for Runtime {
 	type Proposal = Call;
 	type Event = Event;
@@ -510,23 +499,20 @@ impl pallet_democracy::Config for Runtime {
 	type VotingPeriod = VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
 	/// A straight majority of the council can decide what their next motion is.
-	type ExternalOrigin = EnsureMajorityCouncilOrRoot;
-	/// A majority can have the next scheduled referendum be a straight majority-carries vote
-	type ExternalMajorityOrigin = EnsureMajorityCouncilOrRoot;
+	type ExternalOrigin = MoreThanHalfCouncil;
+	type ExternalMajorityOrigin = MoreThanHalfCouncil;
 	/// A unanimous council can have the next scheduled referendum be a straight default-carries
 	/// (NTB) vote.
-	type ExternalDefaultOrigin = EnsureUnanimousCouncilOrRoot;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
-	type FastTrackOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
-	type InstantOrigin = EnsureUnanimousTechCommitteOrRoot;
+	type ExternalDefaultOrigin = AllCouncilMembers;
+	type FastTrackOrigin = MoreThanHalfTechCommittee;
+	type InstantOrigin = AllTechnicalCommitteeMembers;
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-	type CancellationOrigin = EnsureSuperMajorityCouncilOrRoot;
+	type CancellationOrigin = MajorityOfCouncil;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
 	// Root must agree.
-	type CancelProposalOrigin = EnsureUnanimousTechCommitteOrRoot;
+	type CancelProposalOrigin = AllTechnicalCommitteeMembers;
 	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// Any single technical committee member may veto a coming council proposal, however they can
 	// only do it once and it lasts only for the cooloff period.
