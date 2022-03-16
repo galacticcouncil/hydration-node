@@ -1,7 +1,5 @@
 use super::*;
 
-use hex_literal::hex;
-
 pub fn parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
@@ -18,50 +16,69 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 			parachain_genesis(
 				wasm_binary,
 				// Sudo account
-				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				//initial authorities & invulnerables
 				vec![
 					(
-						hex!["da0fa4ab419def66fb4ac5224e594e82c34ee795268fc7787c8a096c4ff14f11"].into(),
-						hex!["da0fa4ab419def66fb4ac5224e594e82c34ee795268fc7787c8a096c4ff14f11"].unchecked_into(),
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_from_seed::<AuraId>("Alice"),
 					),
 					(
-						hex!["ecd7a5439c6ab0cd6550bc2f1cef5299d425bb95bb6d7afb32aa3d95ee4f7f1f"].into(),
-						hex!["ecd7a5439c6ab0cd6550bc2f1cef5299d425bb95bb6d7afb32aa3d95ee4f7f1f"].unchecked_into(),
-					),
-					(
-						hex!["f0ad6f1aae7a445c1e80cac883096ec8177eda276fec53ad9ccbe570f3090a26"].into(),
-						hex!["f0ad6f1aae7a445c1e80cac883096ec8177eda276fec53ad9ccbe570f3090a26"].unchecked_into(),
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_from_seed::<AuraId>("Bob"),
 					),
 				],
-				// Pre-funded accounts
-				vec![(
-					hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
-					1_000_000_000,
-				)],
+				// Endowed accounts
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), 1_000_000_000),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), 1_000_000_000),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), 1_000_000_000),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), 1_000_000_000),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), 1_000_000_000),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), 1_000_000_000),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+						1_000_000_000,
+					),
+					(get_account_id_from_seed::<sr25519::Public>("Bob//stash"), 1_000_000_000),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+						1_000_000_000,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+						1_000_000_000,
+					),
+					(get_account_id_from_seed::<sr25519::Public>("Eve//stash"), 1_000_000_000),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+						1_000_000_000,
+					),
+				],
+				// enable println
 				true,
+				// para ID
 				PARA_ID.into(),
-				//Endowed  accounts
+				//council
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				//technical_committe
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+				],
+				// TX fee payment account
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				// vesting
 				vec![],
-				vec![],
-				hex!["30035c21ba9eda780130f2029a80c3e962f56588bc04c36be95a225cb536fb55"].into(),
-				vec![],
-				vec![],
-				vec![],
+				// registered assets
+				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				// accepted assets
+				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
 			)
 		},
 		// Bootnodes
-		vec![
-			"/dns/p2p-01.para-testnet.hydradx.io/tcp/30333/p2p/12D3KooW9qapYrocm6W1meShf8eQfeJzbry9PN2CN6SfBGbymxPL"
-				.parse()
-				.unwrap(),
-			"/dns/p2p-02.para-testnet.hydradx.io/tcp/30333/p2p/12D3KooWPS16BYW173YxmxEJpQBoDz1t3Ht4yaPwwg5qCTED7N66"
-				.parse()
-				.unwrap(),
-			"/dns/p2p-03.para-testnet.hydradx.io/tcp/30333/p2p/12D3KooWRMgQRtYrWsLvuwg3V3aQEvMgsbb88T29cKCTH6RAxTaj"
-				.parse()
-				.unwrap(),
-		],
+		vec![],
 		// Telemetry
 		None,
 		// Protocol ID
@@ -72,7 +89,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: "westend".into(),
+			relay_chain: "rococo-local".into(),
 			para_id: PARA_ID,
 		},
 	))
