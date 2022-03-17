@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.0.2"
+version = "100.0.3"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -2962,7 +2962,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "7.0.2"
+version = "7.1.0"
 dependencies = [
  "common-runtime",
  "cumulus-client-cli",
@@ -3040,7 +3040,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "103.0.0"
+version = "104.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -5437,7 +5437,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "3.3.0"
+version = "3.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5557,7 +5557,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "derive_more",
  "frame-support",
@@ -10731,7 +10731,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "103.0.0"
+version = "104.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
