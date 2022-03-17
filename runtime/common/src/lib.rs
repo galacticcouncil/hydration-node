@@ -252,6 +252,7 @@ parameter_types! {
 parameter_types! {
 	pub MinVestedTransfer: Balance = NativeExistentialDeposit::get();
 	pub const MaxVestingSchedules: u32 = 100;
+	pub const VestingPalletId: PalletId = PalletId(*b"py/vstng");
 }
 
 // pallet proxy
