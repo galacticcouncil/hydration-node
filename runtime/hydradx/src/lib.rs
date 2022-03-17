@@ -69,6 +69,11 @@ use orml_traits::parameter_type_with_key;
 mod benchmarking;
 mod xcm;
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
