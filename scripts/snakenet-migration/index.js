@@ -1,6 +1,11 @@
 const {ApiPromise, WsProvider, Keyring} = require("@polkadot/api");
 const {Metadata, TypeRegistry} = require("@polkadot/types");
+const { xxhashAsHex } = require("@polkadot/util-crypto");
 const {encodeAddress} = require("@polkadot/util-crypto");
+const { stringToU8a } = require("@polkadot/util");
+const {compactStripLength, hexToU8a, u8aToHex}  = require('@polkadot/util');
+
+
 const chalk = require("chalk");
 const path  = require("path");
 const fs = require("fs");
@@ -25,20 +30,44 @@ const tripleStoragePath = path.join(__dirname, "data", "tripleStorage.json");
 const tempStoragePath = path.join(__dirname, "data", "tempStorage.json");
 const finalStoragePath = path.join(__dirname, "data", "finalStorage.json");
 
-const snakenet_modules = [
-    ["System.Account", "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9"],
-    ["Claims.Claims", "0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397"],
-    ["Tokens.TotalIssuance", "0x99971b5749ac43e0235e41b0d378691857c875e4cff74148e4628f264b974c80"],
-    ["Tokens.Locks", "0x99971b5749ac43e0235e41b0d3786918218f26c73add634897550b4003b26bc6"],
-    ["Tokens.Accounts", "0x99971b5749ac43e0235e41b0d37869188ee7418a6531173d60d1f6a82d8f4d51"],
-    ["Balances.TotalIssuance", "0xc2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80"],
-    ["Balances.Account", "0xc2261276cc9d1f8598ea4b6a74b15c2fb99d880ec681799c0cf30e8886371da9"],
-    ["Balances.Locks", "0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6"],
-    ["Balances.Reserves", "0xc2261276cc9d1f8598ea4b6a74b15c2f60c9ab7384f36f3de79a685fa22b4491"],
-    ["Balances.StorageVersion", "0xc2261276cc9d1f8598ea4b6a74b15c2f308ce9615de0775a82f8a94dc3d285a1"],
- 
-]
+const includedModules = [
+    "System.Account",
+    "Claims.Claims",
+    "Tokens.TotalIssuance",
+    "Tokens.Locks",
+    "Tokens.Accounts",
+    "Balances.TotalIssuance",
+    "Balances.Account",
+    "Balances.Locks",
+    "Balances.Reserves",
+    "Balances.StorageVersion",
 
+    "Elections.Members",
+    "Elections.RunnersUp",
+    "Elections.Candidates",
+    "Elections.ElectionRounds",
+    "Elections.Voting",
+    "Council.Proposals",
+    "Council.ProposalOf",
+    "Council.Voting",
+    "Council.ProposalCount",
+    "Council.Members",
+    "Council.Prime",
+    "TechnicalCommittee.Proposals",
+    "TechnicalCommittee.ProposalOf",
+    "TechnicalCommittee.Voting",
+    "TechnicalCommittee.ProposalCount",
+    "TechnicalCommittee.Members",
+    "TechnicalCommittee.Prime",
+
+    "Identity.IdentityOf",
+    "Identity.SuperOf",
+    "Identity.SubsOf",
+    "Identity.Registrars",
+
+    "Tips.Tips",
+    "Tips.Reasons",
+]
 
 const all_modules = [
     ["System.Account", "0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9"],
@@ -218,11 +247,47 @@ const all_modules = [
 
 const excludeFromTripling = [
     "7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf", // Galactic council
+    "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba", // Alice.
 ];
+
+const ignoreInValidate = [
+    "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba", // Alice.
+]
 
 const log = (msg) => {
     let m = moment().format('YYYY-MM-DD HH:mm:ss') ;
     console.log(`${m} snakenet-migration \t${msg}`);
+}
+
+
+const hdxAddressFromKey = (key, prefix) => {
+    const registry = new TypeRegistry();
+    const account  = registry.createType("AccountId32", `0x${key.substring(prefix.length+32)}`);
+    return encodeAddress(account, 63);
+}
+
+let modulePrefixes = new Map();
+
+const prefixes = async (url) => {
+
+    const api = await createClient(url);
+    const metadata = await api.rpc.state.getMetadata();
+    // Populate the prefixes array
+    const modules = JSON.parse(JSON.stringify(metadata.asLatest.pallets));
+    modules.forEach((module) => {
+        //console.log("MODULES->", module);
+        if (module.storage) {
+            module.storage.items.forEach( (item) => {
+                const storageModule = `${module.storage.prefix.toString()}.${item.name}`;
+                if (includedModules.includes((storageModule))){
+                    const modPrefix = xxhashAsHex(module.storage.prefix, 128);
+                    const itemPrefix = xxhashAsHex(item.name, 128);
+                    const storagePrefix = modPrefix.concat(itemPrefix.substring(2));
+                    modulePrefixes.set(storageModule, storagePrefix);
+                }
+            })
+        }
+  });
 }
 
 const downloadData = async (url, destination, block_number = undefined) => {
@@ -255,49 +320,17 @@ const downloadData = async (url, destination, block_number = undefined) => {
 
         let allPairs = [];
 
-        for (const elem of snakenet_modules) {
-            let prefix = elem[1];
-            let start_prefix = prefix;
-            log(`Downloading ${elem[0]}`);
-            let modulePairCount = 0;
-            while (1 === 1 ){
-                const keys = await api.rpc.state.getKeysPaged(prefix, 1000,start_prefix, block_hash);
-
-                if (keys.length > 0 ){
-                    const resp = await api.rpc.state.queryStorageAt(keys, block_hash);
-
-                    const values = JSON.parse(JSON.stringify(resp, null, 4));
-
-                    const pairs  = keys.map(function(e, idx) {
-                        return [e, values[idx]];
-                    });
-
-                    allPairs.push(...pairs);
-                }
-
-                modulePairCount += keys.length;
-
-                if ( keys.length < 1000){
-                    break;
-                }
-
-                start_prefix = keys[999];
-            }
-            log(`Downloading ${elem[0]} - found ${chalk.yellow(modulePairCount)}`);
-            /*
-             // using get pairs to get all - better paginated as above
-             // leaving here only for future reference
-            const pairs = await api.rpc.state.getPairs(elem[1]);
+        for (const [key,value] of modulePrefixes) {
+            const pairs = await api.rpc.state.getPairs(value);
             let p = pairs.map((elem) => JSON.parse(JSON.stringify(elem)));
             if (p.length > 0) {
-                console.log(`${elem[0]} - ${p.length}`)
+                log(`Downloading ${key} - found ${chalk.yellow(p.length)}`);
                 allPairs.push(...p);
             }
-             */
         }
         stream.write(JSON.stringify(allPairs));
         stream.end();
-        console.log(destination)
+        log(destination)
     }
 }
 
@@ -349,26 +382,36 @@ const validate = async (source_url, target_url) => {
         const account = await target_api.query.system.account(address);
         const bal = new BN(account.data.free.toString());
         const reserved = new BN(account.data.reserved.toString());
-        const expected = bal.add(reserved);
+        const actual = bal.add(reserved);
 
-        const tripled = balance.imuln(3);
-        assert( expected.eq(tripled), `Incorrect amount for ${address}`);
+        let tripled;
+        if ( ! excludeFromTripling.includes(address)){
+            tripled = balance.imuln(3);
+        }else{
+            tripled = balance;
+        }
+        assert( actual.eq(tripled), `Incorrect amount for ${address} - actual ${actual} expected ${tripled}`);
     }
 
     let balances = [];
 
-    //TODO: exclude accounts using excluded list
     await api.query.system.account.entries().then( accounts => {
         accounts.map( ([key, {data}]) => {
             const [address] = key.toHuman()
-            const balance = data.free;
+            const free = new BN(data.free);
+            const reserved = new BN(data.reserved);
+
+            const balance = free.add(reserved);
+
             balances.push({address, balance});
         });
     })
 
     for (let idx in balances){
         log(`Checking ${balances[idx].address}`)
-        await assertBalances(balances[idx].address, balances[idx].balance);
+        if (!ignoreInValidate.includes(balances[idx].address)){
+            await assertBalances(balances[idx].address, balances[idx].balance);
+        }
     }
     log("Validating triple claims...")
 
@@ -405,15 +448,21 @@ const loadStorage = async ( path ) => {
 
 }
 
-const purgeStakingLocks = async (source, destination) => {
-    log("Puring staking locks")
+const purgeBalancesLocks = async (source, destination) => {
+    log("Purging balances locks - removing staking and democracy locks")
     const registry = new TypeRegistry();
 
     const storage = await loadStorage(source);
 
-    let accounts = [];
+    let stakingAccounts = [];
+    let democracyAccounts = [];
 
-    const balanceLocksPrefix ="0xc2261276cc9d1f8598ea4b6a74b15c2f218f26c73add634897550b4003b26bc6";
+    const balanceLocksPrefix = modulePrefixes.get("Balances.Locks");
+
+    if (!balanceLocksPrefix){
+        log(chalk.red("Balance locks prefix not found in populated prefixes"))
+        process.exit(1);
+    }
 
     const adjusted = storage.map( (keyValue) => {
 
@@ -423,12 +472,21 @@ const purgeStakingLocks = async (source, destination) => {
         let newValue = value;
 
         if (key.startsWith(balanceLocksPrefix)){
+            let initialValue = newValue;
             newValue = removeStakingLocks(registry, value);
-            if ( newValue !== value){
+            if ( newValue !== initialValue){
                 // Staking lock has been removed
-                const accountId = key.substring(balanceLocksPrefix.length);
-                let address =  registry.createType("AccountId", `0x${accountId}`);
-                accounts.push(address.toString());
+                const address = hdxAddressFromKey(key, balanceLocksPrefix);
+                stakingAccounts.push(address.toString());
+                initialValue = newValue;
+            }
+
+            newValue = removeDemocracyLocks(registry, newValue);
+
+            if ( newValue !== initialValue){
+                // Staking lock has been removed
+                const address = hdxAddressFromKey(key, balanceLocksPrefix);
+                democracyAccounts.push(address.toString());
             }
         }
 
@@ -450,12 +508,23 @@ const purgeStakingLocks = async (source, destination) => {
 
 
     fs.writeFileSync(destination, JSON.stringify(storageUpdatedWithoutEmptyLocks));
-    log(`Purged ${chalk.yellow(accounts.length)} staking locks`)
-    return accounts;
+    log(`Purged ${chalk.yellow(stakingAccounts.length)} staking locks`)
+    log(`Purged ${chalk.yellow(democracyAccounts.length)} democracy locks`)
+    return [stakingAccounts, democracyAccounts];
 }
 
 const removeStakingLocks = (registry, value) => {
     let stakingId = registry.createType("LockIdentifier", "staking ");
+
+    let locks = registry.createType("Vec<BalanceLock<Balance>>", value);
+
+    const updateLocks = locks.filter( (lock) => lock.id.toString() !== stakingId.toString());
+
+    return registry.createType("Vec<BalanceLock<Balance>>", updateLocks).toHex();
+}
+
+const removeDemocracyLocks = (registry, value) => {
+    let stakingId = registry.createType("LockIdentifier", "democrac");
 
     let locks = registry.createType("Vec<BalanceLock<Balance>>", value);
 
@@ -478,10 +547,11 @@ const tripleBalance = (registry, value, decreaseConsumers) => {
         miscFrozen: aInfo.data.miscFrozen,
         feeFrozen: aInfo.data.feeFrozen})
 
-    let consumers = aInfo.consumers;
+    let consumers = aInfo.consumers - decreaseConsumers;
 
-    if (decreaseConsumers === true){
-        consumers -= 1;
+    if ( consumers < 0){
+        log(chalk.red("Consumers decreased below 0"))
+        process.exit(1)
     }
 
     let newInfo = registry.createType("AccountInfo", { ...aInfo, nonce: 0, consumers: consumers,  data: newData});
@@ -502,12 +572,12 @@ const tripleClaim = (registry, value) => {
     return newValue;
 }
 
-const triple = async (source, destination, stakingAccountsRemoved = []) => {
+const triple = async (source, destination, stakingAccountsRemoved = [], democracyLocksAccounts = []) => {
     const registry = new TypeRegistry();
     const storage = await loadStorage(source);
 
-    const systemAccountPrefix ="0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9";
-    const claimsPrefix ="0x9c5d795d0297be56027a4b2464e333979c5d795d0297be56027a4b2464e33397";
+    const systemAccountPrefix = modulePrefixes.get("System.Account");
+    const claimsPrefix = modulePrefixes.get("Claims.Claims");
 
     const storageAdjusted = storage.map( ( keyValue ) => {
         const key = keyValue[0];
@@ -517,14 +587,22 @@ const triple = async (source, destination, stakingAccountsRemoved = []) => {
 
         if ( key.startsWith(systemAccountPrefix)) {
             // Tripling balances
-            const accountId = key.substring(systemAccountPrefix.length);
-            let address =  registry.createType("AccountId", `0x${accountId}`);
-            let hdxAddress = encodeAddress(address, 63);
+            const hdxAddress = hdxAddressFromKey(key, systemAccountPrefix);
 
-            if ( excludeFromTripling.indexOf(hdxAddress) === -1 ) {
-                newValue = tripleBalance(registry, value, stakingAccountsRemoved.indexOf(address.toString()) >= 0);
+            if ( ! excludeFromTripling.includes(hdxAddress) ) {
+               let decreaseConsumers = 0;
+                if ( stakingAccountsRemoved.includes(hdxAddress)){
+                    decreaseConsumers += 1;
+                }
+
+                if ( democracyLocksAccounts.includes(hdxAddress)){
+                    decreaseConsumers += 1;
+                }
+
+                newValue = tripleBalance(registry, value, decreaseConsumers);
             }else{
-                log(`Balance tripling - excluding ${chalk.yellow(address)}`)
+                //TODO: staking locks and democracy locks for excluded address ?!!
+                log(`Balance tripling - excluding ${chalk.yellow(hdxAddress)}`)
             }
         }else if (key.startsWith(claimsPrefix)){
             newValue = tripleClaim(registry, value);
@@ -553,8 +631,6 @@ async function main() {
         })
         .command('migrate', 'Perform migration', {
         })
-        .command('triple', 'Triple balances', {
-        })
         .command('prepare', 'Prepare storage - remove locks, triple balances and claims', {
         })
 
@@ -564,6 +640,8 @@ async function main() {
         })
         .help()
         .alias('help', 'h').argv;
+
+    await prefixes(SOURCE_RPC);
 
     if (argv._.includes('download')) {
         await downloadData(SOURCE_RPC, storagePath, argv.block);
@@ -575,13 +653,9 @@ async function main() {
         process.exit();
     }
 
-    if (argv._.includes('triple')) {
-        await triple(storagePath, tripleStoragePath);
-        process.exit();
-    }
     if (argv._.includes('prepare')) {
-        const stakingLocksAccounts = await purgeStakingLocks(storagePath, tempStoragePath);
-        await triple(tempStoragePath, finalStoragePath, stakingLocksAccounts);
+        const [stakingLocksAccounts, democracyLocksAccounts] = await purgeBalancesLocks(storagePath, tempStoragePath);
+        await triple(tempStoragePath, finalStoragePath, stakingLocksAccounts, democracyLocksAccounts);
         process.exit();
     }
 
