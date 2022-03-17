@@ -252,3 +252,6 @@ jobs:
         with:
           message: |
             ${{ env.VERSION_UPDATE }}
+      - name: Evaluate result
+        if: contains(env.VERSION_UPDATE, 'have not been updated')
+        run: exit 1
