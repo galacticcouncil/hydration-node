@@ -627,7 +627,7 @@ impl orml_vesting::Config for Runtime {
 	type VestedTransferOrigin = GalacticCouncilOrRoot;
 	type WeightInfo = ();
 	type MaxVestingSchedules = MaxVestingSchedules;
-	type BlockNumberProvider = System;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
 impl InstanceFilter<Call> for ProxyType {
