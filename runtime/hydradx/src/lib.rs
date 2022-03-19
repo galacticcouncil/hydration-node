@@ -24,8 +24,8 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
-use scale_info::TypeInfo;
 use frame_system::{EnsureRoot, RawOrigin};
+use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{
 	u32_trait::{_1, _2, _3},
@@ -33,7 +33,7 @@ use sp_core::{
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{BlakeTwo256, Block as BlockT, IdentityLookup, Zero},
+	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup, Zero},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill,
 };
@@ -47,24 +47,32 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Currency as PalletCurrency, EnsureOrigin, EnsureOneOf, Everything, Get, Imbalance, InstanceFilter, OnUnbalanced, PrivilegeCmp, U128CurrencyToVote},
+	traits::{
+		Currency as PalletCurrency, EnsureOneOf, EnsureOrigin, Everything, Get, Imbalance, InstanceFilter,
+		OnUnbalanced, PrivilegeCmp, U128CurrencyToVote,
+	},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
-use primitives::Price;
 use hydradx_traits::pools::SpotPriceProvider;
 use pallet_transaction_payment::{CurrencyAdapter, TargetedFeeAdjustment};
+use primitives::Price;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
+pub use common_runtime::*;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
-pub use common_runtime::*;
 
-mod xcm;
 mod benchmarking;
+mod xcm;
+
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 
 /// Import HydraDX pallets
 pub use pallet_claims;
@@ -586,14 +594,16 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = ();
 }
 
-pub struct GalacticCouncilOrRoot;
-impl EnsureOrigin<Origin> for GalacticCouncilOrRoot {
+pub struct GalacticCouncilOrVestingOrRoot;
+impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
 			RawOrigin::Signed(caller) => {
-				if caller == primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into() {
+				if caller == primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()
+					|| caller == VestingPalletId::get().into_account()
+				{
 					Ok(caller)
 				} else {
 					Err(Origin::from(Some(caller)))
@@ -614,7 +624,7 @@ impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = GalacticCouncilOrRoot;
+	type VestedTransferOrigin = GalacticCouncilOrVestingOrRoot;
 	type WeightInfo = ();
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
