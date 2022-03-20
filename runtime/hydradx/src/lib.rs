@@ -740,55 +740,55 @@ construct_runtime!(
 		NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
-		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 1,
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 2,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 3,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 4,
-		Utility: pallet_utility::{Pallet, Call, Event} = 6,
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 7,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 8,
-		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 9,
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>} = 10,
-		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 11,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 12,
-		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 13,
-		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 14,
-		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 15,
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 1,
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 5,
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 7,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 9,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 11,
+		Utility: pallet_utility::{Pallet, Call, Event} = 13,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 15,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 17,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Event<T>} = 19,
+		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 21,
+		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 23,
+		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 25,
+		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 27,
+		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 29,
 
 		// ORML related modules
-		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 16,
-		Currencies: orml_currencies::{Pallet, Call, Event<T>} = 17,
-		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
+		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 51,
+		Currencies: orml_currencies::{Pallet, Call, Event<T>} = 53,
+		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 55,
 
 		// Parachain
-		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>, ValidateUnsigned} = 19,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 20,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config} = 21,
-		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 22,
-		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 23,
-		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 24,
+		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>, ValidateUnsigned} = 77,
+		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 79,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config} = 81,
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 83,
+		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 85,
+		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 87,
 
 		// ORML XCM
-		OrmlXcm: orml_xcm::{Pallet, Call, Event<T>} = 25,
-		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 26,
-		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 27,
+		OrmlXcm: orml_xcm::{Pallet, Call, Event<T>} = 109,
+		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 111,
+		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 113,
 
 		// Collator support
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 28,
-		CollatorSelection: pallet_collator_selection::{Pallet, Call, Storage, Event<T>, Config<T>} = 29,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 30,
-		Aura: pallet_aura::{Pallet, Config<T>} = 31,
-		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 32,
+		Authorship: pallet_authorship::{Pallet, Call, Storage} = 135,
+		CollatorSelection: pallet_collator_selection::{Pallet, Call, Storage, Event<T>, Config<T>} = 137,
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 139,
+		Aura: pallet_aura::{Pallet, Config<T>} = 141,
+		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 143,
 
 		// HydraDX related modules
-		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 33,
-		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 34,
-		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 35,
+		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 165,
+		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 167,
+		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
-		RelayChainInfo: pallet_relaychain_info::{Pallet, Event<T>} = 100,
-		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Config<T>, Storage, Event<T>} = 101,
+		RelayChainInfo: pallet_relaychain_info::{Pallet, Event<T>} = 201,
+		MultiTransactionPayment: pallet_transaction_multi_payment::{Pallet, Call, Config<T>, Storage, Event<T>} = 203,
 
 		// TEMPORARY
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 255, // Let's make it last one.
