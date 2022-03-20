@@ -40,6 +40,7 @@ use sp_runtime::{
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
 use sp_std::prelude::*;
+use hex_literal::hex;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -599,14 +600,14 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = ();
 }
 
-pub struct GalacticCouncilOrVestingOrRoot;
-impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
+pub struct BobOrVestingOrRoot;
+impl EnsureOrigin<Origin> for BobOrVestingOrRoot {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
 			RawOrigin::Signed(caller) => {
-				if caller == primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()
+				if caller == hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"].into()
 					|| caller == VestingPalletId::get().into_account()
 				{
 					Ok(caller)
@@ -614,7 +615,7 @@ impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
 					Err(Origin::from(Some(caller)))
 				}
 			}
-			RawOrigin::Root => Ok(primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()),
+			RawOrigin::Root => Ok(VestingPalletId::get().into_account()),
 			r => Err(Origin::from(r)),
 		})
 	}
@@ -629,7 +630,7 @@ impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = GalacticCouncilOrVestingOrRoot;
+	type VestedTransferOrigin = BobOrVestingOrRoot;
 	type WeightInfo = ();
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;

@@ -1,11 +1,11 @@
 use frame_support::{parameter_types, traits::Everything, PalletId};
 use frame_system as system;
-use primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT;
 use sp_core::{crypto::AccountId32, H256};
 use sp_runtime::{
 	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 };
+use crate::GALACTIC_COUNCIL_ACCOUNT;
 
 pub type AccountId = AccountId32;
 pub type Balance = u128;

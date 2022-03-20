@@ -78,6 +78,10 @@ mod tests;
 pub use pallet_claims;
 pub use pallet_genesis_history;
 
+
+pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] =
+	hex_literal::hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -601,7 +605,7 @@ impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
 			RawOrigin::Signed(caller) => {
-				if caller == primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()
+				if caller == GALACTIC_COUNCIL_ACCOUNT.into()
 					|| caller == VestingPalletId::get().into_account()
 				{
 					Ok(caller)
@@ -609,7 +613,7 @@ impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
 					Err(Origin::from(Some(caller)))
 				}
 			}
-			RawOrigin::Root => Ok(primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()),
+			RawOrigin::Root => Ok(GALACTIC_COUNCIL_ACCOUNT.into()),
 			r => Err(Origin::from(r)),
 		})
 	}

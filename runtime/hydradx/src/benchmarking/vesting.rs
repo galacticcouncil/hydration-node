@@ -15,17 +15,14 @@ use orml_traits::MultiCurrencyExtended;
 use orml_vesting::VestingSchedule;
 
 use primitives::constants::currency::NATIVE_EXISTENTIAL_DEPOSIT;
-
-use sp_runtime::traits::{SaturatedConversion, StaticLookup};
-
+use sp_runtime::traits::{AccountIdConversion, SaturatedConversion, StaticLookup};
 pub type Schedule = VestingSchedule<BlockNumber, Balance>;
 
 const SEED: u32 = 0;
-
 const NATIVE: AssetId = NativeAssetId::get();
 
 fn get_vesting_account() -> AccountId {
-	primitives::constants::chain::GALACTIC_COUNCIL_ACCOUNT.into()
+	crate::VestingPalletId::get().into_account()
 }
 
 fn lookup_of_account(who: AccountId) -> <<Runtime as frame_system::Config>::Lookup as StaticLookup>::Source {
