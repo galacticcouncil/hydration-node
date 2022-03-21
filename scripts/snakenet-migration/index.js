@@ -705,13 +705,12 @@ async function main() {
         log(`Batch have to be split into ${blocks} blocks`);
 
          //utility batch can have only so many calls, so let's check if the split contains > max limit
-	const per_batch = storage.length / blocks;
-	if (per_batch > batch_calls){
-	    log(chalk.red(`Max calls in batch exceeded`));
-	    process.exit(1);
-	}
-
         const updatesPerBlock = Math.ceil(storageUpdates.length / blocks);
+        if (updatesPerBlock > batch_calls){
+            log(chalk.red(`Max calls in batch exceeded`));
+            process.exit(1);
+        }
+
         const chunks = chunkify(storageUpdates, updatesPerBlock)
             .map(updates => api.tx.utility.batch(updates));
 
