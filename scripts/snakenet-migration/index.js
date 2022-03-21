@@ -701,12 +701,16 @@ async function main() {
         log(`Weight limit: ${weightLimit.toHuman()}`);
         weightLimit = new BN(weightLimit.toString());
 
-        // utility batch can have only so many calls, so let's divide by that and then check the weight of each batch
-        //const blocks = weight.div(weightLimit).toNumber() + 1;
-        const blocks = new BN(storageUpdates.length).div(batch_calls).toNumber() + 1;
+        const blocks = weight.div(weightLimit).toNumber() + 1;
         log(`Batch have to be split into ${blocks} blocks`);
 
+         //utility batch can have only so many calls, so let's check if the split contains > max limit
         const updatesPerBlock = Math.ceil(storageUpdates.length / blocks);
+        if (updatesPerBlock > batch_calls){
+            log(chalk.red(`Max calls in batch exceeded`));
+            process.exit(1);
+        }
+
         const chunks = chunkify(storageUpdates, updatesPerBlock)
             .map(updates => api.tx.utility.batch(updates));
 
