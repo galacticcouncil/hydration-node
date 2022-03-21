@@ -18,7 +18,6 @@
 #![allow(clippy::or_fun_call)]
 #![allow(clippy::too_many_arguments)]
 
-pub mod dev;
 pub mod hydradx;
 pub mod local;
 pub mod staging;
