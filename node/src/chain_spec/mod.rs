@@ -21,7 +21,6 @@
 pub mod hydradx;
 pub mod local;
 pub mod staging;
-pub mod testnet;
 
 use cumulus_primitives_core::ParaId;
 use hydradx_runtime::{
