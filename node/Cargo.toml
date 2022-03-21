@@ -104,6 +104,7 @@ default = [
 ]
 runtime-benchmarks = [
   "hydradx-runtime/runtime-benchmarks",
+  "testing-hydradx-runtime/runtime-benchmarks",
   "frame-benchmarking-cli",
   "polkadot-service/runtime-benchmarks",
 ]
