@@ -19,7 +19,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use cumulus_primitives_core::ParaId;
-use primitives::{AssetId, BlockNumber, Price, constants::currency::NATIVE_EXISTENTIAL_DEPOSIT};
+use hex_literal::hex;
+use primitives::{constants::currency::NATIVE_EXISTENTIAL_DEPOSIT, AssetId, BlockNumber, Price};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -27,16 +28,19 @@ use serde_json::map::Map;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use testing_hydradx_runtime::{
-	AccountId, AuraId, Balance, AssetRegistryConfig, BalancesConfig, ClaimsConfig, CollatorSelectionConfig, CouncilConfig, GenesisHistoryConfig, ElectionsConfig, GenesisConfig, MultiTransactionPaymentConfig, ParachainInfoConfig,
-	SessionConfig, Signature, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY, pallet_claims::EthereumAddress,
+	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
+	CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
+	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
-use hex_literal::hex;
 
 const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
 const TOKEN_SYMBOL: &str = "HDX";
 const PROTOCOL_ID: &str = "hdx";
 const STASH: Balance = 100 * UNITS;
+const INITIAL_BALANCE: u128 = 10_000;
+const INITIAL_TOKEN_BALANCE: Balance = 1_000 * UNITS;
 
 /// The extensions for the [`ChainSpec`].
 #[derive(Debug, Clone, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
@@ -95,46 +99,87 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 				wasm_binary,
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				//initial authorities & invulnerables
+				// initial authorities & invulnerables
+				(
+					vec![
+						(
+							get_account_id_from_seed::<sr25519::Public>("Alice"),
+							get_from_seed::<AuraId>("Alice"),
+						),
+						(
+							get_account_id_from_seed::<sr25519::Public>("Bob"),
+							get_from_seed::<AuraId>("Bob"),
+						),
+					],
+					// candidacy bond
+					10_000,
+				),
+				// pre-funded accounts
 				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), INITIAL_BALANCE),
 					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						get_from_seed::<AuraId>("Alice"),
+						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+						INITIAL_BALANCE,
 					),
 					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						get_from_seed::<AuraId>("Bob"),
+						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+						INITIAL_BALANCE,
 					),
 				],
-				// Pre-funded accounts
+				// council
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie"),
-					get_account_id_from_seed::<sr25519::Public>("Dave"),
 					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				true,
-				PARA_ID.into(),
-				//council
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				//technical_committe
+				// technical_committe
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Eve"),
 				],
-				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
 				vec![],
 				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+				hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), // treasury
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+					),
+				],
+				create_testnet_claims(),
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
+				],
+				PARA_ID.into(),
 			)
 		},
 		// Bootnodes
@@ -158,41 +203,31 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 fn testnet_parachain_genesis(
 	wasm_binary: &[u8],
 	root_key: AccountId,
-	initial_authorities: Vec<(AccountId, AuraId)>,
-	endowed_accounts: Vec<AccountId>,
-	_enable_println: bool,
+	initial_authorities: (Vec<(AccountId, AuraId)>, Balance),
+	endowed_accounts: Vec<(AccountId, Balance)>,
+	council_members: Vec<AccountId>,
+	tech_committee_members: Vec<AccountId>,
+	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
+	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
+	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+	tx_fee_payment_account: AccountId,          // Account use multi-payment pallet to send fees to in pool does not exists
+	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
+	claims_data: Vec<(EthereumAddress, Balance)>,
+	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
-	_council_members: Vec<AccountId>,
-	_tech_committee_members: Vec<AccountId>,
-	_tx_fee_payment_account: AccountId,
-	_vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
-	_registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
-	_accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 		},
-		balances: BalancesConfig {
-			// Configure endowed accounts with initial balance of a lot.
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, 1_000_000_000u128 * UNITS))
-				.collect(),
-		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: Some(root_key),
 		},
-		collator_selection: CollatorSelectionConfig {
-			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: 10_000,
-			..Default::default()
-		},
 		session: SessionConfig {
 			keys: initial_authorities
+				.0
 				.iter()
 				.cloned()
 				.map(|(acc, aura)| {
@@ -208,57 +243,57 @@ fn testnet_parachain_genesis(
 		// no need to pass anything, it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
+		collator_selection: CollatorSelectionConfig {
+			invulnerables: initial_authorities.0.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: initial_authorities.1,
+			..Default::default()
+		},
+		balances: BalancesConfig {
+			// Configure endowed accounts with initial balance of a lot.
+			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1 * UNITS)).collect(),
+		},
+		council: CouncilConfig {
+			// Intergalactic council member
+			members: council_members,
+			phantom: Default::default(),
+		},
+		technical_committee: TechnicalCommitteeConfig {
+			members: tech_committee_members,
+			phantom: Default::default(),
+		},
+		vesting: VestingConfig { vesting: vesting_list },
 		asset_registry: AssetRegistryConfig {
-			asset_names: vec![],
+			asset_names: registered_assets.clone(),
 			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
 			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
-			currencies: vec![],
-			fallback_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
+			currencies: accepted_assets,
+			fallback_account: Some(tx_fee_payment_account),
 			account_currencies: vec![],
 		},
 		tokens: TokensConfig {
-			balances: endowed_accounts
-				.iter()
-				.flat_map(|x| {
-					vec![
-						(x.clone(), 1, 100_000u128 * UNITS),
-						(x.clone(), 2, 100_000u128 * UNITS),
-						(x.clone(), 3, 100_000u128 * UNITS),
-					]
-				})
-				.collect(),
+			balances: if registered_assets.is_empty() {
+				vec![]
+			} else {
+				token_balances
+					.iter()
+					.flat_map(|x| {
+						x.1.clone()
+							.into_iter()
+							.map(|(asset_id, amount)| (x.0.clone(), asset_id, amount))
+					})
+					.collect()
+			},
 		},
 		treasury: Default::default(),
 		elections: ElectionsConfig {
 			// Intergalactic elections
-			members: vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-			],
+			members: elections,
 		},
-		council: CouncilConfig {
-			// Intergalactic council member
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve")
-			],
-			phantom: Default::default(),
-		},
-		technical_committee: TechnicalCommitteeConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
-			phantom: Default::default(),
-		},
+
 		genesis_history: GenesisHistoryConfig::default(),
-		vesting: VestingConfig { vesting: vec![] },
-		claims: ClaimsConfig { claims: create_testnet_claims() },
+		claims: ClaimsConfig { claims: claims_data },
 		parachain_info: ParachainInfoConfig { parachain_id },
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),

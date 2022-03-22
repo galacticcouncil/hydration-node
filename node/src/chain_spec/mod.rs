@@ -23,18 +23,20 @@ pub mod local;
 pub mod staging;
 
 use cumulus_primitives_core::ParaId;
+use hex_literal::hex;
 use hydradx_runtime::{
-	AccountId, AuraId, Balance, AssetRegistryConfig, BalancesConfig, ClaimsConfig, CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig, MultiTransactionPaymentConfig, ParachainInfoConfig,
-	SessionConfig, Signature, SudoConfig, SystemConfig, TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY, pallet_claims::EthereumAddress,
+	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
+	CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
+	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
-use primitives::{AssetId, BlockNumber, Price, constants::currency::NATIVE_EXISTENTIAL_DEPOSIT};
+use primitives::{constants::currency::NATIVE_EXISTENTIAL_DEPOSIT, AssetId, BlockNumber, Price};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use serde_json::map::Map;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use hex_literal::hex;
 
 const PARA_ID: u32 = 2034;
 const TOKEN_DECIMALS: u8 = 12;
@@ -83,37 +85,31 @@ where
 pub fn parachain_genesis(
 	wasm_binary: &[u8],
 	root_key: AccountId,
-	initial_authorities: Vec<(AccountId, AuraId)>,
+	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
 	endowed_accounts: Vec<(AccountId, Balance)>,
-	_enable_println: bool,
-	parachain_id: ParaId,
-	_council_members: Vec<AccountId>,
-	_tech_committee_members: Vec<AccountId>,
-	_tx_fee_payment_account: AccountId, // Account use multi-payment pallet to send fees to in pool does not exists
-	_vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
+	council_members: Vec<AccountId>,
+	tech_committee_members: Vec<AccountId>,
+	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
-	_accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+	tx_fee_payment_account: AccountId,          // Account use multi-payment pallet to send fees to in pool does not exists
+	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
+	claims_data: Vec<(EthereumAddress, Balance)>,
+	elections: Vec<(AccountId, Balance)>,
+	parachain_id: ParaId,
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 		},
-		balances: BalancesConfig {
-			// Configure endowed accounts with initial balance of a lot.
-			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1 * UNITS)).collect(),
-		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
-			key: Some(root_key.clone()),
-		},
-		collator_selection: CollatorSelectionConfig {
-			invulnerables: initial_authorities.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: 10_000 * UNITS,
-			..Default::default()
+			key: Some(root_key),
 		},
 		session: SessionConfig {
 			keys: initial_authorities
+				.0
 				.iter()
 				.cloned()
 				.map(|(acc, aura)| {
@@ -125,31 +121,48 @@ pub fn parachain_genesis(
 				})
 				.collect(),
 		},
-
 		// no need to pass anything, it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
+		collator_selection: CollatorSelectionConfig {
+			invulnerables: initial_authorities.0.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: initial_authorities.1,
+			..Default::default()
+		},
+		balances: BalancesConfig {
+			// Configure endowed accounts with initial balance of a lot.
+			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1 * UNITS)).collect(),
+		},
+		council: CouncilConfig {
+			// Intergalactic council member
+			members: council_members,
+			phantom: Default::default(),
+		},
+		technical_committee: TechnicalCommitteeConfig {
+			members: tech_committee_members,
+			phantom: Default::default(),
+		},
+		vesting: VestingConfig { vesting: vesting_list },
 		asset_registry: AssetRegistryConfig {
-			asset_names: vec![],
+			asset_names: registered_assets.clone(),
 			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
 			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
-			currencies: vec![],
-			fallback_account: Some(root_key),
+			currencies: accepted_assets,
+			fallback_account: Some(tx_fee_payment_account),
 			account_currencies: vec![],
 		},
 		tokens: TokensConfig {
 			balances: if registered_assets.is_empty() {
 				vec![]
 			} else {
-				endowed_accounts
+				token_balances
 					.iter()
 					.flat_map(|x| {
-						vec![
-							(x.0.clone(), 1, 1_000_000_000_000u128 * UNITS),
-							(x.0.clone(), 2, 1_000_000_000_000u128 * UNITS),
-						]
+						x.1.clone()
+							.into_iter()
+							.map(|(asset_id, amount)| (x.0.clone(), asset_id, amount))
 					})
 					.collect()
 			},
@@ -157,32 +170,11 @@ pub fn parachain_genesis(
 		treasury: Default::default(),
 		elections: ElectionsConfig {
 			// Intergalactic elections
-			members: vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-			],
+			members: elections,
 		},
-		council: CouncilConfig {
-			// Intergalactic council member
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
-			phantom: Default::default(),
-		},
-		technical_committee: TechnicalCommitteeConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
-			phantom: Default::default(),
-		},
+
 		genesis_history: GenesisHistoryConfig::default(),
-		vesting: VestingConfig { vesting: vec![] },
-		claims: ClaimsConfig { claims: create_testnet_claims() },
+		claims: ClaimsConfig { claims: claims_data },
 		parachain_info: ParachainInfoConfig { parachain_id },
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),
