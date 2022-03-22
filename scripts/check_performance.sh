@@ -39,7 +39,7 @@ else
   exit 1
 fi
 
-EXPECTED_BENCHWIZARD_VERSION="0.5.0"
+EXPECTED_BENCHWIZARD_VERSION="0.5.2"
 
 echo -n "benchwizard >= $EXPECTED_BENCHWIZARD_VERSION ..... "
 
@@ -81,7 +81,7 @@ echo
 
 # Run the check
 # shellcheck disable=SC2086
-$PYTHON -m bench_wizard pc -p pallet-claims -rf .maintain/bench-check/hydradx-bench-data.json
+$PYTHON -m bench_wizard pc -p pallet-claims -c local -rf .maintain/bench-check/hydradx-bench-data.json
 
 echo
 
