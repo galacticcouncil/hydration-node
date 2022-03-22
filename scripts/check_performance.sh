@@ -81,7 +81,7 @@ echo
 
 # Run the check
 # shellcheck disable=SC2086
-$PYTHON -m bench_wizard pc -p claims -rf .maintain/bench-check/hydradx-bench-data.json
+$PYTHON -m bench_wizard pc -p pallet-claims -rf .maintain/bench-check/hydradx-bench-data.json
 
 echo
 

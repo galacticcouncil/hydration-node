@@ -1032,12 +1032,12 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_democracy, Democracy);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
-			add_benchmark!(params, batches, claims, Claims);
+			add_benchmark!(params, batches, pallet_claims, Claims);
 
 			orml_add_benchmark!(params, batches, orml_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
 			orml_add_benchmark!(params, batches, orml_vesting, benchmarking::vesting);
-			orml_add_benchmark!(params, batches, palle_transaction_multi_payment, benchmarking::multi_payment);
+			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
