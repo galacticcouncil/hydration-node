@@ -8,6 +8,7 @@ members = [
   'runtime/hydra-dx',
   'runtime/testing-hydra-dx',
   'pallets/genesis-history',
+  'pallets/omnipool',
   'primitives',
   'utils/build-script-utils'
 ]
