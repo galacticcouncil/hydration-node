@@ -26,6 +26,8 @@ use frame_system::ensure_signed;
 use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded};
 use sp_std::prelude::*;
 
+use orml_traits::MultiCurrency;
+
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
 
@@ -35,6 +37,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod types;
 pub mod weights;
 
 pub use pallet::*;
@@ -56,12 +59,13 @@ macro_rules! log {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::types::{AssetState, Position, PositionId};
+	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
-	//#[pallet::generate_store(pub(crate) trait Store)]
-	#[pallet::without_storage_info]
+	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
@@ -69,28 +73,71 @@ pub mod pallet {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		/// The units in which we handle balances.
+		type Balance: Member
+			+ Parameter
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo;
+
+		/// Identifier for the class of asset.
+		type AssetId: Member
+			+ Parameter
+			+ Default
+			+ Copy
+			+ HasCompact
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo;
+
+		/// Position identifier
+		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
+
+		/// Multi currency mechanism
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: weights::WeightInfo;
 	}
 
+	#[pallet::storage]
+	/// State of an asset in the omnipool
+	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<T::Balance>>;
+
+	#[pallet::storage]
+	/// Imbalance of hub asset
+	// TODO: support for negative or positive imbalance
+	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
+
+	#[pallet::storage]
+	/// Total TVL
+	pub(super) type TotalTVL<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
+
+	#[pallet::storage]
+	/// Total amount of hub asset reserve. It equals to sum of hub_reserve for each asset in omnipool
+	pub(super) type HubAssetLiquidity<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
+
+	#[pallet::storage]
+	/// LP positions
+	pub(super) type Positions<T: Config> =
+		StorageMap<_, Blake2_128Concat, PositionId<T::PositionInstanceId>, Position<T::Balance, T::AssetId>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config> {
-	}
+	pub enum Event<T: Config> {}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq))]
-	pub enum Error<T> {
-	}
+	pub enum Error<T> {}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-	}
+	impl<T: Config> Pallet<T> {}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-	}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 }
 
-impl<T: Config> Pallet<T> {
-}
+impl<T: Config> Pallet<T> {}
