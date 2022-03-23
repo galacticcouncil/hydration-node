@@ -62,12 +62,12 @@ pub mod pallet {
 	#[pallet::pallet]
 	//#[pallet::generate_store(pub(crate) trait Store)]
 	#[pallet::without_storage_info]
-	pub struct Pallet<T, I = ()>(_);
+	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config<I: 'static = ()>: frame_system::Config {
+	pub trait Config: frame_system::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: weights::WeightInfo;
@@ -75,22 +75,22 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config<I>, I: 'static = ()> {
+	pub enum Event<T: Config> {
 	}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq))]
-	pub enum Error<T, I = ()> {
+	pub enum Error<T> {
 	}
 
 	#[pallet::call]
-	impl<T: Config<I>, I: 'static> Pallet<T, I> {
+	impl<T: Config> Pallet<T> {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config<I>, I: 'static> Hooks<BlockNumberFor<T>> for Pallet<T, I> {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 	}
 }
 
-impl<T: Config<I>, I: 'static> Pallet<T, I> {
+impl<T: Config> Pallet<T> {
 }
