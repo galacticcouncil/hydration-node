@@ -1,13 +1,10 @@
 use super::*;
-use frame_support::{
-	pallet_prelude::*,
-	traits::{fungible, tokens::BalanceConversion},
-};
-use sp_runtime::{traits::Convert, FixedPointNumber, FixedPointOperand, FixedU128};
+use frame_support::pallet_prelude::*;
+use sp_runtime::{FixedPointNumber, FixedU128};
 
 pub type Price = FixedU128;
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AssetState<Balance> {
 	/// Quantity of asset in omnipool
 	pub(super) reserve: Balance,
@@ -43,11 +40,41 @@ impl<Balance, AssetId> Position<Balance, AssetId>
 where
 	Balance: Clone + From<u128> + Into<u128>,
 {
+	#[allow(unused)]
 	fn fixed_price(&self) -> Price {
 		Price::from_inner(self.price.clone().into())
 	}
 
+	#[allow(unused)]
 	fn price_to_balance(price: Price) -> Balance {
 		price.into_inner().into()
+	}
+}
+
+/// Simple type to represent imbalance which can be positive or negative.
+// Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub(super) struct SimpleImbalance<Balance> {
+	pub(super) value: Balance,
+	pub(super) negative: bool,
+}
+
+impl<Balance: Default> Default for SimpleImbalance<Balance> {
+	fn default() -> Self {
+		Self {
+			value: Balance::default(),
+			negative: false,
+		}
+	}
+}
+
+impl<Balance> SimpleImbalance<Balance> {
+	pub(super) fn add<T: Config>(&mut self, _amount: Balance) -> Result<(), DispatchError> {
+		Ok(())
+	}
+
+	#[allow(unused)]
+	pub(super) fn sub<T: Config>(&mut self, _amount: Balance) -> Result<(), DispatchError> {
+		Ok(())
 	}
 }
