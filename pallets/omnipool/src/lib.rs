@@ -126,7 +126,6 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Imbalance of hub asset
-	// TODO: support for negative or positive imbalance
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<T::Balance>, ValueQuery>;
 
 	#[pallet::storage]
@@ -161,6 +160,22 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Add new token to omnipool in quantity `amount` at price `initial_price`
+		///
+		/// First added assets must be:
+		/// - preferred stable coin asset set as `StableCoinAssetId` pallet parameter
+		/// - native asset
+		///
+		/// `add_token` returns `NoStableCoinInPool` error if stable asset is missing
+		/// `add_token` returns `NoNativeAssetInPool` error if native asset is missing
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the new asset added to the pool. Must be registered in Asset registry
+		/// - `amount`: Amount of asset added to omnipool
+		/// - `initial_price`: Initial price
+		///
+		/// Emits `TokenAdded` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::add_token())]
 		#[transactional]
 		pub fn add_token(
@@ -172,6 +187,8 @@ pub mod pallet {
 			let account = T::AddTokenOrigin::ensure_origin(origin)?;
 
 			ensure!(!<Assets<T>>::contains_key(asset), Error::<T>::TokenAlreadyAdded);
+
+			// TODO: Add check if asset is registered in asset registry
 
 			// TODO: check if Native asset is in the pool if adding other than native or preferred stable asset
 
