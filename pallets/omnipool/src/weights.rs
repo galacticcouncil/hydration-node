@@ -4,3 +4,9 @@ use frame_support::weights::Weight;
 pub trait WeightInfo {
 	fn add_token() -> Weight;
 }
+
+impl WeightInfo for () {
+	fn add_token() -> Weight {
+		0 as Weight
+	}
+}

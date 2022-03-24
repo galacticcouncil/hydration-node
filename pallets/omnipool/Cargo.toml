@@ -44,6 +44,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false}
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false}
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
 
 [features]
 default = ["std"]
@@ -54,7 +55,10 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"log/std",
-	"scale-info/std"
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"pallet-balances/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
