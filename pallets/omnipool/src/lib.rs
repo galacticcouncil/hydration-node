@@ -66,7 +66,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{CheckedAdd, CheckedMul};
+	use sp_runtime::traits::{CheckedAdd, CheckedMul, Zero};
 	use sp_runtime::{FixedPointNumber, FixedU128};
 
 	#[pallet::pallet]
@@ -151,6 +151,8 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq))]
 	pub enum Error<T> {
+		/// Token is already in omnipool
+		TokenAlreadyAdded,
 		/// No stable asset in the pool
 		NoStableCoinInPool,
 		///
@@ -169,9 +171,23 @@ pub mod pallet {
 		) -> DispatchResult {
 			let account = T::AddTokenOrigin::ensure_origin(origin)?;
 
-			let mut state = AssetState::<T::Balance>::default();
+			ensure!(!<Assets<T>>::contains_key(asset), Error::<T>::TokenAlreadyAdded);
+
+			// TODO: check if Native asset is in the pool if adding other than native or preferred stable asset
+
+			// Retrieve stable asset and native asset details first - we fail early if they are not yet in the pool.
+			let (stable_asset_reserve, stable_asset_hub_reserve) = if asset != T::StableCoinAssetId::get() {
+				Self::stable_asset()?
+			} else {
+				// Trying to add preferred stable asset.
+				// This can happen only once , since it is first token to add to the pool.
+				(T::Balance::zero(), T::Balance::zero())
+			};
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
+
+			// Initial stale of asset
+			let mut state = AssetState::<T::Balance>::default();
 
 			state.reserve = amount;
 			state.hub_reserve = hub_reserve;
@@ -194,14 +210,21 @@ pub mod pallet {
 			let mut current_imbalance = <HubAssetImbalance<T>>::get();
 			let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
 
-			let delta_imbalance = initial_price
-				.checked_mul(&FixedU128::from((current_imbalance.value, current_hub_asset_liquidity)))
-				.ok_or(Error::<T>::Overflow)?
-				.checked_mul_int(amount)
-				.ok_or(Error::<T>::Overflow)?;
+			if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
+				// if any is 0, the delta is 0 too.
 
-			// TODO: verify if always add here.
-			current_imbalance.add::<T>(delta_imbalance)?;
+				let delta_imbalance = initial_price
+					.checked_mul(&FixedU128::from((current_imbalance.value, current_hub_asset_liquidity)))
+					.ok_or(Error::<T>::Overflow)?
+					.checked_mul_int(amount)
+					.ok_or(Error::<T>::Overflow)?;
+
+				// TODO: verify if always add here.
+				current_imbalance.add::<T>(delta_imbalance)?;
+				log!(debug, "Adding token - imbalance update {:?}", delta_imbalance);
+
+				<HubAssetImbalance<T>>::put(current_imbalance);
+			}
 
 			// Total hub asset liquidity update
 			// Note: must be done after imbalance since it requires current value before update
@@ -211,24 +234,21 @@ pub mod pallet {
 			})?;
 
 			// TVL update
-			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
-			let delta_tvl = initial_price
-				.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
-				.ok_or(Error::<T>::Overflow)?
-				.checked_mul_int(amount);
-			let delta_tvl = delta_tvl.ok_or(Error::<T>::Overflow)?;
+			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
+				let delta_tvl = initial_price
+					.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
+					.ok_or(Error::<T>::Overflow)?
+					.checked_mul_int(amount);
 
-			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-				*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
-				Ok(())
-			})?;
+				let delta_tvl = delta_tvl.ok_or(Error::<T>::Overflow)?;
 
-			log!(
-				debug,
-				"Added token to pool - tvl {:?}, imbalance {:?}",
-				delta_tvl,
-				delta_imbalance
-			);
+				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+					*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+					Ok(())
+				})?;
+
+				log!(debug, "Adding token - tvl {:?}", delta_tvl,);
+			}
 
 			Self::deposit_event(Event::TokenAdded(asset));
 
