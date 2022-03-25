@@ -21,11 +21,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::Get;
+use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::transactional;
 use frame_support::PalletId;
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
+use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
 
 use orml_traits::MultiCurrency;
@@ -43,6 +44,7 @@ mod tests;
 mod types;
 pub mod weights;
 
+use crate::types::PositionId;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -59,6 +61,22 @@ macro_rules! log {
 	};
 }
 
+#[macro_export]
+macro_rules! ensure_asset_not_in_pool {
+	( $x:expr, $y:expr $(,)? ) => {{
+		if Assets::<T>::contains_key($x) {
+			return Err($y.into());
+		}
+	}};
+}
+
+#[macro_export]
+macro_rules! math_result {
+	( $x:expr) => {{
+		$x.ok_or(Error::<T>::Overflow)?
+	}};
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -66,7 +84,6 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{CheckedAdd, CheckedMul, Zero};
 	use sp_runtime::{FixedPointNumber, FixedU128};
 
 	#[pallet::pallet]
@@ -87,7 +104,9 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
 			+ TypeInfo
-			+ FixedPointOperand;
+			+ FixedPointOperand
+			+ From<u128>
+			+ Into<u128>; // TODO: due to use of FixedU128, might think of better way or use direcly u128 instead as there is not much choice here anyway
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -150,8 +169,10 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq))]
 	pub enum Error<T> {
-		/// Token is already in omnipool
-		TokenAlreadyAdded,
+		/// Asset is already in omnipool
+		AssetAlreadyAdded,
+		/// Asset is not in omnipool
+		AssetNotInPool,
 		/// No stable asset in the pool
 		NoStableCoinInPool,
 		///
@@ -186,7 +207,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let account = T::AddTokenOrigin::ensure_origin(origin)?;
 
-			ensure!(!<Assets<T>>::contains_key(asset), Error::<T>::TokenAlreadyAdded);
+			ensure_asset_not_in_pool!(asset, Error::<T>::AssetAlreadyAdded);
 
 			// TODO: Add check if asset is registered in asset registry
 
@@ -245,10 +266,7 @@ pub mod pallet {
 
 			// Total hub asset liquidity update
 			// Note: must be done after imbalance since it requires current value before update
-			<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
-				*liquidity = liquidity.checked_add(&hub_reserve).ok_or(Error::<T>::Overflow)?;
-				Ok(())
-			})?;
+			Self::increase_hub_asset_liquidity(hub_reserve)?;
 
 			// TVL update
 			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
@@ -271,6 +289,117 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[transactional]
+		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: T::Balance) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let mut asset_state = Assets::<T>::get(asset).ok_or(Error::<T>::AssetNotInPool)?;
+
+			let current_shares = asset_state.shares;
+			let current_reserve = asset_state.reserve;
+
+			let new_shares = current_shares
+				.checked_mul(
+					&current_reserve
+						.checked_add(&amount)
+						.ok_or(Error::<T>::Overflow)?
+						.checked_div(&current_reserve)
+						.ok_or(Error::<T>::Overflow)?,
+				)
+				.ok_or(Error::<T>::Overflow)?;
+
+			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
+
+			let delta_q = current_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
+
+			// TODO: check asset weight cap
+			let new_hub_reserve = asset_state
+				.hub_reserve
+				.checked_add(&delta_q)
+				.ok_or(Error::<T>::Overflow)?;
+
+			let max_cap = T::Balance::zero();
+
+			if new_hub_reserve > max_cap {
+				// return error
+			}
+
+			// New Asset State
+			asset_state.reserve = math_result!(current_reserve.checked_add(&amount));
+			asset_state.shares = new_shares;
+			asset_state.hub_reserve = new_hub_reserve;
+
+			let new_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
+
+			<Assets<T>>::insert(asset, asset_state);
+
+			// Create LP position
+			let lp_position = Position::<T::Balance, T::AssetId> {
+				asset_id: asset,
+				amount,
+				shares: new_shares.checked_sub(&current_shares).ok_or(Error::<T>::Overflow)?,
+				price: Position::<T::Balance, T::AssetId>::price_to_balance(new_price),
+			};
+
+			let lp_position_id = Self::generate_position_id(&who);
+
+			<Positions<T>>::insert(lp_position_id, lp_position);
+
+			// Token update
+			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
+			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), delta_q)?;
+
+			// Imbalance update
+			let mut current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
+
+			if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
+				// if any is 0, the delta is 0 too.
+
+				// TODO: verify with colin if it should decrease or increase!
+				//let delta_l = -amount * (asset_detail.hub_reserve / current_reserve) * ( current_imbalance / hub_asset_liquidity );
+
+				let delta_imbalance = T::Balance::zero();
+
+				current_imbalance.add::<T>(delta_imbalance)?;
+				log!(debug, "Adding liquidity - imbalance update {:?}", delta_imbalance);
+
+				<HubAssetImbalance<T>>::put(current_imbalance);
+			}
+
+			// TVL update
+			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
+
+			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
+				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+					let delta_tvl = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
+						.checked_mul_int(new_hub_reserve)
+						.ok_or(Error::<T>::Overflow)?
+						.checked_sub(tvl)
+						.ok_or(Error::<T>::Overflow)?;
+
+					//TODO: add tvl cap check
+					// but verify why we subtract the current tvl and add it back again ?! probably the previous calc can result in < 0?!
+					let tvl_cap = T::Balance::zero();
+					if *tvl + delta_tvl > tvl_cap {
+						// return error
+					}
+
+					log!(debug, "Adding liquidity - tvl {:?}", delta_tvl);
+
+					*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+					Ok(())
+				})?;
+			}
+
+			// Total hub asset liquidity update
+			// Note: must be done after imbalance since it requires current value before update
+			Self::increase_hub_asset_liquidity(delta_q)?;
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -285,5 +414,16 @@ impl<T: Config> Pallet<T> {
 	fn stable_asset() -> Result<(T::Balance, T::Balance), DispatchError> {
 		let stable_asset = <Assets<T>>::get(T::StableCoinAssetId::get()).ok_or(Error::<T>::NoStableCoinInPool)?;
 		Ok((stable_asset.reserve, stable_asset.hub_reserve))
+	}
+
+	fn generate_position_id(_owner: &T::AccountId) -> PositionId<T::PositionInstanceId> {
+		PositionId(T::PositionInstanceId::zero())
+	}
+
+	fn increase_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
+		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
+			*liquidity = liquidity.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+			Ok(())
+		})
 	}
 }

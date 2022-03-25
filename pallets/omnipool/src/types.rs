@@ -20,7 +20,7 @@ pub struct AssetState<Balance> {
 
 /// Position representation
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct PositionId<InstanceId>(InstanceId);
+pub struct PositionId<InstanceId>(pub InstanceId);
 
 /// Position in Omnipool represents a moment when LP provided liquidity of an asset at that moment’s price.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -41,12 +41,12 @@ where
 	Balance: Clone + From<u128> + Into<u128>,
 {
 	#[allow(unused)]
-	fn fixed_price(&self) -> Price {
+	pub(super) fn fixed_price(&self) -> Price {
 		Price::from_inner(self.price.clone().into())
 	}
 
 	#[allow(unused)]
-	fn price_to_balance(price: Price) -> Balance {
+	pub(super) fn price_to_balance(price: Price) -> Balance {
 		price.into_inner().into()
 	}
 }
