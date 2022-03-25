@@ -23,7 +23,7 @@ use codec::Decode;
 use crate as pallet_omnipool;
 
 use frame_support::pallet_prelude::EnsureOrigin;
-use frame_support::traits::{ConstU128, Everything};
+use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -45,6 +45,8 @@ pub type AssetId = u32;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
+
+pub const LP1: u64 = 1;
 
 construct_runtime!(
 	pub enum Test where
@@ -155,6 +157,41 @@ impl Config for Test {
 	type HubAssetId = LRNAAssetId;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
+}
+
+pub struct ExtBuilder {
+	endowed_accounts: Vec<(u64, AssetId, Balance)>,
+}
+
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		Self {
+			endowed_accounts: vec![],
+		}
+	}
+}
+
+impl ExtBuilder {
+	pub fn with_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
+		self.endowed_accounts = accounts;
+		self
+	}
+
+	pub fn build(self) -> sp_io::TestExternalities {
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+		orml_tokens::GenesisConfig::<Test> {
+			balances: self
+				.endowed_accounts
+				.iter()
+				.flat_map(|(x, asset, amount)| vec![(*x, *asset, *amount)])
+				.collect(),
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
+
+		t.into()
+	}
 }
 
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {

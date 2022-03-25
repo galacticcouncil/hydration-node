@@ -164,6 +164,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		TokenAdded(T::AssetId),
+		LiquidityAdded(T::AssetId, T::Balance),
 	}
 
 	#[pallet::error]
@@ -397,6 +398,8 @@ pub mod pallet {
 			// Total hub asset liquidity update
 			// Note: must be done after imbalance since it requires current value before update
 			Self::increase_hub_asset_liquidity(delta_q)?;
+
+			Self::deposit_event(Event::LiquidityAdded(asset, amount));
 
 			Ok(())
 		}
