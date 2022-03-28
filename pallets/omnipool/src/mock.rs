@@ -122,6 +122,9 @@ parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
 	pub const DAIAssetId: AssetId = DAI;
+
+	pub const ProtocolFee: (u32,u32) = ( 2, 1000);
+	pub const AssetFee: (u32,u32) = ( 1, 1000);
 }
 
 pub struct EnsureSignedOrRoot<AccountId>(sp_std::marker::PhantomData<AccountId>);
@@ -155,6 +158,8 @@ impl Config for Test {
 	type Currency = Tokens;
 	type AddTokenOrigin = EnsureSignedOrRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
+	type ProtocolFee = ProtocolFee;
+	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 }

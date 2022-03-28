@@ -30,7 +30,7 @@ use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
 
 use orml_traits::MultiCurrency;
-use sp_runtime::DispatchError;
+use sp_runtime::{DispatchError, FixedU128};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -44,7 +44,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::PositionId;
+use crate::types::{PositionId, Price};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -130,6 +130,14 @@ pub mod pallet {
 		/// Hub Asset ID
 		#[pallet::constant]
 		type HubAssetId: Get<Self::AssetId>;
+
+		/// Protocol fee
+		#[pallet::constant]
+		type ProtocolFee: Get<(u32, u32)>;
+
+		/// Asset fee
+		#[pallet::constant]
+		type AssetFee: Get<(u32, u32)>;
 
 		/// Hub Asset ID
 		#[pallet::constant]
@@ -415,6 +423,56 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[transactional]
+		pub fn sell(
+			origin: OriginFor<T>,
+			asset_in: T::AssetId,
+			asset_out: T::AssetId,
+			amount: T::Balance,
+			min_limit: T::Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
+
+			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
+			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+
+			let delta_q_in = FixedU128::from((
+				amount,
+				(asset_in_state
+					.reserve
+					.checked_add(&amount)
+					.ok_or(Error::<T>::Overflow)?),
+			))
+			.checked_mul_int(asset_in_state.hub_reserve)
+			.ok_or(Error::<T>::Overflow)?;
+
+			let fee_p = Price::from(1)
+				.checked_sub(&Self::protocol_fee())
+				.ok_or(Error::<T>::Overflow)?;
+
+			let delta_q_out = fee_p.checked_mul_int(delta_q_in).ok_or(Error::<T>::Overflow)?;
+
+			let fee_a = Price::from(1)
+				.checked_sub(&Self::asset_fee())
+				.ok_or(Error::<T>::Overflow)?;
+
+			let out_hub_reserve = asset_out_state
+				.hub_reserve
+				.checked_sub(&delta_q_out)
+				.ok_or(Error::<T>::Overflow)?;
+
+			let delta_r_out = FixedU128::from((delta_q_out, out_hub_reserve))
+				.checked_mul(&fee_a)
+				.ok_or(Error::<T>::Overflow)?
+				.checked_mul_int(asset_out_state.reserve)
+				.ok_or(Error::<T>::Overflow)?;
+
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -424,6 +482,14 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account()
+	}
+
+	fn protocol_fee() -> Price {
+		Price::from(T::ProtocolFee::get())
+	}
+
+	fn asset_fee() -> Price {
+		Price::from(T::AssetFee::get())
 	}
 
 	fn stable_asset() -> Result<(T::Balance, T::Balance), DispatchError> {
