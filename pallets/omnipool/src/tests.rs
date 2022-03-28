@@ -6,6 +6,8 @@ use sp_runtime::{FixedPointNumber, FixedU128};
 
 const ONE: Balance = 1_000_000_000_000;
 
+const NATIVE_AMOUNT: Balance = 10_000 * ONE;
+
 #[macro_export]
 macro_rules! check_balance {
 	( $x:expr, $y:expr, $z:expr) => {{
@@ -16,17 +18,24 @@ macro_rules! check_balance {
 #[macro_export]
 macro_rules! check_state {
 	( $x:expr, $y:expr, $z:expr) => {{
-		assert_eq!(HubAssetLiquidity::<Test>::get(), $x);
-		assert_eq!(TotalTVL::<Test>::get(), $y);
-		assert_eq!(HubAssetImbalance::<Test>::get(), $z);
+		assert_eq!(HubAssetLiquidity::<Test>::get(), $x, "Hub liquidity incorrect");
+		assert_eq!(TotalTVL::<Test>::get(), $y, "Total tvl incorrect");
+		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect");
 	}};
 }
 
 fn init_omnipool(dai_amount: Balance, price: FixedU128) {
 	assert_ok!(Omnipool::add_token(Origin::root(), DAI, dai_amount, price));
+	assert_ok!(Omnipool::add_token(
+		Origin::root(),
+		HDX,
+		NATIVE_AMOUNT,
+		FixedU128::from(1)
+	));
+
 	check_state!(
-		price.checked_mul_int(dai_amount).unwrap(),
-		0,
+		price.checked_mul_int(dai_amount).unwrap() + NATIVE_AMOUNT,
+		NATIVE_AMOUNT * (dai_amount / price.checked_mul_int(dai_amount).unwrap()),
 		SimpleImbalance::default()
 	);
 }
@@ -45,21 +54,18 @@ fn add_stable_asset_works() {
 #[test]
 fn add_token_works() {
 	new_test_ext().execute_with(|| {
-		let dai_amount = 100 * ONE;
-		let price = FixedU128::from(1);
+		let dai_amount = 1000 * ONE;
+		let price = FixedU128::from_float(0.5);
 		init_omnipool(dai_amount, price);
 
-		let token_amount = 300 * ONE;
+		let token_price = FixedU128::from_float(0.65);
 
-		assert_ok!(Omnipool::add_token(
-			Origin::root(),
-			1_000,
-			token_amount,
-			FixedU128::from(1)
-		));
+		let token_amount = 2000 * ONE;
+
+		assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
 		check_state!(
-			price.checked_mul_int(token_amount).unwrap() + dai_amount,
-			token_amount,
+			token_price.checked_mul_int(token_amount).unwrap() + dai_amount / 2 + NATIVE_AMOUNT,
+			22_600 * ONE,
 			SimpleImbalance::default()
 		);
 	});
@@ -85,14 +91,18 @@ fn add_liquidity_works() {
 			));
 
 			check_state!(
-				price.checked_mul_int(token_amount).unwrap() + dai_amount,
-				token_amount,
+				price.checked_mul_int(token_amount).unwrap() + dai_amount + NATIVE_AMOUNT,
+				token_amount + NATIVE_AMOUNT,
 				SimpleImbalance::default()
 			);
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(1), 1_000, token_amount));
 
-			check_state!(700 * ONE, 600 * ONE, SimpleImbalance::default());
+			check_state!(
+				700 * ONE + NATIVE_AMOUNT,
+				600 * ONE + NATIVE_AMOUNT,
+				SimpleImbalance::default()
+			);
 
 			check_balance!(LP1, 1_000, 700 * ONE)
 		});
