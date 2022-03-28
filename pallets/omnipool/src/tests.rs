@@ -1,5 +1,5 @@
 use crate::mock::*;
-use crate::types::SimpleImbalance;
+use crate::types::{AssetState, Position, SimpleImbalance};
 use crate::*;
 use frame_support::assert_ok;
 use sp_runtime::{FixedPointNumber, FixedU128};
@@ -21,6 +21,14 @@ macro_rules! check_state {
 		assert_eq!(HubAssetLiquidity::<Test>::get(), $x, "Hub liquidity incorrect");
 		assert_eq!(TotalTVL::<Test>::get(), $y, "Total tvl incorrect");
 		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect");
+	}};
+}
+
+#[macro_export]
+macro_rules! check_asset_state {
+	( $x:expr, $y:expr) => {{
+		let actual = Assets::<Test>::get($x).unwrap();
+		assert_eq!(actual, $y);
 	}};
 }
 
@@ -70,42 +78,69 @@ fn add_token_works() {
 			23_600 * ONE,
 			SimpleImbalance::default()
 		);
+
+		check_asset_state!(
+			1_000,
+			AssetState {
+				reserve: token_amount,
+				hub_reserve: 1300 * ONE,
+				shares: token_amount,
+				protocol_shares: token_amount,
+				tvl: token_amount
+			}
+		)
 	});
 }
 
 #[test]
 fn add_liquidity_works() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(LP1, 1_000, 1000 * ONE)])
+		.with_endowed_accounts(vec![(LP1, 1_000, 5000 * ONE)])
 		.build()
 		.execute_with(|| {
-			let dai_amount = 100 * ONE;
-			let price = FixedU128::from(1);
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
 			init_omnipool(dai_amount, price);
 
-			let token_amount = 300 * ONE;
+			let token_amount = 2000 * ONE;
+			let token_price = FixedU128::from_float(0.65);
 
 			assert_ok!(Omnipool::add_token(
 				Origin::root(),
 				1_000,
 				token_amount,
-				FixedU128::from(1)
+				FixedU128::from_float(0.65)
 			));
 
-			check_state!(
-				price.checked_mul_int(token_amount).unwrap() + dai_amount + NATIVE_AMOUNT,
-				token_amount + NATIVE_AMOUNT + dai_amount,
-				SimpleImbalance::default()
+			check_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
+
+			let liq_added = 400 * ONE;
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(1), 1_000, liq_added));
+
+			check_asset_state!(
+				1_000,
+				AssetState {
+					reserve: token_amount + liq_added,
+					hub_reserve: 1560 * ONE,
+					shares: 2400 * ONE,
+					protocol_shares: 2000 * ONE,
+					tvl: 3120 * ONE
+				}
 			);
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(1), 1_000, token_amount));
+			let position = Positions::<Test>::get(PositionId(0)).unwrap();
 
-			check_state!(
-				700 * ONE + NATIVE_AMOUNT,
-				600 * ONE + NATIVE_AMOUNT + dai_amount,
-				SimpleImbalance::default()
-			);
+			let expected = Position::<Balance, AssetId> {
+				asset_id: 1_000,
+				amount: liq_added,
+				shares: liq_added,
+				price: Position::<Balance, AssetId>::price_to_balance(token_price),
+			};
 
-			check_balance!(LP1, 1_000, 700 * ONE)
+			assert_eq!(position, expected);
+
+			check_state!(12_060 * ONE, 24_720 * ONE, SimpleImbalance::default());
+
+			check_balance!(LP1, 1_000, 4600 * ONE)
 		});
 }

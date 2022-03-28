@@ -312,13 +312,9 @@ pub mod pallet {
 			let current_tvl = asset_state.tvl;
 
 			let new_shares = current_shares
-				.checked_mul(
-					&current_reserve
-						.checked_add(&amount)
-						.ok_or(Error::<T>::Overflow)?
-						.checked_div(&current_reserve)
-						.ok_or(Error::<T>::Overflow)?,
-				)
+				.checked_mul(&current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?)
+				.ok_or(Error::<T>::Overflow)?
+				.checked_div(&current_reserve)
 				.ok_or(Error::<T>::Overflow)?;
 
 			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
@@ -343,8 +339,6 @@ pub mod pallet {
 			asset_state.hub_reserve = new_hub_reserve;
 
 			let new_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
-
-			<Assets<T>>::insert(asset, asset_state);
 
 			// Create LP position
 			let lp_position = Position::<T::Balance, T::AssetId> {
@@ -405,9 +399,13 @@ pub mod pallet {
 					log!(debug, "Adding liquidity - tvl {:?}", delta_tvl);
 
 					*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+					asset_state.tvl = asset_state.tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+
 					Ok(())
 				})?;
 			}
+
+			<Assets<T>>::insert(asset, asset_state);
 
 			// Total hub asset liquidity update
 			// Note: must be done after imbalance since it requires current value before update
