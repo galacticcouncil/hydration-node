@@ -258,7 +258,6 @@ pub mod pallet {
 					.checked_mul_int(amount)
 					.ok_or(Error::<T>::Overflow)?;
 
-				// TODO: verify if always add here.
 				current_imbalance.add::<T>(delta_imbalance)?;
 				log!(debug, "Adding token - imbalance update {:?}", delta_imbalance);
 
@@ -300,6 +299,8 @@ pub mod pallet {
 
 			let current_shares = asset_state.shares;
 			let current_reserve = asset_state.reserve;
+			let current_hub_reserve = asset_state.hub_reserve;
+			let current_tvl = asset_state.tvl;
 
 			let new_shares = current_shares
 				.checked_mul(
@@ -359,10 +360,14 @@ pub mod pallet {
 			if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
 				// if any is 0, the delta is 0 too.
 
-				// TODO: verify with colin if it should decrease or increase!
-				//let delta_l = -amount * (asset_detail.hub_reserve / current_reserve) * ( current_imbalance / hub_asset_liquidity );
+				let p1 = Price::from((current_reserve, current_hub_reserve));
+				let p2 = Price::from((current_imbalance.value, current_hub_asset_liquidity));
 
-				let delta_imbalance = T::Balance::zero();
+				let delta_imbalance = p1
+					.checked_mul(&p2)
+					.ok_or(Error::<T>::Overflow)?
+					.checked_mul_int(amount)
+					.ok_or(Error::<T>::Overflow)?;
 
 				current_imbalance.add::<T>(delta_imbalance)?;
 				log!(debug, "Adding liquidity - imbalance update {:?}", delta_imbalance);
@@ -375,14 +380,14 @@ pub mod pallet {
 
 			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
 				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+					// TODO: this can be either positive or negative!!
+					// Need to handle each case accordingly
 					let delta_tvl = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
 						.checked_mul_int(new_hub_reserve)
 						.ok_or(Error::<T>::Overflow)?
-						.checked_sub(tvl)
+						.checked_sub(&current_tvl)
 						.ok_or(Error::<T>::Overflow)?;
 
-					//TODO: add tvl cap check
-					// but verify why we subtract the current tvl and add it back again ?! probably the previous calc can result in < 0?!
 					let tvl_cap = T::Balance::zero();
 					if *tvl + delta_tvl > tvl_cap {
 						// return error
