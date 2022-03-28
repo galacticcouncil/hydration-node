@@ -35,7 +35,7 @@ fn init_omnipool(dai_amount: Balance, price: FixedU128) {
 
 	check_state!(
 		price.checked_mul_int(dai_amount).unwrap() + NATIVE_AMOUNT,
-		NATIVE_AMOUNT * (dai_amount / price.checked_mul_int(dai_amount).unwrap()),
+		NATIVE_AMOUNT * (dai_amount / price.checked_mul_int(dai_amount).unwrap()) + dai_amount,
 		SimpleImbalance::default()
 	);
 }
@@ -47,7 +47,7 @@ fn add_stable_asset_works() {
 
 		assert_ok!(Omnipool::add_token(Origin::root(), DAI, dai_amount, FixedU128::from(1)));
 
-		check_state!(dai_amount, 0, SimpleImbalance::default());
+		check_state!(dai_amount, dai_amount, SimpleImbalance::default());
 	});
 }
 
@@ -63,9 +63,11 @@ fn add_token_works() {
 		let token_amount = 2000 * ONE;
 
 		assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
+
+		// Note: using exact values to make sure that it is same as in python's simulations.
 		check_state!(
-			token_price.checked_mul_int(token_amount).unwrap() + dai_amount / 2 + NATIVE_AMOUNT,
-			22_600 * ONE,
+			11_800 * ONE, //token_price.checked_mul_int(token_amount).unwrap() + dai_amount / 2 + NATIVE_AMOUNT,
+			23_600 * ONE,
 			SimpleImbalance::default()
 		);
 	});
@@ -92,7 +94,7 @@ fn add_liquidity_works() {
 
 			check_state!(
 				price.checked_mul_int(token_amount).unwrap() + dai_amount + NATIVE_AMOUNT,
-				token_amount + NATIVE_AMOUNT,
+				token_amount + NATIVE_AMOUNT + dai_amount,
 				SimpleImbalance::default()
 			);
 
@@ -100,7 +102,7 @@ fn add_liquidity_works() {
 
 			check_state!(
 				700 * ONE + NATIVE_AMOUNT,
-				600 * ONE + NATIVE_AMOUNT,
+				600 * ONE + NATIVE_AMOUNT + dai_amount,
 				SimpleImbalance::default()
 			);
 

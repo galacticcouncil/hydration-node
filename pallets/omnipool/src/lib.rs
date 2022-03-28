@@ -220,7 +220,16 @@ pub mod pallet {
 			} else {
 				// Trying to add preferred stable asset.
 				// This can happen only once , since it is first token to add to the pool.
-				(T::Balance::zero(), T::Balance::zero())
+
+				// Special case is when adding the very preferred stable asset
+				if asset == T::StableCoinAssetId::get() {
+					(
+						amount,
+						initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?,
+					)
+				} else {
+					(T::Balance::zero(), T::Balance::zero())
+				}
 			};
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
@@ -269,22 +278,20 @@ pub mod pallet {
 			Self::increase_hub_asset_liquidity(hub_reserve)?;
 
 			// TVL update
-			if asset != T::StableCoinAssetId::get() {
-				if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
-					let delta_tvl = initial_price
-						.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
-						.ok_or(Error::<T>::Overflow)?
-						.checked_mul_int(amount);
+			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
+				let delta_tvl = initial_price
+					.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
+					.ok_or(Error::<T>::Overflow)?
+					.checked_mul_int(amount);
 
-					let delta_tvl = delta_tvl.ok_or(Error::<T>::Overflow)?;
+				let delta_tvl = delta_tvl.ok_or(Error::<T>::Overflow)?;
 
-					<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-						*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
-						Ok(())
-					})?;
+				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+					*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+					Ok(())
+				})?;
 
-					log!(debug, "Adding token - tvl {:?}", delta_tvl,);
-				}
+				log!(debug, "Adding token - tvl {:?}", delta_tvl,);
 			}
 
 			Self::deposit_event(Event::TokenAdded(asset));
