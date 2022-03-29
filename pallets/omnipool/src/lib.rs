@@ -186,8 +186,10 @@ pub mod pallet {
 		NoStableCoinInPool,
 		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
 		MissingBalance,
-		/// Mimimum bought limit has not been reached during sale.
+		/// Minimum limit has not been reached during trade.
 		BuyLimitNotReached,
+		/// Maximum limit has been exceeded during trade.
+		SellLimitExceeded,
 		///
 		Overflow,
 	}
@@ -434,7 +436,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -529,6 +531,112 @@ pub mod pallet {
 			// Imbalance update
 			// TODO: waiting for update from wiser people!
 
+			Ok(())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::buy())]
+		#[transactional]
+		pub fn buy(
+			origin: OriginFor<T>,
+			asset_out: T::AssetId,
+			asset_in: T::AssetId,
+			amount: T::Balance,
+			max_limit: T::Balance,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			//TODO: handle hub asset separately!
+
+			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
+
+			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
+			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+
+			// Positive
+			let fee_asset = FixedU128::from(1)
+				.checked_sub(&Self::asset_fee())
+				.ok_or(Error::<T>::Overflow)?;
+			let fee_protocol = FixedU128::from(1)
+				.checked_sub(&Self::protocol_fee())
+				.ok_or(Error::<T>::Overflow)?;
+
+			let q_out_part = FixedU128::from((
+				amount,
+				fee_asset
+					.checked_mul_int(asset_out_state.reserve)
+					.ok_or(Error::<T>::Overflow)?
+					.checked_sub(&amount)
+					.ok_or(Error::<T>::Overflow)?,
+			));
+
+			let delta_q_out = q_out_part
+				.checked_mul_int(asset_out_state.hub_reserve)
+				.ok_or(Error::<T>::Overflow)?;
+
+			// Negative
+			let delta_q_in: T::Balance = FixedU128::from_inner(delta_q_out.into())
+				.checked_div(&fee_protocol)
+				.ok_or(Error::<T>::Overflow)?
+				.into_inner()
+				.into();
+
+			// Positive
+			let delta_r_in = FixedU128::from((
+				delta_q_in,
+				asset_in_state
+					.hub_reserve
+					.checked_add(&delta_q_in)
+					.ok_or(Error::<T>::Overflow)?,
+			))
+			.checked_mul_int(asset_in_state.reserve)
+			.ok_or(Error::<T>::Overflow)?;
+
+			ensure!(delta_r_in <= max_limit, Error::<T>::SellLimitExceeded);
+
+			// Pool state update
+			asset_in_state.reserve = asset_in_state
+				.reserve
+				.checked_add(&delta_r_in)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_in_state.hub_reserve = asset_in_state
+				.hub_reserve
+				.checked_sub(&delta_q_in)
+				.ok_or(Error::<T>::Overflow)?;
+
+			asset_out_state.reserve = asset_out_state
+				.reserve
+				.checked_sub(&amount)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_out_state.hub_reserve = asset_out_state
+				.hub_reserve
+				.checked_add(&delta_q_out)
+				.ok_or(Error::<T>::Overflow)?;
+
+			<Assets<T>>::insert(asset_in, asset_in_state);
+			<Assets<T>>::insert(asset_out, asset_out_state);
+
+			// Token balances update
+			T::Currency::transfer(asset_in, &who, &Self::protocol_account(), delta_r_in)?;
+			T::Currency::transfer(asset_out, &Self::protocol_account(), &who, amount)?;
+
+			// Hub liquidity update
+			if delta_q_in > delta_q_out {
+				// We need to burn some in this case
+				let diff = delta_q_in.checked_sub(&delta_q_out).ok_or(Error::<T>::Overflow)?;
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::decrease_hub_asset_liquidity(diff)?;
+			} else if delta_q_out > delta_q_in {
+				// We need to mint some in this case
+				let diff = delta_q_out.checked_sub(&delta_q_in).ok_or(Error::<T>::Overflow)?;
+				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::increase_hub_asset_liquidity(diff)?;
+			}
+
+			// TVL update
+			// TODO: waiting for update from wiser people!
+
+			// Imbalance update
+			// TODO: waiting for update from wiser people!
 			Ok(())
 		}
 	}

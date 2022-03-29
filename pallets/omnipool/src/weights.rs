@@ -4,6 +4,8 @@ use frame_support::weights::Weight;
 pub trait WeightInfo {
 	fn add_token() -> Weight;
 	fn add_liquidity() -> Weight;
+	fn sell() -> Weight;
+	fn buy() -> Weight;
 }
 
 impl WeightInfo for () {
@@ -13,5 +15,12 @@ impl WeightInfo for () {
 
 	fn add_liquidity() -> Weight {
 		0 as Weight
+	}
+
+	fn sell() -> Weight {
+		0
+	}
+	fn buy() -> Weight {
+		0
 	}
 }
