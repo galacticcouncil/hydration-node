@@ -193,11 +193,20 @@ fn simple_sell_works() {
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550000000000000);
 			assert_eq!(Tokens::free_balance(200, &LP1), 47808764940238);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
+			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
+			assert_eq!(
+				Tokens::free_balance(200, &Omnipool::protocol_account()),
+				1952191235059762
+			);
+
+			check_state!(13_360 * ONE, 27_320 * ONE, SimpleImbalance::default());
+
 			check_asset_state!(
 				100,
 				AssetState {
 					reserve: 2450 * ONE,
-					hub_reserve: 1528163265306123,
+					hub_reserve: 1528_163_265_306_123,
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 3120 * ONE

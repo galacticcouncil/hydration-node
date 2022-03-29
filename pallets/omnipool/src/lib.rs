@@ -511,6 +511,17 @@ pub mod pallet {
 			T::Currency::transfer(asset_out, &Self::protocol_account(), &who, delta_r_out)?;
 
 			// Hub liquidity update
+			if delta_q_in > delta_q_out {
+				// We need to burn some in this case
+				let diff = delta_q_in.checked_sub(&delta_q_out).ok_or(Error::<T>::Overflow)?;
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::decrease_hub_asset_liquidity(diff)?;
+			} else if delta_q_out > delta_q_in {
+				// We need to mint some in this case
+				let diff = delta_q_out.checked_sub(&delta_q_in).ok_or(Error::<T>::Overflow)?;
+				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::increase_hub_asset_liquidity(diff)?;
+			}
 
 			// TVL update
 			// TODO: waiting for update from wiser people!
@@ -559,6 +570,12 @@ impl<T: Config> Pallet<T> {
 	fn increase_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
 		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
 			*liquidity = liquidity.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+			Ok(())
+		})
+	}
+	fn decrease_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
+		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
+			*liquidity = liquidity.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
 			Ok(())
 		})
 	}
