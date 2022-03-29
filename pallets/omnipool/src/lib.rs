@@ -186,6 +186,8 @@ pub mod pallet {
 		NoStableCoinInPool,
 		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
 		MissingBalance,
+		/// Mimimum bought limit has not been reached during sale.
+		BuyLimitNotReached,
 		///
 		Overflow,
 	}
@@ -443,6 +445,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			//TODO: handle hub asset separately!
+
 			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
@@ -470,7 +474,7 @@ pub mod pallet {
 
 			let out_hub_reserve = asset_out_state
 				.hub_reserve
-				.checked_sub(&delta_q_out)
+				.checked_add(&delta_q_out)
 				.ok_or(Error::<T>::Overflow)?;
 
 			let delta_r_out = FixedU128::from((delta_q_out, out_hub_reserve))
@@ -478,6 +482,41 @@ pub mod pallet {
 				.ok_or(Error::<T>::Overflow)?
 				.checked_mul_int(asset_out_state.reserve)
 				.ok_or(Error::<T>::Overflow)?;
+
+			ensure!(delta_r_out >= min_limit, Error::<T>::BuyLimitNotReached);
+
+			// Pool state update
+			asset_in_state.reserve = asset_in_state
+				.reserve
+				.checked_add(&amount)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_in_state.hub_reserve = asset_in_state
+				.hub_reserve
+				.checked_sub(&delta_q_in)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_out_state.reserve = asset_out_state
+				.reserve
+				.checked_sub(&delta_r_out)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_out_state.hub_reserve = asset_out_state
+				.hub_reserve
+				.checked_add(&delta_q_out)
+				.ok_or(Error::<T>::Overflow)?;
+
+			<Assets<T>>::insert(asset_in, asset_in_state);
+			<Assets<T>>::insert(asset_out, asset_out_state);
+
+			// Token balances update
+			T::Currency::transfer(asset_in, &who, &Self::protocol_account(), amount)?;
+			T::Currency::transfer(asset_out, &Self::protocol_account(), &who, delta_r_out)?;
+
+			// Hub liquidity update
+
+			// TVL update
+			// TODO: waiting for update from wiser people!
+
+			// Imbalance update
+			// TODO: waiting for update from wiser people!
 
 			Ok(())
 		}
