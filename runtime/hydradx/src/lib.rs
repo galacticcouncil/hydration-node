@@ -78,7 +78,6 @@ mod tests;
 pub use pallet_claims;
 pub use pallet_genesis_history;
 
-
 pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] =
 	hex_literal::hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
 

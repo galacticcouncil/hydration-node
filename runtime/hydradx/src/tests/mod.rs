@@ -2,6 +2,7 @@ use super::*;
 use crate::mock::*;
 
 #[cfg(test)]
+mod duster;
 mod vested_transfer;
 
 fn new_test_ext() -> sp_io::TestExternalities {

@@ -98,7 +98,10 @@ pub type AllTechnicalCommitteeMembers = EnsureOneOf<
 >;
 
 pub fn get_all_module_accounts() -> Vec<AccountId> {
-	vec![TreasuryPalletId::get().into_account()]
+	vec![
+		TreasuryPalletId::get().into_account(),
+		VestingPalletId::get().into_account(),
+	]
 }
 
 pub struct DustRemovalWhitelist;

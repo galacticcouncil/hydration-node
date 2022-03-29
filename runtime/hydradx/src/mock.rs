@@ -1,3 +1,4 @@
+use crate::{Amount, AssetId, ExistentialDeposits, MaxLocks, GALACTIC_COUNCIL_ACCOUNT};
 use frame_support::{parameter_types, traits::Everything, PalletId};
 use frame_system as system;
 use sp_core::{crypto::AccountId32, H256};
@@ -5,13 +6,12 @@ use sp_runtime::{
 	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, IdentityLookup},
 };
-use crate::GALACTIC_COUNCIL_ACCOUNT;
 
 pub type AccountId = AccountId32;
 pub type Balance = u128;
 type ReserveIdentifier = [u8; 8];
 
-pub const HDX: Balance = 100_000_000_000;
+pub const HDX: Balance = 1_000_000_000_000;
 
 pub const ALICE: AccountId = AccountId::new([1u8; 32]);
 pub const BOB: AccountId = AccountId::new([2u8; 32]);
@@ -28,11 +28,12 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>},
 	}
 );
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
+	pub const ExistentialDeposit: u128 = HDX;
 	pub const MaxReserves: u32 = 50;
 }
 
@@ -81,7 +82,24 @@ impl system::Config for Test {
 }
 
 parameter_types! {
+  pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
   pub const VestingPalletId: PalletId = PalletId(*b"py/vstng");
+}
+
+impl orml_tokens::Config for Test {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
+	type MaxLocks = MaxLocks;
+	type DustRemovalWhitelist = common_runtime::DustRemovalWhitelist;
+}
+
+pub fn treasury_account() -> AccountId {
+	TreasuryPalletId::get().into_account()
 }
 
 pub fn vesting_account() -> AccountId {
@@ -101,9 +119,10 @@ impl ExtBuilder {
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: vec![
-				(ALICE, 40_000 * HDX),
+				(ALICE, 50_000 * HDX),
 				(BOB, 2_000 * HDX),
 				(CHARLIE, 4_000 * HDX),
+				(treasury_account(), 50_000 * HDX),
 				(vesting_account(), 50_000 * HDX),
 				(GALACTIC_COUNCIL_ACCOUNT.into(), 50_000 * HDX),
 			],
