@@ -3,6 +3,7 @@ use crate::types::{AssetState, Position, SimpleImbalance};
 use crate::*;
 use frame_support::assert_ok;
 use sp_runtime::{FixedPointNumber, FixedU128};
+use std::cmp::min;
 
 const ONE: Balance = 1_000_000_000_000;
 
@@ -50,52 +51,67 @@ fn init_omnipool(dai_amount: Balance, price: FixedU128) {
 
 #[test]
 fn add_stable_asset_works() {
-	new_test_ext().execute_with(|| {
-		let dai_amount = 100 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(Omnipool::protocol_account(), DAI, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			let dai_amount = 100 * ONE;
 
-		assert_ok!(Omnipool::add_token(Origin::root(), DAI, dai_amount, FixedU128::from(1)));
+			assert_ok!(Omnipool::add_token(Origin::root(), DAI, dai_amount, FixedU128::from(1)));
 
-		check_state!(dai_amount, dai_amount, SimpleImbalance::default());
-	});
+			check_state!(dai_amount, dai_amount, SimpleImbalance::default());
+		});
 }
 
 #[test]
 fn add_token_works() {
-	new_test_ext().execute_with(|| {
-		let dai_amount = 1000 * ONE;
-		let price = FixedU128::from_float(0.5);
-		init_omnipool(dai_amount, price);
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
 
-		let token_price = FixedU128::from_float(0.65);
+			let token_price = FixedU128::from_float(0.65);
 
-		let token_amount = 2000 * ONE;
+			let token_amount = 2000 * ONE;
 
-		assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
+			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
 
-		// Note: using exact values to make sure that it is same as in python's simulations.
-		check_state!(
-			11_800 * ONE, //token_price.checked_mul_int(token_amount).unwrap() + dai_amount / 2 + NATIVE_AMOUNT,
-			23_600 * ONE,
-			SimpleImbalance::default()
-		);
+			// Note: using exact values to make sure that it is same as in python's simulations.
+			check_state!(
+				11_800 * ONE, //token_price.checked_mul_int(token_amount).unwrap() + dai_amount / 2 + NATIVE_AMOUNT,
+				23_600 * ONE,
+				SimpleImbalance::default()
+			);
 
-		check_asset_state!(
-			1_000,
-			AssetState {
-				reserve: token_amount,
-				hub_reserve: 1300 * ONE,
-				shares: token_amount,
-				protocol_shares: token_amount,
-				tvl: token_amount
-			}
-		)
-	});
+			check_asset_state!(
+				1_000,
+				AssetState {
+					reserve: token_amount,
+					hub_reserve: 1300 * ONE,
+					shares: token_amount,
+					protocol_shares: token_amount,
+					tvl: token_amount
+				}
+			)
+		});
 }
 
 #[test]
 fn add_liquidity_works() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(LP1, 1_000, 5000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
 		.build()
 		.execute_with(|| {
 			let dai_amount = 1000 * ONE;
@@ -142,5 +158,53 @@ fn add_liquidity_works() {
 			check_state!(12_060 * ONE, 24_720 * ONE, SimpleImbalance::default());
 
 			check_balance!(LP1, 1_000, 4600 * ONE)
+		});
+}
+
+#[test]
+fn simple_sell_works() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(Omnipool::protocol_account(), 2_000, 2000 * ONE),
+			(LP1, 1_000, 1000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+
+			let token_amount = 2000 * ONE;
+			let token_price = FixedU128::from_float(0.65);
+
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				1_000,
+				token_amount,
+				FixedU128::from_float(0.65)
+			));
+
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				2_000,
+				token_amount,
+				FixedU128::from_float(0.65)
+			));
+
+			let liq_added = 400 * ONE;
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+
+			let sell_amount = 50 * ONE;
+			let min_limit = 10 * ONE;
+			assert_ok!(Omnipool::sell(
+				Origin::signed(LP1),
+				1_000,
+				2_000,
+				sell_amount,
+				min_limit
+			));
 		});
 }

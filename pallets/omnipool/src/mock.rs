@@ -123,8 +123,8 @@ parameter_types! {
 	pub const LRNAAssetId: AssetId = LRNA;
 	pub const DAIAssetId: AssetId = DAI;
 
-	pub const ProtocolFee: (u32,u32) = ( 2, 1000);
-	pub const AssetFee: (u32,u32) = ( 1, 1000);
+	pub const ProtocolFee: (u32,u32) = ( 0, 0);
+	pub const AssetFee: (u32,u32) = ( 0, 0);
 }
 
 pub struct EnsureSignedOrRoot<AccountId>(sp_std::marker::PhantomData<AccountId>);
@@ -197,12 +197,4 @@ impl ExtBuilder {
 
 		t.into()
 	}
-}
-
-pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-
-	let mut ext = sp_io::TestExternalities::new(t);
-	ext.execute_with(|| System::set_block_number(1));
-	ext
 }

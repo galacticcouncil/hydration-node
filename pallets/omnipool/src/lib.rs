@@ -184,6 +184,8 @@ pub mod pallet {
 		AssetNotInPool,
 		/// No stable asset in the pool
 		NoStableCoinInPool,
+		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
+		MissingBalance,
 		///
 		Overflow,
 	}
@@ -257,6 +259,12 @@ pub mod pallet {
 			// currently if root ( None ), it means protocol, so no transfer done assuming asset is already in the protocol account
 			if let Some(who) = account {
 				T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
+			} else {
+				// Ensure that it has been transferred to protocol account by other means
+				ensure!(
+					T::Currency::free_balance(asset, &Self::protocol_account()) == amount,
+					Error::<T>::MissingBalance
+				);
 			}
 
 			// Mint matching Hub asset
@@ -485,11 +493,19 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn protocol_fee() -> Price {
-		Price::from(T::ProtocolFee::get())
+		let fee = T::ProtocolFee::get();
+		match fee {
+			(_, 0) => FixedU128::zero(),
+			(a, b) => FixedU128::from((a, b)),
+		}
 	}
 
 	fn asset_fee() -> Price {
-		Price::from(T::AssetFee::get())
+		let fee = T::AssetFee::get();
+		match fee {
+			(_, 0) => FixedU128::zero(),
+			(a, b) => FixedU128::from((a, b)),
+		}
 	}
 
 	fn stable_asset() -> Result<(T::Balance, T::Balance), DispatchError> {
