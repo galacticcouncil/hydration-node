@@ -247,13 +247,13 @@ pub mod pallet {
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
 
 			// Initial stale of asset
-			let mut state = AssetState::<T::Balance>::default();
-
-			state.reserve = amount;
-			state.hub_reserve = hub_reserve;
-			state.shares = amount;
-			state.protocol_shares = amount;
-			state.tvl = amount;
+			let state = AssetState::<T::Balance> {
+				reserve: amount,
+				hub_reserve,
+				shares: amount,
+				protocol_shares: amount,
+				tvl: amount,
+			};
 
 			<Assets<T>>::insert(asset, state);
 
