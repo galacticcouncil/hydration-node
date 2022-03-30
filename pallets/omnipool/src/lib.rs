@@ -81,6 +81,7 @@ macro_rules! math_result {
 pub mod pallet {
 	use super::*;
 	use crate::types::{AssetState, Position, PositionId, Price, SimpleImbalance};
+	use crate::Error::PositionNotFound;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -193,6 +194,8 @@ pub mod pallet {
 		BuyLimitNotReached,
 		/// Maximum limit has been exceeded during trade.
 		SellLimitExceeded,
+		/// Position has not been found.
+		PositionNotFound,
 		///
 		Overflow,
 	}
@@ -435,6 +438,84 @@ pub mod pallet {
 			Self::increase_hub_asset_liquidity(delta_q)?;
 
 			Self::deposit_event(Event::LiquidityAdded(asset, amount));
+
+			Ok(())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
+		#[transactional]
+		pub fn remove_liquidity(
+			origin: OriginFor<T>,
+			position_id: T::PositionInstanceId,
+			amount: T::Balance,
+		) -> DispatchResult {
+			let mut position = Positions::<T>::get(PositionId(position_id)).ok_or(Error::<T>::PositionNotFound)?;
+
+			ensure!(position.shares >= amount, Error::<T>::Overflow);
+
+			let mut asset_state = Assets::<T>::get(position.asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+
+			let current_shares = asset_state.shares;
+			let current_reserve = asset_state.reserve;
+			let current_hub_reserve = asset_state.hub_reserve;
+			let current_tvl = asset_state.tvl;
+
+			let current_price = FixedU128::from((current_hub_reserve, current_reserve));
+
+			let position_price = position.fixed_price();
+
+			let delta_b = if current_price < position_price {
+				let sum = current_price.checked_add(&position_price).ok_or(Error::<T>::Overflow)?;
+				let sub = position_price.checked_sub(&current_price).ok_or(Error::<T>::Overflow)?;
+
+				sub.checked_div(&sum)
+					.ok_or(Error::<T>::Overflow)?
+					.checked_mul_int(amount)
+					.ok_or(Error::<T>::Overflow)?
+			} else {
+				T::Balance::zero()
+			};
+
+			let delta_s = if delta_b != T::Balance::zero() {
+				//TODO: Q: colin: can delta_b > amount
+				amount.checked_sub(&delta_b).ok_or(Error::<T>::Overflow)?
+			} else {
+				amount
+			};
+
+			// Update asset shares
+			asset_state.protocol_shares = asset_state
+				.protocol_shares
+				.checked_sub(&delta_b)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_state.shares = current_shares.checked_sub(&delta_s).ok_or(Error::<T>::Overflow)?;
+
+			// Update position shares
+			position.shares = position.shares.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
+
+			// TODO: if remaining shares are 0, destroy position
+
+			let delta_r = FixedU128::from((current_reserve, current_shares))
+				.checked_mul_int(delta_s)
+				.ok_or(Error::<T>::Overflow)?;
+
+			let delta_q = FixedU128::from((delta_r, current_reserve))
+				.checked_mul_int(current_hub_reserve)
+				.ok_or(Error::<T>::Overflow)?;
+
+			if current_price > position_price {
+				// LP receives some hub asset
+			}
+
+			// Token balance updates
+
+			// Asset state update
+
+			// Imbalance update
+			// TODO:
+
+			// TVL update
+			// TODO:
 
 			Ok(())
 		}
