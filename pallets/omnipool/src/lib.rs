@@ -177,6 +177,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		TokenAdded(T::AssetId),
 		LiquidityAdded(T::AssetId, T::Balance),
+		LiquidityRemoved(T::AssetId, T::Balance),
 	}
 
 	#[pallet::error]
@@ -449,7 +450,11 @@ pub mod pallet {
 			position_id: T::PositionInstanceId,
 			amount: T::Balance,
 		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
 			let mut position = Positions::<T>::get(PositionId(position_id)).ok_or(Error::<T>::PositionNotFound)?;
+
+			// TODO: check owner of position.
 
 			ensure!(position.shares >= amount, Error::<T>::Overflow);
 
@@ -483,16 +488,6 @@ pub mod pallet {
 				amount
 			};
 
-			// Update asset shares
-			asset_state.protocol_shares = asset_state
-				.protocol_shares
-				.checked_sub(&delta_b)
-				.ok_or(Error::<T>::Overflow)?;
-			asset_state.shares = current_shares.checked_sub(&delta_s).ok_or(Error::<T>::Overflow)?;
-
-			// Update position shares
-			position.shares = position.shares.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
-
 			// TODO: if remaining shares are 0, destroy position
 
 			let delta_r = FixedU128::from((current_reserve, current_shares))
@@ -507,15 +502,36 @@ pub mod pallet {
 				// LP receives some hub asset
 			}
 
-			// Token balance updates
-
 			// Asset state update
+			asset_state.protocol_shares = asset_state
+				.protocol_shares
+				.checked_sub(&delta_b)
+				.ok_or(Error::<T>::Overflow)?;
+
+			asset_state.shares = current_shares.checked_sub(&delta_s).ok_or(Error::<T>::Overflow)?;
+			asset_state.reserve = current_reserve.checked_sub(&delta_r).ok_or(Error::<T>::Overflow)?;
+
+			// LRNA update
+			asset_state.hub_reserve = current_hub_reserve.checked_sub(&delta_q).ok_or(Error::<T>::Overflow)?;
+			Self::decrease_hub_asset_liquidity(delta_q)?;
+
+			// Update position shares
+			position.amount = position.amount.checked_sub(&delta_r).ok_or(Error::<T>::Overflow)?; // TODO: Q: colin: can delta_r > amount ?
+			position.shares = position.shares.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
+
+			// Token balance updates
+			T::Currency::transfer(position.asset_id, &Self::protocol_account(), &who, delta_r)?;
+
+			// Burn LRNA
+			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_q)?;
 
 			// Imbalance update
 			// TODO:
 
 			// TVL update
 			// TODO:
+
+			Self::deposit_event(Event::LiquidityRemoved(position.asset_id, amount));
 
 			Ok(())
 		}
