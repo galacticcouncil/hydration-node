@@ -105,8 +105,11 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo
 			+ FixedPointOperand
+			// TODO: the following from/into is due to use of FixedU128, which internally uses u128.
+			// might think of better way or use directly u128 instead as there is not much choice here anyway
+			// Or make fixed point number generic too ?!
 			+ From<u128>
-			+ Into<u128>; // TODO: due to use of FixedU128, might think of better way or use direcly u128 instead as there is not much choice here anyway
+			+ Into<u128>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
