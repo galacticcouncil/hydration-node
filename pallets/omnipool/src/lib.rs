@@ -513,17 +513,7 @@ pub mod pallet {
 			T::Currency::transfer(asset_out, &Self::protocol_account(), &who, delta_r_out)?;
 
 			// Hub liquidity update
-			if delta_q_in > delta_q_out {
-				// We need to burn some in this case
-				let diff = delta_q_in.checked_sub(&delta_q_out).ok_or(Error::<T>::Overflow)?;
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::decrease_hub_asset_liquidity(diff)?;
-			} else if delta_q_out > delta_q_in {
-				// We need to mint some in this case
-				let diff = delta_q_out.checked_sub(&delta_q_in).ok_or(Error::<T>::Overflow)?;
-				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::increase_hub_asset_liquidity(diff)?;
-			}
+			Self::update_hub_asset_liquidity(delta_q_in, delta_q_out)?;
 
 			// TVL update
 			// TODO: waiting for update from wiser people!
@@ -620,17 +610,7 @@ pub mod pallet {
 			T::Currency::transfer(asset_out, &Self::protocol_account(), &who, amount)?;
 
 			// Hub liquidity update
-			if delta_q_in > delta_q_out {
-				// We need to burn some in this case
-				let diff = delta_q_in.checked_sub(&delta_q_out).ok_or(Error::<T>::Overflow)?;
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::decrease_hub_asset_liquidity(diff)?;
-			} else if delta_q_out > delta_q_in {
-				// We need to mint some in this case
-				let diff = delta_q_out.checked_sub(&delta_q_in).ok_or(Error::<T>::Overflow)?;
-				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::increase_hub_asset_liquidity(diff)?;
-			}
+			Self::update_hub_asset_liquidity(delta_q_in, delta_q_out)?;
 
 			// TVL update
 			// TODO: waiting for update from wiser people!
@@ -686,5 +666,27 @@ impl<T: Config> Pallet<T> {
 			*liquidity = liquidity.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
 			Ok(())
 		})
+	}
+
+	/// Updates total hub asset liquidity. It either burn or mint some based on the diff of in and out.
+	fn update_hub_asset_liquidity(delta_amount_in: T::Balance, delta_amount_out: T::Balance) -> DispatchResult {
+		if delta_amount_in > delta_amount_out {
+			// We need to burn some in this case
+			let diff = delta_amount_in
+				.checked_sub(&delta_amount_out)
+				.ok_or(Error::<T>::Overflow)?;
+			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+			Self::decrease_hub_asset_liquidity(diff)
+		} else if delta_amount_out > delta_amount_in {
+			// We need to mint some in this case
+			let diff = delta_amount_out
+				.checked_sub(&delta_amount_in)
+				.ok_or(Error::<T>::Overflow)?;
+			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+			Self::increase_hub_asset_liquidity(diff)
+		} else {
+			// If equal, nothing to do
+			Ok(())
+		}
 	}
 }
