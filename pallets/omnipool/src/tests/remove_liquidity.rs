@@ -27,6 +27,8 @@ fn remove_liquidity_works() {
 			let liq_removed = 200 * ONE;
 			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), 0, liq_removed));
 
+			check_state!(11_930 * ONE + 1, 24_720 * ONE, SimpleImbalance::default());
+
 			check_balance!(LP1, 1_000, 4600 * ONE + liq_removed);
 
 			check_asset_state!(
