@@ -46,8 +46,6 @@ pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 
-pub const LP1: u64 = 1;
-
 construct_runtime!(
 	pub enum Test where
 		Block = Block,

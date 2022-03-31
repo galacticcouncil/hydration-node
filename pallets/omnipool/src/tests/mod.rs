@@ -8,9 +8,13 @@ mod add_liquidity;
 mod add_token;
 mod buy;
 mod remove_liquidity;
+mod scenario_04;
 mod sell;
 
 const ONE: Balance = 1_000_000_000_000;
+const LP1: u64 = 1;
+const LP2: u64 = 2;
+const LP3: u64 = 3;
 
 const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 

@@ -272,7 +272,7 @@ pub mod pallet {
 			} else {
 				// Ensure that it has been transferred to protocol account by other means
 				ensure!(
-					T::Currency::free_balance(asset, &Self::protocol_account()) == amount,
+					T::Currency::free_balance(asset, &Self::protocol_account()) >= amount,
 					Error::<T>::MissingBalance
 				);
 			}
