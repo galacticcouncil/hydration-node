@@ -7,6 +7,7 @@ use sp_runtime::{FixedPointNumber, FixedU128};
 mod add_liquidity;
 mod add_token;
 mod buy;
+mod remove_liquidity;
 mod sell;
 
 const ONE: Balance = 1_000_000_000_000;

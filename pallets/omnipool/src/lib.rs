@@ -81,7 +81,6 @@ macro_rules! math_result {
 pub mod pallet {
 	use super::*;
 	use crate::types::{AssetState, Position, PositionId, Price, SimpleImbalance};
-	use crate::Error::PositionNotFound;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -338,6 +337,7 @@ pub mod pallet {
 			let current_hub_reserve = asset_state.hub_reserve;
 			let current_tvl = asset_state.tvl;
 
+			// TODO: probably rework as the multiplication can exceed u128::MAX?!
 			let new_shares = current_shares
 				.checked_mul(&current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?)
 				.ok_or(Error::<T>::Overflow)?
@@ -463,7 +463,6 @@ pub mod pallet {
 			let current_shares = asset_state.shares;
 			let current_reserve = asset_state.reserve;
 			let current_hub_reserve = asset_state.hub_reserve;
-			let current_tvl = asset_state.tvl;
 
 			let current_price = FixedU128::from((current_hub_reserve, current_reserve));
 
@@ -513,6 +512,7 @@ pub mod pallet {
 
 			// LRNA update
 			asset_state.hub_reserve = current_hub_reserve.checked_sub(&delta_q).ok_or(Error::<T>::Overflow)?;
+
 			Self::decrease_hub_asset_liquidity(delta_q)?;
 
 			// Update position shares
@@ -525,13 +525,17 @@ pub mod pallet {
 			// Burn LRNA
 			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_q)?;
 
+			Self::deposit_event(Event::LiquidityRemoved(position.asset_id, amount));
+
+			// Store updated asset state and position
+			<Assets<T>>::insert(position.asset_id, asset_state);
+			<Positions<T>>::insert(PositionId(position_id), position);
+
 			// Imbalance update
 			// TODO:
 
 			// TVL update
 			// TODO:
-
-			Self::deposit_event(Event::LiquidityRemoved(position.asset_id, amount));
 
 			Ok(())
 		}
