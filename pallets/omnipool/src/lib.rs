@@ -70,13 +70,6 @@ macro_rules! ensure_asset_not_in_pool {
 	}};
 }
 
-#[macro_export]
-macro_rules! math_result {
-	( $x:expr) => {{
-		$x.ok_or(Error::<T>::Overflow)?
-	}};
-}
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -185,7 +178,7 @@ pub mod pallet {
 		/// Asset is already in omnipool
 		AssetAlreadyAdded,
 		/// Asset is not in omnipool
-		AssetNotInPool,
+		AssetNotFound,
 		/// No stable asset in the pool
 		NoStableCoinInPool,
 		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
@@ -196,6 +189,8 @@ pub mod pallet {
 		SellLimitExceeded,
 		/// Position has not been found.
 		PositionNotFound,
+		/// Insufficient shares in position
+		InsufficientShares,
 		///
 		Overflow,
 	}
@@ -240,16 +235,10 @@ pub mod pallet {
 			} else {
 				// Trying to add preferred stable asset.
 				// This can happen only once , since it is first token to add to the pool.
-
-				// Special case is when adding the very preferred stable asset
-				if asset == T::StableCoinAssetId::get() {
-					(
-						amount,
-						initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?,
-					)
-				} else {
-					(T::Balance::zero(), T::Balance::zero())
-				}
+				(
+					amount,
+					initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?,
+				)
 			};
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
@@ -265,8 +254,7 @@ pub mod pallet {
 
 			<Assets<T>>::insert(asset, state);
 
-			// Note: Q here is how do we know if we adding asset as protocol ?
-			// currently if root ( None ), it means protocol, so no transfer done assuming asset is already in the protocol account
+			// if root ( None ), it means protocol, so no transfer done assuming asset is already in the protocol account
 			if let Some(who) = account {
 				T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
 			} else {
@@ -330,7 +318,7 @@ pub mod pallet {
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let mut asset_state = Assets::<T>::get(asset).ok_or(Error::<T>::AssetNotInPool)?;
+			let mut asset_state = Assets::<T>::get(asset).ok_or(Error::<T>::AssetNotFound)?;
 
 			let current_shares = asset_state.shares;
 			let current_reserve = asset_state.reserve;
@@ -361,7 +349,7 @@ pub mod pallet {
 			}
 
 			// New Asset State
-			asset_state.reserve = math_result!(current_reserve.checked_add(&amount));
+			asset_state.reserve = current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
 			asset_state.shares = new_shares;
 			asset_state.hub_reserve = new_hub_reserve;
 
@@ -456,9 +444,9 @@ pub mod pallet {
 
 			// TODO: check owner of position.
 
-			ensure!(position.shares >= amount, Error::<T>::Overflow);
+			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
-			let mut asset_state = Assets::<T>::get(position.asset_id).ok_or(Error::<T>::AssetNotInPool)?;
+			let mut asset_state = Assets::<T>::get(position.asset_id).ok_or(Error::<T>::AssetNotFound)?;
 
 			let current_shares = asset_state.shares;
 			let current_reserve = asset_state.reserve;
@@ -555,8 +543,8 @@ pub mod pallet {
 
 			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
 
-			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
-			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
+			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
 			let delta_q_in = FixedU128::from((
 				amount,
@@ -643,8 +631,8 @@ pub mod pallet {
 
 			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
 
-			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotInPool)?;
-			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotInPool)?;
+			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
+			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
 			// Positive
 			let fee_asset = FixedU128::from(1)
