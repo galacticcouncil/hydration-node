@@ -571,7 +571,7 @@ sp_npos_elections::generate_solution_type!(
 );
 
 impl frame_election_provider_support::onchain::Config for Runtime {
-	type Accuracy = sp_runtime::Perbill;
+	type Accuracy = sp_runtime::PerU16;
 	type DataProvider = Staking;
 }
 
