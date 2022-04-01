@@ -49,9 +49,9 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 #[macro_export]
-macro_rules! ensure_asset_not_in_pool {
+macro_rules! ensure_asset_in_pool {
 	( $x:expr, $y:expr $(,)? ) => {{
-		if Assets::<T>::contains_key($x) {
+		if !Assets::<T>::contains_key($x) {
 			return Err($y.into());
 		}
 	}};
@@ -110,9 +110,17 @@ pub mod pallet {
 		/// Add token origin
 		type AddTokenOrigin: EnsureOrigin<Self::Origin, Success = Option<Self::AccountId>>;
 
+		/// Native Asset ID
+		#[pallet::constant]
+		type NativeAssetId: Get<Self::AssetId>;
+
 		/// Hub Asset ID
 		#[pallet::constant]
 		type HubAssetId: Get<Self::AssetId>;
+
+		/// Preferred stable Asset ID
+		#[pallet::constant]
+		type StableCoinAssetId: Get<Self::AssetId>;
 
 		/// Protocol fee
 		#[pallet::constant]
@@ -121,10 +129,6 @@ pub mod pallet {
 		/// Asset fee
 		#[pallet::constant]
 		type AssetFee: Get<(u32, u32)>;
-
-		/// Hub Asset ID
-		#[pallet::constant]
-		type StableCoinAssetId: Get<Self::AssetId>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: weights::WeightInfo;
@@ -210,14 +214,16 @@ pub mod pallet {
 		) -> DispatchResult {
 			let account = T::AddTokenOrigin::ensure_origin(origin)?;
 
-			ensure_asset_not_in_pool!(asset, Error::<T>::AssetAlreadyAdded);
+			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
 			// TODO: Add check if asset is registered in asset registry
 
-			// TODO: check if Native asset is in the pool if adding other than native or preferred stable asset
-
 			// Retrieve stable asset and native asset details first - we fail early if they are not yet in the pool.
 			let (stable_asset_reserve, stable_asset_hub_reserve) = if asset != T::StableCoinAssetId::get() {
+				// Ensure first that Native asset and Hub asset is already in pool
+				if asset != T::NativeAssetId::get() {
+					ensure_asset_in_pool!(T::NativeAssetId::get(), Error::<T>::AssetNotFound);
+				}
 				Self::stable_asset()?
 			} else {
 				// Trying to add preferred stable asset.

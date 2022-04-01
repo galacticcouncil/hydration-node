@@ -160,6 +160,7 @@ impl Config for Test {
 	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
+	type NativeAssetId = HDXAssetId;
 }
 
 pub struct ExtBuilder {
