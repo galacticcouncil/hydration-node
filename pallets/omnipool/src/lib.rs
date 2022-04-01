@@ -48,19 +48,6 @@ use crate::types::{PositionId, Price};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-pub(crate) const LOG_TARGET: &str = "runtime::omnipool";
-
-// syntactic sugar for logging.
-#[macro_export]
-macro_rules! log {
-	($level:tt, $patter:expr $(, $values:expr)* $(,)?) => {
-		log::$level!(
-			target: crate::LOG_TARGET,
-			concat!("[{:?}] 👜", $patter), <frame_system::Pallet<T>>::block_number() $(, $values)*
-		)
-	};
-}
-
 #[macro_export]
 macro_rules! ensure_asset_not_in_pool {
 	( $x:expr, $y:expr $(,)? ) => {{
@@ -277,12 +264,10 @@ pub mod pallet {
 
 				let delta_imbalance = initial_price
 					.checked_mul(&FixedU128::from((current_imbalance.value, current_hub_asset_liquidity)))
-					.ok_or(Error::<T>::Overflow)?
-					.checked_mul_int(amount)
+					.and_then(|v| v.checked_mul_int(amount))
 					.ok_or(Error::<T>::Overflow)?;
 
 				current_imbalance.add::<T>(delta_imbalance)?;
-				log!(debug, "Adding token - imbalance update {:?}", delta_imbalance);
 
 				<HubAssetImbalance<T>>::put(current_imbalance);
 			}
@@ -293,19 +278,14 @@ pub mod pallet {
 
 			// TVL update
 			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
-				let delta_tvl = initial_price
-					.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
-					.ok_or(Error::<T>::Overflow)?
-					.checked_mul_int(amount);
-
-				let delta_tvl = delta_tvl.ok_or(Error::<T>::Overflow)?;
-
 				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-					*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+					*tvl = initial_price
+						.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
+						.and_then(|v| v.checked_mul_int(amount))
+						.and_then(|v| v.checked_add(&*tvl))
+						.ok_or(Error::<T>::Overflow)?;
 					Ok(())
 				})?;
-
-				log!(debug, "Adding token - tvl {:?}", delta_tvl,);
 			}
 
 			Self::deposit_event(Event::TokenAdded(asset));
@@ -326,10 +306,10 @@ pub mod pallet {
 			let current_tvl = asset_state.tvl;
 
 			// TODO: probably rework as the multiplication can exceed u128::MAX?!
-			let new_shares = current_shares
-				.checked_mul(&current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?)
-				.ok_or(Error::<T>::Overflow)?
-				.checked_div(&current_reserve)
+			let new_shares = current_reserve
+				.checked_add(&amount)
+				.and_then(|v| v.checked_mul(&current_shares))
+				.and_then(|v| v.checked_div(&current_reserve))
 				.ok_or(Error::<T>::Overflow)?;
 
 			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
@@ -383,12 +363,10 @@ pub mod pallet {
 
 				let delta_imbalance = p1
 					.checked_mul(&p2)
-					.ok_or(Error::<T>::Overflow)?
-					.checked_mul_int(amount)
+					.and_then(|v| v.checked_mul_int(amount))
 					.ok_or(Error::<T>::Overflow)?;
 
 				current_imbalance.add::<T>(delta_imbalance)?;
-				log!(debug, "Adding liquidity - imbalance update {:?}", delta_imbalance);
 
 				<HubAssetImbalance<T>>::put(current_imbalance);
 			}
@@ -410,8 +388,6 @@ pub mod pallet {
 					if *tvl + delta_tvl > tvl_cap {
 						// return error
 					}
-
-					log!(debug, "Adding liquidity - tvl {:?}", delta_tvl);
 
 					*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
 					asset_state.tvl = asset_state.tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
@@ -461,8 +437,7 @@ pub mod pallet {
 				let sub = position_price.checked_sub(&current_price).ok_or(Error::<T>::Overflow)?;
 
 				sub.checked_div(&sum)
-					.ok_or(Error::<T>::Overflow)?
-					.checked_mul_int(amount)
+					.and_then(|v| v.checked_mul_int(amount))
 					.ok_or(Error::<T>::Overflow)?
 			} else {
 				T::Balance::zero()
@@ -573,8 +548,7 @@ pub mod pallet {
 
 			let delta_r_out = FixedU128::from((delta_q_out, out_hub_reserve))
 				.checked_mul(&fee_a)
-				.ok_or(Error::<T>::Overflow)?
-				.checked_mul_int(asset_out_state.reserve)
+				.and_then(|v| v.checked_mul_int(asset_out_state.reserve))
 				.ok_or(Error::<T>::Overflow)?;
 
 			ensure!(delta_r_out >= min_limit, Error::<T>::BuyLimitNotReached);
@@ -646,8 +620,7 @@ pub mod pallet {
 				amount,
 				fee_asset
 					.checked_mul_int(asset_out_state.reserve)
-					.ok_or(Error::<T>::Overflow)?
-					.checked_sub(&amount)
+					.and_then(|v| v.checked_sub(&amount))
 					.ok_or(Error::<T>::Overflow)?,
 			));
 
