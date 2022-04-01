@@ -28,6 +28,7 @@ use frame_support::PalletId;
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
+use std::cmp::Ordering;
 
 use orml_traits::MultiCurrency;
 use sp_runtime::{DispatchError, FixedU128};
@@ -743,23 +744,24 @@ impl<T: Config> Pallet<T> {
 
 	/// Updates total hub asset liquidity. It either burn or mint some based on the diff of in and out.
 	fn update_hub_asset_liquidity(delta_amount_in: T::Balance, delta_amount_out: T::Balance) -> DispatchResult {
-		if delta_amount_in > delta_amount_out {
-			// We need to burn some in this case
-			let diff = delta_amount_in
-				.checked_sub(&delta_amount_out)
-				.ok_or(Error::<T>::Overflow)?;
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-			Self::decrease_hub_asset_liquidity(diff)
-		} else if delta_amount_out > delta_amount_in {
-			// We need to mint some in this case
-			let diff = delta_amount_out
-				.checked_sub(&delta_amount_in)
-				.ok_or(Error::<T>::Overflow)?;
-			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-			Self::increase_hub_asset_liquidity(diff)
-		} else {
-			// If equal, nothing to do
-			Ok(())
+		match delta_amount_in.cmp(&delta_amount_out) {
+			Ordering::Greater => {
+				// We need to burn some in this case
+				let diff = delta_amount_in
+					.checked_sub(&delta_amount_out)
+					.ok_or(Error::<T>::Overflow)?;
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::decrease_hub_asset_liquidity(diff)
+			}
+			Ordering::Less => {
+				// We need to mint some in this case
+				let diff = delta_amount_out
+					.checked_sub(&delta_amount_in)
+					.ok_or(Error::<T>::Overflow)?;
+				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::increase_hub_asset_liquidity(diff)
+			}
+			Ordering::Equal => Ok(()), // If equal, nothing to do
 		}
 	}
 
