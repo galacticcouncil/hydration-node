@@ -385,21 +385,34 @@ pub mod pallet {
 
 			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
 				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-					// TODO: this can be either positive or negative!!
-					// Need to handle each case accordingly
-					let delta_tvl = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
+					let hr = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
 						.checked_mul_int(new_hub_reserve)
-						.ok_or(Error::<T>::Overflow)?
-						.checked_sub(&current_tvl)
 						.ok_or(Error::<T>::Overflow)?;
 
-					let tvl_cap = T::Balance::zero();
-					if *tvl + delta_tvl > tvl_cap {
-						// return error
-					}
+					match hr.cmp(&current_tvl) {
+						Ordering::Greater => {
+							let delta_tvl = hr.checked_sub(&current_tvl).ok_or(Error::<T>::Overflow)?;
+							let tvl_cap = T::Balance::zero();
+							if *tvl + delta_tvl > tvl_cap {
+								// return error
+							}
 
-					*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
-					asset_state.tvl = asset_state.tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+							*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+							asset_state.tvl = hr;
+						}
+						Ordering::Less => {
+							// no need to check the cap because we decreasing tvl
+							let delta_tvl = current_tvl.checked_sub(&hr).ok_or(Error::<T>::Overflow)?;
+							// TODO: Q: colin: can delta tvl here be > total tvl? probably not, max equal?
+							// if not, it safe to return error is such case happen, which would mean
+							// we have some math somewhere wrong
+							*tvl = tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+							asset_state.tvl = hr;
+						}
+						Ordering::Equal => {
+							// nothing to do
+						}
+					}
 
 					Ok(())
 				})?;
