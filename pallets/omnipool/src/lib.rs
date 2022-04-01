@@ -30,6 +30,7 @@ use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
 use std::cmp::Ordering;
 
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use orml_traits::MultiCurrency;
 use sp_runtime::{DispatchError, FixedU128};
 
@@ -57,6 +58,8 @@ macro_rules! ensure_asset_in_pool {
 		}
 	}};
 }
+
+type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::ClassId;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -102,9 +105,6 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Position identifier
-		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
-
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
 
@@ -131,6 +131,17 @@ pub mod pallet {
 		#[pallet::constant]
 		type AssetFee: Get<(u32, u32)>;
 
+		/// Position identifier type
+		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
+
+		/// Non fungible class id
+		type NFTClassId: Get<NFTClassIdOf<Self>>;
+
+		/// Non fungible handling - mint,burn, check owner
+		type NFTHandler: Mutate<Self::AccountId>
+			+ Create<Self::AccountId>
+			+ Inspect<Self::AccountId, InstanceId = Self::PositionInstanceId>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: weights::WeightInfo;
 	}
@@ -155,6 +166,10 @@ pub mod pallet {
 	/// LP positions
 	pub(super) type Positions<T: Config> =
 		StorageMap<_, Blake2_128Concat, PositionId<T::PositionInstanceId>, Position<T::Balance, T::AssetId>>;
+
+	#[pallet::storage]
+	/// Position IDs sequencer
+	pub(super) type PositionInstanceSequencer<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -185,6 +200,8 @@ pub mod pallet {
 		InsufficientShares,
 		/// Asset is not allowed to be bought or sold
 		NotAllowed,
+		/// Signed account is not owner of position instance.
+		Forbidden,
 		///
 		Overflow,
 	}
@@ -352,7 +369,7 @@ pub mod pallet {
 				price: Position::<T::Balance, T::AssetId>::price_to_balance(new_price),
 			};
 
-			let lp_position_id = Self::generate_position_id(&who);
+			let lp_position_id = Self::create_and_mint_position_instance(&who)?;
 
 			<Positions<T>>::insert(lp_position_id, lp_position);
 
@@ -394,7 +411,7 @@ pub mod pallet {
 							let delta_tvl = hr.checked_sub(&current_tvl).ok_or(Error::<T>::Overflow)?;
 							let tvl_cap = T::Balance::zero();
 							if *tvl + delta_tvl > tvl_cap {
-								// return error
+								// TODO: check cap, return error
 							}
 
 							*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
@@ -404,7 +421,7 @@ pub mod pallet {
 							// no need to check the cap because we decreasing tvl
 							let delta_tvl = current_tvl.checked_sub(&hr).ok_or(Error::<T>::Overflow)?;
 							// TODO: Q: colin: can delta tvl here be > total tvl? probably not, max equal?
-							// if not, it safe to return error is such case happen, which would mean
+							// if not, isit safe to return error is such case happen, which would mean
 							// we have some math somewhere wrong
 							*tvl = tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
 							asset_state.tvl = hr;
@@ -438,9 +455,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let mut position = Positions::<T>::get(PositionId(position_id)).ok_or(Error::<T>::PositionNotFound)?;
+			ensure!(
+				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(who.clone()),
+				Error::<T>::Forbidden
+			);
 
-			// TODO: check owner of position.
+			let mut position = Positions::<T>::get(PositionId(position_id)).ok_or(Error::<T>::PositionNotFound)?;
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
@@ -471,8 +491,6 @@ pub mod pallet {
 			} else {
 				amount
 			};
-
-			// TODO: if remaining shares are 0, destroy position
 
 			let delta_r = FixedU128::from((current_reserve, current_shares))
 				.checked_mul_int(delta_s)
@@ -514,7 +532,14 @@ pub mod pallet {
 
 			// Store updated asset state and position
 			<Assets<T>>::insert(position.asset_id, asset_state);
-			<Positions<T>>::insert(PositionId(position_id), position);
+
+			if position.shares == T::Balance::zero() {
+				// All liquidity romoved, remove position and burn NFT instance
+				<Positions<T>>::remove(PositionId(position_id));
+				T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
+			} else {
+				<Positions<T>>::insert(PositionId(position_id), position);
+			}
 
 			// Imbalance update
 			// TODO:
@@ -738,8 +763,23 @@ impl<T: Config> Pallet<T> {
 		Ok((stable_asset.reserve, stable_asset.hub_reserve))
 	}
 
-	fn generate_position_id(_owner: &T::AccountId) -> PositionId<T::PositionInstanceId> {
-		PositionId(T::PositionInstanceId::zero())
+	fn create_and_mint_position_instance(
+		owner: &T::AccountId,
+	) -> Result<PositionId<T::PositionInstanceId>, DispatchError> {
+		<PositionInstanceSequencer<T>>::try_mutate(
+			|current_value| -> Result<PositionId<T::PositionInstanceId>, DispatchError> {
+				let next_position_id = *current_value;
+
+				// TODO: generate cool looking instance id, see liquidity mining
+				let instance_id = T::PositionInstanceId::from(next_position_id);
+
+				T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
+
+				*current_value = current_value.checked_add(1u32).ok_or(Error::<T>::Overflow)?;
+
+				Ok(PositionId(instance_id))
+			},
+		)
 	}
 
 	fn increase_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
@@ -780,7 +820,8 @@ impl<T: Config> Pallet<T> {
 
 	/// Check if assets can be traded
 	fn allow_assets(_asset_in: T::AssetId, asset_out: T::AssetId) -> bool {
-		// TODO: use flag for asset , stored in asset state to manage whether i can be traded
+		// TODO: use flag for asset , stored in asset state to manage whether it can be traded
+		// probably needs to be called with asset state already retrieved
 		if asset_out == T::HubAssetId::get() {
 			// Hub asset is not allowed to be bought
 			return false;

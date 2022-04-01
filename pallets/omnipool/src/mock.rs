@@ -46,6 +46,10 @@ pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 
+pub const LP1: u64 = 1;
+pub const LP2: u64 = 2;
+pub const LP3: u64 = 3;
+
 construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -120,6 +124,7 @@ parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
 	pub const DAIAssetId: AssetId = DAI;
+	pub const PosiitionClassId: u32= 1000;
 
 	pub const ProtocolFee: (u32,u32) = ( 0, 0);
 	pub const AssetFee: (u32,u32) = ( 0, 0);
@@ -161,6 +166,8 @@ impl Config for Test {
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type NativeAssetId = HDXAssetId;
+	type NFTClassId = PosiitionClassId;
+	type NFTHandler = DummyNFT;
 }
 
 pub struct ExtBuilder {
@@ -195,5 +202,37 @@ impl ExtBuilder {
 		.unwrap();
 
 		t.into()
+	}
+}
+
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+pub struct DummyNFT;
+
+impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
+	type InstanceId = u32;
+	type ClassId = u32;
+
+	fn owner(_class: &Self::ClassId, instance: &Self::InstanceId) -> Option<AccountId> {
+		match instance {
+			0..=5 => Some(AccountId::from(LP1)),
+			6..=10 => Some(AccountId::from(LP2)),
+			_ => None,
+		}
+	}
+}
+
+impl<AccountId: From<u64>> Create<AccountId> for DummyNFT {
+	fn create_class(_class: &Self::ClassId, _who: &AccountId, _admin: &AccountId) -> DispatchResult {
+		Ok(())
+	}
+}
+
+impl<AccountId: From<u64>> Mutate<AccountId> for DummyNFT {
+	fn mint_into(_class: &Self::ClassId, _instance: &Self::InstanceId, _who: &AccountId) -> DispatchResult {
+		Ok(())
+	}
+
+	fn burn_from(_class: &Self::ClassId, _instance: &Self::InstanceId) -> DispatchResult {
+		Ok(())
 	}
 }
