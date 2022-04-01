@@ -9,6 +9,8 @@ mod add_token;
 mod buy;
 mod remove_liquidity;
 mod scenario_04;
+mod scenario_05;
+mod scenario_06;
 mod sell;
 
 const ONE: Balance = 1_000_000_000_000;
