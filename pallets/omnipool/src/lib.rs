@@ -182,6 +182,8 @@ pub mod pallet {
 		PositionNotFound,
 		/// Insufficient shares in position
 		InsufficientShares,
+		/// Asset is not allowed to be bought or sold
+		NotAllowed,
 		///
 		Overflow,
 	}
@@ -520,6 +522,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
+
 			//TODO: handle hub asset separately!
 
 			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
@@ -607,9 +611,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			//TODO: handle hub asset separately!
-
-			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
+			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
@@ -759,5 +761,15 @@ impl<T: Config> Pallet<T> {
 			// If equal, nothing to do
 			Ok(())
 		}
+	}
+
+	/// Check if assets can be traded
+	fn allow_assets(_asset_in: T::AssetId, asset_out: T::AssetId) -> bool {
+		// TODO: use flag for asset , stored in asset state to manage whether i can be traded
+		if asset_out == T::HubAssetId::get() {
+			// Hub asset is not allowed to be bought
+			return false;
+		}
+		true
 	}
 }

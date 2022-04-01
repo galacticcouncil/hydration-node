@@ -11,7 +11,7 @@ pub trait WeightInfo {
 
 impl WeightInfo for () {
 	fn add_token() -> Weight {
-		0 as Weight
+		0
 	}
 
 	fn add_liquidity() -> Weight {
