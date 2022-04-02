@@ -94,6 +94,8 @@ type EnsureSuperMajorityTechCommitteeOrRoot = frame_support::traits::EnsureOneOf
 	frame_system::EnsureRoot<AccountId>,
 >;
 
+mod migrations;
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -440,6 +442,7 @@ pub use pallet_staking::StakerStatus;
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::Price;
 use sp_core::crypto::UncheckedFrom;
+use crate::migrations::ToV4OnRuntimeUpgrade;
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
@@ -567,6 +570,11 @@ sp_npos_elections::generate_solution_type!(
 	>(16)
 );
 
+impl frame_election_provider_support::onchain::Config for Runtime {
+	type Accuracy = sp_runtime::PerU16;
+	type DataProvider = Staking;
+}
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -576,7 +584,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type MinerMaxWeight = MinerMaxWeight;
 	type MinerTxPriority = MultiPhaseUnsignedPriority;
 	type DataProvider = Staking;
-	type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
+	type Fallback = frame_election_provider_support::onchain::OnChainSequentialPhragmen<Self>;
 	type BenchmarkingConfig = common_runtime::ElectionBenchmarkingConfig;
 	type WeightInfo = ();
 	type MinerMaxLength = ();
@@ -1001,6 +1009,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsReversedWithSystemFirst,
+	ToV4OnRuntimeUpgrade,
 >;
 
 impl_runtime_apis! {
@@ -1185,6 +1194,21 @@ impl_runtime_apis! {
 			TransactionPayment::query_fee_details(uxt, len)
 		}
 	}
+
+	#[cfg(feature = "try-runtime")]
+    impl frame_try_runtime::TryRuntime<Block> for Runtime {
+        fn on_runtime_upgrade() -> (Weight, Weight) {
+            // NOTE: intentional unwrap: we don't want to propagate the error backwards, and want to
+            // have a backtrace here. If any of the pre/post migration checks fail, we shall stop
+            // right here and right now.
+            let weight = Executive::try_runtime_upgrade().unwrap();
+            (weight, BlockWeights::get().max_block)
+        }
+
+        fn execute_block_no_check(block: Block) -> Weight {
+            Executive::execute_block_no_check(block)
+        }
+    }
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {

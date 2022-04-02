@@ -553,6 +553,11 @@ sp_npos_elections::generate_solution_type!(
 	>(16)
 );
 
+impl frame_election_provider_support::onchain::Config for Runtime {
+	type Accuracy = sp_runtime::PerU16;
+	type DataProvider = Staking;
+}
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -562,7 +567,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type MinerMaxWeight = MinerMaxWeight;
 	type MinerTxPriority = MultiPhaseUnsignedPriority;
 	type DataProvider = Staking;
-	type Fallback = pallet_election_provider_multi_phase::NoFallback<Self>;
+	type Fallback = frame_election_provider_support::onchain::OnChainSequentialPhragmen<Self>;
 	type BenchmarkingConfig = common_runtime::ElectionBenchmarkingConfig;
 	type WeightInfo = ();
 	type MinerMaxLength = ();
