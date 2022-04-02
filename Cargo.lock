@@ -785,7 +785,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "28.0.0"
+version = "30.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -2191,7 +2191,7 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hydra-dx"
-version = "6.3.0"
+version = "6.4.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -2269,7 +2269,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-runtime"
-version = "28.0.0"
+version = "30.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",
@@ -2279,6 +2279,7 @@ dependencies = [
  "frame-system",
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
  "hex-literal",
  "hydradx-traits",
  "orml-currencies",
@@ -7827,7 +7828,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydra-dx-runtime"
-version = "28.0.0"
+version = "30.0.0"
 dependencies = [
  "common-runtime",
  "frame-benchmarking",

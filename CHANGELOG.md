@@ -1,3 +1,34 @@
+# v11.2.2 (Sat Apr 02 2022)
+
+#### 🐛 Bug Fix
+
+- fix: elections multi phase fallback [#395](https://github.com/galacticcouncil/HydraDX-node/pull/395) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 1
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+
+---
+
+# v11.2.1 (Mon Mar 21 2022)
+
+#### 🐛 Bug Fix
+
+- fix: migration - use weight split [#387](https://github.com/galacticcouncil/HydraDX-node/pull/387) ([@enthusiastmartin](https://github.com/enthusiastmartin) [@lumir-mrkva](https://github.com/lumir-mrkva))
+- fix: changed base OS in the dockerfile [#384](https://github.com/galacticcouncil/HydraDX-node/pull/384) ([@martinfridrich](https://github.com/martinfridrich))
+- feat: snakenet migration of other modules [#379](https://github.com/galacticcouncil/HydraDX-node/pull/379) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- fix: added collective and tips storage migrations [#376](https://github.com/galacticcouncil/HydraDX-node/pull/376) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+- feat: migration - triple balance and claims [#375](https://github.com/galacticcouncil/HydraDX-node/pull/375) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+- feat: add snakenet migration script [#371](https://github.com/galacticcouncil/HydraDX-node/pull/371) ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+#### Authors: 3
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+- martin fridrich ([@martinfridrich](https://github.com/martinfridrich))
+- Martin Hloska ([@enthusiastmartin](https://github.com/enthusiastmartin))
+
+---
+
 # v11.2.0 (Wed Feb 23 2022)
 
 #### 🐛 Bug Fix

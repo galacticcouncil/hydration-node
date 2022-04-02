@@ -8,7 +8,7 @@ COPY . /build
 
 RUN cargo build --release
 
-FROM debian:buster-slim
+FROM ubuntu:22.04
 LABEL org.opencontainers.image.source = "https://github.com/galacticcouncil/HydraDX-node"
 COPY --from=builder /build/target/release/hydra-dx /usr/local/bin
 
