@@ -131,6 +131,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type AssetFee: Get<(u32, u32)>;
 
+		/// Asset weight cap
+		#[pallet::constant]
+		type AssetWeightCap: Get<Self::Balance>;
+
 		/// Position identifier type
 		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
 
@@ -202,6 +206,8 @@ pub mod pallet {
 		NotAllowed,
 		/// Signed account is not owner of position instance.
 		Forbidden,
+		/// Asset weight cap has been exceeded.
+		AssetWeightCapExceeded,
 		///
 		Overflow,
 	}
@@ -348,11 +354,10 @@ pub mod pallet {
 				.checked_add(&delta_q)
 				.ok_or(Error::<T>::Overflow)?;
 
-			let max_cap = T::Balance::zero();
-
-			if new_hub_reserve > max_cap {
-				// return error
-			}
+			ensure!(
+				new_hub_reserve <= T::AssetWeightCap::get(),
+				Error::<T>::AssetWeightCapExceeded
+			);
 
 			// New Asset State
 			asset_state.reserve = current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
@@ -821,6 +826,7 @@ impl<T: Config> Pallet<T> {
 	/// Check if assets can be traded
 	fn allow_assets(_asset_in: T::AssetId, asset_out: T::AssetId) -> bool {
 		// TODO: use flag for asset , stored in asset state to manage whether it can be traded
+		// Or use a list and preload in on_init
 		// probably needs to be called with asset state already retrieved
 		if asset_out == T::HubAssetId::get() {
 			// Hub asset is not allowed to be bought
