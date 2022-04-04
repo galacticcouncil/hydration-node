@@ -186,9 +186,11 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		TokenAdded(T::AssetId),
-		LiquidityAdded(T::AssetId, T::Balance),
-		LiquidityRemoved(T::AssetId, T::Balance),
+		TokenAdded(T::AssetId, T::Balance, Price),
+		LiquidityAdded(T::AccountId, T::AssetId, T::Balance, T::PositionInstanceId),
+		LiquidityRemoved(T::AccountId, T::PositionInstanceId, T::Balance),
+		SellExecuted(T::AccountId, T::AssetId, T::AssetId, T::Balance, T::Balance),
+		BuyExecuted(T::AccountId, T::AssetId, T::AssetId, T::Balance, T::Balance),
 	}
 
 	#[pallet::error]
@@ -332,7 +334,7 @@ pub mod pallet {
 				})?;
 			}
 
-			Self::deposit_event(Event::TokenAdded(asset));
+			Self::deposit_event(Event::TokenAdded(asset, amount, initial_price));
 
 			Ok(())
 		}
@@ -386,6 +388,8 @@ pub mod pallet {
 			};
 
 			let lp_position_id = Self::create_and_mint_position_instance(&who)?;
+
+			let instance_id = lp_position_id.0;
 
 			<Positions<T>>::insert(lp_position_id, lp_position);
 
@@ -455,7 +459,7 @@ pub mod pallet {
 			// Note: must be done after imbalance since it requires current value before update
 			Self::increase_hub_asset_liquidity(delta_q)?;
 
-			Self::deposit_event(Event::LiquidityAdded(asset, amount));
+			Self::deposit_event(Event::LiquidityAdded(who, asset, amount, instance_id));
 
 			Ok(())
 		}
@@ -515,6 +519,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::Overflow)?;
 
 			if current_price > position_price {
+				// TODO: send some hub asset, fred!
 				// LP receives some hub asset
 			}
 
@@ -542,7 +547,7 @@ pub mod pallet {
 			// Burn LRNA
 			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_q)?;
 
-			Self::deposit_event(Event::LiquidityRemoved(position.asset_id, amount));
+			Self::deposit_event(Event::LiquidityRemoved(who, position_id, amount));
 
 			// Store updated asset state and position
 			<Assets<T>>::insert(position.asset_id, asset_state);
@@ -651,7 +656,7 @@ pub mod pallet {
 			// Imbalance update
 			// TODO: waiting for update from wiser people!
 
-			// TODO: deposit event
+			Self::deposit_event(Event::SellExecuted(who, asset_in, asset_out, amount, delta_r_out));
 
 			Ok(())
 		}
@@ -668,6 +673,10 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
+
+			// TODO: handly buy hub asset separately.
+			// Note: hub asset is not allowed to be bought at the moment.
+			// but when it does - it needs to be handled separately
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
@@ -747,7 +756,7 @@ pub mod pallet {
 			// Imbalance update
 			// TODO: waiting for update from wiser people!
 
-			// TODO: deposit event
+			Self::deposit_event(Event::BuyExecuted(who, asset_in, asset_out, amount, delta_r_in));
 
 			Ok(())
 		}
@@ -895,9 +904,15 @@ impl<T: Config> Pallet<T> {
 
 		// TODO: tvl update
 
-		// TODO: deposit event
-
 		<Assets<T>>::insert(asset_out, asset_out_state);
+
+		Self::deposit_event(Event::SellExecuted(
+			who.clone(),
+			T::HubAssetId::get(),
+			asset_out,
+			amount,
+			delta_r,
+		));
 
 		Ok(())
 	}
