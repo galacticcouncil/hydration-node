@@ -41,7 +41,7 @@ fn add_liquidity_works() {
 				}
 			);
 
-			let position = Positions::<Test>::get(PositionId(0)).unwrap();
+			let position = Positions::<Test>::get(0).unwrap();
 
 			let expected = Position::<Balance, AssetId> {
 				asset_id: 1_000,

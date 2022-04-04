@@ -18,10 +18,6 @@ pub struct AssetState<Balance> {
 	pub(super) tvl: Balance,
 }
 
-/// Position representation
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct PositionId<InstanceId>(pub InstanceId);
-
 /// Position in Omnipool represents a moment when LP provided liquidity of an asset at that moment’s price.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Position<Balance, AssetId> {

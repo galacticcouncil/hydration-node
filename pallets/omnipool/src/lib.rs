@@ -65,7 +65,7 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::{AssetState, Position, PositionId, Price, SimpleImbalance};
+	use crate::types::{AssetState, Position, Price, SimpleImbalance};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -177,7 +177,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// LP positions
 	pub(super) type Positions<T: Config> =
-		StorageMap<_, Blake2_128Concat, PositionId<T::PositionInstanceId>, Position<T::Balance, T::AssetId>>;
+		StorageMap<_, Blake2_128Concat, T::PositionInstanceId, Position<T::Balance, T::AssetId>>;
 
 	#[pallet::storage]
 	/// Position IDs sequencer
@@ -387,7 +387,7 @@ pub mod pallet {
 
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
 
-			<Positions<T>>::insert(PositionId(instance_id), lp_position);
+			<Positions<T>>::insert(instance_id, lp_position);
 
 			// Token update
 			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
@@ -474,7 +474,7 @@ pub mod pallet {
 				Error::<T>::Forbidden
 			);
 
-			let mut position = Positions::<T>::get(PositionId(position_id)).ok_or(Error::<T>::PositionNotFound)?;
+			let mut position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
@@ -550,10 +550,10 @@ pub mod pallet {
 
 			if position.shares == T::Balance::zero() {
 				// All liquidity removed, remove position and burn NFT instance
-				<Positions<T>>::remove(PositionId(position_id));
+				<Positions<T>>::remove(position_id);
 				T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
 			} else {
-				<Positions<T>>::insert(PositionId(position_id), position);
+				<Positions<T>>::insert(position_id, position);
 			}
 
 			// Imbalance update
