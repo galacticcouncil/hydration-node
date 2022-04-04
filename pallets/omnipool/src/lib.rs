@@ -351,11 +351,8 @@ pub mod pallet {
 			let current_hub_reserve = asset_state.hub_reserve;
 			let current_tvl = asset_state.tvl;
 
-			// TODO: probably rework as the multiplication can exceed u128::MAX?!
-			let new_shares = current_reserve
-				.checked_add(&amount)
-				.and_then(|v| v.checked_mul(&current_shares))
-				.and_then(|v| v.checked_div(&current_reserve))
+			let new_shares = FixedU128::from((current_shares, current_reserve))
+				.checked_mul_int(current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?)
 				.ok_or(Error::<T>::Overflow)?;
 
 			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
@@ -674,7 +671,7 @@ pub mod pallet {
 
 			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
-			// TODO: handly buy hub asset separately.
+			// TODO: handle buy hub asset separately.
 			// Note: hub asset is not allowed to be bought at the moment.
 			// but when it does - it needs to be handled separately
 
