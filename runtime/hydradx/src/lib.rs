@@ -578,16 +578,10 @@ impl orml_tokens::Config for Runtime {
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
+	type ExistentialDeposits = AssetRegistry;
 	type OnDust = ();
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = common_runtime::DustRemovalWhitelist;
-}
-
-parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		Zero::zero()
-	};
 }
 
 impl orml_currencies::Config for Runtime {
