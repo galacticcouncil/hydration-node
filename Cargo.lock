@@ -4421,6 +4421,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hydradx-traits",
  "log",
  "orml-tokens",
  "orml-traits",

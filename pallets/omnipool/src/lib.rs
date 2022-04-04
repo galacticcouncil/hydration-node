@@ -33,6 +33,7 @@ use std::cmp::Ordering;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use orml_traits::MultiCurrency;
 use sp_runtime::{DispatchError, FixedU128};
+use hydradx_traits::Registry;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -110,6 +111,9 @@ pub mod pallet {
 
 		/// Add token origin
 		type AddTokenOrigin: EnsureOrigin<Self::Origin, Success = Option<Self::AccountId>>;
+
+		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
+		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>;
 
 		/// Native Asset ID
 		#[pallet::constant]
@@ -214,6 +218,8 @@ pub mod pallet {
 		AssetWeightCapExceeded,
 		/// TVL cap has been exceeded
 		TVLCapExceeded,
+		/// Asset is not registered in asset registry
+		AssetNotRegistered,
 		///
 		Overflow,
 	}
@@ -248,7 +254,7 @@ pub mod pallet {
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
-			// TODO: Add check if asset is registered in asset registry
+			ensure!(T::AssetRegistry::exists(asset), Error::<T>::AssetNotRegistered);
 
 			// Retrieve stable asset and native asset details first - we fail early if they are not yet in the pool.
 			let (stable_asset_reserve, stable_asset_hub_reserve) = if asset != T::StableCoinAssetId::get() {
@@ -354,7 +360,6 @@ pub mod pallet {
 
 			let delta_q = current_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
 
-			// TODO: check asset weight cap
 			let new_hub_reserve = asset_state
 				.hub_reserve
 				.checked_add(&delta_q)
@@ -573,8 +578,6 @@ pub mod pallet {
 			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
 			//TODO: handle hub asset separately!
-
-			//TODO: check if assets are allowed to be traded (eg. LRNA is not allowed )
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;

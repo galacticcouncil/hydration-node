@@ -172,6 +172,7 @@ impl Config for Test {
 	type NFTHandler = DummyNFT;
 	type AssetWeightCap = AssetWeightCap;
 	type TVLCap = TVLCap;
+	type AssetRegistry = DummyRegistry<Test>;
 }
 
 pub struct ExtBuilder {
@@ -238,5 +239,23 @@ impl<AccountId: From<u64>> Mutate<AccountId> for DummyNFT {
 
 	fn burn_from(_class: &Self::ClassId, _instance: &Self::InstanceId) -> DispatchResult {
 		Ok(())
+	}
+}
+
+use hydradx_traits::Registry;
+
+pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for DummyRegistry<T>{
+	fn exists(_name: T::AssetId) -> bool {
+		true
+	}
+
+	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
+		Ok(T::AssetId::default())
+	}
+
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
+		Ok(T::AssetId::default())
 	}
 }
