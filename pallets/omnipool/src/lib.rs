@@ -47,7 +47,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{PositionId, Price};
+use crate::types::Price;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -351,10 +351,6 @@ pub mod pallet {
 			let current_hub_reserve = asset_state.hub_reserve;
 			let current_tvl = asset_state.tvl;
 
-			let new_shares = FixedU128::from((current_shares, current_reserve))
-				.checked_mul_int(current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?)
-				.ok_or(Error::<T>::Overflow)?;
-
 			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
 
 			let delta_q = current_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
@@ -368,9 +364,14 @@ pub mod pallet {
 				new_hub_reserve <= T::AssetWeightCap::get(),
 				Error::<T>::AssetWeightCapExceeded
 			);
+			let new_reserve = current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+
+			let new_shares = FixedU128::from((current_shares, current_reserve))
+				.checked_mul_int(new_reserve)
+				.ok_or(Error::<T>::Overflow)?;
 
 			// New Asset State
-			asset_state.reserve = current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+			asset_state.reserve = new_reserve;
 			asset_state.shares = new_shares;
 			asset_state.hub_reserve = new_hub_reserve;
 
@@ -384,11 +385,9 @@ pub mod pallet {
 				price: Position::<T::Balance, T::AssetId>::price_to_balance(new_price),
 			};
 
-			let lp_position_id = Self::create_and_mint_position_instance(&who)?;
+			let instance_id = Self::create_and_mint_position_instance(&who)?;
 
-			let instance_id = lp_position_id.0;
-
-			<Positions<T>>::insert(lp_position_id, lp_position);
+			<Positions<T>>::insert(PositionId(instance_id), lp_position);
 
 			// Token update
 			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
@@ -550,7 +549,7 @@ pub mod pallet {
 			<Assets<T>>::insert(position.asset_id, asset_state);
 
 			if position.shares == T::Balance::zero() {
-				// All liquidity romoved, remove position and burn NFT instance
+				// All liquidity removed, remove position and burn NFT instance
 				<Positions<T>>::remove(PositionId(position_id));
 				T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
 			} else {
@@ -789,23 +788,19 @@ impl<T: Config> Pallet<T> {
 		Ok((stable_asset.reserve, stable_asset.hub_reserve))
 	}
 
-	fn create_and_mint_position_instance(
-		owner: &T::AccountId,
-	) -> Result<PositionId<T::PositionInstanceId>, DispatchError> {
-		<PositionInstanceSequencer<T>>::try_mutate(
-			|current_value| -> Result<PositionId<T::PositionInstanceId>, DispatchError> {
-				let next_position_id = *current_value;
+	fn create_and_mint_position_instance(owner: &T::AccountId) -> Result<T::PositionInstanceId, DispatchError> {
+		<PositionInstanceSequencer<T>>::try_mutate(|current_value| -> Result<T::PositionInstanceId, DispatchError> {
+			let next_position_id = *current_value;
 
-				// TODO: generate cool looking instance id, see liquidity mining
-				let instance_id = T::PositionInstanceId::from(next_position_id);
+			// TODO: generate cool looking instance id, see liquidity mining
+			let instance_id = T::PositionInstanceId::from(next_position_id);
 
-				T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
+			T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
 
-				*current_value = current_value.checked_add(1u32).ok_or(Error::<T>::Overflow)?;
+			*current_value = current_value.checked_add(1u32).ok_or(Error::<T>::Overflow)?;
 
-				Ok(PositionId(instance_id))
-			},
-		)
+			Ok(instance_id)
+		})
 	}
 
 	fn increase_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
