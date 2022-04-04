@@ -202,6 +202,8 @@ pub mod pallet {
 		AssetNotFound,
 		/// No stable asset in the pool
 		NoStableCoinInPool,
+		/// No native asset in the pool yet.
+		NoNativeAssetInPool,
 		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
 		MissingBalance,
 		/// Minimum limit has not been reached during trade.
@@ -262,7 +264,7 @@ pub mod pallet {
 			let (stable_asset_reserve, stable_asset_hub_reserve) = if asset != T::StableCoinAssetId::get() {
 				// Ensure first that Native asset and Hub asset is already in pool
 				if asset != T::NativeAssetId::get() {
-					ensure_asset_in_pool!(T::NativeAssetId::get(), Error::<T>::AssetNotFound);
+					ensure_asset_in_pool!(T::NativeAssetId::get(), Error::<T>::NoNativeAssetInPool);
 				}
 				Self::stable_asset()?
 			} else {
@@ -339,6 +341,19 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Add liquidity of asset `asset` in quantity `amount` to Omnipool
+		///
+		/// add_liquidity adds specified asset amount to pool and in exchange gives the origin
+		/// corresponding shares amount in form of NFT at current price.
+		///
+		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the new asset added to the pool. Must be already in the pool
+		/// - `amount`: Amount of asset added to omnipool
+		///
+		/// Emits `LiquidityAdded` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: T::Balance) -> DispatchResult {
@@ -460,6 +475,18 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Remove liquidity of asset `asset` in quantity `amount` from Omnipool
+		///
+		/// remove_liquidity removes specified shares amount from given PositionId (NFT instance).
+		///
+		/// if all shares from given position are removed, NFT is burned.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of position which liiquidity is removed from.
+		/// - `amount`: Amount of shares removed from omnipool
+		///
+		/// Emits `LiquidityRemoved` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
 		#[transactional]
 		pub fn remove_liquidity(
@@ -565,6 +592,20 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Execute a swap of `asset_in` for `asset_out`.
+		///
+		/// Price is determined by the Omnipool.
+		///
+		/// Hub asset is traded separately.
+		///
+		/// Parameters:
+		/// - `asset_in`: ID of asset sold to the pool
+		/// - `asset_out`: ID of asset bought from the pool
+		/// - `amount`: Amount of asset sold
+		/// - `min_limit`: Minimum amount required to receive
+		///
+		/// Emits `SellExecuted` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		#[transactional]
 		pub fn sell(
@@ -657,6 +698,20 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Execute a swap of `asset_out` for `asset_in`.
+		///
+		/// Price is determined by the Omnipool.
+		///
+		/// Hub asset is traded separately.
+		///
+		/// Parameters:
+		/// - `asset_in`: ID of asset sold to the pool
+		/// - `asset_out`: ID of asset bought from the pool
+		/// - `amount`: Amount of asset sold
+		/// - `max_limit`: Maximum amount to be sold.
+		///
+		/// Emits `BuyExecuted` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		#[transactional]
 		pub fn buy(
@@ -763,10 +818,12 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Protocol account address
 	fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account()
 	}
 
+	/// Convert protocol fee to FixedU128
 	fn protocol_fee() -> Price {
 		let fee = T::ProtocolFee::get();
 		match fee {
@@ -775,6 +832,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Convert asset fee to FixedU128
 	fn asset_fee() -> Price {
 		let fee = T::AssetFee::get();
 		match fee {
@@ -783,11 +841,14 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Retrieve stable asset detail from the pool.
+	/// Return NoStableCoinInPool if stable asset is not yet in the pool.
 	fn stable_asset() -> Result<(T::Balance, T::Balance), DispatchError> {
 		let stable_asset = <Assets<T>>::get(T::StableCoinAssetId::get()).ok_or(Error::<T>::NoStableCoinInPool)?;
 		Ok((stable_asset.reserve, stable_asset.hub_reserve))
 	}
 
+	/// Generate an nft instance id and mint NFT into the class and instance.
 	fn create_and_mint_position_instance(owner: &T::AccountId) -> Result<T::PositionInstanceId, DispatchError> {
 		<PositionInstanceSequencer<T>>::try_mutate(|current_value| -> Result<T::PositionInstanceId, DispatchError> {
 			let next_position_id = *current_value;
@@ -803,12 +864,15 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	/// Add amount to total hub asset liquidity
 	fn increase_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
 		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
 			*liquidity = liquidity.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
 			Ok(())
 		})
 	}
+
+	/// Remove amount from total hub asset liquidity
 	fn decrease_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
 		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
 			*liquidity = liquidity.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
@@ -851,6 +915,7 @@ impl<T: Config> Pallet<T> {
 		true
 	}
 
+	/// Swap hub asset for asset_out.
 	fn sell_hub_asset(
 		who: &T::AccountId,
 		asset_out: T::AssetId,
