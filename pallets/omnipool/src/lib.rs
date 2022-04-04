@@ -135,6 +135,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type AssetWeightCap: Get<Self::Balance>;
 
+		/// TVL cap
+		#[pallet::constant]
+		type TVLCap: Get<Self::Balance>;
+
 		/// Position identifier type
 		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
 
@@ -208,6 +212,8 @@ pub mod pallet {
 		Forbidden,
 		/// Asset weight cap has been exceeded.
 		AssetWeightCapExceeded,
+		/// TVL cap has been exceeded
+		TVLCapExceeded,
 		///
 		Overflow,
 	}
@@ -414,12 +420,10 @@ pub mod pallet {
 					match hr.cmp(&current_tvl) {
 						Ordering::Greater => {
 							let delta_tvl = hr.checked_sub(&current_tvl).ok_or(Error::<T>::Overflow)?;
-							let tvl_cap = T::Balance::zero();
-							if *tvl + delta_tvl > tvl_cap {
-								// TODO: check cap, return error
-							}
-
 							*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+
+							ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
+
 							asset_state.tvl = hr;
 						}
 						Ordering::Less => {

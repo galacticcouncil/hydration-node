@@ -129,6 +129,7 @@ parameter_types! {
 	pub const ProtocolFee: (u32,u32) = ( 0, 0);
 	pub const AssetFee: (u32,u32) = ( 0, 0);
 	pub const AssetWeightCap: Balance = Balance::MAX;
+	pub const TVLCap: Balance = Balance::MAX;
 }
 
 pub struct EnsureSignedOrRoot<AccountId>(sp_std::marker::PhantomData<AccountId>);
@@ -170,6 +171,7 @@ impl Config for Test {
 	type NFTClassId = PosiitionClassId;
 	type NFTHandler = DummyNFT;
 	type AssetWeightCap = AssetWeightCap;
+	type TVLCap = TVLCap;
 }
 
 pub struct ExtBuilder {
