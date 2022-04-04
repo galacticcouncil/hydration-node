@@ -246,7 +246,7 @@ use hydradx_traits::Registry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for DummyRegistry<T>{
+impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for DummyRegistry<T> {
 	fn exists(_name: T::AssetId) -> bool {
 		true
 	}

@@ -23,17 +23,17 @@
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::sp_runtime::FixedPointOperand;
-use frame_support::transactional;
 use frame_support::PalletId;
+use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
 use std::cmp::Ordering;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use orml_traits::MultiCurrency;
-use sp_runtime::{DispatchError, FixedU128};
 use hydradx_traits::Registry;
+use orml_traits::MultiCurrency;
+use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -577,7 +577,10 @@ pub mod pallet {
 
 			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
-			//TODO: handle hub asset separately!
+			//Handle selling hub asset separately as math is simplified and asset_in is actually part of asset_out state in this case
+			if asset_in == T::HubAssetId::get() {
+				return Self::sell_hub_asset(&who, asset_out, amount, min_limit);
+			}
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
@@ -647,6 +650,8 @@ pub mod pallet {
 
 			// Imbalance update
 			// TODO: waiting for update from wiser people!
+
+			// TODO: deposit event
 
 			Ok(())
 		}
@@ -741,6 +746,9 @@ pub mod pallet {
 
 			// Imbalance update
 			// TODO: waiting for update from wiser people!
+
+			// TODO: deposit event
+
 			Ok(())
 		}
 	}
@@ -840,5 +848,57 @@ impl<T: Config> Pallet<T> {
 			return false;
 		}
 		true
+	}
+
+	fn sell_hub_asset(
+		who: &T::AccountId,
+		asset_out: T::AssetId,
+		amount: T::Balance,
+		limit: T::Balance,
+	) -> DispatchResult {
+		let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+
+		let delta_r = FixedU128::from((
+			amount,
+			asset_out_state
+				.hub_reserve
+				.checked_add(&amount)
+				.ok_or(Error::<T>::Overflow)?,
+		))
+		.checked_mul_int(asset_out_state.reserve)
+		.ok_or(Error::<T>::Overflow)?;
+
+		ensure!(delta_r >= limit, Error::<T>::BuyLimitNotReached);
+
+		let fee_asset = FixedU128::from(1)
+			.checked_sub(&Self::asset_fee())
+			.ok_or(Error::<T>::Overflow)?;
+
+		asset_out_state.reserve = asset_out_state
+			.reserve
+			.checked_sub(&fee_asset.checked_mul_int(delta_r).ok_or(Error::<T>::Overflow)?)
+			.ok_or(Error::<T>::Overflow)?;
+
+		asset_out_state.hub_reserve = asset_out_state
+			.hub_reserve
+			.checked_add(&amount)
+			.ok_or(Error::<T>::Overflow)?;
+
+		// Token updates
+		T::Currency::transfer(T::HubAssetId::get(), who, &Self::protocol_account(), amount)?;
+		T::Currency::transfer(asset_out, &Self::protocol_account(), who, delta_r)?;
+
+		// Total hub asset liquidity
+		Self::increase_hub_asset_liquidity(amount)?;
+
+		// TODO: imbalance update
+
+		// TODO: tvl update
+
+		// TODO: deposit event
+
+		<Assets<T>>::insert(asset_out, asset_out_state);
+
+		Ok(())
 	}
 }
