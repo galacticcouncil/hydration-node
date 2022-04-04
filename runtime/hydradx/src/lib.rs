@@ -64,7 +64,6 @@ use sp_runtime::traits::BlockNumberProvider;
 
 pub use common_runtime::*;
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
 
 mod benchmarking;
 mod xcm;
