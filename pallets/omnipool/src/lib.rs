@@ -315,7 +315,9 @@ pub mod pallet {
 					.and_then(|v| v.checked_mul_int(amount))
 					.ok_or(Error::<T>::Overflow)?;
 
-				current_imbalance.add::<T>(delta_imbalance)?;
+				current_imbalance = current_imbalance
+					.sub::<T>(delta_imbalance)
+					.ok_or(Error::<T>::Overflow)?;
 
 				<HubAssetImbalance<T>>::put(current_imbalance);
 			}
@@ -423,7 +425,9 @@ pub mod pallet {
 					.and_then(|v| v.checked_mul_int(amount))
 					.ok_or(Error::<T>::Overflow)?;
 
-				current_imbalance.add::<T>(delta_imbalance)?;
+				current_imbalance = current_imbalance
+					.sub::<T>(delta_imbalance)
+					.ok_or(Error::<T>::Overflow)?;
 
 				<HubAssetImbalance<T>>::put(current_imbalance);
 			}
