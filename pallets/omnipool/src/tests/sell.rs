@@ -46,7 +46,7 @@ fn simple_sell_works() {
 				100,
 				AssetState {
 					reserve: 2450 * ONE,
-					hub_reserve: 1528_163_265_306_123,
+					hub_reserve: 1_528_163_265_306_123,
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 3120 * ONE

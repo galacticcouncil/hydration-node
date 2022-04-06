@@ -78,21 +78,19 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd> SimpleImbalance<Balance> {
 		if self.negative {
 			let result = self.value.checked_add(&amount);
 
-			if result.is_some() {
-				self.value = result.unwrap();
+			if let Some(value) = result {
+				self.value = value;
 				Some(self)
 			} else {
 				None
 			}
+		} else if self.value < amount {
+			self.value = amount - self.value;
+			self.negative = true;
+			Some(self)
 		} else {
-			if self.value < amount {
-				self.value = amount - self.value;
-				self.negative = true;
-				Some(self)
-			} else {
-				self.value = self.value - amount;
-				Some(self)
-			}
+			self.value = self.value - amount;
+			Some(self)
 		}
 	}
 }
