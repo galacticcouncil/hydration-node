@@ -53,15 +53,15 @@ fn scenario_04() {
 
 			check_balance!(Omnipool::protocol_account(), 0, 100000000000000000);
 			check_balance!(Omnipool::protocol_account(), 2, 2000000000000000);
-			//check_balance!(Omnipool::protocol_account(), 1, 13100000000000000);
-			//check_balance!(Omnipool::protocol_account(), 100, 2452401746724891);
+			check_balance!(Omnipool::protocol_account(), 1, 13360000000000000);
+			check_balance!(Omnipool::protocol_account(), 100, 2452401746724890);
 			check_balance!(Omnipool::protocol_account(), 200, 1950000000000000);
 			check_balance!(LP1, 100, 3000000000000000);
 			check_balance!(LP1, 200, 3000000000000000);
 			check_balance!(LP2, 100, 600000000000000);
-			//check_balance!(LP3, 100, 947598253275109);
+			check_balance!(LP3, 100, 947598253275110);
 			check_balance!(LP3, 1, 0);
-			//check_balance!(LP3, 200, 49999999999999);
+			check_balance!(LP3, 200, 50 * ONE);
 
 			check_asset_state!(
 				2,
@@ -85,18 +85,16 @@ fn scenario_04() {
 				}
 			);
 
-			/*
 			check_asset_state!(
 				100,
 				AssetState {
-					reserve: 2452401746724891,
-					hub_reserve: 1526666666666666,
+					reserve: 2452401746724890,
+					hub_reserve: 1526666666666667,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000
 				}
 			);
-			 */
 
 			check_asset_state!(
 				200,

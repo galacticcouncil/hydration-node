@@ -453,9 +453,7 @@ pub mod pallet {
 						Ordering::Less => {
 							// no need to check the cap because we decreasing tvl
 							let delta_tvl = current_tvl.checked_sub(&hr).ok_or(Error::<T>::Overflow)?;
-							// TODO: Q: colin: can delta tvl here be > total tvl? probably not, max equal?
-							// if not, isit safe to return error is such case happen, which would mean
-							// we have some math somewhere wrong
+							// If for some reason, delta_tvl is > total tvl - it is an error, we have some math wrong somewhere
 							*tvl = tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
 							asset_state.tvl = hr;
 						}
@@ -530,12 +528,7 @@ pub mod pallet {
 				T::Balance::zero()
 			};
 
-			let delta_s = if delta_b != T::Balance::zero() {
-				//TODO: Q: colin: can delta_b > amount
-				amount.checked_sub(&delta_b).ok_or(Error::<T>::Overflow)?
-			} else {
-				amount
-			};
+			let delta_s = amount.checked_sub(&delta_b).ok_or(Error::<T>::Overflow)?;
 
 			let delta_r = FixedU128::from((current_reserve, current_shares))
 				.checked_mul_int(delta_s)
@@ -564,8 +557,15 @@ pub mod pallet {
 
 			Self::decrease_hub_asset_liquidity(delta_q)?;
 
-			// Update position shares
-			position.amount = position.amount.checked_sub(&delta_r).ok_or(Error::<T>::Overflow)?; // TODO: Q: colin: can delta_r > amount ?
+			// Update position shares and remaining amount ( which has to be calculated differently that delta_r! )
+			let delta_r_position = FixedU128::from((current_reserve, current_shares))
+				.checked_mul_int(amount)
+				.ok_or(Error::<T>::Overflow)?;
+
+			position.amount = position
+				.amount
+				.checked_sub(&delta_r_position)
+				.ok_or(Error::<T>::Overflow)?;
 			position.shares = position.shares.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
 
 			// Token balance updates
@@ -662,6 +662,14 @@ pub mod pallet {
 				.ok_or(Error::<T>::Overflow)?;
 
 			ensure!(delta_r_out >= min_limit, Error::<T>::BuyLimitNotReached);
+
+			// TODO: fee accounting
+			// in spec is burn, in implementation is transfer to treasury
+			// Ask Jacob
+			// how calculate
+			// delta_ibbalance = min(delta_q * protocol_fee, L)
+			// (delta_q * protocol fee ) - delta_imbalance
+			// now Q: can this be negative and positive too
 
 			// Pool state update
 			asset_in_state.reserve = asset_in_state
@@ -768,7 +776,7 @@ pub mod pallet {
 				delta_q_in,
 				asset_in_state
 					.hub_reserve
-					.checked_add(&delta_q_in)
+					.checked_sub(&delta_q_in)
 					.ok_or(Error::<T>::Overflow)?,
 			))
 			.checked_mul_int(asset_in_state.reserve)

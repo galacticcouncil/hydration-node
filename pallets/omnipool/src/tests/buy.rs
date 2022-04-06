@@ -34,12 +34,12 @@ fn simple_buy_works() {
 
 			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, 100, buy_amount, max_limit));
 
-			assert_eq!(Tokens::free_balance(100, &LP1), 549790794979080);
+			assert_eq!(Tokens::free_balance(100, &LP1), 547598253275110);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
 			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
 			assert_eq!(
 				Tokens::free_balance(100, &Omnipool::protocol_account()),
-				2450209205020920
+				2452401746724890
 			);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1950 * ONE);
 
@@ -48,7 +48,7 @@ fn simple_buy_works() {
 			check_asset_state!(
 				100,
 				AssetState {
-					reserve: 2450209205020920,
+					reserve: 2452401746724890,
 					hub_reserve: 1526666666666667,
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
