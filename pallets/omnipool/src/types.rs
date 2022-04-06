@@ -67,29 +67,23 @@ impl<Balance: Default> Default for SimpleImbalance<Balance> {
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd> SimpleImbalance<Balance> {
 	/*
 	#[allow(unused)]
-	pub(super) fn add<T: Config>(&mut self, _amount: Balance) -> Result<(), DispatchError> {
+	pub(super) fn add(&mut self, _amount: Balance) -> Result<(), DispatchError> {
 		// TODO: add amount correct base on current value which can be ngetative or position
 		Ok(())
 	}
 
 	 */
 
-	pub(super) fn sub<T: Config>(mut self, amount: Balance) -> Option<Self> {
+	pub(super) fn sub(mut self, amount: Balance) -> Option<Self> {
 		if self.negative {
-			let result = self.value.checked_add(&amount);
-
-			if let Some(value) = result {
-				self.value = value;
-				Some(self)
-			} else {
-				None
-			}
+			self.value = self.value.checked_add(&amount)?;
+			Some(self)
 		} else if self.value < amount {
-			self.value = amount - self.value;
+			self.value = amount.checked_sub(&self.value)?;
 			self.negative = true;
 			Some(self)
 		} else {
-			self.value = self.value - amount;
+			self.value = self.value.checked_sub(&amount)?;
 			Some(self)
 		}
 	}
