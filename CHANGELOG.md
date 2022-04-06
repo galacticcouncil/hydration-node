@@ -1,3 +1,15 @@
+# v11.2.2 (Sat Apr 02 2022)
+
+#### 🐛 Bug Fix
+
+- fix: elections multi phase fallback [#395](https://github.com/galacticcouncil/HydraDX-node/pull/395) ([@lumir-mrkva](https://github.com/lumir-mrkva))
+
+#### Authors: 1
+
+- [@lumir-mrkva](https://github.com/lumir-mrkva)
+
+---
+
 # v11.2.1 (Mon Mar 21 2022)
 
 #### 🐛 Bug Fix
