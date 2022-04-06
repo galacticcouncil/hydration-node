@@ -175,16 +175,9 @@ impl Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 }
 
+#[derive(Default)]
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
-}
-
-impl Default for ExtBuilder {
-	fn default() -> Self {
-		Self {
-			endowed_accounts: vec![],
-		}
-	}
 }
 
 impl ExtBuilder {
