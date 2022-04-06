@@ -47,6 +47,11 @@ where
 	}
 }
 
+pub(super) enum ImbalanceUpdate<Balance> {
+	Increase(Balance),
+	Decrease(Balance),
+}
+
 /// Simple type to represent imbalance which can be positive or negative.
 // Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -65,14 +70,19 @@ impl<Balance: Default> Default for SimpleImbalance<Balance> {
 }
 
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd> SimpleImbalance<Balance> {
-	/*
-	#[allow(unused)]
-	pub(super) fn add(&mut self, _amount: Balance) -> Result<(), DispatchError> {
-		// TODO: add amount correct base on current value which can be ngetative or position
-		Ok(())
+	pub(super) fn add(mut self, amount: Balance) -> Option<Self> {
+		if !self.negative {
+			self.value = self.value.checked_add(&amount)?;
+			Some(self)
+		} else if self.value < amount {
+			self.value = amount.checked_sub(&self.value)?;
+			self.negative = false;
+			Some(self)
+		} else {
+			self.value = self.value.checked_sub(&amount)?;
+			Some(self)
+		}
 	}
-
-	 */
 
 	pub(super) fn sub(mut self, amount: Balance) -> Option<Self> {
 		if self.negative {

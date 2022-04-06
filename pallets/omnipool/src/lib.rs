@@ -47,7 +47,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetState, Price};
+use crate::types::{AssetState, ImbalanceUpdate, Price};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -287,8 +287,6 @@ pub mod pallet {
 				tvl: amount,
 			};
 
-			<Assets<T>>::insert(asset, state);
-
 			// if root ( None ), it means protocol, so no transfer done assuming asset is already in the protocol account
 			if let Some(who) = account {
 				T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
@@ -304,21 +302,7 @@ pub mod pallet {
 			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), hub_reserve)?;
 
 			// Imbalance update
-			let mut current_imbalance = <HubAssetImbalance<T>>::get();
-			let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
-
-			if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
-				// if any is 0, the delta is 0 too.
-
-				let delta_imbalance = initial_price
-					.checked_mul(&FixedU128::from((current_imbalance.value, current_hub_asset_liquidity)))
-					.and_then(|v| v.checked_mul_int(amount))
-					.ok_or(Error::<T>::Overflow)?;
-
-				current_imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
-
-				<HubAssetImbalance<T>>::put(current_imbalance);
-			}
+			Self::update_imbalance(&state, ImbalanceUpdate::Decrease(amount))?;
 
 			// Total hub asset liquidity update
 			Self::increase_hub_asset_liquidity(hub_reserve)?;
@@ -334,6 +318,8 @@ pub mod pallet {
 					Ok(())
 				})?;
 			}
+
+			<Assets<T>>::insert(asset, state);
 
 			Self::deposit_event(Event::TokenAdded(asset, amount, initial_price));
 
@@ -363,7 +349,6 @@ pub mod pallet {
 			// Current state
 			let current_shares = asset_state.shares;
 			let current_reserve = asset_state.reserve;
-			let current_hub_reserve = asset_state.hub_reserve;
 			let current_asset_tvl = asset_state.tvl;
 
 			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
@@ -409,24 +394,7 @@ pub mod pallet {
 			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), delta_hub_reserve)?;
 
 			// Imbalance update
-			let mut current_imbalance = <HubAssetImbalance<T>>::get();
-			let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
-
-			if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
-				// if any is 0, the delta is 0 too.
-
-				let p1 = Price::from((current_reserve, current_hub_reserve));
-				let p2 = Price::from((current_imbalance.value, current_hub_asset_liquidity));
-
-				let delta_imbalance = p1
-					.checked_mul(&p2)
-					.and_then(|v| v.checked_mul_int(amount))
-					.ok_or(Error::<T>::Overflow)?;
-
-				current_imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
-
-				<HubAssetImbalance<T>>::put(current_imbalance);
-			}
+			Self::update_imbalance(&asset_state, ImbalanceUpdate::Decrease(amount))?;
 
 			// TVL update
 			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
@@ -605,6 +573,9 @@ pub mod pallet {
 					.ok_or(Error::<T>::Overflow)?,
 			)?;
 
+			// Imbalance update
+			Self::update_imbalance(&asset_state, ImbalanceUpdate::Increase(delta_reserve))?;
+
 			Self::deposit_event(Event::LiquidityRemoved(who, position_id, amount));
 
 			<Assets<T>>::insert(position.asset_id, asset_state);
@@ -616,9 +587,6 @@ pub mod pallet {
 			} else {
 				<Positions<T>>::insert(position_id, position);
 			}
-
-			// Imbalance update
-			// TODO:
 
 			// TVL update
 			// TODO:
@@ -945,6 +913,37 @@ impl<T: Config> Pallet<T> {
 			}
 			Ordering::Equal => Ok(()), // If equal, nothing to do
 		}
+	}
+
+	fn update_imbalance(
+		asset_state: &AssetState<T::Balance>,
+		delta_amount: ImbalanceUpdate<T::Balance>,
+	) -> DispatchResult {
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
+
+		if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
+			// if any is 0, the delta is 0 too.
+
+			let p1 = FixedU128::from((asset_state.hub_reserve, asset_state.reserve));
+			let p2 = FixedU128::from((current_imbalance.value, current_hub_asset_liquidity));
+			let p3 = p1.checked_mul(&p2).ok_or(Error::<T>::Overflow)?;
+
+			let imbalance = match delta_amount {
+				ImbalanceUpdate::Increase(value) => {
+					let delta_imbalance = p3.checked_mul_int(value).ok_or(Error::<T>::Overflow)?;
+					current_imbalance.add(delta_imbalance).ok_or(Error::<T>::Overflow)?
+				}
+				ImbalanceUpdate::Decrease(value) => {
+					let delta_imbalance = p3.checked_mul_int(value).ok_or(Error::<T>::Overflow)?;
+					current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?
+				}
+			};
+
+			<HubAssetImbalance<T>>::put(imbalance);
+		}
+
+		Ok(())
 	}
 
 	/// Check if assets can be traded
