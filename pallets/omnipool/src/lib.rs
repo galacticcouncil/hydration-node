@@ -47,7 +47,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::Price;
+use crate::types::{AssetState, Price};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -544,6 +544,9 @@ pub mod pallet {
 			let delta_q_alfa = if current_price >= position_price {
 				// LP receives some hub asset
 
+				// delta_q_a = -pi * ( 2pi / (pi + pa) * delta_s_a / Si * Ri + delta_r_a )
+				// note: delta_s_a is < 0
+
 				let price_sum = current_price.checked_add(&position_price).ok_or(Error::<T>::Overflow)?;
 				let double_current_price = current_price
 					.checked_mul(&FixedU128::from(2))
@@ -557,16 +560,12 @@ pub mod pallet {
 					.and_then(|v| v.checked_mul_int(current_reserve))
 					.ok_or(Error::<T>::Overflow)?;
 
-				let _hub_received = current_price
-					.checked_mul_int(p3.checked_add(&delta_reserve).ok_or(Error::<T>::Overflow)?)
+				let hub_received = current_price
+					.checked_mul_int(delta_reserve.checked_sub(&p3).ok_or(Error::<T>::Overflow)?)
 					.ok_or(Error::<T>::Overflow)?;
 
-				// TODO: this is actually > delta_hub_reserve : need to verify the math, so return 0 for now
-				/*
 				T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), &who, hub_received)?;
 				hub_received
-				 */
-				T::Balance::zero()
 			} else {
 				T::Balance::zero()
 			};
@@ -584,8 +583,6 @@ pub mod pallet {
 			asset_state.hub_reserve = current_hub_reserve
 				.checked_sub(&delta_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
-
-			Self::decrease_hub_asset_liquidity(delta_hub_reserve)?;
 
 			// Update position shares and remaining amount ( which has to be calculated differently that delta_reserve! )
 			let delta_r_position = FixedU128::from((current_reserve, current_shares))
@@ -625,6 +622,8 @@ pub mod pallet {
 
 			// TVL update
 			// TODO:
+
+			Self::decrease_hub_asset_liquidity(delta_hub_reserve)?;
 
 			Ok(())
 		}
