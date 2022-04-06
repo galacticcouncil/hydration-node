@@ -541,10 +541,35 @@ pub mod pallet {
 				.checked_mul_int(current_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
 
-			if current_price > position_price {
-				// TODO: send some hub asset, fred!
+			let delta_q_alfa = if current_price >= position_price {
 				// LP receives some hub asset
-			}
+
+				let price_sum = current_price.checked_add(&position_price).ok_or(Error::<T>::Overflow)?;
+				let double_current_price = current_price
+					.checked_mul(&FixedU128::from(2))
+					.ok_or(Error::<T>::Overflow)?;
+				let p1 = double_current_price
+					.checked_div(&price_sum)
+					.ok_or(Error::<T>::Overflow)?;
+				let p2 = FixedU128::from((amount, current_shares));
+				let p3 = p1
+					.checked_mul(&p2)
+					.and_then(|v| v.checked_mul_int(current_reserve))
+					.ok_or(Error::<T>::Overflow)?;
+
+				let _hub_received = current_price
+					.checked_mul_int(p3.checked_add(&delta_reserve).ok_or(Error::<T>::Overflow)?)
+					.ok_or(Error::<T>::Overflow)?;
+
+				// TODO: this is actually > delta_hub_reserve : need to verify the math, so return 0 for now
+				/*
+				T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), &who, hub_received)?;
+				hub_received
+				 */
+				T::Balance::zero()
+			} else {
+				T::Balance::zero()
+			};
 
 			// Asset state update
 			asset_state.protocol_shares = asset_state
@@ -575,7 +600,13 @@ pub mod pallet {
 
 			// Token balance updates
 			T::Currency::transfer(position.asset_id, &Self::protocol_account(), &who, delta_reserve)?;
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_hub_reserve)?;
+			T::Currency::withdraw(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				delta_hub_reserve
+					.checked_sub(&delta_q_alfa)
+					.ok_or(Error::<T>::Overflow)?,
+			)?;
 
 			Self::deposit_event(Event::LiquidityRemoved(who, position_id, amount));
 
