@@ -28,7 +28,7 @@ use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
-use std::cmp::Ordering;
+use std::cmp::{min, Ordering};
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
@@ -1044,10 +1044,30 @@ impl<T: Config> Pallet<T> {
 		T::Currency::transfer(T::HubAssetId::get(), who, &Self::protocol_account(), amount)?;
 		T::Currency::transfer(asset_out, &Self::protocol_account(), who, delta_r)?;
 
-		// Total hub asset liquidity
-		Self::increase_hub_asset_liquidity(amount)?;
+		// Fee accounting and imbalance
+		// TODO: does this apply too here ?
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		let protocol_fee_amount = Self::protocol_fee()
+			.checked_mul_int(amount)
+			.ok_or(Error::<T>::Overflow)?;
+		let delta_imbalance = min(protocol_fee_amount, current_imbalance.value);
 
-		// TODO: imbalance update
+		let delta_fee_amount = protocol_fee_amount
+			.checked_sub(&delta_imbalance)
+			.ok_or(Error::<T>::Overflow)?;
+
+		if delta_fee_amount > T::Balance::zero() {
+			// TODO: clarify whether to burn or transfer to treasury
+			// for now we burn
+			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_fee_amount)?;
+		}
+
+		// Total hub asset liquidity
+		Self::increase_hub_asset_liquidity(amount.checked_sub(&delta_fee_amount).ok_or(Error::<T>::Overflow)?)?;
+
+		// Imbalance update
+		let imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
+		<HubAssetImbalance<T>>::put(imbalance);
 
 		// TODO: tvl update
 
