@@ -70,7 +70,7 @@ jobs:
           username: ${{ secrets.PKG_USER }}
           password: ${{ secrets.PKG_PWD }}
       - name: Login to DockerHub
-        uses: docker/login-action@v1 
+        uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASS }}
@@ -82,8 +82,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/galacticcouncil/hydra-dx:latest
-            galacticcouncil/hydra-dx:latest          
+            ghcr.io/galacticcouncil/hydra-dx:12
+            galacticcouncil/hydra-dx:12
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
 
