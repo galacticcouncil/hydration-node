@@ -352,7 +352,6 @@ pub mod pallet {
 			// Current state
 			let current_shares = asset_state.shares;
 			let current_reserve = asset_state.reserve;
-			let current_asset_tvl = asset_state.tvl;
 
 			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
 
@@ -400,49 +399,13 @@ pub mod pallet {
 			Self::update_imbalance(&asset_state, ImbalanceUpdate::Decrease(amount))?;
 
 			// TVL update
-			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
-
-			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
-				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-					let adjusted_asset_tvl = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
-						.checked_mul_int(new_hub_reserve)
-						.ok_or(Error::<T>::Overflow)?;
-
-					// Handle decrease or increase accordingly
-					match adjusted_asset_tvl.cmp(&current_asset_tvl) {
-						Ordering::Greater => {
-							let delta_tvl = adjusted_asset_tvl
-								.checked_sub(&current_asset_tvl)
-								.ok_or(Error::<T>::Overflow)?;
-							*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
-
-							ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
-
-							asset_state.tvl = adjusted_asset_tvl;
-						}
-						Ordering::Less => {
-							// no need to check the cap because we decreasing tvl
-							let delta_tvl = current_asset_tvl
-								.checked_sub(&adjusted_asset_tvl)
-								.ok_or(Error::<T>::Overflow)?;
-
-							// If for some reason, delta_tvl is > total tvl - it is an error, we have some math wrong somewhere
-							*tvl = tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
-							asset_state.tvl = adjusted_asset_tvl;
-						}
-						Ordering::Equal => {
-							// nothing to do
-						}
-					}
-
-					Ok(())
-				})?;
-			}
-
-			<Assets<T>>::insert(asset, asset_state);
+			Self::update_tvl(&mut asset_state)?;
 
 			// Total hub asset liquidity update
 			Self::increase_hub_asset_liquidity(delta_hub_reserve)?;
+
+			// Storage update - asset state
+			<Assets<T>>::insert(asset, asset_state);
 
 			Self::deposit_event(Event::LiquidityAdded(who, asset, amount, instance_id));
 
@@ -512,6 +475,10 @@ pub mod pallet {
 				.checked_mul_int(current_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
 
+			let new_hub_reserve = current_hub_reserve
+				.checked_sub(&delta_hub_reserve)
+				.ok_or(Error::<T>::Overflow)?;
+
 			let delta_q_alfa = if current_price >= position_price {
 				// LP receives some hub asset
 
@@ -551,9 +518,7 @@ pub mod pallet {
 			asset_state.reserve = current_reserve
 				.checked_sub(&delta_reserve)
 				.ok_or(Error::<T>::Overflow)?;
-			asset_state.hub_reserve = current_hub_reserve
-				.checked_sub(&delta_hub_reserve)
-				.ok_or(Error::<T>::Overflow)?;
+			asset_state.hub_reserve = new_hub_reserve;
 
 			// Update position shares and remaining amount ( which has to be calculated differently that delta_reserve! )
 			let delta_r_position = FixedU128::from((current_reserve, current_shares))
@@ -579,8 +544,13 @@ pub mod pallet {
 			// Imbalance update
 			Self::update_imbalance(&asset_state, ImbalanceUpdate::Increase(delta_reserve))?;
 
-			Self::deposit_event(Event::LiquidityRemoved(who, position_id, amount));
+			// TVL update
+			Self::update_tvl(&mut asset_state)?;
 
+			// Total Hub asset liquidity
+			Self::decrease_hub_asset_liquidity(delta_hub_reserve)?;
+
+			// Storage update - asset state and position
 			<Assets<T>>::insert(position.asset_id, asset_state);
 
 			if position.shares == T::Balance::zero() {
@@ -591,10 +561,7 @@ pub mod pallet {
 				<Positions<T>>::insert(position_id, position);
 			}
 
-			// TVL update
-			// TODO:
-
-			Self::decrease_hub_asset_liquidity(delta_hub_reserve)?;
+			Self::deposit_event(Event::LiquidityRemoved(who, position_id, amount));
 
 			Ok(())
 		}
@@ -981,6 +948,49 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Ok(())
+	}
+
+	fn update_tvl(asset_state: &mut AssetState<T::Balance>) -> DispatchResult {
+		let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
+
+		if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
+			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+				let adjusted_asset_tvl = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
+					.checked_mul_int(asset_state.hub_reserve)
+					.ok_or(Error::<T>::Overflow)?;
+
+				// Handle decrease or increase accordingly
+				match adjusted_asset_tvl.cmp(&asset_state.tvl) {
+					Ordering::Greater => {
+						let delta_tvl = adjusted_asset_tvl
+							.checked_sub(&asset_state.tvl)
+							.ok_or(Error::<T>::Overflow)?;
+						*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+
+						ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
+
+						asset_state.tvl = asset_state.tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+					}
+					Ordering::Less => {
+						// no need to check the cap because we decreasing tvl
+						let delta_tvl = asset_state
+							.tvl
+							.checked_sub(&adjusted_asset_tvl)
+							.ok_or(Error::<T>::Overflow)?;
+
+						// If for some reason, delta_tvl is > total tvl - it is an error, we have some math wrong somewhere
+						*tvl = tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+						asset_state.tvl = asset_state.tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+					}
+					Ordering::Equal => {
+						// nothing to do
+					}
+				}
+				Ok(())
+			})
+		} else {
+			Ok(())
+		}
 	}
 
 	/// Check if assets can be traded

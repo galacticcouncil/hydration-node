@@ -27,7 +27,7 @@ fn remove_liquidity_works() {
 			let liq_removed = 200 * ONE;
 			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), 0, liq_removed));
 
-			check_state!(11_930 * ONE + 1, 24_720 * ONE, SimpleImbalance::default());
+			check_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
 
 			check_balance!(LP1, 1_000, 4600 * ONE + liq_removed);
 
@@ -38,7 +38,7 @@ fn remove_liquidity_works() {
 					hub_reserve: 1430000000000001, // TODO: check why 1 at the end ?!!
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE, // no change, price has not changed
-					tvl: 3120 * ONE
+					tvl: 2860_000_000_000_002
 				}
 			);
 
