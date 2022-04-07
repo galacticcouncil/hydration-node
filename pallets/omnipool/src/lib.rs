@@ -298,6 +298,8 @@ pub mod pallet {
 				);
 			}
 
+			// TODO: create a position if not protocol
+
 			// Mint matching Hub asset
 			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), hub_reserve)?;
 
