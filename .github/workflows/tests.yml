@@ -105,7 +105,6 @@ jobs:
 
   docker:
     needs: [pop-runner-instance, build]
-    if: github.ref == 'refs/heads/docker-parachain'
     runs-on: ${{ needs.pop-runner-instance.outputs.runner }}
     env:
       DOCKER_CLI_EXPERIMENTAL: enabled
@@ -116,10 +115,17 @@ jobs:
           fetch-depth: 0
       - name: Describe version
         run: git describe --tags --abbrev=0
-      - name: Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
+      - name: Generate metadata for images
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: galacticcouncil/hydra-dx,ghcr.io/galacticcouncil/hydra-dx
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
       - uses: actions/download-artifact@v2
         name: Download node binary
         with:
@@ -147,9 +153,8 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64
-          tags: |
-            ghcr.io/galacticcouncil/hydra-dx:12
-            galacticcouncil/hydra-dx:12
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
 
@@ -175,7 +180,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.12.25
-          continue-on-error: false
       - name: rewrite tf state key
         id: tf-state-key
         working-directory: ./infrastructure
