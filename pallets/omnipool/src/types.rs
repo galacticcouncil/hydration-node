@@ -18,6 +18,16 @@ pub struct AssetState<Balance> {
 	pub(super) tvl: Balance,
 }
 
+impl<Balance> AssetState<Balance>
+where
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Clone,
+{
+	/// Calcuate price for actual state
+	pub(super) fn price(&self) -> FixedU128 {
+		FixedU128::from((self.hub_reserve.clone().into(), self.reserve.clone().into()))
+	}
+}
+
 /// Position in Omnipool represents a moment when LP provided liquidity of an asset at that moment’s price.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Position<Balance, AssetId> {
@@ -36,12 +46,10 @@ impl<Balance, AssetId> Position<Balance, AssetId>
 where
 	Balance: Clone + From<u128> + Into<u128>,
 {
-	#[allow(unused)]
 	pub(super) fn fixed_price(&self) -> Price {
 		Price::from_inner(self.price.clone().into())
 	}
 
-	#[allow(unused)]
 	pub(super) fn price_to_balance(price: Price) -> Balance {
 		price.into_inner().into()
 	}
@@ -57,7 +65,7 @@ pub(super) enum ImbalanceUpdate<Balance> {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub(super) struct SimpleImbalance<Balance> {
 	pub(super) value: Balance,
-	pub(super) negative: bool,
+	negative: bool,
 }
 
 impl<Balance: Default> Default for SimpleImbalance<Balance> {
@@ -71,7 +79,7 @@ impl<Balance: Default> Default for SimpleImbalance<Balance> {
 
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd> SimpleImbalance<Balance> {
 	pub(super) fn add(mut self, amount: Balance) -> Option<Self> {
-		if !self.negative {
+		if self.is_positive() {
 			self.value = self.value.checked_add(&amount)?;
 			Some(self)
 		} else if self.value < amount {
@@ -85,7 +93,7 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd> SimpleImbalance<Balance> {
 	}
 
 	pub(super) fn sub(mut self, amount: Balance) -> Option<Self> {
-		if self.negative {
+		if self.is_negative() {
 			self.value = self.value.checked_add(&amount)?;
 			Some(self)
 		} else if self.value < amount {
@@ -96,5 +104,13 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd> SimpleImbalance<Balance> {
 			self.value = self.value.checked_sub(&amount)?;
 			Some(self)
 		}
+	}
+
+	pub(super) fn is_negative(&self) -> bool {
+		self.negative
+	}
+
+	pub(super) fn is_positive(&self) -> bool {
+		!self.negative
 	}
 }

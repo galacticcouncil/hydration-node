@@ -25,10 +25,10 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
+use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
-use std::cmp::{min, Ordering};
+use std::cmp::Ordering;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
@@ -353,7 +353,7 @@ pub mod pallet {
 			let current_shares = asset_state.shares;
 			let current_reserve = asset_state.reserve;
 
-			let current_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
+			let current_price = asset_state.price();
 
 			let delta_hub_reserve = current_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
 
@@ -377,14 +377,12 @@ pub mod pallet {
 			asset_state.shares = new_shares;
 			asset_state.hub_reserve = new_hub_reserve;
 
-			let new_price = Price::from((asset_state.hub_reserve, asset_state.reserve));
-
 			// Create LP position
 			let lp_position = Position::<T::Balance, T::AssetId> {
 				asset_id: asset,
 				amount,
 				shares: new_shares.checked_sub(&current_shares).ok_or(Error::<T>::Overflow)?,
-				price: Position::<T::Balance, T::AssetId>::price_to_balance(new_price),
+				price: Position::<T::Balance, T::AssetId>::price_to_balance(asset_state.price()),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
@@ -449,7 +447,7 @@ pub mod pallet {
 			let current_reserve = asset_state.reserve;
 			let current_hub_reserve = asset_state.hub_reserve;
 
-			let current_price = FixedU128::from((current_hub_reserve, current_reserve));
+			let current_price = asset_state.price();
 
 			let position_price = position.fixed_price();
 
@@ -681,9 +679,6 @@ pub mod pallet {
 				delta_q_out,
 			)?;
 
-			// TVL update
-			// TODO: waiting for update from wiser people!
-
 			// Imbalance update
 			let imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
 			<HubAssetImbalance<T>>::put(imbalance);
@@ -815,9 +810,6 @@ pub mod pallet {
 				delta_q_in.checked_sub(&delta_fee_amount).ok_or(Error::<T>::Overflow)?,
 				delta_q_out,
 			)?;
-
-			// TVL update
-			// TODO: waiting for update from wiser people!
 
 			// Imbalance update
 			let imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
@@ -1014,25 +1006,28 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
-		let delta_r = FixedU128::from((
+		let q_ratio = FixedU128::from((
 			amount,
 			asset_out_state
 				.hub_reserve
 				.checked_add(&amount)
 				.ok_or(Error::<T>::Overflow)?,
-		))
-		.checked_mul_int(asset_out_state.reserve)
-		.ok_or(Error::<T>::Overflow)?;
-
-		ensure!(delta_r >= limit, Error::<T>::BuyLimitNotReached);
+		));
 
 		let fee_asset = FixedU128::from(1)
 			.checked_sub(&Self::asset_fee())
 			.ok_or(Error::<T>::Overflow)?;
 
+		let delta_reserve = fee_asset
+			.checked_mul(&q_ratio)
+			.and_then(|v| v.checked_mul_int(asset_out_state.reserve))
+			.ok_or(Error::<T>::Overflow)?;
+
+		ensure!(delta_reserve >= limit, Error::<T>::BuyLimitNotReached);
+
 		asset_out_state.reserve = asset_out_state
 			.reserve
-			.checked_sub(&fee_asset.checked_mul_int(delta_r).ok_or(Error::<T>::Overflow)?)
+			.checked_sub(&delta_reserve)
 			.ok_or(Error::<T>::Overflow)?;
 
 		asset_out_state.hub_reserve = asset_out_state
@@ -1042,34 +1037,24 @@ impl<T: Config> Pallet<T> {
 
 		// Token updates
 		T::Currency::transfer(T::HubAssetId::get(), who, &Self::protocol_account(), amount)?;
-		T::Currency::transfer(asset_out, &Self::protocol_account(), who, delta_r)?;
+		T::Currency::transfer(asset_out, &Self::protocol_account(), who, delta_reserve)?;
 
 		// Fee accounting and imbalance
-		// TODO: does this apply too here ?
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let protocol_fee_amount = Self::protocol_fee()
-			.checked_mul_int(amount)
-			.ok_or(Error::<T>::Overflow)?;
-		let delta_imbalance = min(protocol_fee_amount, current_imbalance.value);
 
-		let delta_fee_amount = protocol_fee_amount
-			.checked_sub(&delta_imbalance)
+		// Negative
+		let delta_imbalance = fee_asset
+			.checked_mul(&q_ratio)
+			.and_then(|v| v.checked_add(&FixedU128::one()))
+			.and_then(|v| v.checked_mul_int(amount))
 			.ok_or(Error::<T>::Overflow)?;
-
-		if delta_fee_amount > T::Balance::zero() {
-			// TODO: clarify whether to burn or transfer to treasury
-			// for now we burn
-			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_fee_amount)?;
-		}
 
 		// Total hub asset liquidity
-		Self::increase_hub_asset_liquidity(amount.checked_sub(&delta_fee_amount).ok_or(Error::<T>::Overflow)?)?;
+		Self::increase_hub_asset_liquidity(amount)?;
 
 		// Imbalance update
 		let imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
 		<HubAssetImbalance<T>>::put(imbalance);
-
-		// TODO: tvl update
 
 		<Assets<T>>::insert(asset_out, asset_out_state);
 
@@ -1078,7 +1063,7 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			asset_out,
 			amount,
-			delta_r,
+			delta_reserve,
 		));
 
 		Ok(())
