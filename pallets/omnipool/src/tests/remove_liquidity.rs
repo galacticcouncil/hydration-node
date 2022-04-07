@@ -38,7 +38,7 @@ fn remove_liquidity_works() {
 					hub_reserve: 1430000000000001, // TODO: check why 1 at the end ?!!
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE, // no change, price has not changed
-					tvl: 2860_000_000_000_002
+					tvl: 2_860_000_000_000_002
 				}
 			);
 
