@@ -212,7 +212,8 @@ impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
 
 	fn owner(_class: &Self::ClassId, instance: &Self::InstanceId) -> Option<AccountId> {
 		match instance {
-			0..=5 => Some(AccountId::from(LP1)),
+			0 => Some(AccountId::from(LP1)),
+			1..=5 => Some(AccountId::from(LP3)),
 			6..=10 => Some(AccountId::from(LP2)),
 			_ => None,
 		}

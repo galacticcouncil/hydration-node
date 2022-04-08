@@ -11,6 +11,7 @@ mod remove_liquidity;
 mod scenario_04;
 mod scenario_05;
 mod scenario_06;
+mod scenario_08;
 mod sell;
 
 const ONE: Balance = 1_000_000_000_000;

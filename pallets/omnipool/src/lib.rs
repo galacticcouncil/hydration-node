@@ -479,28 +479,38 @@ pub mod pallet {
 				.checked_sub(&delta_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
 
-			let delta_q_alfa = if current_price >= position_price {
+			let hub_transferred = if current_price >= position_price {
 				// LP receives some hub asset
 
 				// delta_q_a = -pi * ( 2pi / (pi + pa) * delta_s_a / Si * Ri + delta_r_a )
 				// note: delta_s_a is < 0
 
 				let price_sum = current_price.checked_add(&position_price).ok_or(Error::<T>::Overflow)?;
+
 				let double_current_price = current_price
 					.checked_mul(&FixedU128::from(2))
 					.ok_or(Error::<T>::Overflow)?;
+
 				let p1 = double_current_price
 					.checked_div(&price_sum)
 					.ok_or(Error::<T>::Overflow)?;
+
 				let p2 = FixedU128::from((amount, current_shares));
+
 				let p3 = p1
 					.checked_mul(&p2)
 					.and_then(|v| v.checked_mul_int(current_reserve))
 					.ok_or(Error::<T>::Overflow)?;
 
-				let hub_received = current_price
-					.checked_mul_int(delta_reserve.checked_sub(&p3).ok_or(Error::<T>::Overflow)?)
-					.ok_or(Error::<T>::Overflow)?;
+				let hub_received = if p3 >= delta_reserve {
+					current_price
+						.checked_mul_int(p3.checked_sub(&delta_reserve).ok_or(Error::<T>::Overflow)?)
+						.ok_or(Error::<T>::Overflow)?
+				} else {
+					current_price
+						.checked_mul_int(delta_reserve.checked_sub(&p3).ok_or(Error::<T>::Overflow)?)
+						.ok_or(Error::<T>::Overflow)?
+				};
 
 				T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), &who, hub_received)?;
 				hub_received
@@ -533,13 +543,7 @@ pub mod pallet {
 
 			// Token balance updates
 			T::Currency::transfer(position.asset_id, &Self::protocol_account(), &who, delta_reserve)?;
-			T::Currency::withdraw(
-				T::HubAssetId::get(),
-				&Self::protocol_account(),
-				delta_hub_reserve
-					.checked_sub(&delta_q_alfa)
-					.ok_or(Error::<T>::Overflow)?,
-			)?;
+			T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_hub_reserve)?;
 
 			// Imbalance update
 			Self::update_imbalance(&asset_state, ImbalanceUpdate::Increase(delta_reserve))?;
@@ -548,7 +552,11 @@ pub mod pallet {
 			Self::update_tvl(&mut asset_state)?;
 
 			// Total Hub asset liquidity
-			Self::decrease_hub_asset_liquidity(delta_hub_reserve)?;
+			Self::decrease_hub_asset_liquidity(
+				delta_hub_reserve
+					.checked_add(&hub_transferred)
+					.ok_or(Error::<T>::Overflow)?,
+			)?;
 
 			// Storage update - asset state and position
 			<Assets<T>>::insert(position.asset_id, asset_state);
