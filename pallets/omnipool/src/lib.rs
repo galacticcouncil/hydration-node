@@ -645,9 +645,13 @@ pub mod pallet {
 				.ok_or(Error::<T>::Overflow)?;
 
 			if delta_fee_amount > T::Balance::zero() {
-				// TODO: clarify whether to burn or transfer to treasury
-				// for now we burn
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_fee_amount)?;
+				// Transfer to Native asset Hub side
+				let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
+				native_subpool.hub_reserve = native_subpool
+					.hub_reserve
+					.checked_add(&delta_fee_amount)
+					.ok_or(Error::<T>::Overflow)?;
+				<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
 			}
 
 			// Pool state update
@@ -776,9 +780,12 @@ pub mod pallet {
 				.ok_or(Error::<T>::Overflow)?;
 
 			if delta_fee_amount > T::Balance::zero() {
-				// TODO: clarify whether to burn or transfer to treasury
-				// for now we burn
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), delta_fee_amount)?;
+				let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
+				native_subpool.hub_reserve = native_subpool
+					.hub_reserve
+					.checked_add(&delta_fee_amount)
+					.ok_or(Error::<T>::Overflow)?;
+				<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
 			}
 
 			// Pool state update
