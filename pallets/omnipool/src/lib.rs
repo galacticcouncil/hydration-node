@@ -479,7 +479,7 @@ pub mod pallet {
 				.checked_sub(&delta_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
 
-			let hub_transferred = if current_price >= position_price {
+			let hub_transferred = if current_price > position_price {
 				// LP receives some hub asset
 
 				// delta_q_a = -pi * ( 2pi / (pi + pa) * delta_s_a / Si * Ri + delta_r_a )
@@ -502,15 +502,9 @@ pub mod pallet {
 					.and_then(|v| v.checked_mul_int(current_reserve))
 					.ok_or(Error::<T>::Overflow)?;
 
-				let hub_received = if p3 >= delta_reserve {
-					current_price
-						.checked_mul_int(p3.checked_sub(&delta_reserve).ok_or(Error::<T>::Overflow)?)
-						.ok_or(Error::<T>::Overflow)?
-				} else {
-					current_price
-						.checked_mul_int(delta_reserve.checked_sub(&p3).ok_or(Error::<T>::Overflow)?)
-						.ok_or(Error::<T>::Overflow)?
-				};
+				let hub_received = current_price
+					.checked_mul_int(p3.checked_sub(&delta_reserve).ok_or(Error::<T>::Overflow)?)
+					.ok_or(Error::<T>::Overflow)?;
 
 				T::Currency::transfer(T::HubAssetId::get(), &Self::protocol_account(), &who, hub_received)?;
 				hub_received
