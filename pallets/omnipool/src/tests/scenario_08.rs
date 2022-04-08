@@ -72,18 +72,26 @@ fn complex_scenario_works() {
 
 			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 1, 200000000000000));
 
+			assert_ok!(Omnipool::sell(
+				Origin::signed(LP3),
+				1,
+				200,
+				20000000000000,
+				10000000000000
+			));
+
 			check_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 10);
 			check_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 1, 14191575191619508u128, 10);
+			check_balance_approx!(Omnipool::protocol_account(), 1, 14211575191619508u128, 10);
 			check_balance_approx!(Omnipool::protocol_account(), 100, 3589236949625567u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 200, 1650775910819825u128, 10);
+			check_balance_approx!(Omnipool::protocol_account(), 200, 1638588974363038u128, 10);
 			check_balance_approx!(LP1, 100, 3000000000000000u128, 10);
 			check_balance_approx!(LP1, 200, 3000000000000000u128, 10);
 			check_balance_approx!(LP2, 100, 550000000000000u128, 10);
 			check_balance_approx!(LP2, 200, 24596656872852u128, 10);
 			check_balance_approx!(LP3, 100, 860763050374432u128, 10);
-			check_balance_approx!(LP3, 200, 624627432307321u128, 10);
-			check_balance_approx!(LP3, 1, 40634322079393u128, 10);
+			check_balance_approx!(LP3, 200, 636814368764109u128, 10);
+			check_balance_approx!(LP3, 1, 20634322079393u128, 10);
 
 			check_asset_state!(
 				2,
@@ -121,8 +129,8 @@ fn complex_scenario_works() {
 			check_asset_state!(
 				200,
 				AssetState {
-					reserve: 1650775910819828,
-					hub_reserve: 2689090864095512,
+					reserve: 1638588974363041,
+					hub_reserve: 2709090864095512,
 					shares: 2008863636363636,
 					protocol_shares: 2000000000000000,
 					tvl: 5378181728191024
@@ -130,10 +138,10 @@ fn complex_scenario_works() {
 			);
 
 			check_state!(
-				14191575191619507,
+				14211575191619507,
 				32498181728191024,
 				SimpleImbalance {
-					value: 0,
+					value: 39852348990836,
 					negative: true
 				}
 			);
