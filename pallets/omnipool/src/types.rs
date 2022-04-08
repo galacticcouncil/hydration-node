@@ -65,14 +65,14 @@ pub(super) enum ImbalanceUpdate<Balance> {
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub(super) struct SimpleImbalance<Balance> {
 	pub(super) value: Balance,
-	negative: bool,
+	pub(super) negative: bool,
 }
 
 impl<Balance: Default> Default for SimpleImbalance<Balance> {
 	fn default() -> Self {
 		Self {
 			value: Balance::default(),
-			negative: false,
+			negative: true,
 		}
 	}
 }

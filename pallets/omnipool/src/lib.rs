@@ -21,6 +21,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate core;
+
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::PalletId;
@@ -1007,7 +1009,7 @@ impl<T: Config> Pallet<T> {
 		let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
 		let q_ratio = FixedU128::from((
-			amount,
+			asset_out_state.hub_reserve,
 			asset_out_state
 				.hub_reserve
 				.checked_add(&amount)
@@ -1019,7 +1021,13 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::Overflow)?;
 
 		let delta_reserve = fee_asset
-			.checked_mul(&q_ratio)
+			.checked_mul(&FixedU128::from((
+				amount,
+				asset_out_state
+					.hub_reserve
+					.checked_add(&amount)
+					.ok_or(Error::<T>::Overflow)?,
+			)))
 			.and_then(|v| v.checked_mul_int(asset_out_state.reserve))
 			.ok_or(Error::<T>::Overflow)?;
 

@@ -40,7 +40,14 @@ fn simple_sell_works() {
 				1952191235059762
 			);
 
-			check_state!(13_360 * ONE, 27_320 * ONE, SimpleImbalance::default());
+			check_state!(
+				13_360 * ONE,
+				27_320 * ONE,
+				SimpleImbalance {
+					value: 0u128,
+					negative: true
+				}
+			);
 
 			check_asset_state!(
 				100,
@@ -60,6 +67,124 @@ fn simple_sell_works() {
 					shares: 2000 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 2000 * ONE
+				}
+			);
+		});
+}
+
+#[test]
+fn sell_hub_works() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), 0, 100000000000000000),
+			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(LP1, 100, 5000000000000000),
+			(LP1, 200, 5000000000000000),
+			(LP2, 100, 1000000000000000),
+			(LP3, 100, 1000000000000000),
+			(LP3, 1, 100000000000000),
+		])
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				2,
+				1000000000000000,
+				FixedU128::from_float(0.5)
+			));
+
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				0,
+				10000000000000000,
+				FixedU128::from(1)
+			));
+
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP1),
+				100,
+				2000000000000000,
+				FixedU128::from_float(0.65)
+			));
+
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP1),
+				200,
+				2000000000000000,
+				FixedU128::from_float(0.65)
+			));
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+
+			assert_ok!(Omnipool::sell(
+				Origin::signed(LP3),
+				1,
+				200,
+				50000000000000,
+				10000000000000
+			));
+
+			check_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 1);
+			check_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 1);
+			check_balance_approx!(Omnipool::protocol_account(), 1, 13410000000000000u128, 1);
+			check_balance_approx!(Omnipool::protocol_account(), 100, 2400000000000000u128, 1);
+			check_balance_approx!(Omnipool::protocol_account(), 200, 1925925925925925u128, 1);
+			check_balance_approx!(LP1, 100, 3000000000000000u128, 1);
+			check_balance_approx!(LP1, 200, 3000000000000000u128, 1);
+			check_balance_approx!(LP2, 100, 600000000000000u128, 1);
+			check_balance_approx!(LP3, 100, 1000000000000000u128, 1);
+			check_balance_approx!(LP3, 1, 50000000000000u128, 1);
+			check_balance_approx!(LP3, 200, 74074074074074u128, 1);
+
+			check_asset_state!(
+				2,
+				AssetState {
+					reserve: 1000000000000000,
+					hub_reserve: 500000000000000,
+					shares: 1000000000000000,
+					protocol_shares: 1000000000000000,
+					tvl: 1000000000000000
+				}
+			);
+
+			check_asset_state!(
+				0,
+				AssetState {
+					reserve: 10000000000000000,
+					hub_reserve: 10000000000000000,
+					shares: 10000000000000000,
+					protocol_shares: 10000000000000000,
+					tvl: 10000000000000000
+				}
+			);
+
+			check_asset_state!(
+				100,
+				AssetState {
+					reserve: 2400000000000000,
+					hub_reserve: 1560000000000000,
+					shares: 2400000000000000,
+					protocol_shares: 2000000000000000,
+					tvl: 3120000000000000
+				}
+			);
+
+			check_asset_state!(
+				200,
+				AssetState {
+					reserve: 1925925925925926,
+					hub_reserve: 1350000000000000,
+					shares: 2000000000000000,
+					protocol_shares: 2000000000000000,
+					tvl: 2000000000000000
+				}
+			);
+
+			check_state!(
+				13410000000000000,
+				27320000000000000,
+				SimpleImbalance {
+					value: 98148148148148,
+					negative: true
 				}
 			);
 		});

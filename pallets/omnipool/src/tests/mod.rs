@@ -25,11 +25,24 @@ macro_rules! check_balance {
 }
 
 #[macro_export]
+macro_rules! check_balance_approx {
+	( $x:expr, $y:expr, $z:expr, $l:expr) => {{
+		let b = Tokens::free_balance($y, &$x);
+		if $z == b {
+		} else if $z == b.saturating_sub($l) {
+		} else if $z == b.saturating_add($l) {
+		} else {
+			panic!("\nBalance not equal\n left: {}\nright: {}\n", b, $z);
+		};
+	}};
+}
+
+#[macro_export]
 macro_rules! check_state {
 	( $x:expr, $y:expr, $z:expr) => {{
-		assert_eq!(HubAssetLiquidity::<Test>::get(), $x, "Hub liquidity incorrect");
-		assert_eq!(TotalTVL::<Test>::get(), $y, "Total tvl incorrect");
-		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect");
+		assert_eq!(HubAssetLiquidity::<Test>::get(), $x, "Hub liquidity incorrect\n");
+		assert_eq!(TotalTVL::<Test>::get(), $y, "Total tvl incorrect\n");
+		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect\n");
 	}};
 }
 
