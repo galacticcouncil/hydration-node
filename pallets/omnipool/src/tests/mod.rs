@@ -28,10 +28,9 @@ macro_rules! check_balance {
 macro_rules! check_balance_approx {
 	( $x:expr, $y:expr, $z:expr, $l:expr) => {{
 		let b = Tokens::free_balance($y, &$x);
-		if $z == b {
-		} else if $z == b.saturating_sub($l) {
-		} else if $z == b.saturating_add($l) {
-		} else {
+
+		let diff = if $z >= b { $z - b } else { b - $z };
+		if diff > $l {
 			panic!("\nBalance not equal\n left: {}\nright: {}\n", b, $z);
 		};
 	}};
