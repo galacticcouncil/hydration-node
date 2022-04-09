@@ -606,6 +606,7 @@ pub mod pallet {
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+			let current_imbalance = <HubAssetImbalance<T>>::get();
 
 			let state_changes = calculate_sell_state_changes::<T>(
 				&asset_in_state,
@@ -613,6 +614,7 @@ pub mod pallet {
 				amount,
 				Self::asset_fee(),
 				Self::protocol_fee(),
+				&current_imbalance,
 			)
 			.ok_or(Error::<T>::Overflow)?;
 
@@ -621,25 +623,12 @@ pub mod pallet {
 				Error::<T>::BuyLimitNotReached
 			);
 
-			// Fee accounting and imbalance
-			let current_imbalance = <HubAssetImbalance<T>>::get();
-
-			let protocol_fee_amount = Self::protocol_fee()
-				.checked_mul_int(state_changes.delta_hub_reserve_in)
-				.ok_or(Error::<T>::Overflow)?;
-
-			let delta_imbalance = min(protocol_fee_amount, current_imbalance.value);
-
-			let delta_fee_amount = protocol_fee_amount
-				.checked_sub(&delta_imbalance)
-				.ok_or(Error::<T>::Overflow)?;
-
-			if delta_fee_amount > T::Balance::zero() {
+			if state_changes.hdx_fee_amount > T::Balance::zero() {
 				// Transfer to Native asset Hub side
 				let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
 				native_subpool.hub_reserve = native_subpool
 					.hub_reserve
-					.checked_add(&delta_fee_amount)
+					.checked_add(&state_changes.hdx_fee_amount)
 					.ok_or(Error::<T>::Overflow)?;
 				<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
 			}
@@ -654,7 +643,7 @@ pub mod pallet {
 				.checked_sub(
 					&state_changes
 						.delta_hub_reserve_in
-						.checked_sub(&delta_fee_amount)
+						.checked_sub(&state_changes.hdx_fee_amount)
 						.ok_or(Error::<T>::Overflow)?,
 				)
 				.ok_or(Error::<T>::Overflow)?;
@@ -688,13 +677,15 @@ pub mod pallet {
 			Self::update_hub_asset_liquidity(
 				state_changes
 					.delta_hub_reserve_in
-					.checked_sub(&delta_fee_amount)
+					.checked_sub(&state_changes.hdx_fee_amount)
 					.ok_or(Error::<T>::Overflow)?,
 				state_changes.delta_hub_reserve_out,
 			)?;
 
 			// Imbalance update
-			let imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
+			let imbalance = current_imbalance
+				.sub(state_changes.delta_imbalance)
+				.ok_or(Error::<T>::Overflow)?;
 			<HubAssetImbalance<T>>::put(imbalance);
 
 			Self::deposit_event(Event::SellExecuted(
