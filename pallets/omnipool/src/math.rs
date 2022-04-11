@@ -124,9 +124,7 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 
 		let p3 = p1.checked_mul(&p2).and_then(|v| v.checked_mul_int(current_reserve))?;
 
-		let hub_received = current_price.checked_mul_int(p3.checked_sub(&delta_reserve)?)?;
-
-		hub_received
+		current_price.checked_mul_int(p3.checked_sub(&delta_reserve)?)?
 	} else {
 		T::Balance::zero()
 	};
