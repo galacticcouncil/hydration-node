@@ -28,7 +28,7 @@ use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
-use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
+use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
 use std::cmp::Ordering;
 
@@ -69,13 +69,14 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::math::{calculate_add_liquidity_state_changes, calculate_remove_liquidity_state_changes};
+	use crate::math::{
+		calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
+	};
 	use crate::types::{AssetState, Position, Price, SimpleImbalance};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{FixedPointNumber, FixedU128};
-	use std::cmp::min;
+	use sp_runtime::FixedPointNumber;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -693,63 +694,29 @@ pub mod pallet {
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			// Positive
-			let fee_asset = FixedU128::from(1)
-				.checked_sub(&Self::asset_fee())
-				.ok_or(Error::<T>::Overflow)?;
-			let fee_protocol = FixedU128::from(1)
-				.checked_sub(&Self::protocol_fee())
-				.ok_or(Error::<T>::Overflow)?;
-
-			let q_out_part = FixedU128::from((
+			let state_changes = calculate_buy_state_changes::<T>(
+				&asset_in_state,
+				&asset_out_state,
 				amount,
-				fee_asset
-					.checked_mul_int(asset_out_state.reserve)
-					.and_then(|v| v.checked_sub(&amount))
-					.ok_or(Error::<T>::Overflow)?,
-			));
-
-			let delta_q_out = q_out_part
-				.checked_mul_int(asset_out_state.hub_reserve)
-				.ok_or(Error::<T>::Overflow)?;
-
-			// Negative
-			let delta_q_in: T::Balance = FixedU128::from_inner(delta_q_out.into())
-				.checked_div(&fee_protocol)
-				.ok_or(Error::<T>::Overflow)?
-				.into_inner()
-				.into();
-
-			// Positive
-			let delta_r_in = FixedU128::from((
-				delta_q_in,
-				asset_in_state
-					.hub_reserve
-					.checked_sub(&delta_q_in)
-					.ok_or(Error::<T>::Overflow)?,
-			))
-			.checked_mul_int(asset_in_state.reserve)
+				Self::asset_fee(),
+				Self::protocol_fee(),
+				&current_imbalance,
+			)
 			.ok_or(Error::<T>::Overflow)?;
 
-			ensure!(delta_r_in <= max_limit, Error::<T>::SellLimitExceeded);
+			ensure!(
+				state_changes.delta_reserve_in <= max_limit,
+				Error::<T>::SellLimitExceeded
+			);
 
 			// Fee accounting and imbalance
-			let current_imbalance = <HubAssetImbalance<T>>::get();
-			let protocol_fee_amount = Self::protocol_fee()
-				.checked_mul_int(delta_q_in)
-				.ok_or(Error::<T>::Overflow)?;
-			let delta_imbalance = min(protocol_fee_amount, current_imbalance.value);
-
-			let delta_fee_amount = protocol_fee_amount
-				.checked_sub(&delta_imbalance)
-				.ok_or(Error::<T>::Overflow)?;
-
-			if delta_fee_amount > T::Balance::zero() {
+			if state_changes.hdx_fee_amount > T::Balance::zero() {
 				let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
 				native_subpool.hub_reserve = native_subpool
 					.hub_reserve
-					.checked_add(&delta_fee_amount)
+					.checked_add(&state_changes.hdx_fee_amount)
 					.ok_or(Error::<T>::Overflow)?;
 				<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
 			}
@@ -757,40 +724,66 @@ pub mod pallet {
 			// Pool state update
 			asset_in_state.reserve = asset_in_state
 				.reserve
-				.checked_add(&delta_r_in)
+				.checked_add(&state_changes.delta_reserve_in)
 				.ok_or(Error::<T>::Overflow)?;
 			asset_in_state.hub_reserve = asset_in_state
 				.hub_reserve
-				.checked_sub(&delta_q_in.checked_sub(&delta_fee_amount).ok_or(Error::<T>::Overflow)?)
+				.checked_sub(
+					&state_changes
+						.delta_hub_reserve_in
+						.checked_sub(&state_changes.hdx_fee_amount)
+						.ok_or(Error::<T>::Overflow)?,
+				)
 				.ok_or(Error::<T>::Overflow)?;
 
 			asset_out_state.reserve = asset_out_state
 				.reserve
-				.checked_sub(&amount)
+				.checked_sub(&state_changes.delta_reserve_out)
 				.ok_or(Error::<T>::Overflow)?;
 			asset_out_state.hub_reserve = asset_out_state
 				.hub_reserve
-				.checked_add(&delta_q_out)
+				.checked_add(&state_changes.delta_hub_reserve_out)
 				.ok_or(Error::<T>::Overflow)?;
 
 			<Assets<T>>::insert(asset_in, asset_in_state);
 			<Assets<T>>::insert(asset_out, asset_out_state);
 
 			// Token balances update
-			T::Currency::transfer(asset_in, &who, &Self::protocol_account(), delta_r_in)?;
-			T::Currency::transfer(asset_out, &Self::protocol_account(), &who, amount)?;
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&Self::protocol_account(),
+				state_changes.delta_reserve_in,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&Self::protocol_account(),
+				&who,
+				state_changes.delta_reserve_out,
+			)?;
 
 			// Hub liquidity update
 			Self::update_hub_asset_liquidity(
-				delta_q_in.checked_sub(&delta_fee_amount).ok_or(Error::<T>::Overflow)?,
-				delta_q_out,
+				state_changes
+					.delta_hub_reserve_in
+					.checked_sub(&state_changes.hdx_fee_amount)
+					.ok_or(Error::<T>::Overflow)?,
+				state_changes.delta_hub_reserve_out,
 			)?;
 
 			// Imbalance update
-			let imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
+			let imbalance = current_imbalance
+				.sub(state_changes.delta_imbalance)
+				.ok_or(Error::<T>::Overflow)?;
 			<HubAssetImbalance<T>>::put(imbalance);
 
-			Self::deposit_event(Event::BuyExecuted(who, asset_in, asset_out, amount, delta_r_in));
+			Self::deposit_event(Event::BuyExecuted(
+				who,
+				asset_in,
+				asset_out,
+				state_changes.delta_reserve_out,
+				state_changes.delta_reserve_in,
+			));
 
 			Ok(())
 		}

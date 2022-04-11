@@ -62,6 +62,56 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 	})
 }
 
+pub(crate) fn calculate_buy_state_changes<T: Config>(
+	asset_in_state: &AssetState<T::Balance>,
+	asset_out_state: &AssetState<T::Balance>,
+	amount: T::Balance,
+	asset_fee: FixedU128,
+	protocol_fee: FixedU128,
+	imbalance: &SimpleImbalance<T::Balance>,
+) -> Option<StateChanges<T::Balance>> {
+	// Positive
+	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
+	let fee_protocol = FixedU128::from(1).checked_sub(&protocol_fee)?;
+
+	let delta_hub_reserve_out = FixedU128::from((
+		amount,
+		fee_asset
+			.checked_mul_int(asset_out_state.reserve)?
+			.checked_sub(&amount)?,
+	))
+	.checked_mul_int(asset_out_state.hub_reserve)?;
+
+	// Negative
+	let delta_hub_reserve_in: T::Balance = FixedU128::from_inner(delta_hub_reserve_out.into())
+		.checked_div(&fee_protocol)?
+		.into_inner()
+		.into();
+
+	// Positive
+	let delta_reserve_in = FixedU128::from((
+		delta_hub_reserve_in,
+		asset_in_state.hub_reserve.checked_sub(&delta_hub_reserve_in)?,
+	))
+	.checked_mul_int(asset_in_state.reserve)?;
+
+	// Fee accounting and imbalance
+	let protocol_fee_amount = protocol_fee.checked_mul_int(delta_hub_reserve_in)?;
+	let delta_imbalance = min(protocol_fee_amount, imbalance.value);
+
+	let hdx_fee_amount = protocol_fee_amount.checked_sub(&delta_imbalance)?;
+
+	Some(StateChanges {
+		delta_reserve_in,
+		delta_reserve_out: amount,
+		delta_hub_reserve_in,
+		delta_hub_reserve_out,
+		delta_imbalance,
+		hdx_fee_amount,
+		..Default::default()
+	})
+}
+
 pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 	asset_state: &AssetState<T::Balance>,
 	amount: T::Balance,
