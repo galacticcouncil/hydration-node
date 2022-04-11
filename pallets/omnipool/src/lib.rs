@@ -204,6 +204,8 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq))]
 	pub enum Error<T> {
+		/// Balance too low
+		InsufficientBalance,
 		/// Asset is already in omnipool
 		AssetAlreadyAdded,
 		/// Asset is not in omnipool
@@ -354,7 +356,10 @@ pub mod pallet {
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			//TODO: check free balance of account before doing anything
+			ensure!(
+				T::Currency::free_balance(asset, &who) >= amount,
+				Error::<T>::InsufficientBalance
+			);
 
 			let mut asset_state = Assets::<T>::get(asset).ok_or(Error::<T>::AssetNotFound)?;
 
@@ -424,7 +429,7 @@ pub mod pallet {
 		/// if all shares from given position are removed, NFT is burned.
 		///
 		/// Parameters:
-		/// - `position_id`: The identifier of position which liiquidity is removed from.
+		/// - `position_id`: The identifier of position which liquidity is removed from.
 		/// - `amount`: Amount of shares removed from omnipool
 		///
 		/// Emits `LiquidityRemoved` event when successful.
@@ -560,7 +565,10 @@ pub mod pallet {
 
 			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
-			// TODO: check free balance before doing anything
+			ensure!(
+				T::Currency::free_balance(asset_in, &who) >= amount,
+				Error::<T>::InsufficientBalance
+			);
 
 			//Handle selling hub asset separately as math is simplified and asset_in is actually part of asset_out state in this case
 			if asset_in == T::HubAssetId::get() {
@@ -692,6 +700,11 @@ pub mod pallet {
 				&current_imbalance,
 			)
 			.ok_or(Error::<T>::Overflow)?;
+
+			ensure!(
+				T::Currency::free_balance(asset_in, &who) >= state_changes.delta_reserve_in,
+				Error::<T>::InsufficientBalance
+			);
 
 			ensure!(
 				state_changes.delta_reserve_in <= max_limit,
