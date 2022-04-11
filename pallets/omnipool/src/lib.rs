@@ -629,13 +629,7 @@ pub mod pallet {
 			)?;
 
 			// Hub liquidity update
-			Self::update_hub_asset_liquidity(
-				state_changes
-					.delta_hub_reserve_in
-					.checked_sub(&state_changes.hdx_fee_amount)
-					.ok_or(Error::<T>::Overflow)?,
-				state_changes.delta_hub_reserve_out,
-			)?;
+			Self::update_hub_asset_liquidity(state_changes.delta_hub_reserve_in, state_changes.delta_hub_reserve_out)?;
 
 			// Imbalance update
 			let imbalance = current_imbalance
@@ -748,13 +742,7 @@ pub mod pallet {
 			)?;
 
 			// Hub liquidity update
-			Self::update_hub_asset_liquidity(
-				state_changes
-					.delta_hub_reserve_in
-					.checked_sub(&state_changes.hdx_fee_amount)
-					.ok_or(Error::<T>::Overflow)?,
-				state_changes.delta_hub_reserve_out,
-			)?;
+			Self::update_hub_asset_liquidity(state_changes.delta_hub_reserve_in, state_changes.delta_hub_reserve_out)?;
 
 			// Imbalance update
 			let imbalance = current_imbalance
