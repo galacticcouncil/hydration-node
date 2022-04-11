@@ -1,10 +1,12 @@
 use crate::types::SimpleImbalance;
 use crate::{AssetState, Config, FixedU128};
-use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub};
+use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::FixedPointNumber;
 use sp_std::default::Default;
 use std::cmp::min;
 
+// TODO: think about better way as not all fields are necessary in every operation - probably enum would be a way ?!
+// Also a way to indicate an increase or decrease would be good
 #[derive(Default)]
 pub struct StateChanges<Balance> {
 	pub delta_reserve_in: Balance,
@@ -13,7 +15,10 @@ pub struct StateChanges<Balance> {
 	pub delta_hub_reserve_out: Balance,
 	pub delta_imbalance: Balance,
 	pub hdx_fee_amount: Balance,
+	pub lp_hub_amount: Balance,
+	pub delta_position_reserve: Balance,
 	pub delta_shares: Balance,
+	pub delta_protocol_shares: Balance,
 }
 
 pub(crate) fn calculate_sell_state_changes<T: Config>(
@@ -72,6 +77,69 @@ pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 		delta_hub_reserve_in: delta_hub_reserve,
 		delta_shares: new_shares.checked_sub(&asset_state.shares)?,
 		delta_imbalance: amount,
+		..Default::default()
+	})
+}
+
+pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
+	asset_state: &AssetState<T::Balance>,
+	shares_removed: T::Balance,
+	position_price: FixedU128,
+) -> Option<StateChanges<T::Balance>> {
+	let current_shares = asset_state.shares;
+	let current_reserve = asset_state.reserve;
+	let current_hub_reserve = asset_state.hub_reserve;
+
+	let current_price = asset_state.price();
+
+	// Protocol shares update
+	let delta_b = if current_price < position_price {
+		let sum = current_price.checked_add(&position_price)?;
+		let sub = position_price.checked_sub(&current_price)?;
+
+		sub.checked_div(&sum).and_then(|v| v.checked_mul_int(shares_removed))?
+	} else {
+		T::Balance::zero()
+	};
+
+	let delta_shares = shares_removed.checked_sub(&delta_b)?;
+
+	let delta_reserve = FixedU128::from((current_reserve, current_shares)).checked_mul_int(delta_shares)?;
+
+	let delta_hub_reserve = FixedU128::from((delta_reserve, current_reserve)).checked_mul_int(current_hub_reserve)?;
+
+	let hub_transferred = if current_price > position_price {
+		// LP receives some hub asset
+
+		// delta_q_a = -pi * ( 2pi / (pi + pa) * delta_s_a / Si * Ri + delta_r_a )
+		// note: delta_s_a is < 0
+
+		let price_sum = current_price.checked_add(&position_price)?;
+
+		let double_current_price = current_price.checked_mul(&FixedU128::from(2))?;
+
+		let p1 = double_current_price.checked_div(&price_sum)?;
+
+		let p2 = FixedU128::from((shares_removed, current_shares));
+
+		let p3 = p1.checked_mul(&p2).and_then(|v| v.checked_mul_int(current_reserve))?;
+
+		let hub_received = current_price.checked_mul_int(p3.checked_sub(&delta_reserve)?)?;
+
+		hub_received
+	} else {
+		T::Balance::zero()
+	};
+	let delta_r_position =
+		FixedU128::from((asset_state.reserve, asset_state.shares)).checked_mul_int(shares_removed)?;
+
+	Some(StateChanges {
+		delta_reserve_out: delta_reserve,
+		delta_hub_reserve_out: delta_hub_reserve,
+		delta_protocol_shares: delta_b,
+		delta_shares,
+		lp_hub_amount: hub_transferred,
+		delta_position_reserve: delta_r_position,
 		..Default::default()
 	})
 }
