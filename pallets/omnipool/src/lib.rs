@@ -51,7 +51,7 @@ mod types;
 pub mod weights;
 
 use crate::types::{AssetState, ImbalanceUpdate, Price};
-use math::hydradx_math::calculate_sell_state_changes;
+use math::calculate_sell_state_changes;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -69,6 +69,7 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::math::calculate_add_liquidity_state_changes;
 	use crate::types::{AssetState, Position, Price, SimpleImbalance};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
@@ -351,41 +352,37 @@ pub mod pallet {
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			//TODO: check free balance of account before doing anything
+
 			let mut asset_state = Assets::<T>::get(asset).ok_or(Error::<T>::AssetNotFound)?;
 
-			// Current state
-			let current_shares = asset_state.shares;
-			let current_reserve = asset_state.reserve;
+			let state_changes =
+				calculate_add_liquidity_state_changes::<T>(&asset_state, amount).ok_or(Error::<T>::Overflow)?;
 
-			let current_price = asset_state.price();
-
-			let delta_hub_reserve = current_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
-
-			let new_hub_reserve = asset_state
+			// New Asset State
+			asset_state.reserve = asset_state
+				.reserve
+				.checked_add(&state_changes.delta_reserve_in)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_state.shares = asset_state
+				.shares
+				.checked_add(&state_changes.delta_shares)
+				.ok_or(Error::<T>::Overflow)?;
+			asset_state.hub_reserve = asset_state
 				.hub_reserve
-				.checked_add(&delta_hub_reserve)
+				.checked_add(&state_changes.delta_hub_reserve_in)
 				.ok_or(Error::<T>::Overflow)?;
 
 			ensure!(
-				new_hub_reserve <= T::AssetWeightCap::get(),
+				asset_state.hub_reserve <= T::AssetWeightCap::get(),
 				Error::<T>::AssetWeightCapExceeded
 			);
-			let new_reserve = current_reserve.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
-
-			let new_shares = FixedU128::from((current_shares, current_reserve))
-				.checked_mul_int(new_reserve)
-				.ok_or(Error::<T>::Overflow)?;
-
-			// New Asset State
-			asset_state.reserve = new_reserve;
-			asset_state.shares = new_shares;
-			asset_state.hub_reserve = new_hub_reserve;
 
 			// Create LP position
 			let lp_position = Position::<T::Balance, T::AssetId> {
 				asset_id: asset,
 				amount,
-				shares: new_shares.checked_sub(&current_shares).ok_or(Error::<T>::Overflow)?,
+				shares: state_changes.delta_shares,
 				price: Position::<T::Balance, T::AssetId>::price_to_balance(asset_state.price()),
 			};
 
@@ -394,17 +391,21 @@ pub mod pallet {
 			<Positions<T>>::insert(instance_id, lp_position);
 
 			// Token update
-			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
-			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), delta_hub_reserve)?;
+			T::Currency::transfer(asset, &who, &Self::protocol_account(), state_changes.delta_reserve_in)?;
+			T::Currency::deposit(
+				T::HubAssetId::get(),
+				&Self::protocol_account(),
+				state_changes.delta_hub_reserve_in,
+			)?;
 
 			// Imbalance update
-			Self::update_imbalance(&asset_state, ImbalanceUpdate::Decrease(amount))?;
+			Self::update_imbalance(&asset_state, ImbalanceUpdate::Decrease(state_changes.delta_imbalance))?;
 
 			// TVL update
 			Self::update_tvl(&mut asset_state)?;
 
 			// Total hub asset liquidity update
-			Self::increase_hub_asset_liquidity(delta_hub_reserve)?;
+			Self::increase_hub_asset_liquidity(state_changes.delta_hub_reserve_in)?;
 
 			// Storage update - asset state
 			<Assets<T>>::insert(asset, asset_state);
@@ -906,20 +907,20 @@ impl<T: Config> Pallet<T> {
 	fn update_hub_asset_liquidity(delta_amount_in: T::Balance, delta_amount_out: T::Balance) -> DispatchResult {
 		match delta_amount_in.cmp(&delta_amount_out) {
 			Ordering::Greater => {
-				// We need to burn some in this case
+				// We need to burn some in this cased
 				let diff = delta_amount_in
 					.checked_sub(&delta_amount_out)
 					.ok_or(Error::<T>::Overflow)?;
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::decrease_hub_asset_liquidity(diff)
+				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::increase_hub_asset_liquidity(diff)
 			}
 			Ordering::Less => {
 				// We need to mint some in this case
 				let diff = delta_amount_out
 					.checked_sub(&delta_amount_in)
 					.ok_or(Error::<T>::Overflow)?;
-				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::increase_hub_asset_liquidity(diff)
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
+				Self::decrease_hub_asset_liquidity(diff)
 			}
 			Ordering::Equal => Ok(()), // If equal, nothing to do
 		}

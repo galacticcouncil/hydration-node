@@ -19,6 +19,13 @@ const ONE: Balance = 1_000_000_000_000;
 const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 #[macro_export]
+macro_rules! assert_eq_approx {
+	( $x:expr, $y:expr, $z:expr) => {{
+		assert_eq!(Tokens::free_balance($y, &$x), $z);
+	}};
+}
+
+#[macro_export]
 macro_rules! check_balance {
 	( $x:expr, $y:expr, $z:expr) => {{
 		assert_eq!(Tokens::free_balance($y, &$x), $z);
