@@ -1,6 +1,6 @@
 use crate::types::SimpleImbalance;
 use crate::{AssetState, Config, FixedU128};
-use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
+use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::FixedPointNumber;
 use sp_std::default::Default;
 use std::cmp::min;
@@ -58,6 +58,38 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 		delta_hub_reserve_out,
 		delta_imbalance,
 		hdx_fee_amount,
+		..Default::default()
+	})
+}
+pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
+	asset_out_state: &AssetState<T::Balance>,
+	amount: T::Balance,
+	asset_fee: FixedU128,
+) -> Option<StateChanges<T::Balance>> {
+	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
+
+	let hub_ratio = FixedU128::from((
+		asset_out_state.hub_reserve,
+		asset_out_state.hub_reserve.checked_add(&amount)?,
+	));
+
+	let delta_reserve_out = fee_asset
+		.checked_mul(&FixedU128::from((
+			amount,
+			asset_out_state.hub_reserve.checked_add(&amount)?,
+		)))?
+		.checked_mul_int(asset_out_state.reserve)?;
+
+	// Negative
+	let delta_imbalance = fee_asset
+		.checked_mul(&hub_ratio)?
+		.checked_add(&FixedU128::one())?
+		.checked_mul_int(amount)?;
+
+	Some(StateChanges {
+		delta_reserve_out,
+		delta_hub_reserve_in: amount,
+		delta_imbalance,
 		..Default::default()
 	})
 }

@@ -27,7 +27,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
+use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
 use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
 use std::cmp::Ordering;
@@ -50,6 +50,7 @@ mod math;
 mod types;
 pub mod weights;
 
+use crate::math::calculate_sell_hub_state_changes;
 use crate::types::{AssetState, ImbalanceUpdate, Price};
 use math::calculate_sell_state_changes;
 pub use pallet::*;
@@ -974,60 +975,45 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
-		let q_ratio = FixedU128::from((
-			asset_out_state.hub_reserve,
-			asset_out_state
-				.hub_reserve
-				.checked_add(&amount)
-				.ok_or(Error::<T>::Overflow)?,
-		));
-
-		let fee_asset = FixedU128::from(1)
-			.checked_sub(&Self::asset_fee())
+		let state_changes = calculate_sell_hub_state_changes::<T>(&asset_out_state, amount, Self::asset_fee())
 			.ok_or(Error::<T>::Overflow)?;
 
-		let delta_reserve = fee_asset
-			.checked_mul(&FixedU128::from((
-				amount,
-				asset_out_state
-					.hub_reserve
-					.checked_add(&amount)
-					.ok_or(Error::<T>::Overflow)?,
-			)))
-			.and_then(|v| v.checked_mul_int(asset_out_state.reserve))
-			.ok_or(Error::<T>::Overflow)?;
-
-		ensure!(delta_reserve >= limit, Error::<T>::BuyLimitNotReached);
+		ensure!(state_changes.delta_reserve_out >= limit, Error::<T>::BuyLimitNotReached);
 
 		asset_out_state.reserve = asset_out_state
 			.reserve
-			.checked_sub(&delta_reserve)
+			.checked_sub(&state_changes.delta_reserve_out)
 			.ok_or(Error::<T>::Overflow)?;
 
 		asset_out_state.hub_reserve = asset_out_state
 			.hub_reserve
-			.checked_add(&amount)
+			.checked_add(&state_changes.delta_hub_reserve_in)
 			.ok_or(Error::<T>::Overflow)?;
 
 		// Token updates
-		T::Currency::transfer(T::HubAssetId::get(), who, &Self::protocol_account(), amount)?;
-		T::Currency::transfer(asset_out, &Self::protocol_account(), who, delta_reserve)?;
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			who,
+			&Self::protocol_account(),
+			state_changes.delta_hub_reserve_in,
+		)?;
+		T::Currency::transfer(
+			asset_out,
+			&Self::protocol_account(),
+			who,
+			state_changes.delta_reserve_out,
+		)?;
 
 		// Fee accounting and imbalance
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 
-		// Negative
-		let delta_imbalance = fee_asset
-			.checked_mul(&q_ratio)
-			.and_then(|v| v.checked_add(&FixedU128::one()))
-			.and_then(|v| v.checked_mul_int(amount))
-			.ok_or(Error::<T>::Overflow)?;
-
 		// Total hub asset liquidity
-		Self::increase_hub_asset_liquidity(amount)?;
+		Self::increase_hub_asset_liquidity(state_changes.delta_hub_reserve_in)?;
 
 		// Imbalance update
-		let imbalance = current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?;
+		let imbalance = current_imbalance
+			.sub(state_changes.delta_imbalance)
+			.ok_or(Error::<T>::Overflow)?;
 		<HubAssetImbalance<T>>::put(imbalance);
 
 		<Assets<T>>::insert(asset_out, asset_out_state);
@@ -1036,8 +1022,8 @@ impl<T: Config> Pallet<T> {
 			who.clone(),
 			T::HubAssetId::get(),
 			asset_out,
-			amount,
-			delta_reserve,
+			state_changes.delta_hub_reserve_in,
+			state_changes.delta_reserve_out,
 		));
 
 		Ok(())
