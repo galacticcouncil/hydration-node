@@ -22,7 +22,7 @@ impl<Balance> AssetState<Balance>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Clone,
 {
-	/// Calcuate price for actual state
+	/// Calculate price for actual state
 	pub(super) fn price(&self) -> FixedU128 {
 		FixedU128::from((self.hub_reserve.clone().into(), self.reserve.clone().into()))
 	}
@@ -62,13 +62,13 @@ pub(super) enum ImbalanceUpdate<Balance> {
 
 /// Simple type to represent imbalance which can be positive or negative.
 // Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub(super) struct SimpleImbalance<Balance> {
+#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub(super) struct SimpleImbalance<Balance: Copy> {
 	pub(super) value: Balance,
 	pub(super) negative: bool,
 }
 
-impl<Balance: Default> Default for SimpleImbalance<Balance> {
+impl<Balance: Default + Copy> Default for SimpleImbalance<Balance> {
 	fn default() -> Self {
 		Self {
 			value: Balance::default(),
@@ -77,32 +77,32 @@ impl<Balance: Default> Default for SimpleImbalance<Balance> {
 	}
 }
 
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd> SimpleImbalance<Balance> {
-	pub(super) fn add(mut self, amount: Balance) -> Option<Self> {
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> SimpleImbalance<Balance> {
+	pub(super) fn add(&mut self, amount: Balance) -> Option<Self> {
 		if self.is_positive() {
 			self.value = self.value.checked_add(&amount)?;
-			Some(self)
+			Some(*self)
 		} else if self.value < amount {
 			self.value = amount.checked_sub(&self.value)?;
 			self.negative = false;
-			Some(self)
+			Some(*self)
 		} else {
 			self.value = self.value.checked_sub(&amount)?;
-			Some(self)
+			Some(*self)
 		}
 	}
 
-	pub(super) fn sub(mut self, amount: Balance) -> Option<Self> {
+	pub(super) fn sub(&mut self, amount: Balance) -> Option<Self> {
 		if self.is_negative() {
 			self.value = self.value.checked_add(&amount)?;
-			Some(self)
+			Some(*self)
 		} else if self.value < amount {
 			self.value = amount.checked_sub(&self.value)?;
 			self.negative = true;
-			Some(self)
+			Some(*self)
 		} else {
 			self.value = self.value.checked_sub(&amount)?;
-			Some(self)
+			Some(*self)
 		}
 	}
 
