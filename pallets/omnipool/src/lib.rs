@@ -586,15 +586,7 @@ pub mod pallet {
 				Error::<T>::BuyLimitNotReached
 			);
 
-			if state_changes.hdx_fee_amount > T::Balance::zero() {
-				// Transfer to Native asset Hub side
-				let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
-				native_subpool.hub_reserve = native_subpool
-					.hub_reserve
-					.checked_add(&state_changes.hdx_fee_amount)
-					.ok_or(Error::<T>::Overflow)?;
-				<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
-			}
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_fee_amount)?;
 
 			// Pool state update
 			asset_in_state.reserve = asset_in_state
@@ -712,15 +704,7 @@ pub mod pallet {
 				Error::<T>::SellLimitExceeded
 			);
 
-			// Fee accounting and imbalance
-			if state_changes.hdx_fee_amount > T::Balance::zero() {
-				let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
-				native_subpool.hub_reserve = native_subpool
-					.hub_reserve
-					.checked_add(&state_changes.hdx_fee_amount)
-					.ok_or(Error::<T>::Overflow)?;
-				<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
-			}
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_fee_amount)?;
 
 			// Pool state update
 			asset_in_state.reserve = asset_in_state
@@ -839,6 +823,18 @@ impl<T: Config> Pallet<T> {
 
 			Ok(instance_id)
 		})
+	}
+
+	fn update_hdx_subpool_hub_asset(hub_asset_amount: T::Balance) -> DispatchResult {
+		if hub_asset_amount > T::Balance::zero() {
+			let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
+			native_subpool.hub_reserve = native_subpool
+				.hub_reserve
+				.checked_add(&hub_asset_amount)
+				.ok_or(Error::<T>::Overflow)?;
+			<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
+		}
+		Ok(())
 	}
 
 	/// Add amount to total hub asset liquidity
