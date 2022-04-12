@@ -29,6 +29,7 @@ use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
 use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
 use std::cmp::Ordering;
+use std::ops::{Add, Sub};
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
@@ -377,7 +378,7 @@ pub mod pallet {
 			let lp_position = Position::<T::Balance, T::AssetId> {
 				asset_id: asset,
 				amount,
-				shares: state_changes.asset.delta_shares.value(),
+				shares: *state_changes.asset.delta_shares,
 				price: Position::<T::Balance, T::AssetId>::price_to_balance(asset_state.price()),
 			};
 
@@ -390,12 +391,12 @@ pub mod pallet {
 				asset,
 				&who,
 				&Self::protocol_account(),
-				state_changes.asset.delta_reserve.value(),
+				*state_changes.asset.delta_reserve,
 			)?;
 			T::Currency::deposit(
 				T::HubAssetId::get(),
 				&Self::protocol_account(),
-				state_changes.asset.delta_hub_reserve.value(),
+				*state_changes.asset.delta_hub_reserve,
 			)?;
 
 			// Imbalance update
@@ -466,12 +467,12 @@ pub mod pallet {
 				position.asset_id,
 				&Self::protocol_account(),
 				&who,
-				state_changes.asset.delta_reserve.value(),
+				*state_changes.asset.delta_reserve,
 			)?;
 			T::Currency::withdraw(
 				T::HubAssetId::get(),
 				&Self::protocol_account(),
-				state_changes.asset.delta_hub_reserve.value(),
+				*state_changes.asset.delta_hub_reserve,
 			)?;
 			// LP receives some hub asset, if 0 - it is noop.
 			T::Currency::transfer(
@@ -564,7 +565,7 @@ pub mod pallet {
 			.ok_or(Error::<T>::Overflow)?;
 
 			ensure!(
-				state_changes.asset_out.delta_reserve.value() >= min_limit,
+				*state_changes.asset_out.delta_reserve >= min_limit,
 				Error::<T>::BuyLimitNotReached
 			);
 
@@ -594,9 +595,11 @@ pub mod pallet {
 			}
 
 			// Hub liquidity update - work out difference between in and amount and act accordingly and responsibly, fred!
-			let delta_hub_asset = state_changes.asset_in.delta_hub_reserve.checked_add(
-				&state_changes.asset_out.delta_hub_reserve,
-			).ok_or(Error::<T>::Overflow)?;
+			let delta_hub_asset = state_changes
+				.asset_in
+				.delta_hub_reserve
+				.checked_add(&state_changes.asset_out.delta_hub_reserve)
+				.ok_or(Error::<T>::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
@@ -604,12 +607,9 @@ pub mod pallet {
 			match delta_hub_asset {
 				BalanceUpdate::Increase(amount) => {
 					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-				},
+				}
 				BalanceUpdate::Decrease(amount) => {
 					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-				},
-				BalanceUpdate::Zero => {
-
 				}
 			}
 
@@ -622,7 +622,7 @@ pub mod pallet {
 				asset_in,
 				asset_out,
 				amount,
-				state_changes.asset_out.delta_reserve.value(),
+				*state_changes.asset_out.delta_reserve,
 			));
 
 			Ok(())
@@ -674,12 +674,12 @@ pub mod pallet {
 			.ok_or(Error::<T>::Overflow)?;
 
 			ensure!(
-				T::Currency::free_balance(asset_in, &who) >= state_changes.asset_in.delta_reserve.value(),
+				T::Currency::free_balance(asset_in, &who) >= *state_changes.asset_in.delta_reserve,
 				Error::<T>::InsufficientBalance
 			);
 
 			ensure!(
-				state_changes.asset_in.delta_reserve.value() <= max_limit,
+				*state_changes.asset_in.delta_reserve <= max_limit,
 				Error::<T>::SellLimitExceeded
 			);
 
@@ -707,9 +707,11 @@ pub mod pallet {
 				}
 			}
 			// Hub liquidity update - work out difference between in and amount and act accordingly and responsibly, fred!
-			let delta_hub_asset = state_changes.asset_in.delta_hub_reserve.checked_add(
-				&state_changes.asset_out.delta_hub_reserve,
-			).ok_or(Error::<T>::Overflow)?;
+			let delta_hub_asset = state_changes
+				.asset_in
+				.delta_hub_reserve
+				.checked_add(&state_changes.asset_out.delta_hub_reserve)
+				.ok_or(Error::<T>::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
@@ -717,12 +719,9 @@ pub mod pallet {
 			match delta_hub_asset {
 				BalanceUpdate::Increase(amount) => {
 					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-				},
+				}
 				BalanceUpdate::Decrease(amount) => {
 					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-				},
-				BalanceUpdate::Zero => {
-
 				}
 			}
 
@@ -734,8 +733,8 @@ pub mod pallet {
 				who,
 				asset_in,
 				asset_out,
-				state_changes.asset_in.delta_reserve.value(),
-				state_changes.asset_out.delta_reserve.value(),
+				*state_changes.asset_in.delta_reserve,
+				*state_changes.asset_out.delta_reserve,
 			));
 
 			Ok(())
@@ -815,7 +814,6 @@ impl<T: Config> Pallet<T> {
 				BalanceUpdate::Decrease(amount) => {
 					*liquidity = liquidity.checked_sub(amount).ok_or(Error::<T>::Overflow)?;
 				}
-				BalanceUpdate::Zero => {}
 			}
 			Ok(())
 		})
@@ -825,11 +823,9 @@ impl<T: Config> Pallet<T> {
 		current_imbalance: SimpleImbalance<T::Balance>,
 		delta_imbalance: BalanceUpdate<T::Balance>,
 	) -> DispatchResult {
-		// Imbalance update
 		let imbalance = match delta_imbalance {
-			BalanceUpdate::Decrease(amount) => (current_imbalance - amount).ok_or(Error::<T>::Overflow)?,
-			BalanceUpdate::Increase(amount) => (current_imbalance + amount).ok_or(Error::<T>::Overflow)?,
-			BalanceUpdate::Zero => current_imbalance,
+			BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(Error::<T>::Overflow)?,
+			BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(Error::<T>::Overflow)?,
 		};
 		<HubAssetImbalance<T>>::put(imbalance);
 
@@ -850,7 +846,7 @@ impl<T: Config> Pallet<T> {
 			let p2 = FixedU128::from((current_imbalance.value, current_hub_asset_liquidity));
 			let p3 = p1.checked_mul(&p2).ok_or(Error::<T>::Overflow)?;
 
-			let delta_imbalance = p3.checked_mul_int(delta_amount.value()).ok_or(Error::<T>::Overflow)?;
+			let delta_imbalance = p3.checked_mul_int(*delta_amount).ok_or(Error::<T>::Overflow)?;
 
 			match delta_amount {
 				BalanceUpdate::Increase(_) => {
@@ -859,7 +855,6 @@ impl<T: Config> Pallet<T> {
 				BalanceUpdate::Decrease(_) => {
 					return Self::update_imbalance(current_imbalance, BalanceUpdate::Decrease(delta_imbalance));
 				}
-				BalanceUpdate::Zero => {},
 			};
 		}
 
@@ -934,10 +929,7 @@ impl<T: Config> Pallet<T> {
 			calculate_sell_hub_state_changes::<T>(&asset_out_state, amount, Self::asset_fee())
 				.ok_or(Error::<T>::Overflow)?;
 
-		ensure!(
-			state_changes.delta_reserve.value() >= limit,
-			Error::<T>::BuyLimitNotReached
-		);
+		ensure!(*state_changes.delta_reserve >= limit, Error::<T>::BuyLimitNotReached);
 
 		asset_out_state
 			.delta_update(&state_changes)
@@ -962,8 +954,7 @@ impl<T: Config> Pallet<T> {
 		Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(amount_in))?;
 
 		// Imbalance update
-		let imbalance = (current_imbalance - delta_imbalance.value())
-			.ok_or(Error::<T>::Overflow)?;
+		let imbalance = current_imbalance.sub(*delta_imbalance).ok_or(Error::<T>::Overflow)?;
 		<HubAssetImbalance<T>>::put(imbalance);
 
 		<Assets<T>>::insert(asset_out, asset_out_state);

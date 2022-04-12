@@ -3,7 +3,7 @@ use crate::math::AssetStateChange;
 use crate::types::BalanceUpdate::{Decrease, Increase};
 use frame_support::pallet_prelude::*;
 use sp_runtime::{FixedPointNumber, FixedU128};
-use std::ops::{Add, Sub};
+use std::ops::{Add, Deref, Sub};
 
 pub type Price = FixedU128;
 
@@ -23,7 +23,7 @@ pub struct AssetState<Balance> {
 
 impl<Balance> AssetState<Balance>
 where
-	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + Clone + AtLeast32BitUnsigned,
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
 	/// Calculate price for actual state
 	pub(super) fn price(&self) -> FixedU128 {
@@ -56,7 +56,7 @@ pub struct Position<Balance, AssetId> {
 // Using FixedU128 to represent a price which uses u128 as inner type, so let's convert `Balance` into FixedU128
 impl<Balance, AssetId> Position<Balance, AssetId>
 where
-	Balance: Clone + From<u128> + Into<u128> + Copy + AtLeast32BitUnsigned,
+	Balance: From<u128> + Into<u128> + Copy + CheckedAdd + CheckedSub + Default,
 {
 	pub(super) fn fixed_price(&self) -> Price {
 		Price::from_inner(self.price.into())
@@ -103,12 +103,9 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Add<Balance> for Simp
 		} else if self.value < amount {
 			(amount.checked_sub(&self.value)?, false)
 		} else {
-			(self.value .checked_sub(&amount)?, self.negative)
+			(self.value.checked_sub(&amount)?, self.negative)
 		};
-		Some(Self {
-			value,
-			negative: sign
-		})
+		Some(Self { value, negative: sign })
 	}
 }
 
@@ -123,13 +120,9 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 		} else {
 			(self.value.checked_sub(&amount)?, self.negative)
 		};
-		Some(Self {
-			value,
-			negative: sign
-		})
+		Some(Self { value, negative: sign })
 	}
 }
-
 
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> SimpleImbalance<Balance> {
 	pub(super) fn is_negative(&self) -> bool {
@@ -142,13 +135,15 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> SimpleImbalance<Balan
 }
 
 #[derive(Copy, Clone)]
-pub(super) enum BalanceUpdate<Balance> {
+pub(super) enum BalanceUpdate<Balance>
+where
+	Balance: Default,
+{
 	Increase(Balance),
 	Decrease(Balance),
-	Zero,
 }
 
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd> Add<Self> for BalanceUpdate<Balance> {
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Default> Add<Self> for BalanceUpdate<Balance> {
 	type Output = Self;
 
 	fn add(self, rhs: Self) -> Self::Output {
@@ -169,14 +164,11 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd> Add<Self> for BalanceUpdate<
 					BalanceUpdate::Increase(b - a)
 				}
 			}
-			(Increase(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Increase(a)) => BalanceUpdate::Increase(a),
-			(Decrease(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Decrease(a)) => BalanceUpdate::Decrease(a),
-			(BalanceUpdate::Zero, BalanceUpdate::Zero) => BalanceUpdate::Zero,
 		}
 	}
 }
 
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> CheckedAdd for BalanceUpdate<Balance> {
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> CheckedAdd for BalanceUpdate<Balance> {
 	fn checked_add(&self, v: &Self) -> Option<Self> {
 		match (self, v) {
 			(Increase(a), Increase(b)) => Some(BalanceUpdate::Increase(a.checked_add(b)?)),
@@ -195,28 +187,22 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> CheckedAdd for Balanc
 					Some(BalanceUpdate::Increase(b.checked_sub(a)?))
 				}
 			}
-			(Increase(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Increase(a)) => {
-				Some(BalanceUpdate::Increase(*a))
-			}
-			(Decrease(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Decrease(a)) => {
-				Some(BalanceUpdate::Decrease(*a))
-			}
-			(BalanceUpdate::Zero, BalanceUpdate::Zero) => Some(BalanceUpdate::Zero),
 		}
 	}
 }
 
-impl<Balance> Default for BalanceUpdate<Balance> {
+impl<Balance: Default> Default for BalanceUpdate<Balance> {
 	fn default() -> Self {
-		BalanceUpdate::Zero
+		BalanceUpdate::Increase(Balance::default())
 	}
 }
 
-impl<Balance: Copy + Zero> BalanceUpdate<Balance> {
-	pub(crate) fn value(&self) -> Balance {
+impl<Balance: Default> Deref for BalanceUpdate<Balance> {
+	type Target = Balance;
+
+	fn deref(&self) -> &Self::Target {
 		match self {
-			Increase(amount) | Decrease(amount) => *amount,
-			BalanceUpdate::Zero => Balance::zero(),
+			Increase(amount) | Decrease(amount) => amount,
 		}
 	}
 }
@@ -227,7 +213,6 @@ macro_rules! update_value {
 		match &$y {
 			BalanceUpdate::Increase(amount) => $x.checked_add(&amount),
 			BalanceUpdate::Decrease(amount) => $x.checked_sub(&amount),
-			BalanceUpdate::Zero => Some($x),
 		}
 	}};
 }

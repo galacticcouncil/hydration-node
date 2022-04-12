@@ -7,7 +7,10 @@ use sp_std::default::Default;
 use std::cmp::min;
 
 #[derive(Default, Copy, Clone)]
-pub(super) struct AssetStateChange<Balance> {
+pub(super) struct AssetStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
 	pub(crate) delta_reserve: BalanceUpdate<Balance>,
 	pub(crate) delta_hub_reserve: BalanceUpdate<Balance>,
 	pub(crate) delta_shares: BalanceUpdate<Balance>,
@@ -16,7 +19,10 @@ pub(super) struct AssetStateChange<Balance> {
 }
 
 #[derive(Default, Copy, Clone)]
-pub(super) struct TradeStateChange<Balance> {
+pub(super) struct TradeStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
 	pub(crate) asset_in: AssetStateChange<Balance>,
 	pub(crate) asset_out: AssetStateChange<Balance>,
 	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
@@ -24,7 +30,10 @@ pub(super) struct TradeStateChange<Balance> {
 }
 
 #[derive(Default, Copy, Clone)]
-pub(super) struct LiquidityStateChange<Balance> {
+pub(super) struct LiquidityStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
 	pub(crate) asset: AssetStateChange<Balance>,
 	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
 	pub(crate) delta_position_reserve: BalanceUpdate<Balance>,
