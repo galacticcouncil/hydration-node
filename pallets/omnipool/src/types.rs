@@ -3,7 +3,7 @@ use crate::math::AssetStateChange;
 use crate::types::BalanceUpdate::{Decrease, Increase};
 use frame_support::pallet_prelude::*;
 use sp_runtime::{FixedPointNumber, FixedU128};
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 pub type Price = FixedU128;
 
@@ -94,35 +94,44 @@ impl<Balance: Default + Copy> Default for SimpleImbalance<Balance> {
 	}
 }
 
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Add<Balance> for SimpleImbalance<Balance> {
+	type Output = Option<Self>;
+
+	fn add(self, amount: Balance) -> Self::Output {
+		let (value, sign) = if self.is_positive() {
+			(self.value.checked_add(&amount)?, self.negative)
+		} else if self.value < amount {
+			(amount.checked_sub(&self.value)?, false)
+		} else {
+			(self.value .checked_sub(&amount)?, self.negative)
+		};
+		Some(Self {
+			value,
+			negative: sign
+		})
+	}
+}
+
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for SimpleImbalance<Balance> {
+	type Output = Option<Self>;
+
+	fn sub(self, amount: Balance) -> Self::Output {
+		let (value, sign) = if self.is_negative() {
+			(self.value.checked_add(&amount)?, self.negative)
+		} else if self.value < amount {
+			(amount.checked_sub(&self.value)?, true)
+		} else {
+			(self.value.checked_sub(&amount)?, self.negative)
+		};
+		Some(Self {
+			value,
+			negative: sign
+		})
+	}
+}
+
+
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> SimpleImbalance<Balance> {
-	pub(super) fn add(&mut self, amount: Balance) -> Option<Self> {
-		if self.is_positive() {
-			self.value = self.value.checked_add(&amount)?;
-			Some(*self)
-		} else if self.value < amount {
-			self.value = amount.checked_sub(&self.value)?;
-			self.negative = false;
-			Some(*self)
-		} else {
-			self.value = self.value.checked_sub(&amount)?;
-			Some(*self)
-		}
-	}
-
-	pub(super) fn sub(&mut self, amount: Balance) -> Option<Self> {
-		if self.is_negative() {
-			self.value = self.value.checked_add(&amount)?;
-			Some(*self)
-		} else if self.value < amount {
-			self.value = amount.checked_sub(&self.value)?;
-			self.negative = true;
-			Some(*self)
-		} else {
-			self.value = self.value.checked_sub(&amount)?;
-			Some(*self)
-		}
-	}
-
 	pub(super) fn is_negative(&self) -> bool {
 		self.negative
 	}

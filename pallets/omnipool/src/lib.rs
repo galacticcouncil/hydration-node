@@ -49,7 +49,7 @@ mod types;
 pub mod weights;
 
 use crate::math::calculate_sell_hub_state_changes;
-use crate::types::{AssetState, BalanceUpdate, Price};
+use crate::types::{AssetState, BalanceUpdate, Price, SimpleImbalance};
 use math::calculate_sell_state_changes;
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -311,7 +311,7 @@ pub mod pallet {
 			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), hub_reserve)?;
 
 			// Imbalance update
-			Self::update_imbalance(&state, BalanceUpdate::Decrease(amount))?;
+			Self::recalculate_imbalance(&state, BalanceUpdate::Decrease(amount))?;
 
 			// Total hub asset liquidity update
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
@@ -399,7 +399,7 @@ pub mod pallet {
 			)?;
 
 			// Imbalance update
-			Self::update_imbalance(&asset_state, state_changes.delta_imbalance)?;
+			Self::recalculate_imbalance(&asset_state, state_changes.delta_imbalance)?;
 
 			// TVL update
 			Self::update_tvl(&mut asset_state)?;
@@ -482,7 +482,7 @@ pub mod pallet {
 			)?;
 
 			// Imbalance update
-			Self::update_imbalance(&asset_state, state_changes.delta_imbalance)?;
+			Self::recalculate_imbalance(&asset_state, state_changes.delta_imbalance)?;
 
 			// TVL update
 			Self::update_tvl(&mut asset_state)?;
@@ -551,7 +551,7 @@ pub mod pallet {
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
-			let mut current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_imbalance = <HubAssetImbalance<T>>::get();
 
 			let state_changes = calculate_sell_state_changes::<T>(
 				&asset_in_state,
@@ -613,12 +613,7 @@ pub mod pallet {
 				}
 			}
 
-			let imbalance = match state_changes.delta_imbalance {
-				BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(Error::<T>::Overflow)?,
-				BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(Error::<T>::Overflow)?,
-				BalanceUpdate::Zero => current_imbalance,
-			};
-			<HubAssetImbalance<T>>::put(imbalance);
+			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -666,7 +661,7 @@ pub mod pallet {
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
-			let mut current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_imbalance = <HubAssetImbalance<T>>::get();
 
 			let state_changes = calculate_buy_state_changes::<T>(
 				&asset_in_state,
@@ -718,8 +713,6 @@ pub mod pallet {
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
-			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
-
 			//Burn or mint the hub asset amount difference
 			match delta_hub_asset {
 				BalanceUpdate::Increase(amount) => {
@@ -735,13 +728,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
-			// Imbalance update
-			let imbalance = match state_changes.delta_imbalance {
-				BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(Error::<T>::Overflow)?,
-				BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(Error::<T>::Overflow)?,
-				BalanceUpdate::Zero => current_imbalance,
-			};
-			<HubAssetImbalance<T>>::put(imbalance);
+			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
 			Self::deposit_event(Event::BuyExecuted(
 				who,
@@ -826,7 +813,6 @@ impl<T: Config> Pallet<T> {
 					*liquidity = liquidity.checked_add(amount).ok_or(Error::<T>::Overflow)?;
 				}
 				BalanceUpdate::Decrease(amount) => {
-					// We need to mint some in this case
 					*liquidity = liquidity.checked_sub(amount).ok_or(Error::<T>::Overflow)?;
 				}
 				BalanceUpdate::Zero => {}
@@ -836,10 +822,25 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn update_imbalance(
+		current_imbalance: SimpleImbalance<T::Balance>,
+		delta_imbalance: BalanceUpdate<T::Balance>,
+	) -> DispatchResult {
+		// Imbalance update
+		let imbalance = match delta_imbalance {
+			BalanceUpdate::Decrease(amount) => (current_imbalance - amount).ok_or(Error::<T>::Overflow)?,
+			BalanceUpdate::Increase(amount) => (current_imbalance + amount).ok_or(Error::<T>::Overflow)?,
+			BalanceUpdate::Zero => current_imbalance,
+		};
+		<HubAssetImbalance<T>>::put(imbalance);
+
+		Ok(())
+	}
+
+	fn recalculate_imbalance(
 		asset_state: &AssetState<T::Balance>,
 		delta_amount: BalanceUpdate<T::Balance>,
 	) -> DispatchResult {
-		let mut current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
 
 		if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
@@ -849,19 +850,17 @@ impl<T: Config> Pallet<T> {
 			let p2 = FixedU128::from((current_imbalance.value, current_hub_asset_liquidity));
 			let p3 = p1.checked_mul(&p2).ok_or(Error::<T>::Overflow)?;
 
-			let imbalance = match delta_amount {
-				BalanceUpdate::Increase(value) => {
-					let delta_imbalance = p3.checked_mul_int(value).ok_or(Error::<T>::Overflow)?;
-					current_imbalance.add(delta_imbalance).ok_or(Error::<T>::Overflow)?
-				}
-				BalanceUpdate::Decrease(value) => {
-					let delta_imbalance = p3.checked_mul_int(value).ok_or(Error::<T>::Overflow)?;
-					current_imbalance.sub(delta_imbalance).ok_or(Error::<T>::Overflow)?
-				}
-				BalanceUpdate::Zero => current_imbalance,
-			};
+			let delta_imbalance = p3.checked_mul_int(delta_amount.value()).ok_or(Error::<T>::Overflow)?;
 
-			<HubAssetImbalance<T>>::put(imbalance);
+			match delta_amount {
+				BalanceUpdate::Increase(_) => {
+					return Self::update_imbalance(current_imbalance, BalanceUpdate::Increase(delta_imbalance));
+				}
+				BalanceUpdate::Decrease(_) => {
+					return Self::update_imbalance(current_imbalance, BalanceUpdate::Decrease(delta_imbalance));
+				}
+				BalanceUpdate::Zero => {},
+			};
 		}
 
 		Ok(())
@@ -957,16 +956,15 @@ impl<T: Config> Pallet<T> {
 		};
 
 		// Fee accounting and imbalance
-		let mut current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_imbalance = <HubAssetImbalance<T>>::get();
 
 		// Total hub asset liquidity
 		Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(amount_in))?;
 
 		// Imbalance update
-		current_imbalance
-			.sub(delta_imbalance.value())
+		let imbalance = (current_imbalance - delta_imbalance.value())
 			.ok_or(Error::<T>::Overflow)?;
-		<HubAssetImbalance<T>>::put(current_imbalance);
+		<HubAssetImbalance<T>>::put(imbalance);
 
 		<Assets<T>>::insert(asset_out, asset_out_state);
 
