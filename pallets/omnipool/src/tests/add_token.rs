@@ -28,12 +28,7 @@ fn add_token_works() {
 
 		assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
 
-		// Note: using exact values to make sure that it is same as in python's simulations.
-		check_state!(
-			11_800 * ONE, //token_price.checked_mul_int(token_amount).unwrap() + dai_amount / 2 + NATIVE_AMOUNT,
-			23_600 * ONE,
-			SimpleImbalance::default()
-		);
+		check_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
 
 		check_asset_state!(
 			1_000,

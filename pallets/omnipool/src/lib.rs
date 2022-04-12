@@ -1,5 +1,3 @@
-// This file is part of HydraDX.
-
 // Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
@@ -316,7 +314,7 @@ pub mod pallet {
 			Self::update_imbalance(&state, BalanceUpdate::Decrease(amount))?;
 
 			// Total hub asset liquidity update
-			Self::increase_hub_asset_liquidity(hub_reserve)?;
+			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
 			// TVL update
 			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
@@ -407,7 +405,7 @@ pub mod pallet {
 			Self::update_tvl(&mut asset_state)?;
 
 			// Total hub asset liquidity update
-			Self::increase_hub_asset_liquidity(state_changes.asset.delta_hub_reserve.value())?;
+			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 			// Storage update - asset state
 			<Assets<T>>::insert(asset, asset_state);
@@ -490,12 +488,11 @@ pub mod pallet {
 			Self::update_tvl(&mut asset_state)?;
 
 			// Total Hub asset liquidity
-			Self::decrease_hub_asset_liquidity(
-				state_changes
+			Self::update_hub_asset_liquidity(
+				&state_changes
 					.asset
 					.delta_hub_reserve
-					.value()
-					.checked_add(&state_changes.lp_hub_amount)
+					.checked_add(&BalanceUpdate::Decrease(state_changes.lp_hub_amount))
 					.ok_or(Error::<T>::Overflow)?,
 			)?;
 
@@ -596,11 +593,25 @@ pub mod pallet {
 				}
 			}
 
-			// Hub liquidity update
-			Self::update_hub_asset_liquidity(
-				state_changes.asset_in.delta_hub_reserve.value(),
-				state_changes.asset_out.delta_hub_reserve.value(),
-			)?;
+			// Hub liquidity update - work out difference between in and amount and act accordingly and responsibly, fred!
+			let delta_hub_asset = state_changes.asset_in.delta_hub_reserve.checked_add(
+				&state_changes.asset_out.delta_hub_reserve,
+			).ok_or(Error::<T>::Overflow)?;
+
+			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
+
+			//Burn or mint the hub asset amount difference
+			match delta_hub_asset {
+				BalanceUpdate::Increase(amount) => {
+					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				},
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				},
+				BalanceUpdate::Zero => {
+
+				}
+			}
 
 			let imbalance = match state_changes.delta_imbalance {
 				BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(Error::<T>::Overflow)?,
@@ -700,12 +711,27 @@ pub mod pallet {
 					return Err(Error::<T>::Overflow.into());
 				}
 			}
+			// Hub liquidity update - work out difference between in and amount and act accordingly and responsibly, fred!
+			let delta_hub_asset = state_changes.asset_in.delta_hub_reserve.checked_add(
+				&state_changes.asset_out.delta_hub_reserve,
+			).ok_or(Error::<T>::Overflow)?;
 
-			// Hub liquidity update
-			Self::update_hub_asset_liquidity(
-				state_changes.asset_in.delta_hub_reserve.value(),
-				state_changes.asset_out.delta_hub_reserve.value(),
-			)?;
+			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
+
+			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
+
+			//Burn or mint the hub asset amount difference
+			match delta_hub_asset {
+				BalanceUpdate::Increase(amount) => {
+					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				},
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				},
+				BalanceUpdate::Zero => {
+
+				}
+			}
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -792,43 +818,21 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Add amount to total hub asset liquidity
-	fn increase_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
-		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
-			*liquidity = liquidity.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
-			Ok(())
-		})
-	}
-
-	/// Remove amount from total hub asset liquidity
-	fn decrease_hub_asset_liquidity(amount: T::Balance) -> DispatchResult {
-		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
-			*liquidity = liquidity.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
-			Ok(())
-		})
-	}
-
 	/// Updates total hub asset liquidity. It either burn or mint some based on the diff of in and out.
-	fn update_hub_asset_liquidity(delta_amount_in: T::Balance, delta_amount_out: T::Balance) -> DispatchResult {
-		match delta_amount_in.cmp(&delta_amount_out) {
-			Ordering::Greater => {
-				// We need to burn some in this cased
-				let diff = delta_amount_in
-					.checked_sub(&delta_amount_out)
-					.ok_or(Error::<T>::Overflow)?;
-				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::increase_hub_asset_liquidity(diff)
+	fn update_hub_asset_liquidity(delta_amount: &BalanceUpdate<T::Balance>) -> DispatchResult {
+		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
+			match delta_amount {
+				BalanceUpdate::Increase(amount) => {
+					*liquidity = liquidity.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+				}
+				BalanceUpdate::Decrease(amount) => {
+					// We need to mint some in this case
+					*liquidity = liquidity.checked_sub(amount).ok_or(Error::<T>::Overflow)?;
+				}
+				BalanceUpdate::Zero => {}
 			}
-			Ordering::Less => {
-				// We need to mint some in this case
-				let diff = delta_amount_out
-					.checked_sub(&delta_amount_in)
-					.ok_or(Error::<T>::Overflow)?;
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), diff)?;
-				Self::decrease_hub_asset_liquidity(diff)
-			}
-			Ordering::Equal => Ok(()), // If equal, nothing to do
-		}
+			Ok(())
+		})
 	}
 
 	fn update_imbalance(
@@ -956,7 +960,7 @@ impl<T: Config> Pallet<T> {
 		let mut current_imbalance = <HubAssetImbalance<T>>::get();
 
 		// Total hub asset liquidity
-		Self::increase_hub_asset_liquidity(amount_in)?;
+		Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(amount_in))?;
 
 		// Imbalance update
 		current_imbalance

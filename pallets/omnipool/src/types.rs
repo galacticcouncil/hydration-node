@@ -3,6 +3,7 @@ use crate::math::AssetStateChange;
 use crate::types::BalanceUpdate::{Decrease, Increase};
 use frame_support::pallet_prelude::*;
 use sp_runtime::{FixedPointNumber, FixedU128};
+use std::ops::Add;
 
 pub type Price = FixedU128;
 
@@ -26,7 +27,7 @@ where
 {
 	/// Calculate price for actual state
 	pub(super) fn price(&self) -> FixedU128 {
-		FixedU128::from((self.hub_reserve.clone().into(), self.reserve.clone().into()))
+		FixedU128::from((self.hub_reserve.into(), self.reserve.into()))
 	}
 
 	pub(super) fn delta_update(&mut self, delta: &AssetStateChange<Balance>) -> Option<()> {
@@ -58,7 +59,7 @@ where
 	Balance: Clone + From<u128> + Into<u128> + Copy + AtLeast32BitUnsigned,
 {
 	pub(super) fn fixed_price(&self) -> Price {
-		Price::from_inner(self.price.clone().into())
+		Price::from_inner(self.price.into())
 	}
 
 	pub(super) fn price_to_balance(price: Price) -> Balance {
@@ -136,6 +137,64 @@ pub(super) enum BalanceUpdate<Balance> {
 	Increase(Balance),
 	Decrease(Balance),
 	Zero,
+}
+
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd> Add<Self> for BalanceUpdate<Balance> {
+	type Output = Self;
+
+	fn add(self, rhs: Self) -> Self::Output {
+		match (self, rhs) {
+			(Increase(a), Increase(b)) => BalanceUpdate::Increase(a + b),
+			(Decrease(a), Decrease(b)) => BalanceUpdate::Decrease(a + b),
+			(Increase(a), Decrease(b)) => {
+				if a >= b {
+					BalanceUpdate::Increase(a - b)
+				} else {
+					BalanceUpdate::Decrease(b - a)
+				}
+			}
+			(Decrease(a), Increase(b)) => {
+				if a >= b {
+					BalanceUpdate::Decrease(a - b)
+				} else {
+					BalanceUpdate::Increase(b - a)
+				}
+			}
+			(Increase(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Increase(a)) => BalanceUpdate::Increase(a),
+			(Decrease(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Decrease(a)) => BalanceUpdate::Decrease(a),
+			(BalanceUpdate::Zero, BalanceUpdate::Zero) => BalanceUpdate::Zero,
+		}
+	}
+}
+
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> CheckedAdd for BalanceUpdate<Balance> {
+	fn checked_add(&self, v: &Self) -> Option<Self> {
+		match (self, v) {
+			(Increase(a), Increase(b)) => Some(BalanceUpdate::Increase(a.checked_add(b)?)),
+			(Decrease(a), Decrease(b)) => Some(BalanceUpdate::Decrease(a.checked_add(b)?)),
+			(Increase(a), Decrease(b)) => {
+				if a >= b {
+					Some(BalanceUpdate::Increase(a.checked_sub(b)?))
+				} else {
+					Some(BalanceUpdate::Increase(b.checked_sub(a)?))
+				}
+			}
+			(Decrease(a), Increase(b)) => {
+				if a >= b {
+					Some(BalanceUpdate::Decrease(a.checked_sub(b)?))
+				} else {
+					Some(BalanceUpdate::Increase(b.checked_sub(a)?))
+				}
+			}
+			(Increase(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Increase(a)) => {
+				Some(BalanceUpdate::Increase(*a))
+			}
+			(Decrease(a), BalanceUpdate::Zero) | (BalanceUpdate::Zero, Decrease(a)) => {
+				Some(BalanceUpdate::Decrease(*a))
+			}
+			(BalanceUpdate::Zero, BalanceUpdate::Zero) => Some(BalanceUpdate::Zero),
+		}
+	}
 }
 
 impl<Balance> Default for BalanceUpdate<Balance> {
