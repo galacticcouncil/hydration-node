@@ -50,6 +50,10 @@ pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
 
+pub const ONE: Balance = 1_000_000_000_000;
+
+pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
+
 construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -175,9 +179,20 @@ impl Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 }
 
-#[derive(Default)]
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
+}
+
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		Self {
+			endowed_accounts: vec![
+				(Omnipool::protocol_account(), DAI, 1000 * ONE),
+				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+				(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			],
+		}
+	}
 }
 
 impl ExtBuilder {
