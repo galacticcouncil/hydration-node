@@ -6,22 +6,6 @@ use sp_runtime::FixedPointNumber;
 use sp_std::default::Default;
 use std::cmp::min;
 
-// TODO: think about better way as not all fields are necessary in every operation - probably enum would be a way ?!
-// Also a way to indicate an increase or decrease would be good
-#[derive(Default)]
-pub struct StateChanges<Balance> {
-	pub delta_reserve_in: Balance,
-	pub delta_reserve_out: Balance,
-	pub delta_hub_reserve_in: Balance,
-	pub delta_hub_reserve_out: Balance,
-	pub delta_imbalance: Balance,
-	pub hdx_fee_amount: Balance,
-	pub lp_hub_amount: Balance,
-	pub delta_position_reserve: Balance,
-	pub delta_shares: Balance,
-	pub delta_protocol_shares: Balance,
-}
-
 #[derive(Default, Copy, Clone)]
 pub(super) struct AssetStateChange<Balance> {
 	pub(crate) delta_reserve: BalanceUpdate<Balance>,
@@ -97,7 +81,7 @@ pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
 	asset_out_state: &AssetState<T::Balance>,
 	amount: T::Balance,
 	asset_fee: FixedU128,
-) -> Option<StateChanges<T::Balance>> {
+) -> Option<(AssetStateChange<T::Balance>, BalanceUpdate<T::Balance>)> {
 	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
 
 	let hub_ratio = FixedU128::from((
@@ -118,12 +102,14 @@ pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
 		.checked_add(&FixedU128::one())?
 		.checked_mul_int(amount)?;
 
-	Some(StateChanges {
-		delta_reserve_out,
-		delta_hub_reserve_in: amount,
-		delta_imbalance,
-		..Default::default()
-	})
+	Some((
+		AssetStateChange {
+			delta_reserve: Decrease(delta_reserve_out),
+			delta_hub_reserve: Increase(amount),
+			..Default::default()
+		},
+		Decrease(delta_imbalance),
+	))
 }
 
 pub(crate) fn calculate_buy_state_changes<T: Config>(
