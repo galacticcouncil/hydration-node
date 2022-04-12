@@ -17,24 +17,22 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
-use frame_system::EnsureRoot;
-use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
 use frame_support::traits::{Contains, EnsureOneOf, LockIdentifier};
+use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
+use frame_system::EnsureRoot;
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber};
+use scale_info::TypeInfo;
+use sp_core::u32_trait::{_1, _2, _3};
 use sp_runtime::{
 	generic,
 	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
-	FixedPointNumber, MultiSignature, Perbill, Permill, Perquintill, Percent,
-};
-use sp_core::{
-	u32_trait::{_1, _2, _3},
+	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
-use codec::alloc::vec;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -294,3 +292,7 @@ parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
 }
 
+// pallet collator-rewards
+parameter_types! {
+	pub const RewardCurrencyId: AssetId = CORE_ASSET_ID;
+}

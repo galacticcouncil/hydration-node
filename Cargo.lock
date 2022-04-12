@@ -3078,6 +3078,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-claims",
+ "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-democracy",
@@ -4411,9 +4412,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.14"
+version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
+checksum = "6389c490849ff5bc16be905ae24bc913a9c8892e19b2341dbc175e14c341c2b8"
 dependencies = [
  "cfg-if 1.0.0",
  "value-bag",
@@ -5458,6 +5459,23 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-collator-rewards"
+version = "1.0.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=08a9b3f8e7c690ce8282e0222d1e594988e58831#08a9b3f8e7c690ce8282e0222d1e594988e58831"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -10769,6 +10787,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-claims",
+ "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-democracy",
