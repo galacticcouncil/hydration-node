@@ -381,7 +381,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::Overflow)?;
 
 			ensure!(
-				asset_state.hub_reserve <= T::AssetWeightCap::get(),
+				asset_state.hub_reserve <= T::AssetWeightCap::get(), // TODO: add test when weight cap is exceeded
 				Error::<T>::AssetWeightCapExceeded
 			);
 

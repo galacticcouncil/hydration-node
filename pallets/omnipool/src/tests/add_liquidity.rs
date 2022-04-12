@@ -1,14 +1,10 @@
 use super::*;
+use frame_support::assert_noop;
 
 #[test]
 fn add_liquidity_works() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
-			(LP1, 1_000, 5000 * ONE),
-		])
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.build()
 		.execute_with(|| {
 			let dai_amount = 1000 * ONE;
@@ -55,5 +51,45 @@ fn add_liquidity_works() {
 			check_state!(12_060 * ONE, 24_720 * ONE, SimpleImbalance::default());
 
 			check_balance!(LP1, 1_000, 4600 * ONE)
+		});
+}
+
+#[test]
+fn add_liquidity_for_non_pool_token_fails() {
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+
+			assert_noop!(
+				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2000 * ONE,),
+				Error::<Test>::AssetNotFound
+			);
+		});
+}
+
+#[test]
+fn add_liquidity_with_insufficient_balance_fails() {
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP1),
+				1_000,
+				2000 * ONE,
+				FixedU128::from_float(0.65)
+			));
+
+			assert_noop!(
+				Omnipool::add_liquidity(Origin::signed(LP3), 1_000, 2000 * ONE,),
+				Error::<Test>::InsufficientBalance
+			);
 		});
 }

@@ -200,6 +200,10 @@ impl ExtBuilder {
 		self.endowed_accounts = accounts;
 		self
 	}
+	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
+		self.endowed_accounts.push(account);
+		self
+	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();

@@ -124,18 +124,15 @@ fn add_hub_assset_as_protocol_must_have_correct_balance() {
 }
 
 #[test]
-fn add_token_as_protocol_must_have_correct_balance() {
+fn add_token_with_insufficient_balance_fails() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-		])
+		.add_endowed_accounts((LP3, 1_000, 100 * ONE))
 		.build()
 		.execute_with(|| {
 			init_omnipool(1000 * ONE, FixedU128::from_float(0.5));
 			assert_noop!(
-				Omnipool::add_token(Origin::root(), 1000, 1000 * ONE, FixedU128::from_float(0.6)),
-				Error::<Test>::MissingBalance
+				Omnipool::add_token(Origin::signed(LP3), 1_000, 1000 * ONE, FixedU128::from_float(0.6)),
+				orml_tokens::Error::<Test>::BalanceTooLow
 			);
 		});
 }
