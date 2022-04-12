@@ -1,4 +1,6 @@
 use super::*;
+use crate::math::AssetStateChange;
+use crate::types::BalanceUpdate::{Decrease, Increase};
 use frame_support::pallet_prelude::*;
 use sp_runtime::{FixedPointNumber, FixedU128};
 
@@ -20,11 +22,20 @@ pub struct AssetState<Balance> {
 
 impl<Balance> AssetState<Balance>
 where
-	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Clone,
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + Clone + AtLeast32BitUnsigned,
 {
 	/// Calculate price for actual state
 	pub(super) fn price(&self) -> FixedU128 {
 		FixedU128::from((self.hub_reserve.clone().into(), self.reserve.clone().into()))
+	}
+
+	pub(super) fn delta_update(&mut self, delta: &AssetStateChange<Balance>) -> Option<()> {
+		self.reserve = update_value!(self.reserve, delta.delta_reserve)?;
+		self.hub_reserve = update_value!(self.hub_reserve, delta.delta_hub_reserve)?;
+		self.shares = update_value!(self.shares, delta.delta_shares)?;
+		self.protocol_shares = update_value!(self.protocol_shares, delta.delta_protocol_shares)?;
+		self.tvl = update_value!(self.tvl, delta.delta_tvl)?;
+		Some(())
 	}
 }
 
@@ -44,7 +55,7 @@ pub struct Position<Balance, AssetId> {
 // Using FixedU128 to represent a price which uses u128 as inner type, so let's convert `Balance` into FixedU128
 impl<Balance, AssetId> Position<Balance, AssetId>
 where
-	Balance: Clone + From<u128> + Into<u128>,
+	Balance: Clone + From<u128> + Into<u128> + Copy + AtLeast32BitUnsigned,
 {
 	pub(super) fn fixed_price(&self) -> Price {
 		Price::from_inner(self.price.clone().into())
@@ -53,11 +64,16 @@ where
 	pub(super) fn price_to_balance(price: Price) -> Balance {
 		price.into_inner().into()
 	}
-}
 
-pub(super) enum ImbalanceUpdate<Balance> {
-	Increase(Balance),
-	Decrease(Balance),
+	pub(super) fn delta_update(
+		&mut self,
+		delta_reserve: &BalanceUpdate<Balance>,
+		delta_shares: &BalanceUpdate<Balance>,
+	) -> Option<()> {
+		self.amount = update_value!(self.amount, delta_reserve)?;
+		self.shares = update_value!(self.shares, delta_shares)?;
+		Some(())
+	}
 }
 
 /// Simple type to represent imbalance which can be positive or negative.
@@ -113,4 +129,37 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> SimpleImbalance<Balan
 	pub(super) fn is_positive(&self) -> bool {
 		!self.negative
 	}
+}
+
+#[derive(Copy, Clone)]
+pub(super) enum BalanceUpdate<Balance> {
+	Increase(Balance),
+	Decrease(Balance),
+	Zero,
+}
+
+impl<Balance> Default for BalanceUpdate<Balance> {
+	fn default() -> Self {
+		BalanceUpdate::Zero
+	}
+}
+
+impl<Balance: Copy + Zero> BalanceUpdate<Balance> {
+	pub(crate) fn value(&self) -> Balance {
+		match self {
+			Increase(amount) | Decrease(amount) => *amount,
+			BalanceUpdate::Zero => Balance::zero(),
+		}
+	}
+}
+
+#[macro_export]
+macro_rules! update_value {
+	( $x:expr, $y:expr) => {{
+		match &$y {
+			BalanceUpdate::Increase(amount) => $x.checked_add(&amount),
+			BalanceUpdate::Decrease(amount) => $x.checked_sub(&amount),
+			BalanceUpdate::Zero => Some($x),
+		}
+	}};
 }
