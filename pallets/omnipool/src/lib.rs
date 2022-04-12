@@ -493,7 +493,7 @@ pub mod pallet {
 				&state_changes
 					.asset
 					.delta_hub_reserve
-					.checked_add(&BalanceUpdate::Decrease(state_changes.lp_hub_amount))
+					.diff(BalanceUpdate::Decrease(state_changes.lp_hub_amount))
 					.ok_or(Error::<T>::Overflow)?,
 			)?;
 
@@ -581,26 +581,25 @@ pub mod pallet {
 			<Assets<T>>::insert(asset_out, asset_out_state);
 
 			// Token balances update
-			match (
-				state_changes.asset_in.delta_reserve,
-				state_changes.asset_out.delta_reserve,
-			) {
-				(BalanceUpdate::Increase(amount_in), BalanceUpdate::Decrease(amount_out)) => {
-					T::Currency::transfer(asset_in, &who, &Self::protocol_account(), amount_in)?;
-					T::Currency::transfer(asset_out, &Self::protocol_account(), &who, amount_out)?;
-				}
-				_ => {
-					return Err(Error::<T>::Overflow.into());
-				}
-			}
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&Self::protocol_account(),
+				*state_changes.asset_in.delta_reserve,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&Self::protocol_account(),
+				&who,
+				*state_changes.asset_out.delta_reserve,
+			)?;
 
 			// Hub liquidity update - work out difference between in and amount and act accordingly and responsibly, fred!
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
-				.checked_add(&state_changes.asset_out.delta_hub_reserve)
+				.diff(state_changes.asset_out.delta_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
-
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
 			//Burn or mint the hub asset amount difference
@@ -694,25 +693,25 @@ pub mod pallet {
 			<Assets<T>>::insert(asset_in, asset_in_state);
 			<Assets<T>>::insert(asset_out, asset_out_state);
 
-			match (
-				state_changes.asset_in.delta_reserve,
-				state_changes.asset_out.delta_reserve,
-			) {
-				(BalanceUpdate::Increase(amount_in), BalanceUpdate::Decrease(amount_out)) => {
-					T::Currency::transfer(asset_in, &who, &Self::protocol_account(), amount_in)?;
-					T::Currency::transfer(asset_out, &Self::protocol_account(), &who, amount_out)?;
-				}
-				_ => {
-					return Err(Error::<T>::Overflow.into());
-				}
-			}
+			T::Currency::transfer(
+				asset_in,
+				&who,
+				&Self::protocol_account(),
+				*state_changes.asset_in.delta_reserve,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&Self::protocol_account(),
+				&who,
+				*state_changes.asset_out.delta_reserve,
+			)?;
+
 			// Hub liquidity update - work out difference between in and amount and act accordingly and responsibly, fred!
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
-				.checked_add(&state_changes.asset_out.delta_hub_reserve)
+				.diff(state_changes.asset_out.delta_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
-
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
 			//Burn or mint the hub asset amount difference
@@ -936,22 +935,19 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::Overflow)?;
 
 		// Token updates
-		let (amount_in, amount_out) = match (state_changes.delta_reserve, state_changes.delta_hub_reserve) {
-			(BalanceUpdate::Decrease(delta_reserve), BalanceUpdate::Increase(delta_hub_reserve)) => {
-				T::Currency::transfer(T::HubAssetId::get(), who, &Self::protocol_account(), delta_hub_reserve)?;
-				T::Currency::transfer(asset_out, &Self::protocol_account(), who, delta_reserve)?;
-				(delta_hub_reserve, delta_reserve)
-			}
-			_ => {
-				return Err(Error::<T>::Overflow.into());
-			}
-		};
+		T::Currency::transfer(
+			T::HubAssetId::get(),
+			who,
+			&Self::protocol_account(),
+			*state_changes.delta_hub_reserve,
+		)?;
+		T::Currency::transfer(asset_out, &Self::protocol_account(), who, *state_changes.delta_reserve)?;
 
 		// Fee accounting and imbalance
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 
 		// Total hub asset liquidity
-		Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(amount_in))?;
+		Self::update_hub_asset_liquidity(&state_changes.delta_hub_reserve)?;
 
 		// Imbalance update
 		let imbalance = current_imbalance.sub(*delta_imbalance).ok_or(Error::<T>::Overflow)?;
@@ -963,8 +959,8 @@ impl<T: Config> Pallet<T> {
 			who.clone(),
 			T::HubAssetId::get(),
 			asset_out,
-			amount_in,
-			amount_out,
+			*state_changes.delta_hub_reserve,
+			*state_changes.delta_reserve,
 		));
 
 		Ok(())

@@ -143,6 +143,12 @@ where
 	Decrease(Balance),
 }
 
+impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> BalanceUpdate<Balance> {
+	pub(crate) fn diff(self, other: Self) -> Option<Self> {
+		self.checked_add(&other)
+	}
+}
+
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Default> Add<Self> for BalanceUpdate<Balance> {
 	type Output = Self;
 
