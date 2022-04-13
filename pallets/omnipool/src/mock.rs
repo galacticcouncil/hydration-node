@@ -19,6 +19,8 @@
 
 use super::*;
 use codec::Decode;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use crate as pallet_omnipool;
 
@@ -53,6 +55,10 @@ pub const LP3: u64 = 3;
 pub const ONE: Balance = 1_000_000_000_000;
 
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
+
+thread_local! {
+	static POSITION_OWNERS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
+}
 
 construct_runtime!(
 	pub enum Test where
@@ -205,6 +211,16 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_position_owners(self, owners: (u64, u32)) -> Self {
+		POSITION_OWNERS.with(|v| {
+			let mut m = v.borrow_mut();
+
+			m.insert(owners.1, owners.0);
+		});
+
+		self
+	}
+
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
@@ -230,12 +246,14 @@ impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
 	type ClassId = u32;
 
 	fn owner(_class: &Self::ClassId, instance: &Self::InstanceId) -> Option<AccountId> {
-		match instance {
-			0 => Some(AccountId::from(LP1)),
-			1..=5 => Some(AccountId::from(LP3)),
-			6..=10 => Some(AccountId::from(LP2)),
-			_ => None,
-		}
+		let mut owner: Option<AccountId> = None;
+
+		POSITION_OWNERS.with(|v| {
+			if let Some(o) = v.borrow().get(instance) {
+				owner = Some((*o).into());
+			}
+		});
+		owner
 	}
 }
 

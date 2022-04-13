@@ -9,6 +9,7 @@ fn remove_liquidity_works() {
 			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
+		.with_position_owners((LP1, 0))
 		.build()
 		.execute_with(|| {
 			let dai_amount = 1000 * ONE;
