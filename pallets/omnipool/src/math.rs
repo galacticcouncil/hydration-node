@@ -30,6 +30,15 @@ where
 }
 
 #[derive(Default, Copy, Clone)]
+pub(super) struct HubTradeStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
+	pub(crate) asset: AssetStateChange<Balance>,
+	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
+}
+
+#[derive(Default, Copy, Clone)]
 pub(super) struct LiquidityStateChange<Balance>
 where
 	Balance: Default + Copy,
@@ -90,7 +99,7 @@ pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
 	asset_out_state: &AssetState<T::Balance>,
 	amount: T::Balance,
 	asset_fee: FixedU128,
-) -> Option<(AssetStateChange<T::Balance>, BalanceUpdate<T::Balance>)> {
+) -> Option<HubTradeStateChange<T::Balance>> {
 	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
 
 	let hub_ratio = FixedU128::from((
@@ -111,14 +120,14 @@ pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
 		.checked_add(&FixedU128::one())?
 		.checked_mul_int(amount)?;
 
-	Some((
-		AssetStateChange {
+	Some(HubTradeStateChange {
+		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve_out),
 			delta_hub_reserve: Increase(amount),
 			..Default::default()
 		},
-		Decrease(delta_imbalance),
-	))
+		delta_imbalance: Decrease(delta_imbalance),
+	})
 }
 
 pub(crate) fn calculate_buy_state_changes<T: Config>(

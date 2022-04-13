@@ -358,7 +358,7 @@ pub mod pallet {
 
 				Self::deposit_event(Event::PositionCreated {
 					position_id: instance_id,
-					owner: who.clone(),
+					owner: who,
 					asset,
 					amount,
 					shares: amount,
@@ -589,7 +589,7 @@ pub mod pallet {
 				<Positions<T>>::remove(position_id);
 				T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
 
-				Self::deposit_event(Event::PositionDestroyed{
+				Self::deposit_event(Event::PositionDestroyed {
 					position_id,
 					owner: who.clone(),
 				});
@@ -1018,14 +1018,16 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
-		let (state_changes, delta_imbalance) =
-			calculate_sell_hub_state_changes::<T>(&asset_out_state, amount, Self::asset_fee())
-				.ok_or(Error::<T>::Overflow)?;
+		let state_changes = calculate_sell_hub_state_changes::<T>(&asset_out_state, amount, Self::asset_fee())
+			.ok_or(Error::<T>::Overflow)?;
 
-		ensure!(*state_changes.delta_reserve >= limit, Error::<T>::BuyLimitNotReached);
+		ensure!(
+			*state_changes.asset.delta_reserve >= limit,
+			Error::<T>::BuyLimitNotReached
+		);
 
 		asset_out_state
-			.delta_update(&state_changes)
+			.delta_update(&state_changes.asset)
 			.ok_or(Error::<T>::Overflow)?;
 
 		// Token updates
@@ -1033,18 +1035,25 @@ impl<T: Config> Pallet<T> {
 			T::HubAssetId::get(),
 			who,
 			&Self::protocol_account(),
-			*state_changes.delta_hub_reserve,
+			*state_changes.asset.delta_hub_reserve,
 		)?;
-		T::Currency::transfer(asset_out, &Self::protocol_account(), who, *state_changes.delta_reserve)?;
+		T::Currency::transfer(
+			asset_out,
+			&Self::protocol_account(),
+			who,
+			*state_changes.asset.delta_reserve,
+		)?;
 
 		// Fee accounting and imbalance
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 
 		// Total hub asset liquidity
-		Self::update_hub_asset_liquidity(&state_changes.delta_hub_reserve)?;
+		Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 		// Imbalance update
-		let imbalance = current_imbalance.sub(*delta_imbalance).ok_or(Error::<T>::Overflow)?;
+		let imbalance = current_imbalance
+			.sub(*state_changes.delta_imbalance)
+			.ok_or(Error::<T>::Overflow)?;
 		<HubAssetImbalance<T>>::put(imbalance);
 
 		<Assets<T>>::insert(asset_out, asset_out_state);
@@ -1053,8 +1062,8 @@ impl<T: Config> Pallet<T> {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
 			asset_out,
-			amount_in: *state_changes.delta_hub_reserve,
-			amount_out: *state_changes.delta_reserve,
+			amount_in: *state_changes.asset.delta_hub_reserve,
+			amount_out: *state_changes.asset.delta_reserve,
 		});
 
 		Ok(())
