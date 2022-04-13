@@ -780,36 +780,36 @@ construct_runtime!(
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 27,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 29,
 
+		// HydraDX related modules
+		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
+		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 55,
+    CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 57,
+
 		// ORML related modules
-		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 51,
-		Currencies: orml_currencies::{Pallet, Call, Event<T>} = 53,
-		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 55,
+		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 77,
+		Currencies: orml_currencies::{Pallet, Call, Event<T>} = 79,
+		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 81,
 
 		// Parachain
-		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>, ValidateUnsigned} = 77,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 79,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config} = 81,
-		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 83,
-		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 85,
-		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 87,
+		ParachainSystem: cumulus_pallet_parachain_system::{Pallet, Call, Storage, Inherent, Event<T>, ValidateUnsigned} = 103,
+		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 105,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config} = 107,
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 109,
+		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 111,
+		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 113,
 
 		// ORML XCM
-		OrmlXcm: orml_xcm::{Pallet, Call, Event<T>} = 109,
-		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 111,
-		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 113,
+		OrmlXcm: orml_xcm::{Pallet, Call, Event<T>} = 135,
+		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 137,
+		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 139,
 
 		// Collator support
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 135,
-		CollatorSelection: pallet_collator_selection::{Pallet, Call, Storage, Event<T>, Config<T>} = 137,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 139,
-		Aura: pallet_aura::{Pallet, Config<T>} = 141,
-		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 143,
-
-		// HydraDX related modules
-		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 165,
-		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 167,
-		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 169,
-		CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 170,
+		Authorship: pallet_authorship::{Pallet, Call, Storage} = 161,
+		CollatorSelection: pallet_collator_selection::{Pallet, Call, Storage, Event<T>, Config<T>} = 163,
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 165,
+		Aura: pallet_aura::{Pallet, Config<T>} = 167,
+		AuraExt: cumulus_pallet_aura_ext::{Pallet, Config} = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info::{Pallet, Event<T>} = 201,
