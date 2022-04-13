@@ -18,6 +18,7 @@
 #![allow(clippy::or_fun_call)]
 #![allow(clippy::too_many_arguments)]
 
+use crate::chain_spec::Extensions;
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use primitives::{constants::currency::NATIVE_EXISTENTIAL_DEPOSIT, AssetId, BlockNumber, Price};
@@ -41,25 +42,6 @@ const PROTOCOL_ID: &str = "hdx";
 const STASH: Balance = 100 * UNITS;
 const INITIAL_BALANCE: u128 = 10_000;
 const INITIAL_TOKEN_BALANCE: Balance = 1_000 * UNITS;
-
-/// The extensions for the [`ChainSpec`].
-#[derive(Debug, Clone, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
-#[serde(deny_unknown_fields)]
-pub struct Extensions {
-	/// The relay chain of the Parachain.
-	pub relay_chain: String,
-	/// The id of the Parachain.
-	pub para_id: u32,
-}
-
-impl Extensions {
-	/// Try to get the extension from the given `ChainSpec`.
-	#[allow(clippy::borrowed_box)]
-	#[allow(dead_code)]
-	pub fn try_get(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Option<&Self> {
-		sc_chain_spec::get_extension(chain_spec.extensions())
-	}
-}
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
