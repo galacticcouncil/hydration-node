@@ -182,6 +182,16 @@ fn partial_liquidity_removal_works() {
 				get_mock_minted_position(current_position_id).is_some(),
 				"Position instance was burned"
 			);
+			let position = Positions::<Test>::get(current_position_id).unwrap();
+
+			let expected = Position::<Balance, AssetId> {
+				asset_id: 1_000,
+				amount: liq_added - liq_removed,
+				shares: liq_added - liq_removed,
+				price: Position::<Balance, AssetId>::price_to_balance(token_price),
+			};
+
+			assert_eq!(position, expected);
 		});
 }
 
@@ -235,12 +245,6 @@ fn lp_receives_lrna_when_price_is_higher() {
 			check_state!(9704310344827588, 541030000000000000, SimpleImbalance::default());
 		});
 }
-
-// Scenarios to test
-// - price changes up
-// - price changes down
-// - remove all liquidity - check if position has been destroyed
-// - scenario where add liquidty, then buy as another one, and then remove does not have neought asset
 
 #[test]
 fn remove_liquidity_by_non_owner_fails() {
