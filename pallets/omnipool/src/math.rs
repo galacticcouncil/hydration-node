@@ -1,12 +1,12 @@
 use crate::types::BalanceUpdate::{Decrease, Increase};
-use crate::types::{BalanceUpdate, SimpleImbalance};
+use crate::types::{BalanceUpdate, Position, SimpleImbalance};
 use crate::{AssetState, Config, FixedU128};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::FixedPointNumber;
 use sp_std::default::Default;
 use std::cmp::min;
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, Debug)]
 pub(super) struct AssetStateChange<Balance>
 where
 	Balance: Default + Copy,
@@ -38,7 +38,7 @@ where
 	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
 }
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, Debug)]
 pub(super) struct LiquidityStateChange<Balance>
 where
 	Balance: Default + Copy,
@@ -46,6 +46,7 @@ where
 	pub(crate) asset: AssetStateChange<Balance>,
 	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
 	pub(crate) delta_position_reserve: BalanceUpdate<Balance>,
+	pub(crate) delta_position_shares: BalanceUpdate<Balance>,
 	pub(crate) lp_hub_amount: Balance,
 }
 
@@ -210,13 +211,14 @@ pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 	asset_state: &AssetState<T::Balance>,
 	shares_removed: T::Balance,
-	position_price: FixedU128,
+	position: &Position<T::Balance, T::AssetId>,
 ) -> Option<LiquidityStateChange<T::Balance>> {
 	let current_shares = asset_state.shares;
 	let current_reserve = asset_state.reserve;
 	let current_hub_reserve = asset_state.hub_reserve;
 
 	let current_price = asset_state.price();
+	let position_price = position.fixed_price();
 
 	// Protocol shares update
 	let delta_b = if current_price < position_price {
@@ -254,19 +256,19 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 	} else {
 		T::Balance::zero()
 	};
-	let delta_r_position =
-		FixedU128::from((asset_state.reserve, asset_state.shares)).checked_mul_int(shares_removed)?;
+	let delta_r_position = FixedU128::from((shares_removed, position.shares)).checked_mul_int(position.amount)?;
 	Some(LiquidityStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve),
 			delta_hub_reserve: Decrease(delta_hub_reserve),
 			delta_shares: Decrease(delta_shares),
-			delta_protocol_shares: Decrease(delta_b),
+			delta_protocol_shares: Increase(delta_b),
 			..Default::default()
 		},
 		delta_imbalance: Increase(delta_reserve),
 		lp_hub_amount: hub_transferred,
 		delta_position_reserve: Decrease(delta_r_position),
+		delta_position_shares: Decrease(shares_removed),
 	})
 }
 

@@ -140,7 +140,7 @@ pub(super) enum HubAssetIssuanceUpdate {
 	JustTransfer,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(super) enum BalanceUpdate<Balance>
 where
 	Balance: Default,

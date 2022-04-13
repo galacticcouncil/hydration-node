@@ -530,9 +530,8 @@ pub mod pallet {
 
 			let mut asset_state = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 
-			let state_changes =
-				calculate_remove_liquidity_state_changes::<T>(&asset_state, amount, position.fixed_price())
-					.ok_or(Error::<T>::Overflow)?;
+			let state_changes = calculate_remove_liquidity_state_changes::<T>(&asset_state, amount, &position)
+				.ok_or(Error::<T>::Overflow)?;
 
 			// New Asset State
 			asset_state
@@ -541,7 +540,10 @@ pub mod pallet {
 
 			// Update position state
 			position
-				.delta_update(&state_changes.delta_position_reserve, &state_changes.asset.delta_shares)
+				.delta_update(
+					&state_changes.delta_position_reserve,
+					&state_changes.delta_position_shares,
+				)
 				.ok_or(Error::<T>::Overflow)?;
 
 			// Token balance updates
