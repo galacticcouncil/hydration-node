@@ -58,6 +58,7 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 thread_local! {
 	static POSITION_OWNERS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
+	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
@@ -263,8 +264,12 @@ impl<AccountId: From<u64>> Create<AccountId> for DummyNFT {
 	}
 }
 
-impl<AccountId: From<u64>> Mutate<AccountId> for DummyNFT {
+impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 	fn mint_into(_class: &Self::ClassId, _instance: &Self::InstanceId, _who: &AccountId) -> DispatchResult {
+		POSITIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.insert(*_instance, (*_who).into());
+		});
 		Ok(())
 	}
 

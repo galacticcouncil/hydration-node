@@ -24,7 +24,7 @@ fn add_liquidity_works() {
 			check_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
 
 			let liq_added = 400 * ONE;
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
 			check_asset_state!(
 				1_000,
@@ -50,7 +50,11 @@ fn add_liquidity_works() {
 
 			check_state!(12_060 * ONE, 24_720 * ONE, SimpleImbalance::default());
 
-			check_balance!(LP1, 1_000, 4600 * ONE)
+			check_balance!(LP1, 1_000, 4600 * ONE);
+
+			let minted_position = POSITIONS.with(|v| v.borrow().get(&0).copied());
+
+			assert_eq!(minted_position, Some(LP1));
 		});
 }
 
