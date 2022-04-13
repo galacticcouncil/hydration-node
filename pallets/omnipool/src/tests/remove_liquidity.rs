@@ -150,7 +150,7 @@ fn partial_liquidity_removal_works() {
 				"Position instance was not minted"
 			);
 
-			let liq_removed = 400 * ONE;
+			let liq_removed = 200 * ONE;
 
 			assert_ok!(Omnipool::remove_liquidity(
 				Origin::signed(LP1),
@@ -159,28 +159,28 @@ fn partial_liquidity_removal_works() {
 			));
 
 			assert!(
-				Positions::<Test>::get(current_position_id).is_none(),
-				"Position still found"
+				Positions::<Test>::get(current_position_id).is_some(),
+				"Position has been removed incorrectly"
 			);
 
-			check_state!(11_800 * ONE + 1, 24_200_000_000_000_002, SimpleImbalance::default());
+			check_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
 
-			check_balance!(LP1, 1_000, 5000 * ONE);
+			check_balance!(LP1, 1_000, 4800 * ONE);
 
 			check_asset_state!(
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added - liq_removed,
-					hub_reserve: 1300000000000001,
+					hub_reserve: 1430000000000001,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE,
-					tvl: 2_600_000_000_000_002
+					tvl: 2_860_000_000_000_002
 				}
 			);
 
 			assert!(
-				get_mock_minted_position(current_position_id).is_none(),
-				"Position instance was not burned"
+				get_mock_minted_position(current_position_id).is_some(),
+				"Position instance was burned"
 			);
 		});
 }
@@ -231,6 +231,8 @@ fn lp_receives_lrna_when_price_is_higher() {
 			check_balance!(Omnipool::protocol_account(), 1000, 40 * ONE);
 			check_balance!(LP1, 1000, 4_760_000_000_000_000);
 			check_balance!(LP1, LRNA, 470_689_655_172_412);
+
+			check_state!(9704310344827588, 541030000000000000, SimpleImbalance::default());
 		});
 }
 
