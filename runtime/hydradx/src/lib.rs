@@ -784,7 +784,7 @@ construct_runtime!(
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 55,
-    CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 57,
+        CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 57,
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 77,
