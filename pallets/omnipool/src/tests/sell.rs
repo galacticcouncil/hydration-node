@@ -10,6 +10,8 @@ fn simple_sell_works() {
 			(Omnipool::protocol_account(), 200, 2000 * ONE),
 			(LP1, 100, 1000 * ONE),
 		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
 		.build()
 		.execute_with(|| {
 			let dai_amount = 1000 * ONE;
@@ -84,6 +86,8 @@ fn sell_hub_works() {
 			(LP3, 100, 1000000000000000),
 			(LP3, 1, 100000000000000),
 		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(

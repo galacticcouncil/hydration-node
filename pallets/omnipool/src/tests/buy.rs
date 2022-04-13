@@ -10,6 +10,8 @@ fn simple_buy_works() {
 			(Omnipool::protocol_account(), 200, 2000 * ONE),
 			(LP1, 100, 1000 * ONE),
 		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
 		.build()
 		.execute_with(|| {
 			let dai_amount = 1000 * ONE;

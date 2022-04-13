@@ -47,6 +47,7 @@ pub type AssetId = u32;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
+pub const REGISTERED_ASSET: AssetId = 1000;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
@@ -58,6 +59,7 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
+	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 }
 
 construct_runtime!(
@@ -191,6 +193,15 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
+		// If eg. tests running on one thread only, this thread local is shared.
+		// let's make sure that it is empty for each  test case
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().clear();
+		});
+		POSITIONS.with(|v| {
+			v.borrow_mut().clear();
+		});
+
 		Self {
 			endowed_accounts: vec![
 				(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -210,9 +221,22 @@ impl ExtBuilder {
 		self.endowed_accounts.push(account);
 		self
 	}
+	pub fn with_registered_asset(self, asset: AssetId) -> Self {
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(asset, asset);
+		});
+		self
+	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+		// Add DAi and HDX as pre-registered assets
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().insert(DAI, DAI);
+			v.borrow_mut().insert(HDX, HDX);
+			v.borrow_mut().insert(REGISTERED_ASSET, REGISTERED_ASSET);
+		});
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self
@@ -271,9 +295,13 @@ use hydradx_traits::Registry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for DummyRegistry<T> {
-	fn exists(_name: T::AssetId) -> bool {
-		true
+impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId>,
+{
+	fn exists(asset_id: T::AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+		matches!(asset, Some(_))
 	}
 
 	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {

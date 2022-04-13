@@ -17,56 +17,73 @@ fn add_stable_asset_works() {
 
 #[test]
 fn add_token_works() {
+	ExtBuilder::default()
+		.with_registered_asset(1000)
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+
+			let token_price = FixedU128::from_float(0.65);
+
+			let token_amount = 2000 * ONE;
+
+			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
+
+			check_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
+
+			check_asset_state!(
+				1_000,
+				AssetState {
+					reserve: token_amount,
+					hub_reserve: 1300 * ONE,
+					shares: token_amount,
+					protocol_shares: token_amount,
+					tvl: token_amount
+				}
+			)
+		});
+}
+
+#[test]
+fn add_non_registered_asset_fails() {
 	ExtBuilder::default().build().execute_with(|| {
-		let dai_amount = 1000 * ONE;
-		let price = FixedU128::from_float(0.5);
-		init_omnipool(dai_amount, price);
-
-		let token_price = FixedU128::from_float(0.65);
-
-		let token_amount = 2000 * ONE;
-
-		assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
-
-		check_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
-
-		check_asset_state!(
-			1_000,
-			AssetState {
-				reserve: token_amount,
-				hub_reserve: 1300 * ONE,
-				shares: token_amount,
-				protocol_shares: token_amount,
-				tvl: token_amount
-			}
-		)
+		init_omnipool(1000 * ONE, FixedU128::from_float(0.5));
+		assert_noop!(
+			Omnipool::add_token(Origin::root(), 2_000, 2000 * ONE, FixedU128::from_float(0.5)),
+			Error::<Test>::AssetNotRegistered
+		);
 	});
 }
 
 #[test]
 fn cannot_add_existing_asset() {
-	ExtBuilder::default().build().execute_with(|| {
-		init_omnipool(1000 * ONE, FixedU128::from_float(0.5));
-		assert_ok!(Omnipool::add_token(
-			Origin::root(),
-			1_000,
-			2000 * ONE,
-			FixedU128::from_float(0.5)
-		));
+	ExtBuilder::default()
+		.with_registered_asset(1000)
+		.build()
+		.execute_with(|| {
+			init_omnipool(1000 * ONE, FixedU128::from_float(0.5));
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				1_000,
+				2000 * ONE,
+				FixedU128::from_float(0.5)
+			));
 
-		assert_noop!(
-			Omnipool::add_token(Origin::root(), 1_000, 2000 * ONE, FixedU128::from_float(0.5)),
-			Error::<Test>::AssetAlreadyAdded
-		);
-		assert_noop!(
-			Omnipool::add_token(Origin::root(), DAI, 2000 * ONE, FixedU128::from_float(0.5)),
-			Error::<Test>::AssetAlreadyAdded
-		);
-		assert_noop!(
-			Omnipool::add_token(Origin::root(), HDX, 2000 * ONE, FixedU128::from_float(0.5)),
-			Error::<Test>::AssetAlreadyAdded
-		);
-	});
+			assert_noop!(
+				Omnipool::add_token(Origin::root(), 1_000, 2000 * ONE, FixedU128::from_float(0.5)),
+				Error::<Test>::AssetAlreadyAdded
+			);
+			assert_noop!(
+				Omnipool::add_token(Origin::root(), DAI, 2000 * ONE, FixedU128::from_float(0.5)),
+				Error::<Test>::AssetAlreadyAdded
+			);
+			assert_noop!(
+				Omnipool::add_token(Origin::root(), HDX, 2000 * ONE, FixedU128::from_float(0.5)),
+				Error::<Test>::AssetAlreadyAdded
+			);
+		});
 }
 
 #[test]
@@ -122,6 +139,7 @@ fn add_hub_assset_as_protocol_must_have_correct_balance() {
 fn add_token_with_insufficient_balance_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP3, 1_000, 100 * ONE))
+		.with_registered_asset(1000)
 		.build()
 		.execute_with(|| {
 			init_omnipool(1000 * ONE, FixedU128::from_float(0.5));

@@ -12,6 +12,8 @@ fn scenario_04() {
 			(LP2, 100, 1000000000000000),
 			(LP3, 100, 1000000000000000),
 		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
