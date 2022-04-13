@@ -237,6 +237,11 @@ pub mod pallet {
 			shares: T::Balance,
 			price: Price,
 		},
+		/// LP Position was destroyed and NFT instance burned.
+		PositionDestroyed {
+			position_id: T::PositionInstanceId,
+			owner: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
@@ -583,6 +588,11 @@ pub mod pallet {
 				// All liquidity removed, remove position and burn NFT instance
 				<Positions<T>>::remove(position_id);
 				T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
+
+				Self::deposit_event(Event::PositionDestroyed{
+					position_id,
+					owner: who.clone(),
+				});
 			} else {
 				<Positions<T>>::insert(position_id, position);
 			}
