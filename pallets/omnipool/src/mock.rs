@@ -286,7 +286,11 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 		Ok(())
 	}
 
-	fn burn_from(_class: &Self::ClassId, _instance: &Self::InstanceId) -> DispatchResult {
+	fn burn_from(_class: &Self::ClassId, instance: &Self::InstanceId) -> DispatchResult {
+		POSITIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.remove(instance);
+		});
 		Ok(())
 	}
 }
@@ -311,4 +315,8 @@ where
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
 		Ok(T::AssetId::default())
 	}
+}
+
+pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
+	POSITIONS.with(|v| v.borrow().get(&position_id).copied())
 }
