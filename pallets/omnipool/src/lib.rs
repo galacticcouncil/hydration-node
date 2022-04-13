@@ -228,6 +228,15 @@ pub mod pallet {
 			amount_in: T::Balance,
 			amount_out: T::Balance,
 		},
+		/// LP Position was created and NFT instance minted.
+		PositionCreated {
+			position_id: T::PositionInstanceId,
+			owner: T::AccountId,
+			asset: T::AssetId,
+			amount: T::Balance,
+			shares: T::Balance,
+			price: Price,
+		},
 	}
 
 	#[pallet::error]
@@ -341,6 +350,15 @@ pub mod pallet {
 				let instance_id = Self::create_and_mint_position_instance(&who)?;
 
 				<Positions<T>>::insert(instance_id, lp_position);
+
+				Self::deposit_event(Event::PositionCreated {
+					position_id: instance_id,
+					owner: who.clone(),
+					asset,
+					amount,
+					shares: amount,
+					price: initial_price,
+				});
 			} else {
 				// Ensure that it has been transferred to protocol account by other means
 				ensure!(
@@ -430,6 +448,15 @@ pub mod pallet {
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
 
 			<Positions<T>>::insert(instance_id, lp_position);
+
+			Self::deposit_event(Event::PositionCreated {
+				position_id: instance_id,
+				owner: who.clone(),
+				asset,
+				amount,
+				shares: *state_changes.asset.delta_shares,
+				price: asset_state.price(),
+			});
 
 			// Token update
 			T::Currency::transfer(
