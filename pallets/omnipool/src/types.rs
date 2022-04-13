@@ -134,6 +134,12 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> SimpleImbalance<Balan
 	}
 }
 
+#[derive(PartialOrd, PartialEq)]
+pub(super) enum HubAssetIssuanceUpdate {
+	AdjustSupply,
+	JustTransfer,
+}
+
 #[derive(Copy, Clone)]
 pub(super) enum BalanceUpdate<Balance>
 where
