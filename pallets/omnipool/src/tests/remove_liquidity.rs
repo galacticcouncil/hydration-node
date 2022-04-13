@@ -1,4 +1,6 @@
 use super::*;
+use frame_support::assert_noop;
+use sp_runtime::traits::One;
 
 #[test]
 fn remove_liquidity_works() {
@@ -59,3 +61,92 @@ fn remove_liquidity_works() {
 // - price changes up
 // - price changes down
 // - remove all liquidity - check if position has been destroyed
+
+#[test]
+fn remove_liquidity_by_non_owner_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				1_000,
+				2_000 * ONE,
+				FixedU128::one()
+			));
+			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
+
+			assert_noop!(
+				Omnipool::remove_liquidity(Origin::signed(LP3), current_position_id, 100 * ONE),
+				Error::<Test>::Forbidden
+			);
+		});
+}
+
+#[test]
+fn remove_liquidity_from_non_existing_position_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				1_000,
+				2_000 * ONE,
+				FixedU128::one()
+			));
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
+
+			assert_noop!(
+				Omnipool::remove_liquidity(Origin::signed(LP1), 1_000_000, 100 * ONE),
+				Error::<Test>::Forbidden
+			);
+		});
+}
+
+#[test]
+fn remove_liquidity_cannot_exceed_position_shares() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+			assert_ok!(Omnipool::add_token(
+				Origin::root(),
+				1_000,
+				2_000 * ONE,
+				FixedU128::one()
+			));
+			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
+
+			assert_noop!(
+				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 500 * ONE + 1),
+				Error::<Test>::InsufficientShares
+			);
+		});
+}
