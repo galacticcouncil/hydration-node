@@ -192,11 +192,42 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		TokenAdded(T::AssetId, T::Balance, Price),
-		LiquidityAdded(T::AccountId, T::AssetId, T::Balance, T::PositionInstanceId),
-		LiquidityRemoved(T::AccountId, T::PositionInstanceId, T::Balance),
-		SellExecuted(T::AccountId, T::AssetId, T::AssetId, T::Balance, T::Balance),
-		BuyExecuted(T::AccountId, T::AssetId, T::AssetId, T::Balance, T::Balance),
+		/// An asset was added to Omnipool
+		TokenAdded {
+			asset_id: T::AssetId,
+			initial_amount: T::Balance,
+			initial_price: Price,
+		},
+		/// Liquidity of an asset was added to Omnipool.
+		LiquidityAdded {
+			from: T::AccountId,
+			asset_id: T::AssetId,
+			amount: T::Balance,
+			position_id: T::PositionInstanceId,
+		},
+		/// Liquidity of an asset was removed to Omnipool.
+		LiquidityRemoved {
+			who: T::AccountId,
+			position_id: T::PositionInstanceId,
+			asset_id: T::AssetId,
+			shares_removed: T::Balance,
+		},
+		/// Sell trade executed.
+		SellExecuted {
+			who: T::AccountId,
+			asset_in: T::AssetId,
+			asset_out: T::AssetId,
+			amount_in: T::Balance,
+			amount_out: T::Balance,
+		},
+		/// Buy trade executed.
+		BuyExecuted {
+			who: T::AccountId,
+			asset_in: T::AssetId,
+			asset_out: T::AssetId,
+			amount_in: T::Balance,
+			amount_out: T::Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -298,6 +329,18 @@ pub mod pallet {
 			// if root ( None ), it means protocol, so no transfer done assuming asset is already in the protocol account
 			if let Some(who) = account {
 				T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
+
+				// if provided by LP, create and mint a position instance
+				let lp_position = Position::<T::Balance, T::AssetId> {
+					asset_id: asset,
+					amount,
+					shares: amount,
+					price: Position::<T::Balance, T::AssetId>::price_to_balance(initial_price),
+				};
+
+				let instance_id = Self::create_and_mint_position_instance(&who)?;
+
+				<Positions<T>>::insert(instance_id, lp_position);
 			} else {
 				// Ensure that it has been transferred to protocol account by other means
 				ensure!(
@@ -305,8 +348,6 @@ pub mod pallet {
 					Error::<T>::MissingBalance
 				);
 			}
-
-			// TODO: create a position if not protocol
 
 			// Mint matching Hub asset
 			T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), hub_reserve)?;
@@ -331,7 +372,11 @@ pub mod pallet {
 
 			<Assets<T>>::insert(asset, state);
 
-			Self::deposit_event(Event::TokenAdded(asset, amount, initial_price));
+			Self::deposit_event(Event::TokenAdded {
+				asset_id: asset,
+				initial_amount: amount,
+				initial_price,
+			});
 
 			Ok(())
 		}
@@ -411,7 +456,12 @@ pub mod pallet {
 			// Storage update - asset state
 			<Assets<T>>::insert(asset, asset_state);
 
-			Self::deposit_event(Event::LiquidityAdded(who, asset, amount, instance_id));
+			Self::deposit_event(Event::LiquidityAdded {
+				from: who,
+				asset_id: asset,
+				amount,
+				position_id: instance_id,
+			});
 
 			Ok(())
 		}
@@ -446,7 +496,9 @@ pub mod pallet {
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
-			let mut asset_state = Assets::<T>::get(position.asset_id).ok_or(Error::<T>::AssetNotFound)?;
+			let asset_id = position.asset_id;
+
+			let mut asset_state = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 
 			let state_changes =
 				calculate_remove_liquidity_state_changes::<T>(&asset_state, amount, position.fixed_price())
@@ -464,7 +516,7 @@ pub mod pallet {
 
 			// Token balance updates
 			T::Currency::transfer(
-				position.asset_id,
+				asset_id,
 				&Self::protocol_account(),
 				&who,
 				*state_changes.asset.delta_reserve,
@@ -498,7 +550,7 @@ pub mod pallet {
 			)?;
 
 			// Storage update - asset state and position
-			<Assets<T>>::insert(position.asset_id, asset_state);
+			<Assets<T>>::insert(asset_id, asset_state);
 
 			if position.shares == T::Balance::zero() {
 				// All liquidity removed, remove position and burn NFT instance
@@ -508,7 +560,12 @@ pub mod pallet {
 				<Positions<T>>::insert(position_id, position);
 			}
 
-			Self::deposit_event(Event::LiquidityRemoved(who, position_id, amount));
+			Self::deposit_event(Event::LiquidityRemoved {
+				who,
+				position_id,
+				asset_id,
+				shares_removed: amount,
+			});
 
 			Ok(())
 		}
@@ -616,13 +673,13 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
-			Self::deposit_event(Event::SellExecuted(
+			Self::deposit_event(Event::SellExecuted {
 				who,
 				asset_in,
 				asset_out,
-				amount,
-				*state_changes.asset_out.delta_reserve,
-			));
+				amount_in: amount,
+				amount_out: *state_changes.asset_out.delta_reserve,
+			});
 
 			Ok(())
 		}
@@ -728,13 +785,13 @@ pub mod pallet {
 
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
-			Self::deposit_event(Event::BuyExecuted(
+			Self::deposit_event(Event::BuyExecuted {
 				who,
 				asset_in,
 				asset_out,
-				*state_changes.asset_in.delta_reserve,
-				*state_changes.asset_out.delta_reserve,
-			));
+				amount_in: *state_changes.asset_in.delta_reserve,
+				amount_out: *state_changes.asset_out.delta_reserve,
+			});
 
 			Ok(())
 		}
@@ -955,13 +1012,13 @@ impl<T: Config> Pallet<T> {
 
 		<Assets<T>>::insert(asset_out, asset_out_state);
 
-		Self::deposit_event(Event::SellExecuted(
-			who.clone(),
-			T::HubAssetId::get(),
+		Self::deposit_event(Event::SellExecuted {
+			who: who.clone(),
+			asset_in: T::HubAssetId::get(),
 			asset_out,
-			*state_changes.delta_hub_reserve,
-			*state_changes.delta_reserve,
-		));
+			amount_in: *state_changes.delta_hub_reserve,
+			amount_out: *state_changes.delta_reserve,
+		});
 
 		Ok(())
 	}

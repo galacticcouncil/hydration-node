@@ -70,7 +70,7 @@ fn complex_scenario_works() {
 				100000000000000000
 			));
 
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 1, 200000000000000));
+			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 3, 200000000000000));
 
 			assert_ok!(Omnipool::sell(
 				Origin::signed(LP3),
