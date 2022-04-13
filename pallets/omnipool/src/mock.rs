@@ -57,7 +57,6 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 thread_local! {
-	static POSITION_OWNERS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 }
 
@@ -212,16 +211,6 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_position_owners(self, owners: (u64, u32)) -> Self {
-		POSITION_OWNERS.with(|v| {
-			let mut m = v.borrow_mut();
-
-			m.insert(owners.1, owners.0);
-		});
-
-		self
-	}
-
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
@@ -249,7 +238,7 @@ impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
 	fn owner(_class: &Self::ClassId, instance: &Self::InstanceId) -> Option<AccountId> {
 		let mut owner: Option<AccountId> = None;
 
-		POSITION_OWNERS.with(|v| {
+		POSITIONS.with(|v| {
 			if let Some(o) = v.borrow().get(instance) {
 				owner = Some((*o).into());
 			}

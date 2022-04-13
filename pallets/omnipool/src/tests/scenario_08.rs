@@ -13,7 +13,6 @@ fn complex_scenario_works() {
 			(LP3, 100, 2000000000000000),
 			(LP3, 200, 300000000000000),
 		])
-		.with_position_owners((LP3, 3))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
