@@ -1,4 +1,5 @@
 use super::*;
+use frame_support::assert_noop;
 
 #[test]
 fn simple_buy_works() {
@@ -66,6 +67,84 @@ fn simple_buy_works() {
 					protocol_shares: 2000 * ONE,
 					tvl: 2000 * ONE
 				}
+			);
+		});
+}
+
+#[test]
+fn hub_asset_buy_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Omnipool::buy(Origin::signed(LP1), LRNA, HDX, 100 * ONE, 0),
+			Error::<Test>::NotAllowed
+		);
+	});
+}
+
+#[test]
+fn buy_assets_not_in_pool_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Omnipool::buy(Origin::signed(LP1), 1000, 2000, 100 * ONE, 0),
+			Error::<Test>::AssetNotFound
+		);
+
+		assert_noop!(
+			Omnipool::buy(Origin::signed(LP1), 2000, 1000, 100 * ONE, 0),
+			Error::<Test>::AssetNotFound
+		);
+	});
+}
+
+#[test]
+fn buy_with_insufficient_balance_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 100, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+
+			assert_ok!(Omnipool::add_token(Origin::root(), 100, 500 * ONE, Price::from(1)));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 100, HDX, 100 * ONE, 10 * ONE),
+				Error::<Test>::InsufficientBalance
+			);
+		});
+}
+
+#[test]
+fn buy_exceeding_limit_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 100, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+			(LP1, HDX, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+
+			assert_ok!(Omnipool::add_token(Origin::root(), 100, 500 * ONE, Price::from(1)));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 100, HDX, 100 * ONE, 10 * ONE),
+				Error::<Test>::SellLimitExceeded
 			);
 		});
 }
