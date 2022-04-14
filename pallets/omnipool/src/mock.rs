@@ -61,6 +61,8 @@ thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static ASSET_WEIGHT_CAP: RefCell<(u32,u32)> = RefCell::new((u32::MAX,1));
+	pub static ASSET_FEE: RefCell<(u32,u32)> = RefCell::new((0,0));
+	pub static PROTOCOL_FEE: RefCell<(u32,u32)> = RefCell::new((0,0));
 }
 
 construct_runtime!(
@@ -139,6 +141,18 @@ impl Get<(u32, u32)> for WeightCap {
 		ASSET_WEIGHT_CAP.with(|v| *v.borrow())
 	}
 }
+struct FeeAsset;
+impl Get<(u32, u32)> for FeeAsset {
+	fn get() -> (u32, u32) {
+		ASSET_FEE.with(|v| *v.borrow())
+	}
+}
+struct FeeProtocol;
+impl Get<(u32, u32)> for FeeProtocol {
+	fn get() -> (u32, u32) {
+		PROTOCOL_FEE.with(|v| *v.borrow())
+	}
+}
 
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
@@ -146,8 +160,8 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionClassId: u32= 1000;
 
-	pub const ProtocolFee: (u32,u32) = ( 0, 0);
-	pub const AssetFee: (u32,u32) = ( 0, 0);
+	pub ProtocolFee: (u32,u32) = FeeProtocol::get();
+	pub AssetFee: (u32,u32) = FeeAsset::get();
 	pub AssetWeightCap: (u32,u32) = WeightCap::get();
 	pub const TVLCap: Balance = Balance::MAX;
 }
@@ -203,11 +217,21 @@ impl Default for ExtBuilder {
 	fn default() -> Self {
 		// If eg. tests running on one thread only, this thread local is shared.
 		// let's make sure that it is empty for each  test case
+		// or set to original default value
 		REGISTERED_ASSETS.with(|v| {
 			v.borrow_mut().clear();
 		});
 		POSITIONS.with(|v| {
 			v.borrow_mut().clear();
+		});
+		ASSET_WEIGHT_CAP.with(|v| {
+			*v.borrow_mut() = (u32::MAX, 1);
+		});
+		ASSET_FEE.with(|v| {
+			*v.borrow_mut() = (0, 0);
+		});
+		PROTOCOL_FEE.with(|v| {
+			*v.borrow_mut() = (0, 0);
 		});
 
 		Self {
@@ -238,6 +262,20 @@ impl ExtBuilder {
 
 	pub fn with_asset_weight_cap(self, cap: (u32, u32)) -> Self {
 		ASSET_WEIGHT_CAP.with(|v| {
+			*v.borrow_mut() = cap;
+		});
+		self
+	}
+
+	pub fn with_asset_fee(self, cap: (u32, u32)) -> Self {
+		ASSET_FEE.with(|v| {
+			*v.borrow_mut() = cap;
+		});
+		self
+	}
+
+	pub fn with_protocol_fee(self, cap: (u32, u32)) -> Self {
+		PROTOCOL_FEE.with(|v| {
 			*v.borrow_mut() = cap;
 		});
 		self
