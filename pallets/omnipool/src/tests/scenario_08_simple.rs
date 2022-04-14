@@ -2,7 +2,7 @@ use super::*;
 
 /// Auto-generated test
 #[test]
-fn fee_test_buy_sell() {
+fn sell_fee_test() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), 0, 100000000000000000),
@@ -64,37 +64,19 @@ fn fee_test_buy_sell() {
 				10000000000000
 			));
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP3), 200, 200000000000000));
-
-			assert_ok!(Omnipool::buy(
-				Origin::signed(LP3),
-				200,
-				100,
-				300000000000000,
-				100000000000000000
-			));
-
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 3, 200000000000000));
-
 			check_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 10);
 			check_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
-			//	check_balance_approx!(Omnipool::protocol_account(), 1, 14182282238540066u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 1, 14182286858172183u128, 10);
-			//	check_balance_approx!(Omnipool::protocol_account(), 100, 4243052260380447u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 100, 4207572842529316u128, 10);
-			//	check_balance_approx!(Omnipool::protocol_account(), 200, 4207572842529316u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 200, 1671536848660528u128, 10);
+			check_balance_approx!(Omnipool::protocol_account(), 1, 14260000000000000u128, 10);
+			check_balance_approx!(Omnipool::protocol_account(), 100, 2560000000000000u128, 10);
+			//	check_balance_approx!(Omnipool::protocol_account(), 200, 1938322315390999u128, 10);
+			check_balance_approx!(Omnipool::protocol_account(), 200, 1938158890222434u128, 10);
 			check_balance_approx!(LP1, 100, 3000000000000000u128, 10);
 			check_balance_approx!(LP1, 200, 3000000000000000u128, 10);
 			check_balance_approx!(LP2, 100, 550000000000000u128, 10);
 			//	check_balance_approx!(LP2, 200, 18014179710851u128, 10);
 			check_balance_approx!(LP2, 200, 18177604879418u128, 10);
-			//	check_balance_approx!(LP3, 100, 206947739619552u128, 10);
-			check_balance_approx!(LP3, 100, 242427157470684u128, 10);
-			//	check_balance_approx!(LP3, 200, 610301674511605u128, 10);
-			check_balance_approx!(LP3, 200, 610285546460054u128, 10);
-			//	check_balance_approx!(LP3, 1, 42897803510764u128, 10);
-			check_balance_approx!(LP3, 1, 42905929725970u128, 10);
+			check_balance_approx!(LP3, 100, 1890000000000000u128, 10);
+			check_balance_approx!(LP3, 200, 343663504898149u128, 10);
 
 			check_asset_state!(
 				2,
@@ -111,8 +93,7 @@ fn fee_test_buy_sell() {
 				0,
 				AssetState {
 					reserve: 10000000000000000,
-					//	hub_reserve: 10135523267202732,
-					hub_reserve: 10135598981929739,
+					hub_reserve: 10019553411354581,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 10000000000000000
@@ -122,10 +103,9 @@ fn fee_test_buy_sell() {
 			check_asset_state!(
 				100,
 				AssetState {
-					//	reserve: 4243052260380447,
-					reserve: 4207572842529316,
-					//	hub_reserve: 882383663986335,
-					hub_reserve: 1017604072281039,
+					reserve: 2560000000000000,
+					//hub_reserve: 1462500000000000,
+					hub_reserve: 1481786354581674,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000
@@ -135,23 +115,20 @@ fn fee_test_buy_sell() {
 			check_asset_state!(
 				200,
 				AssetState {
-					//	reserve: 1671684145777543,
-					reserve: 1671536848660528,
-					//	hub_reserve: 2707273110861763,
-					hub_reserve: 2707588715617114,
-					//	shares: 2006364027707802,
-					shares: 2006381428281194,
+					//	reserve: 1938322315390999,
+					reserve: 1938158890222434,
+					//	hub_reserve: 2278000000000000,
+					hub_reserve: 2278213645418324,
+					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
-					//	tvl: 5026097255118374
-					tvl: 5415177431234228
+					tvl: 2000000000000000
 				}
 			);
 
 			check_state!(
-				//14046758971337332,
-				14182286858172183, // hub liquidity
-				//	32146097255118372, // tvl
-				32535177431234228, // tvl
+				//14240500000000000,
+				14259999999999998,
+				29120000000000000,
 				SimpleImbalance {
 					value: 0,
 					negative: true
