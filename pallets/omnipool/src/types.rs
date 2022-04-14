@@ -1,5 +1,4 @@
 use super::*;
-use crate::math::AssetStateChange;
 use crate::types::BalanceUpdate::{Decrease, Increase};
 use frame_support::pallet_prelude::*;
 use sp_runtime::{FixedPointNumber, FixedU128};
@@ -254,6 +253,54 @@ macro_rules! update_value {
 			BalanceUpdate::Decrease(amount) => $x.checked_sub(&amount),
 		}
 	}};
+}
+
+/// Delta changes of asset state
+#[derive(Default, Copy, Clone, Debug)]
+pub(super) struct AssetStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
+	pub(crate) delta_reserve: BalanceUpdate<Balance>,
+	pub(crate) delta_hub_reserve: BalanceUpdate<Balance>,
+	pub(crate) delta_shares: BalanceUpdate<Balance>,
+	pub(crate) delta_protocol_shares: BalanceUpdate<Balance>,
+	pub(crate) delta_tvl: BalanceUpdate<Balance>,
+}
+
+/// Delta changes after a trade is executed
+#[derive(Default, Copy, Clone)]
+pub(super) struct TradeStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
+	pub(crate) asset_in: AssetStateChange<Balance>,
+	pub(crate) asset_out: AssetStateChange<Balance>,
+	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
+	pub(crate) hdx_hub_amount: Balance,
+}
+
+/// Delta changes after a trade with hub asset is executed.
+#[derive(Default, Copy, Clone)]
+pub(super) struct HubTradeStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
+	pub(crate) asset: AssetStateChange<Balance>,
+	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
+}
+
+/// Delta changes after add or remove liquidity.
+#[derive(Default, Copy, Clone, Debug)]
+pub(super) struct LiquidityStateChange<Balance>
+where
+	Balance: Default + Copy,
+{
+	pub(crate) asset: AssetStateChange<Balance>,
+	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
+	pub(crate) delta_position_reserve: BalanceUpdate<Balance>,
+	pub(crate) delta_position_shares: BalanceUpdate<Balance>,
+	pub(crate) lp_hub_amount: Balance,
 }
 
 #[cfg(test)]

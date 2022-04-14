@@ -1,54 +1,13 @@
 use crate::types::BalanceUpdate::{Decrease, Increase};
-use crate::types::{BalanceUpdate, Position, SimpleImbalance};
+use crate::types::{
+	AssetStateChange, BalanceUpdate, HubTradeStateChange, LiquidityStateChange, Position, SimpleImbalance,
+	TradeStateChange,
+};
 use crate::{AssetState, Config, FixedU128};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::FixedPointNumber;
 use sp_std::default::Default;
 use std::cmp::min;
-
-#[derive(Default, Copy, Clone, Debug)]
-pub(super) struct AssetStateChange<Balance>
-where
-	Balance: Default + Copy,
-{
-	pub(crate) delta_reserve: BalanceUpdate<Balance>,
-	pub(crate) delta_hub_reserve: BalanceUpdate<Balance>,
-	pub(crate) delta_shares: BalanceUpdate<Balance>,
-	pub(crate) delta_protocol_shares: BalanceUpdate<Balance>,
-	pub(crate) delta_tvl: BalanceUpdate<Balance>,
-}
-
-#[derive(Default, Copy, Clone)]
-pub(super) struct TradeStateChange<Balance>
-where
-	Balance: Default + Copy,
-{
-	pub(crate) asset_in: AssetStateChange<Balance>,
-	pub(crate) asset_out: AssetStateChange<Balance>,
-	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
-	pub(crate) hdx_hub_amount: Balance,
-}
-
-#[derive(Default, Copy, Clone)]
-pub(super) struct HubTradeStateChange<Balance>
-where
-	Balance: Default + Copy,
-{
-	pub(crate) asset: AssetStateChange<Balance>,
-	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
-}
-
-#[derive(Default, Copy, Clone, Debug)]
-pub(super) struct LiquidityStateChange<Balance>
-where
-	Balance: Default + Copy,
-{
-	pub(crate) asset: AssetStateChange<Balance>,
-	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
-	pub(crate) delta_position_reserve: BalanceUpdate<Balance>,
-	pub(crate) delta_position_shares: BalanceUpdate<Balance>,
-	pub(crate) lp_hub_amount: Balance,
-}
 
 pub(crate) fn calculate_sell_state_changes<T: Config>(
 	asset_in_state: &AssetState<T::Balance>,
