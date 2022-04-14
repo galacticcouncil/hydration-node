@@ -55,15 +55,7 @@ use math::calculate_sell_state_changes;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
-#[macro_export]
-macro_rules! ensure_asset_in_pool {
-	( $x:expr, $y:expr $(,)? ) => {{
-		if !Assets::<T>::contains_key($x) {
-			return Err($y.into());
-		}
-	}};
-}
-
+/// NFT class id type of provided nft implementation
 type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::ClassId;
 
 #[frame_support::pallet]
@@ -317,7 +309,10 @@ pub mod pallet {
 			let (stable_asset_reserve, stable_asset_hub_reserve) = if asset != T::StableCoinAssetId::get() {
 				// Ensure first that Native asset and Hub asset is already in pool
 				if asset != T::NativeAssetId::get() {
-					ensure_asset_in_pool!(T::NativeAssetId::get(), Error::<T>::NoNativeAssetInPool);
+					ensure!(
+						<Assets<T>>::contains_key(&T::NativeAssetId::get()),
+						Error::<T>::NoNativeAssetInPool
+					);
 				}
 				Self::stable_asset()?
 			} else {
@@ -866,6 +861,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	/// Update Hub asset side of HDX subpool annd add given amount to hub_asset_reserve
 	fn update_hdx_subpool_hub_asset(hub_asset_amount: T::Balance) -> DispatchResult {
 		if hub_asset_amount > T::Balance::zero() {
 			let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
@@ -878,7 +874,8 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Updates total hub asset liquidity. It either burn or mint some based on the diff of in and out.
+	/// Update total hub asset liquidity and write new value to storage.
+	/// Update total issueance if AdjustSupply is specified.
 	fn update_hub_asset_liquidity(
 		delta_amount: &BalanceUpdate<T::Balance>,
 		issuance_update: HubAssetIssuanceUpdate,
@@ -909,6 +906,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Update imbalance with given delta_imbalance and write new value to storage.
 	fn update_imbalance(
 		current_imbalance: SimpleImbalance<T::Balance>,
 		delta_imbalance: BalanceUpdate<T::Balance>,
@@ -922,6 +920,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Recalculate imbalance and call update_imbalance with new imbalance value.
 	fn recalculate_imbalance(
 		asset_state: &AssetState<T::Balance>,
 		delta_amount: BalanceUpdate<T::Balance>,
@@ -940,17 +939,18 @@ impl<T: Config> Pallet<T> {
 
 			match delta_amount {
 				BalanceUpdate::Increase(_) => {
-					return Self::update_imbalance(current_imbalance, BalanceUpdate::Increase(delta_imbalance));
+					Self::update_imbalance(current_imbalance, BalanceUpdate::Increase(delta_imbalance))
 				}
 				BalanceUpdate::Decrease(_) => {
-					return Self::update_imbalance(current_imbalance, BalanceUpdate::Decrease(delta_imbalance));
+					Self::update_imbalance(current_imbalance, BalanceUpdate::Decrease(delta_imbalance))
 				}
-			};
+			}
+		} else {
+			Ok(())
 		}
-
-		Ok(())
 	}
 
+	/// Update total tvl and asset tvl. Write new total tvl value to storage, and mutate asset tvl accordingly.
 	fn update_tvl(asset_state: &mut AssetState<T::Balance>) -> DispatchResult {
 		let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
 
@@ -1007,6 +1007,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Swap hub asset for asset_out.
+	/// Special handling of sell trade where asset in is Hub Asset.
 	fn sell_hub_asset(
 		who: &T::AccountId,
 		asset_out: T::AssetId,
