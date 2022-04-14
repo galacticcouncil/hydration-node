@@ -46,7 +46,7 @@ mod mock;
 mod tests;
 
 mod math;
-mod types;
+pub mod types;
 pub mod weights;
 
 use crate::math::calculate_sell_hub_state_changes;
@@ -692,7 +692,7 @@ pub mod pallet {
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
-				.diff(state_changes.asset_out.delta_hub_reserve)
+				.merge(state_changes.asset_out.delta_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
@@ -795,7 +795,7 @@ pub mod pallet {
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
-				.diff(state_changes.asset_out.delta_hub_reserve)
+				.merge(state_changes.asset_out.delta_hub_reserve)
 				.ok_or(Error::<T>::Overflow)?;
 			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
 

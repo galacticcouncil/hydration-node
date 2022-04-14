@@ -30,6 +30,7 @@ where
 		FixedU128::from((self.hub_reserve.into(), self.reserve.into()))
 	}
 
+	/// Update current asset state with given delta changes.
 	pub(super) fn delta_update(&mut self, delta: &AssetStateChange<Balance>) -> Option<()> {
 		self.reserve = update_value!(self.reserve, delta.delta_reserve)?;
 		self.hub_reserve = update_value!(self.hub_reserve, delta.delta_hub_reserve)?;
@@ -53,11 +54,12 @@ pub struct Position<Balance, AssetId> {
 	pub(super) price: Balance,
 }
 
-// Using FixedU128 to represent a price which uses u128 as inner type, so let's convert `Balance` into FixedU128
 impl<Balance, AssetId> Position<Balance, AssetId>
 where
 	Balance: From<u128> + Into<u128> + Copy + CheckedAdd + CheckedSub + Default,
 {
+	// Storing position price as Balance type.
+	// Let's convert `Balance` into FixedU128 and vice versa
 	pub(super) fn fixed_price(&self) -> Price {
 		Price::from_inner(self.price.into())
 	}
@@ -66,6 +68,7 @@ where
 		price.into_inner().into()
 	}
 
+	/// Update current position state with given delta changes.
 	pub(super) fn delta_update(
 		&mut self,
 		delta_reserve: &BalanceUpdate<Balance>,
@@ -80,9 +83,9 @@ where
 /// Simple type to represent imbalance which can be positive or negative.
 // Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
 #[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub(super) struct SimpleImbalance<Balance: Copy> {
-	pub(super) value: Balance,
-	pub(super) negative: bool,
+pub struct SimpleImbalance<Balance: Copy> {
+	pub value: Balance,
+	pub negative: bool,
 }
 
 impl<Balance: Default + Copy> Default for SimpleImbalance<Balance> {
@@ -94,11 +97,40 @@ impl<Balance: Default + Copy> Default for SimpleImbalance<Balance> {
 	}
 }
 
+/// The addition operator + for SimpleImbalance.
+///
+/// Adds amount to imbalance.
+///
+/// Note that it returns Option<self> rather than Self.
+///
+/// # Example
+///
+/// ```
+/// use pallet_omnipool::types::SimpleImbalance;
+/// let imbalance = SimpleImbalance{value: 100, negative: false} ;
+///
+/// assert_eq!(imbalance + 200 , Some(SimpleImbalance{value: 300, negative: false}));
+///
+/// let imbalance = SimpleImbalance{value: 100, negative: true} ;
+/// assert_eq!(imbalance + 200 , Some(SimpleImbalance{value: 100, negative: false}));
+///
+/// let imbalance = SimpleImbalance{value: 500, negative: true} ;
+/// assert_eq!(imbalance + 200 , Some(SimpleImbalance{value: 300, negative: true}));
+///
+/// let imbalance = SimpleImbalance{value: 500, negative: true} ;
+/// assert_eq!(imbalance + 500, Some(SimpleImbalance{value: 0, negative: true}));
+///
+/// let imbalance = SimpleImbalance{value: 0, negative: true} ;
+/// assert_eq!(imbalance + 500, Some(SimpleImbalance{value: 500, negative: false}));
+///
+/// let imbalance = SimpleImbalance{value: 0, negative: false} ;
+/// assert_eq!(imbalance + 500, Some(SimpleImbalance{value: 500, negative: false}));
+/// ```
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Add<Balance> for SimpleImbalance<Balance> {
 	type Output = Option<Self>;
 
 	fn add(self, amount: Balance) -> Self::Output {
-		let (value, sign) = if self.is_positive() {
+		let (value, sign) = if !self.negative {
 			(self.value.checked_add(&amount)?, self.negative)
 		} else if self.value < amount {
 			(amount.checked_sub(&self.value)?, false)
@@ -109,11 +141,40 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Add<Balance> for Simp
 	}
 }
 
+/// The subtraction operator - for SimpleImbalance.
+///
+/// Subtracts amount from imbalance.
+///
+/// Note that it returns Option<self> rather than Self.
+///
+/// # Example
+///
+/// ```
+/// use pallet_omnipool::types::SimpleImbalance;
+///
+/// let imbalance = SimpleImbalance{value: 200, negative: false} ;
+/// assert_eq!(imbalance - 100 , Some(SimpleImbalance{value: 100, negative: false}));
+///
+/// let imbalance = SimpleImbalance{value: 200, negative: false} ;
+/// assert_eq!(imbalance - 300 , Some(SimpleImbalance{value: 100, negative: true}));
+///
+/// let imbalance = SimpleImbalance{value: 200, negative: true} ;
+/// assert_eq!(imbalance - 300 , Some(SimpleImbalance{value: 500, negative: true}));
+///
+/// let imbalance = SimpleImbalance{value: 300, negative: false} ;
+/// assert_eq!(imbalance - 300 , Some(SimpleImbalance{value: 0, negative: false}));
+///
+/// let imbalance = SimpleImbalance{value: 0, negative: false} ;
+/// assert_eq!(imbalance - 300 , Some(SimpleImbalance{value: 300, negative: true}));
+///
+/// let imbalance = SimpleImbalance{value: 0, negative: true} ;
+/// assert_eq!(imbalance - 300 , Some(SimpleImbalance{value: 300, negative: true}));
+/// ```
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for SimpleImbalance<Balance> {
 	type Output = Option<Self>;
 
 	fn sub(self, amount: Balance) -> Self::Output {
-		let (value, sign) = if self.is_negative() {
+		let (value, sign) = if self.negative {
 			(self.value.checked_add(&amount)?, self.negative)
 		} else if self.value < amount {
 			(amount.checked_sub(&self.value)?, true)
@@ -121,16 +182,6 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 			(self.value.checked_sub(&amount)?, self.negative)
 		};
 		Some(Self { value, negative: sign })
-	}
-}
-
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> SimpleImbalance<Balance> {
-	pub(super) fn is_negative(&self) -> bool {
-		self.negative
-	}
-
-	pub(super) fn is_positive(&self) -> bool {
-		!self.negative
 	}
 }
 
@@ -150,7 +201,8 @@ where
 }
 
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> BalanceUpdate<Balance> {
-	pub(crate) fn diff(self, other: Self) -> Option<Self> {
+	/// Merge two update together
+	pub(crate) fn merge(self, other: Self) -> Option<Self> {
 		self.checked_add(&other)
 	}
 }
