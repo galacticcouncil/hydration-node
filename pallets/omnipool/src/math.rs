@@ -9,6 +9,7 @@ use sp_runtime::FixedPointNumber;
 use sp_std::default::Default;
 use std::cmp::min;
 
+/// Calculate delta changes of a sell trade given current state of asset in and out.
 pub(crate) fn calculate_sell_state_changes<T: Config>(
 	asset_in_state: &AssetState<T::Balance>,
 	asset_out_state: &AssetState<T::Balance>,
@@ -55,6 +56,8 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 		hdx_hub_amount: hdx_fee_amount,
 	})
 }
+
+/// Calculate delta changes of a sell where asset_in is Hub Asset
 pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
 	asset_out_state: &AssetState<T::Balance>,
 	amount: T::Balance,
@@ -90,6 +93,7 @@ pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
 	})
 }
 
+/// Calculate delta changes of a buy trade given current state of asset in and out
 pub(crate) fn calculate_buy_state_changes<T: Config>(
 	asset_in_state: &AssetState<T::Balance>,
 	asset_out_state: &AssetState<T::Balance>,
@@ -145,6 +149,7 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 	})
 }
 
+/// Calculate delta changes of add liqudiity given current asset state
 pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 	asset_state: &AssetState<T::Balance>,
 	amount: T::Balance,
@@ -167,6 +172,7 @@ pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 	})
 }
 
+/// Calculate delta changes of rmove liqudiity given current asset state and position from which liquidity should be removed.
 pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 	asset_state: &AssetState<T::Balance>,
 	shares_removed: T::Balance,
@@ -229,23 +235,4 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 		delta_position_reserve: Decrease(delta_r_position),
 		delta_position_shares: Decrease(shares_removed),
 	})
-}
-
-// THe following module will be eventually moved into the math crate.
-pub mod hydradx_math {
-
-	#[allow(unused)]
-	fn calculate_out_given_in<Balance: Default>() -> Balance {
-		Balance::default()
-	}
-
-	#[allow(unused)]
-	fn calculate_in_given_out<Balance: Default>() -> Balance {
-		Balance::default()
-	}
-
-	#[allow(unused)]
-	fn calculate_shares_given_liquidity_in<Balance: Default>() -> Balance {
-		Balance::default()
-	}
 }
