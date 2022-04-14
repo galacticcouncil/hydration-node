@@ -293,6 +293,7 @@ fn protocol_shares_update_works() {
 			check_balance!(Omnipool::protocol_account(), 1000, 1259999999999997);
 			check_balance!(LP1, 1000, 4840000000000003);
 
+			// TODO: discrepency here comapred to python output - investigate!
 			check_state!(10807666666666667, 21212000000000002, SimpleImbalance::default());
 			let expected_state = AssetState {
 				reserve: 1259999999999997,

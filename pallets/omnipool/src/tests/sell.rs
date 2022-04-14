@@ -1,4 +1,5 @@
 use super::*;
+use frame_support::assert_noop;
 
 #[test]
 fn simple_sell_works() {
@@ -70,6 +71,109 @@ fn simple_sell_works() {
 					protocol_shares: 2000 * ONE,
 					tvl: 2000 * ONE
 				}
+			);
+		});
+}
+#[test]
+fn sell_with_insufficient_balance_fails() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Omnipool::sell(Origin::signed(LP1), 100, 200, 10000 * ONE, 0),
+			Error::<Test>::InsufficientBalance
+		);
+	});
+}
+
+#[test]
+fn hub_asset_buy_not_allowed() {
+	ExtBuilder::default().build().execute_with(|| {
+		assert_noop!(
+			Omnipool::sell(Origin::signed(LP1), 100, LRNA, 10000 * ONE, 0),
+			Error::<Test>::NotAllowed
+		);
+	});
+}
+
+#[test]
+fn selling_assets_not_in_pool_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, HDX, 1000 * ONE),
+			(LP1, 1000, 1000 * ONE),
+			(LP1, 2000, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 1000, HDX, 50 * ONE, 10 * ONE),
+				Error::<Test>::AssetNotFound
+			);
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), HDX, 1000, 50 * ONE, 10 * ONE),
+				Error::<Test>::AssetNotFound
+			);
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 1000, 2000, 50 * ONE, 10 * ONE),
+				Error::<Test>::AssetNotFound
+			);
+		});
+}
+
+#[test]
+fn sell_limit_works() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 100, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+
+			let token_amount = 2000 * ONE;
+			let token_price = FixedU128::from_float(0.65);
+
+			assert_ok!(Omnipool::add_token(Origin::root(), 100, token_amount, token_price));
+
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, HDX, 50 * ONE, 1000 * ONE),
+				Error::<Test>::BuyLimitNotReached
+			);
+		});
+}
+
+#[test]
+fn sell_hub_asset_limit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), 0, 100000000000000000),
+			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(Omnipool::protocol_account(), 100, 2000 * ONE),
+			(LP3, LRNA, 100 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+			assert_ok!(Omnipool::add_token(Origin::root(), 100, 2000 * ONE, Price::from(1)));
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP3), LRNA, HDX, 50 * ONE, 1000 * ONE),
+				Error::<Test>::BuyLimitNotReached
 			);
 		});
 }

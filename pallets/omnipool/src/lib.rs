@@ -1041,9 +1041,6 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		// Fee accounting and imbalance
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-
 		// Total hub asset liquidity
 		Self::update_hub_asset_liquidity(
 			&state_changes.asset.delta_hub_reserve,
@@ -1051,10 +1048,8 @@ impl<T: Config> Pallet<T> {
 		)?;
 
 		// Imbalance update
-		let imbalance = current_imbalance
-			.sub(*state_changes.delta_imbalance)
-			.ok_or(Error::<T>::Overflow)?;
-		<HubAssetImbalance<T>>::put(imbalance);
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
 		<Assets<T>>::insert(asset_out, asset_out_state);
 
