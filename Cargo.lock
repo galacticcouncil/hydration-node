@@ -827,6 +827,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
+name = "cool_asserts"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fea70c9cbd7d29920c31f511d12313838ba4678c7d7cac08e5cc42471ecec443"
+
+[[package]]
 name = "core-foundation"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4418,6 +4424,7 @@ dependencies = [
 name = "pallet-omnipool"
 version = "0.1.0"
 dependencies = [
+ "cool_asserts",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

@@ -46,7 +46,7 @@ mod mock;
 mod tests;
 
 mod math;
-pub mod types;
+mod types;
 pub mod weights;
 
 use crate::math::calculate_sell_hub_state_changes;
