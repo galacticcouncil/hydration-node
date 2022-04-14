@@ -97,3 +97,27 @@ fn add_liquidity_with_insufficient_balance_fails() {
 			);
 		});
 }
+
+#[test]
+fn add_liquidity_exceeding_weight_cap_fails() {
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.with_asset_weight_cap((1, 100))
+		.build()
+		.execute_with(|| {
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP1),
+				1_000,
+				100 * ONE,
+				FixedU128::from_float(0.65)
+			));
+
+			assert_noop!(
+				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2000 * ONE,),
+				Error::<Test>::AssetWeightCapExceeded
+			);
+		});
+}

@@ -60,6 +60,7 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
+	pub static ASSET_WEIGHT_CAP: RefCell<(u32,u32)> = RefCell::new((u32::MAX,1));
 }
 
 construct_runtime!(
@@ -132,6 +133,13 @@ impl orml_tokens::Config for Test {
 	type DustRemovalWhitelist = Everything;
 }
 
+struct WeightCap;
+impl Get<(u32, u32)> for WeightCap {
+	fn get() -> (u32, u32) {
+		ASSET_WEIGHT_CAP.with(|v| *v.borrow())
+	}
+}
+
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
@@ -140,7 +148,7 @@ parameter_types! {
 
 	pub const ProtocolFee: (u32,u32) = ( 0, 0);
 	pub const AssetFee: (u32,u32) = ( 0, 0);
-	pub const AssetWeightCap: Balance = Balance::MAX;
+	pub AssetWeightCap: (u32,u32) = WeightCap::get();
 	pub const TVLCap: Balance = Balance::MAX;
 }
 
@@ -224,6 +232,13 @@ impl ExtBuilder {
 	pub fn with_registered_asset(self, asset: AssetId) -> Self {
 		REGISTERED_ASSETS.with(|v| {
 			v.borrow_mut().insert(asset, asset);
+		});
+		self
+	}
+
+	pub fn with_asset_weight_cap(self, cap: (u32, u32)) -> Self {
+		ASSET_WEIGHT_CAP.with(|v| {
+			*v.borrow_mut() = cap;
 		});
 		self
 	}

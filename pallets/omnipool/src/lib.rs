@@ -135,7 +135,7 @@ pub mod pallet {
 
 		/// Asset weight cap
 		#[pallet::constant]
-		type AssetWeightCap: Get<Self::Balance>;
+		type AssetWeightCap: Get<(u32, u32)>;
 
 		/// TVL cap
 		#[pallet::constant]
@@ -432,8 +432,15 @@ pub mod pallet {
 				.delta_update(&state_changes.asset)
 				.ok_or(Error::<T>::Overflow)?;
 
+			let hub_reserve_ratio = FixedU128::from((
+				asset_state.hub_reserve,
+				<HubAssetLiquidity<T>>::get()
+					.checked_add(&state_changes.asset.delta_hub_reserve)
+					.ok_or(Error::<T>::Overflow)?,
+			));
+
 			ensure!(
-				asset_state.hub_reserve <= T::AssetWeightCap::get(), // TODO: add test when weight cap is exceeded
+				hub_reserve_ratio <= Self::asset_weight_cap(),
 				Error::<T>::AssetWeightCapExceeded
 			);
 
@@ -832,6 +839,14 @@ impl<T: Config> Pallet<T> {
 	/// Convert asset fee to FixedU128
 	fn asset_fee() -> Price {
 		let fee = T::AssetFee::get();
+		match fee {
+			(_, 0) => FixedU128::zero(),
+			(a, b) => FixedU128::from((a, b)),
+		}
+	}
+	/// Convert asset weight cap to FixedU128
+	fn asset_weight_cap() -> Price {
+		let fee = T::AssetWeightCap::get();
 		match fee {
 			(_, 0) => FixedU128::zero(),
 			(a, b) => FixedU128::from((a, b)),
