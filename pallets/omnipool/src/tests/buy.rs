@@ -88,11 +88,11 @@ fn buy_insufficient_amount_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::buy(Origin::signed(LP1), LRNA, HDX, 1 * ONE, 0),
+				Omnipool::buy(Origin::signed(LP1), LRNA, HDX, ONE, 0),
 				Error::<Test>::InsufficientTradingAmount
 			);
 			assert_noop!(
-				Omnipool::buy(Origin::signed(LP1), 1000, HDX, 1 * ONE, 0),
+				Omnipool::buy(Origin::signed(LP1), 1000, HDX, ONE, 0),
 				Error::<Test>::InsufficientTradingAmount
 			);
 		});

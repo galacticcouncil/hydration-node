@@ -90,12 +90,12 @@ fn sell_insufficient_amount_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, 1 * ONE, 0),
+				Omnipool::sell(Origin::signed(LP1), 100, 200, ONE, 0),
 				Error::<Test>::InsufficientTradingAmount
 			);
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), LRNA, 200, 1 * ONE, 0),
+				Omnipool::sell(Origin::signed(LP1), LRNA, 200, ONE, 0),
 				Error::<Test>::InsufficientTradingAmount
 			);
 		});

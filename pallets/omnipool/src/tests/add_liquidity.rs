@@ -140,7 +140,7 @@ fn add_insufficient_liquidity_fails() {
 			));
 
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP3), 1_000, 1 * ONE,),
+				Omnipool::add_liquidity(Origin::signed(LP3), 1_000, ONE,),
 				Error::<Test>::InsufficientLiquidity
 			);
 		});
