@@ -44,7 +44,7 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
 			delta_reserve: Increase(amount),
-			delta_hub_reserve: Decrease(delta_hub_reserve_in.checked_sub(&hdx_fee_amount)?),
+			delta_hub_reserve: Decrease(delta_hub_reserve_in),
 			..Default::default()
 		},
 		asset_out: AssetStateChange {
@@ -136,7 +136,7 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 	Some(TradeStateChange {
 		asset_in: AssetStateChange {
 			delta_reserve: Increase(delta_reserve_in),
-			delta_hub_reserve: Decrease(delta_hub_reserve_in.checked_sub(&hdx_fee_amount)?),
+			delta_hub_reserve: Decrease(delta_hub_reserve_in),
 			..Default::default()
 		},
 		asset_out: AssetStateChange {
