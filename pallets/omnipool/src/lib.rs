@@ -141,6 +141,14 @@ pub mod pallet {
 		#[pallet::constant]
 		type TVLCap: Get<Self::Balance>;
 
+		/// Minimum trading limit
+		#[pallet::constant]
+		type MinimumTradingLimit: Get<Self::Balance>;
+
+		/// Minimum pool liquidity which can be added
+		#[pallet::constant]
+		type MinimumPoolLiquidity: Get<Self::Balance>;
+
 		/// Position identifier type
 		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
 
@@ -269,6 +277,11 @@ pub mod pallet {
 		TVLCapExceeded,
 		/// Asset is not registered in asset registry
 		AssetNotRegistered,
+		/// Provided liquidity is below minimum allowed limit
+		InsufficientLiquidity,
+		/// Traded amount is below minimum allowed limit
+		///InsufficientTradingAmount,
+
 		/// Math overflow
 		Overflow,
 	}
@@ -416,6 +429,11 @@ pub mod pallet {
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: T::Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(
+				amount >= T::MinimumPoolLiquidity::get(),
+				Error::<T>::InsufficientLiquidity
+			);
 
 			ensure!(
 				T::Currency::free_balance(asset, &who) >= amount,
@@ -636,6 +654,8 @@ pub mod pallet {
 
 			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
+			//ensure!(amount >= T::MinimumTradingLimit::get(), Error::<T>::InsufficientTradingAmount);
+
 			ensure!(
 				T::Currency::free_balance(asset_in, &who) >= amount,
 				Error::<T>::InsufficientBalance
@@ -740,6 +760,8 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
+
+			//ensure!(amount >= T::MinimumTradingLimit::get(), Error::<T>::InsufficientTradingAmount);
 
 			// TODO: handle buy hub asset separately.
 			// Note: hub asset is not allowed to be bought at the moment.

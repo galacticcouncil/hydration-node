@@ -63,6 +63,8 @@ thread_local! {
 	pub static ASSET_WEIGHT_CAP: RefCell<(u32,u32)> = RefCell::new((u32::MAX,1));
 	pub static ASSET_FEE: RefCell<(u32,u32)> = RefCell::new((0,0));
 	pub static PROTOCOL_FEE: RefCell<(u32,u32)> = RefCell::new((0,0));
+	//pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(Balance::default());
+	//pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(Balance::default());
 }
 
 construct_runtime!(
@@ -153,6 +155,20 @@ impl Get<(u32, u32)> for FeeProtocol {
 		PROTOCOL_FEE.with(|v| *v.borrow())
 	}
 }
+struct MinLiquidity;
+impl Get<Balance> for MinLiquidity {
+	fn get() -> Balance {
+		//MIN_ADDED_LIQUDIITY.with(|v| *v.borrow())
+		0
+	}
+}
+struct MinAmount;
+impl Get<Balance> for MinAmount {
+	fn get() -> Balance {
+		//MIN_TRADE_AMOUNT.with(|v| *v.borrow())
+		0
+	}
+}
 
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
@@ -163,6 +179,8 @@ parameter_types! {
 	pub ProtocolFee: (u32,u32) = FeeProtocol::get();
 	pub AssetFee: (u32,u32) = FeeAsset::get();
 	pub AssetWeightCap: (u32,u32) = WeightCap::get();
+	pub MinAddedLiquidity: Balance = MinAddedLiquidity::get();
+	pub MinTradeAmount: Balance = MinAmount::get();
 	pub const TVLCap: Balance = Balance::MAX;
 }
 
@@ -207,6 +225,8 @@ impl Config for Test {
 	type AssetWeightCap = AssetWeightCap;
 	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<Test>;
+	type MinimumTradingLimit = MinTradeAmount;
+	type MinimumPoolLiquidity = MinAddedLiquidity;
 }
 
 pub struct ExtBuilder {
