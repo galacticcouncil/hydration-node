@@ -82,6 +82,23 @@ fn hub_asset_buy_fails() {
 }
 
 #[test]
+fn buy_insufficient_amount_fails() {
+	ExtBuilder::default()
+		.with_min_trade_amount(5 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), LRNA, HDX, 1 * ONE, 0),
+				Error::<Test>::InsufficientTradingAmount
+			);
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 1000, HDX, 1 * ONE, 0),
+				Error::<Test>::InsufficientTradingAmount
+			);
+		});
+}
+
+#[test]
 fn buy_assets_not_in_pool_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(

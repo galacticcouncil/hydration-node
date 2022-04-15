@@ -251,6 +251,12 @@ impl Default for ExtBuilder {
 		PROTOCOL_FEE.with(|v| {
 			*v.borrow_mut() = (0, 0);
 		});
+		MIN_ADDED_LIQUDIITY.with(|v| {
+			*v.borrow_mut() = 0;
+		});
+		MIN_TRADE_AMOUNT.with(|v| {
+			*v.borrow_mut() = 0;
+		});
 
 		Self {
 			endowed_accounts: vec![
@@ -295,6 +301,19 @@ impl ExtBuilder {
 	pub fn with_protocol_fee(self, cap: (u32, u32)) -> Self {
 		PROTOCOL_FEE.with(|v| {
 			*v.borrow_mut() = cap;
+		});
+		self
+	}
+	pub fn with_min_added_liquidity(self, limit: Balance) -> Self {
+		MIN_ADDED_LIQUDIITY.with(|v| {
+			*v.borrow_mut() = limit;
+		});
+		self
+	}
+
+	pub fn with_min_trade_amount(self, limit: Balance) -> Self {
+		MIN_TRADE_AMOUNT.with(|v| {
+			*v.borrow_mut() = limit;
 		});
 		self
 	}

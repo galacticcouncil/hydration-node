@@ -83,6 +83,23 @@ fn sell_with_insufficient_balance_fails() {
 		);
 	});
 }
+#[test]
+fn sell_insufficient_amount_fails() {
+	ExtBuilder::default()
+		.with_min_trade_amount(5 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 1 * ONE, 0),
+				Error::<Test>::InsufficientTradingAmount
+			);
+
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), LRNA, 200, 1 * ONE, 0),
+				Error::<Test>::InsufficientTradingAmount
+			);
+		});
+}
 
 #[test]
 fn hub_asset_buy_not_allowed() {

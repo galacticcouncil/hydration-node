@@ -280,8 +280,7 @@ pub mod pallet {
 		/// Provided liquidity is below minimum allowed limit
 		InsufficientLiquidity,
 		/// Traded amount is below minimum allowed limit
-		///InsufficientTradingAmount,
-
+		InsufficientTradingAmount,
 		/// Math overflow
 		Overflow,
 	}
@@ -652,9 +651,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
+			ensure!(
+				amount >= T::MinimumTradingLimit::get(),
+				Error::<T>::InsufficientTradingAmount
+			);
 
-			//ensure!(amount >= T::MinimumTradingLimit::get(), Error::<T>::InsufficientTradingAmount);
+			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
 			ensure!(
 				T::Currency::free_balance(asset_in, &who) >= amount,
@@ -759,9 +761,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
+			ensure!(
+				amount >= T::MinimumTradingLimit::get(),
+				Error::<T>::InsufficientTradingAmount
+			);
 
-			//ensure!(amount >= T::MinimumTradingLimit::get(), Error::<T>::InsufficientTradingAmount);
+			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
 
 			// TODO: handle buy hub asset separately.
 			// Note: hub asset is not allowed to be bought at the moment.
