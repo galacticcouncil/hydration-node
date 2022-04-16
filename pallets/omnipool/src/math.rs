@@ -36,7 +36,6 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 	// Fee accounting
 	let protocol_fee_amount = protocol_fee.checked_mul_int(delta_hub_reserve_in)?;
 
-	// TODO: verify if this is correct min select ?! is protocol_fee_amoutn supposed to be negative ?
 	let delta_imbalance = min(protocol_fee_amount, imbalance.value);
 
 	let hdx_fee_amount = protocol_fee_amount.checked_sub(&delta_imbalance)?;

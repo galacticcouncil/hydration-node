@@ -68,13 +68,11 @@ fn sell_fee_test() {
 			check_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
 			check_balance_approx!(Omnipool::protocol_account(), 1, 14260000000000000u128, 10);
 			check_balance_approx!(Omnipool::protocol_account(), 100, 2560000000000000u128, 10);
-			//	check_balance_approx!(Omnipool::protocol_account(), 200, 1938322315390999u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 200, 1938158890222434u128, 10);
+			check_balance_approx!(Omnipool::protocol_account(), 200, 1938322315391001u128, 10);
 			check_balance_approx!(LP1, 100, 3000000000000000u128, 10);
 			check_balance_approx!(LP1, 200, 3000000000000000u128, 10);
 			check_balance_approx!(LP2, 100, 550000000000000u128, 10);
-			//	check_balance_approx!(LP2, 200, 18014179710851u128, 10);
-			check_balance_approx!(LP2, 200, 18177604879418u128, 10);
+			check_balance_approx!(LP2, 200, 18014179710851u128, 10);
 			check_balance_approx!(LP3, 100, 1890000000000000u128, 10);
 			check_balance_approx!(LP3, 200, 343663504898149u128, 10);
 
@@ -93,7 +91,7 @@ fn sell_fee_test() {
 				0,
 				AssetState {
 					reserve: 10000000000000000,
-					hub_reserve: 10019553411354581,
+					hub_reserve: 10019499999999999,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 10000000000000000
@@ -104,8 +102,7 @@ fn sell_fee_test() {
 				100,
 				AssetState {
 					reserve: 2560000000000000,
-					//hub_reserve: 1462500000000000,
-					hub_reserve: 1481786354581674,
+					hub_reserve: 1462500000000001,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000
@@ -115,10 +112,8 @@ fn sell_fee_test() {
 			check_asset_state!(
 				200,
 				AssetState {
-					//	reserve: 1938322315390999,
-					reserve: 1938158890222434,
-					//	hub_reserve: 2278000000000000,
-					hub_reserve: 2278213645418324,
+					reserve: 1938322315391001,
+					hub_reserve: 2277999999999998,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 2000000000000000
@@ -126,7 +121,6 @@ fn sell_fee_test() {
 			);
 
 			check_state!(
-				//14240500000000000,
 				14259999999999998,
 				29120000000000000,
 				SimpleImbalance {

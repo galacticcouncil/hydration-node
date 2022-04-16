@@ -716,7 +716,13 @@ pub mod pallet {
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
-				.merge(state_changes.asset_out.delta_hub_reserve)
+				.merge(
+					state_changes
+						.asset_out
+						.delta_hub_reserve
+						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
+						.ok_or(Error::<T>::Overflow)?,
+				)
 				.ok_or(Error::<T>::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
@@ -824,7 +830,13 @@ pub mod pallet {
 			let delta_hub_asset = state_changes
 				.asset_in
 				.delta_hub_reserve
-				.merge(state_changes.asset_out.delta_hub_reserve)
+				.merge(
+					state_changes
+						.asset_out
+						.delta_hub_reserve
+						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
+						.ok_or(Error::<T>::Overflow)?,
+				)
 				.ok_or(Error::<T>::Overflow)?;
 			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
 
