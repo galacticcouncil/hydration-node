@@ -5,6 +5,7 @@ use frame_support::assert_noop;
 fn add_liquidity_works() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((LP2, 1_000, 5000 * ONE))
 		.build()
 		.execute_with(|| {
 			let dai_amount = 1000 * ONE;
@@ -15,7 +16,7 @@ fn add_liquidity_works() {
 			let token_price = FixedU128::from_float(0.65);
 
 			assert_ok!(Omnipool::add_token(
-				Origin::root(),
+				Origin::signed(LP2),
 				1_000,
 				token_amount,
 				FixedU128::from_float(0.65)
@@ -37,7 +38,7 @@ fn add_liquidity_works() {
 				}
 			);
 
-			let position = Positions::<Test>::get(0).unwrap();
+			let position = Positions::<Test>::get(1).unwrap();
 
 			let expected = Position::<Balance, AssetId> {
 				asset_id: 1_000,
@@ -52,7 +53,7 @@ fn add_liquidity_works() {
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
-			let minted_position = POSITIONS.with(|v| v.borrow().get(&0).copied());
+			let minted_position = POSITIONS.with(|v| v.borrow().get(&1).copied());
 
 			assert_eq!(minted_position, Some(LP1));
 		});

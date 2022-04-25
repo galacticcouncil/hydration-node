@@ -8,7 +8,7 @@ fn remove_liquidity_works() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.build()
@@ -20,14 +20,26 @@ fn remove_liquidity_works() {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
-			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP2),
+				1_000,
+				token_amount,
+				token_price
+			));
 			let liq_added = 400 * ONE;
+
+			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
 			let liq_removed = 200 * ONE;
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), 0, liq_removed));
+			assert_ok!(Omnipool::remove_liquidity(
+				Origin::signed(LP1),
+				current_position_id,
+				liq_removed
+			));
 
 			assert_pool_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
 
@@ -44,7 +56,7 @@ fn remove_liquidity_works() {
 				}
 			);
 
-			let position = Positions::<Test>::get(0).unwrap();
+			let position = Positions::<Test>::get(current_position_id).unwrap();
 
 			let expected = Position::<Balance, AssetId> {
 				asset_id: 1_000,
@@ -63,7 +75,7 @@ fn full_liquidity_removal_works() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.build()
@@ -75,14 +87,18 @@ fn full_liquidity_removal_works() {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
-
-			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP2),
+				1_000,
+				token_amount,
+				token_price
+			));
 			let liq_added = 400 * ONE;
+			let lp1_position_id = <PositionInstanceSequencer<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
 			assert!(
-				get_mock_minted_position(current_position_id).is_some(),
+				get_mock_minted_position(lp1_position_id).is_some(),
 				"Position instance was not minted"
 			);
 
@@ -90,12 +106,12 @@ fn full_liquidity_removal_works() {
 
 			assert_ok!(Omnipool::remove_liquidity(
 				Origin::signed(LP1),
-				current_position_id,
+				lp1_position_id,
 				liq_removed
 			));
 
 			assert!(
-				Positions::<Test>::get(current_position_id).is_none(),
+				Positions::<Test>::get(lp1_position_id).is_none(),
 				"Position still found"
 			);
 
@@ -115,7 +131,7 @@ fn full_liquidity_removal_works() {
 			);
 
 			assert!(
-				get_mock_minted_position(current_position_id).is_none(),
+				get_mock_minted_position(lp1_position_id).is_none(),
 				"Position instance was not burned"
 			);
 		});
@@ -127,7 +143,7 @@ fn partial_liquidity_removal_works() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.build()
@@ -139,10 +155,15 @@ fn partial_liquidity_removal_works() {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP2),
+				1_000,
+				token_amount,
+				token_price
+			));
+			let liq_added = 400 * ONE;
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
 
-			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
-			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
 			assert!(
@@ -201,7 +222,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 100 * ONE),
+			(LP3, 1_000, 100 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 			(LP2, DAI, 50000 * ONE),
 		])
@@ -214,11 +235,17 @@ fn lp_receives_lrna_when_price_is_higher() {
 			let token_amount = 100 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
-
-			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP3),
+				1_000,
+				token_amount,
+				token_price
+			));
 
 			let liq_added = 400 * ONE;
+
+			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
 			assert_ok!(Omnipool::buy(Origin::signed(LP2), 1_000, DAI, 300 * ONE, 500000 * ONE));
@@ -252,7 +279,7 @@ fn protocol_shares_update_works() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 100 * ONE),
+			(LP3, 1_000, 100 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 			(LP2, 1_000, 5000 * ONE),
 		])
@@ -265,11 +292,16 @@ fn protocol_shares_update_works() {
 			let token_amount = 100 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
-
-			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP3),
+				1_000,
+				token_amount,
+				token_price
+			));
 
 			let liq_added = 400 * ONE;
+			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
 			assert_ok!(Omnipool::sell(Origin::signed(LP2), 1_000, HDX, 1000 * ONE, 10 * ONE));
@@ -293,7 +325,6 @@ fn protocol_shares_update_works() {
 			assert_balance!(Omnipool::protocol_account(), 1000, 1259999999999997);
 			assert_balance!(LP1, 1000, 4840000000000003);
 
-			// TODO: discrepency here comapred to python output - investigate!
 			assert_pool_state!(10807666666666667, 21212000000000002, SimpleImbalance::default());
 			let expected_state = AssetState {
 				reserve: 1259999999999997,
@@ -312,7 +343,7 @@ fn remove_liquidity_by_non_owner_fails() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.build()
@@ -321,7 +352,7 @@ fn remove_liquidity_by_non_owner_fails() {
 			let price = FixedU128::from_float(0.5);
 			init_omnipool(dai_amount, price);
 			assert_ok!(Omnipool::add_token(
-				Origin::root(),
+				Origin::signed(LP2),
 				1_000,
 				2_000 * ONE,
 				FixedU128::one()
@@ -342,7 +373,7 @@ fn remove_liquidity_from_non_existing_position_fails() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.build()
@@ -351,7 +382,7 @@ fn remove_liquidity_from_non_existing_position_fails() {
 			let price = FixedU128::from_float(0.5);
 			init_omnipool(dai_amount, price);
 			assert_ok!(Omnipool::add_token(
-				Origin::root(),
+				Origin::signed(LP2),
 				1_000,
 				2_000 * ONE,
 				FixedU128::one()
@@ -371,7 +402,7 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 1_000, 2000 * ONE),
+			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.build()
@@ -380,7 +411,7 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 			let price = FixedU128::from_float(0.5);
 			init_omnipool(dai_amount, price);
 			assert_ok!(Omnipool::add_token(
-				Origin::root(),
+				Origin::signed(LP2),
 				1_000,
 				2_000 * ONE,
 				FixedU128::one()

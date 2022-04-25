@@ -54,11 +54,11 @@ macro_rules! assert_asset_state {
 }
 
 fn init_omnipool(dai_amount: Balance, price: FixedU128) {
-	assert_ok!(Omnipool::add_token(Origin::root(), DAI, dai_amount, price));
-	assert_ok!(Omnipool::add_token(
+	assert_ok!(Omnipool::initialize_pool(
 		Origin::root(),
-		HDX,
+		dai_amount,
 		NATIVE_AMOUNT,
+		price,
 		FixedU128::from(1)
 	));
 

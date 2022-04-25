@@ -109,7 +109,7 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
 
 		/// Add token origin
-		type AddTokenOrigin: EnsureOrigin<Self::Origin, Success = Option<Self::AccountId>>;
+		type AddTokenOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>;
@@ -255,7 +255,7 @@ pub mod pallet {
 		/// Asset is not in omnipool
 		AssetNotFound,
 		/// No stable asset in the pool
-		NoStableCoinInPool,
+		NoStableAssetInPool,
 		/// No native asset in the pool yet.
 		NoNativeAssetInPool,
 		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
@@ -286,14 +286,134 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Add new token to omnipool in quantity `amount` at price `initial_price`
+		/// Initialize Omnipool with stable asset and native asset.
 		///
 		/// First added assets must be:
 		/// - preferred stable coin asset set as `StableCoinAssetId` pallet parameter
 		/// - native asset
 		///
-		/// `add_token` returns `NoStableCoinInPool` error if stable asset is missing
-		/// `add_token` returns `NoNativeAssetInPool` error if native asset is missing
+		/// Omnipool account must already have correct balances of stable and native asset.
+		///
+		/// Parameters:
+		/// - `stable_asset_amount`: Amount of stable asset
+		/// - `native_asset_amount`: Amount of native asset
+		/// - `stable_asset_price`: Initial price of stable asset
+		/// - `native_asset_price`: Initial price of stable asset
+		///
+		/// Emits two `TokenAdded` events when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::add_token())]
+		#[transactional]
+		pub fn initialize_pool(
+			origin: OriginFor<T>,
+			stable_asset_amount: T::Balance,
+			native_asset_amount: T::Balance,
+			stable_asset_price: Price,
+			native_asset_price: Price,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ensure!(
+				!Assets::<T>::contains_key(T::StableCoinAssetId::get()),
+				Error::<T>::AssetAlreadyAdded
+			);
+			ensure!(
+				!Assets::<T>::contains_key(T::NativeAssetId::get()),
+				Error::<T>::AssetAlreadyAdded
+			);
+
+			let (stable_asset_reserve, stable_asset_hub_reserve) = (
+				stable_asset_amount,
+				stable_asset_price
+					.checked_mul_int(stable_asset_amount)
+					.ok_or(ArithmeticError::Overflow)?,
+			);
+
+			let (native_asset_reserve, native_asset_hub_reserve) = (
+				native_asset_amount,
+				native_asset_price
+					.checked_mul_int(native_asset_amount)
+					.ok_or(ArithmeticError::Overflow)?,
+			);
+
+			// Ensure that stable asset has been transferred to protocol account
+			ensure!(
+				T::Currency::free_balance(T::StableCoinAssetId::get(), &Self::protocol_account())
+					>= stable_asset_reserve,
+				Error::<T>::MissingBalance
+			);
+
+			// Ensure that native asset has been transferred to protocol account
+			ensure!(
+				T::Currency::free_balance(T::NativeAssetId::get(), &Self::protocol_account()) >= native_asset_reserve,
+				Error::<T>::MissingBalance
+			);
+
+			// Initial stale of native and stable assets
+			let stable_asset_state = AssetState::<T::Balance> {
+				reserve: stable_asset_reserve,
+				hub_reserve: stable_asset_hub_reserve,
+				shares: stable_asset_reserve,
+				protocol_shares: stable_asset_reserve,
+				tvl: stable_asset_reserve,
+			};
+			let native_asset_state = AssetState::<T::Balance> {
+				reserve: native_asset_reserve,
+				hub_reserve: native_asset_hub_reserve,
+				shares: native_asset_amount,
+				protocol_shares: native_asset_amount,
+				tvl: native_asset_amount,
+			};
+
+			// Imbalance update and total hub asset liquidity for stable asset first
+			// Note: cannot be merged with native, because the calculations depend on updated values
+			Self::recalculate_imbalance(&stable_asset_state, BalanceUpdate::Decrease(stable_asset_reserve))?;
+			Self::update_hub_asset_liquidity(
+				&BalanceUpdate::Increase(stable_asset_hub_reserve),
+				HubAssetIssuanceUpdate::AdjustSupply,
+			)?;
+
+			// Imbalance update total hub asset with native asset next
+			Self::recalculate_imbalance(&native_asset_state, BalanceUpdate::Decrease(native_asset_reserve))?;
+
+			Self::update_hub_asset_liquidity(
+				&BalanceUpdate::Increase(native_asset_hub_reserve),
+				HubAssetIssuanceUpdate::AdjustSupply,
+			)?;
+
+			// TVL update
+			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+				*tvl = native_asset_price
+					.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
+					.and_then(|v| v.checked_mul_int(native_asset_amount))
+					.and_then(|v| v.checked_add(&stable_asset_amount))
+					.ok_or(ArithmeticError::Overflow)?;
+				Ok(())
+			})?;
+
+			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
+			<Assets<T>>::insert(T::NativeAssetId::get(), native_asset_state);
+
+			Self::deposit_event(Event::TokenAdded {
+				asset_id: T::StableCoinAssetId::get(),
+				initial_amount: stable_asset_amount,
+				initial_price: stable_asset_price,
+			});
+
+			Self::deposit_event(Event::TokenAdded {
+				asset_id: T::NativeAssetId::get(),
+				initial_amount: native_asset_amount,
+				initial_price: native_asset_price,
+			});
+
+			Ok(())
+		}
+
+		/// Add new token to omnipool in quantity `amount` at price `initial_price`
+		///
+		/// Can be called only after pool is initialized, otherwise it returns `NoStableAssetInPool`
+		///
+		/// Position is minted for LP.
 		///
 		/// Parameters:
 		/// - `asset`: The identifier of the new asset added to the pool. Must be registered in Asset registry
@@ -310,30 +430,14 @@ pub mod pallet {
 			amount: T::Balance,
 			initial_price: Price,
 		) -> DispatchResult {
-			let account = T::AddTokenOrigin::ensure_origin(origin)?;
+			let who = T::AddTokenOrigin::ensure_origin(origin)?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
 			ensure!(T::AssetRegistry::exists(asset), Error::<T>::AssetNotRegistered);
 
 			// Retrieve stable asset and native asset details first - we fail early if they are not yet in the pool.
-			let (stable_asset_reserve, stable_asset_hub_reserve) = if asset != T::StableCoinAssetId::get() {
-				// Ensure first that Native asset and Hub asset is already in pool
-				if asset != T::NativeAssetId::get() {
-					ensure!(
-						<Assets<T>>::contains_key(&T::NativeAssetId::get()),
-						Error::<T>::NoNativeAssetInPool
-					);
-				}
-				Self::stable_asset()?
-			} else {
-				// Trying to add preferred stable asset.
-				// This can happen only once , since it is first token to add to the pool.
-				(
-					amount,
-					initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?,
-				)
-			};
+			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
@@ -346,37 +450,28 @@ pub mod pallet {
 				tvl: amount,
 			};
 
-			// if root ( None ), it means protocol, so no transfer done assuming asset is already in the protocol account
-			if let Some(who) = account {
-				T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
+			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
 
-				// if provided by LP, create and mint a position instance
-				let lp_position = Position::<T::Balance, T::AssetId> {
-					asset_id: asset,
-					amount,
-					shares: amount,
-					price: Position::<T::Balance, T::AssetId>::price_to_balance(initial_price),
-				};
+			// if provided by LP, create and mint a position instance
+			let lp_position = Position::<T::Balance, T::AssetId> {
+				asset_id: asset,
+				amount,
+				shares: amount,
+				price: Position::<T::Balance, T::AssetId>::price_to_balance(initial_price),
+			};
 
-				let instance_id = Self::create_and_mint_position_instance(&who)?;
+			let instance_id = Self::create_and_mint_position_instance(&who)?;
 
-				<Positions<T>>::insert(instance_id, lp_position);
+			<Positions<T>>::insert(instance_id, lp_position);
 
-				Self::deposit_event(Event::PositionCreated {
-					position_id: instance_id,
-					owner: who,
-					asset,
-					amount,
-					shares: amount,
-					price: initial_price,
-				});
-			} else {
-				// Ensure that it has been transferred to protocol account by other means
-				ensure!(
-					T::Currency::free_balance(asset, &Self::protocol_account()) >= amount,
-					Error::<T>::MissingBalance
-				);
-			}
+			Self::deposit_event(Event::PositionCreated {
+				position_id: instance_id,
+				owner: who,
+				asset,
+				amount,
+				shares: amount,
+				price: initial_price,
+			});
 
 			// Imbalance update
 			Self::recalculate_imbalance(&state, BalanceUpdate::Decrease(amount))?;
@@ -388,16 +483,14 @@ pub mod pallet {
 			)?;
 
 			// TVL update
-			if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
-				<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-					*tvl = initial_price
-						.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
-						.and_then(|v| v.checked_mul_int(amount))
-						.and_then(|v| v.checked_add(&*tvl))
-						.ok_or(ArithmeticError::Overflow)?;
-					Ok(())
-				})?;
-			}
+			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+				*tvl = initial_price
+					.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
+					.and_then(|v| v.checked_mul_int(amount))
+					.and_then(|v| v.checked_add(&*tvl))
+					.ok_or(ArithmeticError::Overflow)?;
+				Ok(())
+			})?;
 
 			<Assets<T>>::insert(asset, state);
 
@@ -897,7 +990,7 @@ impl<T: Config> Pallet<T> {
 	/// Retrieve stable asset detail from the pool.
 	/// Return NoStableCoinInPool if stable asset is not yet in the pool.
 	fn stable_asset() -> Result<(T::Balance, T::Balance), DispatchError> {
-		let stable_asset = <Assets<T>>::get(T::StableCoinAssetId::get()).ok_or(Error::<T>::NoStableCoinInPool)?;
+		let stable_asset = <Assets<T>>::get(T::StableCoinAssetId::get()).ok_or(Error::<T>::NoStableAssetInPool)?;
 		Ok((stable_asset.reserve, stable_asset.hub_reserve))
 	}
 

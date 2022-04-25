@@ -7,8 +7,8 @@ fn simple_buy_works() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 100, 2000 * ONE),
-			(Omnipool::protocol_account(), 200, 2000 * ONE),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
 			(LP1, 100, 1000 * ONE),
 		])
 		.with_registered_asset(100)
@@ -22,9 +22,9 @@ fn simple_buy_works() {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
-			assert_ok!(Omnipool::add_token(Origin::root(), 100, token_amount, token_price,));
+			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
 
-			assert_ok!(Omnipool::add_token(Origin::root(), 200, token_amount, token_price,));
+			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
 
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 100, liq_added));
@@ -119,7 +119,7 @@ fn buy_with_insufficient_balance_fails() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 100, 2000 * ONE),
+			(LP2, 100, 2000 * ONE),
 			(LP1, 100, 1000 * ONE),
 		])
 		.with_registered_asset(100)
@@ -130,7 +130,7 @@ fn buy_with_insufficient_balance_fails() {
 			let price = FixedU128::from_float(0.5);
 			init_omnipool(dai_amount, price);
 
-			assert_ok!(Omnipool::add_token(Origin::root(), 100, 500 * ONE, Price::from(1)));
+			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, 500 * ONE, Price::from(1)));
 
 			assert_noop!(
 				Omnipool::buy(Origin::signed(LP1), 100, HDX, 100 * ONE, 10 * ONE),
@@ -145,7 +145,7 @@ fn buy_exceeding_limit_fails() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(Omnipool::protocol_account(), 100, 2000 * ONE),
+			(LP2, 100, 2000 * ONE),
 			(LP1, 100, 1000 * ONE),
 			(LP1, HDX, 1000 * ONE),
 		])
@@ -157,7 +157,7 @@ fn buy_exceeding_limit_fails() {
 			let price = FixedU128::from_float(0.5);
 			init_omnipool(dai_amount, price);
 
-			assert_ok!(Omnipool::add_token(Origin::root(), 100, 500 * ONE, Price::from(1)));
+			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, 500 * ONE, Price::from(1)));
 
 			assert_noop!(
 				Omnipool::buy(Origin::signed(LP1), 100, HDX, 100 * ONE, 10 * ONE),

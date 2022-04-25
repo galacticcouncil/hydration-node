@@ -16,19 +16,9 @@ fn scenario_04() {
 		.with_registered_asset(200)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::root(),
-				2,
-				1000000000000000,
-				FixedU128::from_float(0.5)
-			));
-
-			assert_ok!(Omnipool::add_token(
-				Origin::root(),
-				0,
-				10000000000000000,
-				FixedU128::from(1)
-			));
+			let dai_amount = 1000 * ONE;
+			let price = FixedU128::from_float(0.5);
+			init_omnipool(dai_amount, price);
 
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP1),

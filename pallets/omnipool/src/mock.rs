@@ -18,19 +18,17 @@
 //! Test environment for Assets pallet.
 
 use super::*;
-use codec::Decode;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate as pallet_omnipool;
 
-use frame_support::pallet_prelude::EnsureOrigin;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use frame_system::RawOrigin;
+use frame_system::EnsureSigned;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
@@ -182,36 +180,13 @@ parameter_types! {
 	pub const TVLCap: Balance = Balance::MAX;
 }
 
-pub struct EnsureSignedOrRoot<AccountId>(sp_std::marker::PhantomData<AccountId>);
-
-impl<O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>, AccountId: Decode> EnsureOrigin<O>
-	for EnsureSignedOrRoot<AccountId>
-{
-	type Success = Option<AccountId>;
-
-	fn try_origin(o: O) -> Result<Self::Success, O> {
-		o.into().and_then(|o| match o {
-			RawOrigin::Signed(who) => Ok(Some(who)),
-			RawOrigin::Root => Ok(None),
-			r => Err(O::from(r)),
-		})
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn successful_origin() -> O {
-		let zero_account_id = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
-			.expect("infinite length input; no invalid inputs for type; qed");
-		O::from(RawOrigin::Signed(zero_account_id))
-	}
-}
-
 impl Config for Test {
 	type Event = Event;
 	type Balance = Balance;
 	type AssetId = AssetId;
 	type PositionInstanceId = u32;
 	type Currency = Tokens;
-	type AddTokenOrigin = EnsureSignedOrRoot<Self::AccountId>;
+	type AddTokenOrigin = EnsureSigned<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
