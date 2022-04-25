@@ -460,7 +460,7 @@ pub mod pallet {
 				Error::<T>::AssetWeightCapExceeded
 			);
 
-			let updated_assset_price = asset_state.price();
+			let updated_asset_price = asset_state.price();
 
 			// Create LP position with given shares
 			let lp_position = Position::<T::Balance, T::AssetId> {
@@ -468,7 +468,7 @@ pub mod pallet {
 				amount,
 				shares: *state_changes.asset.delta_shares,
 				// Note: position needs price after asset state is updated.
-				price: Position::<T::Balance, T::AssetId>::price_to_balance(updated_assset_price),
+				price: Position::<T::Balance, T::AssetId>::price_to_balance(updated_asset_price),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
@@ -481,7 +481,7 @@ pub mod pallet {
 				asset,
 				amount,
 				shares: *state_changes.asset.delta_shares,
-				price: updated_assset_price,
+				price: updated_asset_price,
 			});
 
 			// Token update
