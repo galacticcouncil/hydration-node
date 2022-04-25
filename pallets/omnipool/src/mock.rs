@@ -229,6 +229,12 @@ impl Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
+	registered_assets: Vec<AssetId>,
+	asset_fee: (u32, u32),
+	protocol_fee: (u32, u32),
+	asset_weight_cap: (u32, u32),
+	min_liquidity: u128,
+	min_trade_limit: u128,
 }
 
 impl Default for ExtBuilder {
@@ -264,6 +270,12 @@ impl Default for ExtBuilder {
 				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 				(Omnipool::protocol_account(), 1_000, 2000 * ONE),
 			],
+			asset_fee: (0, 0),
+			protocol_fee: (0, 0),
+			asset_weight_cap: (u32::MAX, 1),
+			min_liquidity: 0,
+			registered_assets: vec![],
+			min_trade_limit: 0,
 		}
 	}
 }
@@ -277,44 +289,32 @@ impl ExtBuilder {
 		self.endowed_accounts.push(account);
 		self
 	}
-	pub fn with_registered_asset(self, asset: AssetId) -> Self {
-		REGISTERED_ASSETS.with(|v| {
-			v.borrow_mut().insert(asset, asset);
-		});
+	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
+		self.registered_assets.push(asset);
 		self
 	}
 
-	pub fn with_asset_weight_cap(self, cap: (u32, u32)) -> Self {
-		ASSET_WEIGHT_CAP.with(|v| {
-			*v.borrow_mut() = cap;
-		});
+	pub fn with_asset_weight_cap(mut self, cap: (u32, u32)) -> Self {
+		self.asset_weight_cap = cap;
 		self
 	}
 
-	pub fn with_asset_fee(self, cap: (u32, u32)) -> Self {
-		ASSET_FEE.with(|v| {
-			*v.borrow_mut() = cap;
-		});
+	pub fn with_asset_fee(mut self, fee: (u32, u32)) -> Self {
+		self.asset_fee = fee;
 		self
 	}
 
-	pub fn with_protocol_fee(self, cap: (u32, u32)) -> Self {
-		PROTOCOL_FEE.with(|v| {
-			*v.borrow_mut() = cap;
-		});
+	pub fn with_protocol_fee(mut self, fee: (u32, u32)) -> Self {
+		self.protocol_fee = fee;
 		self
 	}
-	pub fn with_min_added_liquidity(self, limit: Balance) -> Self {
-		MIN_ADDED_LIQUDIITY.with(|v| {
-			*v.borrow_mut() = limit;
-		});
+	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
+		self.min_liquidity = limit;
 		self
 	}
 
-	pub fn with_min_trade_amount(self, limit: Balance) -> Self {
-		MIN_TRADE_AMOUNT.with(|v| {
-			*v.borrow_mut() = limit;
-		});
+	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
+		self.min_trade_limit = limit;
 		self
 	}
 
@@ -326,6 +326,28 @@ impl ExtBuilder {
 			v.borrow_mut().insert(DAI, DAI);
 			v.borrow_mut().insert(HDX, HDX);
 			v.borrow_mut().insert(REGISTERED_ASSET, REGISTERED_ASSET);
+			self.registered_assets.iter().for_each(|asset| {
+				v.borrow_mut().insert(*asset, *asset);
+			});
+		});
+
+		ASSET_FEE.with(|v| {
+			*v.borrow_mut() = self.asset_fee;
+		});
+		ASSET_WEIGHT_CAP.with(|v| {
+			*v.borrow_mut() = self.asset_weight_cap;
+		});
+
+		PROTOCOL_FEE.with(|v| {
+			*v.borrow_mut() = self.protocol_fee;
+		});
+
+		MIN_ADDED_LIQUDIITY.with(|v| {
+			*v.borrow_mut() = self.min_liquidity;
+		});
+
+		MIN_TRADE_AMOUNT.with(|v| {
+			*v.borrow_mut() = self.min_trade_limit;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {
