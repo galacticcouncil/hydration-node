@@ -22,6 +22,7 @@
 extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
+use frame_support::require_transactional;
 use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
@@ -901,11 +902,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Generate an nft instance id and mint NFT into the class and instance.
+	#[require_transactional]
 	fn create_and_mint_position_instance(owner: &T::AccountId) -> Result<T::PositionInstanceId, DispatchError> {
 		<PositionInstanceSequencer<T>>::try_mutate(|current_value| -> Result<T::PositionInstanceId, DispatchError> {
 			let next_position_id = *current_value;
 
-			// TODO: generate cool looking instance id, see liquidity mining
+			// TODO: think if there is need to embed something helpful into nft instance id ( such as position asset?!).
 			let instance_id = T::PositionInstanceId::from(next_position_id);
 
 			T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
@@ -931,6 +933,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Update total hub asset liquidity and write new value to storage.
 	/// Update total issueance if AdjustSupply is specified.
+	#[require_transactional]
 	fn update_hub_asset_liquidity(
 		delta_amount: &BalanceUpdate<T::Balance>,
 		issuance_update: HubAssetIssuanceUpdate,
@@ -1003,6 +1006,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update total tvl and asset tvl. Write new total tvl value to storage, and mutate asset tvl accordingly.
+	#[require_transactional]
 	fn update_tvl(asset_state: &mut AssetState<T::Balance>) -> DispatchResult {
 		let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
 
