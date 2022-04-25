@@ -53,19 +53,19 @@ fn scenario_05() {
 				10000000000000
 			));
 
-			check_balance!(Omnipool::protocol_account(), 0, 100000000000000000);
-			check_balance!(Omnipool::protocol_account(), 2, 2000000000000000);
-			check_balance!(Omnipool::protocol_account(), 1, 13360000000000000);
-			check_balance!(Omnipool::protocol_account(), 100, 2450000000000000);
-			check_balance!(Omnipool::protocol_account(), 200, 1952191235059762);
-			check_balance!(LP1, 100, 3000000000000000);
-			check_balance!(LP1, 200, 3000000000000000);
-			check_balance!(LP2, 100, 600000000000000);
-			check_balance!(LP3, 100, 950000000000000);
-			check_balance!(LP3, 1, 0);
-			check_balance!(LP3, 200, 47808764940238);
+			assert_balance!(Omnipool::protocol_account(), 0, 100000000000000000);
+			assert_balance!(Omnipool::protocol_account(), 2, 2000000000000000);
+			assert_balance!(Omnipool::protocol_account(), 1, 13360000000000000);
+			assert_balance!(Omnipool::protocol_account(), 100, 2450000000000000);
+			assert_balance!(Omnipool::protocol_account(), 200, 1952191235059762);
+			assert_balance!(LP1, 100, 3000000000000000);
+			assert_balance!(LP1, 200, 3000000000000000);
+			assert_balance!(LP2, 100, 600000000000000);
+			assert_balance!(LP3, 100, 950000000000000);
+			assert_balance!(LP3, 1, 0);
+			assert_balance!(LP3, 200, 47808764940238);
 
-			check_asset_state!(
+			assert_asset_state!(
 				2,
 				AssetState {
 					reserve: 1000000000000000,
@@ -76,7 +76,7 @@ fn scenario_05() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				0,
 				AssetState {
 					reserve: 10000000000000000,
@@ -87,7 +87,7 @@ fn scenario_05() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				100,
 				AssetState {
 					reserve: 2450000000000000,
@@ -98,7 +98,7 @@ fn scenario_05() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				200,
 				AssetState {
 					reserve: 1952191235059762,
@@ -109,6 +109,6 @@ fn scenario_05() {
 				}
 			);
 
-			check_state!(13360000000000000, 27320000000000000, SimpleImbalance::default());
+			assert_pool_state!(13360000000000000, 27320000000000000, SimpleImbalance::default());
 		});
 }

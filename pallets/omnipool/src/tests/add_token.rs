@@ -11,7 +11,7 @@ fn add_stable_asset_works() {
 
 			assert_ok!(Omnipool::add_token(Origin::root(), DAI, dai_amount, FixedU128::from(1)));
 
-			check_state!(dai_amount, dai_amount, SimpleImbalance::default());
+			assert_pool_state!(dai_amount, dai_amount, SimpleImbalance::default());
 		});
 }
 
@@ -31,9 +31,9 @@ fn add_token_works() {
 
 			assert_ok!(Omnipool::add_token(Origin::root(), 1_000, token_amount, token_price));
 
-			check_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
+			assert_pool_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
 
-			check_asset_state!(
+			assert_asset_state!(
 				1_000,
 				AssetState {
 					reserve: token_amount,

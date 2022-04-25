@@ -43,7 +43,7 @@ fn simple_sell_works() {
 				1952191235059762
 			);
 
-			check_state!(
+			assert_pool_state!(
 				13_360 * ONE,
 				27_320 * ONE,
 				SimpleImbalance {
@@ -52,7 +52,7 @@ fn simple_sell_works() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				100,
 				AssetState {
 					reserve: 2450 * ONE,
@@ -62,7 +62,7 @@ fn simple_sell_works() {
 					tvl: 3120 * ONE
 				}
 			);
-			check_asset_state!(
+			assert_asset_state!(
 				200,
 				AssetState {
 					reserve: 1952191235059762,
@@ -248,19 +248,19 @@ fn sell_hub_works() {
 				10000000000000
 			));
 
-			check_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 1);
-			check_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 1);
-			check_balance_approx!(Omnipool::protocol_account(), 1, 13410000000000000u128, 1);
-			check_balance_approx!(Omnipool::protocol_account(), 100, 2400000000000000u128, 1);
-			check_balance_approx!(Omnipool::protocol_account(), 200, 1925925925925925u128, 1);
-			check_balance_approx!(LP1, 100, 3000000000000000u128, 1);
-			check_balance_approx!(LP1, 200, 3000000000000000u128, 1);
-			check_balance_approx!(LP2, 100, 600000000000000u128, 1);
-			check_balance_approx!(LP3, 100, 1000000000000000u128, 1);
-			check_balance_approx!(LP3, 1, 50000000000000u128, 1);
-			check_balance_approx!(LP3, 200, 74074074074074u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 13410000000000000u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 100, 2400000000000000u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 200, 1925925925925925u128, 1);
+			assert_balance_approx!(LP1, 100, 3000000000000000u128, 1);
+			assert_balance_approx!(LP1, 200, 3000000000000000u128, 1);
+			assert_balance_approx!(LP2, 100, 600000000000000u128, 1);
+			assert_balance_approx!(LP3, 100, 1000000000000000u128, 1);
+			assert_balance_approx!(LP3, 1, 50000000000000u128, 1);
+			assert_balance_approx!(LP3, 200, 74074074074074u128, 1);
 
-			check_asset_state!(
+			assert_asset_state!(
 				2,
 				AssetState {
 					reserve: 1000000000000000,
@@ -271,7 +271,7 @@ fn sell_hub_works() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				0,
 				AssetState {
 					reserve: 10000000000000000,
@@ -282,7 +282,7 @@ fn sell_hub_works() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				100,
 				AssetState {
 					reserve: 2400000000000000,
@@ -293,7 +293,7 @@ fn sell_hub_works() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				200,
 				AssetState {
 					reserve: 1925925925925926,
@@ -304,7 +304,7 @@ fn sell_hub_works() {
 				}
 			);
 
-			check_state!(
+			assert_pool_state!(
 				13410000000000000,
 				27320000000000000,
 				SimpleImbalance {

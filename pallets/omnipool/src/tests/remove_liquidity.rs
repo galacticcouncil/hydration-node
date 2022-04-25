@@ -24,16 +24,16 @@ fn remove_liquidity_works() {
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
-			check_balance!(LP1, 1_000, 4600 * ONE);
+			assert_balance!(LP1, 1_000, 4600 * ONE);
 
 			let liq_removed = 200 * ONE;
 			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), 0, liq_removed));
 
-			check_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
 
-			check_balance!(LP1, 1_000, 4600 * ONE + liq_removed);
+			assert_balance!(LP1, 1_000, 4600 * ONE + liq_removed);
 
-			check_asset_state!(
+			assert_asset_state!(
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added - liq_removed,
@@ -99,11 +99,11 @@ fn full_liquidity_removal_works() {
 				"Position still found"
 			);
 
-			check_state!(11_800 * ONE + 1, 24_200_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_800 * ONE + 1, 24_200_000_000_000_002, SimpleImbalance::default());
 
-			check_balance!(LP1, 1_000, 5000 * ONE);
+			assert_balance!(LP1, 1_000, 5000 * ONE);
 
-			check_asset_state!(
+			assert_asset_state!(
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added - liq_removed,
@@ -163,11 +163,11 @@ fn partial_liquidity_removal_works() {
 				"Position has been removed incorrectly"
 			);
 
-			check_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
 
-			check_balance!(LP1, 1_000, 4800 * ONE);
+			assert_balance!(LP1, 1_000, 4800 * ONE);
 
-			check_asset_state!(
+			assert_asset_state!(
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added - liq_removed,
@@ -223,7 +223,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 
 			assert_ok!(Omnipool::buy(Origin::signed(LP2), 1_000, DAI, 300 * ONE, 500000 * ONE));
 
-			check_balance!(Omnipool::protocol_account(), 1000, 200 * ONE);
+			assert_balance!(Omnipool::protocol_account(), 1000, 200 * ONE);
 			let expected_state = AssetState {
 				reserve: 200 * ONE,
 				hub_reserve: 812500000000000,
@@ -231,18 +231,18 @@ fn lp_receives_lrna_when_price_is_higher() {
 				protocol_shares: 100 * ONE,
 				tvl: 650000000000000,
 			};
-			check_asset_state!(1_000, expected_state);
+			assert_asset_state!(1_000, expected_state);
 
 			assert_ok!(Omnipool::remove_liquidity(
 				Origin::signed(LP1),
 				current_position_id,
 				liq_added
 			));
-			check_balance!(Omnipool::protocol_account(), 1000, 40 * ONE);
-			check_balance!(LP1, 1000, 4_760_000_000_000_000);
-			check_balance!(LP1, LRNA, 470_689_655_172_412);
+			assert_balance!(Omnipool::protocol_account(), 1000, 40 * ONE);
+			assert_balance!(LP1, 1000, 4_760_000_000_000_000);
+			assert_balance!(LP1, LRNA, 470_689_655_172_412);
 
-			check_state!(9704310344827588, 541030000000000000, SimpleImbalance::default());
+			assert_pool_state!(9704310344827588, 541030000000000000, SimpleImbalance::default());
 		});
 }
 
@@ -274,7 +274,7 @@ fn protocol_shares_update_works() {
 
 			assert_ok!(Omnipool::sell(Origin::signed(LP2), 1_000, HDX, 1000 * ONE, 10 * ONE));
 
-			check_balance!(Omnipool::protocol_account(), 1000, 1500 * ONE);
+			assert_balance!(Omnipool::protocol_account(), 1000, 1500 * ONE);
 
 			let expected_state = AssetState {
 				reserve: 1500 * ONE,
@@ -283,18 +283,18 @@ fn protocol_shares_update_works() {
 				protocol_shares: 100 * ONE,
 				tvl: 650000000000000,
 			};
-			check_asset_state!(1_000, expected_state);
+			assert_asset_state!(1_000, expected_state);
 
 			assert_ok!(Omnipool::remove_liquidity(
 				Origin::signed(LP1),
 				current_position_id,
 				liq_added
 			));
-			check_balance!(Omnipool::protocol_account(), 1000, 1259999999999997);
-			check_balance!(LP1, 1000, 4840000000000003);
+			assert_balance!(Omnipool::protocol_account(), 1000, 1259999999999997);
+			assert_balance!(LP1, 1000, 4840000000000003);
 
 			// TODO: discrepency here comapred to python output - investigate!
-			check_state!(10807666666666667, 21212000000000002, SimpleImbalance::default());
+			assert_pool_state!(10807666666666667, 21212000000000002, SimpleImbalance::default());
 			let expected_state = AssetState {
 				reserve: 1259999999999997,
 				hub_reserve: 91000000000001,
@@ -302,7 +302,7 @@ fn protocol_shares_update_works() {
 				protocol_shares: 419999999999999,
 				tvl: 182000000000002,
 			};
-			check_asset_state!(1_000, expected_state);
+			assert_asset_state!(1_000, expected_state);
 		});
 }
 

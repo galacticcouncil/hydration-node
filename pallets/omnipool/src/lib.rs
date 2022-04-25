@@ -34,7 +34,7 @@ use std::ops::{Add, Sub};
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -68,7 +68,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::FixedPointNumber;
+	use sp_runtime::{ArithmeticError, FixedPointNumber};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -88,9 +88,9 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
 			+ FixedPointOperand
-			// TODO: the following from/into is due to use of FixedU128, which internally uses u128.
-			// might think of better way or use directly u128 instead as there is not much choice here anyway
-			// Or make fixed point number generic too ?!
+			// FixedU128 is missing MaxEncodedLen impl, which is added in 0.9.17
+			// When upgraded to 0.9.17, the position price will be stored as FixedU128, therefore
+			// there will no longer the need for conversion.
 			+ From<u128>
 			+ Into<u128>;
 
@@ -281,8 +281,6 @@ pub mod pallet {
 		InsufficientLiquidity,
 		/// Traded amount is below minimum allowed limit
 		InsufficientTradingAmount,
-		/// Math overflow
-		Overflow,
 	}
 
 	#[pallet::call]
@@ -332,11 +330,11 @@ pub mod pallet {
 				// This can happen only once , since it is first token to add to the pool.
 				(
 					amount,
-					initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?,
+					initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?,
 				)
 			};
 
-			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(Error::<T>::Overflow)?;
+			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
 			// Initial stale of asset
 			let state = AssetState::<T::Balance> {
@@ -395,7 +393,7 @@ pub mod pallet {
 						.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
 						.and_then(|v| v.checked_mul_int(amount))
 						.and_then(|v| v.checked_add(&*tvl))
-						.ok_or(Error::<T>::Overflow)?;
+						.ok_or(ArithmeticError::Overflow)?;
 					Ok(())
 				})?;
 			}
@@ -442,18 +440,18 @@ pub mod pallet {
 			let mut asset_state = Assets::<T>::get(asset).ok_or(Error::<T>::AssetNotFound)?;
 
 			let state_changes =
-				calculate_add_liquidity_state_changes::<T>(&asset_state, amount).ok_or(Error::<T>::Overflow)?;
+				calculate_add_liquidity_state_changes::<T>(&asset_state, amount).ok_or(ArithmeticError::Overflow)?;
 
 			// New Asset State
 			asset_state
 				.delta_update(&state_changes.asset)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			let hub_reserve_ratio = FixedU128::from((
 				asset_state.hub_reserve,
 				<HubAssetLiquidity<T>>::get()
 					.checked_add(&state_changes.asset.delta_hub_reserve)
-					.ok_or(Error::<T>::Overflow)?,
+					.ok_or(ArithmeticError::Overflow)?,
 			));
 
 			ensure!(
@@ -461,12 +459,15 @@ pub mod pallet {
 				Error::<T>::AssetWeightCapExceeded
 			);
 
+			let updated_assset_price = asset_state.price();
+
 			// Create LP position with given shares
 			let lp_position = Position::<T::Balance, T::AssetId> {
 				asset_id: asset,
 				amount,
 				shares: *state_changes.asset.delta_shares,
-				price: Position::<T::Balance, T::AssetId>::price_to_balance(asset_state.price()),
+				// Note: position needs price after asset state is updated.
+				price: Position::<T::Balance, T::AssetId>::price_to_balance(updated_assset_price),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
@@ -479,7 +480,7 @@ pub mod pallet {
 				asset,
 				amount,
 				shares: *state_changes.asset.delta_shares,
-				price: asset_state.price(),
+				price: updated_assset_price,
 			});
 
 			// Token update
@@ -550,12 +551,12 @@ pub mod pallet {
 			let mut asset_state = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 
 			let state_changes = calculate_remove_liquidity_state_changes::<T>(&asset_state, amount, &position)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			// New Asset State
 			asset_state
 				.delta_update(&state_changes.asset)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			// Update position state
 			position
@@ -563,7 +564,7 @@ pub mod pallet {
 					&state_changes.delta_position_reserve,
 					&state_changes.delta_position_shares,
 				)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			// Token balance updates
 			T::Currency::transfer(
@@ -680,7 +681,7 @@ pub mod pallet {
 				Self::protocol_fee(),
 				&current_imbalance,
 			)
-			.ok_or(Error::<T>::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
 				*state_changes.asset_out.delta_reserve >= min_limit,
@@ -690,10 +691,10 @@ pub mod pallet {
 			// Pool state update
 			asset_in_state
 				.delta_update(&state_changes.asset_in)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 			asset_out_state
 				.delta_update(&state_changes.asset_out)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			<Assets<T>>::insert(asset_in, asset_in_state);
 			<Assets<T>>::insert(asset_out, asset_out_state);
@@ -721,9 +722,9 @@ pub mod pallet {
 						.asset_out
 						.delta_hub_reserve
 						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
-						.ok_or(Error::<T>::Overflow)?,
+						.ok_or(ArithmeticError::Overflow)?,
 				)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
 
@@ -790,7 +791,7 @@ pub mod pallet {
 				Self::protocol_fee(),
 				&current_imbalance,
 			)
-			.ok_or(Error::<T>::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
 				T::Currency::free_balance(asset_in, &who) >= *state_changes.asset_in.delta_reserve,
@@ -805,10 +806,10 @@ pub mod pallet {
 			// Pool state update
 			asset_in_state
 				.delta_update(&state_changes.asset_in)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 			asset_out_state
 				.delta_update(&state_changes.asset_out)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 
 			<Assets<T>>::insert(asset_in, asset_in_state);
 			<Assets<T>>::insert(asset_out, asset_out_state);
@@ -835,9 +836,9 @@ pub mod pallet {
 						.asset_out
 						.delta_hub_reserve
 						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount))
-						.ok_or(Error::<T>::Overflow)?,
+						.ok_or(ArithmeticError::Overflow)?,
 				)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
@@ -909,7 +910,7 @@ impl<T: Config> Pallet<T> {
 
 			T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
 
-			*current_value = current_value.checked_add(1u32).ok_or(Error::<T>::Overflow)?;
+			*current_value = current_value.checked_add(1u32).ok_or(ArithmeticError::Overflow)?;
 
 			Ok(instance_id)
 		})
@@ -922,7 +923,7 @@ impl<T: Config> Pallet<T> {
 			native_subpool.hub_reserve = native_subpool
 				.hub_reserve
 				.checked_add(&hub_asset_amount)
-				.ok_or(Error::<T>::Overflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 			<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
 		}
 		Ok(())
@@ -937,10 +938,10 @@ impl<T: Config> Pallet<T> {
 		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
 			match delta_amount {
 				BalanceUpdate::Increase(amount) => {
-					*liquidity = liquidity.checked_add(amount).ok_or(Error::<T>::Overflow)?;
+					*liquidity = liquidity.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
 				}
 				BalanceUpdate::Decrease(amount) => {
-					*liquidity = liquidity.checked_sub(amount).ok_or(Error::<T>::Overflow)?;
+					*liquidity = liquidity.checked_sub(amount).ok_or(ArithmeticError::Overflow)?;
 				}
 			}
 			Ok(())
@@ -966,8 +967,8 @@ impl<T: Config> Pallet<T> {
 		delta_imbalance: BalanceUpdate<T::Balance>,
 	) -> DispatchResult {
 		let imbalance = match delta_imbalance {
-			BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(Error::<T>::Overflow)?,
-			BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(Error::<T>::Overflow)?,
+			BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(ArithmeticError::Overflow)?,
+			BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(ArithmeticError::Overflow)?,
 		};
 		<HubAssetImbalance<T>>::put(imbalance);
 
@@ -982,25 +983,22 @@ impl<T: Config> Pallet<T> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
 
-		if current_imbalance.value != T::Balance::zero() && current_hub_asset_liquidity != T::Balance::zero() {
-			// if any is 0, the delta is 0 too.
+		if current_imbalance.value == T::Balance::zero() || current_hub_asset_liquidity == T::Balance::zero() {
+			return Ok(());
+		}
+		let p1 = FixedU128::from((asset_state.hub_reserve, asset_state.reserve));
+		let p2 = FixedU128::from((current_imbalance.value, current_hub_asset_liquidity));
+		let p3 = p1.checked_mul(&p2).ok_or(ArithmeticError::Overflow)?;
 
-			let p1 = FixedU128::from((asset_state.hub_reserve, asset_state.reserve));
-			let p2 = FixedU128::from((current_imbalance.value, current_hub_asset_liquidity));
-			let p3 = p1.checked_mul(&p2).ok_or(Error::<T>::Overflow)?;
+		let delta_imbalance = p3.checked_mul_int(*delta_amount).ok_or(ArithmeticError::Overflow)?;
 
-			let delta_imbalance = p3.checked_mul_int(*delta_amount).ok_or(Error::<T>::Overflow)?;
-
-			match delta_amount {
-				BalanceUpdate::Increase(_) => {
-					Self::update_imbalance(current_imbalance, BalanceUpdate::Increase(delta_imbalance))
-				}
-				BalanceUpdate::Decrease(_) => {
-					Self::update_imbalance(current_imbalance, BalanceUpdate::Decrease(delta_imbalance))
-				}
+		match delta_amount {
+			BalanceUpdate::Increase(_) => {
+				Self::update_imbalance(current_imbalance, BalanceUpdate::Increase(delta_imbalance))
 			}
-		} else {
-			Ok(())
+			BalanceUpdate::Decrease(_) => {
+				Self::update_imbalance(current_imbalance, BalanceUpdate::Decrease(delta_imbalance))
+			}
 		}
 	}
 
@@ -1012,30 +1010,36 @@ impl<T: Config> Pallet<T> {
 			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
 				let adjusted_asset_tvl = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
 					.checked_mul_int(asset_state.hub_reserve)
-					.ok_or(Error::<T>::Overflow)?;
+					.ok_or(ArithmeticError::Overflow)?;
 
 				// Handle decrease or increase accordingly
 				match adjusted_asset_tvl.cmp(&asset_state.tvl) {
 					Ordering::Greater => {
 						let delta_tvl = adjusted_asset_tvl
 							.checked_sub(&asset_state.tvl)
-							.ok_or(Error::<T>::Overflow)?;
-						*tvl = tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+							.ok_or(ArithmeticError::Overflow)?;
+						*tvl = tvl.checked_add(&delta_tvl).ok_or(ArithmeticError::Overflow)?;
 
 						ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
 
-						asset_state.tvl = asset_state.tvl.checked_add(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+						asset_state.tvl = asset_state
+							.tvl
+							.checked_add(&delta_tvl)
+							.ok_or(ArithmeticError::Overflow)?;
 					}
 					Ordering::Less => {
 						// no need to check the cap because we decreasing tvl
 						let delta_tvl = asset_state
 							.tvl
 							.checked_sub(&adjusted_asset_tvl)
-							.ok_or(Error::<T>::Overflow)?;
+							.ok_or(ArithmeticError::Overflow)?;
 
 						// If for some reason, delta_tvl is > total tvl - it is an error, we have some math wrong somewhere
-						*tvl = tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
-						asset_state.tvl = asset_state.tvl.checked_sub(&delta_tvl).ok_or(Error::<T>::Overflow)?;
+						*tvl = tvl.checked_sub(&delta_tvl).ok_or(ArithmeticError::Overflow)?;
+						asset_state.tvl = asset_state
+							.tvl
+							.checked_sub(&delta_tvl)
+							.ok_or(ArithmeticError::Overflow)?;
 					}
 					Ordering::Equal => {
 						// nothing to do
@@ -1071,7 +1075,7 @@ impl<T: Config> Pallet<T> {
 		let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
 		let state_changes = calculate_sell_hub_state_changes::<T>(&asset_out_state, amount, Self::asset_fee())
-			.ok_or(Error::<T>::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_reserve >= limit,
@@ -1080,7 +1084,7 @@ impl<T: Config> Pallet<T> {
 
 		asset_out_state
 			.delta_update(&state_changes.asset)
-			.ok_or(Error::<T>::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 		// Token updates
 		T::Currency::transfer(

@@ -50,6 +50,9 @@ pub struct Position<Balance, AssetId> {
 	/// Quantity of LP shares owned by LP
 	pub(super) shares: Balance,
 	/// Price at which liquidity was provided
+	// TODO: Due to missing MaxEncodedLen impl for FixedU128, it is not possible to use that type in storage
+	// This can change in 0.9.17 where the missing trait is implemented
+	// And FixedU128 can be use instead.
 	pub(super) price: Balance,
 }
 
@@ -63,6 +66,9 @@ where
 		Price::from_inner(self.price.into())
 	}
 
+	// Due to missing MaxEncodedLen impl for FixedU128, it is not possible to use that type in storage
+	// This can change in 0.9.17 where the missing trait is implemented
+	// and there won't be a need to convert it to balance for storage.
 	pub(super) fn price_to_balance(price: Price) -> Balance {
 		price.into_inner().into()
 	}
@@ -101,6 +107,9 @@ impl<Balance: Default + Copy> Default for SimpleImbalance<Balance> {
 /// Adds amount to imbalance.
 ///
 /// Note that it returns Option<self> rather than Self.
+///
+/// Note: Implements `Add` instead of `CheckedAdd` because `CheckedAdd` requires the second parameter
+/// to be the same type as the first while we want to add a `Balance` here.
 ///
 /// # Example
 ///
@@ -173,7 +182,7 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> BalanceUpda
 
 /// The addition operator + for BalanceUpdate.
 ///
-/// Panics is overflows. Use checked_add for safe operation.
+/// Panics if overflows in debug builds, in non-debug debug it wraps instead.. Use checked_add for safe operation.
 ///
 /// # Example
 ///

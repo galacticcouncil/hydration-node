@@ -21,16 +21,16 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 	let delta_hub_reserve_in = FixedU128::from((amount, (asset_in_state.reserve.checked_add(&amount)?)))
 		.checked_mul_int(asset_in_state.hub_reserve)?;
 
-	let fee_p = FixedU128::from(1).checked_sub(&protocol_fee)?;
+	let p_fee_complement = FixedU128::from(1).checked_sub(&protocol_fee)?;
 
-	let delta_hub_reserve_out = fee_p.checked_mul_int(delta_hub_reserve_in)?;
+	let delta_hub_reserve_out = p_fee_complement.checked_mul_int(delta_hub_reserve_in)?;
 
-	let fee_a = FixedU128::from(1).checked_sub(&asset_fee)?;
+	let a_fee_complement = FixedU128::from(1).checked_sub(&asset_fee)?;
 
 	let hub_reserve_out = asset_out_state.hub_reserve.checked_add(&delta_hub_reserve_out)?;
 
 	let delta_reserve_out = FixedU128::from((delta_hub_reserve_out, hub_reserve_out))
-		.checked_mul(&fee_a)
+		.checked_mul(&a_fee_complement)
 		.and_then(|v| v.checked_mul_int(asset_out_state.reserve))?;
 
 	// Fee accounting

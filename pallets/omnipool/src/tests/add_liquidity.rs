@@ -21,12 +21,12 @@ fn add_liquidity_works() {
 				FixedU128::from_float(0.65)
 			));
 
-			check_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
+			assert_pool_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
 
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
-			check_asset_state!(
+			assert_asset_state!(
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added,
@@ -48,9 +48,9 @@ fn add_liquidity_works() {
 
 			assert_eq!(position, expected);
 
-			check_state!(12_060 * ONE, 24_720 * ONE, SimpleImbalance::default());
+			assert_pool_state!(12_060 * ONE, 24_720 * ONE, SimpleImbalance::default());
 
-			check_balance!(LP1, 1_000, 4600 * ONE);
+			assert_balance!(LP1, 1_000, 4600 * ONE);
 
 			let minted_position = POSITIONS.with(|v| v.borrow().get(&0).copied());
 

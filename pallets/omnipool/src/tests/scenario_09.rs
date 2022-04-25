@@ -84,20 +84,20 @@ fn complex_scenario_works() {
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 500000000000000));
 
-			check_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 1, 14356887226495360u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 100, 4089236949625567u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 200, 1638588974363038u128, 10);
-			check_balance_approx!(LP1, 100, 3000000000000000u128, 10);
-			check_balance_approx!(LP1, 200, 3000000000000000u128, 10);
-			check_balance_approx!(LP2, 100, 50000000000000u128, 10);
-			check_balance_approx!(LP2, 200, 24596656872852u128, 10);
-			check_balance_approx!(LP3, 100, 860763050374432u128, 10);
-			check_balance_approx!(LP3, 200, 636814368764109u128, 10);
-			check_balance_approx!(LP3, 1, 20634322079393u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14356887226495360u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 100, 4089236949625567u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 200, 1638588974363038u128, 10);
+			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
+			assert_balance_approx!(LP1, 200, 3000000000000000u128, 10);
+			assert_balance_approx!(LP2, 100, 50000000000000u128, 10);
+			assert_balance_approx!(LP2, 200, 24596656872852u128, 10);
+			assert_balance_approx!(LP3, 100, 860763050374432u128, 10);
+			assert_balance_approx!(LP3, 200, 636814368764109u128, 10);
+			assert_balance_approx!(LP3, 1, 20634322079393u128, 10);
 
-			check_asset_state!(
+			assert_asset_state!(
 				2,
 				AssetState {
 					reserve: 1000000000000000,
@@ -108,7 +108,7 @@ fn complex_scenario_works() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				0,
 				AssetState {
 					reserve: 10000000000000000,
@@ -119,7 +119,7 @@ fn complex_scenario_works() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				100,
 				AssetState {
 					reserve: 4089236949625561,
@@ -130,7 +130,7 @@ fn complex_scenario_works() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				200,
 				AssetState {
 					reserve: 1638588974363041,
@@ -141,7 +141,7 @@ fn complex_scenario_works() {
 				}
 			);
 
-			check_state!(
+			assert_pool_state!(
 				14356887226495361,
 				31755043097149510,
 				SimpleImbalance {

@@ -64,19 +64,19 @@ fn sell_fee_test() {
 				10000000000000
 			));
 
-			check_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 1, 14260000000000000u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 100, 2560000000000000u128, 10);
-			check_balance_approx!(Omnipool::protocol_account(), 200, 1938322315391001u128, 10);
-			check_balance_approx!(LP1, 100, 3000000000000000u128, 10);
-			check_balance_approx!(LP1, 200, 3000000000000000u128, 10);
-			check_balance_approx!(LP2, 100, 550000000000000u128, 10);
-			check_balance_approx!(LP2, 200, 18014179710851u128, 10);
-			check_balance_approx!(LP3, 100, 1890000000000000u128, 10);
-			check_balance_approx!(LP3, 200, 343663504898149u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14260000000000000u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 100, 2560000000000000u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 200, 1938322315391001u128, 10);
+			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
+			assert_balance_approx!(LP1, 200, 3000000000000000u128, 10);
+			assert_balance_approx!(LP2, 100, 550000000000000u128, 10);
+			assert_balance_approx!(LP2, 200, 18014179710851u128, 10);
+			assert_balance_approx!(LP3, 100, 1890000000000000u128, 10);
+			assert_balance_approx!(LP3, 200, 343663504898149u128, 10);
 
-			check_asset_state!(
+			assert_asset_state!(
 				2,
 				AssetState {
 					reserve: 1000000000000000,
@@ -87,7 +87,7 @@ fn sell_fee_test() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				0,
 				AssetState {
 					reserve: 10000000000000000,
@@ -98,7 +98,7 @@ fn sell_fee_test() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				100,
 				AssetState {
 					reserve: 2560000000000000,
@@ -109,7 +109,7 @@ fn sell_fee_test() {
 				}
 			);
 
-			check_asset_state!(
+			assert_asset_state!(
 				200,
 				AssetState {
 					reserve: 1938322315391001,
@@ -120,7 +120,7 @@ fn sell_fee_test() {
 				}
 			);
 
-			check_state!(
+			assert_pool_state!(
 				14259999999999998,
 				29120000000000000,
 				SimpleImbalance {

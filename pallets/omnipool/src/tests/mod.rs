@@ -18,21 +18,14 @@ mod scenario_09;
 mod sell;
 
 #[macro_export]
-macro_rules! assert_eq_approx {
+macro_rules! assert_balance {
 	( $x:expr, $y:expr, $z:expr) => {{
 		assert_eq!(Tokens::free_balance($y, &$x), $z);
 	}};
 }
 
 #[macro_export]
-macro_rules! check_balance {
-	( $x:expr, $y:expr, $z:expr) => {{
-		assert_eq!(Tokens::free_balance($y, &$x), $z);
-	}};
-}
-
-#[macro_export]
-macro_rules! check_balance_approx {
+macro_rules! assert_balance_approx {
 	( $x:expr, $y:expr, $z:expr, $l:expr) => {{
 		let b = Tokens::free_balance($y, &$x);
 
@@ -44,7 +37,7 @@ macro_rules! check_balance_approx {
 }
 
 #[macro_export]
-macro_rules! check_state {
+macro_rules! assert_pool_state {
 	( $x:expr, $y:expr, $z:expr) => {{
 		assert_eq!(HubAssetLiquidity::<Test>::get(), $x, "Hub liquidity incorrect\n");
 		assert_eq!(TotalTVL::<Test>::get(), $y, "Total tvl incorrect\n");
@@ -53,7 +46,7 @@ macro_rules! check_state {
 }
 
 #[macro_export]
-macro_rules! check_asset_state {
+macro_rules! assert_asset_state {
 	( $x:expr, $y:expr) => {{
 		let actual = Assets::<Test>::get($x).unwrap();
 		assert_eq!(actual, $y);
@@ -69,7 +62,7 @@ fn init_omnipool(dai_amount: Balance, price: FixedU128) {
 		FixedU128::from(1)
 	));
 
-	check_state!(
+	assert_pool_state!(
 		price.checked_mul_int(dai_amount).unwrap() + NATIVE_AMOUNT,
 		NATIVE_AMOUNT * (dai_amount / price.checked_mul_int(dai_amount).unwrap()) + dai_amount,
 		SimpleImbalance::default()

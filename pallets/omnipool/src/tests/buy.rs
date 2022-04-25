@@ -46,9 +46,9 @@ fn simple_buy_works() {
 			);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1950 * ONE);
 
-			check_state!(13_360 * ONE, 27_320 * ONE, SimpleImbalance::default());
+			assert_pool_state!(13_360 * ONE, 27_320 * ONE, SimpleImbalance::default());
 
-			check_asset_state!(
+			assert_asset_state!(
 				100,
 				AssetState {
 					reserve: 2452401746724890,
@@ -58,7 +58,7 @@ fn simple_buy_works() {
 					tvl: 3120 * ONE
 				}
 			);
-			check_asset_state!(
+			assert_asset_state!(
 				200,
 				AssetState {
 					reserve: 1950 * ONE,

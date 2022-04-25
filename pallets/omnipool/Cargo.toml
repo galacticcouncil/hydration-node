@@ -39,7 +39,6 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch =
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false, optional = true}
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false, optional = true}
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false , optional = true}
-sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false, optional = true}
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false}
@@ -70,6 +69,5 @@ runtime-benchmarks = [
 	"sp-core",
 	"sp-io",
 	"pallet-balances",
-	"sp-tracing",
 ]
 try-runtime = [ "frame-support/try-runtime" ]
