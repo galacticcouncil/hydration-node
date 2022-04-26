@@ -1042,7 +1042,7 @@ impl<T: Config> Pallet<T> {
 					*liquidity = liquidity.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
 				}
 				BalanceUpdate::Decrease(amount) => {
-					*liquidity = liquidity.checked_sub(amount).ok_or(ArithmeticError::Overflow)?;
+					*liquidity = liquidity.checked_sub(amount).ok_or(ArithmeticError::Underflow)?;
 				}
 			}
 			Ok(())
