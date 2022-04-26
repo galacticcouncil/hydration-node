@@ -18,7 +18,7 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 	protocol_fee: FixedU128,
 	imbalance: &SimpleImbalance<T::Balance>,
 ) -> Option<TradeStateChange<T::Balance>> {
-	let delta_hub_reserve_in = FixedU128::from((amount, (asset_in_state.reserve.checked_add(&amount)?)))
+	let delta_hub_reserve_in = FixedU128::checked_from_rational(amount, asset_in_state.reserve.checked_add(&amount)?)?
 		.checked_mul_int(asset_in_state.hub_reserve)?;
 
 	let p_fee_complement = FixedU128::from(1).checked_sub(&protocol_fee)?;
@@ -29,7 +29,7 @@ pub(crate) fn calculate_sell_state_changes<T: Config>(
 
 	let hub_reserve_out = asset_out_state.hub_reserve.checked_add(&delta_hub_reserve_out)?;
 
-	let delta_reserve_out = FixedU128::from((delta_hub_reserve_out, hub_reserve_out))
+	let delta_reserve_out = FixedU128::checked_from_rational(delta_hub_reserve_out, hub_reserve_out)?
 		.checked_mul(&a_fee_complement)
 		.and_then(|v| v.checked_mul_int(asset_out_state.reserve))?;
 
@@ -64,16 +64,16 @@ pub(crate) fn calculate_sell_hub_state_changes<T: Config>(
 ) -> Option<HubTradeStateChange<T::Balance>> {
 	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
 
-	let hub_ratio = FixedU128::from((
+	let hub_ratio = FixedU128::checked_from_rational(
 		asset_out_state.hub_reserve,
 		asset_out_state.hub_reserve.checked_add(&amount)?,
-	));
+	)?;
 
 	let delta_reserve_out = fee_asset
-		.checked_mul(&FixedU128::from((
+		.checked_mul(&FixedU128::checked_from_rational(
 			amount,
 			asset_out_state.hub_reserve.checked_add(&amount)?,
-		)))?
+		)?)?
 		.checked_mul_int(asset_out_state.reserve)?;
 
 	// Negative
@@ -105,12 +105,12 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
 	let fee_protocol = FixedU128::from(1).checked_sub(&protocol_fee)?;
 
-	let delta_hub_reserve_out = FixedU128::from((
+	let delta_hub_reserve_out = FixedU128::checked_from_rational(
 		amount,
 		fee_asset
 			.checked_mul_int(asset_out_state.reserve)?
 			.checked_sub(&amount)?,
-	))
+	)?
 	.checked_mul_int(asset_out_state.hub_reserve)?;
 
 	// Negative
@@ -120,10 +120,10 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 		.into();
 
 	// Positive
-	let delta_reserve_in = FixedU128::from((
+	let delta_reserve_in = FixedU128::checked_from_rational(
 		delta_hub_reserve_in,
 		asset_in_state.hub_reserve.checked_sub(&delta_hub_reserve_in)?,
-	))
+	)?
 	.checked_mul_int(asset_in_state.reserve)?;
 
 	// Fee accounting and imbalance
@@ -157,7 +157,8 @@ pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 
 	let new_reserve = asset_state.reserve.checked_add(&amount)?;
 
-	let new_shares = FixedU128::from((asset_state.shares, asset_state.reserve)).checked_mul_int(new_reserve)?;
+	let new_shares =
+		FixedU128::checked_from_rational(asset_state.shares, asset_state.reserve)?.checked_mul_int(new_reserve)?;
 
 	Some(LiquidityStateChange {
 		asset: AssetStateChange {
@@ -196,9 +197,11 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 
 	let delta_shares = shares_removed.checked_sub(&delta_b)?;
 
-	let delta_reserve = FixedU128::from((current_reserve, current_shares)).checked_mul_int(delta_shares)?;
+	let delta_reserve =
+		FixedU128::checked_from_rational(current_reserve, current_shares)?.checked_mul_int(delta_shares)?;
 
-	let delta_hub_reserve = FixedU128::from((delta_reserve, current_reserve)).checked_mul_int(current_hub_reserve)?;
+	let delta_hub_reserve =
+		FixedU128::checked_from_rational(delta_reserve, current_reserve)?.checked_mul_int(current_hub_reserve)?;
 
 	let hub_transferred = if current_price > position_price {
 		// LP receives some hub asset
@@ -212,7 +215,7 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 
 		let p1 = double_current_price.checked_div(&price_sum)?;
 
-		let p2 = FixedU128::from((shares_removed, current_shares));
+		let p2 = FixedU128::checked_from_rational(shares_removed, current_shares)?;
 
 		let p3 = p1.checked_mul(&p2).and_then(|v| v.checked_mul_int(current_reserve))?;
 
@@ -220,7 +223,8 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 	} else {
 		T::Balance::zero()
 	};
-	let delta_r_position = FixedU128::from((shares_removed, position.shares)).checked_mul_int(position.amount)?;
+	let delta_r_position =
+		FixedU128::checked_from_rational(shares_removed, position.shares)?.checked_mul_int(position.amount)?;
 	Some(LiquidityStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve),

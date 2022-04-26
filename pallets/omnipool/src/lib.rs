@@ -19,8 +19,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate core;
-
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
 use frame_support::sp_runtime::FixedPointOperand;
@@ -384,7 +382,10 @@ pub mod pallet {
 			// TVL update
 			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
 				*tvl = native_asset_price
-					.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
+					.checked_mul(
+						&Price::checked_from_rational(stable_asset_reserve, stable_asset_hub_reserve)
+							.ok_or(ArithmeticError::DivisionByZero)?,
+					)
 					.and_then(|v| v.checked_mul_int(native_asset_amount))
 					.and_then(|v| v.checked_add(&stable_asset_amount))
 					.ok_or(ArithmeticError::Overflow)?;
@@ -485,7 +486,10 @@ pub mod pallet {
 			// TVL update
 			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
 				*tvl = initial_price
-					.checked_mul(&Price::from((stable_asset_reserve, stable_asset_hub_reserve)))
+					.checked_mul(
+						&Price::checked_from_rational(stable_asset_reserve, stable_asset_hub_reserve)
+							.ok_or(ArithmeticError::DivisionByZero)?,
+					)
 					.and_then(|v| v.checked_mul_int(amount))
 					.and_then(|v| v.checked_add(&*tvl))
 					.ok_or(ArithmeticError::Overflow)?;
@@ -541,12 +545,13 @@ pub mod pallet {
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			let hub_reserve_ratio = FixedU128::from((
+			let hub_reserve_ratio = FixedU128::checked_from_rational(
 				asset_state.hub_reserve,
 				<HubAssetLiquidity<T>>::get()
 					.checked_add(&state_changes.asset.delta_hub_reserve)
 					.ok_or(ArithmeticError::Overflow)?,
-			));
+			)
+			.ok_or(ArithmeticError::DivisionByZero)?;
 
 			ensure!(
 				hub_reserve_ratio <= Self::asset_weight_cap(),
@@ -1082,8 +1087,10 @@ impl<T: Config> Pallet<T> {
 		if current_imbalance.value == T::Balance::zero() || current_hub_asset_liquidity == T::Balance::zero() {
 			return Ok(());
 		}
-		let p1 = FixedU128::from((asset_state.hub_reserve, asset_state.reserve));
-		let p2 = FixedU128::from((current_imbalance.value, current_hub_asset_liquidity));
+		let p1 = FixedU128::checked_from_rational(asset_state.hub_reserve, asset_state.reserve)
+			.ok_or(ArithmeticError::DivisionByZero)?;
+		let p2 = FixedU128::checked_from_rational(current_imbalance.value, current_hub_asset_liquidity)
+			.ok_or(ArithmeticError::DivisionByZero)?;
 		let p3 = p1.checked_mul(&p2).ok_or(ArithmeticError::Overflow)?;
 
 		let delta_imbalance = p3.checked_mul_int(*delta_amount).ok_or(ArithmeticError::Overflow)?;
@@ -1105,7 +1112,8 @@ impl<T: Config> Pallet<T> {
 
 		if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
 			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-				let adjusted_asset_tvl = Price::from((stable_asset_reserve, stable_asset_hub_reserve))
+				let adjusted_asset_tvl = Price::checked_from_rational(stable_asset_reserve, stable_asset_hub_reserve)
+					.ok_or(ArithmeticError::DivisionByZero)?
 					.checked_mul_int(asset_state.hub_reserve)
 					.ok_or(ArithmeticError::Overflow)?;
 
