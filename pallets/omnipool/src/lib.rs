@@ -736,7 +736,7 @@ pub mod pallet {
 		/// - `asset_in`: ID of asset sold to the pool
 		/// - `asset_out`: ID of asset bought from the pool
 		/// - `amount`: Amount of asset sold
-		/// - `min_limit`: Minimum amount required to receive
+		/// - `min_buy_amount`: Minimum amount required to receive
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
@@ -747,7 +747,7 @@ pub mod pallet {
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
 			amount: T::Balance,
-			min_limit: T::Balance,
+			min_buy_amount: T::Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -765,7 +765,7 @@ pub mod pallet {
 
 			//Handle selling hub asset separately as math is simplified and asset_in is actually part of asset_out state in this case
 			if asset_in == T::HubAssetId::get() {
-				return Self::sell_hub_asset(&who, asset_out, amount, min_limit);
+				return Self::sell_hub_asset(&who, asset_out, amount, min_buy_amount);
 			}
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
@@ -783,7 +783,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
-				*state_changes.asset_out.delta_reserve >= min_limit,
+				*state_changes.asset_out.delta_reserve >= min_buy_amount,
 				Error::<T>::BuyLimitNotReached
 			);
 
@@ -852,7 +852,7 @@ pub mod pallet {
 		/// - `asset_in`: ID of asset sold to the pool
 		/// - `asset_out`: ID of asset bought from the pool
 		/// - `amount`: Amount of asset sold
-		/// - `max_limit`: Maximum amount to be sold.
+		/// - `max_sell_amount`: Maximum amount to be sold.
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
@@ -863,7 +863,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			asset_in: T::AssetId,
 			amount: T::Balance,
-			max_limit: T::Balance,
+			max_sell_amount: T::Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -898,7 +898,7 @@ pub mod pallet {
 			);
 
 			ensure!(
-				*state_changes.asset_in.delta_reserve <= max_limit,
+				*state_changes.asset_in.delta_reserve <= max_sell_amount,
 				Error::<T>::SellLimitExceeded
 			);
 
