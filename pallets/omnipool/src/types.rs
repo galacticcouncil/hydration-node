@@ -182,7 +182,7 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> BalanceUpda
 
 /// The addition operator + for BalanceUpdate.
 ///
-/// Panics if overflows in debug builds, in non-debug debug it wraps instead.. Use checked_add for safe operation.
+/// Panics if overflows in debug builds, in non-debug debug it wraps instead. Use `checked_add` for safe operation.
 ///
 /// # Example
 ///
