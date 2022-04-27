@@ -25,7 +25,7 @@ use crate as pallet_omnipool;
 
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
-	construct_runtime, parameter_types,
+	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureSigned;
@@ -210,6 +210,7 @@ pub struct ExtBuilder {
 	asset_weight_cap: (u32, u32),
 	min_liquidity: u128,
 	min_trade_limit: u128,
+	init_pool: Option<(Balance, Balance, FixedU128, FixedU128)>,
 }
 
 impl Default for ExtBuilder {
@@ -251,6 +252,7 @@ impl Default for ExtBuilder {
 			min_liquidity: 0,
 			registered_assets: vec![],
 			min_trade_limit: 0,
+			init_pool: None,
 		}
 	}
 }
@@ -290,6 +292,17 @@ impl ExtBuilder {
 
 	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
 		self.min_trade_limit = limit;
+		self
+	}
+
+	pub fn with_initial_pool(
+		mut self,
+		stable_amount: Balance,
+		native_amount: Balance,
+		stable_price: FixedU128,
+		native_price: FixedU128,
+	) -> Self {
+		self.init_pool = Some((stable_amount, native_amount, stable_price, native_price));
 		self
 	}
 
@@ -335,7 +348,27 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		t.into()
+		let mut r: sp_io::TestExternalities = t.into();
+
+		if let Some((stable_amount, native_amount, stable_price, native_price)) = self.init_pool {
+			r.execute_with(|| {
+				assert_ok!(Omnipool::initialize_pool(
+					Origin::root(),
+					stable_amount,
+					native_amount,
+					stable_price,
+					native_price,
+				));
+				assert_pool_state!(
+					stable_price.checked_mul_int(stable_amount).unwrap() + native_amount,
+					native_amount * (stable_amount / stable_price.checked_mul_int(stable_amount).unwrap())
+						+ stable_amount,
+					SimpleImbalance::default()
+				);
+			});
+		}
+
+		r
 	}
 }
 
