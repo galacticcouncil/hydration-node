@@ -254,7 +254,6 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 			delta_shares: Decrease(delta_shares),
 			delta_protocol_shares: Increase(delta_b),
 			delta_tvl,
-			..Default::default()
 		},
 		delta_imbalance: Increase(delta_reserve),
 		lp_hub_amount: hub_transferred,
