@@ -27,7 +27,6 @@ use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
 use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
-use std::cmp::Ordering;
 use std::ops::{Add, Sub};
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
@@ -535,11 +534,13 @@ pub mod pallet {
 				Error::<T>::InsufficientBalance
 			);
 
+			let stable_asset = Self::stable_asset()?;
+
 			Assets::<T>::try_mutate(asset, |maybe_asset| -> DispatchResult {
 				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let state_changes =
-					calculate_add_liquidity_state_changes::<T>(asset_state, amount).ok_or(ArithmeticError::Overflow)?;
+				let state_changes = calculate_add_liquidity_state_changes::<T>(asset_state, amount, stable_asset)
+					.ok_or(ArithmeticError::Overflow)?;
 
 				// New Asset State
 				asset_state
@@ -595,7 +596,7 @@ pub mod pallet {
 				Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)?;
 
 				// TVL update
-				Self::update_tvl(asset_state)?;
+				Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
 				// Total hub asset liquidity update
 				Self::update_hub_asset_liquidity(
@@ -646,13 +647,16 @@ pub mod pallet {
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
+			let stable_asset = Self::stable_asset()?;
+
 			let asset_id = position.asset_id;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
 				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let state_changes = calculate_remove_liquidity_state_changes::<T>(asset_state, amount, &position)
-					.ok_or(ArithmeticError::Overflow)?;
+				let state_changes =
+					calculate_remove_liquidity_state_changes::<T>(asset_state, amount, &position, stable_asset)
+						.ok_or(ArithmeticError::Overflow)?;
 
 				// New Asset State
 				asset_state
@@ -679,7 +683,7 @@ pub mod pallet {
 				Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)?;
 
 				// TVL update
-				Self::update_tvl(asset_state)?;
+				Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
 				// Total Hub asset liquidity
 				Self::update_hub_asset_liquidity(
@@ -1108,56 +1112,19 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Update total tvl and asset tvl. Write new total tvl value to storage, and mutate asset tvl accordingly.
+	/// Update total tvl balance and check TVL cap if TVL increased.
 	#[require_transactional]
-	fn update_tvl(asset_state: &mut AssetState<T::Balance>) -> DispatchResult {
-		let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
-
-		if stable_asset_reserve != T::Balance::zero() && stable_asset_hub_reserve != T::Balance::zero() {
-			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-				let adjusted_asset_tvl = Price::checked_from_rational(stable_asset_reserve, stable_asset_hub_reserve)
-					.ok_or(ArithmeticError::DivisionByZero)?
-					.checked_mul_int(asset_state.hub_reserve)
-					.ok_or(ArithmeticError::Overflow)?;
-
-				// Handle decrease or increase accordingly
-				match adjusted_asset_tvl.cmp(&asset_state.tvl) {
-					Ordering::Greater => {
-						let delta_tvl = adjusted_asset_tvl
-							.checked_sub(&asset_state.tvl)
-							.ok_or(ArithmeticError::Overflow)?;
-						*tvl = tvl.checked_add(&delta_tvl).ok_or(ArithmeticError::Overflow)?;
-
-						ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
-
-						asset_state.tvl = asset_state
-							.tvl
-							.checked_add(&delta_tvl)
-							.ok_or(ArithmeticError::Overflow)?;
-					}
-					Ordering::Less => {
-						// no need to check the cap because we decreasing tvl
-						let delta_tvl = asset_state
-							.tvl
-							.checked_sub(&adjusted_asset_tvl)
-							.ok_or(ArithmeticError::Overflow)?;
-
-						// If for some reason, delta_tvl is > total tvl - it is an error, we have some math wrong somewhere
-						*tvl = tvl.checked_sub(&delta_tvl).ok_or(ArithmeticError::Overflow)?;
-						asset_state.tvl = asset_state
-							.tvl
-							.checked_sub(&delta_tvl)
-							.ok_or(ArithmeticError::Overflow)?;
-					}
-					Ordering::Equal => {
-						// nothing to do
-					}
+	fn update_tvl(delta_tvl: &BalanceUpdate<T::Balance>) -> DispatchResult {
+		<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
+			match delta_tvl {
+				BalanceUpdate::Increase(amount) => {
+					*tvl = tvl.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+					ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
 				}
-				Ok(())
-			})
-		} else {
+				BalanceUpdate::Decrease(amount) => *tvl = tvl.checked_sub(amount).ok_or(ArithmeticError::Underflow)?,
+			}
 			Ok(())
-		}
+		})
 	}
 
 	/// Check if assets can be traded

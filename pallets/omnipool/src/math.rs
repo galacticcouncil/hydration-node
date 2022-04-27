@@ -7,7 +7,7 @@ use crate::{AssetState, Config, FixedU128};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::FixedPointNumber;
 use sp_std::default::Default;
-use std::cmp::min;
+use std::cmp::{min, Ordering};
 
 /// Calculate delta changes of a sell trade given current state of asset in and out.
 pub(crate) fn calculate_sell_state_changes<T: Config>(
@@ -152,6 +152,7 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 	asset_state: &AssetState<T::Balance>,
 	amount: T::Balance,
+	stable_asset: (T::Balance, T::Balance),
 ) -> Option<LiquidityStateChange<T::Balance>> {
 	let delta_hub_reserve = asset_state.price().checked_mul_int(amount)?;
 
@@ -160,11 +161,21 @@ pub(crate) fn calculate_add_liquidity_state_changes<T: Config>(
 	let new_shares =
 		FixedU128::checked_from_rational(asset_state.shares, asset_state.reserve)?.checked_mul_int(new_reserve)?;
 
+	let adjusted_asset_tvl = FixedU128::checked_from_rational(stable_asset.0, stable_asset.1)?
+		.checked_mul_int(asset_state.hub_reserve.checked_add(&delta_hub_reserve)?)?;
+
+	let delta_tvl = match adjusted_asset_tvl.cmp(&asset_state.tvl) {
+		Ordering::Greater => BalanceUpdate::Increase(adjusted_asset_tvl.checked_sub(&asset_state.tvl)?),
+		Ordering::Less => BalanceUpdate::Decrease(asset_state.tvl.checked_sub(&adjusted_asset_tvl)?),
+		Ordering::Equal => BalanceUpdate::Increase(T::Balance::zero()),
+	};
+
 	Some(LiquidityStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Increase(amount),
 			delta_hub_reserve: Increase(delta_hub_reserve),
 			delta_shares: Increase(new_shares.checked_sub(&asset_state.shares)?),
+			delta_tvl,
 			..Default::default()
 		},
 		delta_imbalance: BalanceUpdate::Decrease(amount),
@@ -177,6 +188,7 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 	asset_state: &AssetState<T::Balance>,
 	shares_removed: T::Balance,
 	position: &Position<T::Balance, T::AssetId>,
+	stable_asset: (T::Balance, T::Balance),
 ) -> Option<LiquidityStateChange<T::Balance>> {
 	let current_shares = asset_state.shares;
 	let current_reserve = asset_state.reserve;
@@ -225,12 +237,23 @@ pub(crate) fn calculate_remove_liquidity_state_changes<T: Config>(
 	};
 	let delta_r_position =
 		FixedU128::checked_from_rational(shares_removed, position.shares)?.checked_mul_int(position.amount)?;
+
+	let adjusted_asset_tvl = FixedU128::checked_from_rational(stable_asset.0, stable_asset.1)?
+		.checked_mul_int(asset_state.hub_reserve.checked_sub(&delta_hub_reserve)?)?;
+
+	let delta_tvl = match adjusted_asset_tvl.cmp(&asset_state.tvl) {
+		Ordering::Greater => BalanceUpdate::Increase(adjusted_asset_tvl.checked_sub(&asset_state.tvl)?),
+		Ordering::Less => BalanceUpdate::Decrease(asset_state.tvl.checked_sub(&adjusted_asset_tvl)?),
+		Ordering::Equal => BalanceUpdate::Increase(T::Balance::zero()),
+	};
+
 	Some(LiquidityStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve),
 			delta_hub_reserve: Decrease(delta_hub_reserve),
 			delta_shares: Decrease(delta_shares),
 			delta_protocol_shares: Increase(delta_b),
+			delta_tvl,
 			..Default::default()
 		},
 		delta_imbalance: Increase(delta_reserve),
