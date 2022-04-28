@@ -569,11 +569,12 @@ mod tests {
 
 	#[test]
 	fn balance_update_to_balance_addition_works() {
+		let zero = 0u32;
 		assert_eq!(BalanceUpdate::Increase(100u32) + 200u32, Some(300));
 		assert_eq!(BalanceUpdate::Decrease(50u32) + 100u32, Some(50));
 		assert_eq!(BalanceUpdate::Decrease(50u32) + 50u32, Some(0));
-		assert_eq!(BalanceUpdate::Decrease(50u32) + 0u32, None);
-		assert_eq!(BalanceUpdate::Increase(50u32) + 0u32, Some(50));
+		assert_eq!(BalanceUpdate::Decrease(50u32) + zero, None);
+		assert_eq!(BalanceUpdate::Increase(50u32) + zero, Some(50));
 
 		assert_eq!(BalanceUpdate::Decrease(100u32) + 50u32, None);
 	}
