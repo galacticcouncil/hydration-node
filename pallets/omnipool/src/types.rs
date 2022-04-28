@@ -31,11 +31,11 @@ where
 
 	/// Update current asset state with given delta changes.
 	pub(super) fn delta_update(&mut self, delta: &AssetStateChange<Balance>) -> Option<()> {
-		self.reserve = update_value!(self.reserve, delta.delta_reserve)?;
-		self.hub_reserve = update_value!(self.hub_reserve, delta.delta_hub_reserve)?;
-		self.shares = update_value!(self.shares, delta.delta_shares)?;
-		self.protocol_shares = update_value!(self.protocol_shares, delta.delta_protocol_shares)?;
-		self.tvl = update_value!(self.tvl, delta.delta_tvl)?;
+		self.reserve = (delta.delta_reserve + self.reserve)?;
+		self.hub_reserve = (delta.delta_hub_reserve + self.hub_reserve)?;
+		self.shares = (delta.delta_shares + self.shares)?;
+		self.protocol_shares = (delta.delta_protocol_shares + self.protocol_shares)?;
+		self.tvl = (delta.delta_tvl + self.tvl)?;
 		Some(())
 	}
 }
@@ -58,7 +58,7 @@ pub struct Position<Balance, AssetId> {
 
 impl<Balance, AssetId> Position<Balance, AssetId>
 where
-	Balance: From<u128> + Into<u128> + Copy + CheckedAdd + CheckedSub + Default,
+	Balance: From<u128> + Into<u128> + Copy,
 {
 	// Storing position price as Balance type.
 	// Let's convert `Balance` into FixedU128 and vice versa
@@ -72,15 +72,20 @@ where
 	pub(super) fn price_to_balance(price: Price) -> Balance {
 		price.into_inner().into()
 	}
+}
 
+impl<Balance, AssetId> Position<Balance, AssetId>
+where
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
+{
 	/// Update current position state with given delta changes.
 	pub(super) fn delta_update(
 		&mut self,
 		delta_reserve: &BalanceUpdate<Balance>,
 		delta_shares: &BalanceUpdate<Balance>,
 	) -> Option<()> {
-		self.amount = update_value!(self.amount, delta_reserve)?;
-		self.shares = update_value!(self.shares, delta_shares)?;
+		self.amount = (*delta_reserve + self.amount)?;
+		self.shares = (*delta_shares + self.shares)?;
 		Some(())
 	}
 }
@@ -254,14 +259,17 @@ impl<Balance: Default> Deref for BalanceUpdate<Balance> {
 	}
 }
 
-#[macro_export]
-macro_rules! update_value {
-	( $x:expr, $y:expr) => {{
-		match &$y {
-			BalanceUpdate::Increase(amount) => $x.checked_add(&amount),
-			BalanceUpdate::Decrease(amount) => $x.checked_sub(&amount),
+impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + CheckedSub + Copy + Default> Add<Balance>
+	for BalanceUpdate<Balance>
+{
+	type Output = Option<Balance>;
+
+	fn add(self, rhs: Balance) -> Self::Output {
+		match &self {
+			BalanceUpdate::Increase(amount) => rhs.checked_add(&amount),
+			BalanceUpdate::Decrease(amount) => rhs.checked_sub(&amount),
 		}
-	}};
+	}
 }
 
 /// Delta changes of asset state
