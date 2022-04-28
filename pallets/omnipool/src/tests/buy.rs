@@ -13,12 +13,14 @@ fn simple_buy_works() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -124,12 +126,14 @@ fn buy_with_insufficient_balance_fails() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, 500 * ONE, Price::from(1)));
 
 			assert_noop!(
@@ -151,12 +155,14 @@ fn buy_exceeding_limit_fails() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, 500 * ONE, Price::from(1)));
 
 			assert_noop!(

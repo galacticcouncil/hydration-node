@@ -11,12 +11,14 @@ fn remove_liquidity_works() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -78,12 +80,14 @@ fn full_liquidity_removal_works() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -146,12 +150,14 @@ fn partial_liquidity_removal_works() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -226,12 +232,14 @@ fn lp_receives_lrna_when_price_is_higher() {
 			(LP1, 1_000, 5000 * ONE),
 			(LP2, DAI, 50000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 100 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -283,12 +291,14 @@ fn protocol_shares_update_works() {
 			(LP1, 1_000, 5000 * ONE),
 			(LP2, 1_000, 5000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 100 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -346,11 +356,14 @@ fn remove_liquidity_by_non_owner_fails() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP2),
 				1_000,
@@ -376,11 +389,14 @@ fn remove_liquidity_from_non_existing_position_fails() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP2),
 				1_000,
@@ -405,11 +421,14 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP2),
 				1_000,

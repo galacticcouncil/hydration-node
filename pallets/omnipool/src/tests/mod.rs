@@ -52,19 +52,3 @@ macro_rules! assert_asset_state {
 		assert_eq!(actual, $y);
 	}};
 }
-
-fn init_omnipool(dai_amount: Balance, price: FixedU128) {
-	assert_ok!(Omnipool::initialize_pool(
-		Origin::root(),
-		dai_amount,
-		NATIVE_AMOUNT,
-		price,
-		FixedU128::from(1)
-	));
-
-	assert_pool_state!(
-		price.checked_mul_int(dai_amount).unwrap() + NATIVE_AMOUNT,
-		NATIVE_AMOUNT * (dai_amount / price.checked_mul_int(dai_amount).unwrap()) + dai_amount,
-		SimpleImbalance::default()
-	);
-}

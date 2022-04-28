@@ -17,12 +17,14 @@ fn sell_fee_test() {
 		.with_registered_asset(200)
 		.with_asset_fee((1, 10))
 		.with_protocol_fee((2, 10))
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP1),
 				100,

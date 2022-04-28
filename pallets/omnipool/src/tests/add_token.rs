@@ -171,13 +171,20 @@ fn add_token_works() {
 
 #[test]
 fn add_non_registered_asset_fails() {
-	ExtBuilder::default().build().execute_with(|| {
-		init_omnipool(1000 * ONE, FixedU128::from_float(0.5));
-		assert_noop!(
-			Omnipool::add_token(Origin::signed(LP1), 2_000, 2000 * ONE, FixedU128::from_float(0.5)),
-			Error::<Test>::AssetNotRegistered
-		);
-	});
+	ExtBuilder::default()
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::add_token(Origin::signed(LP1), 2_000, 2000 * ONE, FixedU128::from_float(0.5)),
+				Error::<Test>::AssetNotRegistered
+			);
+		});
 }
 
 #[test]

@@ -14,12 +14,14 @@ fn scenario_06() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP1),
 				100,

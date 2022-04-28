@@ -13,12 +13,14 @@ fn simple_sell_works() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -121,13 +123,15 @@ fn selling_assets_not_in_pool_fails() {
 			(LP1, 1000, 1000 * ONE),
 			(LP1, 2000, 1000 * ONE),
 		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.with_registered_asset(100)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			assert_noop!(
 				Omnipool::sell(Origin::signed(LP1), 1000, HDX, 50 * ONE, 10 * ONE),
 				Error::<Test>::AssetNotFound
@@ -153,12 +157,14 @@ fn sell_limit_works() {
 			(LP1, 100, 1000 * ONE),
 		])
 		.with_registered_asset(100)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
@@ -182,11 +188,14 @@ fn sell_hub_asset_limit() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP2),
 				100,
@@ -214,12 +223,14 @@ fn sell_hub_works() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
 		.build()
 		.execute_with(|| {
-			let dai_amount = 1000 * ONE;
-			let price = FixedU128::from_float(0.5);
-			init_omnipool(dai_amount, price);
-
 			assert_ok!(Omnipool::add_token(
 				Origin::signed(LP1),
 				100,
