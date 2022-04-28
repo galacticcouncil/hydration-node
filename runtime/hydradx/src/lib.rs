@@ -73,13 +73,12 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
 
-
-pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] =
-	hex_literal::hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
+pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] = hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -99,6 +98,7 @@ pub mod opaque {
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
+			pub collator_rewards: CollatorRewards,
 		}
 	}
 }
@@ -598,9 +598,7 @@ impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
 			RawOrigin::Signed(caller) => {
-				if caller == GALACTIC_COUNCIL_ACCOUNT.into()
-					|| caller == VestingPalletId::get().into_account()
-				{
+				if caller == GALACTIC_COUNCIL_ACCOUNT.into() || caller == VestingPalletId::get().into_account() {
 					Ok(caller)
 				} else {
 					Err(Origin::from(Some(caller)))
@@ -730,6 +728,35 @@ impl pallet_relaychain_info::Config for Runtime {
 	type RelaychainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
+parameter_types! {
+	//TODO: set correct value
+	pub const RewardPerCollator: Balance = 455_371_584_699_000; // 83333 HDX / 183 sessions
+	//GalacticCouncil collators
+	pub ExcludedCollators: Vec<AccountId> = vec![
+		// 5G3t6yhAonQHGUEqrByWQPgP9R8fcSSL6Vujphc89ysdTpKF
+		hex!["b0502e92d738d528922e8963b8a58a3c7c3b693db51b0972a6981836d67b8835"].into(),
+		// 5CVBHPAjhcVVAvL3AYpa9MB6kWDwoJbBwu7q4MqbhKwNnrV4
+		hex!["12aa36d6c1b055b9a7ab5d39f4fd9a9fe42912163c90e122fb7997e890a53d7e"].into(),
+		// 5DFGmHjpxS6Xveg4YDw2hSp62JJ9h8oLCkeZUAoVR7hVtQ3k
+		hex!["344b7693389189ad0be0c83630b02830a568f7cb0f2d4b3483bcea323cc85f70"].into(),
+		// 5H178NL4DLM9DGgAgZz1kbrX2TReP3uPk7svPtsg1VcYnuXH
+		hex!["da6e859211b1140369a73af533ecea4e4c0e985ad122ac4c663cc8b81d4fcd12"].into(),
+		// 5Ca1iV2RNV253FzYJo12XtKJMPWCjv5CsPK9HdmwgJarD1sJ
+		hex!["165a3c2eb21341bf170fd1fa728bd9a7d02b7dc3b4968a46f2b1d494ee8c2b5d"].into(),
+	];
+}
+
+impl pallet_collator_rewards::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type CurrencyId = AssetId;
+	type Currency = Currencies;
+	type RewardPerCollator = RewardPerCollator;
+	type ExcludedCollators = ExcludedCollators;
+	type RewardCurrencyId = RewardCurrencyId;
+	type AuthorityId = AuraId;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -757,6 +784,7 @@ construct_runtime!(
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 55,
+        CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 57,
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 77,

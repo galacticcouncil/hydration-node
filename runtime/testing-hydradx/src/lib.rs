@@ -25,6 +25,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
 use frame_system::{EnsureRoot, RawOrigin};
+use hex_literal::hex;
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::{
@@ -40,7 +41,6 @@ use sp_runtime::{
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
 use sp_std::prelude::*;
-use hex_literal::hex;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -90,6 +90,7 @@ pub mod opaque {
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
+			pub collator_rewards: CollatorRewards,
 		}
 	}
 }
@@ -732,6 +733,29 @@ impl pallet_relaychain_info::Config for Runtime {
 	type RelaychainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
+parameter_types! {
+	//TODO: set correct value
+	pub const RewardPerCollator: Balance = 10_000 * UNITS;
+	//GalacticCouncil collators
+	pub ExcludedCollators: Vec<AccountId> = vec![
+		// Alice
+		hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into(),
+		// Bob
+		hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"].into(),
+	];
+}
+
+impl pallet_collator_rewards::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type CurrencyId = AssetId;
+	type Currency = Currencies;
+	type RewardPerCollator = RewardPerCollator;
+	type ExcludedCollators = ExcludedCollators;
+	type RewardCurrencyId = RewardCurrencyId;
+	type AuthorityId = AuraId;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -759,6 +783,7 @@ construct_runtime!(
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 55,
+        CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 57,
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 77,

@@ -114,9 +114,12 @@ pub fn parachain_genesis(
 				.cloned()
 				.map(|(acc, aura)| {
 					(
-						acc.clone(),                                   // account id
-						acc,                                           // validator id
-						hydradx_runtime::opaque::SessionKeys { aura }, // session keys
+						acc.clone(), // account id
+						acc,         // validator id
+						hydradx_runtime::opaque::SessionKeys {
+							aura: aura.clone(),
+							collator_rewards: aura,
+						}, // session keys
 					)
 				})
 				.collect(),
