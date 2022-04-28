@@ -135,48 +135,17 @@ impl orml_tokens::Config for Test {
 	type DustRemovalWhitelist = Everything;
 }
 
-struct WeightCap;
-impl Get<(u32, u32)> for WeightCap {
-	fn get() -> (u32, u32) {
-		ASSET_WEIGHT_CAP.with(|v| *v.borrow())
-	}
-}
-struct FeeAsset;
-impl Get<(u32, u32)> for FeeAsset {
-	fn get() -> (u32, u32) {
-		ASSET_FEE.with(|v| *v.borrow())
-	}
-}
-struct FeeProtocol;
-impl Get<(u32, u32)> for FeeProtocol {
-	fn get() -> (u32, u32) {
-		PROTOCOL_FEE.with(|v| *v.borrow())
-	}
-}
-struct MinLiquidity;
-impl Get<Balance> for MinLiquidity {
-	fn get() -> Balance {
-		MIN_ADDED_LIQUDIITY.with(|v| *v.borrow())
-	}
-}
-struct MinAmount;
-impl Get<Balance> for MinAmount {
-	fn get() -> Balance {
-		MIN_TRADE_AMOUNT.with(|v| *v.borrow())
-	}
-}
-
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionClassId: u32= 1000;
 
-	pub ProtocolFee: (u32,u32) = FeeProtocol::get();
-	pub AssetFee: (u32,u32) = FeeAsset::get();
-	pub AssetWeightCap: (u32,u32) = WeightCap::get();
-	pub MinAddedLiquidity: Balance = MinLiquidity::get();
-	pub MinTradeAmount: Balance = MinAmount::get();
+	pub ProtocolFee: (u32,u32) = PROTOCOL_FEE.with(|v| *v.borrow());
+	pub AssetFee: (u32,u32) = ASSET_FEE.with(|v| *v.borrow());
+	pub AssetWeightCap: (u32,u32) =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
+	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
+	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
 }
 
