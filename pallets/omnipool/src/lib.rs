@@ -792,19 +792,14 @@ pub mod pallet {
 				Error::<T>::InsufficientBalance
 			);
 
-			//Handle selling hub asset separately as math is simplified and asset_in is actually part of asset_out state in this case
+			// Special handling when one of the asset is Hub Asset
+			// Math is simplified and asset_in is actually part of asset_out state in this case
 			if asset_in == T::HubAssetId::get() {
 				return Self::sell_hub_asset(&who, asset_out, amount, min_buy_amount);
 			}
 
 			if asset_out == T::HubAssetId::get() {
-				ensure!(
-					matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
-					Error::<T>::NotAllowed
-				);
-				// Hub asset is not allowed to be bought,
-				// When it is allowed, need to correct math!
-				return Err(Error::<T>::NotAllowed.into());
+				return Self::sell_asset_for_hub_asset(&who, asset_in, amount, min_buy_amount);
 			}
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
@@ -917,16 +912,16 @@ pub mod pallet {
 				Error::<T>::InsufficientTradingAmount
 			);
 
+			// Special handling when one of the asset is Hub Asset
 			if asset_out == T::HubAssetId::get() {
 				return Self::buy_hub_asset(&who, asset_in, amount, max_sell_amount);
 			}
 
 			if asset_in == T::HubAssetId::get() {
-				// This is allowed, however what is the math here ?!
-				// TODO: implement according to spec!
-				return Err(Error::<T>::NotAllowed.into());
+				return Self::buy_asset_for_hub_asset(&who, asset_out, amount, max_sell_amount);
 			}
 
+			// Handling of other asset pairs
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
 
@@ -1292,10 +1287,47 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
+	/// Swap asset for Hub Asset
+	/// Special handling of buy trade where asset in is Hub Asset.
+	fn buy_asset_for_hub_asset(
+		_who: &T::AccountId,
+		_asset_out: T::AssetId,
+		_amount: T::Balance,
+		_limit: T::Balance,
+	) -> DispatchResult {
+		ensure!(
+			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::SellOnly),
+			Error::<T>::NotAllowed
+		);
+
+		// TODO: implement according to spec!
+
+		Err(Error::<T>::NotAllowed.into())
+	}
+
+	// following two methods handles buying hub asset which is not allowed atm but interface is prepared.
+
 	/// Buy hub asset from the pool
 	/// Special handling of buy trade where asset out is Hub Asset.
 	/// Note: Currently not allowed at all, and not implemented for time being.
 	fn buy_hub_asset(
+		_who: &T::AccountId,
+		_asset_in: T::AssetId,
+		_amount: T::Balance,
+		_limit: T::Balance,
+	) -> DispatchResult {
+		ensure!(
+			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
+			Error::<T>::NotAllowed
+		);
+
+		Err(Error::<T>::NotAllowed.into())
+	}
+
+	/// Swap asset for Hub Asset
+	/// Special handling of sell trade where asset out is Hub Asset.
+	/// Note: This is not allowed atm!
+	fn sell_asset_for_hub_asset(
 		_who: &T::AccountId,
 		_asset_in: T::AssetId,
 		_amount: T::Balance,
