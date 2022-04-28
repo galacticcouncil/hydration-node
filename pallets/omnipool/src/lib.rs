@@ -1218,6 +1218,11 @@ impl<T: Config> Pallet<T> {
 		Assets::<T>::try_mutate(asset_out, |maybe_asset| -> DispatchResult {
 			let asset_out_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
+			ensure!(
+				matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
+				Error::<T>::NotAllowed
+			); // TODO :Add test for this!
+
 			let state_changes = calculate_sell_hub_state_changes::<T>(asset_out_state, amount, Self::asset_fee())
 				.ok_or(ArithmeticError::Overflow)?;
 
