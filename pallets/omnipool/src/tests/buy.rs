@@ -77,12 +77,20 @@ fn simple_buy_works() {
 
 #[test]
 fn hub_asset_buy_fails() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_noop!(
-			Omnipool::buy(Origin::signed(LP1), LRNA, HDX, 100 * ONE, 0),
-			Error::<Test>::NotAllowed
-		);
-	});
+	ExtBuilder::default()
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), LRNA, HDX, 100 * ONE, 0),
+				Error::<Test>::NotAllowed
+			);
+		});
 }
 
 #[test]

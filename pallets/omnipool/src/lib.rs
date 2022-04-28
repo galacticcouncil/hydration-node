@@ -179,6 +179,10 @@ pub mod pallet {
 	pub(super) type HubAssetLiquidity<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
 
 	#[pallet::storage]
+	/// Tradable state of hub asset.
+	pub(super) type HubAssetTradability<T: Config> = StorageValue<_, Tradable, ValueQuery>;
+
+	#[pallet::storage]
 	/// LP positions. Maps NFT instance id to corresponding position
 	pub(super) type Positions<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionInstanceId, Position<T::Balance, T::AssetId>>;
@@ -408,6 +412,8 @@ pub mod pallet {
 
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
 			<Assets<T>>::insert(T::NativeAssetId::get(), native_asset_state);
+
+			<HubAssetTradability<T>>::put(Tradable::SellOnly);
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: T::StableCoinAssetId::get(),
@@ -792,10 +798,12 @@ pub mod pallet {
 			}
 
 			if asset_out == T::HubAssetId::get() {
+				ensure!(
+					matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
+					Error::<T>::NotAllowed
+				);
 				// Hub asset is not allowed to be bought,
-				// however if it allowed - we cannot call buy_hub_asset because that deals with buying certain amount of Hub asset
-				// here we sell asset_in with amount in
-				// TODO: ask colin what would be the best way
+				// When it is allowed, need to correct math!
 				return Err(Error::<T>::NotAllowed.into());
 			}
 
@@ -915,9 +923,7 @@ pub mod pallet {
 
 			if asset_in == T::HubAssetId::get() {
 				// This is allowed, however what is the math here ?!
-				// TODO: ask colin what would be the best way
-				// we cannot call sell_hub_asset as that deals amount of hub asset to sell
-				// here we have amount of asset out to buy / to swap for hub asset
+				// TODO: implement according to spec!
 				return Err(Error::<T>::NotAllowed.into());
 			}
 
@@ -1021,14 +1027,22 @@ pub mod pallet {
 		pub fn set_asset_tradable_state(origin: OriginFor<T>, asset_id: T::AssetId, state: Tradable) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
-				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+			if asset_id == T::HubAssetId::get() {
+				HubAssetTradability::<T>::mutate(|value| -> DispatchResult {
+					*value = state.clone();
+					Self::deposit_event(Event::TradableStateUpdated { asset_id, state });
+					Ok(())
+				})
+			} else {
+				Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
+					let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				asset_state.tradable = state.clone();
-				Self::deposit_event(Event::TradableStateUpdated { asset_id, state });
+					asset_state.tradable = state.clone();
+					Self::deposit_event(Event::TradableStateUpdated { asset_id, state });
 
-				Ok(())
-			})
+					Ok(())
+				})
+			}
 		}
 	}
 
@@ -1215,13 +1229,18 @@ impl<T: Config> Pallet<T> {
 		amount: T::Balance,
 		limit: T::Balance,
 	) -> DispatchResult {
+		ensure!(
+			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::SellOnly),
+			Error::<T>::NotAllowed
+		);
+
 		Assets::<T>::try_mutate(asset_out, |maybe_asset| -> DispatchResult {
 			let asset_out_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
 			ensure!(
 				matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
 				Error::<T>::NotAllowed
-			); // TODO :Add test for this!
+			); // TODO: Add test for this!
 
 			let state_changes = calculate_sell_hub_state_changes::<T>(asset_out_state, amount, Self::asset_fee())
 				.ok_or(ArithmeticError::Overflow)?;
@@ -1282,7 +1301,11 @@ impl<T: Config> Pallet<T> {
 		_amount: T::Balance,
 		_limit: T::Balance,
 	) -> DispatchResult {
-		// TODO: implement before Hub asset is allowed to be bought
+		ensure!(
+			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
+			Error::<T>::NotAllowed
+		);
+
 		Err(Error::<T>::NotAllowed.into())
 	}
 }
