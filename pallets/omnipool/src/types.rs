@@ -266,8 +266,8 @@ impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + Checke
 
 	fn add(self, rhs: Balance) -> Self::Output {
 		match &self {
-			BalanceUpdate::Increase(amount) => rhs.checked_add(&amount),
-			BalanceUpdate::Decrease(amount) => rhs.checked_sub(&amount),
+			BalanceUpdate::Increase(amount) => rhs.checked_add(amount),
+			BalanceUpdate::Decrease(amount) => rhs.checked_sub(amount),
 		}
 	}
 }
