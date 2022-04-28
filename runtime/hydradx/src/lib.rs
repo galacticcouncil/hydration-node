@@ -730,7 +730,7 @@ impl pallet_relaychain_info::Config for Runtime {
 
 parameter_types! {
 	//TODO: set correct value
-	pub const RewardPerCollator: Balance = 10_000 * UNITS;
+	pub const RewardPerCollator: Balance = 455_371_584_699_000; // 83333 HDX / 183 sessions
 	//GalacticCouncil collators
 	pub ExcludedCollators: Vec<AccountId> = vec![
 		// 5G3t6yhAonQHGUEqrByWQPgP9R8fcSSL6Vujphc89ysdTpKF
