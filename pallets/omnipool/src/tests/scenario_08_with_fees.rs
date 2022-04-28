@@ -89,7 +89,7 @@ fn fee_test_buy_sell() {
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
 					tvl: 1000000000000000,
-					tradable: Tradable::SellOnly,
+					tradable: Tradable::default(),
 				}
 			);
 

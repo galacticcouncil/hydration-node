@@ -366,7 +366,7 @@ pub mod pallet {
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
 				tvl: stable_asset_reserve,
-				tradable: Tradable::SellOnly,
+				tradable: Tradable::default(),
 			};
 			let native_asset_state = AssetState::<T::Balance> {
 				reserve: native_asset_reserve,
