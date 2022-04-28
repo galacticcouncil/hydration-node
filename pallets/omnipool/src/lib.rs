@@ -257,6 +257,8 @@ pub mod pallet {
 		NoNativeAssetInPool,
 		/// Adding token as protocol ( root ), token balance has not been updated prior to add token.
 		MissingBalance,
+		/// Invalid initial asset price. Price must be non-zero.
+		InvalidInitialAssetPrice,
 		/// Minimum limit has not been reached during trade.
 		BuyLimitNotReached,
 		/// Maximum limit has been exceeded during trade.
@@ -317,6 +319,15 @@ pub mod pallet {
 			ensure!(
 				!Assets::<T>::contains_key(T::NativeAssetId::get()),
 				Error::<T>::AssetAlreadyAdded
+			);
+
+			ensure!(
+				stable_asset_price > FixedU128::zero(),
+				Error::<T>::InvalidInitialAssetPrice
+			);
+			ensure!(
+				native_asset_price > FixedU128::zero(),
+				Error::<T>::InvalidInitialAssetPrice
 			);
 
 			let (stable_asset_reserve, stable_asset_hub_reserve) = (
@@ -435,6 +446,8 @@ pub mod pallet {
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
 			ensure!(T::AssetRegistry::exists(asset), Error::<T>::AssetNotRegistered);
+
+			ensure!(initial_price > FixedU128::zero(), Error::<T>::InvalidInitialAssetPrice);
 
 			// Retrieve stable asset and native asset details first - we fail early if they are not yet in the pool.
 			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
