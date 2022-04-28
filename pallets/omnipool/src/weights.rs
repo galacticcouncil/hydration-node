@@ -7,6 +7,7 @@ pub trait WeightInfo {
 	fn remove_liquidity() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
+	fn set_asset_tradable_state() -> Weight;
 }
 
 impl WeightInfo for () {
@@ -26,6 +27,9 @@ impl WeightInfo for () {
 		0
 	}
 	fn buy() -> Weight {
+		0
+	}
+	fn set_asset_tradable_state() -> Weight {
 		0
 	}
 }

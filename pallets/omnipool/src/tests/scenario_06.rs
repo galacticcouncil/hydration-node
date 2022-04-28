@@ -82,7 +82,8 @@ fn scenario_06() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000
+					tvl: 1000000000000000,
+					tradable: Tradable::SellOnly,
 				}
 			);
 
@@ -93,7 +94,8 @@ fn scenario_06() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000
+					tvl: 10000000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -104,7 +106,8 @@ fn scenario_06() {
 					hub_reserve: 1468235294117649,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 3120000000000000
+					tvl: 3120000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -115,7 +118,8 @@ fn scenario_06() {
 					hub_reserve: 1391764705882351,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 2000000000000000
+					tvl: 2000000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 

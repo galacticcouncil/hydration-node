@@ -61,7 +61,8 @@ fn simple_sell_works() {
 					hub_reserve: 1_528_163_265_306_123,
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
-					tvl: 3120 * ONE
+					tvl: 3120 * ONE,
+					tradable: Tradable::default(),
 				}
 			);
 			assert_asset_state!(
@@ -71,7 +72,8 @@ fn simple_sell_works() {
 					hub_reserve: 1331836734693877,
 					shares: 2000 * ONE,
 					protocol_shares: 2000 * ONE,
-					tvl: 2000 * ONE
+					tvl: 2000 * ONE,
+					tradable: Tradable::default(),
 				}
 			);
 		});
@@ -105,12 +107,25 @@ fn sell_insufficient_amount_fails() {
 
 #[test]
 fn hub_asset_buy_not_allowed() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_noop!(
-			Omnipool::sell(Origin::signed(LP1), 100, LRNA, 10000 * ONE, 0),
-			Error::<Test>::NotAllowed
-		);
-	});
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), 0, 100000000000000000),
+			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(LP1, HDX, 2000 * ONE),
+		])
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), HDX, LRNA, 100 * ONE, 0),
+				Error::<Test>::NotAllowed
+			);
+		});
 }
 
 #[test]
@@ -273,7 +288,8 @@ fn sell_hub_works() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000
+					tvl: 1000000000000000,
+					tradable: Tradable::SellOnly,
 				}
 			);
 
@@ -284,7 +300,8 @@ fn sell_hub_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000
+					tvl: 10000000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -295,7 +312,8 @@ fn sell_hub_works() {
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 3120000000000000
+					tvl: 3120000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -306,7 +324,8 @@ fn sell_hub_works() {
 					hub_reserve: 1350000000000000,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 2000000000000000
+					tvl: 2000000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -318,5 +337,92 @@ fn sell_hub_works() {
 					negative: true
 				}
 			);
+		});
+}
+
+#[test]
+fn sell_not_allowed_asset_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
+		.build()
+		.execute_with(|| {
+			let token_amount = 2000 * ONE;
+			let token_price = FixedU128::from_float(0.65);
+
+			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
+
+			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				100,
+				Tradable::Frozen
+			));
+
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Error::<Test>::NotAllowed
+			);
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				100,
+				Tradable::BuyOnly
+			));
+
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Error::<Test>::NotAllowed
+			);
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				100,
+				Tradable::SellOnly
+			));
+
+			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				200,
+				Tradable::Frozen
+			));
+
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Error::<Test>::NotAllowed
+			);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				200,
+				Tradable::SellOnly
+			));
+
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Error::<Test>::NotAllowed
+			);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				200,
+				Tradable::BuyOnly
+			));
+
+			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE));
 		});
 }

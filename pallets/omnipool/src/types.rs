@@ -6,6 +6,25 @@ use std::ops::{Add, Deref, Sub};
 
 pub type Price = FixedU128;
 
+/// Asset's trade state. Indicates whether asset can be bought or sold to/from Ommnipool
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub enum Tradable {
+	/// Asset is allowed to be bought and sold
+	Allowed,
+	/// Asset is not allowed to be bought nor sold
+	Frozen,
+	/// Asset is allowed to be sold but not bought
+	SellOnly,
+	/// Asset is allowed to be bought but not sold
+	BuyOnly,
+}
+
+impl Default for Tradable {
+	fn default() -> Self {
+		Tradable::Allowed
+	}
+}
+
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AssetState<Balance> {
 	/// Quantity of asset in omnipool
@@ -18,6 +37,8 @@ pub struct AssetState<Balance> {
 	pub(super) protocol_shares: Balance,
 	/// TVL of asset
 	pub(super) tvl: Balance,
+	/// Asset's trade state
+	pub(super) tradable: Tradable,
 }
 
 impl<Balance> AssetState<Balance>

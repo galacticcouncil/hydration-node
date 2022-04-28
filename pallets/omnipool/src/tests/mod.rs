@@ -1,5 +1,5 @@
 use crate::mock::*;
-use crate::types::{AssetState, Position, SimpleImbalance};
+use crate::types::{AssetState, Position, SimpleImbalance, Tradable};
 use crate::*;
 use frame_support::assert_ok;
 use sp_runtime::{FixedPointNumber, FixedU128};

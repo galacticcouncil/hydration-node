@@ -36,7 +36,8 @@ fn add_liquidity_works() {
 					hub_reserve: 1560 * ONE,
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
-					tvl: 3120 * ONE
+					tvl: 3120 * ONE,
+					tradable: Tradable::default(),
 				}
 			);
 

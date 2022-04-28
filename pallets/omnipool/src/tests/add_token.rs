@@ -163,7 +163,8 @@ fn add_token_works() {
 					hub_reserve: 1300 * ONE,
 					shares: token_amount,
 					protocol_shares: token_amount,
-					tvl: token_amount
+					tvl: token_amount,
+					tradable: Tradable::default(),
 				}
 			)
 		});

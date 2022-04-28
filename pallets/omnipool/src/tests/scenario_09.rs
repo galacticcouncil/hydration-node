@@ -96,7 +96,8 @@ fn complex_scenario_works() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000
+					tvl: 1000000000000000,
+					tradable: Tradable::SellOnly,
 				}
 			);
 
@@ -107,7 +108,8 @@ fn complex_scenario_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000
+					tvl: 10000000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -118,7 +120,8 @@ fn complex_scenario_works() {
 					hub_reserve: 1188430684479243,
 					shares: 2734332900513906,
 					protocol_shares: 2000000000000000,
-					tvl: 2376861368958486
+					tvl: 2376861368958486,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -129,7 +132,8 @@ fn complex_scenario_works() {
 					hub_reserve: 2709090864095512,
 					shares: 2008863636363636,
 					protocol_shares: 2000000000000000,
-					tvl: 5378181728191024 // TODO: discrepancy here compared to python output
+					tvl: 5378181728191024,
+					tradable: Tradable::default(),
 				}
 			);
 

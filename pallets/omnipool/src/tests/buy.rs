@@ -57,7 +57,8 @@ fn simple_buy_works() {
 					hub_reserve: 1526666666666667,
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
-					tvl: 3120 * ONE
+					tvl: 3120 * ONE,
+					tradable: Tradable::default(),
 				}
 			);
 			assert_asset_state!(
@@ -67,7 +68,8 @@ fn simple_buy_works() {
 					hub_reserve: 1333333333333333,
 					shares: 2000 * ONE,
 					protocol_shares: 2000 * ONE,
-					tvl: 2000 * ONE
+					tvl: 2000 * ONE,
+					tradable: Tradable::default(),
 				}
 			);
 		});
@@ -169,5 +171,90 @@ fn buy_exceeding_limit_fails() {
 				Omnipool::buy(Origin::signed(LP1), 100, HDX, 100 * ONE, 10 * ONE),
 				Error::<Test>::SellLimitExceeded
 			);
+		});
+}
+
+#[test]
+fn buy_not_allowed_assets_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
+		.build()
+		.execute_with(|| {
+			let token_amount = 2000 * ONE;
+			let token_price = FixedU128::from_float(0.65);
+
+			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
+
+			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				200,
+				Tradable::Frozen
+			));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE),
+				Error::<Test>::NotAllowed
+			);
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				200,
+				Tradable::SellOnly
+			));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE),
+				Error::<Test>::NotAllowed
+			);
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				200,
+				Tradable::BuyOnly
+			));
+
+			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				100,
+				Tradable::Frozen
+			));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE),
+				Error::<Test>::NotAllowed
+			);
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				100,
+				Tradable::BuyOnly
+			));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE),
+				Error::<Test>::NotAllowed
+			);
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				100,
+				Tradable::SellOnly
+			));
+
+			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE));
 		});
 }

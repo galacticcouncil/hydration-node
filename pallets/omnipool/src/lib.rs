@@ -48,7 +48,7 @@ mod types;
 pub mod weights;
 
 use crate::math::calculate_sell_hub_state_changes;
-use crate::types::{AssetState, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance};
+use crate::types::{AssetState, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
 use math::calculate_sell_state_changes;
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -62,7 +62,7 @@ pub mod pallet {
 	use crate::math::{
 		calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
 	};
-	use crate::types::{AssetState, Position, Price, SimpleImbalance};
+	use crate::types::{AssetState, Position, Price, SimpleImbalance, Tradable};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -240,6 +240,8 @@ pub mod pallet {
 			position_id: T::PositionInstanceId,
 			owner: T::AccountId,
 		},
+		/// Aseet's tradable state has been updated.
+		TradableStateUpdated { asset_id: T::AssetId, state: Tradable },
 	}
 
 	#[pallet::error]
@@ -364,6 +366,7 @@ pub mod pallet {
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
 				tvl: stable_asset_reserve,
+				tradable: Tradable::SellOnly,
 			};
 			let native_asset_state = AssetState::<T::Balance> {
 				reserve: native_asset_reserve,
@@ -371,6 +374,7 @@ pub mod pallet {
 				shares: native_asset_amount,
 				protocol_shares: native_asset_amount,
 				tvl: native_asset_amount,
+				tradable: Tradable::default(),
 			};
 
 			// Imbalance update and total hub asset liquidity for stable asset first
@@ -461,6 +465,7 @@ pub mod pallet {
 				shares: amount,
 				protocol_shares: amount,
 				tvl: amount,
+				tradable: Tradable::default(),
 			};
 
 			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
@@ -776,8 +781,6 @@ pub mod pallet {
 				Error::<T>::InsufficientTradingAmount
 			);
 
-			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
-
 			ensure!(
 				T::Currency::free_balance(asset_in, &who) >= amount,
 				Error::<T>::InsufficientBalance
@@ -788,8 +791,22 @@ pub mod pallet {
 				return Self::sell_hub_asset(&who, asset_out, amount, min_buy_amount);
 			}
 
+			if asset_out == T::HubAssetId::get() {
+				// Hub asset is not allowed to be bought,
+				// however if it allowed - we cannot call buy_hub_asset because that deals with buying certain amount of Hub asset
+				// here we sell asset_in with amount in
+				// TODO: ask colin what would be the best way
+				return Err(Error::<T>::NotAllowed.into());
+			}
+
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+
+			ensure!(
+				Self::allow_assets(&asset_in_state, &asset_out_state),
+				Error::<T>::NotAllowed
+			);
+
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
 			let state_changes = calculate_sell_state_changes::<T>(
@@ -892,14 +909,26 @@ pub mod pallet {
 				Error::<T>::InsufficientTradingAmount
 			);
 
-			ensure!(Self::allow_assets(asset_in, asset_out), Error::<T>::NotAllowed);
+			if asset_out == T::HubAssetId::get() {
+				return Self::buy_hub_asset(&who, asset_in, amount, max_sell_amount);
+			}
 
-			// TODO: handle buy hub asset separately.
-			// Note: hub asset is not allowed to be bought at the moment.
-			// but when it does - it needs to be handled separately
+			if asset_in == T::HubAssetId::get() {
+				// This is allowed, however what is the math here ?!
+				// TODO: ask colin what would be the best way
+				// we cannot call sell_hub_asset as that deals amount of hub asset to sell
+				// here we have amount of asset out to buy / to swap for hub asset
+				return Err(Error::<T>::NotAllowed.into());
+			}
 
 			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
 			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+
+			ensure!(
+				Self::allow_assets(&asset_in_state, &asset_out_state),
+				Error::<T>::NotAllowed
+			);
+
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
 			let state_changes = calculate_buy_state_changes::<T>(
@@ -973,6 +1002,33 @@ pub mod pallet {
 			});
 
 			Ok(())
+		}
+
+		/// Update asset's tradable state.
+		///
+		/// Change asset's state to one of `Tradable` states.
+		///
+		/// Only root can change this state.
+		///
+		/// Parameters:
+		/// - `asset_id`: asset id
+		/// - `state`: new state
+		///
+		/// Emits `TradableStateUpdated` event when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
+		#[transactional]
+		pub fn set_asset_tradable_state(origin: OriginFor<T>, asset_id: T::AssetId, state: Tradable) -> DispatchResult {
+			ensure_root(origin)?;
+
+			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
+				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+
+				asset_state.tradable = state.clone();
+				Self::deposit_event(Event::TradableStateUpdated { asset_id, state });
+
+				Ok(())
+			})
 		}
 	}
 
@@ -1141,15 +1197,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Check if assets can be traded
-	fn allow_assets(_asset_in: T::AssetId, asset_out: T::AssetId) -> bool {
-		// TODO: use flag for asset , stored in asset state to manage whether it can be traded
-		// Or use a list and preload in on_init
-		// probably needs to be called with asset state already retrieved
-		if asset_out == T::HubAssetId::get() {
-			// Hub asset is not allowed to be bought
-			return false;
-		}
-		true
+	fn allow_assets(asset_in: &AssetState<T::Balance>, asset_out: &AssetState<T::Balance>) -> bool {
+		matches!(
+			(&asset_in.tradable, &asset_out.tradable),
+			(Tradable::Allowed, Tradable::Allowed)
+				| (Tradable::Allowed, Tradable::BuyOnly)
+				| (Tradable::SellOnly, Tradable::BuyOnly)
+				| (Tradable::SellOnly, Tradable::Allowed)
+		)
 	}
 
 	/// Swap hub asset for asset_out.
@@ -1211,5 +1266,18 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})
+	}
+
+	/// Buy hub asset from the pool
+	/// Special handling of buy trade where asset out is Hub Asset.
+	/// Note: Currently not allowed at all, and not implemented for time being.
+	fn buy_hub_asset(
+		_who: &T::AccountId,
+		_asset_in: T::AssetId,
+		_amount: T::Balance,
+		_limit: T::Balance,
+	) -> DispatchResult {
+		// TODO: implement before Hub asset is allowed to be bought
+		Err(Error::<T>::NotAllowed.into())
 	}
 }

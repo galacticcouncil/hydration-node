@@ -88,7 +88,8 @@ fn fee_test_buy_sell() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000
+					tvl: 1000000000000000,
+					tradable: Tradable::SellOnly,
 				}
 			);
 
@@ -99,7 +100,8 @@ fn fee_test_buy_sell() {
 					hub_reserve: 10135523267202731,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000
+					tvl: 10000000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -110,7 +112,8 @@ fn fee_test_buy_sell() {
 					hub_reserve: 882383663986338,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 3120000000000000
+					tvl: 3120000000000000,
+					tradable: Tradable::default(),
 				}
 			);
 
@@ -121,7 +124,8 @@ fn fee_test_buy_sell() {
 					hub_reserve: 2707273110861761,
 					shares: 2006364027707802,
 					protocol_shares: 2000000000000000,
-					tvl: 5414546221723522
+					tvl: 5414546221723522,
+					tradable: Tradable::default(),
 				}
 			);
 
