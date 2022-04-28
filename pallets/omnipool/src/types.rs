@@ -566,6 +566,18 @@ mod tests {
 		assert_panics!(BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Increase(1));
 		assert_panics!(BalanceUpdate::Decrease(u128::MAX) + BalanceUpdate::Decrease(1));
 	}
+
+	#[test]
+	fn balance_update_to_balance_addition_works() {
+		assert_eq!(BalanceUpdate::Increase(100u32) + 200u32, Some(300));
+		assert_eq!(BalanceUpdate::Decrease(50u32) + 100u32, Some(50));
+		assert_eq!(BalanceUpdate::Decrease(50u32) + 50u32, Some(0));
+		assert_eq!(BalanceUpdate::Decrease(50u32) + 0u32, None);
+		assert_eq!(BalanceUpdate::Increase(50u32) + 0u32, Some(50));
+
+		assert_eq!(BalanceUpdate::Decrease(100u32) + 50u32, None);
+	}
+
 	#[test]
 	fn balance_update_safe_addition_works() {
 		assert_eq!(
