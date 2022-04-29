@@ -47,7 +47,7 @@ mod math;
 mod types;
 pub mod weights;
 
-use crate::math::calculate_sell_hub_state_changes;
+use crate::math::{calculate_buy_for_hub_asset_state_changes, calculate_sell_hub_state_changes};
 use crate::types::{AssetState, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
 use math::calculate_sell_state_changes;
 pub use pallet::*;
@@ -1290,26 +1290,77 @@ impl<T: Config> Pallet<T> {
 	/// Swap asset for Hub Asset
 	/// Special handling of buy trade where asset in is Hub Asset.
 	fn buy_asset_for_hub_asset(
-		_who: &T::AccountId,
-		_asset_out: T::AssetId,
-		_amount: T::Balance,
-		_limit: T::Balance,
+		who: &T::AccountId,
+		asset_out: T::AssetId,
+		amount: T::Balance,
+		limit: T::Balance,
 	) -> DispatchResult {
 		ensure!(
 			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::SellOnly),
 			Error::<T>::NotAllowed
 		);
 
-		// TODO: implement according to spec!
+		Assets::<T>::try_mutate(asset_out, |maybe_asset| -> DispatchResult {
+			let asset_out_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-		Err(Error::<T>::NotAllowed.into())
+			ensure!(
+				matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
+				Error::<T>::NotAllowed
+			); // TODO: Add test for this!
+
+			let state_changes =
+				calculate_buy_for_hub_asset_state_changes::<T>(asset_out_state, amount, Self::asset_fee())
+					.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				*state_changes.asset.delta_reserve >= limit,
+				Error::<T>::BuyLimitNotReached
+			);
+
+			asset_out_state
+				.delta_update(&state_changes.asset)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// Token updates
+			T::Currency::transfer(
+				T::HubAssetId::get(),
+				who,
+				&Self::protocol_account(),
+				*state_changes.asset.delta_hub_reserve,
+			)?;
+			T::Currency::transfer(
+				asset_out,
+				&Self::protocol_account(),
+				who,
+				*state_changes.asset.delta_reserve,
+			)?;
+
+			// Total hub asset liquidity
+			Self::update_hub_asset_liquidity(
+				&state_changes.asset.delta_hub_reserve,
+				HubAssetIssuanceUpdate::JustTransfer,
+			)?;
+
+			// Imbalance update
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+
+			<Assets<T>>::insert(asset_out, asset_out_state);
+
+			Self::deposit_event(Event::BuyExecuted {
+				who: who.clone(),
+				asset_in: T::HubAssetId::get(),
+				asset_out,
+				amount_in: *state_changes.asset.delta_hub_reserve,
+				amount_out: *state_changes.asset.delta_reserve,
+			});
+
+			Ok(())
+		})
 	}
-
-	// following two methods handles buying hub asset which is not allowed atm but interface is prepared.
 
 	/// Buy hub asset from the pool
 	/// Special handling of buy trade where asset out is Hub Asset.
-	/// Note: Currently not allowed at all, and not implemented for time being.
 	fn buy_hub_asset(
 		_who: &T::AccountId,
 		_asset_in: T::AssetId,
@@ -1321,12 +1372,14 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
+		// Note: Currently not allowed at all, neither math is done for this case
+		// this is already ready when hub asset will be alloed to be bought from the pool
+
 		Err(Error::<T>::NotAllowed.into())
 	}
 
 	/// Swap asset for Hub Asset
 	/// Special handling of sell trade where asset out is Hub Asset.
-	/// Note: This is not allowed atm!
 	fn sell_asset_for_hub_asset(
 		_who: &T::AccountId,
 		_asset_in: T::AssetId,
@@ -1337,6 +1390,9 @@ impl<T: Config> Pallet<T> {
 			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
 			Error::<T>::NotAllowed
 		);
+
+		// Note: Currently not allowed at all, neither math is done for this case
+		// this is already ready when hub asset will be alloed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
 	}
