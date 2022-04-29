@@ -1,0 +1,16 @@
+{
+  "name": "claim-all-staking-rewards",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "submit": "node index.js submit",
+    "test": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@polkadot/api": "^8.2.1",
+    "@polkadot/util": "^9.0.1"
+  }
+}
