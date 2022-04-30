@@ -141,6 +141,7 @@ runtime-benchmarks = [
     "pallet-democracy/runtime-benchmarks",
     "pallet-asset-registry/runtime-benchmarks",
     "pallet-xcm/runtime-benchmarks",
+    "pallet-session/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
 ]
 std = [
