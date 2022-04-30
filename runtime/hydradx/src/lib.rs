@@ -276,7 +276,7 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = Treasury;
 	type ExistentialDeposit = NativeExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::balances::HydraWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 }
@@ -576,7 +576,7 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::tokens::HydraWeight<Runtime>;
 	type ExistentialDeposits = AssetRegistry;
 	type OnDust = ();
 	type MaxLocks = MaxLocks;
@@ -588,7 +588,7 @@ impl orml_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type GetNativeCurrencyId = NativeAssetId;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::currencies::HydraWeight<Runtime>;
 }
 
 pub struct GalacticCouncilOrVestingOrRoot;
@@ -620,7 +620,7 @@ impl orml_vesting::Config for Runtime {
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
 	type VestedTransferOrigin = GalacticCouncilOrVestingOrRoot;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
@@ -673,7 +673,7 @@ impl pallet_claims::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type Prefix = ClaimMessagePrefix;
-	type WeightInfo = pallet_claims::weights::HydraWeight<Runtime>;
+	type WeightInfo = common_runtime::weights::claims::HydraWeight<Runtime>;
 	type CurrencyBalance = Balance;
 }
 
@@ -697,7 +697,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
 	type Currencies = Currencies;
 	type SpotPriceProvider = NoSpotPriceProvider;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::transaction_multi_payment::HydraWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
@@ -720,7 +720,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
 	type NativeAssetId = NativeAssetId;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::asset_registry::HydraWeight<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -784,7 +784,7 @@ construct_runtime!(
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
 		Claims: pallet_claims::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
 		GenesisHistory: pallet_genesis_history::{Pallet, Storage, Config} = 55,
-        CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 57,
+		CollatorRewards: pallet_collator_rewards::{Pallet, Storage, Event<T>} = 57,
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 77,

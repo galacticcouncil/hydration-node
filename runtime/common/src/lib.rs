@@ -17,6 +17,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod weights;
+
 use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Contains, EnsureOneOf, LockIdentifier};
