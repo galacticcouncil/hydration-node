@@ -1,7 +1,16 @@
 pub mod asset_registry;
 pub mod balances;
 pub mod claims;
+pub mod collator_selection;
 pub mod currencies;
+pub mod democracy;
+pub mod identity;
+pub mod preimage;
+pub mod proxy;
+pub mod scheduler;
+pub mod timestamp;
 pub mod tokens;
 pub mod transaction_multi_payment;
+pub mod treasury;
+pub mod utility;
 pub mod vesting;

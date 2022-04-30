@@ -50,19 +50,19 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn vested_transfer() -> Weight {
-		(66_461_000 as Weight)
+		(68_205_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
 	fn claim(i: u32) -> Weight {
-		(35_525_000 as Weight) // Standard Error: 2_000
-			.saturating_add((104_000 as Weight).saturating_mul(i as Weight))
+		(37_525_000 as Weight) // Standard Error: 3_000
+			.saturating_add((102_000 as Weight).saturating_mul(i as Weight))
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	fn update_vesting_schedules(i: u32) -> Weight {
-		(31_520_000 as Weight) // Standard Error: 2_000
-			.saturating_add((116_000 as Weight).saturating_mul(i as Weight))
+		(31_934_000 as Weight) // Standard Error: 1_000
+			.saturating_add((115_000 as Weight).saturating_mul(i as Weight))
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
