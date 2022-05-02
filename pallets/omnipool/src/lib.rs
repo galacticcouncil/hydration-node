@@ -24,10 +24,10 @@ use frame_support::require_transactional;
 use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
+use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
 use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub, Zero};
-use sp_std::prelude::*;
 use sp_std::ops::{Add, Sub};
+use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
@@ -189,7 +189,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Position ids sequencer
-	pub(super) type PositionInstanceSequencer<T: Config> = StorageValue<_, u32, ValueQuery>;
+	pub(super) type PositionInstanceSequencer<T: Config> = StorageValue<_, T::PositionInstanceId, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -307,7 +307,7 @@ pub mod pallet {
 		///
 		/// Emits two `TokenAdded` events when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::add_token())]
+		#[pallet::weight(<T as Config>::WeightInfo::initialize_pool())]
 		#[transactional]
 		pub fn initialize_pool(
 			origin: OriginFor<T>,
@@ -1095,7 +1095,7 @@ impl<T: Config> Pallet<T> {
 
 			T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
 
-			*current_value = current_value.checked_add(1u32).ok_or(ArithmeticError::Overflow)?;
+			*current_value = current_value.checked_add(&T::PositionInstanceId::one()).ok_or(ArithmeticError::Overflow)?;
 
 			Ok(instance_id)
 		})

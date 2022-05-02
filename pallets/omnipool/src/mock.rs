@@ -390,7 +390,7 @@ pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for DummyRegistry<T>
 where
-	T::AssetId: Into<AssetId>,
+	T::AssetId: Into<AssetId> + From<u32>,
 {
 	fn exists(asset_id: T::AssetId) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
@@ -402,7 +402,12 @@ where
 	}
 
 	fn create_asset(_name: &Vec<u8>, _existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			let l = v.borrow().len();
+			v.borrow_mut().insert(l as u32, l as u32);
+			l as u32
+		});
+		Ok(T::AssetId::from(assigned))
 	}
 }
 

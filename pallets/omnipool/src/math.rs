@@ -6,8 +6,8 @@ use crate::types::{
 use crate::{AssetState, Config, FixedU128};
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::FixedPointNumber;
-use sp_std::default::Default;
 use sp_std::cmp::{min, Ordering};
+use sp_std::default::Default;
 
 /// Calculate delta changes of a sell trade given current state of asset in and out.
 pub(crate) fn calculate_sell_state_changes<T: Config>(
