@@ -26,11 +26,6 @@ use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
 use orml_traits::MultiCurrencyExtended;
 
-fn funded_account<T: Config>(name: &'static str, index: u32) -> T::AccountId {
-	let caller: T::AccountId = account(name, index, 1);
-	caller
-}
-
 benchmarks! {
 	 where_clause {  where T::AssetId: From<u32>,
 		T::Balance: From<u128>,
@@ -62,7 +57,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
 
 		// Create account for token provider and set balance
-		let caller = funded_account::<T>("caller", 0);
+		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price: FixedU128= FixedU128::from((1,5));
 		let token_amount = T::Balance::from(200_000_000_000_000u128);
@@ -90,7 +85,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
 
 		// Create account for token provider and set balance
-		let caller = funded_account::<T>("caller", 0);
+		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = T::Balance::from(200_000_000_000_000u128);
@@ -101,7 +96,7 @@ benchmarks! {
 		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller).into(), token_id,token_amount, token_price)?;
 
 		// Create LP provider account with correct balance
-		let lp_provider = funded_account::<T>("provider", 1);
+		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
 		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
@@ -126,7 +121,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
 
 		// Create account for token provider and set balance
-		let caller = funded_account::<T>("caller", 0);
+		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = T::Balance::from(200_000_000_000_000u128);
@@ -137,7 +132,7 @@ benchmarks! {
 		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller).into(), token_id,token_amount, token_price)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
-		let lp_provider = funded_account::<T>("provider", 1);
+		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
 		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
@@ -147,7 +142,7 @@ benchmarks! {
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
 
 		// to ensure worst case - Let's do a trade to make sure price changes, so LP provider receives some LRNA ( which does additional transfer)
-		let buyer = funded_account::<T>("buyer", 1);
+		let buyer: T::AccountId = account("buyer", 2, 1);
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
 		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
 
@@ -173,7 +168,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
 
 		// Create account for token provider and set balance
-		let caller = funded_account::<T>("caller", 0);
+		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = T::Balance::from(200_000_000_000_000u128);
@@ -184,7 +179,7 @@ benchmarks! {
 		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller).into(), token_id,token_amount, token_price)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
-		let lp_provider = funded_account::<T>("provider", 1);
+		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
 		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
@@ -193,11 +188,11 @@ benchmarks! {
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
-		let buyer = funded_account::<T>("buyer", 1);
+		let buyer: T::AccountId = account("buyer", 2, 1);
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
 		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
 
-		let seller = funded_account::<T>("seller", 2);
+		let seller: T::AccountId = account("seller", 3, 1);
 		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
 
 		let amount_sell = T::Balance::from(100_000_000_000_000u128);
@@ -221,7 +216,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
 
 		// Create account for token provider and set balance
-		let caller = funded_account::<T>("caller", 0);
+		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = T::Balance::from(200_000_000_000_000u128);
@@ -232,7 +227,7 @@ benchmarks! {
 		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller).into(), token_id,token_amount, token_price)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
-		let lp_provider = funded_account::<T>("provider", 1);
+		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
 		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
@@ -241,11 +236,11 @@ benchmarks! {
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
-		let buyer = funded_account::<T>("buyer", 1);
+		let buyer: T::AccountId = account("buyer", 2, 1);
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
 		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
 
-		let seller = funded_account::<T>("seller", 2);
+		let seller: T::AccountId = account("seller", 3, 1);
 		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
 
 		let amount_buy = T::Balance::from(10_000_000_000_000u128);
