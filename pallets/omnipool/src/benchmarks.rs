@@ -255,6 +255,21 @@ benchmarks! {
 	verify {
 		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) >= T::Balance::zero());
 	}
+
+	set_asset_tradable_state{
+		// Initialize pool
+		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_price: FixedU128= FixedU128::from((1,2));
+		let native_price: FixedU128= FixedU128::from(1);
+
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+
+	}: _(RawOrigin::Root, T::StableCoinAssetId::get(), Tradable::BuyOnly)
+	verify {
+		let asset_state = <Assets<T>>::get(T::StableCoinAssetId::get()).unwrap();
+		assert!(asset_state.tradable == Tradable::BuyOnly);
+	}
 }
 
 #[cfg(test)]
