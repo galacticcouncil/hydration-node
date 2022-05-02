@@ -1091,15 +1091,13 @@ impl<T: Config> Pallet<T> {
 			let next_position_id = *current_value;
 
 			// TODO: think if there is need to embed something helpful into nft instance id ( such as position asset?!).
-			let instance_id = T::PositionInstanceId::from(next_position_id);
-
-			T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
+			T::NFTHandler::mint_into(&T::NFTClassId::get(), &next_position_id, owner)?;
 
 			*current_value = current_value
 				.checked_add(&T::PositionInstanceId::one())
 				.ok_or(ArithmeticError::Overflow)?;
 
-			Ok(instance_id)
+			Ok(next_position_id)
 		})
 	}
 
