@@ -1095,7 +1095,9 @@ impl<T: Config> Pallet<T> {
 
 			T::NFTHandler::mint_into(&T::NFTClassId::get(), &instance_id, owner)?;
 
-			*current_value = current_value.checked_add(&T::PositionInstanceId::one()).ok_or(ArithmeticError::Overflow)?;
+			*current_value = current_value
+				.checked_add(&T::PositionInstanceId::one())
+				.ok_or(ArithmeticError::Overflow)?;
 
 			Ok(instance_id)
 		})
