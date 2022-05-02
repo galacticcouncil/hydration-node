@@ -159,6 +159,54 @@ benchmarks! {
 		// Ensure lp provider received LRNA
 		assert!(T::Currency::free_balance(T::HubAssetId::get(), &lp_provider) > T::Balance::zero());
 	}
+
+	sell{
+		// Initialize pool
+		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_price: FixedU128= FixedU128::from((1,2));
+		let native_price: FixedU128= FixedU128::from(1);
+
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+
+		// Register new asset in asset registry
+		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
+
+		// Create account for token provider and set balance
+		let caller = funded_account::<T>("caller", 0);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = T::Balance::from(200_000_000_000_000u128);
+
+		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
+
+		// Add the token to the pool
+		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller).into(), token_id,token_amount, token_price)?;
+
+		// Create LP provider account with correct balance aand add some liquidity
+		let lp_provider = funded_account::<T>("provider", 1);
+		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
+
+		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
+
+		let current_position_id = <PositionInstanceSequencer<T>>::get();
+
+		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
+
+		let buyer = funded_account::<T>("buyer", 1);
+		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
+		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
+
+		let seller = funded_account::<T>("seller", 2);
+		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
+
+		let amount_sell = T::Balance::from(100_000_000_000_000u128);
+		let buy_min_amount = T::Balance::from(10_000_000_000_000u128);
+
+	}: _(RawOrigin::Signed(seller.clone()), token_id, T::StableCoinAssetId::get(), amount_sell, buy_min_amount)
+	verify {
+		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) >= buy_min_amount);
+	}
 }
 
 #[cfg(test)]
