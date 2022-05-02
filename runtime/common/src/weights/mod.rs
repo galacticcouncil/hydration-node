@@ -8,6 +8,7 @@ pub mod identity;
 pub mod preimage;
 pub mod proxy;
 pub mod scheduler;
+pub mod system;
 pub mod timestamp;
 pub mod tokens;
 pub mod transaction_multi_payment;
