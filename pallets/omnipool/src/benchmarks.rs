@@ -46,6 +46,8 @@ benchmarks! {
 
 	}: _(RawOrigin::Root, stable_amount, native_amount, stable_price, native_price)
 	verify {
+		assert!(<Assets<T>>::get(T::StableCoinAssetId::get()).is_some());
+		assert!(<Assets<T>>::get(T::NativeAssetId::get()).is_some());
 	}
 
 	add_token{
@@ -54,7 +56,7 @@ benchmarks! {
 		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount, native_amount, stable_price, native_price)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
@@ -67,8 +69,12 @@ benchmarks! {
 
 		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
 
+		let current_position_id = <PositionInstanceSequencer<T>>::get();
+
 	}: _(RawOrigin::Signed(caller), token_id, token_amount, token_price)
 	verify {
+		assert!(<Positions<T>>::get(current_position_id).is_some());
+		assert!(<Assets<T>>::get(token_id).is_some());
 	}
 
 	add_liquidity{
@@ -78,7 +84,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount, native_amount, stable_price, native_price)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
@@ -100,8 +106,11 @@ benchmarks! {
 
 		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
 
+		let current_position_id = <PositionInstanceSequencer<T>>::get();
+
 	}: _(RawOrigin::Signed(lp_provider), token_id, liquidity_added)
 	verify {
+		assert!(<Positions<T>>::get(current_position_id).is_some());
 	}
 
 	remove_liquidity{
@@ -137,10 +146,9 @@ benchmarks! {
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
 
-
 	}: _(RawOrigin::Signed(lp_provider), current_position_id, liquidity_added)
 	verify {
-		// Ensre NFT instance was burned
+		// Ensure NFT instance was burned
 		assert!(<Positions<T>>::get(current_position_id).is_none());
 	}
 }
