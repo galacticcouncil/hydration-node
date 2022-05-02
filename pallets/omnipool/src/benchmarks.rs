@@ -146,10 +146,18 @@ benchmarks! {
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
 
-	}: _(RawOrigin::Signed(lp_provider), current_position_id, liquidity_added)
+		// to ensure worst case - Let's do a trade to make sure price changes, so LP provider receives some LRNA ( which does additional transfer)
+		let buyer = funded_account::<T>("buyer", 1);
+		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
+		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
+
+	}: _(RawOrigin::Signed(lp_provider.clone()), current_position_id, liquidity_added)
 	verify {
 		// Ensure NFT instance was burned
 		assert!(<Positions<T>>::get(current_position_id).is_none());
+
+		// Ensure lp provider received LRNA
+		assert!(T::Currency::free_balance(T::HubAssetId::get(), &lp_provider) > T::Balance::zero());
 	}
 }
 
