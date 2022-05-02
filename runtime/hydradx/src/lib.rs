@@ -27,10 +27,7 @@ use codec::{Decode, Encode};
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
-use sp_core::{
-	u32_trait::{_1, _2, _3},
-	OpaqueMetadata,
-};
+use sp_core::OpaqueMetadata;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
@@ -47,23 +44,21 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{
-		Currency as PalletCurrency, EnsureOneOf, EnsureOrigin, Everything, Get, Imbalance, InstanceFilter,
-		OnUnbalanced, PrivilegeCmp, U128CurrencyToVote,
-	},
+	traits::{Contains, EnsureOrigin, Get, InstanceFilter, PrivilegeCmp, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
 use hydradx_traits::pools::SpotPriceProvider;
-use pallet_transaction_payment::{CurrencyAdapter, TargetedFeeAdjustment};
+use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::Price;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
 pub use common_runtime::*;
 use orml_currencies::BasicCurrencyAdapter;
+use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 
 mod benchmarking;
 mod xcm;
@@ -124,9 +119,39 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
+pub struct BaseFilter;
+
+impl Contains<Call> for BaseFilter {
+	fn contains(call: &Call) -> bool {
+		matches!(
+			call,
+			Call::System(_)
+				| Call::Timestamp(_)
+				| Call::Scheduler(_)
+				| Call::Treasury(_)
+				| Call::Utility(_)
+				| Call::Preimage(_)
+				| Call::Identity(_)
+				| Call::Democracy(_)
+				| Call::Elections(_)
+				| Call::Council(_)
+				| Call::TechnicalCommittee(_)
+				| Call::Tips(_) | Call::Proxy(_)
+				| Call::AssetRegistry(_)
+				| Call::Claims(_)
+				| Call::ParachainSystem(_)
+				| Call::Authorship(_)
+				| Call::CollatorSelection(_)
+				| Call::Session(_)
+				| Call::Sudo(_)
+		)
+	}
+}
+
 use smallvec::smallvec;
 
 pub struct WeightToFee;
+
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
 
@@ -211,9 +236,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
-	type BlockWeights = BlockWeights;
-	type BlockLength = BlockLength;
+	type BaseCallFilter = BaseFilter;
 	/// The ubiquitous origin type.
 	type Origin = Origin;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -235,6 +258,8 @@ impl frame_system::Config for Runtime {
 	/// The ubiquitous event type.
 	type Event = Event;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
+	type BlockWeights = BlockWeights;
+	type BlockLength = BlockLength;
 	type BlockHashCount = BlockHashCount;
 	/// The weight of database operations that the runtime can invoke.
 	type DbWeight = RocksDbWeight;
@@ -264,7 +289,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = common_runtime::weights::timestamp::HydraWeight<Runtime>;
+	type WeightInfo = weights::timestamp::HydraWeight<Runtime>;
 }
 
 impl pallet_balances::Config for Runtime {
@@ -276,7 +301,7 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = Treasury;
 	type ExistentialDeposit = NativeExistentialDeposit;
 	type AccountStore = System;
-	type WeightInfo = common_runtime::weights::balances::HydraWeight<Runtime>;
+	type WeightInfo = weights::balances::HydraWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 }
@@ -286,21 +311,8 @@ impl pallet_balances::Config for Runtime {
 pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
-type NegativeImbalance = <Balances as PalletCurrency<AccountId>>::NegativeImbalance;
-pub struct DealWithFees;
-impl OnUnbalanced<NegativeImbalance> for DealWithFees {
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
-		if let Some(mut fees) = fees_then_tips.next() {
-			if let Some(tips) = fees_then_tips.next() {
-				tips.merge_into(&mut fees);
-			}
-			Treasury::on_unbalanced(fees);
-		}
-	}
-}
-
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees>;
+	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), MultiTransactionPayment>;
 	type TransactionByteFee = TransactionByteFee;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
@@ -323,10 +335,10 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type Event = Event;
 	type OnSystemEvent = pallet_relaychain_info::OnValidationDataHandler<Runtime>;
 	type SelfParaId = ParachainInfo;
-	type OutboundXcmpMessageSource = ();
-	type DmpMessageHandler = ();
+	type OutboundXcmpMessageSource = XcmpQueue;
+	type DmpMessageHandler = DmpQueue;
 	type ReservedDmpWeight = ReservedDmpWeight;
-	type XcmpMessageHandler = ();
+	type XcmpMessageHandler = XcmpQueue;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
 }
 
@@ -343,8 +355,8 @@ impl cumulus_pallet_aura_ext::Config for Runtime {}
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type ApproveOrigin = EnsureRoot<AccountId>;
-	type RejectOrigin = EnsureRoot<AccountId>;
+	type ApproveOrigin = TreasuryApproveOrigin;
+	type RejectOrigin = MoreThanHalfCouncil;
 	type Event = Event;
 	type OnSlash = Treasury;
 	type ProposalBond = ProposalBond;
@@ -353,7 +365,7 @@ impl pallet_treasury::Config for Runtime {
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type BurnDestination = ();
-	type WeightInfo = common_runtime::weights::treasury::HydraWeight<Runtime>;
+	type WeightInfo = weights::treasury::HydraWeight<Runtime>;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 }
@@ -368,7 +380,7 @@ impl pallet_authorship::Config for Runtime {
 impl pallet_collator_selection::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type UpdateOrigin = EnsureRoot<AccountId>;
+	type UpdateOrigin = MoreThanHalfCouncil;
 	type PotId = PotId;
 	type MaxCandidates = MaxCandidates;
 	type MinCandidates = MinCandidates;
@@ -378,7 +390,7 @@ impl pallet_collator_selection::Config for Runtime {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ValidatorRegistration = Session;
-	type WeightInfo = common_runtime::weights::collator_selection::HydraWeight<Runtime>;
+	type WeightInfo = weights::collator_selection::HydraWeight<Runtime>;
 }
 
 impl pallet_session::Config for Runtime {
@@ -399,12 +411,12 @@ impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
 	type PalletsOrigin = OriginCaller;
-	type WeightInfo = common_runtime::weights::utility::HydraWeight<Runtime>;
+	type WeightInfo = weights::utility::HydraWeight<Runtime>;
 }
 
 impl pallet_preimage::Config for Runtime {
 	type Event = Event;
-	type WeightInfo = common_runtime::weights::preimage::HydraWeight<Runtime>;
+	type WeightInfo = weights::preimage::HydraWeight<Runtime>;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
 	type MaxSize = PreimageMaxSize;
@@ -449,7 +461,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = MoreThanHalfCouncil;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = common_runtime::weights::scheduler::HydraWeight<Runtime>;
+	type WeightInfo = weights::scheduler::HydraWeight<Runtime>;
 	type PreimageProvider = Preimage;
 	type NoPreimagePostponement = NoPreimagePostponement;
 }
@@ -466,7 +478,7 @@ impl pallet_identity::Config for Runtime {
 	type Slashed = Treasury;
 	type ForceOrigin = MoreThanHalfCouncil;
 	type RegistrarOrigin = MoreThanHalfCouncil;
-	type WeightInfo = common_runtime::weights::identity::HydraWeight<Runtime>;
+	type WeightInfo = weights::identity::HydraWeight<Runtime>;
 }
 
 impl pallet_collective::Config<CouncilCollective> for Runtime {
@@ -490,16 +502,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = ();
 }
-
-type EnsureMajorityCouncilOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
-
-type EnsureSuperMajorityTechCommitteeOrRoot = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
 
 impl pallet_democracy::Config for Runtime {
 	type Proposal = Call;
@@ -535,7 +537,7 @@ impl pallet_democracy::Config for Runtime {
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
 	type MaxVotes = MaxVotes;
-	type WeightInfo = common_runtime::weights::democracy::HydraWeight<Runtime>;
+	type WeightInfo = weights::democracy::HydraWeight<Runtime>;
 	type MaxProposals = MaxProposals;
 	type VoteLockingPeriod = EnactmentPeriod;
 }
@@ -545,7 +547,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type PalletId = ElectionsPhragmenPalletId;
 	type Currency = Balances;
 	type ChangeMembers = Council;
-	type InitializeMembers = (); // Set to () if defined in chain spec
+	type InitializeMembers = ();
+	// Set to () if defined in chain spec
 	type CurrencyToVote = U128CurrencyToVote;
 	type CandidacyBond = CandidacyBond;
 	type VotingBondBase = VotingBondBase;
@@ -576,11 +579,11 @@ impl orml_tokens::Config for Runtime {
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
-	type WeightInfo = common_runtime::weights::tokens::HydraWeight<Runtime>;
+	type WeightInfo = weights::tokens::HydraWeight<Runtime>;
 	type ExistentialDeposits = AssetRegistry;
 	type OnDust = ();
 	type MaxLocks = MaxLocks;
-	type DustRemovalWhitelist = common_runtime::DustRemovalWhitelist;
+	type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
 impl orml_currencies::Config for Runtime {
@@ -588,10 +591,11 @@ impl orml_currencies::Config for Runtime {
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type GetNativeCurrencyId = NativeAssetId;
-	type WeightInfo = common_runtime::weights::currencies::HydraWeight<Runtime>;
+	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
 }
 
 pub struct GalacticCouncilOrVestingOrRoot;
+
 impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
 	type Success = AccountId;
 
@@ -620,7 +624,7 @@ impl orml_vesting::Config for Runtime {
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
 	type VestedTransferOrigin = GalacticCouncilOrVestingOrRoot;
-	type WeightInfo = common_runtime::weights::vesting::HydraWeight<Runtime>;
+	type WeightInfo = weights::vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
@@ -660,7 +664,7 @@ impl pallet_proxy::Config for Runtime {
 	type ProxyDepositBase = ProxyDepositBase;
 	type ProxyDepositFactor = ProxyDepositFactor;
 	type MaxProxies = MaxProxies;
-	type WeightInfo = common_runtime::weights::proxy::HydraWeight<Runtime>;
+	type WeightInfo = weights::proxy::HydraWeight<Runtime>;
 	type MaxPending = MaxPending;
 	type CallHasher = BlakeTwo256;
 	type AnnouncementDepositBase = AnnouncementDepositBase;
@@ -673,13 +677,14 @@ impl pallet_claims::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type Prefix = ClaimMessagePrefix;
-	type WeightInfo = common_runtime::weights::claims::HydraWeight<Runtime>;
+	type WeightInfo = weights::claims::HydraWeight<Runtime>;
 	type CurrencyBalance = Balance;
 }
 
 impl pallet_genesis_history::Config for Runtime {}
 
 pub struct NoSpotPriceProvider;
+
 impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
 	type Price = Price;
 
@@ -694,10 +699,10 @@ impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
-	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
+	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type SpotPriceProvider = NoSpotPriceProvider;
-	type WeightInfo = common_runtime::weights::transaction_multi_payment::HydraWeight<Runtime>;
+	type WeightInfo = weights::transaction_multi_payment::HydraWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
@@ -708,19 +713,19 @@ pub struct AssetLocation(pub polkadot_xcm::v1::MultiLocation);
 
 impl Default for AssetLocation {
 	fn default() -> Self {
-		AssetLocation(polkadot_xcm::v1::MultiLocation::here())
+		AssetLocation(polkadot_xcm::v2::MultiLocation::here())
 	}
 }
 
 impl pallet_asset_registry::Config for Runtime {
 	type Event = Event;
-	type RegistryOrigin = EnsureSuperMajorityTechCommitteeOrRoot;
+	type RegistryOrigin = EnsureSuperMajorityTechCommittee;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
 	type NativeAssetId = NativeAssetId;
-	type WeightInfo = common_runtime::weights::asset_registry::HydraWeight<Runtime>;
+	type WeightInfo = weights::asset_registry::HydraWeight<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -729,7 +734,6 @@ impl pallet_relaychain_info::Config for Runtime {
 }
 
 parameter_types! {
-	//TODO: set correct value
 	pub const RewardPerCollator: Balance = 455_371_584_699_000; // 83333 HDX / 183 sessions
 	//GalacticCouncil collators
 	pub ExcludedCollators: Vec<AccountId> = vec![
@@ -753,7 +757,7 @@ impl pallet_collator_rewards::Config for Runtime {
 	type Currency = Currencies;
 	type RewardPerCollator = RewardPerCollator;
 	type ExcludedCollators = ExcludedCollators;
-	type RewardCurrencyId = RewardCurrencyId;
+	type RewardCurrencyId = NativeAssetId;
 	type AuthorityId = AuraId;
 }
 

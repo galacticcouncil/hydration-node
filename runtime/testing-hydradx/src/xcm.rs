@@ -34,7 +34,7 @@ parameter_types! {
 }
 
 parameter_types! {
-	pub const RelayNetwork: NetworkId = NetworkId::Kusama;
+	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
 
 	pub RelayChainOrigin: Origin = cumulus_pallet_xcm::Origin::Relay.into();
 
@@ -142,7 +142,7 @@ impl orml_unknown_tokens::Config for Runtime {
 
 impl orml_xcm::Config for Runtime {
 	type Event = Event;
-	type SovereignOrigin = crate::EnsureMajorityCouncilOrRoot;
+	type SovereignOrigin = MoreThanHalfCouncil;
 }
 
 impl pallet_xcm::Config for Runtime {
@@ -239,7 +239,7 @@ pub struct AccountIdToMultiLocation;
 impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
 	fn convert(account: AccountId) -> MultiLocation {
 		X1(AccountId32 {
-			network: NetworkId::Any,
+			network: Any,
 			id: account.into(),
 		})
 		.into()

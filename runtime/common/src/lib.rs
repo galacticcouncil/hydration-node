@@ -28,7 +28,7 @@ pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber};
 use scale_info::TypeInfo;
-use sp_core::u32_trait::{_1, _2, _3};
+use sp_core::u32_trait::{_1, _2, _3, _5};
 use sp_runtime::{
 	generic,
 	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
@@ -72,6 +72,11 @@ pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 pub type CouncilCollective = pallet_collective::Instance1;
 pub type TechnicalCollective = pallet_collective::Instance2;
 
+pub type TreasuryApproveOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+>;
+
 pub type MoreThanHalfCouncil = EnsureOneOf<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
@@ -84,21 +89,29 @@ pub type MajorityOfCouncil = EnsureOneOf<
 
 pub type AllCouncilMembers = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
-	frame_system::EnsureRoot<AccountId>,
+	EnsureRoot<AccountId>,
 >;
 
 pub type MoreThanHalfTechCommittee = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, TechnicalCollective>,
-	frame_system::EnsureRoot<AccountId>,
+	EnsureRoot<AccountId>,
+>;
+
+pub type EnsureSuperMajorityTechCommittee = EnsureOneOf<
+	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+	EnsureRoot<AccountId>,
 >;
 
 pub type AllTechnicalCommitteeMembers = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
-	frame_system::EnsureRoot<AccountId>,
+	EnsureRoot<AccountId>,
 >;
 
 pub fn get_all_module_accounts() -> Vec<AccountId> {
-	vec![TreasuryPalletId::get().into_account()]
+	vec![
+		TreasuryPalletId::get().into_account(),
+		VestingPalletId::get().into_account(),
+	]
 }
 
 pub struct DustRemovalWhitelist;
@@ -111,7 +124,7 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 
 // frame system
 parameter_types! {
-	pub const BlockHashCount: BlockNumber = 250;
+	pub const BlockHashCount: BlockNumber = 2400;
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: frame_system::limits::BlockLength =
 		frame_system::limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
@@ -152,10 +165,10 @@ parameter_types! {
 
 // pallet treasury
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 10 * DOLLARS;
-	pub const ProposalBondMaximum: Balance = 50 * DOLLARS;
-	pub const SpendPeriod: BlockNumber = 3 * DAYS;
+	pub const ProposalBond: Permill = Permill::from_percent(3);
+	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
+	pub const ProposalBondMaximum: Balance = 500 * DOLLARS;
+	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 =  100;
@@ -169,9 +182,9 @@ parameter_types! {
 // pallet collator selection
 parameter_types! {
 	pub const PotId: PalletId = PalletId(*b"PotStake");
-	pub const MaxCandidates: u32 = 20;
-	pub const MinCandidates: u32 = 4;
-	pub const MaxInvulnerables: u32 = 10;
+	pub const MaxCandidates: u32 = 0;
+	pub const MinCandidates: u32 = 0;
+	pub const MaxInvulnerables: u32 = 50;
 }
 
 // pallet session
@@ -286,15 +299,10 @@ parameter_types! {
 
 // pallet transaction multi payment
 parameter_types! {
-	pub const MultiPaymentCurrencySetFee: Pays = Pays::Yes;
+	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
 }
 
 // pallet asset registry
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
-}
-
-// pallet collator-rewards
-parameter_types! {
-	pub const RewardCurrencyId: AssetId = CORE_ASSET_ID;
 }
