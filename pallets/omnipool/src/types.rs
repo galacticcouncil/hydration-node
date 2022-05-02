@@ -2,7 +2,7 @@ use super::*;
 use crate::types::BalanceUpdate::{Decrease, Increase};
 use frame_support::pallet_prelude::*;
 use sp_runtime::{FixedPointNumber, FixedU128};
-use std::ops::{Add, Deref, Sub};
+use sp_std::ops::{Add, Deref, Sub};
 
 pub type Price = FixedU128;
 

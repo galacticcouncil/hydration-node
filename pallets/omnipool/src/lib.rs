@@ -27,7 +27,7 @@ use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned};
 use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub, Zero};
 use sp_std::prelude::*;
-use std::ops::{Add, Sub};
+use sp_std::ops::{Add, Sub};
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
