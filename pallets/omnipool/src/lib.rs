@@ -13,9 +13,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Omnipool Pallet
+//! # Omnipool pallet
 //!
-//! TBD
+//! Omnipool implementation
+//!
+//! ## Overview
+//!
+//! Omnipool is type of AMM where all assets are pooled together into one single pool.
+//!
+//! Liquidity provider can provide any aset of their choice to the Omnipool and in return
+//! they will receive pool shares for this single asset.
+//!
+//! The position is represented with a NFT token which saves the amount of shares distributed
+//! and the price of the asset at the time of provision.
+//!
+//! For traders this means that tehy can benefit from the fill asset position
+//! which can be used for trades with all other assets - there is no fragmented liquidity.
+//! They can send any token to the pool using the swap mechanism
+//! and in return they will receive the token of their choice in the appropriate quantity.
+//!
+//! ### Terminology
+//!
+//! * **LP:**  liquidity provider
+//! * **Position:**  a moment when LP added liquidity to the pool. It stores amount,shares and price at the time
+//!  of provision
+//! * **Hub Asset:** dedicated 'hub' token for trade executions (LRNA)
+//! * **Native Asset:** governance token
+//!
+//! ## Assumptions
+//!
+//! Below are assumptions that must be held when using this pallet.
+//!
+//! * First two asset in pool must be Stable Asset and Native Asset. This must be achieved by calling
+//!   `initialize_pool` dispatchable.
+//! * Stable asset balance and native asset balance must be transffered to omnipool account manually.
+//! * All tokens added to the pool must be first registered in Asset Registry.
+//!
+//! ## Interface
+//!
+//! ### Dispatchable Functions
+//!
+//! * `initialize_pool` - Initializes Omnipool with Stable and Native assets. This must be executed first.
+//! * `set_asset_tradable_state` - Updates state of an asset in the pool to allow/disallow trading.
+//! * `add_token` - Adds token to the pool.
+//! * `add_liquidity` - Adds liquidity of selected asset to the pool. Mints corresponding position NFT.
+//! * `remove_liquidity` - Removes liquidity of selected position from the pool. Partial withdrawals are allowed.
+//! * `sell` - Trades an asset in for asset out by selling given amount of asset in.
+//! * `buy` - Trades an asset in for asset out by buying given amount of asset out.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -434,7 +478,7 @@ pub mod pallet {
 		///
 		/// Can be called only after pool is initialized, otherwise it returns `NoStableAssetInPool`
 		///
-		/// Position is minted for LP.
+		/// Position NFT token is minted for LP.
 		///
 		/// Parameters:
 		/// - `asset`: The identifier of the new asset added to the pool. Must be registered in Asset registry
@@ -532,7 +576,7 @@ pub mod pallet {
 
 		/// Add liquidity of asset `asset` in quantity `amount` to Omnipool
 		///
-		/// add_liquidity adds specified asset amount to pool and in exchange gives the origin
+		/// `add_liquidity` adds specified asset amount to pool and in exchange gives the origin
 		/// corresponding shares amount in form of NFT at current price.
 		///
 		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
@@ -643,7 +687,7 @@ pub mod pallet {
 
 		/// Remove liquidity of asset `asset` in quantity `amount` from Omnipool
 		///
-		/// remove_liquidity removes specified shares amount from given PositionId (NFT instance).
+		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
 		///
 		/// if all shares from given position are removed, NFT is burned.
 		///
@@ -1090,7 +1134,6 @@ impl<T: Config> Pallet<T> {
 		<PositionInstanceSequencer<T>>::try_mutate(|current_value| -> Result<T::PositionInstanceId, DispatchError> {
 			let next_position_id = *current_value;
 
-			// TODO: think if there is need to embed something helpful into nft instance id ( such as position asset?!).
 			T::NFTHandler::mint_into(&T::NFTClassId::get(), &next_position_id, owner)?;
 
 			*current_value = current_value
@@ -1373,7 +1416,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// Note: Currently not allowed at all, neither math is done for this case
-		// this is already ready when hub asset will be alloed to be bought from the pool
+		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
 	}
@@ -1392,7 +1435,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// Note: Currently not allowed at all, neither math is done for this case
-		// this is already ready when hub asset will be alloed to be bought from the pool
+		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
 	}
