@@ -307,7 +307,7 @@ where
 }
 
 /// Delta changes after a trade is executed
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, Debug)]
 pub(super) struct TradeStateChange<Balance>
 where
 	Balance: Default + Copy,

@@ -7,6 +7,7 @@ use sp_runtime::{FixedPointNumber, FixedU128};
 mod add_liquidity;
 mod add_token;
 mod buy;
+mod invariants;
 mod remove_liquidity;
 mod scenario_04;
 mod scenario_05;
