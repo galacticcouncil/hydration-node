@@ -79,8 +79,6 @@ proptest! {
 	fn swap_invariants(asset_in in asset_state(), asset_out in asset_state(),
 		amount in trade_amount()
 	) {
-		let original_invariant = asset_in.invariant();
-
 		let result =  calculate_sell_state_changes::<Test>(&asset_in, &asset_out, amount,
 			FixedU128::from(0u128),
 			FixedU128::from(0u128),
