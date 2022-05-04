@@ -91,13 +91,19 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut asset_in_state = asset_in;
-
+		let mut asset_in_state = asset_in.clone();
 		assert!(asset_in_state.delta_update(&state_changes.asset_in).is_some());
 
-		let new_invariant = asset_in_state.invariant();
+		let in_invariant = asset_invariant(&asset_in, &asset_in_state );
 
-		assert_eq!(new_invariant / original_invariant, U256::from(1u128), "Invariant");
+		assert_eq_approx!(in_invariant, FixedU128::from(1u128), FixedU128::from_float(0.2), "Invariant");
+
+		let mut asset_out_state = asset_out.clone();
+		assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
+
+		let out_invariant = asset_invariant(&asset_out, &asset_out_state );
+
+		assert_eq_approx!(out_invariant, FixedU128::from(1u128), FixedU128::from_float(0.1), "Invariant");
 	}
 }
 
