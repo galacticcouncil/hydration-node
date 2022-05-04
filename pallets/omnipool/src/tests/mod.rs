@@ -19,6 +19,16 @@ mod scenario_09;
 mod sell;
 
 #[macro_export]
+macro_rules! assert_eq_approx {
+	( $x:expr, $y:expr, $z:expr) => {{
+		let diff = if $x >= $y { $x - $y } else { $y - $x };
+		if diff > $z {
+			panic!("\nValues not equal\n left: {}\nright: {}\n", $x, $y);
+		}
+	}};
+}
+
+#[macro_export]
 macro_rules! assert_balance {
 	( $x:expr, $y:expr, $z:expr) => {{
 		assert_eq!(Tokens::free_balance($y, &$x), $z);
