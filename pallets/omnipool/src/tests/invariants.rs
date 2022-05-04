@@ -35,12 +35,35 @@ fn asset_state() -> impl Strategy<Value = AssetState<Balance>> {
 		})
 }
 
+fn asset_reserve() -> impl Strategy<Value = Balance> {
+	BALANCE_RANGE.0..BALANCE_RANGE.1
+}
+
 fn trade_amount() -> impl Strategy<Value = Balance> {
 	1000..BALANCE_RANGE.0
 }
 
 fn fee_amount() -> impl Strategy<Value = FixedU128> {
 	(0f64..0.5f64).prop_map(FixedU128::from_float)
+}
+
+fn price() -> impl Strategy<Value = FixedU128> {
+	(0.1f64..2f64).prop_map(FixedU128::from_float)
+}
+
+#[derive(Debug)]
+struct PoolToken {
+	asset_id: AssetId,
+	amount: Balance,
+	price: FixedU128,
+}
+
+fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
+	(asset_reserve(), price()).prop_map(move |(reserve, price)| PoolToken {
+		asset_id,
+		amount: reserve,
+		price,
+	})
 }
 
 proptest! {
@@ -68,7 +91,7 @@ proptest! {
 
 		//TODO: needs to verify what is allowed margin here
 		//The allowed margin here is just to make tests pass for now
-		assert_eq_approx!(original_invariant, new_invariant, U256::from(ALLOWED_INVARIANT_MARGIN));
+		assert_eq_approx!(original_invariant, new_invariant, U256::from(ALLOWED_INVARIANT_MARGIN), "Invariant");
 	}
 }
 
@@ -100,6 +123,55 @@ proptest! {
 
 		//TODO: needs to verify what is allowed margin here
 		//The allowed margin here is just to make tests pass for now
-		assert_eq_approx!(original_invariant, new_invariant, U256::from(ALLOWED_INVARIANT_MARGIN));
+		assert_eq_approx!(original_invariant, new_invariant, U256::from(ALLOWED_INVARIANT_MARGIN), "Invariant");
+	}
+}
+
+proptest! {
+	#[test]
+	fn sell_invariants(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let seller: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(seller, 200, amount + 200 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_initial_pool(
+				stable_reserve,
+				native_reserve,
+				stable_price,
+				FixedU128::from(1),
+			)
+			.build()
+			.execute_with(|| {
+				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
+
+				assert_ok!(Omnipool::sell(Origin::signed(seller), 200, 300, amount, Balance::zero()));
+			});
 	}
 }

@@ -328,10 +328,11 @@ impl ExtBuilder {
 					stable_price,
 					native_price,
 				));
-				assert_pool_state!(
+				assert_pool_state_approx!(
 					stable_price.checked_mul_int(stable_amount).unwrap() + native_amount,
-					native_amount * (stable_amount / stable_price.checked_mul_int(stable_amount).unwrap())
-						+ stable_amount,
+					FixedU128::from((stable_amount, stable_price.checked_mul_int(stable_amount).unwrap()))
+						.checked_mul_int(native_amount)
+						.unwrap() + stable_amount,
 					SimpleImbalance::default()
 				);
 			});

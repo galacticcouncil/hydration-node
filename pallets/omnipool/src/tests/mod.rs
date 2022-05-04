@@ -20,10 +20,10 @@ mod sell;
 
 #[macro_export]
 macro_rules! assert_eq_approx {
-	( $x:expr, $y:expr, $z:expr) => {{
+	( $x:expr, $y:expr, $z:expr, $r:expr) => {{
 		let diff = if $x >= $y { $x - $y } else { $y - $x };
 		if diff > $z {
-			panic!("\nValues not equal\n left: {}\nright: {}\n", $x, $y);
+			panic!("\n{} not equal\n left: {}\nright: {}\n", $r, $x, $y);
 		}
 	}};
 }
@@ -52,6 +52,20 @@ macro_rules! assert_pool_state {
 	( $x:expr, $y:expr, $z:expr) => {{
 		assert_eq!(HubAssetLiquidity::<Test>::get(), $x, "Hub liquidity incorrect\n");
 		assert_eq!(TotalTVL::<Test>::get(), $y, "Total tvl incorrect\n");
+		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect\n");
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_pool_state_approx {
+	( $x:expr, $y:expr, $z:expr) => {{
+		assert_eq_approx!(
+			HubAssetLiquidity::<Test>::get(),
+			$x,
+			20u128,
+			"Hub liquidity incorrect\n"
+		);
+		assert_eq_approx!(TotalTVL::<Test>::get(), $y, 20u128, "Total tvl incorrect\n");
 		assert_eq!(HubAssetImbalance::<Test>::get(), $z, "Imbalance incorrect\n");
 	}};
 }
