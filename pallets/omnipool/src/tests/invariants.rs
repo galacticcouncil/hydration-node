@@ -16,6 +16,15 @@ impl AssetState<Balance> {
 	}
 }
 
+fn asset_invariant(old_state: &AssetState<Balance>, new_state: &AssetState<Balance>) -> FixedU128 {
+	// new state invariant / old state invariant
+
+	let part1 = FixedU128::from((new_state.reserve, old_state.reserve));
+	let part2 = FixedU128::from((new_state.hub_reserve, old_state.hub_reserve));
+
+	part1 * part2
+}
+
 fn asset_state() -> impl Strategy<Value = AssetState<Balance>> {
 	(
 		BALANCE_RANGE.0..BALANCE_RANGE.1,
@@ -100,8 +109,6 @@ proptest! {
 		asset_fee in fee_amount(),
 		protocol_fee in fee_amount()
 	) {
-		let original_invariant = asset_in.invariant();
-
 		let result =  calculate_sell_state_changes::<Test>(&asset_in, &asset_out, amount,
 			asset_fee,
 			protocol_fee,
@@ -112,13 +119,19 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut asset_in_state = asset_in;
-
+		let mut asset_in_state = asset_in.clone();
 		assert!(asset_in_state.delta_update(&state_changes.asset_in).is_some());
 
-		let new_invariant = asset_in_state.invariant();
+		let in_invariant = asset_invariant(&asset_in, &asset_in_state );
 
-		assert_eq!(new_invariant / original_invariant, U256::from(1u128), "Invariant");
+		assert_eq_approx!(in_invariant, FixedU128::from(1u128), FixedU128::from_float(0.0001), "Invariant");
+
+		let mut asset_out_state = asset_out.clone();
+		assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
+
+		let out_invariant = asset_invariant(&asset_out, &asset_out_state );
+
+		assert_eq_approx!(out_invariant, FixedU128::from(1u128), FixedU128::from_float(0.1), "Invariant");
 	}
 }
 
