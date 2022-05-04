@@ -103,6 +103,7 @@ pub(crate) fn calculate_buy_for_hub_asset_state_changes<T: Config>(
 	let hub_denominator = fee_asset_complement
 		.checked_mul_int(asset_out_state.reserve)?
 		.checked_sub(&asset_out_amount)?;
+	// TODO: add one
 	let delta_hub_reserve = FixedU128::checked_from_rational(asset_out_amount, hub_denominator)?
 		.checked_mul_int(asset_out_state.hub_reserve)?;
 
@@ -140,6 +141,7 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
 	let fee_protocol = FixedU128::from(1).checked_sub(&protocol_fee)?;
 
+	// TODO: increase by one
 	let delta_hub_reserve_out = FixedU128::checked_from_rational(
 		amount,
 		fee_asset
@@ -155,6 +157,7 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 		.into();
 
 	// Positive
+	// TODO: increase by one
 	let delta_reserve_in = FixedU128::checked_from_rational(
 		delta_hub_reserve_in,
 		asset_in_state.hub_reserve.checked_sub(&delta_hub_reserve_in)?,
