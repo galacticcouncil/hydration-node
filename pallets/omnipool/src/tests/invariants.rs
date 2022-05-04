@@ -6,7 +6,6 @@ use proptest::prelude::*;
 use primitive_types::U256;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const ALLOWED_INVARIANT_MARGIN: u128 = 10_000_000_000_000_000_000_000u128;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
 
@@ -89,9 +88,7 @@ proptest! {
 
 		let new_invariant = asset_in_state.invariant();
 
-		//TODO: needs to verify what is allowed margin here
-		//The allowed margin here is just to make tests pass for now
-		assert_eq_approx!(original_invariant, new_invariant, U256::from(ALLOWED_INVARIANT_MARGIN), "Invariant");
+		assert_eq!(new_invariant / original_invariant, U256::from(1u128), "Invariant");
 	}
 }
 
@@ -121,9 +118,7 @@ proptest! {
 
 		let new_invariant = asset_in_state.invariant();
 
-		//TODO: needs to verify what is allowed margin here
-		//The allowed margin here is just to make tests pass for now
-		assert_eq_approx!(original_invariant, new_invariant, U256::from(ALLOWED_INVARIANT_MARGIN), "Invariant");
+		assert_eq!(new_invariant / original_invariant, U256::from(1u128), "Invariant");
 	}
 }
 
@@ -171,7 +166,70 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
+				let old_state_200 = <Assets<Test>>::get(200).unwrap();
+				let old_state_300 = <Assets<Test>>::get(300).unwrap();
+				let old_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+
+				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				fn sum_asset_hub_liquidity(assets: Vec<AssetId>) -> Balance {
+
+					let mut total = 0;
+
+					for asset_id in assets{
+						let asset_state = <Assets<Test>>::get(asset_id).unwrap();
+						 total += asset_state.hub_reserve;
+					}
+
+					total
+				}
+
+				let old_asset_hub_liquidity = sum_asset_hub_liquidity(vec![HDX, DAI, 100,200,300,400]);
+
+				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
+
 				assert_ok!(Omnipool::sell(Origin::signed(seller), 200, 300, amount, Balance::zero()));
+
+				let new_state_200 = <Assets<Test>>::get(200).unwrap();
+				let new_state_300 = <Assets<Test>>::get(300).unwrap();
+				let new_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+
+				// invariant does not decrease
+				assert_ne!(new_state_200.reserve, old_state_200.reserve);
+				assert_ne!(new_state_300.reserve, old_state_300.reserve);
+
+				let old_invariant_200 = old_state_200.invariant();
+				let new_invariant_200 = new_state_200.invariant();
+
+				assert_eq!(new_invariant_200 / old_invariant_200, U256::from(1u128), "Invariant 200");
+
+				let old_invariant_300 = old_state_300.invariant();
+				let new_invariant_300 = new_state_300.invariant();
+
+				assert_eq!(new_invariant_300 / old_invariant_300, U256::from(1u128), "Invariant 300");
+
+				// Total hub asset liquidity has not changed
+				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				assert_eq!(old_hub_liquidity, new_hub_liquidity, "Total Hub liquidity has changed!");
+
+				// total quantity of R_i remains unchanged
+				let new_asset_hub_liquidity = sum_asset_hub_liquidity(vec![HDX, DAI, 100,200,300,400]);
+
+				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+
+				// No LRNA lost
+				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
+				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
+				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
+				let delta_imbalance= new_imbalance.value - old_imbalance.value; // note: in current implementation: imbalance cannot be positive, let's simply and ignore the sign for now
+
+				let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - delta_imbalance;
+				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
 			});
 	}
 }
