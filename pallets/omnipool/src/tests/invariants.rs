@@ -2,19 +2,29 @@ use super::*;
 use crate::math::calculate_sell_state_changes;
 use crate::{AssetState, FixedU128, SimpleImbalance};
 use proptest::prelude::*;
+use primitive_types::U256;
+
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const TOLERANCE: Balance = 1_000_000 * 1_000 * 1_000;
+pub const TOLERANCE: Balance = 1_000;// * 1_000 * 1_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (10_000 * ONE, 10_000_000 * ONE);
 
 fn asset_invariant(old_state: &AssetState<Balance>, new_state: &AssetState<Balance>) -> FixedU128 {
 	// new state invariant / old state invariant
 
-	let part1 = FixedU128::from((new_state.reserve, old_state.reserve));
-	let part2 = FixedU128::from((new_state.hub_reserve, old_state.hub_reserve));
+	let new_s = U256::from(new_state.reserve) * U256::from(new_state.hub_reserve);
+	let s1 = new_s.integer_sqrt();
 
-	part1 * part2
+	let old_s = U256::from(old_state.reserve) * U256::from(old_state.hub_reserve);
+	let s2 = old_s.integer_sqrt();
+
+	//assert!(new_s >= old_s, "New invariant greater than old one");
+
+	let s1_u128 = Balance::try_from(s1).unwrap();
+	let s2_u128 = Balance::try_from(s2).unwrap();
+
+	FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE))
 }
 
 fn asset_state() -> impl Strategy<Value = AssetState<Balance>> {
