@@ -4,6 +4,7 @@ use crate::{AssetState, FixedU128, SimpleImbalance};
 use proptest::prelude::*;
 
 pub const ONE: Balance = 1_000_000_000_000;
+pub const TOLERANCE: Balance = 1_000_000 * 1_000 * 1_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
 
@@ -98,14 +99,14 @@ proptest! {
 
 		let in_invariant = asset_invariant(&asset_in, &asset_in_state );
 
-		assert_eq_approx!(in_invariant, FixedU128::from(1u128), FixedU128::from_float(0.2), "Invariant");
+		assert_eq_approx!(in_invariant, FixedU128::from(1u128), FixedU128::from((TOLERANCE, ONE)), "Invariant");
 
 		let mut asset_out_state = asset_out.clone();
 		assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
 
 		let out_invariant = asset_invariant(&asset_out, &asset_out_state );
 
-		assert_eq_approx!(out_invariant, FixedU128::from(1u128), FixedU128::from_float(0.1), "Invariant");
+		assert_eq_approx!(out_invariant, FixedU128::from(1u128), FixedU128::from((TOLERANCE, ONE)), "Invariant");
 	}
 }
 
@@ -132,14 +133,14 @@ proptest! {
 
 		let in_invariant = asset_invariant(&asset_in, &asset_in_state );
 
-		assert_eq_approx!(in_invariant, FixedU128::from(1u128), FixedU128::from_float(0.0001), "Invariant");
+		assert_eq_approx!(in_invariant, FixedU128::from(1u128), FixedU128::from((TOLERANCE,ONE)), "Invariant");
 
 		let mut asset_out_state = asset_out.clone();
 		assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
 
 		let out_invariant = asset_invariant(&asset_out, &asset_out_state );
 
-		assert_eq_approx!(out_invariant, FixedU128::from(1u128), FixedU128::from_float(0.1), "Invariant");
+		assert_eq_approx!(out_invariant, FixedU128::from(1u128), FixedU128::from((TOLERANCE,ONE)), "Invariant");
 	}
 }
 
@@ -221,8 +222,8 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from_float(0.000000000001), "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from_float(0.000000000001), "Invariant 300");
+				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), "Invariant 200");
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
@@ -330,8 +331,8 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from_float(0.0001), "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from_float(0.2), "Invariant 300");
+				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), "Invariant 200");
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
@@ -435,8 +436,8 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from_float(0.000000000001), "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from_float(0.000000000001), "Invariant 300");
+				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), "Invariant 200");
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
@@ -544,8 +545,8 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from_float(0.0001), "Invariant 200");
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from_float(0.1), "Invariant 300");
+				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), "Invariant 200");
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
