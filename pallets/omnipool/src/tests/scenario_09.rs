@@ -116,11 +116,11 @@ fn complex_scenario_works() {
 			assert_asset_state!(
 				100,
 				AssetState {
-					reserve: 4089236949625561,
-					hub_reserve: 1188430684479243,
+					reserve: 4089236949625565,
+					hub_reserve: 1188430684479242,
 					shares: 2734332900513906,
 					protocol_shares: 2000000000000000,
-					tvl: 2376861368958486,
+					tvl: 2376861368958484,
 					tradable: Tradable::default(),
 				}
 			);
@@ -129,10 +129,10 @@ fn complex_scenario_works() {
 				200,
 				AssetState {
 					reserve: 1638588974363041,
-					hub_reserve: 2709090864095512,
+					hub_reserve: 2709090864095513,
 					shares: 2008863636363636,
 					protocol_shares: 2000000000000000,
-					tvl: 5378181728191024,
+					tvl: 5378181728191026,
 					tradable: Tradable::default(),
 				}
 			);

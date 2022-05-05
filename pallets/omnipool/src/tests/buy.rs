@@ -39,12 +39,12 @@ fn simple_buy_works() {
 
 			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, 100, buy_amount, max_limit));
 
-			assert_eq!(Tokens::free_balance(100, &LP1), 547598253275110);
+			assert_eq!(Tokens::free_balance(100, &LP1), 547598253275108);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
 			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
 			assert_eq!(
 				Tokens::free_balance(100, &Omnipool::protocol_account()),
-				2452401746724890
+				2452401746724892
 			);
 			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), 1950 * ONE);
 
@@ -53,8 +53,8 @@ fn simple_buy_works() {
 			assert_asset_state!(
 				100,
 				AssetState {
-					reserve: 2452401746724890,
-					hub_reserve: 1526666666666667,
+					reserve: 2452401746724892,
+					hub_reserve: 1526666666666666,
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 3120 * ONE,
@@ -65,7 +65,7 @@ fn simple_buy_works() {
 				200,
 				AssetState {
 					reserve: 1950 * ONE,
-					hub_reserve: 1333333333333333,
+					hub_reserve: 1333333333333334,
 					shares: 2000 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 2000 * ONE,
@@ -364,7 +364,7 @@ fn buy_for_hub_asset_works() {
 				200,
 				AssetState {
 					reserve: 1950000000000000,
-					hub_reserve: 1333333333333333,
+					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 2000000000000000,
@@ -373,10 +373,10 @@ fn buy_for_hub_asset_works() {
 			);
 
 			assert_pool_state!(
-				13393333333333333,
+				13393333333333334,
 				27320000000000000,
 				SimpleImbalance {
-					value: 65833333333332,
+					value: 65833333333334,
 					negative: true
 				}
 			);

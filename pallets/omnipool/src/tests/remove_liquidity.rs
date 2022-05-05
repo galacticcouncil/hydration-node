@@ -265,7 +265,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			assert_balance!(Omnipool::protocol_account(), 1000, 200 * ONE);
 			let expected_state = AssetState {
 				reserve: 200 * ONE,
-				hub_reserve: 812500000000000,
+				hub_reserve: 812500000000001,
 				shares: 500000000000000,
 				protocol_shares: 100 * ONE,
 				tvl: 650000000000000,
@@ -280,9 +280,9 @@ fn lp_receives_lrna_when_price_is_higher() {
 			));
 			assert_balance!(Omnipool::protocol_account(), 1000, 40 * ONE);
 			assert_balance!(LP1, 1000, 4_760_000_000_000_000);
-			assert_balance!(LP1, LRNA, 470_689_655_172_412);
+			assert_balance!(LP1, LRNA, 470_689_655_172_413);
 
-			assert_pool_state!(9704310344827588, 541030000000000000, SimpleImbalance::default());
+			assert_pool_state!(9704310344827587, 541030000000086413, SimpleImbalance::default());
 		});
 }
 

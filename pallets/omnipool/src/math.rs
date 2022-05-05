@@ -105,7 +105,8 @@ pub(crate) fn calculate_buy_for_hub_asset_state_changes<T: Config>(
 		.checked_sub(&asset_out_amount)?;
 	// TODO: add one
 	let delta_hub_reserve = FixedU128::checked_from_rational(asset_out_amount, hub_denominator)?
-		.checked_mul_int(asset_out_state.hub_reserve)?;
+		.checked_mul_int(asset_out_state.hub_reserve)?
+		.checked_add(&T::Balance::one())?;
 
 	let hub_ratio = FixedU128::checked_from_rational(
 		asset_out_state.hub_reserve,
@@ -141,14 +142,14 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
 	let fee_protocol = FixedU128::from(1).checked_sub(&protocol_fee)?;
 
-	// TODO: increase by one
 	let delta_hub_reserve_out = FixedU128::checked_from_rational(
 		amount,
 		fee_asset
 			.checked_mul_int(asset_out_state.reserve)?
 			.checked_sub(&amount)?,
 	)?
-	.checked_mul_int(asset_out_state.hub_reserve)?;
+	.checked_mul_int(asset_out_state.hub_reserve)?
+	.checked_add(&T::Balance::one())?;
 
 	// Negative
 	let delta_hub_reserve_in: T::Balance = FixedU128::from_inner(delta_hub_reserve_out.into())
@@ -157,12 +158,12 @@ pub(crate) fn calculate_buy_state_changes<T: Config>(
 		.into();
 
 	// Positive
-	// TODO: increase by one
 	let delta_reserve_in = FixedU128::checked_from_rational(
 		delta_hub_reserve_in,
 		asset_in_state.hub_reserve.checked_sub(&delta_hub_reserve_in)?,
 	)?
-	.checked_mul_int(asset_in_state.reserve)?;
+	.checked_mul_int(asset_in_state.reserve)?
+	.checked_add(&T::Balance::one())?;
 
 	// Fee accounting and imbalance
 	let protocol_fee_amount = protocol_fee.checked_mul_int(delta_hub_reserve_in)?;

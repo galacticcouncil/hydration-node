@@ -114,8 +114,8 @@ fn complex_scenario_works() {
 			assert_asset_state!(
 				100,
 				AssetState {
-					reserve: 3589236949625561,
-					hub_reserve: 1043118649603389,
+					reserve: 3589236949625565,
+					hub_reserve: 1043118649603388,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000,
@@ -127,17 +127,17 @@ fn complex_scenario_works() {
 				200,
 				AssetState {
 					reserve: 1638588974363041,
-					hub_reserve: 2709090864095512,
+					hub_reserve: 2709090864095513,
 					shares: 2008863636363636,
 					protocol_shares: 2000000000000000,
-					tvl: 5378181728191024,
+					tvl: 5378181728191026,
 					tradable: Tradable::default(),
 				}
 			);
 
 			assert_pool_state!(
 				14211575191619507,
-				32498181728191024,
+				32498181728191026,
 				SimpleImbalance {
 					value: 39852348990836,
 					negative: true
