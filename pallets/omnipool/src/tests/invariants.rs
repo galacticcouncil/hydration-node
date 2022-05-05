@@ -6,7 +6,7 @@ use proptest::prelude::*;
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000_000 * 1_000 * 1_000;
 
-const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
+const BALANCE_RANGE: (Balance, Balance) = (10_000 * ONE, 10_000_000 * ONE);
 
 fn asset_invariant(old_state: &AssetState<Balance>, new_state: &AssetState<Balance>) -> FixedU128 {
 	// new state invariant / old state invariant
@@ -40,7 +40,8 @@ fn asset_reserve() -> impl Strategy<Value = Balance> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
-	1000..10_000 * ONE
+	Just(1000 * ONE)
+	//1000..10_000 * ONE
 }
 
 fn fee_amount() -> impl Strategy<Value = FixedU128> {
@@ -61,7 +62,11 @@ fn assert_asset_invariant(
 	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
 }
 fn fee() -> impl Strategy<Value = (u32, u32)> {
-	(0u32..10u32, prop_oneof![Just(100u32), Just(1000u32), Just(10000u32),]).prop_map(|(n, d)| (n, d))
+	(
+		0u32..10u32,
+		prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)],
+	)
+		.prop_map(|(n, d)| (n, d))
 }
 
 #[derive(Debug)]
