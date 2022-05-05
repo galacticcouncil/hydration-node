@@ -51,7 +51,7 @@ fn price() -> impl Strategy<Value = FixedU128> {
 }
 
 fn assert_asset_invariant(old_state: &AssetState<Balance>, new_state: &AssetState<Balance>, tolerance: FixedU128) {
-	let invariant = asset_invariant(&old_state, &new_state);
+	let invariant = asset_invariant(old_state, new_state);
 	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, "Invariant");
 }
 
@@ -213,8 +213,8 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from_float(0.00000000001));
-				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from_float(0.00000000001));
+				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from_float(0.000000000001));
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from_float(0.000000000001));
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
