@@ -40,12 +40,13 @@ fn asset_reserve() -> impl Strategy<Value = Balance> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
+	// Use one trade amount for now to follow python's testing
 	Just(1000 * ONE)
 	//1000..10_000 * ONE
 }
 
-fn fee_amount() -> impl Strategy<Value = FixedU128> {
-	(0f64..0.05f64).prop_map(FixedU128::from_float)
+fn fixed_fee() -> impl Strategy<Value = FixedU128> {
+	(fee()).prop_map(FixedU128::from)
 }
 
 fn price() -> impl Strategy<Value = FixedU128> {
@@ -62,11 +63,8 @@ fn assert_asset_invariant(
 	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
 }
 fn fee() -> impl Strategy<Value = (u32, u32)> {
-	(
-		0u32..10u32,
-		prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)],
-	)
-		.prop_map(|(n, d)| (n, d))
+	// Allow values between 0.001 and 0.1
+	(0u32..1u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)]).prop_map(|(n, d)| (n, d))
 }
 
 #[derive(Debug)]
@@ -120,8 +118,8 @@ proptest! {
 	fn swap_invariants_with_fees(asset_in in asset_state(),
 		asset_out in asset_state(),
 		amount in trade_amount(),
-		asset_fee in fee_amount(),
-		protocol_fee in fee_amount()
+		asset_fee in fixed_fee(),
+		protocol_fee in fixed_fee()
 	) {
 		let result =  calculate_sell_state_changes::<Test>(&asset_in, &asset_out, amount,
 			asset_fee,
