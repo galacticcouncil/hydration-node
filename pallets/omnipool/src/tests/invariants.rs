@@ -39,7 +39,7 @@ fn asset_reserve() -> impl Strategy<Value = Balance> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
-	1000..BALANCE_RANGE.0
+	1000..10_000 * ONE
 }
 
 fn fee_amount() -> impl Strategy<Value = FixedU128> {
