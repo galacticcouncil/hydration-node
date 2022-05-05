@@ -3,18 +3,9 @@ use crate::math::calculate_sell_state_changes;
 use crate::{AssetState, FixedU128, SimpleImbalance};
 use proptest::prelude::*;
 
-use primitive_types::U256;
-
 pub const ONE: Balance = 1_000_000_000_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
-
-impl AssetState<Balance> {
-	#[cfg(test)]
-	pub(super) fn invariant(&self) -> U256 {
-		U256::from(self.reserve) * U256::from(self.hub_reserve)
-	}
-}
 
 fn asset_invariant(old_state: &AssetState<Balance>, new_state: &AssetState<Balance>) -> FixedU128 {
 	// new state invariant / old state invariant
@@ -59,6 +50,11 @@ fn price() -> impl Strategy<Value = FixedU128> {
 	(0.1f64..2f64).prop_map(FixedU128::from_float)
 }
 
+fn assert_asset_invariant(old_state: &AssetState<Balance>, new_state: &AssetState<Balance>, tolerance: FixedU128) {
+	let invariant = asset_invariant(&old_state, &new_state);
+	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, "Invariant");
+}
+
 #[derive(Debug)]
 struct PoolToken {
 	asset_id: AssetId,
@@ -76,7 +72,7 @@ fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
 
 proptest! {
 	#[test]
-	fn swap_invariants(asset_in in asset_state(), asset_out in asset_state(),
+	fn swap_invariants_no_fees(asset_in in asset_state(), asset_out in asset_state(),
 		amount in trade_amount()
 	) {
 		let result =  calculate_sell_state_changes::<Test>(&asset_in, &asset_out, amount,
@@ -217,15 +213,8 @@ proptest! {
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
-				let old_invariant_200 = old_state_200.invariant();
-				let new_invariant_200 = new_state_200.invariant();
-
-				assert_eq!(new_invariant_200 / old_invariant_200, U256::from(1u128), "Invariant 200");
-
-				let old_invariant_300 = old_state_300.invariant();
-				let new_invariant_300 = new_state_300.invariant();
-
-				assert_eq!(new_invariant_300 / old_invariant_300, U256::from(1u128), "Invariant 300");
+				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from_float(0.00000000001));
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from_float(0.00000000001));
 
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
