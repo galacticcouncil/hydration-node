@@ -1,12 +1,11 @@
 use super::*;
 use crate::math::calculate_sell_state_changes;
 use crate::{AssetState, FixedU128, SimpleImbalance};
-use proptest::prelude::*;
 use primitive_types::U256;
-
+use proptest::prelude::*;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const TOLERANCE: Balance = 1_000;// * 1_000 * 1_000;
+pub const TOLERANCE: Balance = 1_000; // * 1_000 * 1_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (10_000 * ONE, 10_000_000 * ONE);
 
@@ -93,6 +92,7 @@ fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
 }
 
 proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
 	fn swap_invariants_no_fees(asset_in in asset_state(), asset_out in asset_state(),
 		amount in trade_amount()
@@ -124,6 +124,7 @@ proptest! {
 }
 
 proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
 	fn swap_invariants_with_fees(asset_in in asset_state(),
 		asset_out in asset_state(),
@@ -158,6 +159,7 @@ proptest! {
 }
 
 proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
 	fn sell_invariants_feeless(amount in trade_amount(),
 		stable_price in price(),
@@ -263,6 +265,7 @@ proptest! {
 }
 
 proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
 	fn sell_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
@@ -372,6 +375,7 @@ proptest! {
 }
 
 proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
 	fn buy_invariants_feeless(amount in trade_amount(),
 		stable_price in price(),
@@ -477,6 +481,7 @@ proptest! {
 }
 
 proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
 	fn buy_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
