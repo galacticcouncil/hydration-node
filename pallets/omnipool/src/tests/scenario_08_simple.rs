@@ -107,8 +107,8 @@ fn sell_fee_test() {
 			assert_asset_state!(
 				200,
 				AssetState {
-					reserve: 1938322315391001,
-					hub_reserve: 2277999999999998,
+					reserve: 1938322315390998,
+					hub_reserve: 2278000000000000,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 2000000000000000,
@@ -117,7 +117,7 @@ fn sell_fee_test() {
 			);
 
 			assert_pool_state!(
-				14259999999999998,
+				14260000000000000,
 				29120000000000000,
 				SimpleImbalance {
 					value: 0,
