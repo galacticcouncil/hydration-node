@@ -740,6 +740,5 @@ fn case_01() {
 
 			let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - delta_imbalance;
 			assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
-			println!("----")
 		});
 }
