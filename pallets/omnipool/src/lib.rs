@@ -32,6 +32,8 @@
 //! They can send any token to the pool using the swap mechanism
 //! and in return they will receive the token of their choice in the appropriate quantity.
 //!
+//! Omnipool is implemented with concrete Balance type: u128.
+//!
 //! ### Terminology
 //!
 //! * **LP:**  liquidity provider
@@ -65,7 +67,6 @@
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
-use frame_support::sp_runtime::FixedPointOperand;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
@@ -92,8 +93,7 @@ mod types;
 pub mod weights;
 
 use crate::math::{calculate_buy_for_hub_asset_state_changes, calculate_sell_hub_state_changes};
-use crate::types::{AssetState, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
-use math::calculate_sell_state_changes;
+use crate::types::{AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -105,6 +105,7 @@ pub mod pallet {
 	use super::*;
 	use crate::math::{
 		calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
+		calculate_sell_state_changes,
 	};
 	use crate::types::{AssetState, Position, Price, SimpleImbalance, Tradable};
 	use codec::HasCompact;
@@ -121,21 +122,6 @@ pub mod pallet {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		/// The units in which we handle balances.
-		type Balance: Member
-			+ Parameter
-			+ AtLeast32BitUnsigned
-			+ Default
-			+ Copy
-			+ MaybeSerializeDeserialize
-			+ MaxEncodedLen
-			+ FixedPointOperand
-			// FixedU128 is missing MaxEncodedLen impl, which is added in 0.9.17
-			// When upgraded to 0.9.17, the position price will be stored as FixedU128, therefore
-			// there will no longer the need for conversion.
-			+ From<u128>
-			+ Into<u128>;
-
 		/// Identifier for the class of asset.
 		type AssetId: Member
 			+ Parameter
@@ -147,13 +133,13 @@ pub mod pallet {
 			+ TypeInfo;
 
 		/// Multi currency mechanism
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Self::Balance>;
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
 		/// Add token origin
 		type AddTokenOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
-		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Self::Balance, DispatchError>;
+		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
 		/// Native Asset ID
 		#[pallet::constant]
@@ -181,15 +167,15 @@ pub mod pallet {
 
 		/// TVL cap
 		#[pallet::constant]
-		type TVLCap: Get<Self::Balance>;
+		type TVLCap: Get<Balance>;
 
 		/// Minimum trading limit
 		#[pallet::constant]
-		type MinimumTradingLimit: Get<Self::Balance>;
+		type MinimumTradingLimit: Get<Balance>;
 
 		/// Minimum pool liquidity which can be added
 		#[pallet::constant]
-		type MinimumPoolLiquidity: Get<Self::Balance>;
+		type MinimumPoolLiquidity: Get<Balance>;
 
 		/// Position identifier type
 		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
@@ -208,19 +194,19 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// State of an asset in the omnipool
-	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<T::Balance>>;
+	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	#[pallet::storage]
 	/// Imbalance of hub asset
-	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<T::Balance>, ValueQuery>;
+	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
 
 	#[pallet::storage]
 	/// Total TVL. It equals to sum of each asset's tvl in omnipool
-	pub(super) type TotalTVL<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
+	pub(super) type TotalTVL<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	/// Total amount of hub asset reserve. It equals to sum of hub_reserve of each asset in omnipool
-	pub(super) type HubAssetLiquidity<T: Config> = StorageValue<_, T::Balance, ValueQuery>;
+	pub(super) type HubAssetLiquidity<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	/// Tradable state of hub asset.
@@ -229,7 +215,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// LP positions. Maps NFT instance id to corresponding position
 	pub(super) type Positions<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::PositionInstanceId, Position<T::Balance, T::AssetId>>;
+		StorageMap<_, Blake2_128Concat, T::PositionInstanceId, Position<Balance, T::AssetId>>;
 
 	#[pallet::storage]
 	/// Position ids sequencer
@@ -241,14 +227,14 @@ pub mod pallet {
 		/// An asset was added to Omnipool
 		TokenAdded {
 			asset_id: T::AssetId,
-			initial_amount: T::Balance,
+			initial_amount: Balance,
 			initial_price: Price,
 		},
 		/// Liquidity of an asset was added to Omnipool.
 		LiquidityAdded {
 			from: T::AccountId,
 			asset_id: T::AssetId,
-			amount: T::Balance,
+			amount: Balance,
 			position_id: T::PositionInstanceId,
 		},
 		/// Liquidity of an asset was removed to Omnipool.
@@ -256,31 +242,31 @@ pub mod pallet {
 			who: T::AccountId,
 			position_id: T::PositionInstanceId,
 			asset_id: T::AssetId,
-			shares_removed: T::Balance,
+			shares_removed: Balance,
 		},
 		/// Sell trade executed.
 		SellExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
-			amount_in: T::Balance,
-			amount_out: T::Balance,
+			amount_in: Balance,
+			amount_out: Balance,
 		},
 		/// Buy trade executed.
 		BuyExecuted {
 			who: T::AccountId,
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
-			amount_in: T::Balance,
-			amount_out: T::Balance,
+			amount_in: Balance,
+			amount_out: Balance,
 		},
 		/// LP Position was created and NFT instance minted.
 		PositionCreated {
 			position_id: T::PositionInstanceId,
 			owner: T::AccountId,
 			asset: T::AssetId,
-			amount: T::Balance,
-			shares: T::Balance,
+			amount: Balance,
+			shares: Balance,
 			price: Price,
 		},
 		/// LP Position was destroyed and NFT instance burned.
@@ -355,8 +341,8 @@ pub mod pallet {
 		#[transactional]
 		pub fn initialize_pool(
 			origin: OriginFor<T>,
-			stable_asset_amount: T::Balance,
-			native_asset_amount: T::Balance,
+			stable_asset_amount: Balance,
+			native_asset_amount: Balance,
 			stable_asset_price: Price,
 			native_asset_price: Price,
 		) -> DispatchResult {
@@ -408,7 +394,7 @@ pub mod pallet {
 			);
 
 			// Initial stale of native and stable assets
-			let stable_asset_state = AssetState::<T::Balance> {
+			let stable_asset_state = AssetState::<Balance> {
 				reserve: stable_asset_reserve,
 				hub_reserve: stable_asset_hub_reserve,
 				shares: stable_asset_reserve,
@@ -416,7 +402,7 @@ pub mod pallet {
 				tvl: stable_asset_reserve,
 				tradable: Tradable::default(),
 			};
-			let native_asset_state = AssetState::<T::Balance> {
+			let native_asset_state = AssetState::<Balance> {
 				reserve: native_asset_reserve,
 				hub_reserve: native_asset_hub_reserve,
 				shares: native_asset_amount,
@@ -449,7 +435,7 @@ pub mod pallet {
 							.ok_or(ArithmeticError::DivisionByZero)?,
 					)
 					.and_then(|v| v.checked_mul_int(native_asset_amount))
-					.and_then(|v| v.checked_add(&stable_asset_amount))
+					.and_then(|v| v.checked_add(stable_asset_amount))
 					.ok_or(ArithmeticError::Overflow)?;
 				Ok(())
 			})?;
@@ -492,7 +478,7 @@ pub mod pallet {
 		pub fn add_token(
 			origin: OriginFor<T>,
 			asset: T::AssetId,
-			amount: T::Balance,
+			amount: Balance,
 			initial_price: Price,
 		) -> DispatchResult {
 			let who = T::AddTokenOrigin::ensure_origin(origin)?;
@@ -509,7 +495,7 @@ pub mod pallet {
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
 			// Initial stale of asset
-			let state = AssetState::<T::Balance> {
+			let state = AssetState::<Balance> {
 				reserve: amount,
 				hub_reserve,
 				shares: amount,
@@ -521,11 +507,11 @@ pub mod pallet {
 			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
 
 			// if provided by LP, create and mint a position instance
-			let lp_position = Position::<T::Balance, T::AssetId> {
+			let lp_position = Position::<Balance, T::AssetId> {
 				asset_id: asset,
 				amount,
 				shares: amount,
-				price: Position::<T::Balance, T::AssetId>::price_to_balance(initial_price),
+				price: initial_price.into_inner(),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
@@ -558,7 +544,7 @@ pub mod pallet {
 							.ok_or(ArithmeticError::DivisionByZero)?,
 					)
 					.and_then(|v| v.checked_mul_int(amount))
-					.and_then(|v| v.checked_add(&*tvl))
+					.and_then(|v| v.checked_add(*tvl))
 					.ok_or(ArithmeticError::Overflow)?;
 				Ok(())
 			})?;
@@ -589,7 +575,7 @@ pub mod pallet {
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
 		#[transactional]
-		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: T::Balance) -> DispatchResult {
+		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
@@ -607,7 +593,7 @@ pub mod pallet {
 			Assets::<T>::try_mutate(asset, |maybe_asset| -> DispatchResult {
 				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let state_changes = calculate_add_liquidity_state_changes::<T>(asset_state, amount, stable_asset)
+				let state_changes = calculate_add_liquidity_state_changes(asset_state, amount, stable_asset)
 					.ok_or(ArithmeticError::Overflow)?;
 
 				// New Asset State
@@ -618,7 +604,7 @@ pub mod pallet {
 				let hub_reserve_ratio = FixedU128::checked_from_rational(
 					asset_state.hub_reserve,
 					<HubAssetLiquidity<T>>::get()
-						.checked_add(&state_changes.asset.delta_hub_reserve)
+						.checked_add(*state_changes.asset.delta_hub_reserve)
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::DivisionByZero)?;
@@ -631,12 +617,12 @@ pub mod pallet {
 				let updated_asset_price = asset_state.price();
 
 				// Create LP position with given shares
-				let lp_position = Position::<T::Balance, T::AssetId> {
+				let lp_position = Position::<Balance, T::AssetId> {
 					asset_id: asset,
 					amount,
 					shares: *state_changes.asset.delta_shares,
 					// Note: position needs price after asset state is updated.
-					price: Position::<T::Balance, T::AssetId>::price_to_balance(updated_asset_price),
+					price: updated_asset_price.into_inner(),
 				};
 
 				let instance_id = Self::create_and_mint_position_instance(&who)?;
@@ -702,7 +688,7 @@ pub mod pallet {
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
 			position_id: T::PositionInstanceId,
-			amount: T::Balance,
+			amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -722,9 +708,13 @@ pub mod pallet {
 			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
 				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let state_changes =
-					calculate_remove_liquidity_state_changes::<T>(asset_state, amount, &position, stable_asset)
-						.ok_or(ArithmeticError::Overflow)?;
+				let state_changes = calculate_remove_liquidity_state_changes::<T::AssetId>(
+					asset_state,
+					amount,
+					&position,
+					stable_asset,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
 
 				// New Asset State
 				asset_state
@@ -760,7 +750,7 @@ pub mod pallet {
 				)?;
 
 				// LP receives some hub asset
-				if state_changes.lp_hub_amount > T::Balance::zero() {
+				if state_changes.lp_hub_amount > Balance::zero() {
 					T::Currency::transfer(
 						T::HubAssetId::get(),
 						&Self::protocol_account(),
@@ -777,7 +767,7 @@ pub mod pallet {
 				// Storage update - asset state and position
 				<Assets<T>>::insert(asset_id, asset_state);
 
-				if position.shares == T::Balance::zero() {
+				if position.shares == Balance::zero() {
 					// All liquidity removed, remove position and burn NFT instance
 					<Positions<T>>::remove(position_id);
 					T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
@@ -821,8 +811,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
-			amount: T::Balance,
-			min_buy_amount: T::Balance,
+			amount: Balance,
+			min_buy_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -856,7 +846,7 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let state_changes = calculate_sell_state_changes::<T>(
+			let state_changes = calculate_sell_state_changes(
 				&asset_in_state,
 				&asset_out_state,
 				amount,
@@ -946,8 +936,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset_out: T::AssetId,
 			asset_in: T::AssetId,
-			amount: T::Balance,
-			max_sell_amount: T::Balance,
+			amount: Balance,
+			max_sell_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -976,7 +966,7 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let state_changes = calculate_buy_state_changes::<T>(
+			let state_changes = calculate_buy_state_changes(
 				&asset_in_state,
 				&asset_out_state,
 				amount,
@@ -1123,7 +1113,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Retrieve stable asset detail from the pool.
 	/// Return NoStableCoinInPool if stable asset is not yet in the pool.
-	fn stable_asset() -> Result<(T::Balance, T::Balance), DispatchError> {
+	fn stable_asset() -> Result<(Balance, Balance), DispatchError> {
 		let stable_asset = <Assets<T>>::get(T::StableCoinAssetId::get()).ok_or(Error::<T>::NoStableAssetInPool)?;
 		Ok((stable_asset.reserve, stable_asset.hub_reserve))
 	}
@@ -1145,12 +1135,12 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update Hub asset side of HDX subpool annd add given amount to hub_asset_reserve
-	fn update_hdx_subpool_hub_asset(hub_asset_amount: T::Balance) -> DispatchResult {
-		if hub_asset_amount > T::Balance::zero() {
+	fn update_hdx_subpool_hub_asset(hub_asset_amount: Balance) -> DispatchResult {
+		if hub_asset_amount > Balance::zero() {
 			let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
 			native_subpool.hub_reserve = native_subpool
 				.hub_reserve
-				.checked_add(&hub_asset_amount)
+				.checked_add(hub_asset_amount)
 				.ok_or(ArithmeticError::Overflow)?;
 			<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
 		}
@@ -1161,16 +1151,16 @@ impl<T: Config> Pallet<T> {
 	/// Update total issueance if AdjustSupply is specified.
 	#[require_transactional]
 	fn update_hub_asset_liquidity(
-		delta_amount: &BalanceUpdate<T::Balance>,
+		delta_amount: &BalanceUpdate<Balance>,
 		issuance_update: HubAssetIssuanceUpdate,
 	) -> DispatchResult {
 		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
 			match delta_amount {
 				BalanceUpdate::Increase(amount) => {
-					*liquidity = liquidity.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+					*liquidity = liquidity.checked_add(*amount).ok_or(ArithmeticError::Overflow)?;
 				}
 				BalanceUpdate::Decrease(amount) => {
-					*liquidity = liquidity.checked_sub(amount).ok_or(ArithmeticError::Underflow)?;
+					*liquidity = liquidity.checked_sub(*amount).ok_or(ArithmeticError::Underflow)?;
 				}
 			}
 			Ok(())
@@ -1192,8 +1182,8 @@ impl<T: Config> Pallet<T> {
 
 	/// Update imbalance with given delta_imbalance and write new value to storage.
 	fn update_imbalance(
-		current_imbalance: SimpleImbalance<T::Balance>,
-		delta_imbalance: BalanceUpdate<T::Balance>,
+		current_imbalance: SimpleImbalance<Balance>,
+		delta_imbalance: BalanceUpdate<Balance>,
 	) -> DispatchResult {
 		let imbalance = match delta_imbalance {
 			BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(ArithmeticError::Overflow)?,
@@ -1206,13 +1196,13 @@ impl<T: Config> Pallet<T> {
 
 	/// Recalculate imbalance and call update_imbalance with new imbalance value.
 	fn recalculate_imbalance(
-		asset_state: &AssetState<T::Balance>,
-		delta_amount: BalanceUpdate<T::Balance>,
+		asset_state: &AssetState<Balance>,
+		delta_amount: BalanceUpdate<Balance>,
 	) -> DispatchResult {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
 
-		if current_imbalance.value == T::Balance::zero() || current_hub_asset_liquidity == T::Balance::zero() {
+		if current_imbalance.value == Balance::zero() || current_hub_asset_liquidity == Balance::zero() {
 			return Ok(());
 		}
 		let p1 = FixedU128::checked_from_rational(asset_state.hub_reserve, asset_state.reserve)
@@ -1235,21 +1225,21 @@ impl<T: Config> Pallet<T> {
 
 	/// Update total tvl balance and check TVL cap if TVL increased.
 	#[require_transactional]
-	fn update_tvl(delta_tvl: &BalanceUpdate<T::Balance>) -> DispatchResult {
+	fn update_tvl(delta_tvl: &BalanceUpdate<Balance>) -> DispatchResult {
 		<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
 			match delta_tvl {
 				BalanceUpdate::Increase(amount) => {
-					*tvl = tvl.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+					*tvl = tvl.checked_add(*amount).ok_or(ArithmeticError::Overflow)?;
 					ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
 				}
-				BalanceUpdate::Decrease(amount) => *tvl = tvl.checked_sub(amount).ok_or(ArithmeticError::Underflow)?,
+				BalanceUpdate::Decrease(amount) => *tvl = tvl.checked_sub(*amount).ok_or(ArithmeticError::Underflow)?,
 			}
 			Ok(())
 		})
 	}
 
 	/// Check if assets can be traded
-	fn allow_assets(asset_in: &AssetState<T::Balance>, asset_out: &AssetState<T::Balance>) -> bool {
+	fn allow_assets(asset_in: &AssetState<Balance>, asset_out: &AssetState<Balance>) -> bool {
 		matches!(
 			(&asset_in.tradable, &asset_out.tradable),
 			(Tradable::Allowed, Tradable::Allowed)
@@ -1261,12 +1251,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Swap hub asset for asset_out.
 	/// Special handling of sell trade where asset in is Hub Asset.
-	fn sell_hub_asset(
-		who: &T::AccountId,
-		asset_out: T::AssetId,
-		amount: T::Balance,
-		limit: T::Balance,
-	) -> DispatchResult {
+	fn sell_hub_asset(who: &T::AccountId, asset_out: T::AssetId, amount: Balance, limit: Balance) -> DispatchResult {
 		ensure!(
 			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::SellOnly),
 			Error::<T>::NotAllowed
@@ -1280,7 +1265,7 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::NotAllowed
 			); // TODO: Add test for this!
 
-			let state_changes = calculate_sell_hub_state_changes::<T>(asset_out_state, amount, Self::asset_fee())
+			let state_changes = calculate_sell_hub_state_changes(asset_out_state, amount, Self::asset_fee())
 				.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
@@ -1335,8 +1320,8 @@ impl<T: Config> Pallet<T> {
 	fn buy_asset_for_hub_asset(
 		who: &T::AccountId,
 		asset_out: T::AssetId,
-		amount: T::Balance,
-		limit: T::Balance,
+		amount: Balance,
+		limit: Balance,
 	) -> DispatchResult {
 		ensure!(
 			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::SellOnly),
@@ -1351,9 +1336,8 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::NotAllowed
 			); // TODO: Add test for this!
 
-			let state_changes =
-				calculate_buy_for_hub_asset_state_changes::<T>(asset_out_state, amount, Self::asset_fee())
-					.ok_or(ArithmeticError::Overflow)?;
+			let state_changes = calculate_buy_for_hub_asset_state_changes(asset_out_state, amount, Self::asset_fee())
+				.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
 				*state_changes.asset.delta_reserve >= limit,
@@ -1404,12 +1388,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Buy hub asset from the pool
 	/// Special handling of buy trade where asset out is Hub Asset.
-	fn buy_hub_asset(
-		_who: &T::AccountId,
-		_asset_in: T::AssetId,
-		_amount: T::Balance,
-		_limit: T::Balance,
-	) -> DispatchResult {
+	fn buy_hub_asset(_who: &T::AccountId, _asset_in: T::AssetId, _amount: Balance, _limit: Balance) -> DispatchResult {
 		ensure!(
 			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
 			Error::<T>::NotAllowed
@@ -1426,8 +1405,8 @@ impl<T: Config> Pallet<T> {
 	fn sell_asset_for_hub_asset(
 		_who: &T::AccountId,
 		_asset_in: T::AssetId,
-		_amount: T::Balance,
-		_limit: T::Balance,
+		_amount: Balance,
+		_limit: Balance,
 	) -> DispatchResult {
 		ensure!(
 			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),

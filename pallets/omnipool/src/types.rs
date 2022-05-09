@@ -4,6 +4,10 @@ use frame_support::pallet_prelude::*;
 use sp_runtime::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Deref, Sub};
 
+/// Balance type used in Omnipool
+pub type Balance = u128;
+
+/// Fixed Balance type to represent asset price
 pub type Price = FixedU128;
 
 /// Asset's trade state. Indicates whether asset can be bought or sold to/from Ommnipool
@@ -75,24 +79,6 @@ pub struct Position<Balance, AssetId> {
 	// This can change in 0.9.17 where the missing trait is implemented
 	// And FixedU128 can be use instead.
 	pub(super) price: Balance,
-}
-
-impl<Balance, AssetId> Position<Balance, AssetId>
-where
-	Balance: From<u128> + Into<u128> + Copy,
-{
-	// Storing position price as Balance type.
-	// Let's convert `Balance` into FixedU128 and vice versa
-	pub(super) fn fixed_price(&self) -> Price {
-		Price::from_inner(self.price.into())
-	}
-
-	// Due to missing MaxEncodedLen impl for FixedU128, it is not possible to use that type in storage
-	// This can change in 0.9.17 where the missing trait is implemented
-	// and there won't be a need to convert it to balance for storage.
-	pub(super) fn price_to_balance(price: Price) -> Balance {
-		price.into_inner().into()
-	}
 }
 
 impl<Balance, AssetId> Position<Balance, AssetId>

@@ -47,7 +47,7 @@ fn add_liquidity_works() {
 				asset_id: 1_000,
 				amount: liq_added,
 				shares: liq_added,
-				price: Position::<Balance, AssetId>::price_to_balance(token_price),
+				price: token_price.into_inner(),
 			};
 
 			assert_eq!(position, expected);

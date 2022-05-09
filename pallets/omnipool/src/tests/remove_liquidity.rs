@@ -66,7 +66,7 @@ fn remove_liquidity_works() {
 				asset_id: 1_000,
 				amount: liq_added - liq_removed,
 				shares: liq_added - liq_removed,
-				price: Position::<Balance, AssetId>::price_to_balance(token_price),
+				price: token_price.into_inner(),
 			};
 
 			assert_eq!(position, expected);
@@ -219,7 +219,7 @@ fn partial_liquidity_removal_works() {
 				asset_id: 1_000,
 				amount: liq_added - liq_removed,
 				shares: liq_added - liq_removed,
-				price: Position::<Balance, AssetId>::price_to_balance(token_price),
+				price: token_price.into_inner(),
 			};
 
 			assert_eq!(position, expected);

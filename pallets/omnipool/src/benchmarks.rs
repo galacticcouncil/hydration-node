@@ -28,14 +28,13 @@ use orml_traits::MultiCurrencyExtended;
 
 benchmarks! {
 	 where_clause {  where T::AssetId: From<u32>,
-		T::Balance: From<u128>,
 		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
 		T: crate::pallet::Config
 	}
 
 	initialize_pool{
-		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
-		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
@@ -47,20 +46,20 @@ benchmarks! {
 
 	add_token{
 		// Initialize pool
-		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
-		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount, native_amount, stable_price, native_price)?;
 
 		// Register new asset in asset registry
-		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
+		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
 		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price: FixedU128= FixedU128::from((1,5));
-		let token_amount = T::Balance::from(200_000_000_000_000u128);
+		let token_amount = 200_000_000_000_000u128;
 
 		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
 
@@ -74,21 +73,21 @@ benchmarks! {
 
 	add_liquidity{
 		// Initialize pool
-		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
-		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
 		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount, native_amount, stable_price, native_price)?;
 
 		// Register new asset in asset registry
-		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
+		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
 		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
-		let token_amount = T::Balance::from(200_000_000_000_000u128);
+		let token_amount = 200_000_000_000_000u128;
 
 		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
 
@@ -99,7 +98,7 @@ benchmarks! {
 		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
-		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
+		let liquidity_added = 300_000_000_000_000u128;
 
 		let current_position_id = <PositionInstanceSequencer<T>>::get();
 
@@ -110,21 +109,21 @@ benchmarks! {
 
 	remove_liquidity{
 		// Initialize pool
-		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
-		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
 		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
 
 		// Register new asset in asset registry
-		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
+		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
 		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
-		let token_amount = T::Balance::from(200_000_000_000_000u128);
+		let token_amount = 200_000_000_000_000u128;
 
 		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
 
@@ -135,7 +134,7 @@ benchmarks! {
 		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
-		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
+		let liquidity_added = 300_000_000_000_000u128;
 
 		let current_position_id = <PositionInstanceSequencer<T>>::get();
 
@@ -144,7 +143,7 @@ benchmarks! {
 		// to ensure worst case - Let's do a trade to make sure price changes, so LP provider receives some LRNA ( which does additional transfer)
 		let buyer: T::AccountId = account("buyer", 2, 1);
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
-		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
+		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128, 100_000_000_000_000u128)?;
 
 	}: _(RawOrigin::Signed(lp_provider.clone()), current_position_id, liquidity_added)
 	verify {
@@ -152,26 +151,26 @@ benchmarks! {
 		assert!(<Positions<T>>::get(current_position_id).is_none());
 
 		// Ensure lp provider received LRNA
-		assert!(T::Currency::free_balance(T::HubAssetId::get(), &lp_provider) > T::Balance::zero());
+		assert!(T::Currency::free_balance(T::HubAssetId::get(), &lp_provider) > Balance::zero());
 	}
 
 	sell{
 		// Initialize pool
-		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
-		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
 		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
 
 		// Register new asset in asset registry
-		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
+		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
 		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
-		let token_amount = T::Balance::from(200_000_000_000_000u128);
+		let token_amount = 200_000_000_000_000u128;
 
 		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
 
@@ -182,7 +181,7 @@ benchmarks! {
 		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
-		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
+		let liquidity_added = 300_000_000_000_000u128;
 
 		let current_position_id = <PositionInstanceSequencer<T>>::get();
 
@@ -190,13 +189,13 @@ benchmarks! {
 
 		let buyer: T::AccountId = account("buyer", 2, 1);
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
-		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
+		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128, 100_000_000_000_000u128)?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
 		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
 
-		let amount_sell = T::Balance::from(100_000_000_000_000u128);
-		let buy_min_amount = T::Balance::from(10_000_000_000_000u128);
+		let amount_sell = 100_000_000_000_000u128;
+		let buy_min_amount = 10_000_000_000_000u128;
 
 	}: _(RawOrigin::Signed(seller.clone()), token_id, T::StableCoinAssetId::get(), amount_sell, buy_min_amount)
 	verify {
@@ -205,21 +204,21 @@ benchmarks! {
 
 	buy{
 		// Initialize pool
-		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
-		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
 		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
 
 		// Register new asset in asset registry
-		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), T::Balance::from(1u128))?;
+		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
 		let caller: T::AccountId = account("caller", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
-		let token_amount = T::Balance::from(200_000_000_000_000u128);
+		let token_amount = 200_000_000_000_000u128;
 
 		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
 
@@ -230,7 +229,7 @@ benchmarks! {
 		let lp_provider: T::AccountId = account("provider", 1, 1);
 		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
-		let liquidity_added = T::Balance::from(300_000_000_000_000u128);
+		let liquidity_added = 300_000_000_000_000u128;
 
 		let current_position_id = <PositionInstanceSequencer<T>>::get();
 
@@ -238,23 +237,23 @@ benchmarks! {
 
 		let buyer: T::AccountId = account("buyer", 2, 1);
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
-		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128.into(), 100_000_000_000_000u128.into())?;
+		crate::Pallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128, 100_000_000_000_000u128)?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
 		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
 
-		let amount_buy = T::Balance::from(10_000_000_000_000u128);
-		let sell_max_limit = T::Balance::from(200_000_000_000_000u128);
+		let amount_buy = 10_000_000_000_000u128;
+		let sell_max_limit = 200_000_000_000_000u128;
 
 	}: _(RawOrigin::Signed(seller.clone()), T::StableCoinAssetId::get(), token_id, amount_buy, sell_max_limit)
 	verify {
-		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) >= T::Balance::zero());
+		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) >= Balance::zero());
 	}
 
 	set_asset_tradable_state{
 		// Initialize pool
-		let stable_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
-		let native_amount: T::Balance = T::Balance::from(1_000_000_000_000_000u128);
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 

@@ -151,7 +151,6 @@ parameter_types! {
 
 impl Config for Test {
 	type Event = Event;
-	type Balance = Balance;
 	type AssetId = AssetId;
 	type PositionInstanceId = u32;
 	type Currency = Tokens;
@@ -389,7 +388,7 @@ use hydradx_traits::Registry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, T::Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
 where
 	T::AssetId: Into<AssetId> + From<u32>,
 {
@@ -402,7 +401,7 @@ where
 		Ok(T::AssetId::default())
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: T::Balance) -> Result<T::AssetId, DispatchError> {
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);

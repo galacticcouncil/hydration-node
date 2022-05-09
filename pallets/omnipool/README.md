@@ -17,6 +17,8 @@ which can be used for trades with all other assets - there is no fragmented liqu
 They can send any token to the pool using the swap mechanism 
 and in return they will receive the token of their choice in the appropriate quantity.
 
+Omnipool is implemented with concrete Balance type: u128.
+
 ### Terminology
 
 * **LP:**  liquidity provider

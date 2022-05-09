@@ -100,7 +100,7 @@ proptest! {
 	fn swap_invariants_no_fees(asset_in in asset_state(), asset_out in asset_state(),
 		amount in trade_amount()
 	) {
-		let result =  calculate_sell_state_changes::<Test>(&asset_in, &asset_out, amount,
+		let result =  calculate_sell_state_changes(&asset_in, &asset_out, amount,
 			FixedU128::from(0u128),
 			FixedU128::from(0u128),
 			&SimpleImbalance::default()
@@ -135,7 +135,7 @@ proptest! {
 		asset_fee in fixed_fee(),
 		protocol_fee in fixed_fee()
 	) {
-		let result =  calculate_sell_state_changes::<Test>(&asset_in, &asset_out, amount,
+		let result =  calculate_sell_state_changes(&asset_in, &asset_out, amount,
 			asset_fee,
 			protocol_fee,
 			&SimpleImbalance::default()
@@ -602,28 +602,28 @@ fn case_01() {
 	let buyer: u64 = 500;
 
 	let amount = 1000000000000000;
-	let stable_price = FixedU128::from_float(0.100000000000000000);
+	let stable_price = FixedU128::from_float(0.1);
 	let stable_reserve = 10000000000000000;
 	let native_reserve = 10000000000000000;
 	let token_1 = PoolToken {
 		asset_id: 100,
 		amount: 10000000000000000,
-		price: FixedU128::from_float(0.100000000000000000),
+		price: FixedU128::from_float(0.1),
 	};
 	let token_2 = PoolToken {
 		asset_id: 200,
 		amount: 10000000000000000,
-		price: FixedU128::from_float(0.100000000000000000),
+		price: FixedU128::from_float(0.1),
 	};
 	let token_3 = PoolToken {
 		asset_id: 300,
 		amount: 4078272607222477550,
-		price: FixedU128::from_float(0.100000000000000000),
+		price: FixedU128::from_float(0.1),
 	};
 	let token_4 = PoolToken {
 		asset_id: 400,
 		amount: 10000000000000000,
-		price: FixedU128::from_float(0.100000000000000000),
+		price: FixedU128::from_float(0.1),
 	};
 
 	ExtBuilder::default()
