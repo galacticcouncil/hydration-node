@@ -90,25 +90,20 @@ pub(crate) fn calculate_sell_hub_state_changes(
 	hub_asset_amount: Balance,
 	asset_fee: FixedU128,
 ) -> Option<HubTradeStateChange<Balance>> {
-	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
+	let (reserve_hp, hub_reserve_hp, amount_hp) =
+		to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
 
-	let hub_ratio = FixedU128::checked_from_rational(
-		asset_out_state.hub_reserve,
-		asset_out_state.hub_reserve.checked_add(hub_asset_amount)?,
-	)?;
+	let delta_reserve_out = reserve_hp * amount_hp / (hub_reserve_hp + amount_hp);
 
-	let delta_reserve_out = fee_asset
-		.checked_mul(&FixedU128::checked_from_rational(
-			hub_asset_amount,
-			asset_out_state.hub_reserve.checked_add(hub_asset_amount)?,
-		)?)?
-		.checked_mul_int(asset_out_state.reserve)?;
+	let delta_reserve_out = to_balance!(delta_reserve_out)?;
+
+	let delta_reserve_out = amount_without_fee(delta_reserve_out, asset_fee)?;
+
+	let hub_imbalance = amount_hp * hub_reserve_hp / (hub_reserve_hp + amount_hp);
+	let hub_imbalance = to_balance!(hub_imbalance)?;
 
 	// Negative
-	let delta_imbalance = fee_asset
-		.checked_mul(&hub_ratio)?
-		.checked_add(&FixedU128::one())?
-		.checked_mul_int(hub_asset_amount)?;
+	let delta_imbalance = amount_without_fee(hub_imbalance, asset_fee).and_then(|v| v.checked_add(hub_asset_amount))?;
 
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {
@@ -126,26 +121,21 @@ pub(crate) fn calculate_buy_for_hub_asset_state_changes(
 	asset_out_amount: Balance,
 	asset_fee: FixedU128,
 ) -> Option<HubTradeStateChange<Balance>> {
-	let fee_asset_complement = FixedU128::from(1).checked_sub(&asset_fee)?;
+	let hub_denominator = amount_without_fee(asset_out_state.reserve, asset_fee)?.checked_sub(asset_out_amount)?;
 
-	let hub_denominator = fee_asset_complement
-		.checked_mul_int(asset_out_state.reserve)?
-		.checked_sub(asset_out_amount)?;
-	// TODO: add one
-	let delta_hub_reserve = FixedU128::checked_from_rational(asset_out_amount, hub_denominator)?
-		.checked_mul_int(asset_out_state.hub_reserve)?
-		.checked_add(Balance::one())?;
+	let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
+		to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
 
-	let hub_ratio = FixedU128::checked_from_rational(
-		asset_out_state.hub_reserve,
-		asset_out_state.hub_reserve.checked_add(delta_hub_reserve)?,
-	)?;
+	let delta_hub_reserve_hp = (hub_reserve_hp * amount_hp / hub_denominator_hp) + 1;
+
+	let hub_imbalance = delta_hub_reserve_hp * hub_reserve_hp / (hub_reserve_hp + delta_hub_reserve_hp);
+
+	let delta_hub_reserve = to_balance!(delta_hub_reserve_hp)?;
+	let hub_imbalance = to_balance!(hub_imbalance)?;
 
 	// Negative
-	let delta_imbalance = fee_asset_complement
-		.checked_mul(&hub_ratio)?
-		.checked_add(&FixedU128::one())?
-		.checked_mul_int(delta_hub_reserve)?;
+	let delta_imbalance =
+		amount_without_fee(hub_imbalance, asset_fee).and_then(|v| v.checked_add(delta_hub_reserve))?;
 
 	Some(HubTradeStateChange {
 		asset: AssetStateChange {

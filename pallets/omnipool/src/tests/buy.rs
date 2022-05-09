@@ -314,7 +314,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 1);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 13393333333333333u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 13393333333333334u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 2400000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1950000000000000u128, 1);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 1);
