@@ -4,10 +4,30 @@ use crate::types::{
 	TradeStateChange,
 };
 use crate::{AssetState, FixedU128, Price};
+use primitive_types::U256;
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::FixedPointNumber;
 use sp_std::cmp::{min, Ordering};
 use sp_std::default::Default;
+
+#[macro_export]
+macro_rules! to_u256 {
+    ($($x:expr),+) => (
+        {($(U256::from($x)),+)}
+    );
+}
+
+#[macro_export]
+macro_rules! to_balance {
+	($x:expr) => {
+		Balance::try_from($x).ok()
+	};
+}
+
+fn amount_without_fee(amount: Balance, fee: FixedU128) -> Option<Balance> {
+	let fee_amount = fee.checked_mul_int(amount)?;
+	amount.checked_sub(fee_amount)
+}
 
 /// Calculate delta changes of a sell trade given current state of asset in and out.
 pub(crate) fn calculate_sell_state_changes(
@@ -138,31 +158,31 @@ pub(crate) fn calculate_buy_state_changes(
 	protocol_fee: FixedU128,
 	imbalance: &SimpleImbalance<Balance>,
 ) -> Option<TradeStateChange<Balance>> {
-	// Positive
-	let fee_asset = FixedU128::from(1).checked_sub(&asset_fee)?;
-	let fee_protocol = FixedU128::from(1).checked_sub(&protocol_fee)?;
+	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
+	let (out_hub_reserve, out_reserve_no_fee, out_amount) =
+		to_u256!(asset_out_state.hub_reserve, reserve_no_fee, amount);
 
-	let delta_hub_reserve_out = FixedU128::checked_from_rational(
-		amount,
-		fee_asset
-			.checked_mul_int(asset_out_state.reserve)?
-			.checked_sub(amount)?,
-	)?
-	.checked_mul_int(asset_out_state.hub_reserve)?
-	.checked_add(Balance::one())?;
+	let delta_hub_reserve_out = out_hub_reserve
+		.checked_mul(out_amount)
+		.and_then(|v| v.checked_div(out_reserve_no_fee.checked_sub(out_amount)?))?;
+
+	let delta_hub_reserve_out = to_balance!(delta_hub_reserve_out)?;
+	let delta_hub_reserve_out = delta_hub_reserve_out.checked_add(Balance::one())?;
 
 	// Negative
 	let delta_hub_reserve_in: Balance = FixedU128::from_inner(delta_hub_reserve_out)
-		.checked_div(&fee_protocol)?
+		.checked_div(&FixedU128::from(1).checked_sub(&protocol_fee)?)?
 		.into_inner();
 
-	// Positive
-	let delta_reserve_in = FixedU128::checked_from_rational(
-		delta_hub_reserve_in,
-		asset_in_state.hub_reserve.checked_sub(delta_hub_reserve_in)?,
-	)?
-	.checked_mul_int(asset_in_state.reserve)?
-	.checked_add(Balance::one())?;
+	let (delta_hub_reserve_in_hp, in_hub_reserve_hp, in_reserve_hp) =
+		to_u256!(delta_hub_reserve_in, asset_in_state.hub_reserve, asset_in_state.reserve);
+
+	let delta_reserve_in = in_reserve_hp
+		.checked_mul(delta_hub_reserve_in_hp)
+		.and_then(|v| v.checked_div(in_hub_reserve_hp.checked_sub(delta_hub_reserve_in_hp)?))?;
+
+	let delta_reserve_in = to_balance!(delta_reserve_in)?;
+	let delta_reserve_in = delta_reserve_in.checked_add(Balance::one())?;
 
 	// Fee accounting and imbalance
 	let protocol_fee_amount = protocol_fee.checked_mul_int(delta_hub_reserve_in)?;

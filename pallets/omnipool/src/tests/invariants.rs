@@ -21,7 +21,7 @@ fn asset_invariant(old_state: &AssetState<Balance>, new_state: &AssetState<Balan
 	//if new_s < old_s {
 	//	println!("{} - decreased new: {:?} vs old: {:?}", _desc, new_s,old_s);
 	//}
-	//assert!(new_s >= old_s, "Invariant decreased for {}", _desc);
+	assert!(new_s >= old_s, "Invariant decreased for {}", _desc);
 
 	let s1_u128 = Balance::try_from(s1).unwrap();
 	let s2_u128 = Balance::try_from(s2).unwrap();

@@ -97,7 +97,7 @@ fn fee_test_buy_sell() {
 				0,
 				AssetState {
 					reserve: 10000000000000000,
-					hub_reserve: 10135523267202732,
+					hub_reserve: 10135523267202731,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 10000000000000000,
@@ -108,8 +108,8 @@ fn fee_test_buy_sell() {
 			assert_asset_state!(
 				100,
 				AssetState {
-					reserve: 4243052260380446,
-					hub_reserve: 882383663986336,
+					reserve: 4243052260380436,
+					hub_reserve: 882383663986338,
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000,
@@ -121,17 +121,17 @@ fn fee_test_buy_sell() {
 				200,
 				AssetState {
 					reserve: 1671684145777546,
-					hub_reserve: 2707273110861762,
+					hub_reserve: 2707273110861761,
 					shares: 2006364027707802,
 					protocol_shares: 2000000000000000,
-					tvl: 5414546221723524,
+					tvl: 5414546221723522,
 					tradable: Tradable::default(),
 				}
 			);
 
 			assert_pool_state!(
 				14182282238540066, // hub liquidity
-				32534546221723524, // tvl
+				32534546221723522, // tvl
 				SimpleImbalance {
 					value: 0,
 					negative: true
