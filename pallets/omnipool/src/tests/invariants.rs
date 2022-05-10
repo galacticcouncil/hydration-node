@@ -145,6 +145,48 @@ proptest! {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
+	fn sell_hub_update_invariants_with_fees(asset_out in asset_state(),
+		amount in trade_amount(),
+		asset_fee in fixed_fee(),
+	) {
+		let result = calculate_sell_hub_state_changes (&asset_out, amount,
+			asset_fee,
+		);
+
+		assert!(result.is_some());
+
+		let state_changes = result.unwrap();
+
+		let mut asset_out_state = asset_out.clone();
+		assert!(asset_out_state.delta_update(&state_changes.asset).is_some());
+		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn buy_hub_update_invariants_with_fees(asset_out in asset_state(),
+		amount in trade_amount(),
+		asset_fee in fixed_fee(),
+	) {
+		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
+			asset_fee,
+		);
+
+		assert!(result.is_some());
+
+		let state_changes = result.unwrap();
+
+		let mut asset_out_state = asset_out.clone();
+		assert!(asset_out_state.delta_update(&state_changes.asset).is_some());
+		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
 	fn buy_update_invariants_with_fees(asset_in in asset_state(), asset_out in asset_state(),
 		amount in trade_amount(),
 		asset_fee in fixed_fee(),
@@ -953,4 +995,181 @@ fn buy_invariant_case_02() {
 			let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - delta_imbalance;
 			assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
 		});
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn sell_hub_invariants_with_fees(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee()
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let seller: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(seller, LRNA, amount + 200 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_asset_fee(protocol_fee)
+			.with_initial_pool(
+				stable_reserve,
+				native_reserve,
+				stable_price,
+				FixedU128::from(1),
+			)
+			.build()
+			.execute_with(|| {
+				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
+
+				let old_state_300 = <Assets<Test>>::get(300).unwrap();
+
+				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				fn sum_asset_hub_liquidity(assets: Vec<AssetId>) -> Balance {
+
+					let mut total = 0;
+
+					for asset_id in assets{
+						let asset_state = <Assets<Test>>::get(asset_id).unwrap();
+						 total += asset_state.hub_reserve;
+					}
+
+					total
+				}
+
+				let old_asset_hub_liquidity = sum_asset_hub_liquidity(vec![HDX, DAI, 100,200,300,400]);
+
+				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
+
+				assert_ok!(Omnipool::sell(Origin::signed(seller), LRNA, 300, amount, Balance::zero()));
+
+				let new_state_300 = <Assets<Test>>::get(300).unwrap();
+
+				// invariant does not decrease
+				assert_ne!(new_state_300.reserve, old_state_300.reserve);
+
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
+
+				// Total hub asset liquidity has not changed
+				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				assert_eq!(old_hub_liquidity + amount, new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
+
+				// total quantity of R_i remains unchanged
+				let new_asset_hub_liquidity = sum_asset_hub_liquidity(vec![HDX, DAI, 100,200,300,400]);
+
+				assert_eq!(old_asset_hub_liquidity + amount, new_asset_hub_liquidity, "Assets hub liquidity");
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn buy_hub_invariants_with_fees(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee()
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let seller: u64 = 500;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(seller, LRNA, 100_000* ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_asset_fee(protocol_fee)
+			.with_initial_pool(
+				stable_reserve,
+				native_reserve,
+				stable_price,
+				FixedU128::from(1),
+			)
+			.build()
+			.execute_with(|| {
+				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
+
+				let old_state_300 = <Assets<Test>>::get(300).unwrap();
+
+				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				fn sum_asset_hub_liquidity(assets: Vec<AssetId>) -> Balance {
+
+					let mut total = 0;
+
+					for asset_id in assets{
+						let asset_state = <Assets<Test>>::get(asset_id).unwrap();
+						 total += asset_state.hub_reserve;
+					}
+
+					total
+				}
+
+				let old_asset_hub_liquidity = sum_asset_hub_liquidity(vec![HDX, DAI, 100,200,300,400]);
+
+				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
+
+				assert_ok!(Omnipool::buy(Origin::signed(seller), 300, LRNA, amount, Balance::zero()));
+
+				let new_state_300 = <Assets<Test>>::get(300).unwrap();
+
+				// invariant does not decrease
+				assert_ne!(new_state_300.reserve, old_state_300.reserve);
+
+				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
+
+				// Total hub asset liquidity has not changed
+				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
+			});
+	}
 }
