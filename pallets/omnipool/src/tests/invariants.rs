@@ -1,5 +1,8 @@
 use super::*;
-use crate::math::{calculate_buy_state_changes, calculate_sell_state_changes};
+use crate::math::{
+	calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
+	calculate_sell_state_changes,
+};
 use crate::{AssetState, FixedU128, SimpleImbalance};
 use frame_support::assert_noop;
 use primitive_types::U256;
@@ -43,6 +46,19 @@ fn fixed_fee() -> impl Strategy<Value = FixedU128> {
 
 fn price() -> impl Strategy<Value = FixedU128> {
 	(0.1f64..2f64).prop_map(FixedU128::from_float)
+}
+
+fn stable_asset_state() -> impl Strategy<Value = (Balance, Balance)> {
+	(asset_reserve(), asset_reserve())
+}
+
+fn position() -> impl Strategy<Value = Position<Balance, AssetId>> {
+	(trade_amount(), price()).prop_map(|(amount, price)| Position {
+		asset_id: 100,
+		amount,
+		shares: amount,
+		price: price.into_inner(),
+	})
 }
 
 fn assert_asset_invariant(
@@ -1171,5 +1187,62 @@ proptest! {
 
 				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
 			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn add_liquidity_prices(asset in asset_state(),
+		amount in trade_amount(),
+		stable_asset in stable_asset_state()
+	) {
+		let result = calculate_add_liquidity_state_changes(&asset,
+			amount,
+			stable_asset
+		);
+
+		assert!(result.is_some());
+
+		let state_changes = result.unwrap();
+
+		let mut new_asset_state= asset.clone();
+		assert!(new_asset_state.delta_update(&state_changes.asset).is_some());
+
+		// Price should not change
+		assert_eq_approx!(asset.price(),
+			new_asset_state.price(),
+			FixedU128::from_float(0.0000000001),
+			"Price has changed after add liquidity");
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#[test]
+	fn remove_liquidity_prices(asset in asset_state(),
+		position in position(),
+		stable_asset in stable_asset_state()
+	) {
+		let result = calculate_remove_liquidity_state_changes(&asset,
+			position.amount,
+			&position,
+			stable_asset
+		);
+
+		assert!(result.is_some());
+
+		let state_changes = result.unwrap();
+
+		let mut new_asset_state= asset.clone();
+		assert!(new_asset_state.delta_update(&state_changes.asset).is_some());
+
+		assert_ne!(new_asset_state.reserve, asset.reserve);
+
+		// Price should not change
+		assert_eq_approx!(asset.price(),
+			new_asset_state.price(),
+			FixedU128::from_float(0.0000000001),
+			"Price has changed after remove liquidity");
 	}
 }
