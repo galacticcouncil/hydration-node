@@ -1,0 +1,22 @@
+name: Check formatting
+
+on:
+  push:
+    branches:
+      - hydra-parachain
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  check-formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Install Rust
+        uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
+        with:
+          profile: minimal
+      - run: cargo fmt --check
