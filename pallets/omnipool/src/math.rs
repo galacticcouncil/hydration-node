@@ -172,6 +172,12 @@ pub(crate) fn calculate_buy_state_changes(
 		.checked_div(&FixedU128::from(1).checked_sub(&protocol_fee)?)?
 		.into_inner();
 
+	if delta_hub_reserve_in >= asset_in_state.hub_reserve{
+		// TODO: this is not math error, perhaps we need to think about how to deal with this in nicer way
+		// see tests::invariants::buy_update_invariants_no_fees_case
+		return None;
+	}
+
 	let (delta_hub_reserve_in_hp, in_hub_reserve_hp, in_reserve_hp) =
 		to_u256!(delta_hub_reserve_in, asset_in_state.hub_reserve, asset_in_state.reserve);
 
