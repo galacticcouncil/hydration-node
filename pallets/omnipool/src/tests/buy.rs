@@ -309,7 +309,7 @@ fn buy_for_hub_asset_works() {
 				200,
 				1,
 				50_000_000_000_000,
-				10000000000000
+				50_000_000_000_000
 			));
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 1);
