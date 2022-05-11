@@ -99,13 +99,13 @@ where
 
 /// Simple type to represent imbalance which can be positive or negative.
 // Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
-#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub(crate) struct SimpleImbalance<Balance: Copy> {
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub(crate) struct SimpleImbalance<Balance> {
 	pub value: Balance,
 	pub negative: bool,
 }
 
-impl<Balance: Default + Copy> Default for SimpleImbalance<Balance> {
+impl<Balance: Default> Default for SimpleImbalance<Balance> {
 	fn default() -> Self {
 		Self {
 			value: Balance::default(),
@@ -280,10 +280,10 @@ impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + Checke
 }
 
 /// Delta changes of asset state
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub(super) struct AssetStateChange<Balance>
 where
-	Balance: Default + Copy,
+	Balance: Default,
 {
 	pub(crate) delta_reserve: BalanceUpdate<Balance>,
 	pub(crate) delta_hub_reserve: BalanceUpdate<Balance>,
@@ -293,10 +293,10 @@ where
 }
 
 /// Delta changes after a trade is executed
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default)]
 pub(super) struct TradeStateChange<Balance>
 where
-	Balance: Default + Copy,
+	Balance: Default,
 {
 	pub(crate) asset_in: AssetStateChange<Balance>,
 	pub(crate) asset_out: AssetStateChange<Balance>,
@@ -305,20 +305,20 @@ where
 }
 
 /// Delta changes after a trade with hub asset is executed.
-#[derive(Default, Copy, Clone)]
+#[derive(Default)]
 pub(super) struct HubTradeStateChange<Balance>
 where
-	Balance: Default + Copy,
+	Balance: Default,
 {
 	pub(crate) asset: AssetStateChange<Balance>,
 	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
 }
 
 /// Delta changes after add or remove liquidity.
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default)]
 pub(super) struct LiquidityStateChange<Balance>
 where
-	Balance: Default + Copy,
+	Balance: Default,
 {
 	pub(crate) asset: AssetStateChange<Balance>,
 	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
