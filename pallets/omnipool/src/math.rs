@@ -220,11 +220,37 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 
 	let new_reserve = asset_state.reserve.checked_add(amount)?;
 
-	let new_shares =
-		FixedU128::checked_from_rational(asset_state.shares, asset_state.reserve)?.checked_mul_int(new_reserve)?;
+	let (
+		new_reserve_hp,
+		delta_hub_reserve_hp,
+		shares_hp,
+		reserve_hp,
+		hub_reserve_hp,
+		stable_reserve_hp,
+		stable_hub_reserve_hp,
+	) = to_u256!(
+		new_reserve,
+		delta_hub_reserve,
+		asset_state.shares,
+		asset_state.reserve,
+		asset_state.hub_reserve,
+		stable_asset.0,
+		stable_asset.1
+	);
 
-	let adjusted_asset_tvl = FixedU128::checked_from_rational(stable_asset.0, stable_asset.1)?
-		.checked_mul_int(asset_state.hub_reserve.checked_add(delta_hub_reserve)?)?;
+	// TODO: if adding stable asset - then stable asset state must be updated first
+
+	// TODO: BUG: use amount instead of new_reserve_hp here!!
+	let new_shares_hp = shares_hp
+		.checked_mul(new_reserve_hp)
+		.and_then(|v| v.checked_div(reserve_hp))?;
+
+	let adjusted_asset_tvl_hp = stable_reserve_hp
+		.checked_mul(hub_reserve_hp.checked_add(delta_hub_reserve_hp)?)
+		.and_then(|v| v.checked_div(stable_hub_reserve_hp))?;
+
+	let new_shares = to_balance!(new_shares_hp)?;
+	let adjusted_asset_tvl = to_balance!(adjusted_asset_tvl_hp)?;
 
 	let delta_tvl = match adjusted_asset_tvl.cmp(&asset_state.tvl) {
 		Ordering::Greater => BalanceUpdate::Increase(adjusted_asset_tvl.checked_sub(asset_state.tvl)?),
