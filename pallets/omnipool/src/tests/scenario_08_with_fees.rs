@@ -100,7 +100,7 @@ fn fee_test_buy_sell() {
 					hub_reserve: 10135523267202732,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000,
+					tvl: 20000000000000000,
 					tradable: Tradable::default(),
 				}
 			);
@@ -131,7 +131,7 @@ fn fee_test_buy_sell() {
 
 			assert_pool_state!(
 				14182282238540068, // hub liquidity
-				32534546221723530, // tvl
+				29534546221723530,
 				SimpleImbalance {
 					value: 0,
 					negative: true

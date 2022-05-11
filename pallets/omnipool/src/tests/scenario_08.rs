@@ -106,7 +106,7 @@ fn complex_scenario_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000,
+					tvl: 20000000000000000,
 					tradable: Tradable::default(),
 				}
 			);
@@ -137,7 +137,7 @@ fn complex_scenario_works() {
 
 			assert_pool_state!(
 				14211575191619507,
-				32498181728191026,
+				29498181728191026,
 				SimpleImbalance {
 					value: 39852348990836,
 					negative: true

@@ -76,7 +76,7 @@ fn scenario_04() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000,
+					tvl: 20000000000000000,
 					tradable: Tradable::default(),
 				}
 			);
@@ -100,11 +100,11 @@ fn scenario_04() {
 					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 2000000000000000,
+					tvl: 2600000000000000,
 					tradable: Tradable::default(),
 				}
 			);
 
-			assert_pool_state!(13360000000000000, 27320000000000000, SimpleImbalance::default());
+			assert_pool_state!(13360000000000000, 26720000000000000, SimpleImbalance::default());
 		});
 }

@@ -104,8 +104,8 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 pub mod pallet {
 	use super::*;
 	use crate::math::{
-		calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
-		calculate_sell_state_changes,
+		calculate_add_liquidity_state_changes, calculate_asset_tvl, calculate_buy_state_changes,
+		calculate_remove_liquidity_state_changes, calculate_sell_state_changes,
 	};
 	use crate::types::{AssetState, Position, Price, SimpleImbalance, Tradable};
 	use codec::HasCompact;
@@ -380,6 +380,12 @@ pub mod pallet {
 					.ok_or(ArithmeticError::Overflow)?,
 			);
 
+			let native_asset_tvl = calculate_asset_tvl(
+				native_asset_hub_reserve,
+				(stable_asset_reserve, stable_asset_hub_reserve),
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
 			// Ensure that stable asset has been transferred to protocol account
 			ensure!(
 				T::Currency::free_balance(T::StableCoinAssetId::get(), &Self::protocol_account())
@@ -402,12 +408,13 @@ pub mod pallet {
 				tvl: stable_asset_reserve,
 				tradable: Tradable::default(),
 			};
+
 			let native_asset_state = AssetState::<Balance> {
 				reserve: native_asset_reserve,
 				hub_reserve: native_asset_hub_reserve,
 				shares: native_asset_amount,
 				protocol_shares: native_asset_amount,
-				tvl: native_asset_amount,
+				tvl: native_asset_tvl,
 				tradable: Tradable::default(),
 			};
 
@@ -428,17 +435,11 @@ pub mod pallet {
 			)?;
 
 			// TVL update
-			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-				*tvl = native_asset_price
-					.checked_mul(
-						&Price::checked_from_rational(stable_asset_reserve, stable_asset_hub_reserve)
-							.ok_or(ArithmeticError::DivisionByZero)?,
-					)
-					.and_then(|v| v.checked_mul_int(native_asset_amount))
-					.and_then(|v| v.checked_add(stable_asset_amount))
-					.ok_or(ArithmeticError::Overflow)?;
-				Ok(())
-			})?;
+			Self::update_tvl(&BalanceUpdate::Increase(
+				native_asset_tvl
+					.checked_add(stable_asset_amount)
+					.ok_or(ArithmeticError::Overflow)?,
+			))?;
 
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
 			<Assets<T>>::insert(T::NativeAssetId::get(), native_asset_state);
@@ -494,13 +495,16 @@ pub mod pallet {
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
+			let asset_tvl = calculate_asset_tvl(hub_reserve, (stable_asset_reserve, stable_asset_hub_reserve))
+				.ok_or(ArithmeticError::Overflow)?;
+
 			// Initial stale of asset
 			let state = AssetState::<Balance> {
 				reserve: amount,
 				hub_reserve,
 				shares: amount,
 				protocol_shares: amount,
-				tvl: amount,
+				tvl: asset_tvl,
 				tradable: Tradable::default(),
 			};
 
@@ -536,18 +540,7 @@ pub mod pallet {
 				HubAssetIssuanceUpdate::AdjustSupply,
 			)?;
 
-			// TVL update
-			<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-				*tvl = initial_price
-					.checked_mul(
-						&Price::checked_from_rational(stable_asset_reserve, stable_asset_hub_reserve)
-							.ok_or(ArithmeticError::DivisionByZero)?,
-					)
-					.and_then(|v| v.checked_mul_int(amount))
-					.and_then(|v| v.checked_add(*tvl))
-					.ok_or(ArithmeticError::Overflow)?;
-				Ok(())
-			})?;
+			Self::update_tvl(&BalanceUpdate::Increase(asset_tvl))?;
 
 			<Assets<T>>::insert(asset, state);
 

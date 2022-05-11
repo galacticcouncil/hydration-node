@@ -87,7 +87,7 @@ fn sell_fee_test() {
 					hub_reserve: 10019499999999999,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000,
+					tvl: 20000000000000000,
 					tradable: Tradable::default(),
 				}
 			);
@@ -111,14 +111,14 @@ fn sell_fee_test() {
 					hub_reserve: 2278000000000000,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 2000000000000000,
+					tvl: 4400000000000000,
 					tradable: Tradable::default(),
 				}
 			);
 
 			assert_pool_state!(
 				14260000000000000,
-				29120000000000000,
+				28520000000000000,
 				SimpleImbalance {
 					value: 0,
 					negative: true

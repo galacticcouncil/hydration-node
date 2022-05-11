@@ -52,7 +52,7 @@ fn add_liquidity_works() {
 
 			assert_eq!(position, expected);
 
-			assert_pool_state!(12_060 * ONE, 24_720 * ONE, SimpleImbalance::default());
+			assert_pool_state!(12_060 * ONE, 24_120 * ONE, SimpleImbalance::default());
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 

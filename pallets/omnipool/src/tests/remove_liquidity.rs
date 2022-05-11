@@ -44,7 +44,7 @@ fn remove_liquidity_works() {
 				liq_removed
 			));
 
-			assert_pool_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE + 1, 23_860_000_000_000_002, SimpleImbalance::default());
 
 			assert_balance!(LP1, 1_000, 4600 * ONE + liq_removed);
 
@@ -121,7 +121,7 @@ fn full_liquidity_removal_works() {
 				"Position still found"
 			);
 
-			assert_pool_state!(11_800 * ONE + 1, 24_200_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_800 * ONE + 1, 23_600_000_000_000_002, SimpleImbalance::default());
 
 			assert_balance!(LP1, 1_000, 5000 * ONE);
 
@@ -193,7 +193,7 @@ fn partial_liquidity_removal_works() {
 				"Position has been removed incorrectly"
 			);
 
-			assert_pool_state!(11_930 * ONE + 1, 24_460_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE + 1, 23_860_000_000_000_002, SimpleImbalance::default());
 
 			assert_balance!(LP1, 1_000, 4800 * ONE);
 
@@ -282,7 +282,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			assert_balance!(LP1, 1000, 4_760_000_000_000_000);
 			assert_balance!(LP1, LRNA, 470_689_655_172_413);
 
-			assert_pool_state!(9704310344827587, 541030000000086413, SimpleImbalance::default());
+			assert_pool_state!(9704310344827587, 541000000000086413, SimpleImbalance::default());
 		});
 }
 
@@ -341,7 +341,8 @@ fn protocol_shares_update_works() {
 			assert_balance!(Omnipool::protocol_account(), 1000, 1259999999999997);
 			assert_balance!(LP1, 1000, 4840000000000003);
 
-			assert_pool_state!(10807666666666667, 21212000000000002, SimpleImbalance::default());
+			assert_pool_state!(10807666666666667, 21182000000000002, SimpleImbalance::default());
+
 			let expected_state = AssetState {
 				reserve: 1259999999999997,
 				hub_reserve: 91000000000001,

@@ -323,3 +323,14 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 		delta_position_shares: Decrease(shares_removed),
 	})
 }
+
+pub(crate) fn calculate_asset_tvl(asset_hub_reserve: Balance, stable_asset: (Balance, Balance)) -> Option<Balance> {
+	let (hub_reserve_hp, stable_reserve_hp, stable_hub_reserve_hp) =
+		to_u256!(asset_hub_reserve, stable_asset.0, stable_asset.1);
+
+	let tvl = hub_reserve_hp
+		.checked_mul(stable_reserve_hp)
+		.and_then(|v| v.checked_div(stable_hub_reserve_hp))?;
+
+	to_balance!(tvl)
+}

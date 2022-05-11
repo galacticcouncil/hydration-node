@@ -32,6 +32,29 @@ fn initialize_pool_works() {
 					+ stable_amount,
 				SimpleImbalance::default()
 			);
+
+			assert_asset_state!(
+				DAI,
+				AssetState {
+					reserve: 100000000000000,
+					hub_reserve: 50000000000000,
+					shares: 100000000000000,
+					protocol_shares: 100000000000000,
+					tvl: 100000000000000,
+					tradable: Tradable::default(),
+				}
+			);
+			assert_asset_state!(
+				HDX,
+				AssetState {
+					reserve: 200000000000000,
+					hub_reserve: 300000000000000,
+					shares: 200000000000000,
+					protocol_shares: 200000000000000,
+					tvl: 600000000000000,
+					tradable: Tradable::default(),
+				}
+			);
 		});
 }
 #[test]
@@ -163,7 +186,7 @@ fn add_token_works() {
 					hub_reserve: 1300 * ONE,
 					shares: token_amount,
 					protocol_shares: token_amount,
-					tvl: token_amount,
+					tvl: 2600000000000000,
 					tradable: Tradable::default(),
 				}
 			)

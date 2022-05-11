@@ -47,7 +47,7 @@ fn simple_sell_works() {
 
 			assert_pool_state!(
 				13_360 * ONE,
-				27_320 * ONE,
+				26_720 * ONE,
 				SimpleImbalance {
 					value: 0u128,
 					negative: true
@@ -72,7 +72,7 @@ fn simple_sell_works() {
 					hub_reserve: 1331836734693877,
 					shares: 2000 * ONE,
 					protocol_shares: 2000 * ONE,
-					tvl: 2000 * ONE,
+					tvl: 2600 * ONE,
 					tradable: Tradable::default(),
 				}
 			);
@@ -300,7 +300,7 @@ fn sell_hub_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 10000000000000000,
+					tvl: 20000000000000000,
 					tradable: Tradable::default(),
 				}
 			);
@@ -324,14 +324,14 @@ fn sell_hub_works() {
 					hub_reserve: 1350000000000000,
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
-					tvl: 2000000000000000,
+					tvl: 2600000000000000,
 					tradable: Tradable::default(),
 				}
 			);
 
 			assert_pool_state!(
 				13410000000000000,
-				27320000000000000,
+				26720000000000000,
 				SimpleImbalance {
 					value: 98148148148148,
 					negative: true
