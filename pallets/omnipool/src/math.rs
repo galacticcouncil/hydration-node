@@ -218,10 +218,8 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 ) -> Option<LiquidityStateChange<Balance>> {
 	let delta_hub_reserve = asset_state.price().checked_mul_int(amount)?;
 
-	let new_reserve = asset_state.reserve.checked_add(amount)?;
-
 	let (
-		new_reserve_hp,
+		amount_hp,
 		delta_hub_reserve_hp,
 		shares_hp,
 		reserve_hp,
@@ -229,7 +227,7 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 		stable_reserve_hp,
 		stable_hub_reserve_hp,
 	) = to_u256!(
-		new_reserve,
+		amount,
 		delta_hub_reserve,
 		asset_state.shares,
 		asset_state.reserve,
@@ -240,16 +238,15 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 
 	// TODO: if adding stable asset - then stable asset state must be updated first
 
-	// TODO: BUG: use amount instead of new_reserve_hp here!!
-	let new_shares_hp = shares_hp
-		.checked_mul(new_reserve_hp)
+	let delta_shares_hp = shares_hp
+		.checked_mul(amount_hp)
 		.and_then(|v| v.checked_div(reserve_hp))?;
 
 	let adjusted_asset_tvl_hp = stable_reserve_hp
 		.checked_mul(hub_reserve_hp.checked_add(delta_hub_reserve_hp)?)
 		.and_then(|v| v.checked_div(stable_hub_reserve_hp))?;
 
-	let new_shares = to_balance!(new_shares_hp)?;
+	let delta_shares = to_balance!(delta_shares_hp)?;
 	let adjusted_asset_tvl = to_balance!(adjusted_asset_tvl_hp)?;
 
 	let delta_tvl = match adjusted_asset_tvl.cmp(&asset_state.tvl) {
@@ -262,7 +259,7 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 		asset: AssetStateChange {
 			delta_reserve: Increase(amount),
 			delta_hub_reserve: Increase(delta_hub_reserve),
-			delta_shares: Increase(new_shares.checked_sub(asset_state.shares)?),
+			delta_shares: Increase(delta_shares),
 			delta_tvl,
 			..Default::default()
 		},
