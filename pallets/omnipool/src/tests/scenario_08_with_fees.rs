@@ -130,7 +130,7 @@ fn fee_test_buy_sell() {
 			);
 
 			assert_pool_state!(
-				14182282238540068, // hub liquidity
+				14182282238540070, // hub liquidity
 				29534546221723530,
 				SimpleImbalance {
 					value: 0,

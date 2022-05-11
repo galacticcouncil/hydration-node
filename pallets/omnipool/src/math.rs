@@ -312,14 +312,22 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 
 		let p1 = double_current_price.checked_div(&price_sum)?;
 
-		let p2 = FixedU128::checked_from_rational(shares_removed, current_shares)?;
+		let (shares_removed_hp, reserve_hp, current_shares_hp) =
+			to_u256!(shares_removed, current_reserve, current_shares);
 
-		let p3 = p1.checked_mul(&p2).and_then(|v| v.checked_mul_int(current_reserve))?;
+		let p2 = reserve_hp
+			.checked_mul(shares_removed_hp)
+			.and_then(|v| v.checked_div(current_shares_hp))?;
+
+		let p2 = to_balance!(p2)?;
+
+		let p3 = p1.checked_mul_int(p2)?;
 
 		current_price.checked_mul_int(p3.checked_sub(delta_reserve)?)?
 	} else {
 		Balance::zero()
 	};
+
 	let delta_r_position =
 		FixedU128::checked_from_rational(shares_removed, position.shares)?.checked_mul_int(position.amount)?;
 
