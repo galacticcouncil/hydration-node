@@ -392,3 +392,20 @@ pub(crate) fn calculate_asset_tvl(asset_hub_reserve: Balance, stable_asset: (Bal
 
 	to_balance!(tvl)
 }
+
+pub(crate) fn calculate_delta_imbalance(
+	asset_state: &AssetState<Balance>,
+	amount: Balance,
+	imbalance: &SimpleImbalance<Balance>,
+	hub_reserve: Balance,
+) -> Option<Balance> {
+	if amount == Balance::zero() || imbalance.value == Balance::zero() || hub_reserve == Balance::zero() {
+		return Some(Balance::default());
+	}
+	//TODO: ask colin: if asset reserve is 0 for some reason - it is an error, or we can return delta_imbalance as 0 ?
+	let p1 = FixedU128::checked_from_rational(asset_state.hub_reserve, asset_state.reserve)?;
+	let p2 = FixedU128::checked_from_rational(imbalance.value, hub_reserve)?;
+	let p3 = p1.checked_mul(&p2)?;
+
+	p3.checked_mul_int(amount)
+}

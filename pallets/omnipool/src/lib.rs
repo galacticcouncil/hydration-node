@@ -70,7 +70,7 @@ use frame_support::require_transactional;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
 use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
-use sp_runtime::traits::{CheckedAdd, CheckedMul, CheckedSub, Zero};
+use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
 use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
@@ -92,7 +92,9 @@ mod math;
 mod types;
 pub mod weights;
 
-use crate::math::{calculate_buy_for_hub_asset_state_changes, calculate_sell_hub_state_changes};
+use crate::math::{
+	calculate_buy_for_hub_asset_state_changes, calculate_delta_imbalance, calculate_sell_hub_state_changes,
+};
 use crate::types::{AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -111,7 +113,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{ArithmeticError, FixedPointNumber};
+	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -1195,16 +1197,13 @@ impl<T: Config> Pallet<T> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
 
-		if current_imbalance.value == Balance::zero() || current_hub_asset_liquidity == Balance::zero() {
-			return Ok(());
-		}
-		let p1 = FixedU128::checked_from_rational(asset_state.hub_reserve, asset_state.reserve)
-			.ok_or(ArithmeticError::DivisionByZero)?;
-		let p2 = FixedU128::checked_from_rational(current_imbalance.value, current_hub_asset_liquidity)
-			.ok_or(ArithmeticError::DivisionByZero)?;
-		let p3 = p1.checked_mul(&p2).ok_or(ArithmeticError::Overflow)?;
-
-		let delta_imbalance = p3.checked_mul_int(*delta_amount).ok_or(ArithmeticError::Overflow)?;
+		let delta_imbalance = calculate_delta_imbalance(
+			asset_state,
+			*delta_amount,
+			&current_imbalance,
+			current_hub_asset_liquidity,
+		)
+		.ok_or(ArithmeticError::Overflow)?;
 
 		match delta_amount {
 			BalanceUpdate::Increase(_) => {
