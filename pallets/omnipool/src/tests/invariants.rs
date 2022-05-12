@@ -87,23 +87,11 @@ fn fee() -> impl Strategy<Value = (u32, u32)> {
 }
 
 fn sum_asset_hub_liquidity() -> Balance {
-	let mut total = 0;
-
-	for (_, asset) in <Assets<Test>>::iter() {
-		total += asset.hub_reserve;
-	}
-
-	total
+	<Assets<Test>>::iter().fold(0, |acc, v| acc + v.1.hub_reserve)
 }
 
 fn sum_asset_tvl() -> Balance {
-	let mut total = 0;
-
-	for (_, asset) in <Assets<Test>>::iter() {
-		total += asset.tvl;
-	}
-
-	total
+	<Assets<Test>>::iter().fold(0, |acc, v| acc + v.1.tvl)
 }
 
 #[derive(Debug)]
