@@ -1295,7 +1295,6 @@ proptest! {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
-	#[ignore]
 	fn remove_all_liquidity_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
 		stable_reserve in asset_reserve(),
@@ -1324,7 +1323,7 @@ proptest! {
 				(lp3, 300, token_3.amount + 2 * ONE),
 				(lp4, 400, token_4.amount + 2 * ONE),
 				(seller, 200, amount + 200 * ONE),
-				(buyer, DAI, 200_000 * ONE),
+				(buyer, DAI, 200_000_000 * ONE),
 			])
 			.with_registered_asset(100)
 			.with_registered_asset(200)
@@ -1345,10 +1344,7 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
-				let old_state_200 = <Assets<Test>>::get(200).unwrap();
-
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
-
 				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
 
 				let position_id = <PositionInstanceSequencer<Test>>::get();
@@ -1358,6 +1354,8 @@ proptest! {
 
 				// Let's do a trade so imbalance and price changes
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
+
+				let old_state_200 = <Assets<Test>>::get(200).unwrap();
 
 				assert_ok!(Omnipool::remove_liquidity(Origin::signed(seller), position_id, position.shares));
 
