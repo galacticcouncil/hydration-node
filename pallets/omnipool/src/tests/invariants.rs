@@ -1224,10 +1224,36 @@ proptest! {
 			)
 			.build()
 			.execute_with(|| {
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
 				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
+
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				assert_eq_approx!( FixedU128::from((old_imbalance.value, old_hub_liquidity)),
+								   FixedU128::from((new_imbalance.value, new_hub_liquidity)),
+								   FixedU128::from_float(0.000000001),
+								   "L/Q ratio changed"
+				);
+
 				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
+
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
+
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
+
+				assert_eq_approx!( FixedU128::from((old_imbalance.value, old_hub_liquidity)),
+								   FixedU128::from((new_imbalance.value, new_hub_liquidity)),
+								   FixedU128::from_float(0.000000001),
+								   "L/Q ratio changed"
+				);
 
 				// Let's do a trade so imbalance changes, so it is not always 0
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 300, LRNA, buy_amount, Balance::max_value()));
@@ -1241,15 +1267,15 @@ proptest! {
 				assert_ok!(Omnipool::add_liquidity(Origin::signed(seller), 200, amount));
 
 				let new_state_200 = <Assets<Test>>::get(200).unwrap();
-				let new_imbalance = <HubAssetImbalance<Test>>::get();
-
-				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
 
 				// Price should not change
 				assert_eq_approx!(old_state_200.price(),
 						new_state_200.price(),
 						FixedU128::from_float(0.0000000001),
 						"Price has changed after add liquidity");
+
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
 
 				assert_eq_approx!( FixedU128::from((old_imbalance.value, old_hub_liquidity)),
 								   FixedU128::from((new_imbalance.value, new_hub_liquidity)),
