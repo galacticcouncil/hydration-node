@@ -402,10 +402,20 @@ pub(crate) fn calculate_delta_imbalance(
 	if amount == Balance::zero() || imbalance.value == Balance::zero() || hub_reserve == Balance::zero() {
 		return Some(Balance::default());
 	}
-	//TODO: ask colin: if asset reserve is 0 for some reason - it is an error, or we can return delta_imbalance as 0 ?
-	let p1 = FixedU128::checked_from_rational(asset_state.hub_reserve, asset_state.reserve)?;
-	let p2 = FixedU128::checked_from_rational(imbalance.value, hub_reserve)?;
-	let p3 = p1.checked_mul(&p2)?;
 
-	p3.checked_mul_int(amount)
+	let (asset_reserve_hp, asset_hub_reserve_hp, amount_hp, imbalance_hp, hub_reserve_hp) = to_u256!(
+		asset_state.reserve,
+		asset_state.hub_reserve,
+		amount,
+		imbalance.value,
+		hub_reserve
+	);
+
+	let delta_imbalance_hp = asset_hub_reserve_hp
+		.checked_mul(imbalance_hp)
+		.and_then(|v| v.checked_div(asset_reserve_hp))
+		.and_then(|v| v.checked_mul(amount_hp))
+		.and_then(|v| v.checked_div(hub_reserve_hp))?;
+
+	to_balance!(delta_imbalance_hp)
 }
