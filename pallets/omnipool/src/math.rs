@@ -294,11 +294,53 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 
 	let delta_shares = shares_removed.checked_sub(delta_b)?;
 
-	let delta_reserve =
-		FixedU128::checked_from_rational(current_reserve, current_shares)?.checked_mul_int(delta_shares)?;
+	let (
+		current_reserve_hp,
+		current_hub_reserve_hp,
+		current_shares_hp,
+		delta_shares_hp,
+		shares_removed_hp,
+		position_amount_hp,
+		position_shares_hp,
+		stable_reserve_hp,
+		stable_hub_reserve_hp,
+	) = to_u256!(
+		current_reserve,
+		current_hub_reserve,
+		current_shares,
+		delta_shares,
+		shares_removed,
+		position.amount,
+		position.shares,
+		stable_asset.0,
+		stable_asset.1
+	);
 
-	let delta_hub_reserve =
-		FixedU128::checked_from_rational(delta_reserve, current_reserve)?.checked_mul_int(current_hub_reserve)?;
+	let delta_reserve_hp = current_reserve_hp
+		.checked_mul(delta_shares_hp)
+		.and_then(|v| v.checked_div(current_shares_hp))?;
+	let delta_hub_reserve_hp = delta_reserve_hp
+		.checked_mul(current_hub_reserve_hp)
+		.and_then(|v| v.checked_div(current_reserve_hp))?;
+
+	let delta_position_amount_hp = shares_removed_hp
+		.checked_mul(position_amount_hp)
+		.and_then(|v| v.checked_div(position_shares_hp))?;
+
+	let adjusted_asset_tvl_hp = stable_reserve_hp
+		.checked_mul(current_hub_reserve_hp.checked_sub(delta_hub_reserve_hp)?)
+		.and_then(|v| v.checked_div(stable_hub_reserve_hp))?;
+
+	let adjusted_asset_tvl = to_balance!(adjusted_asset_tvl_hp)?;
+	let delta_reserve = to_balance!(delta_reserve_hp)?;
+	let delta_hub_reserve = to_balance!(delta_hub_reserve_hp)?;
+	let delta_position_amount = to_balance!(delta_position_amount_hp)?;
+
+	let delta_tvl = match adjusted_asset_tvl.cmp(&asset_state.tvl) {
+		Ordering::Greater => BalanceUpdate::Increase(adjusted_asset_tvl.checked_sub(asset_state.tvl)?),
+		Ordering::Less => BalanceUpdate::Decrease(asset_state.tvl.checked_sub(adjusted_asset_tvl)?),
+		Ordering::Equal => BalanceUpdate::Increase(Balance::zero()),
+	};
 
 	let hub_transferred = if current_price > position_price {
 		// LP receives some hub asset
@@ -312,10 +354,7 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 
 		let p1 = double_current_price.checked_div(&price_sum)?;
 
-		let (shares_removed_hp, reserve_hp, current_shares_hp) =
-			to_u256!(shares_removed, current_reserve, current_shares);
-
-		let p2 = reserve_hp
+		let p2 = current_reserve_hp
 			.checked_mul(shares_removed_hp)
 			.and_then(|v| v.checked_div(current_shares_hp))?;
 
@@ -328,18 +367,6 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 		Balance::zero()
 	};
 
-	let delta_r_position =
-		FixedU128::checked_from_rational(shares_removed, position.shares)?.checked_mul_int(position.amount)?;
-
-	let adjusted_asset_tvl = FixedU128::checked_from_rational(stable_asset.0, stable_asset.1)?
-		.checked_mul_int(asset_state.hub_reserve.checked_sub(delta_hub_reserve)?)?;
-
-	let delta_tvl = match adjusted_asset_tvl.cmp(&asset_state.tvl) {
-		Ordering::Greater => BalanceUpdate::Increase(adjusted_asset_tvl.checked_sub(asset_state.tvl)?),
-		Ordering::Less => BalanceUpdate::Decrease(asset_state.tvl.checked_sub(adjusted_asset_tvl)?),
-		Ordering::Equal => BalanceUpdate::Increase(Balance::zero()),
-	};
-
 	Some(LiquidityStateChange {
 		asset: AssetStateChange {
 			delta_reserve: Decrease(delta_reserve),
@@ -350,7 +377,7 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 		},
 		delta_imbalance: Increase(delta_reserve),
 		lp_hub_amount: hub_transferred,
-		delta_position_reserve: Decrease(delta_r_position),
+		delta_position_reserve: Decrease(delta_position_amount),
 		delta_position_shares: Decrease(shares_removed),
 	})
 }

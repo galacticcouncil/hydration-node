@@ -44,7 +44,7 @@ fn remove_liquidity_works() {
 				liq_removed
 			));
 
-			assert_pool_state!(11_930 * ONE + 1, 23_860_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE, 23_860_000_000_000_000, SimpleImbalance::default());
 
 			assert_balance!(LP1, 1_000, 4600 * ONE + liq_removed);
 
@@ -52,10 +52,10 @@ fn remove_liquidity_works() {
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added - liq_removed,
-					hub_reserve: 1430000000000001, // TODO: check why 1 at the end ?!!
+					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE, // no change, price has not changed
-					tvl: 2_860_000_000_000_002,
+					tvl: 2_860_000_000_000_000,
 					tradable: Tradable::default(),
 				}
 			);
@@ -121,7 +121,7 @@ fn full_liquidity_removal_works() {
 				"Position still found"
 			);
 
-			assert_pool_state!(11_800 * ONE + 1, 23_600_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_800 * ONE, 23_600_000_000_000_000, SimpleImbalance::default());
 
 			assert_balance!(LP1, 1_000, 5000 * ONE);
 
@@ -129,10 +129,10 @@ fn full_liquidity_removal_works() {
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added - liq_removed,
-					hub_reserve: 1300000000000001,
+					hub_reserve: 1300000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE,
-					tvl: 2_600_000_000_000_002,
+					tvl: 2_600_000_000_000_000,
 					tradable: Tradable::default(),
 				}
 			);
@@ -193,7 +193,7 @@ fn partial_liquidity_removal_works() {
 				"Position has been removed incorrectly"
 			);
 
-			assert_pool_state!(11_930 * ONE + 1, 23_860_000_000_000_002, SimpleImbalance::default());
+			assert_pool_state!(11_930 * ONE, 23_860_000_000_000_000, SimpleImbalance::default());
 
 			assert_balance!(LP1, 1_000, 4800 * ONE);
 
@@ -201,10 +201,10 @@ fn partial_liquidity_removal_works() {
 				1_000,
 				AssetState {
 					reserve: token_amount + liq_added - liq_removed,
-					hub_reserve: 1430000000000001,
+					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE,
-					tvl: 2_860_000_000_000_002,
+					tvl: 2_860_000_000_000_000,
 					tradable: Tradable::default(),
 				}
 			);
