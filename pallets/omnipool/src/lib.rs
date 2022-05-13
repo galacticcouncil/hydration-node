@@ -422,21 +422,28 @@ pub mod pallet {
 
 			// Imbalance update and total hub asset liquidity for stable asset first
 			// Note: cannot be merged with native, because the calculations depend on updated values
-			Self::recalculate_imbalance(&stable_asset_state, BalanceUpdate::Decrease(stable_asset_reserve))?;
+			let delta_imbalance =
+				Self::recalculate_imbalance(&stable_asset_state, BalanceUpdate::Decrease(stable_asset_reserve))
+					.ok_or(ArithmeticError::Overflow)?;
+
+			// No imbalance yet, use default value
+			Self::update_imbalance(SimpleImbalance::default(), delta_imbalance)?;
+
 			Self::update_hub_asset_liquidity(
 				&BalanceUpdate::Increase(stable_asset_hub_reserve),
 				HubAssetIssuanceUpdate::AdjustSupply,
 			)?;
 
 			// Imbalance update total hub asset with native asset next
-			Self::recalculate_imbalance(&native_asset_state, BalanceUpdate::Decrease(native_asset_reserve))?;
+			Self::recalculate_imbalance(&native_asset_state, BalanceUpdate::Decrease(native_asset_reserve))
+				.ok_or(ArithmeticError::Overflow)?;
+			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
 			Self::update_hub_asset_liquidity(
 				&BalanceUpdate::Increase(native_asset_hub_reserve),
 				HubAssetIssuanceUpdate::AdjustSupply,
 			)?;
 
-			// TVL update
 			Self::update_tvl(&BalanceUpdate::Increase(
 				native_asset_tvl
 					.checked_add(stable_asset_amount)
@@ -512,7 +519,6 @@ pub mod pallet {
 
 			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
 
-			// if provided by LP, create and mint a position instance
 			let lp_position = Position::<Balance, T::AssetId> {
 				asset_id: asset,
 				amount,
@@ -533,10 +539,12 @@ pub mod pallet {
 				price: initial_price,
 			});
 
-			// Imbalance update
-			Self::recalculate_imbalance(&state, BalanceUpdate::Decrease(amount))?;
+			// Recalculate total Imbalance given the new asset state and update the value
+			let delta_imbalance = Self::recalculate_imbalance(&state, BalanceUpdate::Decrease(amount))
+				.ok_or(ArithmeticError::Overflow)?;
+			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
-			// Total hub asset liquidity update
+			// Total hub asset liquidity update - adjusting supply
 			Self::update_hub_asset_liquidity(
 				&BalanceUpdate::Increase(hub_reserve),
 				HubAssetIssuanceUpdate::AdjustSupply,
@@ -647,7 +655,9 @@ pub mod pallet {
 				)?;
 
 				// Imbalance update
-				Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)?;
+				let delta_imbalance = Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)
+					.ok_or(ArithmeticError::Overflow)?;
+				Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
 				// TVL update
 				Self::update_tvl(&state_changes.asset.delta_tvl)?;
@@ -739,7 +749,9 @@ pub mod pallet {
 				)?;
 
 				// Imbalance update
-				Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)?;
+				let delta_imbalance = Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)
+					.ok_or(ArithmeticError::Overflow)?;
+				Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
 				// TVL update
 				Self::update_tvl(&state_changes.asset.delta_tvl)?;
@@ -1181,7 +1193,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Update imbalance with given delta_imbalance and write new value to storage.
+	/// Update imbalance with given delta_imbalance - increase or decrease
 	fn update_imbalance(
 		current_imbalance: SimpleImbalance<Balance>,
 		delta_imbalance: BalanceUpdate<Balance>,
@@ -1195,11 +1207,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Recalculate imbalance and call update_imbalance with new imbalance value.
+	/// Recalculate imbalance based on current imbalance and hub liquidity
 	fn recalculate_imbalance(
 		asset_state: &AssetState<Balance>,
 		delta_amount: BalanceUpdate<Balance>,
-	) -> DispatchResult {
+	) -> Option<BalanceUpdate<Balance>> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
 
@@ -1208,16 +1220,11 @@ impl<T: Config> Pallet<T> {
 			*delta_amount,
 			&current_imbalance,
 			current_hub_asset_liquidity,
-		)
-		.ok_or(ArithmeticError::Overflow)?;
+		)?;
 
 		match delta_amount {
-			BalanceUpdate::Increase(_) => {
-				Self::update_imbalance(current_imbalance, BalanceUpdate::Increase(delta_imbalance))
-			}
-			BalanceUpdate::Decrease(_) => {
-				Self::update_imbalance(current_imbalance, BalanceUpdate::Decrease(delta_imbalance))
-			}
+			BalanceUpdate::Increase(_) => Some(BalanceUpdate::Increase(delta_imbalance)),
+			BalanceUpdate::Decrease(_) => Some(BalanceUpdate::Decrease(delta_imbalance)),
 		}
 	}
 
