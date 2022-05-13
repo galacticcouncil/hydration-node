@@ -215,6 +215,7 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 	asset_state: &AssetState<Balance>,
 	amount: Balance,
 	stable_asset: (Balance, Balance),
+	is_stable_asset: bool, // TODO: better idea? I dont like the flag that much but i'd need to know when adding liquidity of stable asset
 ) -> Option<LiquidityStateChange<Balance>> {
 	let delta_hub_reserve = asset_state.price().checked_mul_int(amount)?;
 
@@ -236,15 +237,17 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 		stable_asset.1
 	);
 
-	// TODO: if adding stable asset - then stable asset state must be updated first
-
 	let delta_shares_hp = shares_hp
 		.checked_mul(amount_hp)
 		.and_then(|v| v.checked_div(reserve_hp))?;
 
-	let adjusted_asset_tvl_hp = stable_reserve_hp
-		.checked_mul(hub_reserve_hp.checked_add(delta_hub_reserve_hp)?)
-		.and_then(|v| v.checked_div(stable_hub_reserve_hp))?;
+	let adjusted_asset_tvl_hp = if is_stable_asset {
+		stable_reserve_hp.checked_add(amount_hp)?
+	} else {
+		stable_reserve_hp
+			.checked_mul(hub_reserve_hp.checked_add(delta_hub_reserve_hp)?)
+			.and_then(|v| v.checked_div(stable_hub_reserve_hp))?
+	};
 
 	let delta_shares = to_balance!(delta_shares_hp)?;
 	let adjusted_asset_tvl = to_balance!(adjusted_asset_tvl_hp)?;
@@ -274,6 +277,7 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 	shares_removed: Balance,
 	position: &Position<Balance, AssetId>,
 	stable_asset: (Balance, Balance),
+	is_stable_asset: bool, // TODO: better idea? I dont like the flag that much but i'd need to know when adding liquidity of stable asset
 ) -> Option<LiquidityStateChange<Balance>> {
 	let current_shares = asset_state.shares;
 	let current_reserve = asset_state.reserve;
@@ -327,9 +331,14 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 		.checked_mul(position_amount_hp)
 		.and_then(|v| v.checked_div(position_shares_hp))?;
 
-	let adjusted_asset_tvl_hp = stable_reserve_hp
-		.checked_mul(current_hub_reserve_hp.checked_sub(delta_hub_reserve_hp)?)
-		.and_then(|v| v.checked_div(stable_hub_reserve_hp))?;
+	let adjusted_asset_tvl_hp = if is_stable_asset {
+		// TODO: add test for this
+		stable_reserve_hp.checked_sub(delta_reserve_hp)?
+	} else {
+		stable_reserve_hp
+			.checked_mul(current_hub_reserve_hp.checked_sub(delta_hub_reserve_hp)?)
+			.and_then(|v| v.checked_div(stable_hub_reserve_hp))?
+	};
 
 	let adjusted_asset_tvl = to_balance!(adjusted_asset_tvl_hp)?;
 	let delta_reserve = to_balance!(delta_reserve_hp)?;

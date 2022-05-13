@@ -588,8 +588,13 @@ pub mod pallet {
 			Assets::<T>::try_mutate(asset, |maybe_asset| -> DispatchResult {
 				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
 
-				let state_changes = calculate_add_liquidity_state_changes(asset_state, amount, stable_asset)
-					.ok_or(ArithmeticError::Overflow)?;
+				let state_changes = calculate_add_liquidity_state_changes(
+					asset_state,
+					amount,
+					stable_asset,
+					asset == T::StableCoinAssetId::get(),
+				)
+				.ok_or(ArithmeticError::Overflow)?;
 
 				// New Asset State
 				asset_state
@@ -708,6 +713,7 @@ pub mod pallet {
 					amount,
 					&position,
 					stable_asset,
+					asset_id == T::StableCoinAssetId::get(),
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 

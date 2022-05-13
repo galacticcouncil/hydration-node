@@ -1117,7 +1117,8 @@ proptest! {
 	) {
 		let result = calculate_add_liquidity_state_changes(&asset,
 			amount,
-			stable_asset
+			stable_asset,
+			false
 		);
 
 		assert!(result.is_some());
@@ -1145,7 +1146,8 @@ proptest! {
 		let result = calculate_remove_liquidity_state_changes(&asset,
 			position.amount,
 			&position,
-			stable_asset
+			stable_asset,
+			false
 		);
 
 		assert!(result.is_some());

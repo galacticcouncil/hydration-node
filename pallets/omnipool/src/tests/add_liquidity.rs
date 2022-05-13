@@ -63,6 +63,56 @@ fn add_liquidity_works() {
 }
 
 #[test]
+fn add_stable_asset_liquidity_works() {
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, DAI, 5000 * ONE))
+		.add_endowed_accounts((LP2, 1_000, 5000 * ONE))
+		.with_initial_pool(
+			1000 * ONE,
+			NATIVE_AMOUNT,
+			FixedU128::from_float(0.5),
+			FixedU128::from(1),
+		)
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+			let position_id = <PositionInstanceSequencer<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), DAI, liq_added));
+
+			assert_asset_state!(
+				DAI,
+				AssetState {
+					reserve: 1000 * ONE + liq_added,
+					hub_reserve: 700000000000000,
+					shares: 1400000000000000,
+					protocol_shares: 1000 * ONE,
+					tvl: 1400000000000000,
+					tradable: Tradable::default(),
+				}
+			);
+
+			let position = Positions::<Test>::get(position_id).unwrap();
+
+			let expected = Position::<Balance, AssetId> {
+				asset_id: DAI,
+				amount: liq_added,
+				shares: liq_added,
+				price: FixedU128::from_float(0.5).into_inner(),
+			};
+
+			assert_eq!(position, expected);
+
+			assert_pool_state!(10_700 * ONE, 21_400 * ONE, SimpleImbalance::default());
+
+			assert_balance!(LP1, DAI, 4600 * ONE);
+
+			let minted_position = POSITIONS.with(|v| v.borrow().get(&position_id).copied());
+
+			assert_eq!(minted_position, Some(LP1));
+		});
+}
+
+#[test]
 fn add_liquidity_for_non_pool_token_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
