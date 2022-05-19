@@ -39,7 +39,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
-use frame_support::traits::{Everything, OnUnbalanced};
+use frame_support::traits::{Contains, OnUnbalanced};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Currency as PalletCurrency, Imbalance},
@@ -81,7 +81,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 103,
+	spec_version: 104,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -156,6 +156,17 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 	}
 }
 
+pub struct TransfersDisabled;
+impl Contains<Call> for TransfersDisabled {
+	fn contains(call: &Call) -> bool {
+		#[allow(clippy::match_like_matches_macro)]
+		match call {
+			Call::Balances(_) => false,
+			_ => true,
+		}
+	}
+}
+
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 	/// Block weights base values and limits.
@@ -184,7 +195,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = TransfersDisabled;
 	type BlockWeights = BlockWeights;
 	type BlockLength = BlockLength;
 	/// The ubiquitous origin type.
