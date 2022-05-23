@@ -1,6 +1,6 @@
 use super::*;
 use frame_support::assert_noop;
-use sp_runtime::Percent;
+use sp_runtime::Perbill;
 
 #[test]
 fn simple_sell_works() {
@@ -440,7 +440,7 @@ fn simple_sell_with_fee_works() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_asset_fee((1, 10))
+		.with_asset_fee(Perbill::from_percent(10))
 		.with_initial_pool(1000 * ONE, NATIVE_AMOUNT, FixedU128::from(1), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -459,8 +459,8 @@ fn simple_sell_with_fee_works() {
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
-			let fee = Percent::from_percent(10);
-			let fee = Percent::from_percent(100).checked_sub(&fee).unwrap();
+			let fee = Perbill::from_percent(10);
+			let fee = Perbill::from_percent(100).checked_sub(&fee).unwrap();
 
 			let expected_zero_fee = 47_619_047_619_047u128;
 			let expected_10_percent_fee = fee.mul_ceil(expected_zero_fee);

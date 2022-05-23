@@ -77,7 +77,7 @@ use sp_std::prelude::*;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Perbill};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -157,11 +157,11 @@ pub mod pallet {
 
 		/// Protocol fee
 		#[pallet::constant]
-		type ProtocolFee: Get<(u32, u32)>;
+		type ProtocolFee: Get<Perbill>;
 
 		/// Asset fee
 		#[pallet::constant]
-		type AssetFee: Get<(u32, u32)>;
+		type AssetFee: Get<Perbill>;
 
 		/// Asset weight cap
 		#[pallet::constant]
@@ -863,8 +863,8 @@ pub mod pallet {
 				&asset_in_state,
 				&asset_out_state,
 				amount,
-				Self::asset_fee(),
-				Self::protocol_fee(),
+				T::AssetFee::get(),
+				T::ProtocolFee::get(),
 				&current_imbalance,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -983,8 +983,8 @@ pub mod pallet {
 				&asset_in_state,
 				&asset_out_state,
 				amount,
-				Self::asset_fee(),
-				Self::protocol_fee(),
+				T::AssetFee::get(),
+				T::ProtocolFee::get(),
 				&current_imbalance,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1098,23 +1098,6 @@ impl<T: Config> Pallet<T> {
 		PalletId(*b"omnipool").into_account()
 	}
 
-	/// Convert protocol fee to FixedU128
-	fn protocol_fee() -> Price {
-		let fee = T::ProtocolFee::get();
-		match fee {
-			(_, 0) => FixedU128::zero(),
-			(a, b) => FixedU128::from((a, b)),
-		}
-	}
-
-	/// Convert asset fee to FixedU128
-	fn asset_fee() -> Price {
-		let fee = T::AssetFee::get();
-		match fee {
-			(_, 0) => FixedU128::zero(),
-			(a, b) => FixedU128::from((a, b)),
-		}
-	}
 	/// Convert asset weight cap to FixedU128
 	fn asset_weight_cap() -> Price {
 		let fee = T::AssetWeightCap::get();
@@ -1270,7 +1253,7 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::NotAllowed
 			); // TODO: Add test for this!
 
-			let state_changes = calculate_sell_hub_state_changes(asset_out_state, amount, Self::asset_fee())
+			let state_changes = calculate_sell_hub_state_changes(asset_out_state, amount, T::AssetFee::get())
 				.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
@@ -1341,7 +1324,7 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::NotAllowed
 			); // TODO: Add test for this!
 
-			let state_changes = calculate_buy_for_hub_asset_state_changes(asset_out_state, amount, Self::asset_fee())
+			let state_changes = calculate_buy_for_hub_asset_state_changes(asset_out_state, amount, T::AssetFee::get())
 				.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(

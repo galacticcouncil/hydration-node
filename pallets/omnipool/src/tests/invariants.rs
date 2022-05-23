@@ -40,10 +40,6 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 	1000..10000 * ONE
 }
 
-fn fixed_fee() -> impl Strategy<Value = FixedU128> {
-	(fee()).prop_map(FixedU128::from)
-}
-
 fn price() -> impl Strategy<Value = FixedU128> {
 	(0.1f64..2f64).prop_map(FixedU128::from_float)
 }
@@ -81,9 +77,10 @@ fn assert_asset_invariant(
 	let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
 	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
 }
-fn fee() -> impl Strategy<Value = (u32, u32)> {
+fn fee() -> impl Strategy<Value = Perbill> {
 	// Allow values between 0.001 and 0.1
-	(0u32..1u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)]).prop_map(|(n, d)| (n, d))
+	(0u32..1u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)])
+		.prop_map(|(n, d)| Perbill::from_rational(n, d))
 }
 
 fn sum_asset_hub_liquidity() -> Balance {
@@ -116,8 +113,8 @@ proptest! {
 		amount in trade_amount()
 	) {
 		let result =  calculate_sell_state_changes(&asset_in, &asset_out, amount,
-			FixedU128::from(0u128),
-			FixedU128::from(0u128),
+			Perbill::from_percent(0),
+			Perbill::from_percent(0),
 			&SimpleImbalance::default()
 		);
 
@@ -143,8 +140,8 @@ proptest! {
 	fn sell_update_invariants_with_fees(asset_in in asset_state(),
 		asset_out in asset_state(),
 		amount in trade_amount(),
-		asset_fee in fixed_fee(),
-		protocol_fee in fixed_fee()
+		asset_fee in fee(),
+		protocol_fee in fee()
 	) {
 		let result =  calculate_sell_state_changes(&asset_in, &asset_out, amount,
 			asset_fee,
@@ -171,7 +168,7 @@ proptest! {
 	#[test]
 	fn sell_hub_update_invariants_with_fees(asset_out in asset_state(),
 		amount in trade_amount(),
-		asset_fee in fixed_fee(),
+		asset_fee in fee(),
 	) {
 		let result = calculate_sell_hub_state_changes (&asset_out, amount,
 			asset_fee,
@@ -192,7 +189,7 @@ proptest! {
 	#[test]
 	fn buy_hub_update_invariants_with_fees(asset_out in asset_state(),
 		amount in trade_amount(),
-		asset_fee in fixed_fee(),
+		asset_fee in fee(),
 	) {
 		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
 			asset_fee,
@@ -213,8 +210,8 @@ proptest! {
 	#[test]
 	fn buy_update_invariants_with_fees(asset_in in asset_state(), asset_out in asset_state(),
 		amount in trade_amount(),
-		asset_fee in fixed_fee(),
-		protocol_fee in fixed_fee()
+		asset_fee in fee(),
+		protocol_fee in fee()
 	) {
 		let result =  calculate_buy_state_changes(&asset_in, &asset_out, amount,
 			asset_fee,
@@ -258,8 +255,8 @@ fn buy_update_invariants_no_fees_case() {
 		&asset_in,
 		&asset_out,
 		amount,
-		FixedU128::from(0u128),
-		FixedU128::from(0u128),
+		Perbill::from_percent(0),
+		Perbill::from_percent(0),
 		&SimpleImbalance::default(),
 	);
 
@@ -273,8 +270,9 @@ proptest! {
 		amount in trade_amount()
 	) {
 		let result =  calculate_buy_state_changes(&asset_in, &asset_out, amount,
-			FixedU128::from(0u128),
-			FixedU128::from(0u128),
+
+		Perbill::from_percent(0),
+		Perbill::from_percent(0),
 			&SimpleImbalance::default()
 		);
 
