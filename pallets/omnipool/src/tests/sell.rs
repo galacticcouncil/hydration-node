@@ -447,8 +447,6 @@ fn simple_sell_with_fee_works() {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(1.0);
 
-			let fee = Percent::from_rational(1u8, 10u8);
-
 			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
 
 			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
@@ -461,6 +459,7 @@ fn simple_sell_with_fee_works() {
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
+			let fee = Percent::from_percent(10);
 			let fee = Percent::from_percent(100).checked_sub(&fee).unwrap();
 
 			let expected_zero_fee = 47_619_047_619_047u128;

@@ -382,3 +382,53 @@ fn buy_for_hub_asset_works() {
 			);
 		});
 }
+
+#[test]
+fn simple_buy_with_fee_works() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee((1, 10))
+		.with_initial_pool(1000 * ONE, NATIVE_AMOUNT, FixedU128::from(1), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			let token_amount = 2000 * ONE;
+			let token_price = FixedU128::from(1);
+
+			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
+
+			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
+
+			assert_eq!(Tokens::free_balance(200, &LP1), 0u128);
+
+			assert_eq!(Tokens::free_balance(200, &Omnipool::protocol_account()), token_amount);
+
+			let buy_amount = 50 * ONE;
+			let max_limit = 100 * ONE;
+
+			let expected_zero_fee: Balance = 52_631_578_947_370;
+			let expected_10_percent_fee: Balance = 58_823_529_411_766;
+
+			assert!(expected_zero_fee < expected_10_percent_fee); // note: dont make much sense as values are constants, but good to see the diff for further verification
+
+			let expect_sold_amount = expected_10_percent_fee;
+
+			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, 100, buy_amount, max_limit));
+
+			assert_eq!(Tokens::free_balance(100, &LP1), 1000 * ONE - expect_sold_amount);
+
+			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
+
+			assert_eq!(
+				Tokens::free_balance(100, &Omnipool::protocol_account()),
+				token_amount + expect_sold_amount
+			);
+		});
+}
