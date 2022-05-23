@@ -181,7 +181,7 @@ if [ ${#RUNTIME_VERSION_DIFFS[@]} -ne 0 ]; then
 fi
 
 RUNTIME_CARGO_VERSIONS=( $(printf '%s\n' "${RUNTIME_CARGO_VERSIONS[@]}" | sort -u) )
-if [ ${#RUNTIME_CARGO_VERSIONS} -gt 1 ]; then
+if [ ${#RUNTIME_CARGO_VERSIONS[@]} -gt 1 ]; then
   echo "Runtime versions don't match."
   echo
 fi

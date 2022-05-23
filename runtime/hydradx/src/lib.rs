@@ -119,35 +119,6 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
-pub struct BaseFilter;
-
-impl Contains<Call> for BaseFilter {
-	fn contains(call: &Call) -> bool {
-		matches!(
-			call,
-			Call::System(_)
-				| Call::Timestamp(_)
-				| Call::Scheduler(_)
-				| Call::Treasury(_)
-				| Call::Utility(_)
-				| Call::Preimage(_)
-				| Call::Identity(_)
-				| Call::Democracy(_)
-				| Call::Elections(_)
-				| Call::Council(_)
-				| Call::TechnicalCommittee(_)
-				| Call::Tips(_) | Call::Proxy(_)
-				| Call::AssetRegistry(_)
-				| Call::Claims(_)
-				| Call::ParachainSystem(_)
-				| Call::Authorship(_)
-				| Call::CollatorSelection(_)
-				| Call::Session(_)
-				| Call::Sudo(_)
-		)
-	}
-}
-
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -208,6 +179,17 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 	}
 }
 
+pub struct TransfersDisabled;
+impl Contains<Call> for TransfersDisabled {
+	fn contains(call: &Call) -> bool {
+		#[allow(clippy::match_like_matches_macro)]
+		match call {
+			Call::Balances(_) => false,
+			_ => true,
+		}
+	}
+}
+
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 	/// Block weights base values and limits.
@@ -236,7 +218,9 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = BaseFilter;
+	type BaseCallFilter = TransfersDisabled;
+	type BlockWeights = BlockWeights;
+	type BlockLength = BlockLength;
 	/// The ubiquitous origin type.
 	type Origin = Origin;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -258,8 +242,6 @@ impl frame_system::Config for Runtime {
 	/// The ubiquitous event type.
 	type Event = Event;
 	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
-	type BlockWeights = BlockWeights;
-	type BlockLength = BlockLength;
 	type BlockHashCount = BlockHashCount;
 	/// The weight of database operations that the runtime can invoke.
 	type DbWeight = RocksDbWeight;
