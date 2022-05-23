@@ -1,6 +1,14 @@
+# v12.1.0 (Thu Mar 10 2022)
+
+- upgraded dependencies to ensure compatibility with Polkadot 0.9.16
+
+---
+
 # v12.0.0 (Thu Dec 23 2021)
 
 - shell parachain release to be registered in Polkadot relaychain and receive Snakenet state migration when onboarded
+
+---
 
 # v11.1.1 (Tue Sep 28 2021)
 
