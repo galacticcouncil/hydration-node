@@ -16,17 +16,12 @@ const moment = require("moment");
 const yargs = require('yargs');
 const { hideBin } = require('yargs/helpers');
 
-
-const SNAKENET_RPC = "wss://rpc-01.snakenet.hydradx.io"
-const LOCAL = "ws://127.0.0.1:9944";
-const FORK_OFF = "ws://65.108.108.7:9988";
 const ACCOUNT_SECRET = process.env.ACCOUNT_SECRET || "//Alice";
 
-const SOURCE_RPC = process.env.SOURCE_RPC_SERVER || FORK_OFF;
-const TARGET_RPC = process.env.TARGET_RPC_SERVER || LOCAL;
+const SOURCE_RPC = process.env.SOURCE_RPC_SERVER || "wss://rpc-02.snakenet.hydradx.io";
+const TARGET_RPC = process.env.TARGET_RPC_SERVER || "ws://127.0.0.1:9988";
 
 const storagePath = path.join(__dirname, "data", "storage.json");
-const tripleStoragePath = path.join(__dirname, "data", "tripleStorage.json");
 const tempStoragePath = path.join(__dirname, "data", "tempStorage.json");
 const finalStoragePath = path.join(__dirname, "data", "finalStorage.json");
 
@@ -248,6 +243,7 @@ const all_modules = [
 const excludeFromTripling = [
     "7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf", // Galactic council
     "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba", // Alice.
+    "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh", // Treasury
 ];
 
 const ignoreInValidate = [
