@@ -531,14 +531,14 @@ const removeDemocracyLocks = (registry, value) => {
 
 const tripleBalance = (registry, value, decreaseConsumers) => {
     let aInfo = registry.createType("AccountInfo", value);
-    let balance = new BN(aInfo.data.free.toString())
+    const balance = new BN(aInfo.data.free.toString())
     const reserved = new BN(aInfo.data.reserved.toString())
 
-    const issued = balance.imuln(2).add(reserved.imuln(2));
+    const issued = balance.muln(2).add(reserved.muln(2));
 
-    balance = balance.add(issued);
+    const newBalance = balance.add(issued);
 
-    let b = registry.createType("Balance", balance.toString(10,0));
+    let b = registry.createType("Balance", newBalance.toString(10,0));
 
     let newData = registry.createType("AccountData", { free: b,
         reserved: aInfo.data.reserved,
