@@ -191,7 +191,7 @@ pub mod pallet {
 			+ Inspect<Self::AccountId, InstanceId = Self::PositionInstanceId>;
 
 		/// Weight information for extrinsics in this pallet.
-		type WeightInfo: weights::WeightInfo;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::storage]

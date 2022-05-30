@@ -216,7 +216,7 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 	asset_state: &AssetState<Balance>,
 	amount: Balance,
 	stable_asset: (Balance, Balance),
-	is_stable_asset: bool, // TODO: better idea? I dont like the flag that much but i'd need to know when adding liquidity of stable asset
+	is_stable_asset: bool,
 ) -> Option<LiquidityStateChange<Balance>> {
 	let delta_hub_reserve = asset_state.price().checked_mul_int(amount)?;
 
