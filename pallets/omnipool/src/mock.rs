@@ -59,8 +59,8 @@ thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static ASSET_WEIGHT_CAP: RefCell<(u32,u32)> = RefCell::new((u32::MAX,1));
-	pub static ASSET_FEE: RefCell<Perbill> = RefCell::new(Perbill::from_percent(0));
-	pub static PROTOCOL_FEE: RefCell<Perbill> = RefCell::new(Perbill::from_percent(0));
+	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
+	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(Balance::default());
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(Balance::default());
 }
@@ -141,8 +141,8 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionClassId: u32= 1000;
 
-	pub ProtocolFee: Perbill = PROTOCOL_FEE.with(|v| *v.borrow());
-	pub AssetFee: Perbill = ASSET_FEE.with(|v| *v.borrow());
+	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
+	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: (u32,u32) =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
@@ -173,8 +173,8 @@ impl Config for Test {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
-	asset_fee: Perbill,
-	protocol_fee: Perbill,
+	asset_fee: Permill,
+	protocol_fee: Permill,
 	asset_weight_cap: (u32, u32),
 	min_liquidity: u128,
 	min_trade_limit: u128,
@@ -196,10 +196,10 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = (u32::MAX, 1);
 		});
 		ASSET_FEE.with(|v| {
-			*v.borrow_mut() = Perbill::from_percent(0);
+			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		PROTOCOL_FEE.with(|v| {
-			*v.borrow_mut() = Perbill::from_percent(0);
+			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		MIN_ADDED_LIQUDIITY.with(|v| {
 			*v.borrow_mut() = 0;
@@ -214,8 +214,8 @@ impl Default for ExtBuilder {
 				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 				(Omnipool::protocol_account(), 1_000, 2000 * ONE),
 			],
-			asset_fee: Perbill::from_percent(0),
-			protocol_fee: Perbill::from_percent(0),
+			asset_fee: Permill::from_percent(0),
+			protocol_fee: Permill::from_percent(0),
 			asset_weight_cap: (u32::MAX, 1),
 			min_liquidity: 0,
 			registered_assets: vec![],
@@ -244,12 +244,12 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_asset_fee(mut self, fee: Perbill) -> Self {
+	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
 		self.asset_fee = fee;
 		self
 	}
 
-	pub fn with_protocol_fee(mut self, fee: Perbill) -> Self {
+	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
 		self.protocol_fee = fee;
 		self
 	}

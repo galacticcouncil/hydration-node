@@ -77,10 +77,10 @@ fn assert_asset_invariant(
 	let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
 	assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
 }
-fn fee() -> impl Strategy<Value = Perbill> {
+fn fee() -> impl Strategy<Value = Permill> {
 	// Allow values between 0.001 and 0.1
 	(0u32..1u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)])
-		.prop_map(|(n, d)| Perbill::from_rational(n, d))
+		.prop_map(|(n, d)| Permill::from_rational(n, d))
 }
 
 fn sum_asset_hub_liquidity() -> Balance {
@@ -113,8 +113,8 @@ proptest! {
 		amount in trade_amount()
 	) {
 		let result =  calculate_sell_state_changes(&asset_in, &asset_out, amount,
-			Perbill::from_percent(0),
-			Perbill::from_percent(0),
+			Permill::from_percent(0),
+			Permill::from_percent(0),
 			&SimpleImbalance::default()
 		);
 
@@ -255,8 +255,8 @@ fn buy_update_invariants_no_fees_case() {
 		&asset_in,
 		&asset_out,
 		amount,
-		Perbill::from_percent(0),
-		Perbill::from_percent(0),
+		Permill::from_percent(0),
+		Permill::from_percent(0),
 		&SimpleImbalance::default(),
 	);
 
@@ -271,8 +271,8 @@ proptest! {
 	) {
 		let result =  calculate_buy_state_changes(&asset_in, &asset_out, amount,
 
-		Perbill::from_percent(0),
-		Perbill::from_percent(0),
+		Permill::from_percent(0),
+		Permill::from_percent(0),
 			&SimpleImbalance::default()
 		);
 

@@ -6,7 +6,7 @@ use crate::types::{
 use crate::{AssetState, FixedU128, Price};
 use primitive_types::U256;
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
-use sp_runtime::{FixedPointNumber, Perbill};
+use sp_runtime::{FixedPointNumber, Permill};
 use sp_std::cmp::{min, Ordering};
 use sp_std::default::Default;
 use std::ops::Sub;
@@ -26,7 +26,7 @@ macro_rules! to_balance {
 }
 
 #[inline]
-fn amount_without_fee(amount: Balance, fee: Perbill) -> Option<Balance> {
+fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
 	let fee_amount = fee.mul_floor(amount);
 	amount.checked_sub(fee_amount)
 }
@@ -36,8 +36,8 @@ pub(crate) fn calculate_sell_state_changes(
 	asset_in_state: &AssetState<Balance>,
 	asset_out_state: &AssetState<Balance>,
 	amount: Balance,
-	asset_fee: Perbill,
-	protocol_fee: Perbill,
+	asset_fee: Permill,
+	protocol_fee: Permill,
 	imbalance: &SimpleImbalance<Balance>,
 ) -> Option<TradeStateChange<Balance>> {
 	let (in_hub_reserve, in_reserve, in_amount) = to_u256!(asset_in_state.hub_reserve, asset_in_state.reserve, amount);
@@ -89,7 +89,7 @@ pub(crate) fn calculate_sell_state_changes(
 pub(crate) fn calculate_sell_hub_state_changes(
 	asset_out_state: &AssetState<Balance>,
 	hub_asset_amount: Balance,
-	asset_fee: Perbill,
+	asset_fee: Permill,
 ) -> Option<HubTradeStateChange<Balance>> {
 	let (reserve_hp, hub_reserve_hp, amount_hp) =
 		to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
@@ -120,7 +120,7 @@ pub(crate) fn calculate_sell_hub_state_changes(
 pub(crate) fn calculate_buy_for_hub_asset_state_changes(
 	asset_out_state: &AssetState<Balance>,
 	asset_out_amount: Balance,
-	asset_fee: Perbill,
+	asset_fee: Permill,
 ) -> Option<HubTradeStateChange<Balance>> {
 	let hub_denominator = amount_without_fee(asset_out_state.reserve, asset_fee)?.checked_sub(asset_out_amount)?;
 
@@ -153,8 +153,8 @@ pub(crate) fn calculate_buy_state_changes(
 	asset_in_state: &AssetState<Balance>,
 	asset_out_state: &AssetState<Balance>,
 	amount: Balance,
-	asset_fee: Perbill,
-	protocol_fee: Perbill,
+	asset_fee: Permill,
+	protocol_fee: Permill,
 	imbalance: &SimpleImbalance<Balance>,
 ) -> Option<TradeStateChange<Balance>> {
 	let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
@@ -170,7 +170,7 @@ pub(crate) fn calculate_buy_state_changes(
 
 	// Negative
 	let delta_hub_reserve_in: Balance = FixedU128::from_inner(delta_hub_reserve_out)
-		.checked_div(&Perbill::from_percent(100).sub(protocol_fee).into())?
+		.checked_div(&Permill::from_percent(100).sub(protocol_fee).into())?
 		.into_inner();
 
 	if delta_hub_reserve_in >= asset_in_state.hub_reserve {

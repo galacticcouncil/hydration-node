@@ -77,7 +77,7 @@ use sp_std::prelude::*;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Perbill};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -157,11 +157,11 @@ pub mod pallet {
 
 		/// Protocol fee
 		#[pallet::constant]
-		type ProtocolFee: Get<Perbill>;
+		type ProtocolFee: Get<Permill>;
 
 		/// Asset fee
 		#[pallet::constant]
-		type AssetFee: Get<Perbill>;
+		type AssetFee: Get<Permill>;
 
 		/// Asset weight cap
 		#[pallet::constant]

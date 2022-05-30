@@ -15,8 +15,8 @@ fn fee_test_buy_sell() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_asset_fee(Perbill::from_percent(10))
-		.with_protocol_fee(Perbill::from_percent(20))
+		.with_asset_fee(Permill::from_percent(10))
+		.with_protocol_fee(Permill::from_percent(20))
 		.with_initial_pool(
 			1000 * ONE,
 			NATIVE_AMOUNT,

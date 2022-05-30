@@ -395,7 +395,7 @@ fn simple_buy_with_fee_works() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_asset_fee(Perbill::from_percent(10))
+		.with_asset_fee(Permill::from_percent(10))
 		.with_initial_pool(1000 * ONE, NATIVE_AMOUNT, FixedU128::from(1), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
