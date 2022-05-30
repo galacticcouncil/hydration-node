@@ -21,7 +21,7 @@
 //!
 //! Omnipool is type of AMM where all assets are pooled together into one single pool.
 //!
-//! Liquidity provider can provide any aset of their choice to the Omnipool and in return
+//! Liquidity provider can provide any asset of their choice to the Omnipool and in return
 //! they will receive pool shares for this single asset.
 //!
 //! The position is represented with a NFT token which saves the amount of shares distributed
@@ -665,9 +665,6 @@ pub mod pallet {
 					HubAssetIssuanceUpdate::AdjustSupply,
 				)?;
 
-				// Storage update - asset state
-				<Assets<T>>::insert(asset, asset_state);
-
 				Self::deposit_event(Event::LiquidityAdded {
 					from: who,
 					asset_id: asset,
@@ -773,9 +770,6 @@ pub mod pallet {
 						HubAssetIssuanceUpdate::JustTransfer,
 					)?;
 				}
-
-				// Storage update - asset state and position
-				<Assets<T>>::insert(asset_id, asset_state);
 
 				if position.shares == Balance::zero() {
 					// All liquidity removed, remove position and burn NFT instance

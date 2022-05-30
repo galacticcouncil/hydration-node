@@ -278,7 +278,7 @@ pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
 	shares_removed: Balance,
 	position: &Position<Balance, AssetId>,
 	stable_asset: (Balance, Balance),
-	is_stable_asset: bool, // TODO: better idea? I dont like the flag that much but i'd need to know when adding liquidity of stable asset
+	is_stable_asset: bool,
 ) -> Option<LiquidityStateChange<Balance>> {
 	let current_shares = asset_state.shares;
 	let current_reserve = asset_state.reserve;
