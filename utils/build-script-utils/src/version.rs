@@ -1,9 +1,11 @@
 use platforms::*;
-use std::{borrow::Cow, env, fs, io, path, process::Command};
+use std::{borrow::Cow, process::Command, path, io, fs, env};
 
 /// Generate the `cargo:` key output
 pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {
-	let output = Command::new("git").args(&["rev-parse", "--short", "HEAD"]).output();
+	let output = Command::new("git")
+		.args(&["rev-parse", "--short", "HEAD"])
+		.output();
 
 	let commit = match output {
 		Ok(o) if o.status.success() => {
@@ -13,17 +15,14 @@ pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {
 		Ok(o) => {
 			println!("cargo:warning=Git command failed with status: {}", o.status);
 			Cow::from("unknown")
-		}
+		},
 		Err(err) => {
 			println!("cargo:warning=Failed to execute git command: {}", err);
 			Cow::from("unknown")
-		}
+		},
 	};
 
-	println!(
-		"cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}",
-		get_version(&commit, runtime).unwrap()
-	);
+	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version(&commit, runtime).unwrap());
 	Ok(())
 }
 
@@ -52,11 +51,11 @@ fn get_release_version() -> String {
 		Ok(o) => {
 			println!("cargo:warning=Git describe command failed with status: {}", o.status);
 			Cow::from("unknown")
-		}
+		},
 		Err(err) => {
 			println!("cargo:warning=Failed to execute git describe command: {}", err);
 			Cow::from("unknown")
-		}
+		},
 	};
 	version.to_string()
 }
