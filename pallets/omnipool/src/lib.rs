@@ -83,9 +83,6 @@ use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Pe
 mod benchmarks;
 
 #[cfg(test)]
-mod mock;
-
-#[cfg(test)]
 mod tests;
 
 mod math;

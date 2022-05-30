@@ -1,4 +1,3 @@
-use crate::mock::*;
 use crate::types::{AssetState, Position, SimpleImbalance, Tradable};
 use crate::*;
 use frame_support::assert_ok;
@@ -17,6 +16,10 @@ mod scenario_08_simple;
 mod scenario_08_with_fees;
 mod scenario_09;
 mod sell;
+
+pub(crate) mod mock;
+
+use mock::*;
 
 #[macro_export]
 macro_rules! assert_eq_approx {

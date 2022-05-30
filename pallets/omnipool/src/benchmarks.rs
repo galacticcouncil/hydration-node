@@ -269,7 +269,7 @@ benchmarks! {
 #[cfg(test)]
 mod tests {
 	use super::Pallet;
-	use crate::mock::*;
+	use crate::tests::mock::*;
 	use frame_benchmarking::impl_benchmark_test_suite;
 
 	impl_benchmark_test_suite!(Pallet, super::ExtBuilder::default().build(), super::Test);

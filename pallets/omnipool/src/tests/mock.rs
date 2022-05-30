@@ -17,7 +17,7 @@
 
 //! Test environment for Assets pallet.
 
-use super::*;
+use crate::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
