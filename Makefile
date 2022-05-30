@@ -1,6 +1,7 @@
 .PHONY: build
 build:
 	cargo build --release
+	ln -f $(CURDIR)/target/release/hydradx $(CURDIR)/target/release/testing-hydradx
 
 .PHONY: check
 check:
@@ -17,7 +18,7 @@ test:
 .PHONY: test-benchmarks
 test-benchmarks:
 	cargo test --release --features runtime-benchmarks
-	
+
 .PHONY: coverage
 coverage:
 	cargo tarpaulin --avoid-cfg-tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files infrastructure/*  --exclude-files utils/* --exclude-files **/weights.rs --ignore-tests -o Xml -o lcov
@@ -38,3 +39,7 @@ build-docs:
 .PHONY: clean
 clean:
 	cargo clean
+
+.PHONY: docker
+docker:
+	docker build -t hydra-dx .

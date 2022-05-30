@@ -1,26 +1,17 @@
-FROM rust:latest as builder
-
-RUN apt update && apt install -y git clang curl libssl-dev llvm libudev-dev
-
-WORKDIR /build
-
-COPY . /build
-
-RUN cargo build --release
-
-FROM ubuntu:22.04
+FROM ubuntu:21.04
 LABEL org.opencontainers.image.source = "https://github.com/galacticcouncil/HydraDX-node"
-COPY --from=builder /build/target/release/hydra-dx /usr/local/bin
 
 RUN useradd -m -u 1000 -U -s /bin/sh -d /hydra hydra && \
 	mkdir -p /hydra/.local/share && \
-	mkdir /data && \
-	chown -R hydra:hydra /data && \
-	ln -s /data /hydra/.local/share/hydra-dx && \
-	rm -rf /usr/bin /usr/sbin
+	chown -R hydra:hydra /hydra
+
+ADD target/release/hydradx /usr/local/bin/hydradx
+
+RUN chmod +x /usr/local/bin/hydradx
 
 USER hydra
-EXPOSE 30333 9933 9944
-VOLUME ["/data"]
+EXPOSE 30333 9933 9944 9615
+VOLUME ["/hydra/.local/share"]
 
-CMD ["/usr/local/bin/hydra-dx","--chain","lerna"]
+ENTRYPOINT ["/usr/local/bin/hydradx"]
+CMD ["--prometheus-external", "--", "--execution=wasm" ,"--telemetry-url", "wss://telemetry.hydradx.io:9000/submit/ 0"]

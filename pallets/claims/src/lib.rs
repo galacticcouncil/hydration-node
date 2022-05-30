@@ -38,8 +38,6 @@ use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
 use weights::WeightInfo;
 
 mod benchmarking;
-mod claims_data;
-mod migration;
 mod traits;
 pub use traits::*;
 pub mod weights;

@@ -1,8 +1,8 @@
-//! HydraDX Client abstractions
+//! Client abstractions
 
 #![allow(clippy::upper_case_acronyms)]
 
-pub use crate::service::{FullBackend, FullClient, HydraExecutorDispatch, TestingHydraExecutorDispatch};
+use crate::service::{FullBackend, FullClient, HydraDXExecutorDispatch, TestingHydraDXExecutorDispatch};
 use common_runtime::{AccountId, Balance, Block, BlockNumber, Hash, Header, Index};
 use sc_client_api::{Backend as BackendT, BlockchainEvents, KeyIterator};
 use sp_api::{CallApiAt, NumberFor, ProvideRuntimeApi};
@@ -20,15 +20,12 @@ use std::sync::Arc;
 pub trait RuntimeApiCollection:
 	sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 	+ sp_api::ApiExt<Block>
-	+ sp_consensus_babe::BabeApi<Block>
-	+ pallet_grandpa::fg_primitives::GrandpaApi<Block>
 	+ sp_block_builder::BlockBuilder<Block>
 	+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 	+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
 	+ sp_api::Metadata<Block>
 	+ sp_offchain::OffchainWorkerApi<Block>
 	+ sp_session::SessionKeys<Block>
-	+ sp_authority_discovery::AuthorityDiscoveryApi<Block>
 where
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
@@ -38,15 +35,12 @@ impl<Api> RuntimeApiCollection for Api
 where
 	Api: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		+ sp_api::ApiExt<Block>
-		+ sp_consensus_babe::BabeApi<Block>
-		+ pallet_grandpa::fg_primitives::GrandpaApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 		+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
-		+ sp_session::SessionKeys<Block>
-		+ sp_authority_discovery::AuthorityDiscoveryApi<Block>,
+		+ sp_session::SessionKeys<Block>,
 	<Self as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
 {
 }
@@ -129,8 +123,8 @@ pub trait ClientHandle {
 /// See [`ExecuteWithClient`] for more information.
 #[derive(Clone)]
 pub enum Client {
-	HydraDX(Arc<FullClient<hydra_dx_runtime::RuntimeApi, HydraExecutorDispatch>>),
-	TestingHydraDX(Arc<FullClient<testing_hydra_dx_runtime::RuntimeApi, TestingHydraExecutorDispatch>>),
+	HydraDX(Arc<FullClient<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>>),
+	TestingHydraDX(Arc<FullClient<testing_hydradx_runtime::RuntimeApi, TestingHydraDXExecutorDispatch>>),
 }
 
 impl ClientHandle for Client {
