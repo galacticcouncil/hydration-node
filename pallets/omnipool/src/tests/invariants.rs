@@ -1,4 +1,4 @@
-/*use super::*;
+use super::*;
 use crate::math::{
 	calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
 	calculate_sell_state_changes,
@@ -309,8 +309,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -322,8 +322,6 @@ proptest! {
 			.with_registered_asset(300)
 			.with_registered_asset(400)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -334,9 +332,9 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
-				let old_state_200 = <Assets<Test>>::get(200).unwrap();
-				let old_state_300 = <Assets<Test>>::get(300).unwrap();
-				let old_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -352,13 +350,13 @@ proptest! {
 
 				assert_ok!(Omnipool::sell(Origin::signed(seller), 200, 300, amount, Balance::zero()));
 
-				let new_state_200 = <Assets<Test>>::get(200).unwrap();
-				let new_state_300 = <Assets<Test>>::get(300).unwrap();
-				let new_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				// invariant does not decrease
-				//assert_ne!(new_state_200.reserve, old_state_200.reserve);
-				//assert_ne!(new_state_300.reserve, old_state_300.reserve);
+				assert_ne!(new_state_200.reserve, old_state_200.reserve);
+				assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
 				assert_asset_invariant(&old_state_200, &new_state_200, FixedU128::from((TOLERANCE,ONE)), "Invariant 200");
 				assert_asset_invariant(&old_state_300, &new_state_300, FixedU128::from((TOLERANCE,ONE)), "Invariant 300");
@@ -409,8 +407,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -424,8 +422,6 @@ proptest! {
 			.with_asset_fee(asset_fee)
 			.with_asset_fee(protocol_fee)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -436,9 +432,9 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
-				let old_state_200 = <Assets<Test>>::get(200).unwrap();
-				let old_state_300 = <Assets<Test>>::get(300).unwrap();
-				let old_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -450,9 +446,9 @@ proptest! {
 
 				assert_ok!(Omnipool::sell(Origin::signed(seller), 200, 300, amount, Balance::zero()));
 
-				let new_state_200 = <Assets<Test>>::get(200).unwrap();
-				let new_state_300 = <Assets<Test>>::get(300).unwrap();
-				let new_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				// invariant does not decrease
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
@@ -505,8 +501,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -518,8 +514,6 @@ proptest! {
 			.with_registered_asset(300)
 			.with_registered_asset(400)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -530,9 +524,9 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
-				let old_state_200 = <Assets<Test>>::get(200).unwrap();
-				let old_state_300 = <Assets<Test>>::get(300).unwrap();
-				let old_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -544,9 +538,9 @@ proptest! {
 
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 300, 200, amount, Balance::max_value()));
 
-				let new_state_200 = <Assets<Test>>::get(200).unwrap();
-				let new_state_300 = <Assets<Test>>::get(300).unwrap();
-				let new_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				// invariant does not decrease
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
@@ -601,8 +595,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -616,8 +610,6 @@ proptest! {
 			.with_asset_fee(asset_fee)
 			.with_asset_fee(protocol_fee)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -628,9 +620,9 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
-				let old_state_200 = <Assets<Test>>::get(200).unwrap();
-				let old_state_300 = <Assets<Test>>::get(300).unwrap();
-				let old_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -642,9 +634,9 @@ proptest! {
 
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 300, 200, amount, Balance::max_value()));
 
-				let new_state_200 = <Assets<Test>>::get(200).unwrap();
-				let new_state_300 = <Assets<Test>>::get(300).unwrap();
-				let new_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 				// invariant does not decrease
 				assert_ne!(new_state_200.reserve, old_state_200.reserve);
@@ -712,8 +704,8 @@ fn buy_invariant_case_01() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, stable_reserve),
+			(Omnipool::protocol_account(), HDX, native_reserve),
 			(lp1, 100, token_1.amount + 2 * ONE),
 			(lp2, 200, token_2.amount + 2 * ONE),
 			(lp3, 300, token_3.amount + 2 * ONE),
@@ -724,7 +716,7 @@ fn buy_invariant_case_01() {
 		.with_registered_asset(200)
 		.with_registered_asset(300)
 		.with_registered_asset(400)
-		.with_initial_pool(stable_reserve, native_reserve, stable_price, FixedU128::from(1))
+		.with_initial_pool(stable_price, FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -752,9 +744,9 @@ fn buy_invariant_case_01() {
 				token_4.price
 			));
 
-			let old_state_200 = <Assets<Test>>::get(200).unwrap();
-			let old_state_300 = <Assets<Test>>::get(300).unwrap();
-			let old_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+			let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+			let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+			let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 			let old_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -772,9 +764,9 @@ fn buy_invariant_case_01() {
 				Balance::max_value()
 			));
 
-			let new_state_200 = <Assets<Test>>::get(200).unwrap();
-			let new_state_300 = <Assets<Test>>::get(300).unwrap();
-			let new_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+			let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+			let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+			let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 			// invariant does not decrease
 			assert_ne!(new_state_200.reserve, old_state_200.reserve);
@@ -851,8 +843,8 @@ fn buy_invariant_case_02() {
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, stable_reserve),
+			(Omnipool::protocol_account(), HDX, native_reserve),
 			(lp1, 100, token_1.amount + 2 * ONE),
 			(lp2, 200, token_2.amount + 2 * ONE),
 			(lp3, 300, token_3.amount + 2 * ONE),
@@ -863,7 +855,7 @@ fn buy_invariant_case_02() {
 		.with_registered_asset(200)
 		.with_registered_asset(300)
 		.with_registered_asset(400)
-		.with_initial_pool(stable_reserve, native_reserve, stable_price, FixedU128::from(1))
+		.with_initial_pool(stable_price, FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -891,9 +883,9 @@ fn buy_invariant_case_02() {
 				token_4.price
 			));
 
-			let old_state_200 = <Assets<Test>>::get(200).unwrap();
-			let old_state_300 = <Assets<Test>>::get(300).unwrap();
-			let old_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+			let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+			let old_state_300 = Omnipool::load_asset_state(300).unwrap();
+			let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 			let old_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -909,13 +901,13 @@ fn buy_invariant_case_02() {
 				ArithmeticError::Overflow
 			);
 
-			let new_state_200 = <Assets<Test>>::get(200).unwrap();
-			let new_state_300 = <Assets<Test>>::get(300).unwrap();
-			let new_state_hdx = <Assets<Test>>::get(HDX).unwrap();
+			let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+			let new_state_300 = Omnipool::load_asset_state(300).unwrap();
+			let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
 
 			// invariant does not decrease
-			//assert_ne!(new_state_200.reserve, old_state_200.reserve);
-			//assert_ne!(new_state_300.reserve, old_state_300.reserve);
+			// assert_ne!(new_state_200.reserve, old_state_200.reserve);
+			// assert_ne!(new_state_300.reserve, old_state_300.reserve);
 
 			assert_asset_invariant(
 				&old_state_200,
@@ -975,8 +967,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -990,8 +982,6 @@ proptest! {
 			.with_asset_fee(asset_fee)
 			.with_asset_fee(protocol_fee)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -1002,7 +992,7 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
-				let old_state_300 = <Assets<Test>>::get(300).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 
 				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
 
@@ -1012,7 +1002,7 @@ proptest! {
 
 				assert_ok!(Omnipool::sell(Origin::signed(seller), LRNA, 300, amount, Balance::zero()));
 
-				let new_state_300 = <Assets<Test>>::get(300).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
@@ -1054,8 +1044,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -1069,8 +1059,6 @@ proptest! {
 			.with_asset_fee(asset_fee)
 			.with_asset_fee(protocol_fee)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -1081,7 +1069,7 @@ proptest! {
 				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
 				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
 
-				let old_state_300 = <Assets<Test>>::get(300).unwrap();
+				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 
 				let old_hub_liquidity = <HubAssetLiquidity<Test>>::get();
 
@@ -1091,7 +1079,7 @@ proptest! {
 
 				assert_ok!(Omnipool::buy(Origin::signed(seller), 300, LRNA, amount, Balance::max_value()));
 
-				let new_state_300 = <Assets<Test>>::get(300).unwrap();
+				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 
 				// invariant does not decrease
 				assert_ne!(new_state_300.reserve, old_state_300.reserve);
@@ -1189,8 +1177,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -1205,8 +1193,6 @@ proptest! {
 			.with_asset_fee(asset_fee)
 			.with_asset_fee(protocol_fee)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -1246,7 +1232,7 @@ proptest! {
 				// Let's do a trade so imbalance changes, so it is not always 0
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 300, LRNA, buy_amount, Balance::max_value()));
 
-				let old_state_200 = <Assets<Test>>::get(200).unwrap();
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -1254,7 +1240,7 @@ proptest! {
 
 				assert_ok!(Omnipool::add_liquidity(Origin::signed(seller), 200, amount));
 
-				let new_state_200 = <Assets<Test>>::get(200).unwrap();
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				// Price should not change
 				assert_eq_approx!(old_state_200.price(),
@@ -1304,8 +1290,8 @@ proptest! {
 
 		ExtBuilder::default()
 			.with_endowed_accounts(vec![
-				(Omnipool::protocol_account(), DAI, stable_reserve + 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, native_reserve + 1000 * ONE),
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -1320,8 +1306,6 @@ proptest! {
 			.with_asset_fee(asset_fee)
 			.with_asset_fee(protocol_fee)
 			.with_initial_pool(
-				stable_reserve,
-				native_reserve,
 				stable_price,
 				FixedU128::from(1),
 			)
@@ -1343,11 +1327,11 @@ proptest! {
 				// Let's do a trade so imbalance and price changes
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
 
-				let old_state_200 = <Assets<Test>>::get(200).unwrap();
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				assert_ok!(Omnipool::remove_liquidity(Origin::signed(seller), position_id, position.shares));
 
-				let new_state_200 = <Assets<Test>>::get(200).unwrap();
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 
 				let new_hub_liquidity = <HubAssetLiquidity<Test>>::get();
@@ -1372,6 +1356,3 @@ proptest! {
 			});
 	}
 }
-
-
- */
