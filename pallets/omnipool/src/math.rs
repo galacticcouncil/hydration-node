@@ -45,8 +45,8 @@ pub(super) mod types {
 	}
 
 	impl<Balance> From<(&AssetState<Balance>, Balance)> for AssetReserveState<Balance>
-		where
-			Balance: Copy,
+	where
+		Balance: Copy,
 	{
 		fn from((s, reserve): (&AssetState<Balance>, Balance)) -> Self {
 			Self {
@@ -61,8 +61,8 @@ pub(super) mod types {
 	}
 
 	impl<Balance> From<(AssetState<Balance>, Balance)> for AssetReserveState<Balance>
-		where
-			Balance: Copy,
+	where
+		Balance: Copy,
 	{
 		fn from((s, reserve): (AssetState<Balance>, Balance)) -> Self {
 			Self {
@@ -77,8 +77,8 @@ pub(super) mod types {
 	}
 
 	impl<Balance> AssetReserveState<Balance>
-		where
-			Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
+	where
+		Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 	{
 		/// Calculate price for actual state
 		pub(crate) fn price(&self) -> FixedU128 {
@@ -88,12 +88,12 @@ pub(super) mod types {
 		/// Update current asset state with given delta changes.
 		pub(crate) fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
 			Some(Self {
-				reserve : (delta.delta_reserve + self.reserve) ?,
-				hub_reserve : (delta.delta_hub_reserve + self.hub_reserve) ?,
-				shares : (delta.delta_shares + self.shares) ?,
-				protocol_shares : (delta.delta_protocol_shares + self.protocol_shares) ?,
-				tvl : (delta.delta_tvl + self.tvl) ?,
-				tradable: self.tradable
+				reserve: (delta.delta_reserve + self.reserve)?,
+				hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
+				shares: (delta.delta_shares + self.shares)?,
+				protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
+				tvl: (delta.delta_tvl + self.tvl)?,
+				tradable: self.tradable,
 			})
 		}
 	}

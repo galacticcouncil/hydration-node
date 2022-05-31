@@ -89,15 +89,13 @@ mod math;
 mod types;
 pub mod weights;
 
+use crate::math::types::AssetReserveState;
 use crate::math::{
 	calculate_buy_for_hub_asset_state_changes, calculate_delta_imbalance, calculate_sell_hub_state_changes,
 };
-use crate::types::{
-	AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable,
-};
+use crate::types::{AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
 pub use pallet::*;
 pub use weights::WeightInfo;
-use crate::math::types::AssetReserveState;
 
 /// NFT class id type of provided nft implementation
 type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::ClassId;
