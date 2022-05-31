@@ -80,13 +80,16 @@ where
 {
 	/// Update current position state with given delta changes.
 	pub(super) fn delta_update(
-		&mut self,
+		self,
 		delta_reserve: &BalanceUpdate<Balance>,
 		delta_shares: &BalanceUpdate<Balance>,
-	) -> Option<()> {
-		self.amount = (*delta_reserve + self.amount)?;
-		self.shares = (*delta_shares + self.shares)?;
-		Some(())
+	) -> Option<Self> {
+		Some(Self {
+			asset_id: self.asset_id,
+			amount : ( * delta_reserve + self.amount)?,
+			shares : ( * delta_shares + self.shares)?,
+			price: self.price
+		})
 	}
 }
 

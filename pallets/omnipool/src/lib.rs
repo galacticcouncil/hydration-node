@@ -676,7 +676,7 @@ pub mod pallet {
 				Error::<T>::Forbidden
 			);
 
-			let mut position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
+			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
@@ -700,7 +700,7 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 
 			// Update position state
-			position
+			let updated_position = position
 				.delta_update(
 					&state_changes.delta_position_reserve,
 					&state_changes.delta_position_shares,
@@ -733,7 +733,7 @@ pub mod pallet {
 				)?;
 			}
 
-			if position.shares == Balance::zero() {
+			if updated_position.shares == Balance::zero() {
 				// All liquidity removed, remove position and burn NFT instance
 
 				<Positions<T>>::remove(position_id);
@@ -744,7 +744,7 @@ pub mod pallet {
 					owner: who.clone(),
 				});
 			} else {
-				<Positions<T>>::insert(position_id, position);
+				<Positions<T>>::insert(position_id, updated_position);
 			}
 
 			Self::set_asset_state(asset_id, new_asset_state);
