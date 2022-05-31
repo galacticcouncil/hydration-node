@@ -164,13 +164,6 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 	}
 }
 
-/// Indicates whether hub asset changes the total issuance or not.
-#[derive(PartialOrd, PartialEq)]
-pub(super) enum HubAssetIssuanceUpdate {
-	AdjustSupply,
-	JustTransfer,
-}
-
 /// Indicates whether delta amount should be added or subtracted.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) enum BalanceUpdate<Balance> {

@@ -93,7 +93,7 @@ use crate::math::types::AssetReserveState;
 use crate::math::{
 	calculate_buy_for_hub_asset_state_changes, calculate_delta_imbalance, calculate_sell_hub_state_changes,
 };
-use crate::types::{AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
+use crate::types::{AssetState, Balance, BalanceUpdate, Price, SimpleImbalance, Tradable};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -432,10 +432,7 @@ pub mod pallet {
 			// No imbalance yet, use default value
 			Self::update_imbalance(SimpleImbalance::default(), delta_imbalance)?;
 
-			Self::update_hub_asset_liquidity(
-				&BalanceUpdate::Increase(stable_asset_hub_reserve),
-				HubAssetIssuanceUpdate::AdjustSupply,
-			)?;
+			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(stable_asset_hub_reserve))?;
 
 			// Imbalance update total hub asset with native asset next
 			Self::recalculate_imbalance(
@@ -445,10 +442,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
-			Self::update_hub_asset_liquidity(
-				&BalanceUpdate::Increase(native_asset_hub_reserve),
-				HubAssetIssuanceUpdate::AdjustSupply,
-			)?;
+			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(native_asset_hub_reserve))?;
 
 			Self::update_tvl(&BalanceUpdate::Increase(
 				native_asset_tvl
@@ -505,7 +499,6 @@ pub mod pallet {
 
 			ensure!(initial_price > FixedU128::zero(), Error::<T>::InvalidInitialAssetPrice);
 
-			// Retrieve stable asset and native asset details first - we fail early if they are not yet in the pool.
 			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
@@ -544,17 +537,13 @@ pub mod pallet {
 				price: initial_price,
 			});
 
-			// Recalculate total Imbalance given the new asset state and update the value
 			let delta_imbalance =
 				Self::recalculate_imbalance(&((&state, amount).into()), BalanceUpdate::Decrease(amount))
 					.ok_or(ArithmeticError::Overflow)?;
+
 			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
-			// Total hub asset liquidity update - adjusting supply
-			Self::update_hub_asset_liquidity(
-				&BalanceUpdate::Increase(hub_reserve),
-				HubAssetIssuanceUpdate::AdjustSupply,
-			)?;
+			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
 			Self::update_tvl(&BalanceUpdate::Increase(asset_tvl))?;
 
@@ -668,10 +657,7 @@ pub mod pallet {
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
 			// Total hub asset liquidity update
-			Self::update_hub_asset_liquidity(
-				&state_changes.asset.delta_hub_reserve,
-				HubAssetIssuanceUpdate::AdjustSupply,
-			)?;
+			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 			Self::set_asset_state(asset, asset_state);
 
@@ -759,10 +745,7 @@ pub mod pallet {
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
 			// Total Hub asset liquidity
-			Self::update_hub_asset_liquidity(
-				&state_changes.asset.delta_hub_reserve,
-				HubAssetIssuanceUpdate::AdjustSupply,
-			)?;
+			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 			// LP receives some hub asset
 			if state_changes.lp_hub_amount > Balance::zero() {
@@ -771,11 +754,6 @@ pub mod pallet {
 					&Self::protocol_account(),
 					&who,
 					state_changes.lp_hub_amount,
-				)?;
-
-				Self::update_hub_asset_liquidity(
-					&BalanceUpdate::Decrease(state_changes.lp_hub_amount),
-					HubAssetIssuanceUpdate::JustTransfer,
 				)?;
 			}
 
@@ -909,7 +887,7 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
+			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
@@ -1031,7 +1009,7 @@ pub mod pallet {
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_hub_asset_liquidity(&delta_hub_asset, HubAssetIssuanceUpdate::AdjustSupply)?;
+			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1156,22 +1134,15 @@ impl<T: Config> Pallet<T> {
 	/// Update total hub asset liquidity and write new value to storage.
 	/// Update total issueance if AdjustSupply is specified.
 	#[require_transactional]
-	fn update_hub_asset_liquidity(
-		delta_amount: &BalanceUpdate<Balance>,
-		issuance_update: HubAssetIssuanceUpdate,
-	) -> DispatchResult {
-		if issuance_update == HubAssetIssuanceUpdate::AdjustSupply {
-			match delta_amount {
-				BalanceUpdate::Increase(amount) => {
-					T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), *amount)?;
-				}
-				BalanceUpdate::Decrease(amount) => {
-					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), *amount)?;
-				}
+	fn update_hub_asset_liquidity(delta_amount: &BalanceUpdate<Balance>) -> DispatchResult {
+		match delta_amount {
+			BalanceUpdate::Increase(amount) => {
+				T::Currency::deposit(T::HubAssetId::get(), &Self::protocol_account(), *amount)
+			}
+			BalanceUpdate::Decrease(amount) => {
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), *amount)
 			}
 		}
-
-		Ok(())
 	}
 
 	/// Update imbalance with given delta_imbalance - increase or decrease
@@ -1276,12 +1247,6 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		// Total hub asset liquidity
-		Self::update_hub_asset_liquidity(
-			&state_changes.asset.delta_hub_reserve,
-			HubAssetIssuanceUpdate::JustTransfer,
-		)?;
-
 		// Imbalance update
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
@@ -1343,12 +1308,6 @@ impl<T: Config> Pallet<T> {
 			&Self::protocol_account(),
 			who,
 			*state_changes.asset.delta_reserve,
-		)?;
-
-		// Total hub asset liquidity
-		Self::update_hub_asset_liquidity(
-			&state_changes.asset.delta_hub_reserve,
-			HubAssetIssuanceUpdate::JustTransfer,
 		)?;
 
 		// Imbalance update
