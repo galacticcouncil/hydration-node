@@ -397,12 +397,12 @@ pub mod pallet {
 				Error::<T>::MissingBalance
 			);
 
-			// Create NFT class - ignore failure ( as it can only fail if it exists?!: TODO: verify)
-			let _ = T::NFTHandler::create_class(
+			// Create NFT class
+			T::NFTHandler::create_class(
 				&T::NFTClassId::get(),
 				&Self::protocol_account(),
 				&Self::protocol_account(),
-			);
+			)?;
 
 			// Initial stale of native and stable assets
 			let stable_asset_state = AssetState::<Balance> {
