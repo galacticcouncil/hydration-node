@@ -54,7 +54,7 @@ fn scenario_05() {
 
 			assert_asset_state!(
 				2,
-				AssetState {
+				AssetReserveState {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
@@ -66,7 +66,7 @@ fn scenario_05() {
 
 			assert_asset_state!(
 				0,
-				AssetState {
+				AssetReserveState {
 					reserve: 10000000000000000,
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
@@ -78,7 +78,7 @@ fn scenario_05() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 2450000000000000,
 					hub_reserve: 1528163265306123,
 					shares: 2400000000000000,
@@ -90,7 +90,7 @@ fn scenario_05() {
 
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1952191235059762,
 					hub_reserve: 1331836734693877,
 					shares: 2000000000000000,

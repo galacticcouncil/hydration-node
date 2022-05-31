@@ -28,7 +28,7 @@ fn add_liquidity_works() {
 
 			assert_asset_state!(
 				1_000,
-				AssetState {
+				AssetReserveState {
 					reserve: token_amount + liq_added,
 					hub_reserve: 1560 * ONE,
 					shares: 2400 * ONE,
@@ -73,7 +73,7 @@ fn add_stable_asset_liquidity_works() {
 
 			assert_asset_state!(
 				DAI,
-				AssetState {
+				AssetReserveState {
 					reserve: 1000 * ONE + liq_added,
 					hub_reserve: 700000000000000,
 					shares: 1400000000000000,

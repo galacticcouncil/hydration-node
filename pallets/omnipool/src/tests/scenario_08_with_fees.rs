@@ -78,7 +78,7 @@ fn fee_test_buy_sell() {
 
 			assert_asset_state!(
 				2,
-				AssetState {
+				AssetReserveState {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
@@ -90,7 +90,7 @@ fn fee_test_buy_sell() {
 
 			assert_asset_state!(
 				0,
-				AssetState {
+				AssetReserveState {
 					reserve: 10000000000000000,
 					hub_reserve: 10135523267202732,
 					shares: 10000000000000000,
@@ -102,7 +102,7 @@ fn fee_test_buy_sell() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 4243052260380451,
 					hub_reserve: 882383663986335,
 					shares: 2400000000000000,
@@ -114,7 +114,7 @@ fn fee_test_buy_sell() {
 
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1671684145777543,
 					hub_reserve: 2707273110861765,
 					shares: 2006364027707802,

@@ -86,7 +86,7 @@ fn complex_scenario_works() {
 
 			assert_asset_state!(
 				2,
-				AssetState {
+				AssetReserveState {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
@@ -98,7 +98,7 @@ fn complex_scenario_works() {
 
 			assert_asset_state!(
 				0,
-				AssetState {
+				AssetReserveState {
 					reserve: 10000000000000000,
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
@@ -110,7 +110,7 @@ fn complex_scenario_works() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 4089236949625565,
 					hub_reserve: 1188430684479242,
 					shares: 2734332900513906,
@@ -122,7 +122,7 @@ fn complex_scenario_works() {
 
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1638588974363041,
 					hub_reserve: 2709090864095513,
 					shares: 2008863636363636,

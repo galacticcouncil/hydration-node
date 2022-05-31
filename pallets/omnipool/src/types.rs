@@ -30,7 +30,7 @@ impl Default for Tradable {
 }
 
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct State<Balance> {
+pub struct AssetState<Balance> {
 	/// Quantity of Hub Asset matching this asset
 	pub(super) hub_reserve: Balance,
 	/// Quantity of LP shares for this asset
@@ -43,11 +43,11 @@ pub struct State<Balance> {
 	pub(super) tradable: Tradable,
 }
 
-impl<Balance> From<AssetState<Balance>> for State<Balance>
+impl<Balance> From<AssetReserveState<Balance>> for AssetState<Balance>
 where
 	Balance: Copy,
 {
-	fn from(s: AssetState<Balance>) -> Self {
+	fn from(s: AssetReserveState<Balance>) -> Self {
 		Self {
 			hub_reserve: s.hub_reserve,
 			shares: s.shares,
@@ -59,7 +59,7 @@ where
 }
 
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct AssetState<Balance> {
+pub struct AssetReserveState<Balance> {
 	/// Quantity of asset in omnipool
 	pub(super) reserve: Balance,
 	/// Quantity of Hub Asset matching this asset
@@ -74,11 +74,11 @@ pub struct AssetState<Balance> {
 	pub(super) tradable: Tradable,
 }
 
-impl<Balance> From<(&State<Balance>, Balance)> for AssetState<Balance>
+impl<Balance> From<(&AssetState<Balance>, Balance)> for AssetReserveState<Balance>
 where
 	Balance: Copy,
 {
-	fn from((s, reserve): (&State<Balance>, Balance)) -> Self {
+	fn from((s, reserve): (&AssetState<Balance>, Balance)) -> Self {
 		Self {
 			reserve,
 			hub_reserve: s.hub_reserve,
@@ -90,11 +90,11 @@ where
 	}
 }
 
-impl<Balance> From<(State<Balance>, Balance)> for AssetState<Balance>
+impl<Balance> From<(AssetState<Balance>, Balance)> for AssetReserveState<Balance>
 where
 	Balance: Copy,
 {
-	fn from((s, reserve): (State<Balance>, Balance)) -> Self {
+	fn from((s, reserve): (AssetState<Balance>, Balance)) -> Self {
 		Self {
 			reserve,
 			hub_reserve: s.hub_reserve,
@@ -106,7 +106,7 @@ where
 	}
 }
 
-impl<Balance> AssetState<Balance>
+impl<Balance> AssetReserveState<Balance>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {

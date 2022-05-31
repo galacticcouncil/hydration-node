@@ -52,7 +52,7 @@ fn simple_sell_works() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 2450 * ONE,
 					hub_reserve: 1_528_163_265_306_123,
 					shares: 2400 * ONE,
@@ -63,7 +63,7 @@ fn simple_sell_works() {
 			);
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1952191235059762,
 					hub_reserve: 1331836734693877,
 					shares: 2000 * ONE,
@@ -254,7 +254,7 @@ fn sell_hub_works() {
 
 			assert_asset_state!(
 				2,
-				AssetState {
+				AssetReserveState {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
@@ -266,7 +266,7 @@ fn sell_hub_works() {
 
 			assert_asset_state!(
 				0,
-				AssetState {
+				AssetReserveState {
 					reserve: 10000000000000000,
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
@@ -278,7 +278,7 @@ fn sell_hub_works() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 2400000000000000,
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
@@ -290,7 +290,7 @@ fn sell_hub_works() {
 
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1925925925925926,
 					hub_reserve: 1350000000000000,
 					shares: 2000000000000000,

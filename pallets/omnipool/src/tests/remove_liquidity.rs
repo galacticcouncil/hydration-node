@@ -45,7 +45,7 @@ fn remove_liquidity_works() {
 
 			assert_asset_state!(
 				1_000,
-				AssetState {
+				AssetReserveState {
 					reserve: token_amount + liq_added - liq_removed,
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
@@ -117,7 +117,7 @@ fn full_liquidity_removal_works() {
 
 			assert_asset_state!(
 				1_000,
-				AssetState {
+				AssetReserveState {
 					reserve: token_amount + liq_added - liq_removed,
 					hub_reserve: 1300000000000000,
 					shares: 2400 * ONE - liq_removed,
@@ -184,7 +184,7 @@ fn partial_liquidity_removal_works() {
 
 			assert_asset_state!(
 				1_000,
-				AssetState {
+				AssetReserveState {
 					reserve: token_amount + liq_added - liq_removed,
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
@@ -243,7 +243,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			assert_ok!(Omnipool::buy(Origin::signed(LP2), 1_000, DAI, 300 * ONE, 500000 * ONE));
 
 			assert_balance!(Omnipool::protocol_account(), 1000, 200 * ONE);
-			let expected_state = AssetState {
+			let expected_state = AssetReserveState {
 				reserve: 200 * ONE,
 				hub_reserve: 812500000000001,
 				shares: 500000000000000,
@@ -298,7 +298,7 @@ fn protocol_shares_update_works() {
 
 			assert_balance!(Omnipool::protocol_account(), 1000, 1500 * ONE);
 
-			let expected_state = AssetState {
+			let expected_state = AssetReserveState {
 				reserve: 1500 * ONE,
 				hub_reserve: 108333333333334,
 				shares: 500000000000000,
@@ -318,7 +318,7 @@ fn protocol_shares_update_works() {
 
 			assert_pool_state!(10807666666666667, 21182000000000002, SimpleImbalance::default());
 
-			let expected_state = AssetState {
+			let expected_state = AssetReserveState {
 				reserve: 1259999999999997,
 				hub_reserve: 91000000000001,
 				shares: 419999999999999,

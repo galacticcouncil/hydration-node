@@ -29,7 +29,7 @@ fn initialize_pool_works() {
 
 			assert_asset_state!(
 				DAI,
-				AssetState {
+				AssetReserveState {
 					reserve: 100000000000000,
 					hub_reserve: 50000000000000,
 					shares: 100000000000000,
@@ -40,7 +40,7 @@ fn initialize_pool_works() {
 			);
 			assert_asset_state!(
 				HDX,
-				AssetState {
+				AssetReserveState {
 					reserve: 200000000000000,
 					hub_reserve: 300000000000000,
 					shares: 200000000000000,
@@ -150,7 +150,7 @@ fn add_token_works() {
 
 			assert_asset_state!(
 				1_000,
-				AssetState {
+				AssetReserveState {
 					reserve: token_amount,
 					hub_reserve: 1300 * ONE,
 					shares: token_amount,

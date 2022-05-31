@@ -3,7 +3,7 @@ use crate::math::{
 	calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
 	calculate_sell_state_changes,
 };
-use crate::{AssetState, FixedU128, SimpleImbalance};
+use crate::{AssetReserveState, FixedU128, SimpleImbalance};
 use frame_support::assert_noop;
 use primitive_types::U256;
 use proptest::prelude::*;
@@ -13,7 +13,7 @@ pub const TOLERANCE: Balance = 1_000; // * 1_000 * 1_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
 
-fn asset_state() -> impl Strategy<Value = AssetState<Balance>> {
+fn asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
 	(
 		BALANCE_RANGE.0..BALANCE_RANGE.1,
 		BALANCE_RANGE.0..BALANCE_RANGE.1,
@@ -21,14 +21,16 @@ fn asset_state() -> impl Strategy<Value = AssetState<Balance>> {
 		BALANCE_RANGE.0..BALANCE_RANGE.1,
 		BALANCE_RANGE.0..BALANCE_RANGE.1,
 	)
-		.prop_map(|(reserve, hub_reserve, shares, protocol_shares, tvl)| AssetState {
-			reserve,
-			hub_reserve,
-			shares,
-			protocol_shares,
-			tvl,
-			..Default::default()
-		})
+		.prop_map(
+			|(reserve, hub_reserve, shares, protocol_shares, tvl)| AssetReserveState {
+				reserve,
+				hub_reserve,
+				shares,
+				protocol_shares,
+				tvl,
+				..Default::default()
+			},
+		)
 }
 
 fn asset_reserve() -> impl Strategy<Value = Balance> {
@@ -58,8 +60,8 @@ fn position() -> impl Strategy<Value = Position<Balance, AssetId>> {
 }
 
 fn assert_asset_invariant(
-	old_state: &AssetState<Balance>,
-	new_state: &AssetState<Balance>,
+	old_state: &AssetReserveState<Balance>,
+	new_state: &AssetReserveState<Balance>,
 	tolerance: FixedU128,
 	desc: &str,
 ) {
@@ -233,7 +235,7 @@ proptest! {
 }
 #[test]
 fn buy_update_invariants_no_fees_case() {
-	let asset_in = AssetState {
+	let asset_in = AssetReserveState {
 		reserve: 10000000000000000,
 		hub_reserve: 10000000000000000,
 		shares: 10000000000000000,
@@ -241,7 +243,7 @@ fn buy_update_invariants_no_fees_case() {
 		tvl: 10000000000000000,
 		tradable: Tradable::Allowed,
 	};
-	let asset_out = AssetState {
+	let asset_out = AssetReserveState {
 		reserve: 10000000000000000,
 		hub_reserve: 89999999999999991,
 		shares: 10000000000000000,

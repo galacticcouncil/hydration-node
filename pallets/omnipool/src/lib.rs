@@ -93,7 +93,7 @@ use crate::math::{
 	calculate_buy_for_hub_asset_state_changes, calculate_delta_imbalance, calculate_sell_hub_state_changes,
 };
 use crate::types::{
-	AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, State, Tradable,
+	AssetReserveState, AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable,
 };
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -195,7 +195,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// State of an asset in the omnipool
-	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, State<Balance>>;
+	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	#[pallet::storage]
 	/// Imbalance of hub asset
@@ -403,7 +403,7 @@ pub mod pallet {
 			);
 
 			// Initial stale of native and stable assets
-			let stable_asset_state = State::<Balance> {
+			let stable_asset_state = AssetState::<Balance> {
 				hub_reserve: stable_asset_hub_reserve,
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
@@ -411,7 +411,7 @@ pub mod pallet {
 				tradable: Tradable::default(),
 			};
 
-			let native_asset_state = State::<Balance> {
+			let native_asset_state = AssetState::<Balance> {
 				hub_reserve: native_asset_hub_reserve,
 				shares: native_asset_reserve,
 				protocol_shares: native_asset_reserve,
@@ -512,7 +512,7 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 
 			// Initial stale of asset
-			let state = State::<Balance> {
+			let state = AssetState::<Balance> {
 				hub_reserve,
 				shares: amount,
 				protocol_shares: amount,
@@ -1112,14 +1112,14 @@ impl<T: Config> Pallet<T> {
 		Ok((stable_reserve, stable_asset.hub_reserve))
 	}
 
-	fn load_asset_state(asset_id: T::AssetId) -> Result<AssetState<Balance>, DispatchError> {
+	fn load_asset_state(asset_id: T::AssetId) -> Result<AssetReserveState<Balance>, DispatchError> {
 		let state = <Assets<T>>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 		let reserve = T::Currency::free_balance(asset_id, &Self::protocol_account());
 		Ok((state, reserve).into())
 	}
 
-	fn set_asset_state(asset_id: T::AssetId, new_state: AssetState<Balance>) {
-		<Assets<T>>::insert(asset_id, Into::<State<Balance>>::into(new_state));
+	fn set_asset_state(asset_id: T::AssetId, new_state: AssetReserveState<Balance>) {
+		<Assets<T>>::insert(asset_id, Into::<AssetState<Balance>>::into(new_state));
 	}
 
 	/// Generate an nft instance id and mint NFT into the class and instance.
@@ -1200,7 +1200,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Recalculate imbalance based on current imbalance and hub liquidity
 	fn recalculate_imbalance(
-		asset_state: &AssetState<Balance>,
+		asset_state: &AssetReserveState<Balance>,
 		delta_amount: BalanceUpdate<Balance>,
 	) -> Option<BalanceUpdate<Balance>> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
@@ -1235,7 +1235,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Check if assets can be traded
-	fn allow_assets(asset_in: &AssetState<Balance>, asset_out: &AssetState<Balance>) -> bool {
+	fn allow_assets(asset_in: &AssetReserveState<Balance>, asset_out: &AssetReserveState<Balance>) -> bool {
 		matches!(
 			(&asset_in.tradable, &asset_out.tradable),
 			(Tradable::Allowed, Tradable::Allowed)

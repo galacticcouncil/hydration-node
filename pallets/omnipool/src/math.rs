@@ -3,7 +3,7 @@ use crate::types::{
 	AssetStateChange, Balance, BalanceUpdate, HubTradeStateChange, LiquidityStateChange, Position, SimpleImbalance,
 	TradeStateChange,
 };
-use crate::{AssetState, FixedU128, Price};
+use crate::{AssetReserveState, FixedU128, Price};
 use primitive_types::U256;
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::{FixedPointNumber, Permill};
@@ -33,8 +33,8 @@ fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
 
 /// Calculate delta changes of a sell trade given current state of asset in and out.
 pub(crate) fn calculate_sell_state_changes(
-	asset_in_state: &AssetState<Balance>,
-	asset_out_state: &AssetState<Balance>,
+	asset_in_state: &AssetReserveState<Balance>,
+	asset_out_state: &AssetReserveState<Balance>,
 	amount: Balance,
 	asset_fee: Permill,
 	protocol_fee: Permill,
@@ -87,7 +87,7 @@ pub(crate) fn calculate_sell_state_changes(
 
 /// Calculate delta changes of a sell where asset_in is Hub Asset
 pub(crate) fn calculate_sell_hub_state_changes(
-	asset_out_state: &AssetState<Balance>,
+	asset_out_state: &AssetReserveState<Balance>,
 	hub_asset_amount: Balance,
 	asset_fee: Permill,
 ) -> Option<HubTradeStateChange<Balance>> {
@@ -118,7 +118,7 @@ pub(crate) fn calculate_sell_hub_state_changes(
 
 /// Calculate delta changes of a buy trade where asset_in is Hub Asset
 pub(crate) fn calculate_buy_for_hub_asset_state_changes(
-	asset_out_state: &AssetState<Balance>,
+	asset_out_state: &AssetReserveState<Balance>,
 	asset_out_amount: Balance,
 	asset_fee: Permill,
 ) -> Option<HubTradeStateChange<Balance>> {
@@ -150,8 +150,8 @@ pub(crate) fn calculate_buy_for_hub_asset_state_changes(
 
 /// Calculate delta changes of a buy trade given current state of asset in and out
 pub(crate) fn calculate_buy_state_changes(
-	asset_in_state: &AssetState<Balance>,
-	asset_out_state: &AssetState<Balance>,
+	asset_in_state: &AssetReserveState<Balance>,
+	asset_out_state: &AssetReserveState<Balance>,
 	amount: Balance,
 	asset_fee: Permill,
 	protocol_fee: Permill,
@@ -213,7 +213,7 @@ pub(crate) fn calculate_buy_state_changes(
 
 /// Calculate delta changes of add liqudiity given current asset state
 pub(crate) fn calculate_add_liquidity_state_changes(
-	asset_state: &AssetState<Balance>,
+	asset_state: &AssetReserveState<Balance>,
 	amount: Balance,
 	stable_asset: (Balance, Balance),
 	is_stable_asset: bool,
@@ -274,7 +274,7 @@ pub(crate) fn calculate_add_liquidity_state_changes(
 
 /// Calculate delta changes of rmove liqudiity given current asset state and position from which liquidity should be removed.
 pub(crate) fn calculate_remove_liquidity_state_changes<AssetId>(
-	asset_state: &AssetState<Balance>,
+	asset_state: &AssetReserveState<Balance>,
 	shares_removed: Balance,
 	position: &Position<Balance, AssetId>,
 	stable_asset: (Balance, Balance),
@@ -404,7 +404,7 @@ pub(crate) fn calculate_asset_tvl(asset_hub_reserve: Balance, stable_asset: (Bal
 }
 
 pub(crate) fn calculate_delta_imbalance(
-	asset_state: &AssetState<Balance>,
+	asset_state: &AssetReserveState<Balance>,
 	amount: Balance,
 	imbalance: &SimpleImbalance<Balance>,
 	hub_reserve: Balance,

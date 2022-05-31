@@ -47,7 +47,7 @@ fn simple_buy_works() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 2452401746724892,
 					hub_reserve: 1526666666666666,
 					shares: 2400 * ONE,
@@ -58,7 +58,7 @@ fn simple_buy_works() {
 			);
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1950 * ONE,
 					hub_reserve: 1333333333333334,
 					shares: 2000 * ONE,
@@ -296,7 +296,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_asset_state!(
 				2,
-				AssetState {
+				AssetReserveState {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
@@ -308,7 +308,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_asset_state!(
 				0,
-				AssetState {
+				AssetReserveState {
 					reserve: 10000000000000000,
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
@@ -320,7 +320,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 2400000000000000,
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
@@ -332,7 +332,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1950000000000000,
 					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,

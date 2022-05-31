@@ -65,7 +65,7 @@ fn sell_fee_test() {
 
 			assert_asset_state!(
 				2,
-				AssetState {
+				AssetReserveState {
 					reserve: 1000000000000000,
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
@@ -77,7 +77,7 @@ fn sell_fee_test() {
 
 			assert_asset_state!(
 				0,
-				AssetState {
+				AssetReserveState {
 					reserve: 10000000000000000,
 					hub_reserve: 10019499999999999,
 					shares: 10000000000000000,
@@ -89,7 +89,7 @@ fn sell_fee_test() {
 
 			assert_asset_state!(
 				100,
-				AssetState {
+				AssetReserveState {
 					reserve: 2560000000000000,
 					hub_reserve: 1462500000000001,
 					shares: 2400000000000000,
@@ -101,7 +101,7 @@ fn sell_fee_test() {
 
 			assert_asset_state!(
 				200,
-				AssetState {
+				AssetReserveState {
 					reserve: 1938322315390998,
 					hub_reserve: 2278000000000000,
 					shares: 2000000000000000,
