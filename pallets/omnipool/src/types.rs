@@ -10,7 +10,7 @@ pub type Balance = u128;
 /// Fixed Balance type to represent asset price
 pub type Price = FixedU128;
 
-/// Asset's trade state. Indicates whether asset can be bought or sold to/from Ommnipool
+/// Asset's trade state. Indicates whether asset can be bought or sold to/from Omnipool
 #[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Tradable {
 	/// Asset is allowed to be bought and sold

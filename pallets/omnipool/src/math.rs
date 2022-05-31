@@ -28,6 +28,7 @@ macro_rules! to_balance {
 pub(super) mod types {
 	use super::*;
 
+	/// Asset state representation including asset pool reserve.
 	#[derive(Clone, Default, Debug)]
 	pub struct AssetReserveState<Balance> {
 		/// Quantity of asset in omnipool
