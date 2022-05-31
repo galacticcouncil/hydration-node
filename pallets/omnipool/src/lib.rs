@@ -205,10 +205,6 @@ pub mod pallet {
 	pub(super) type TotalTVL<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
-	/// Total amount of hub asset reserve. It equals to sum of hub_reserve of each asset in omnipool
-	pub(super) type HubAssetLiquidity<T: Config> = StorageValue<_, Balance, ValueQuery>;
-
-	#[pallet::storage]
 	/// Tradable state of hub asset.
 	pub(super) type HubAssetTradability<T: Config> = StorageValue<_, Tradable, ValueQuery>;
 
@@ -613,7 +609,7 @@ pub mod pallet {
 
 			let hub_reserve_ratio = FixedU128::checked_from_rational(
 				asset_state.hub_reserve,
-				<HubAssetLiquidity<T>>::get()
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
 					.checked_add(*state_changes.asset.delta_hub_reserve)
 					.ok_or(ArithmeticError::Overflow)?,
 			)
@@ -1157,18 +1153,6 @@ impl<T: Config> Pallet<T> {
 		delta_amount: &BalanceUpdate<Balance>,
 		issuance_update: HubAssetIssuanceUpdate,
 	) -> DispatchResult {
-		<HubAssetLiquidity<T>>::try_mutate(|liquidity| -> DispatchResult {
-			match delta_amount {
-				BalanceUpdate::Increase(amount) => {
-					*liquidity = liquidity.checked_add(*amount).ok_or(ArithmeticError::Overflow)?;
-				}
-				BalanceUpdate::Decrease(amount) => {
-					*liquidity = liquidity.checked_sub(*amount).ok_or(ArithmeticError::Underflow)?;
-				}
-			}
-			Ok(())
-		})?;
-
 		if issuance_update == HubAssetIssuanceUpdate::AdjustSupply {
 			match delta_amount {
 				BalanceUpdate::Increase(amount) => {
@@ -1203,7 +1187,7 @@ impl<T: Config> Pallet<T> {
 		delta_amount: BalanceUpdate<Balance>,
 	) -> Option<BalanceUpdate<Balance>> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = <HubAssetLiquidity<T>>::get();
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
 		let delta_imbalance = calculate_delta_imbalance(
 			asset_state,
