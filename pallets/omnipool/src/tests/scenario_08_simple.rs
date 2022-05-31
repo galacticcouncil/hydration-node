@@ -5,8 +5,8 @@ use super::*;
 fn sell_fee_test() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), 0, 100000000000000000),
-			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 2, 1000 * ONE),
 			(LP1, 100, 5000000000000000),
 			(LP1, 200, 5000000000000000),
 			(LP2, 100, 1000000000000000),
@@ -17,12 +17,7 @@ fn sell_fee_test() {
 		.with_registered_asset(200)
 		.with_asset_fee(Permill::from_percent(10))
 		.with_protocol_fee(Permill::from_percent(20))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -56,8 +51,8 @@ fn sell_fee_test() {
 				10000000000000
 			));
 
-			assert_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 1, 14260000000000000u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 2560000000000000u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1938322315391001u128, 10);

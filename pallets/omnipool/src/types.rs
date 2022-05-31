@@ -11,7 +11,7 @@ pub type Balance = u128;
 pub type Price = FixedU128;
 
 /// Asset's trade state. Indicates whether asset can be bought or sold to/from Ommnipool
-#[derive(Clone,Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Tradable {
 	/// Asset is allowed to be bought and sold
 	Allowed,
@@ -44,14 +44,16 @@ pub struct State<Balance> {
 }
 
 impl<Balance> From<AssetState<Balance>> for State<Balance>
-where Balance: Copy{
+where
+	Balance: Copy,
+{
 	fn from(s: AssetState<Balance>) -> Self {
-		Self{
+		Self {
 			hub_reserve: s.hub_reserve,
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
 			tvl: s.tvl,
-			tradable: s.tradable
+			tradable: s.tradable,
 		}
 	}
 }
@@ -73,33 +75,36 @@ pub struct AssetState<Balance> {
 }
 
 impl<Balance> From<(&State<Balance>, Balance)> for AssetState<Balance>
-where Balance: Copy{
+where
+	Balance: Copy,
+{
 	fn from((s, reserve): (&State<Balance>, Balance)) -> Self {
-		Self{
-			reserve: reserve,
+		Self {
+			reserve,
 			hub_reserve: s.hub_reserve,
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
 			tvl: s.tvl,
-			tradable: s.tradable
+			tradable: s.tradable,
 		}
 	}
 }
 
 impl<Balance> From<(State<Balance>, Balance)> for AssetState<Balance>
-where Balance: Copy{
+where
+	Balance: Copy,
+{
 	fn from((s, reserve): (State<Balance>, Balance)) -> Self {
-		Self{
-			reserve: reserve,
+		Self {
+			reserve,
 			hub_reserve: s.hub_reserve,
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
 			tvl: s.tvl,
-			tradable: s.tradable
+			tradable: s.tradable,
 		}
 	}
 }
-
 
 impl<Balance> AssetState<Balance>
 where

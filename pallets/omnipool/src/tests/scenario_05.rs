@@ -5,8 +5,8 @@ use super::*;
 fn scenario_05() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), 0, 100000000000000000),
-			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 2, 1000 * ONE),
 			(LP1, 100, 5000000000000000),
 			(LP1, 200, 5000000000000000),
 			(LP2, 100, 1000000000000000),
@@ -14,12 +14,7 @@ fn scenario_05() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -45,8 +40,8 @@ fn scenario_05() {
 				10000000000000
 			));
 
-			assert_balance!(Omnipool::protocol_account(), 0, 100000000000000000);
-			assert_balance!(Omnipool::protocol_account(), 2, 2000000000000000);
+			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
 			assert_balance!(Omnipool::protocol_account(), 1, 13360000000000000);
 			assert_balance!(Omnipool::protocol_account(), 100, 2450000000000000);
 			assert_balance!(Omnipool::protocol_account(), 200, 1952191235059762);

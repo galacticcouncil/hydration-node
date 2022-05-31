@@ -14,12 +14,7 @@ fn simple_sell_works() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
@@ -110,16 +105,11 @@ fn sell_insufficient_amount_fails() {
 fn hub_asset_buy_not_allowed() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), 0, 100000000000000000),
-			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 2, 1000 * ONE),
 			(LP1, HDX, 2000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
@@ -139,12 +129,7 @@ fn selling_assets_not_in_pool_fails() {
 			(LP1, 1000, 1000 * ONE),
 			(LP1, 2000, 1000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_registered_asset(100)
 		.build()
 		.execute_with(|| {
@@ -173,12 +158,7 @@ fn sell_limit_works() {
 			(LP1, 100, 1000 * ONE),
 		])
 		.with_registered_asset(100)
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
@@ -197,19 +177,14 @@ fn sell_limit_works() {
 fn sell_hub_asset_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), 0, 100000000000000000),
-			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			(LP2, 100, 2000 * ONE),
 			(LP3, LRNA, 100 * ONE),
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -229,8 +204,8 @@ fn sell_hub_asset_limit() {
 fn sell_hub_works() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), 0, 100000000000000000),
-			(Omnipool::protocol_account(), 2, 2000000000000000),
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			(LP1, 100, 5000000000000000),
 			(LP1, 200, 5000000000000000),
 			(LP2, 100, 1000000000000000),
@@ -239,12 +214,7 @@ fn sell_hub_works() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -270,8 +240,8 @@ fn sell_hub_works() {
 				10000000000000
 			));
 
-			assert_balance_approx!(Omnipool::protocol_account(), 0, 100000000000000000u128, 1);
-			assert_balance_approx!(Omnipool::protocol_account(), 2, 2000000000000000u128, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 1);
+			assert_balance_approx!(Omnipool::protocol_account(), 2, 1_000_000_000_000_000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 1, 13410000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 2400000000000000u128, 1);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1925925925925925u128, 1);
@@ -353,12 +323,7 @@ fn sell_not_allowed_asset_fails() {
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
@@ -441,7 +406,7 @@ fn simple_sell_with_fee_works() {
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_asset_fee(Permill::from_percent(10))
-		.with_initial_pool(1000 * ONE, NATIVE_AMOUNT, FixedU128::from(1), FixedU128::from(1))
+		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;

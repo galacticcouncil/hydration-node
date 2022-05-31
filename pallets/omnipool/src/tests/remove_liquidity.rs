@@ -12,12 +12,7 @@ fn remove_liquidity_works() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
@@ -82,12 +77,7 @@ fn full_liquidity_removal_works() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
@@ -153,12 +143,7 @@ fn partial_liquidity_removal_works() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
@@ -236,12 +221,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			(LP1, 1_000, 5000 * ONE),
 			(LP2, DAI, 50000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 100 * ONE;
@@ -296,12 +276,7 @@ fn protocol_shares_update_works() {
 			(LP1, 1_000, 5000 * ONE),
 			(LP2, 1_000, 5000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 100 * ONE;
@@ -364,12 +339,7 @@ fn remove_liquidity_by_non_owner_fails() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -397,12 +367,7 @@ fn remove_liquidity_from_non_existing_position_fails() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -429,12 +394,7 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 			(LP2, 1_000, 2000 * ONE),
 			(LP1, 1_000, 5000 * ONE),
 		])
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(

@@ -38,7 +38,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-	}: _(RawOrigin::Root, stable_amount, native_amount, stable_price, native_price)
+	}: _(RawOrigin::Root, stable_price, native_price)
 	verify {
 		assert!(<Assets<T>>::get(T::StableCoinAssetId::get()).is_some());
 		assert!(<Assets<T>>::get(T::NativeAssetId::get()).is_some());
@@ -50,7 +50,7 @@ benchmarks! {
 		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount, native_amount, stable_price, native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -78,7 +78,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount, native_amount, stable_price, native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -114,7 +114,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -161,7 +161,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -209,7 +209,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -257,7 +257,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_amount,native_amount,stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
 
 	}: _(RawOrigin::Root, T::StableCoinAssetId::get(), Tradable::BuyOnly)
 	verify {

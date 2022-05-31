@@ -178,7 +178,7 @@ pub struct ExtBuilder {
 	asset_weight_cap: (u32, u32),
 	min_liquidity: u128,
 	min_trade_limit: u128,
-	init_pool: Option<(Balance, Balance, FixedU128, FixedU128)>,
+	init_pool: Option<(FixedU128, FixedU128)>,
 }
 
 impl Default for ExtBuilder {
@@ -262,14 +262,8 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_initial_pool(
-		mut self,
-		stable_amount: Balance,
-		native_amount: Balance,
-		stable_price: FixedU128,
-		native_price: FixedU128,
-	) -> Self {
-		self.init_pool = Some((stable_amount, native_amount, stable_price, native_price));
+	pub fn with_initial_pool(mut self, stable_price: FixedU128, native_price: FixedU128) -> Self {
+		self.init_pool = Some((stable_price, native_price));
 		self
 	}
 
@@ -317,15 +311,12 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		if let Some((stable_amount, native_amount, stable_price, native_price)) = self.init_pool {
+		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::initialize_pool(
-					Origin::root(),
-					stable_amount,
-					native_amount,
-					stable_price,
-					native_price,
-				));
+				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
+				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
+
+				assert_ok!(Omnipool::initialize_pool(Origin::root(), stable_price, native_price,));
 				assert_pool_state_approx!(
 					stable_price.checked_mul_int(stable_amount).unwrap() + native_amount,
 					FixedU128::from((stable_amount, stable_price.checked_mul_int(stable_amount).unwrap()))

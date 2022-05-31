@@ -5,8 +5,8 @@ use frame_support::assert_noop;
 fn initialize_pool_works() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, 100 * ONE),
+			(Omnipool::protocol_account(), HDX, 200 * ONE),
 		])
 		.build()
 		.execute_with(|| {
@@ -16,13 +16,7 @@ fn initialize_pool_works() {
 			let stable_price = FixedU128::from_float(0.5);
 			let native_price = FixedU128::from_float(1.5);
 
-			assert_ok!(Omnipool::initialize_pool(
-				Origin::root(),
-				stable_amount,
-				native_amount,
-				stable_price,
-				native_price
-			));
+			assert_ok!(Omnipool::initialize_pool(Origin::root(), stable_price, native_price));
 
 			assert_pool_state!(
 				stable_price.checked_mul_int(stable_amount).unwrap()
@@ -60,22 +54,14 @@ fn initialize_pool_works() {
 #[test]
 fn already_initialized_pool_fails() {
 	ExtBuilder::default()
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let stable_amount = 100 * ONE;
-			let native_amount = 200 * ONE;
-
 			let stable_price = FixedU128::from_float(0.5);
 			let native_price = FixedU128::from_float(1.5);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_amount, native_amount, stable_price, native_price),
+				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
 				Error::<Test>::AssetAlreadyAdded
 			);
 		});
@@ -87,14 +73,11 @@ fn initialize_pool_without_stable_balance_fails() {
 		.with_endowed_accounts(vec![])
 		.build()
 		.execute_with(|| {
-			let stable_amount = 100 * ONE;
-			let native_amount = 200 * ONE;
-
 			let stable_price = FixedU128::from_float(0.5);
 			let native_price = FixedU128::from_float(1.5);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_amount, native_amount, stable_price, native_price),
+				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
 				Error::<Test>::MissingBalance
 			);
 		});
@@ -106,14 +89,11 @@ fn initialize_pool_without_native_balance_fails() {
 		.with_endowed_accounts(vec![(Omnipool::protocol_account(), DAI, 1000 * ONE)])
 		.build()
 		.execute_with(|| {
-			let stable_amount = 100 * ONE;
-			let native_amount = 200 * ONE;
-
 			let stable_price = FixedU128::from_float(0.5);
 			let native_price = FixedU128::from_float(1.5);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_amount, native_amount, stable_price, native_price),
+				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
 				Error::<Test>::MissingBalance
 			);
 		});
@@ -121,14 +101,11 @@ fn initialize_pool_without_native_balance_fails() {
 #[test]
 fn initialize_pool_with_zero_stable_price_fails() {
 	ExtBuilder::default().build().execute_with(|| {
-		let stable_amount = 100 * ONE;
-		let native_amount = 200 * ONE;
-
 		let stable_price = FixedU128::from(0);
 		let native_price = FixedU128::from(1);
 
 		assert_noop!(
-			Omnipool::initialize_pool(Origin::root(), stable_amount, native_amount, stable_price, native_price),
+			Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
 			Error::<Test>::InvalidInitialAssetPrice
 		);
 	});
@@ -140,14 +117,11 @@ fn initialize_pool_with_zero_native_price_fails() {
 		.with_endowed_accounts(vec![(Omnipool::protocol_account(), DAI, 1000 * ONE)])
 		.build()
 		.execute_with(|| {
-			let stable_amount = 100 * ONE;
-			let native_amount = 200 * ONE;
-
 			let stable_price = FixedU128::from(1);
 			let native_price = FixedU128::from(0);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_amount, native_amount, stable_price, native_price),
+				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
 				Error::<Test>::InvalidInitialAssetPrice
 			);
 		});
@@ -158,12 +132,7 @@ fn add_token_works() {
 	ExtBuilder::default()
 		.with_registered_asset(1000)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_price = FixedU128::from_float(0.65);
@@ -196,12 +165,7 @@ fn add_token_works() {
 #[test]
 fn add_non_registered_asset_fails() {
 	ExtBuilder::default()
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
@@ -216,12 +180,7 @@ fn add_token_with_zero_price_fails() {
 	ExtBuilder::default()
 		.with_registered_asset(1000)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_price = FixedU128::from(0);
@@ -238,12 +197,7 @@ fn cannot_add_existing_asset() {
 	ExtBuilder::default()
 		.with_registered_asset(1000)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -283,12 +237,7 @@ fn add_token_with_insufficient_balance_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP3, 1_000, 100 * ONE))
 		.with_registered_asset(1000)
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_noop!(

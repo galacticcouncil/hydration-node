@@ -6,12 +6,7 @@ fn add_liquidity_works() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((LP2, 1_000, 5000 * ONE))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
@@ -69,12 +64,7 @@ fn add_stable_asset_liquidity_works() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, DAI, 5000 * ONE))
 		.add_endowed_accounts((LP2, 1_000, 5000 * ONE))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
@@ -118,12 +108,7 @@ fn add_stable_asset_liquidity_works() {
 fn add_liquidity_for_non_pool_token_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
@@ -137,12 +122,7 @@ fn add_liquidity_for_non_pool_token_fails() {
 fn add_liquidity_with_insufficient_balance_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -164,12 +144,7 @@ fn add_liquidity_exceeding_weight_cap_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.with_asset_weight_cap((1, 100))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
@@ -192,12 +167,7 @@ fn add_insufficient_liquidity_fails() {
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.with_min_added_liquidity(5 * ONE)
 		.with_asset_weight_cap((1, 100))
-		.with_initial_pool(
-			1000 * ONE,
-			NATIVE_AMOUNT,
-			FixedU128::from_float(0.5),
-			FixedU128::from(1),
-		)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::add_token(
