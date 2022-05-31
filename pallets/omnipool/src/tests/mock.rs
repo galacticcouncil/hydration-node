@@ -212,7 +212,6 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![
 				(Omnipool::protocol_account(), DAI, 1000 * ONE),
 				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-				(Omnipool::protocol_account(), 1_000, 2000 * ONE),
 			],
 			asset_fee: Permill::from_percent(0),
 			protocol_fee: Permill::from_percent(0),

@@ -77,6 +77,6 @@ macro_rules! assert_pool_state_approx {
 macro_rules! assert_asset_state {
 	( $x:expr, $y:expr) => {{
 		let actual = Assets::<Test>::get($x).unwrap();
-		assert_eq!(actual, $y);
+		assert_eq!(actual, $y.into());
 	}};
 }

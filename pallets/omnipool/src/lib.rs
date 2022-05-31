@@ -92,7 +92,7 @@ pub mod weights;
 use crate::math::{
 	calculate_buy_for_hub_asset_state_changes, calculate_delta_imbalance, calculate_sell_hub_state_changes,
 };
-use crate::types::{AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
+use crate::types::{AssetState, State, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -193,7 +193,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// State of an asset in the omnipool
-	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
+	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, State<Balance>>;
 
 	#[pallet::storage]
 	/// Imbalance of hub asset
@@ -399,8 +399,7 @@ pub mod pallet {
 			);
 
 			// Initial stale of native and stable assets
-			let stable_asset_state = AssetState::<Balance> {
-				reserve: stable_asset_reserve,
+			let stable_asset_state = State::<Balance> {
 				hub_reserve: stable_asset_hub_reserve,
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
@@ -408,8 +407,7 @@ pub mod pallet {
 				tradable: Tradable::default(),
 			};
 
-			let native_asset_state = AssetState::<Balance> {
-				reserve: native_asset_reserve,
+			let native_asset_state = State::<Balance> {
 				hub_reserve: native_asset_hub_reserve,
 				shares: native_asset_amount,
 				protocol_shares: native_asset_amount,
@@ -420,7 +418,7 @@ pub mod pallet {
 			// Imbalance update and total hub asset liquidity for stable asset first
 			// Note: cannot be merged with native, because the calculations depend on updated values
 			let delta_imbalance =
-				Self::recalculate_imbalance(&stable_asset_state, BalanceUpdate::Decrease(stable_asset_reserve))
+				Self::recalculate_imbalance(&( (&stable_asset_state, stable_asset_reserve).into()), BalanceUpdate::Decrease(stable_asset_reserve))
 					.ok_or(ArithmeticError::Overflow)?;
 
 			// No imbalance yet, use default value
@@ -432,7 +430,7 @@ pub mod pallet {
 			)?;
 
 			// Imbalance update total hub asset with native asset next
-			Self::recalculate_imbalance(&native_asset_state, BalanceUpdate::Decrease(native_asset_reserve))
+			Self::recalculate_imbalance( & ((&native_asset_state, native_asset_reserve).into()), BalanceUpdate::Decrease(native_asset_reserve))
 				.ok_or(ArithmeticError::Overflow)?;
 			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
@@ -505,8 +503,7 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 
 			// Initial stale of asset
-			let state = AssetState::<Balance> {
-				reserve: amount,
+			let state = State::<Balance> {
 				hub_reserve,
 				shares: amount,
 				protocol_shares: amount,
@@ -537,7 +534,7 @@ pub mod pallet {
 			});
 
 			// Recalculate total Imbalance given the new asset state and update the value
-			let delta_imbalance = Self::recalculate_imbalance(&state, BalanceUpdate::Decrease(amount))
+			let delta_imbalance = Self::recalculate_imbalance(&((&state,amount).into()) , BalanceUpdate::Decrease(amount))
 				.ok_or(ArithmeticError::Overflow)?;
 			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
@@ -591,10 +588,11 @@ pub mod pallet {
 			let stable_asset = Self::stable_asset()?;
 
 			Assets::<T>::try_mutate(asset, |maybe_asset| -> DispatchResult {
-				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let mut asset_state: AssetState<Balance> = (state.clone(), T::Currency::free_balance(asset, &Self::protocol_account())).into();
 
 				let state_changes = calculate_add_liquidity_state_changes(
-					asset_state,
+					&asset_state,
 					amount,
 					stable_asset,
 					asset == T::StableCoinAssetId::get(),
@@ -652,7 +650,7 @@ pub mod pallet {
 				)?;
 
 				// Imbalance update
-				let delta_imbalance = Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)
+				let delta_imbalance = Self::recalculate_imbalance(&asset_state, state_changes.delta_imbalance)
 					.ok_or(ArithmeticError::Overflow)?;
 				Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
@@ -664,6 +662,9 @@ pub mod pallet {
 					&state_changes.asset.delta_hub_reserve,
 					HubAssetIssuanceUpdate::AdjustSupply,
 				)?;
+
+				let new_state: State<Balance> = asset_state.into();
+				*state = new_state;
 
 				Self::deposit_event(Event::LiquidityAdded {
 					from: who,
@@ -710,10 +711,11 @@ pub mod pallet {
 			let asset_id = position.asset_id;
 
 			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
-				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+				let state = maybe_asset.as_ref().ok_or(Error::<T>::AssetNotFound)?;
+				let mut asset_state: AssetState<Balance> = (state, 100u128).into();
 
 				let state_changes = calculate_remove_liquidity_state_changes::<T::AssetId>(
-					asset_state,
+					&asset_state,
 					amount,
 					&position,
 					stable_asset,
@@ -743,7 +745,7 @@ pub mod pallet {
 				)?;
 
 				// Imbalance update
-				let delta_imbalance = Self::recalculate_imbalance(asset_state, state_changes.delta_imbalance)
+				let delta_imbalance = Self::recalculate_imbalance(&asset_state, state_changes.delta_imbalance)
 					.ok_or(ArithmeticError::Overflow)?;
 				Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
 
@@ -783,6 +785,10 @@ pub mod pallet {
 				} else {
 					<Positions<T>>::insert(position_id, position);
 				}
+
+				let new_state: State<Balance> = asset_state.into();
+
+				<Assets<T>>::insert(asset_id, new_state);
 
 				Self::deposit_event(Event::LiquidityRemoved {
 					who,
@@ -840,8 +846,14 @@ pub mod pallet {
 				return Self::sell_asset_for_hub_asset(&who, asset_in, amount, min_buy_amount);
 			}
 
-			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
-			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+			// Handling of other asset pairs
+			let state_in = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
+			let state_out = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+			let mut asset_in_state:AssetState<Balance> = (&state_in,
+														  100u128).into();
+			let mut asset_out_state:AssetState<Balance> = (&state_out,
+														   100u128).into();
+
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -873,8 +885,8 @@ pub mod pallet {
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			<Assets<T>>::insert(asset_in, asset_in_state);
-			<Assets<T>>::insert(asset_out, asset_out_state);
+			<Assets<T>>::insert(asset_in, Into::<State<Balance>>::into(asset_in_state));
+			<Assets<T>>::insert(asset_out, Into::<State<Balance>>::into(asset_out_state));
 
 			// Token balances update
 			T::Currency::transfer(
@@ -960,8 +972,12 @@ pub mod pallet {
 			}
 
 			// Handling of other asset pairs
-			let mut asset_in_state = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
-			let mut asset_out_state = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+			let state_in = Assets::<T>::get(asset_in).ok_or(Error::<T>::AssetNotFound)?;
+			let state_out = Assets::<T>::get(asset_out).ok_or(Error::<T>::AssetNotFound)?;
+			let mut asset_in_state:AssetState<Balance> = (&state_in,
+														  100u128).into();
+			let mut asset_out_state:AssetState<Balance> = (&state_out,
+														   100u128).into();
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -998,8 +1014,9 @@ pub mod pallet {
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			<Assets<T>>::insert(asset_in, asset_in_state);
-			<Assets<T>>::insert(asset_out, asset_out_state);
+
+			<Assets<T>>::insert(asset_in, Into::<State<Balance>>::into(asset_in_state));
+			<Assets<T>>::insert(asset_out, Into::<State<Balance>>::into(asset_out_state));
 
 			T::Currency::transfer(
 				asset_in,
@@ -1102,7 +1119,8 @@ impl<T: Config> Pallet<T> {
 	/// Return NoStableCoinInPool if stable asset is not yet in the pool.
 	fn stable_asset() -> Result<(Balance, Balance), DispatchError> {
 		let stable_asset = <Assets<T>>::get(T::StableCoinAssetId::get()).ok_or(Error::<T>::NoStableAssetInPool)?;
-		Ok((stable_asset.reserve, stable_asset.hub_reserve))
+		let stable_reserve= T::Currency::free_balance(T::StableCoinAssetId::get(), &Self::protocol_account());
+		Ok((stable_reserve, stable_asset.hub_reserve))
 	}
 
 	/// Generate an nft instance id and mint NFT into the class and instance.
@@ -1237,14 +1255,15 @@ impl<T: Config> Pallet<T> {
 		);
 
 		Assets::<T>::try_mutate(asset_out, |maybe_asset| -> DispatchResult {
-			let asset_out_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+			let state = maybe_asset.as_ref().ok_or(Error::<T>::AssetNotFound)?;
+			let mut asset_out_state: AssetState<Balance> = (state, 100u128).into();
 
 			ensure!(
 				matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
 				Error::<T>::NotAllowed
 			); // TODO: Add test for this!
 
-			let state_changes = calculate_sell_hub_state_changes(asset_out_state, amount, T::AssetFee::get())
+			let state_changes = calculate_sell_hub_state_changes(&asset_out_state, amount, T::AssetFee::get())
 				.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
@@ -1280,8 +1299,6 @@ impl<T: Config> Pallet<T> {
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
-			<Assets<T>>::insert(asset_out, asset_out_state);
-
 			Self::deposit_event(Event::SellExecuted {
 				who: who.clone(),
 				asset_in: T::HubAssetId::get(),
@@ -1308,14 +1325,15 @@ impl<T: Config> Pallet<T> {
 		);
 
 		Assets::<T>::try_mutate(asset_out, |maybe_asset| -> DispatchResult {
-			let asset_out_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+			let state = maybe_asset.as_ref().ok_or(Error::<T>::AssetNotFound)?;
+			let mut asset_out_state : AssetState<Balance> = (state, 100u128).into();
 
 			ensure!(
 				matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
 				Error::<T>::NotAllowed
 			); // TODO: Add test for this!
 
-			let state_changes = calculate_buy_for_hub_asset_state_changes(asset_out_state, amount, T::AssetFee::get())
+			let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_out_state, amount, T::AssetFee::get())
 				.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
@@ -1350,8 +1368,6 @@ impl<T: Config> Pallet<T> {
 			// Imbalance update
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
-
-			<Assets<T>>::insert(asset_out, asset_out_state);
 
 			Self::deposit_event(Event::BuyExecuted {
 				who: who.clone(),

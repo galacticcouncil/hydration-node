@@ -24,6 +24,8 @@ fn add_liquidity_works() {
 				FixedU128::from_float(0.65)
 			));
 
+			assert_balance!(Omnipool::protocol_account(), 1_000, token_amount);
+
 			assert_pool_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
 
 			let liq_added = 400 * ONE;

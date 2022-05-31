@@ -11,7 +11,7 @@ pub type Balance = u128;
 pub type Price = FixedU128;
 
 /// Asset's trade state. Indicates whether asset can be bought or sold to/from Ommnipool
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone,Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Tradable {
 	/// Asset is allowed to be bought and sold
 	Allowed,
@@ -30,6 +30,33 @@ impl Default for Tradable {
 }
 
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct State<Balance> {
+	/// Quantity of Hub Asset matching this asset
+	pub(super) hub_reserve: Balance,
+	/// Quantity of LP shares for this asset
+	pub(super) shares: Balance,
+	/// Quantity of LP shares for this asset owned by protocol
+	pub(super) protocol_shares: Balance,
+	/// TVL of asset
+	pub(super) tvl: Balance,
+	/// Asset's trade state
+	pub(super) tradable: Tradable,
+}
+
+impl<Balance> From<AssetState<Balance>> for State<Balance>
+where Balance: Copy{
+	fn from(s: AssetState<Balance>) -> Self {
+		Self{
+			hub_reserve: s.hub_reserve,
+			shares: s.shares,
+			protocol_shares: s.protocol_shares,
+			tvl: s.tvl,
+			tradable: s.tradable
+		}
+	}
+}
+
+#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AssetState<Balance> {
 	/// Quantity of asset in omnipool
 	pub(super) reserve: Balance,
@@ -44,6 +71,35 @@ pub struct AssetState<Balance> {
 	/// Asset's trade state
 	pub(super) tradable: Tradable,
 }
+
+impl<Balance> From<(&State<Balance>, Balance)> for AssetState<Balance>
+where Balance: Copy{
+	fn from((s, reserve): (&State<Balance>, Balance)) -> Self {
+		Self{
+			reserve: reserve,
+			hub_reserve: s.hub_reserve,
+			shares: s.shares,
+			protocol_shares: s.protocol_shares,
+			tvl: s.tvl,
+			tradable: s.tradable
+		}
+	}
+}
+
+impl<Balance> From<(State<Balance>, Balance)> for AssetState<Balance>
+where Balance: Copy{
+	fn from((s, reserve): (State<Balance>, Balance)) -> Self {
+		Self{
+			reserve: reserve,
+			hub_reserve: s.hub_reserve,
+			shares: s.shares,
+			protocol_shares: s.protocol_shares,
+			tvl: s.tvl,
+			tradable: s.tradable
+		}
+	}
+}
+
 
 impl<Balance> AssetState<Balance>
 where
