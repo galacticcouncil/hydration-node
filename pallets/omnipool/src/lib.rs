@@ -93,10 +93,11 @@ use crate::math::{
 	calculate_buy_for_hub_asset_state_changes, calculate_delta_imbalance, calculate_sell_hub_state_changes,
 };
 use crate::types::{
-	AssetReserveState, AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable,
+	AssetState, Balance, BalanceUpdate, HubAssetIssuanceUpdate, Price, SimpleImbalance, Tradable,
 };
 pub use pallet::*;
 pub use weights::WeightInfo;
+use crate::math::types::AssetReserveState;
 
 /// NFT class id type of provided nft implementation
 type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::ClassId;
@@ -597,7 +598,7 @@ pub mod pallet {
 
 			let stable_asset = Self::stable_asset()?;
 
-			let mut asset_state = Self::load_asset_state(asset)?;
+			let asset_state = Self::load_asset_state(asset)?;
 
 			let state_changes = calculate_add_liquidity_state_changes(
 				&asset_state,
@@ -608,7 +609,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			// New Asset State
-			asset_state
+			let asset_state = asset_state
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -716,7 +717,7 @@ pub mod pallet {
 
 			let asset_id = position.asset_id;
 
-			let mut asset_state = Self::load_asset_state(asset_id)?;
+			let asset_state = Self::load_asset_state(asset_id)?;
 
 			let state_changes = calculate_remove_liquidity_state_changes::<T::AssetId>(
 				&asset_state,
@@ -728,7 +729,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			// New Asset State
-			asset_state
+			let asset_state = asset_state
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -847,8 +848,8 @@ pub mod pallet {
 				return Self::sell_asset_for_hub_asset(&who, asset_in, amount, min_buy_amount);
 			}
 
-			let mut asset_in_state = Self::load_asset_state(asset_in)?;
-			let mut asset_out_state = Self::load_asset_state(asset_out)?;
+			let asset_in_state = Self::load_asset_state(asset_in)?;
+			let asset_out_state = Self::load_asset_state(asset_out)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -873,10 +874,10 @@ pub mod pallet {
 			);
 
 			// Pool state update
-			asset_in_state
+			let asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
-			asset_out_state
+			let asset_out_state = asset_out_state
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -966,8 +967,8 @@ pub mod pallet {
 				return Self::buy_asset_for_hub_asset(&who, asset_out, amount, max_sell_amount);
 			}
 
-			let mut asset_in_state = Self::load_asset_state(asset_in)?;
-			let mut asset_out_state = Self::load_asset_state(asset_out)?;
+			let asset_in_state = Self::load_asset_state(asset_in)?;
+			let asset_out_state = Self::load_asset_state(asset_out)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -997,10 +998,10 @@ pub mod pallet {
 			);
 
 			// Pool state update
-			asset_in_state
+			let asset_in_state = asset_in_state
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
-			asset_out_state
+			let asset_out_state = asset_out_state
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1253,7 +1254,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		let mut asset_out_state = Self::load_asset_state(asset_out)?;
+		let asset_out_state = Self::load_asset_state(asset_out)?;
 
 		ensure!(
 			matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
@@ -1268,7 +1269,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::BuyLimitNotReached
 		);
 
-		asset_out_state
+		let asset_out_state = asset_out_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1322,7 +1323,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		let mut asset_out_state = Self::load_asset_state(asset_out)?;
+		let asset_out_state = Self::load_asset_state(asset_out)?;
 
 		ensure!(
 			matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
@@ -1337,7 +1338,7 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::SellLimitExceeded
 		); // TODO: Add test for this!
 
-		asset_out_state
+		let asset_out_state = asset_out_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 

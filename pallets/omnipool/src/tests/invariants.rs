@@ -124,13 +124,13 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut asset_in_state = asset_in.clone();
-		assert!(asset_in_state.delta_update(&state_changes.asset_in).is_some());
+		let asset_in_state = asset_in.clone();
+		let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
 
 		assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token in");
 
-		let mut asset_out_state = asset_out.clone();
-		assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
+		let asset_out_state = asset_out.clone();
+		let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
 
 		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
 	}
@@ -155,12 +155,12 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut asset_in_state = asset_in.clone();
-		assert!(asset_in_state.delta_update(&state_changes.asset_in).is_some());
+		let asset_in_state = asset_in.clone();
+		let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
 		assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token in");
 
-		let mut asset_out_state = asset_out.clone();
-		assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
+		let asset_out_state = asset_out.clone();
+		let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
 		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
 	}
 }
@@ -180,8 +180,8 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut asset_out_state = asset_out.clone();
-		assert!(asset_out_state.delta_update(&state_changes.asset).is_some());
+		let asset_out_state = asset_out.clone();
+		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
 		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
 	}
 }
@@ -201,8 +201,8 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut asset_out_state = asset_out.clone();
-		assert!(asset_out_state.delta_update(&state_changes.asset).is_some());
+		let asset_out_state = asset_out.clone();
+		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
 		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
 	}
 }
@@ -223,12 +223,12 @@ proptest! {
 
 		// ignore the invalid result
 		if let Some(state_changes) = result {
-			let mut asset_in_state = asset_in.clone();
-			assert!(asset_in_state.delta_update(&state_changes.asset_in).is_some());
+			let asset_in_state = asset_in.clone();
+			let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
 			assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token in");
 
-			let mut asset_out_state = asset_out.clone();
-			assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
+			let asset_out_state = asset_out.clone();
+			let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
 			assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token out");
 		}
 	}
@@ -280,12 +280,12 @@ proptest! {
 
 		// ignore the invalid result
 		if let Some(state_changes) = result {
-			let mut asset_in_state = asset_in.clone();
-			assert!(asset_in_state.delta_update(&state_changes.asset_in).is_some());
+			let asset_in_state = asset_in.clone();
+			let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
 			assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token in");
 
-			let mut asset_out_state = asset_out.clone();
-			assert!(asset_out_state.delta_update(&state_changes.asset_out).is_some());
+			let asset_out_state = asset_out.clone();
+			let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
 			assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token out");
 		}
 	}
@@ -1113,8 +1113,8 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut new_asset_state= asset.clone();
-		assert!(new_asset_state.delta_update(&state_changes.asset).is_some());
+		let new_asset_state= asset.clone();
+		let new_asset_state = new_asset_state.delta_update(&state_changes.asset).unwrap();
 
 		// Price should not change
 		assert_eq_approx!(asset.price(),
@@ -1142,8 +1142,8 @@ proptest! {
 
 		let state_changes = result.unwrap();
 
-		let mut new_asset_state= asset.clone();
-		assert!(new_asset_state.delta_update(&state_changes.asset).is_some());
+		let new_asset_state= asset.clone();
+		let new_asset_state = new_asset_state.delta_update(&state_changes.asset).unwrap();
 
 		assert_ne!(new_asset_state.reserve, asset.reserve);
 

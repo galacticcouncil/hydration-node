@@ -3,7 +3,7 @@ use crate::types::{
 	AssetStateChange, Balance, BalanceUpdate, HubTradeStateChange, LiquidityStateChange, Position, SimpleImbalance,
 	TradeStateChange,
 };
-use crate::{AssetReserveState, FixedU128, Price};
+use crate::{AssetReserveState, AssetState, FixedU128, Price, Tradable};
 use primitive_types::U256;
 use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use sp_runtime::{FixedPointNumber, Permill};
@@ -23,6 +23,80 @@ macro_rules! to_balance {
 	($x:expr) => {
 		Balance::try_from($x).ok()
 	};
+}
+
+pub(super) mod types {
+	use super::*;
+
+	#[derive(Clone, Default, Debug)]
+	pub struct AssetReserveState<Balance> {
+		/// Quantity of asset in omnipool
+		pub(crate) reserve: Balance,
+		/// Quantity of Hub Asset matching this asset
+		pub(crate) hub_reserve: Balance,
+		/// Quantity of LP shares for this asset
+		pub(crate) shares: Balance,
+		/// Quantity of LP shares for this asset owned by protocol
+		pub(crate) protocol_shares: Balance,
+		/// TVL of asset
+		pub(crate) tvl: Balance,
+		/// Asset's trade state
+		pub(crate) tradable: Tradable,
+	}
+
+	impl<Balance> From<(&AssetState<Balance>, Balance)> for AssetReserveState<Balance>
+		where
+			Balance: Copy,
+	{
+		fn from((s, reserve): (&AssetState<Balance>, Balance)) -> Self {
+			Self {
+				reserve,
+				hub_reserve: s.hub_reserve,
+				shares: s.shares,
+				protocol_shares: s.protocol_shares,
+				tvl: s.tvl,
+				tradable: s.tradable,
+			}
+		}
+	}
+
+	impl<Balance> From<(AssetState<Balance>, Balance)> for AssetReserveState<Balance>
+		where
+			Balance: Copy,
+	{
+		fn from((s, reserve): (AssetState<Balance>, Balance)) -> Self {
+			Self {
+				reserve,
+				hub_reserve: s.hub_reserve,
+				shares: s.shares,
+				protocol_shares: s.protocol_shares,
+				tvl: s.tvl,
+				tradable: s.tradable,
+			}
+		}
+	}
+
+	impl<Balance> AssetReserveState<Balance>
+		where
+			Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
+	{
+		/// Calculate price for actual state
+		pub(crate) fn price(&self) -> FixedU128 {
+			FixedU128::from((self.hub_reserve.into(), self.reserve.into()))
+		}
+
+		/// Update current asset state with given delta changes.
+		pub(crate) fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
+			Some(Self {
+				reserve : (delta.delta_reserve + self.reserve) ?,
+				hub_reserve : (delta.delta_hub_reserve + self.hub_reserve) ?,
+				shares : (delta.delta_shares + self.shares) ?,
+				protocol_shares : (delta.delta_protocol_shares + self.protocol_shares) ?,
+				tvl : (delta.delta_tvl + self.tvl) ?,
+				tradable: self.tradable
+			})
+		}
+	}
 }
 
 #[inline]
