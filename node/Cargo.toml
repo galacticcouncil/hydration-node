@@ -1,13 +1,15 @@
 [package]
-authors = ['GalacticCouncil']
-build = 'build.rs'
-description = 'Hydra DX'
-edition = '2021'
-homepage = 'https://github.com/galacticcouncil/hydradx-node'
-license = 'Apache 2.0'
 name = 'hydra-dx'
-repository = 'https://github.com/galacticcouncil/hydradx-node'
 version = '6.4.0'
+description = 'Hydra DX'
+authors = ['GalacticCouncil <hydradx@galacticcouncil.io>']
+edition = '2021'
+license = 'Apache-2.0'
+homepage = "https://hydradx.io"
+repository = 'https://github.com/galacticcouncil/HydraDx-node'
+readme = "README.md"
+build = 'build.rs'
+
 
 [[bin]]
 name = 'hydra-dx'
