@@ -51,7 +51,7 @@ pub mod time {
 	///
 	/// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
 
-	pub const MILLISECS_PER_BLOCK: u64 = 12000;
+	pub const MILLISECS_PER_BLOCK: u64 = 12_000;
 
 	// Time is measured by number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);

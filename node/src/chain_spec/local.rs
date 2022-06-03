@@ -1,6 +1,7 @@
 use super::*;
 
 const INITIAL_BALANCE: u128 = 10_000;
+const INITIAL_TOKEN_BALANCE: Balance = 1_000 * UNITS;
 
 pub fn parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
@@ -20,17 +21,21 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				wasm_binary,
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				//initial authorities & invulnerables
-				vec![
-					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						get_from_seed::<AuraId>("Alice"),
-					),
-					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						get_from_seed::<AuraId>("Bob"),
-					),
-				],
+				// initial authorities & invulnerables
+				(
+					vec![
+						(
+							get_account_id_from_seed::<sr25519::Public>("Alice"),
+							get_from_seed::<AuraId>("Alice"),
+						),
+						(
+							get_account_id_from_seed::<sr25519::Public>("Bob"),
+							get_from_seed::<AuraId>("Bob"),
+						),
+					],
+					// candidacy bond
+					10_000 * UNITS,
+				),
 				// Pre-funded accounts
 				vec![
 					(get_account_id_from_seed::<sr25519::Public>("Alice"), INITIAL_BALANCE),
@@ -64,20 +69,43 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 						INITIAL_BALANCE,
 					),
 				],
-				true,
-				PARA_ID.into(),
-				//council
+				// council members
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				//technical_committe
+				// technical committee members
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Eve"),
 				],
-				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				// vestings
 				vec![],
+				// registered assets
 				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				// accepted assets
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+				// tx fee payment account
+				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
+				// token balances
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+					),
+				],
+				// claims data
+				create_testnet_claims(),
+				// elections
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
+				],
+				// parachain ID
+				PARA_ID.into(),
 			)
 		},
 		// Bootnodes

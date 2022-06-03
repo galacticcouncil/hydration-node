@@ -1,6 +1,7 @@
 .PHONY: build
 build:
 	cargo build --release
+	ln -f $(CURDIR)/target/release/hydradx $(CURDIR)/target/release/testing-hydradx
 
 .PHONY: check
 check:

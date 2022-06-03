@@ -1,23 +1,5 @@
 {
-    "amm": {
-        "create_pool": 189.0,
-        "add_liquidity": 171.0,
-        "remove_liquidity": 170.0,
-        "sell": 122.0,
-        "buy": 121.0
-    },
-    "exchange": {
-        "sell_intention": 109.0,
-        "buy_intention": 112.0,
-        "sell_extrinsic": 121.0,
-        "on_finalize_for_one_sell_extrinsic": 163.0,
-        "buy_extrinsic": 120.0,
-        "on_finalize_for_one_buy_extrinsic": 179.0
-    },
-    "transaction_multi_payment": {
-        "swap_currency": 132.0,
-        "set_currency": 34.0,
-        "add_currency": 26.0,
-        "remove_currency": 26.0
+    "pallet-claims": {
+        "claim": 189.0
     }
 }
