@@ -653,6 +653,16 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
+impl pallet_multisig::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = MaxSignatories;
+	type WeightInfo = ();
+}
+
 /// HydraDX Pallets configurations
 
 impl pallet_claims::Config for Runtime {
@@ -765,6 +775,7 @@ construct_runtime!(
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 25,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 27,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 29,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 31,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,

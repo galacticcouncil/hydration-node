@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.0.3"
+version = "106.0.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -3056,7 +3056,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "105.0.0"
+version = "106.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3101,6 +3101,7 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-multisig",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
@@ -10765,7 +10766,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "105.0.0"
+version = "106.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -10810,6 +10811,7 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-multisig",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
