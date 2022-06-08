@@ -292,6 +292,13 @@ parameter_types! {
 	pub const MaxPending: u16 = 32;
 }
 
+// pallet multisig
+parameter_types! {
+	pub DepositBase: Balance = deposit(1, 88);
+	pub DepositFactor: Balance = deposit(0, 32);
+	pub const MaxSignatories: u16 = 100;
+}
+
 // pallet claims
 parameter_types! {
 	pub ClaimMessagePrefix: &'static [u8] = b"I hereby claim all my HDX tokens to wallet:";
