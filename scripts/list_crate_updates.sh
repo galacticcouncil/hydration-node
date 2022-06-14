@@ -9,10 +9,10 @@ PROJECT_PATH=$(cargo locate-project --workspace --message-format plain)
 PROJECT_PATH=${PROJECT_PATH%Cargo.toml}
 
 ACTUAL_COMMIT=$(git rev-parse HEAD)
-MASTER_COMMIT=$(git rev-parse origin/${GITHUB_BASE_REF:=master})
+BASE_COMMIT=$(git rev-parse origin/${GITHUB_BASE_REF:=master})
 
-git fetch --quiet --depth 1 origin "$MASTER_COMMIT"
-git checkout --quiet "$MASTER_COMMIT"
+git fetch --quiet --depth 1 origin "$BASE_COMMIT"
+git checkout --quiet "$BASE_COMMIT"
 
 # get list of local crates and remove empty lines from the output
 IFS=$'\n' read -r -d '' -a CRATE_ARR_MASTER < <( cargo tree --edges normal --depth 0 | sed -r '/^\s*$/d' && printf '\0' )
@@ -44,7 +44,7 @@ done
 
 git checkout -f --quiet "$ACTUAL_COMMIT"
 
-MODIFIED_FILES=($(git diff --name-only "$ACTUAL_COMMIT" "$MASTER_COMMIT"))
+MODIFIED_FILES=($(git diff --name-only "$ACTUAL_COMMIT" "$BASE_COMMIT"))
 
 # get list of local crates and remove empty lines from the output
 IFS=$'\n' read -r -d '' -a CRATE_ARR< <( cargo tree --edges normal --depth 0 | sed -r '/^\s*$/d' && printf '\0' )
