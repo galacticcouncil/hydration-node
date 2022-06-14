@@ -1072,7 +1072,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.0.3"
+version = "100.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
