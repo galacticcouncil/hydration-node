@@ -80,6 +80,7 @@ MODIFIED_CRATES_ARR=( $(printf '%s\n' "${MODIFIED_CRATES_ARR[@]}" | sort -u) )
 
 NOT_UPDATED_VERSIONS_ARR=()
 UPDATED_VERSIONS_ARR=()
+DOWNGRADED_VERSIONS_ARR=()
 NEW_VERSIONS_ARR=()
 
 for crate in "${MODIFIED_CRATES_ARR[@]}"; do
@@ -110,7 +111,11 @@ for crate in "${MODIFIED_CRATES_ARR[@]}"; do
       NEW_VERSIONS_ARR+=("$CRATE_NAME: $NEW_VERSION")
     # crate has different versions
     else
-      UPDATED_VERSIONS_ARR+=("$CRATE_NAME: ${CRATE_VERSION_MASTER_ARR[$MASTER_CRATE_INDEX]} -> $NEW_VERSION")
+      if [ "$NEW_VERSION" == "`echo -e "$NEW_VERSION\n${CRATE_VERSION_MASTER_ARR[MASTER_CRATE_INDEX]}" | sort -Vr | head -n1`" ]; then
+        UPDATED_VERSIONS_ARR+=("$CRATE_NAME: ${CRATE_VERSION_MASTER_ARR[$MASTER_CRATE_INDEX]} -> $NEW_VERSION")
+      else
+        DOWNGRADED_VERSIONS_ARR+=("$CRATE_NAME: ${CRATE_VERSION_MASTER_ARR[$MASTER_CRATE_INDEX]} -> $NEW_VERSION")
+      fi
     fi
 done
 
@@ -168,6 +173,14 @@ fi
 if [ ${#UPDATED_VERSIONS_ARR[@]} -ne 0 ]; then
     echo "Crate versions that have been updated:"
     for line in ${UPDATED_VERSIONS_ARR[@]}; do
+      echo "- $line"
+    done
+    echo
+fi
+
+if [ ${#DOWNGRADED_VERSIONS_ARR[@]} -ne 0 ]; then
+    echo "Crate versions that have been downgraded:"
+    for line in ${DOWNGRADED_VERSIONS_ARR[@]}; do
       echo "- $line"
     done
     echo
