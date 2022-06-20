@@ -2700,10 +2700,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d39cd93900197114fa1fcb7ae84ca742095eed9442088988ae74fa744e930e77"
 dependencies = [
  "cfg-if 1.0.0",
- "js-sys",
  "libc",
  "wasi 0.10.0+wasi-snapshot-preview1",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -3075,11 +3073,8 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "getrandom 0.2.5",
- "hash-db",
  "hex-literal",
  "hydradx-traits",
- "memory-db 0.27.0",
  "orml-benchmarking",
  "orml-currencies",
  "orml-tokens",
@@ -3139,8 +3134,6 @@ dependencies = [
  "sp-version",
  "substrate-build-script-utils",
  "substrate-wasm-builder",
- "tracing-core",
- "trie-db 0.22.6",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -4560,17 +4553,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "memory-db"
-version = "0.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de006e09d04fc301a5f7e817b75aa49801c4479a8af753764416b085337ddcc5"
-dependencies = [
- "hash-db",
- "hashbrown 0.11.2",
- "parity-util-mem",
 ]
 
 [[package]]
@@ -10341,7 +10323,7 @@ dependencies = [
  "sp-trie",
  "thiserror",
  "tracing",
- "trie-db 0.23.1",
+ "trie-db",
  "trie-root",
 ]
 
@@ -10435,12 +10417,12 @@ version = "4.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#19162e43be45817b44c7d48e50d03f074f60fbf4"
 dependencies = [
  "hash-db",
- "memory-db 0.28.0",
+ "memory-db",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
  "sp-std",
- "trie-db 0.23.1",
+ "trie-db",
  "trie-root",
 ]
 
@@ -10785,11 +10767,8 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
- "getrandom 0.2.5",
- "hash-db",
  "hex-literal",
  "hydradx-traits",
- "memory-db 0.27.0",
  "orml-benchmarking",
  "orml-currencies",
  "orml-tokens",
@@ -10849,8 +10828,6 @@ dependencies = [
  "sp-version",
  "substrate-build-script-utils",
  "substrate-wasm-builder",
- "tracing-core",
- "trie-db 0.22.6",
  "xcm",
  "xcm-builder",
  "xcm-executor",
@@ -11137,18 +11114,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
-]
-
-[[package]]
-name = "trie-db"
-version = "0.22.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9eac131e334e81b6b3be07399482042838adcd7957aa0010231d0813e39e02fa"
-dependencies = [
- "hash-db",
- "hashbrown 0.11.2",
- "log",
- "smallvec",
 ]
 
 [[package]]
