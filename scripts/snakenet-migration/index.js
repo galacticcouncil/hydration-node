@@ -16,17 +16,12 @@ const moment = require("moment");
 const yargs = require('yargs');
 const { hideBin } = require('yargs/helpers');
 
-
-const SNAKENET_RPC = "wss://rpc-01.snakenet.hydradx.io"
-const LOCAL = "ws://127.0.0.1:9944";
-const FORK_OFF = "ws://65.108.108.7:9988";
 const ACCOUNT_SECRET = process.env.ACCOUNT_SECRET || "//Alice";
 
-const SOURCE_RPC = process.env.SOURCE_RPC_SERVER || FORK_OFF;
-const TARGET_RPC = process.env.TARGET_RPC_SERVER || LOCAL;
+const SOURCE_RPC = process.env.SOURCE_RPC_SERVER || "wss://rpc-02.snakenet.hydradx.io";
+const TARGET_RPC = process.env.TARGET_RPC_SERVER || "ws://127.0.0.1:9988";
 
 const storagePath = path.join(__dirname, "data", "storage.json");
-const tripleStoragePath = path.join(__dirname, "data", "tripleStorage.json");
 const tempStoragePath = path.join(__dirname, "data", "tempStorage.json");
 const finalStoragePath = path.join(__dirname, "data", "finalStorage.json");
 
@@ -248,6 +243,7 @@ const all_modules = [
 const excludeFromTripling = [
     "7HqdGVRB4MXz1osLR77mfWoo536cWasTYsuAbVuicHdiKQXf", // Galactic council
     "7NPoMQbiA6trJKkjB35uk96MeJD4PGWkLQLH7k7hXEkZpiba", // Alice.
+    "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh", // Treasury
 ];
 
 const ignoreInValidate = [
@@ -535,12 +531,14 @@ const removeDemocracyLocks = (registry, value) => {
 
 const tripleBalance = (registry, value, decreaseConsumers) => {
     let aInfo = registry.createType("AccountInfo", value);
-    let balance = new BN(aInfo.data.free.toString())
-    let reserved = new BN(aInfo.data.reserved.toString())
+    const balance = new BN(aInfo.data.free.toString())
+    const reserved = new BN(aInfo.data.reserved.toString())
 
-    balance = balance.imuln(3).add(reserved.imuln(2)); // Only * 2 for reserved because the amount remains in reserved.
+    const issued = balance.muln(2).add(reserved.muln(2));
 
-    let b = registry.createType("Balance", balance.toString(10,0));
+    const newBalance = balance.add(issued);
+
+    let b = registry.createType("Balance", newBalance.toString(10,0));
 
     let newData = registry.createType("AccountData", { free: b,
         reserved: aInfo.data.reserved,
@@ -556,7 +554,7 @@ const tripleBalance = (registry, value, decreaseConsumers) => {
 
     let newInfo = registry.createType("AccountInfo", { ...aInfo, nonce: 0, consumers: consumers,  data: newData});
 
-    return newInfo.toHex();
+    return [newInfo.toHex(), issued];
 }
 
 const tripleClaim = (registry, value) => {
@@ -578,6 +576,7 @@ const triple = async (source, destination, stakingAccountsRemoved = [], democrac
 
     const systemAccountPrefix = modulePrefixes.get("System.Account");
     const claimsPrefix = modulePrefixes.get("Claims.Claims");
+    let totalIssued = new BN(0);
 
     const storageAdjusted = storage.map( ( keyValue ) => {
         const key = keyValue[0];
@@ -599,7 +598,9 @@ const triple = async (source, destination, stakingAccountsRemoved = [], democrac
                     decreaseConsumers += 1;
                 }
 
-                newValue = tripleBalance(registry, value, decreaseConsumers);
+                const [tripled, issued] = tripleBalance(registry, value, decreaseConsumers);
+                newValue = tripled;
+                totalIssued = totalIssued.add(issued);
             }else{
                 //TODO: staking locks and democracy locks for excluded address ?!!
                 log(`Balance tripling - excluding ${chalk.yellow(hdxAddress)}`)
@@ -609,8 +610,20 @@ const triple = async (source, destination, stakingAccountsRemoved = [], democrac
         }
 
         return [key, newValue];
-    });
+    }).map(([key, value]) => {
+        let newValue = value;
 
+        if (key.startsWith(modulePrefixes.get("Balances.TotalIssuance"))) {
+            if (value > 0 ) {
+                let totalIssuance = new BN(value.substring(2), 16, "le");
+                totalIssuance = totalIssuance.add(totalIssued);
+                const le = totalIssuance.toBuffer("le", 16);
+                newValue = "0x".concat(Buffer.from(le).toString("hex"));
+            }
+        }
+
+        return [key, newValue];
+    });
 
     fs.writeFileSync(destination, JSON.stringify(storageAdjusted));
     log(`Balance and claims tripled. Stored in ${destination}`);

@@ -1,8 +1,13 @@
 [package]
-authors = ['GalacticCouncil']
-edition = '2021'
 name = 'primitives'
 version = '4.4.0'
+authors = ['GalacticCouncil <hydradx@galacticcouncil.io>']
+edition = '2021'
+license = "Apache-2.0"
+homepage = "https://hydradx.io"
+repository = "https://github.com/galacticcouncil/HydraDX-node"
+readme = "README.md"
+
 
 [build-dependencies]
 substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}

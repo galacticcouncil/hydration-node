@@ -22,6 +22,15 @@ The following command downloads data to `data/storage.json` from the source rpc 
 Block number is optional. If not provided - the latest block is selected.
 
 
+### Prepare
+
+The following command takes exported data from `data/storage.json` and transforms it to `data/finalStorage.json`
+
+```bash
+    node index.js prepare
+```
+
+
 ### Migrate
 
 Following command migrate data to target parachain provided in TARGET_RPC_SERVER.
