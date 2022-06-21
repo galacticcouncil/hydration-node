@@ -369,8 +369,9 @@ impl pallet_session::Config for Runtime {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	// we don't have stash and controller, thus we don't need the convert as well.
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
-	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	type ShouldEndSession = pallet_session::PeriodicSessions<testing::Period, Offset>;
+	type NextSessionRotation = pallet_session::PeriodicSessions<testing::Period, Offset>;
+	// We wrap the session manager to give out rewards.
 	type SessionManager = CollatorRewards;
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <opaque::SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
@@ -721,7 +722,7 @@ parameter_types! {
 		// Alice
 		hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into(),
 		// Bob
-		hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"].into(),
+		// hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"].into(),
 	];
 }
 
@@ -734,6 +735,7 @@ impl pallet_collator_rewards::Config for Runtime {
 	type ExcludedCollators = ExcludedCollators;
 	type RewardCurrencyId = NativeAssetId;
 	type AuthorityId = AuraId;
+	// We wrap the SessionManager to hand out rewards.
 	type SessionManager = CollatorSelection;
 }
 
