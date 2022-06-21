@@ -10,3 +10,10 @@ members = [
   'primitives',
   'utils/build-script-utils'
 ]
+
+[patch."https://github.com/galacticcouncil/warehouse"]
+hydradx-traits = { git = "https://github.com/galacticcouncil//warehouse", branch = "apopiak/collator-rewards" }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil//warehouse", branch = "apopiak/collator-rewards" }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil//warehouse", branch = "apopiak/collator-rewards"}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil//warehouse", branch = "apopiak/collator-rewards"}
+pallet-collator-rewards = { git = "https://github.com/galacticcouncil//warehouse", branch = "apopiak/collator-rewards"}

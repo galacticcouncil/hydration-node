@@ -118,7 +118,6 @@ pub fn parachain_genesis(
 						acc,         // validator id
 						hydradx_runtime::opaque::SessionKeys {
 							aura: aura.clone(),
-							collator_rewards: aura,
 						}, // session keys
 					)
 				})

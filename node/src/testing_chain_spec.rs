@@ -216,7 +216,6 @@ fn testnet_parachain_genesis(
 						acc,         // validator id
 						testing_hydradx_runtime::opaque::SessionKeys {
 							aura: aura.clone(),
-							collator_rewards: aura,
 						}, // session keys
 					)
 				})

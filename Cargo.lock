@@ -3142,7 +3142,7 @@ dependencies = [
 [[package]]
 name = "hydradx-traits"
 version = "0.5.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
+source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -5191,7 +5191,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "1.1.9"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
+source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5463,16 +5463,18 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=08a9b3f8e7c690ce8282e0222d1e594988e58831#08a9b3f8e7c690ce8282e0222d1e594988e58831"
+source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
 dependencies = [
  "frame-support",
  "frame-system",
  "log",
  "orml-traits",
+ "pallet-session",
  "parity-scale-codec",
  "scale-info",
  "sp-arithmetic",
  "sp-runtime",
+ "sp-staking",
  "sp-std",
  "substrate-wasm-builder",
 ]
@@ -5865,7 +5867,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
+source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6041,7 +6043,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "7.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
+source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11103,7 +11105,7 @@ dependencies = [
  "chrono",
  "lazy_static",
  "matchers",
- "parking_lot 0.11.2",
+ "parking_lot 0.10.2",
  "regex",
  "serde",
  "serde_json",
