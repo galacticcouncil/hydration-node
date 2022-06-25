@@ -3142,7 +3142,7 @@ dependencies = [
 [[package]]
 name = "hydradx-traits"
 version = "0.5.0"
-source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -5191,7 +5191,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "1.1.9"
-source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5463,7 +5463,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.0"
-source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
+source = "git+https://github.com/galacticcouncil/warehouse?branch=apopiak/collator-rewards#f550b21d9d294320f2946d979cbf365dbe981223"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5867,7 +5867,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.2.0"
-source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6043,7 +6043,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "7.0.0"
-source = "git+https://github.com/galacticcouncil//warehouse?branch=apopiak/collator-rewards#f028e13c0d1370b01a8f33a08a5953416ff94f80"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8b6bc9f287addba4ac1e4786118edc5154464d78#8b6bc9f287addba4ac1e4786118edc5154464d78"
 dependencies = [
  "frame-support",
  "frame-system",
