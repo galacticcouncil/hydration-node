@@ -381,6 +381,7 @@ impl pallet_session::Config for Runtime {
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
+	// We wrap the session manager to give out rewards.
 	type SessionManager = CollatorRewards;
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <opaque::SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
@@ -749,7 +750,8 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardPerCollator = RewardPerCollator;
 	type ExcludedCollators = ExcludedCollators;
 	type RewardCurrencyId = NativeAssetId;
-	type AuthorityId = AuraId;
+	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collatrs that
+	// we hand out rewards to.
 	type SessionManager = CollatorSelection;
 }
 

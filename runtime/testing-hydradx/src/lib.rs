@@ -734,8 +734,8 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardPerCollator = RewardPerCollator;
 	type ExcludedCollators = ExcludedCollators;
 	type RewardCurrencyId = NativeAssetId;
-	type AuthorityId = AuraId;
-	// We wrap the SessionManager to hand out rewards.
+	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collatrs that
+	// we hand out rewards to.
 	type SessionManager = CollatorSelection;
 }
 
