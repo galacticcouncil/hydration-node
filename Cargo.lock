@@ -3054,7 +3054,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "106.0.0"
+version = "107.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -5463,7 +5463,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=apopiak/collator-rewards#6f3ba5c9fc719403641a68097a59d62bcbd376d8"
+source = "git+https://github.com/galacticcouncil/warehouse?branch=apopiak/collator-rewards#4308688239d40e39f3e0fac461ad15e50c7eea26"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -10750,7 +10750,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "106.0.0"
+version = "107.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -11105,7 +11105,7 @@ dependencies = [
  "chrono",
  "lazy_static",
  "matchers",
- "parking_lot 0.11.2",
+ "parking_lot 0.10.2",
  "regex",
  "serde",
  "serde_json",
@@ -11226,7 +11226,7 @@ version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ee73e6e4924fe940354b8d4d98cad5231175d615cd855b758adc658c0aac6a0"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "rand 0.8.5",
  "static_assertions",
 ]
