@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "106.0.0"
+version = "107.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -51,7 +51,7 @@ hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false}
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false}
-pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse", rev = "08a9b3f8e7c690ce8282e0222d1e594988e58831", default-features = false}
+pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse", branch = "apopiak/collator-rewards", default-features = false}
 
 # ORML dependencies
 orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }

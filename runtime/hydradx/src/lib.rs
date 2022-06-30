@@ -93,7 +93,6 @@ pub mod opaque {
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
-			pub collator_rewards: CollatorRewards,
 		}
 	}
 }
@@ -103,7 +102,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 106,
+	spec_version: 107,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -382,7 +381,8 @@ impl pallet_session::Config for Runtime {
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-	type SessionManager = CollatorSelection;
+	// We wrap the session manager to give out rewards.
+	type SessionManager = CollatorRewards;
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <opaque::SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
@@ -750,7 +750,9 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardPerCollator = RewardPerCollator;
 	type ExcludedCollators = ExcludedCollators;
 	type RewardCurrencyId = NativeAssetId;
-	type AuthorityId = AuraId;
+	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collatrs that
+	// we hand out rewards to.
+	type SessionManager = CollatorSelection;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
