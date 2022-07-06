@@ -102,7 +102,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 107,
+	spec_version: 108,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -184,6 +184,11 @@ impl Contains<Call> for TransfersDisabled {
 		#[allow(clippy::match_like_matches_macro)]
 		match call {
 			Call::Balances(_) => false,
+			Call::Currencies(_) => false,
+			Call::Tokens(_) => false,
+			Call::XTokens(_) => false,
+			Call::PolkadotXcm(_) => false,
+			Call::OrmlXcm(_) => false,
 			_ => true,
 		}
 	}
