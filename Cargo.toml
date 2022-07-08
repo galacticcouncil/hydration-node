@@ -5,15 +5,8 @@ panic = 'unwind'
 members = [
   'node',
   'runtime/common',
-  'runtime/hydra-dx',
-  'runtime/testing-hydra-dx',
-  'pallets/genesis-history',
+  'runtime/hydradx',
+  'runtime/testing-hydradx',
   'primitives',
   'utils/build-script-utils'
 ]
-
-
-[patch."https://github.com/galacticcouncil/warehouse"]
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil//warehouse", rev = "16b149f13fc5361a693bccf45883aabeb008f0cf"}
-pallet-faucet= { git = "https://github.com/galacticcouncil//warehouse", rev = "16b149f13fc5361a693bccf45883aabeb008f0cf"}
-hydradx-traits = { git = "https://github.com/galacticcouncil//warehouse", rev = "16b149f13fc5361a693bccf45883aabeb008f0cf"}

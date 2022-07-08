@@ -24,14 +24,27 @@
 .local
 
 .idea/
-.vscode/
 
-.env
+rococo-local.json
+rococo-local-raw.json
+*.log
+
+*.orig
+scripts/polkadot-launch/
+node_modules/
+_actions/
 
 *.orig
 
-# Custom chainspec(frido)
-balice*
+fork-testing/*.wasm
+fork-testing/*.state
+fork-testing/relaychain/alice/*
+fork-testing/relaychain/bob/*
+fork-testing/relaychain/charlie/*
+fork-testing/relaychain/dave/*
+fork-testing/parachain/coll-01/*
+fork-testing/parachain/coll-02/*
+fork-testing/parachain/coll-03/*
+fork-testing/local-raw.json
 
-**/node_modules
-**/package-lock.json
+.env

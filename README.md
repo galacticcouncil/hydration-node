@@ -37,34 +37,40 @@ cargo build --release
 
 ## Run
 
-### Single Node Development Chain
+### Local Testnet
 
-Purge any existing dev chain state:
+Relay chain repository (polkadot) has to be built in `../polkadot`
+Install `polkadot-launch` utility used to start network.
 
-```bash
-./target/release/hydra-dx purge-chain --dev
+```
+npm install -g polkadot-launch
 ```
 
-Start a dev chain:
+Start local testnet with 4 relay chain validators and HydraDX as a parachain with 2 collators.
 
-```bash
-./target/release/hydra-dx --dev
+```
+cd ./rococo-local
+polkadot-launch config.json
 ```
 
-Or, start a dev chain with detailed logging:
+Observe HydraDX logs
 
-```bash
-RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/hydra-dx -lruntime=debug --dev
+```
+multitail 99*.log
 ```
 
-There is also an option to run the testing runtime with less restrictive settings to facilitate testing of new features.
-The following command starts a dev chain, and the testing runtime is used as a runtime for our node.
-```bash
-./target/release/hydra-dx --dev --runtime=testing
+### Use testing runtime
+
+In the case of starting a testnet using the `polkadot-launch` tool, 
+we don't have an option to communicate to its internal commands that we would like to use the testing runtime.
+To overcome this limitation, rename the binary so it starts with the `testing` prefix, e.g. `testing-hydradx`.
+Such a binary always uses the testing runtime, even if the `--runtime testing` option is not specified.
+
+Start local testnet with testing runtime
 ```
-The testing runtime currently supports only two chain specifications: _dev_ and _local_ testnet.
-Both runtimes store blockchain data in the same directories( e.g. the _dev_ directory is shared for both runtimes 
-started with the `--dev` parameter. That's why it is important to purge chain data when switching to different runtime( note: `--runtime` parameter can't be used when purging chain data)
+cd ./rococo-local
+polkadot-launch testing-config.json
+```
 
 ### Interaction with the node
 

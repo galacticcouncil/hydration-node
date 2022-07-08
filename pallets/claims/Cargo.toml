@@ -1,14 +1,12 @@
 [package]
 name = 'pallet-claims'
-version = '3.3.0'
+version = '3.4.0'
 description = 'HydraDX Claims Module'
-authors = ['GalacticCouncil <hydradx@galacticcouncil.io>']
+authors = ['GalacticCouncil']
 edition = '2021'
-license = 'Apache-2.0'
-homepage = 'https://hydradx.io'
-repository = 'https://github.com/galacticcouncil/HydraDx-node'
-readme = "README.md"
-
+license = 'Apache 2.0'
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']

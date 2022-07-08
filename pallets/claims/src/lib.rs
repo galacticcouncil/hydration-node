@@ -19,6 +19,7 @@
 #![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
+use frame_support::transactional;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
@@ -38,8 +39,6 @@ use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
 use weights::WeightInfo;
 
 mod benchmarking;
-mod claims_data;
-mod migration;
 mod traits;
 pub use traits::*;
 pub mod weights;

@@ -39,7 +39,7 @@ else
   exit 1
 fi
 
-EXPECTED_BENCHWIZARD_VERSION="0.5.0"
+EXPECTED_BENCHWIZARD_VERSION="0.5.2"
 
 echo -n "benchwizard >= $EXPECTED_BENCHWIZARD_VERSION ..... "
 
@@ -81,7 +81,7 @@ echo
 
 # Run the check
 # shellcheck disable=SC2086
-$PYTHON -m bench_wizard pc -p xyk -p exchange -p transaction_multi_payment -rf .maintain/bench-check/hydradx-bench-data.json
+$PYTHON -m bench_wizard pc -p pallet-claims -c local -rf .maintain/bench-check/hydradx-bench-data.json
 
 echo
 
@@ -89,9 +89,8 @@ echo
 echo "Running DB disk performance"
 if [ ! -d ./substrate ];then
   echo "Cloning substrate ... "
-  git clone  --branch=polkadot-v0.9.12 https://github.com/paritytech/substrate.git ./substrate >/dev/null 2>&1
+  git clone  --branch=polkadot-v0.9.16 https://github.com/paritytech/substrate.git ./substrate >/dev/null 2>&1
 fi
 $PYTHON -m bench_wizard db -d ./substrate
 
 echo
-

@@ -1,116 +1,165 @@
-use crate::chain_spec::*;
-use testing_hydra_dx_runtime as testing_runtime;
+// This file is part of HydraDX-node.
+
+// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::too_many_arguments)]
+
+use crate::chain_spec::Extensions;
+use cumulus_primitives_core::ParaId;
+use hex_literal::hex;
+use primitives::{constants::currency::NATIVE_EXISTENTIAL_DEPOSIT, AssetId, BlockNumber, Price};
+use sc_service::ChainType;
+use serde_json::map::Map;
+use sp_core::{sr25519, Pair, Public};
+use sp_runtime::traits::{IdentifyAccount, Verify};
+use testing_hydradx_runtime::{
+	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
+	CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
+	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
+};
+
+const PARA_ID: u32 = 2034;
+const TOKEN_DECIMALS: u8 = 12;
+const TOKEN_SYMBOL: &str = "HDX";
+const PROTOCOL_ID: &str = "hdx";
+const STASH: Balance = 100 * UNITS;
+const INITIAL_BALANCE: u128 = 10_000;
+const INITIAL_TOKEN_BALANCE: Balance = 1_000 * UNITS;
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<testing_runtime::GenesisConfig>;
+pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-fn testing_session_keys(
-	grandpa: GrandpaId,
-	babe: BabeId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> testing_runtime::opaque::SessionKeys {
-	testing_runtime::opaque::SessionKeys {
-		grandpa,
-		babe,
-		im_online,
-		authority_discovery,
-	}
+/// Generate a crypto pair from seed.
+pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
+	TPublic::Pair::from_string(&format!("//{}", seed), None)
+		.expect("static values are valid; qed")
+		.public()
 }
 
-pub fn development_config() -> Result<ChainSpec, String> {
-	let wasm_binary =
-		testing_runtime::WASM_BINARY.ok_or_else(|| "Testing and development wasm binary not available".to_string())?;
-	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12u8.into());
-	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63u8.into());
+type AccountPublic = <Signature as Verify>::Signer;
 
-	Ok(ChainSpec::from_genesis(
-		// Config names for the testing runtime have to start with `Testing` string literal
-		// because ChainSpecs are used to identify runtimes.
-		// Name
-		"Testing HydraDX Development chain",
-		// ID
-		"dev",
-		ChainType::Development,
-		move || {
-			testnet_genesis(
-				wasm_binary,
-				// Initial PoA authorities
-				vec![authority_keys_from_seed("Alice")],
-				// Sudo account
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				// Pre-funded accounts
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					// Treasury
-					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
-				],
-				true,
-			)
-		},
-		// Bootnodes
-		vec![],
-		// Telemetry
-		None,
-		// Protocol ID
-		Some(DEFAULT_PROTOCOL_ID),
-		// Fork ID
-		None,
-		// Properties
-		Some(properties),
-		// Extensions
-		None,
-	))
+/// Generate an account ID from seed.
+pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+where
+	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+{
+	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-pub fn local_testnet_config() -> Result<ChainSpec, String> {
-	let wasm_binary =
-		testing_runtime::WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
+pub fn local_parachain_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	let mut properties = Map::new();
-	properties.insert("tokenDecimals".into(), 12u8.into());
-	properties.insert("tokenSymbol".into(), "HDX".into());
-	properties.insert("ss58Format".into(), 63u8.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 
 	Ok(ChainSpec::from_genesis(
-		// Config names for the testing runtime have to start with `Testing` string literal
-		// because ChainSpecs are used to identify runtimes.
 		// Name
 		"Testing HydraDX Local Testnet",
 		// ID
 		"local_testnet",
 		ChainType::Local,
 		move || {
-			testnet_genesis(
+			testnet_parachain_genesis(
 				wasm_binary,
-				// Initial PoA authorities
-				vec![authority_keys_from_seed("Alice"), authority_keys_from_seed("Bob")],
 				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				// Pre-funded accounts
+				// initial authorities & invulnerables
+				(
+					vec![
+						(
+							get_account_id_from_seed::<sr25519::Public>("Alice"),
+							get_from_seed::<AuraId>("Alice"),
+						),
+						(
+							get_account_id_from_seed::<sr25519::Public>("Bob"),
+							get_from_seed::<AuraId>("Bob"),
+						),
+					],
+					// candidacy bond
+					10_000,
+				),
+				// pre-funded accounts
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Charlie"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Dave"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), INITIAL_BALANCE),
+					(get_account_id_from_seed::<sr25519::Public>("Ferdie"), INITIAL_BALANCE),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+						INITIAL_BALANCE,
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+						INITIAL_BALANCE,
+					),
+				],
+				// council
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie"),
-					get_account_id_from_seed::<sr25519::Public>("Dave"),
 					get_account_id_from_seed::<sr25519::Public>("Eve"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-					// Treasury
-					hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				],
-				true,
+				// technical_committe
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+				],
+				vec![],
+				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
+				hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), // treasury
+				vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						vec![(1, INITIAL_TOKEN_BALANCE), (2, INITIAL_TOKEN_BALANCE)],
+					),
+				],
+				create_testnet_claims(),
+				vec![
+					(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
+					(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
+					(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
+				],
+				PARA_ID.into(),
 			)
 		},
 		// Bootnodes
@@ -118,128 +167,154 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Telemetry
 		None,
 		// Protocol ID
-		Some(DEFAULT_PROTOCOL_ID),
+		Some(PROTOCOL_ID),
 		// Fork ID
 		None,
 		// Properties
 		Some(properties),
 		// Extensions
-		None,
+		Extensions {
+			relay_chain: "rococo-local".into(),
+			para_id: PARA_ID,
+		},
 	))
 }
 
-fn testnet_genesis(
+fn testnet_parachain_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
 	root_key: AccountId,
-	endowed_accounts: Vec<AccountId>,
-	_enable_println: bool,
-) -> testing_runtime::GenesisConfig {
-	testing_runtime::GenesisConfig {
-		system: testing_runtime::SystemConfig {
+	initial_authorities: (Vec<(AccountId, AuraId)>, Balance),
+	endowed_accounts: Vec<(AccountId, Balance)>,
+	council_members: Vec<AccountId>,
+	tech_committee_members: Vec<AccountId>,
+	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
+	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
+	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+	tx_fee_payment_account: AccountId,          // Account use multi-payment pallet to send fees to in pool does not exists
+	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
+	claims_data: Vec<(EthereumAddress, Balance)>,
+	elections: Vec<(AccountId, Balance)>,
+	parachain_id: ParaId,
+) -> GenesisConfig {
+	GenesisConfig {
+		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
 		},
-		balances: testing_runtime::BalancesConfig {
-			// Configure endowed accounts with initial balance of 1_000_000.
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, 1_000_000u128 * HDX))
-				.collect(),
-		},
-		grandpa: testing_runtime::GrandpaConfig { authorities: vec![] },
-		sudo: testing_runtime::SudoConfig {
+		sudo: SudoConfig {
 			// Assign network admin rights.
 			key: Some(root_key),
 		},
-		multi_transaction_payment: testing_runtime::MultiTransactionPaymentConfig {
-			currencies: vec![],
-			fallback_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
-			account_currencies: vec![],
-		},
-		tokens: testing_runtime::TokensConfig {
-			balances: endowed_accounts
-				.iter()
-				.flat_map(|x| {
-					vec![
-						(x.clone(), 1, 100_000u128 * HDX),
-						(x.clone(), 2, 100_000u128 * HDX),
-						(x.clone(), 3, 100_000u128 * HDX),
-					]
-				})
-				.collect(),
-		},
-		faucet: testing_runtime::FaucetConfig {
-			rampage: true,
-			mint_limit: 5,
-			mintable_currencies: vec![0, 1, 2],
-		},
-		babe: testing_runtime::BabeConfig {
-			authorities: vec![],
-			epoch_config: Some(hydra_dx_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		authority_discovery: testing_runtime::AuthorityDiscoveryConfig { keys: vec![] },
-		im_online: testing_runtime::ImOnlineConfig { keys: vec![] },
-		treasury: Default::default(),
-		session: testing_runtime::SessionConfig {
+		session: SessionConfig {
 			keys: initial_authorities
+				.0
 				.iter()
-				.map(|x| {
+				.cloned()
+				.map(|(acc, aura)| {
 					(
-						x.0.clone(),
-						x.0.clone(),
-						testing_session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+						acc.clone(),                                           // account id
+						acc,                                                   // validator id
+						testing_hydradx_runtime::opaque::SessionKeys { aura }, // session keys
 					)
 				})
-				.collect::<Vec<_>>(),
-		},
-		staking: testing_runtime::StakingConfig {
-			validator_count: initial_authorities.len() as u32 * 2,
-			minimum_validator_count: initial_authorities.len() as u32,
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
 				.collect(),
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::ForceNone,
-			slash_reward_fraction: Perbill::from_percent(10),
+		},
+
+		// no need to pass anything, it will panic if we do. Session will take care
+		// of this.
+		aura: Default::default(),
+		collator_selection: CollatorSelectionConfig {
+			invulnerables: initial_authorities.0.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: initial_authorities.1,
 			..Default::default()
 		},
-		elections: testing_runtime::ElectionsConfig {
-			members: vec![
-				(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Bob"), STASH / 5),
-				(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
-			],
+		balances: BalancesConfig {
+			// Configure endowed accounts with initial balance of a lot.
+			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1 * UNITS)).collect(),
 		},
-		council: testing_runtime::CouncilConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
+		council: CouncilConfig {
+			// Intergalactic council member
+			members: council_members,
 			phantom: Default::default(),
 		},
-		technical_committee: testing_runtime::TechnicalCommitteeConfig {
-			members: vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-			],
+		technical_committee: TechnicalCommitteeConfig {
+			members: tech_committee_members,
 			phantom: Default::default(),
 		},
-		claims: testing_runtime::ClaimsConfig {
-			claims: create_testnet_claims(),
+		vesting: VestingConfig { vesting: vesting_list },
+		asset_registry: AssetRegistryConfig {
+			asset_names: registered_assets.clone(),
+			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
+			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
 		},
-		genesis_history: testing_runtime::GenesisHistoryConfig::default(),
-		vesting: testing_runtime::VestingConfig { vesting: vec![] },
+		multi_transaction_payment: MultiTransactionPaymentConfig {
+			currencies: accepted_assets,
+			fallback_account: Some(tx_fee_payment_account),
+			account_currencies: vec![],
+		},
+		tokens: TokensConfig {
+			balances: if registered_assets.is_empty() {
+				vec![]
+			} else {
+				token_balances
+					.iter()
+					.flat_map(|x| {
+						x.1.clone()
+							.into_iter()
+							.map(|(asset_id, amount)| (x.0.clone(), asset_id, amount))
+					})
+					.collect()
+			},
+		},
+		treasury: Default::default(),
+		elections: ElectionsConfig {
+			// Intergalactic elections
+			members: elections,
+		},
+
+		genesis_history: GenesisHistoryConfig::default(),
+		claims: ClaimsConfig { claims: claims_data },
+		parachain_info: ParachainInfoConfig { parachain_id },
+		aura_ext: Default::default(),
+		polkadot_xcm: Default::default(),
 	}
+}
+
+pub fn create_testnet_claims() -> Vec<(EthereumAddress, Balance)> {
+	let mut claims = Vec::<(EthereumAddress, Balance)>::new();
+
+	// Alice's claim
+	// Signature: 0xbcae7d4f96f71cf974c173ae936a1a79083af7f76232efbf8a568b7f990eceed73c2465bba769de959b7f6ac5690162b61eb90949901464d0fa158a83022a0741c
+	// Message: "I hereby claim all my HDX tokens to wallet:d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
+	let claim_address_1 = (
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/0) : 0xdd75dd5f4a9e964d1c4cc929768947859a98ae2c08100744878a4b6b6d853cc0
+		EthereumAddress(hex!["8202C0aF5962B750123CE1A9B12e1C30A4973557"]),
+		UNITS / 1_000,
+	);
+
+	// Bob's claim
+	// Signature: 0x60f3d2541b0ff09982f70844a7f645f4681cbbad2f138fee18404c932bd02cb738d577d53ce94cf067bae87a0b6fa1ec532ceea78d71f4e81a9c27193649c6291b
+	// Message: "I hereby claim all my HDX tokens to wallet:8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
+	let claim_address_2 = (
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/1) : 0x9b5ef380c0a59008df32ba71ab3c7645950f986fc3f43fd4f9dffc8b2b4e7a5d
+		EthereumAddress(hex!["8aF7764663644989671A71Abe9738a3cF295f384"]),
+		UNITS,
+	);
+
+	// Charlie's claim
+	// Signature: 0x52485aece74eb503fb998f0ca08bcc283fa731613db213af4e7fe153faed3de97ea0873d3889622b41d2d989a9e2a0bef160cff1ba8845875d4bc15431136a811c
+	// Message: "I hereby claim all my HDX tokens to wallet:90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
+	let claim_address_3 = (
+		// Test seed: "image stomach entry drink rice hen abstract moment nature broken gadget flash"
+		// private key (m/44'/60'/0'/0/2) : 0x653a29ac0c93de0e9f7d7ea2d60338e68f407b18d16d6ff84db996076424f8fa
+		EthereumAddress(hex!["C19A2970A13ac19898c47d59Cbd0278D428EBC7c"]),
+		1_000 * UNITS,
+	);
+
+	claims.push(claim_address_1);
+	claims.push(claim_address_2);
+	claims.push(claim_address_3);
+	claims
 }

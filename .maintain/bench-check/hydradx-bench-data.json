@@ -1,23 +1,5 @@
 {
-    "xyk": {
-        "create_pool": 174.0,
-        "add_liquidity": 143.0,
-        "remove_liquidity": 139.0,
-        "sell": 102.0,
-        "buy": 102.0
-    },
-    "exchange": {
-        "sell_intention": 102.0,
-        "buy_intention": 102.0,
-        "sell_extrinsic": 102.0,
-        "on_finalize_for_one_sell_extrinsic": 142.0,
-        "buy_extrinsic": 102.0,
-        "on_finalize_for_one_buy_extrinsic": 155.0
-    },
-    "transaction_multi_payment": {
-        "swap_currency": 108.0,
-        "set_currency": 30.0,
-        "add_currency": 22.0,
-        "remove_currency": 23.0
+    "pallet-claims": {
+        "claim": 189.0
     }
 }

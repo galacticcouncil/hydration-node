@@ -1,39 +1,24 @@
 [package]
-name = 'primitives'
-version = '4.4.0'
-authors = ['GalacticCouncil <hydradx@galacticcouncil.io>']
-edition = '2021'
-license = "Apache-2.0"
-homepage = "https://hydradx.io"
+name = "primitives"
+version = "5.0.3"
+authors = ["GalacticCouncil"]
+edition = "2021"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
-readme = "README.md"
-
-
-[build-dependencies]
-substrate-wasm-builder = {package = 'substrate-wasm-builder', version = '3.0.0'}
 
 [dependencies]
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.3.1" }
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
-primitive-types = { default-features = false, version = "0.10.1" }
 serde = { features = ["derive"], optional = true, version = "1.0.101" }
+hex-literal = {version = '0.3.1'}
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
-
-[dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
 [features]
-default = ['std']
+default = ["std"]
 std = [
-  'codec/std',
-  'primitive-types/std',
-  'serde',
-  'frame-support/std',
-  'sp-std/std',
+    "serde",
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
 ]
