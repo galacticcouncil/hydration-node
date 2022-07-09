@@ -30,7 +30,6 @@ use frame_support::{
 	traits::{Currency, Get, Imbalance, IsSubType},
 	weights::{DispatchClass, Pays},
 };
-use frame_support::transactional;
 use frame_system::ensure_signed;
 use primitives::Balance;
 use scale_info::TypeInfo;
