@@ -95,7 +95,8 @@ mod testing {
 	parameter_types! {
 		pub const LaunchPeriod: BlockNumber = MINUTES;
 		pub const VotingPeriod: BlockNumber = MINUTES;
-		pub const Period: u32 = 10 * MINUTES;
+		pub const EnactmentPeriod: BlockNumber = MINUTES;
+		pub const Period: u32 = 2 * MINUTES;
 	}
 }
 
@@ -480,7 +481,7 @@ impl pallet_democracy::Config for Runtime {
 	type Proposal = Call;
 	type Event = Event;
 	type Currency = Balances;
-	type EnactmentPeriod = EnactmentPeriod;
+	type EnactmentPeriod = testing::EnactmentPeriod;
 	type LaunchPeriod = testing::LaunchPeriod;
 	type VotingPeriod = testing::VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
