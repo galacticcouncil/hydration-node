@@ -276,8 +276,6 @@ jobs:
     if: github.event_name == 'pull_request'
     outputs:
       runtime-upgraded: ${{ steps.check-runtime.outputs.upgraded }}
-    env:
-      TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -307,5 +305,5 @@ jobs:
           message: |
             ${{ env.VERSION_UPDATE }}
       - name: Evaluate result
-        if: contains(env.VERSION_UPDATE, 'have not been updated')
+        if: contains(env.VERSION_UPDATE, 'have not been updated') || contains(env.VERSION_UPDATE, 'versions don''t match') || contains(env.VERSION_UPDATE, 'downgraded')
         run: exit 1

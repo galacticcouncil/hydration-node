@@ -212,12 +212,9 @@ fn testnet_parachain_genesis(
 				.cloned()
 				.map(|(acc, aura)| {
 					(
-						acc.clone(), // account id
-						acc,         // validator id
-						testing_hydradx_runtime::opaque::SessionKeys {
-							aura: aura.clone(),
-							collator_rewards: aura,
-						}, // session keys
+						acc.clone(),                                           // account id
+						acc,                                                   // validator id
+						testing_hydradx_runtime::opaque::SessionKeys { aura }, // session keys
 					)
 				})
 				.collect(),

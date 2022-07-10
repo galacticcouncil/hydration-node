@@ -85,7 +85,6 @@ pub mod opaque {
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
-			pub collator_rewards: CollatorRewards,
 		}
 	}
 }
@@ -105,7 +104,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 105,
+	spec_version: 108,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -370,9 +369,10 @@ impl pallet_session::Config for Runtime {
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	// we don't have stash and controller, thus we don't need the convert as well.
 	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
-	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-	type SessionManager = CollatorSelection;
+	type ShouldEndSession = pallet_session::PeriodicSessions<testing::Period, Offset>;
+	type NextSessionRotation = pallet_session::PeriodicSessions<testing::Period, Offset>;
+	// We wrap the session manager to give out rewards.
+	type SessionManager = CollatorRewards;
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <opaque::SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
@@ -644,6 +644,16 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
+impl pallet_multisig::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = MaxSignatories;
+	type WeightInfo = ();
+}
+
 /// HydraDX Pallets configurations
 
 impl pallet_claims::Config for Runtime {
@@ -712,7 +722,7 @@ parameter_types! {
 		// Alice
 		hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into(),
 		// Bob
-		hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"].into(),
+		// hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"].into(),
 	];
 }
 
@@ -724,7 +734,9 @@ impl pallet_collator_rewards::Config for Runtime {
 	type RewardPerCollator = RewardPerCollator;
 	type ExcludedCollators = ExcludedCollators;
 	type RewardCurrencyId = NativeAssetId;
-	type AuthorityId = AuraId;
+	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collatrs that
+	// we hand out rewards to.
+	type SessionManager = CollatorSelection;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -749,6 +761,7 @@ construct_runtime!(
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 25,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 27,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 29,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 31,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,

@@ -9,10 +9,10 @@ PROJECT_PATH=$(cargo locate-project --workspace --message-format plain)
 PROJECT_PATH=${PROJECT_PATH%Cargo.toml}
 
 ACTUAL_COMMIT=$(git rev-parse HEAD)
-MASTER_COMMIT=$(git rev-parse origin/${TARGET_BRANCH:=master})
+BASE_COMMIT=$(git rev-parse origin/${GITHUB_BASE_REF:=master})
 
-git fetch --quiet --depth 1 origin "$MASTER_COMMIT"
-git checkout --quiet "$MASTER_COMMIT"
+git fetch --quiet --depth 1 origin "$BASE_COMMIT"
+git checkout --quiet "$BASE_COMMIT"
 
 # get list of local crates and remove empty lines from the output
 IFS=$'\n' read -r -d '' -a CRATE_ARR_MASTER < <( cargo tree --edges normal --depth 0 | sed -r '/^\s*$/d' && printf '\0' )
@@ -44,7 +44,7 @@ done
 
 git checkout -f --quiet "$ACTUAL_COMMIT"
 
-MODIFIED_FILES=($(git diff --name-only "$ACTUAL_COMMIT" "$MASTER_COMMIT"))
+MODIFIED_FILES=($(git diff --name-only "$ACTUAL_COMMIT" "$BASE_COMMIT"))
 
 # get list of local crates and remove empty lines from the output
 IFS=$'\n' read -r -d '' -a CRATE_ARR< <( cargo tree --edges normal --depth 0 | sed -r '/^\s*$/d' && printf '\0' )
@@ -80,6 +80,7 @@ MODIFIED_CRATES_ARR=( $(printf '%s\n' "${MODIFIED_CRATES_ARR[@]}" | sort -u) )
 
 NOT_UPDATED_VERSIONS_ARR=()
 UPDATED_VERSIONS_ARR=()
+DOWNGRADED_VERSIONS_ARR=()
 NEW_VERSIONS_ARR=()
 
 for crate in "${MODIFIED_CRATES_ARR[@]}"; do
@@ -110,7 +111,11 @@ for crate in "${MODIFIED_CRATES_ARR[@]}"; do
       NEW_VERSIONS_ARR+=("$CRATE_NAME: $NEW_VERSION")
     # crate has different versions
     else
-      UPDATED_VERSIONS_ARR+=("$CRATE_NAME: ${CRATE_VERSION_MASTER_ARR[$MASTER_CRATE_INDEX]} -> $NEW_VERSION")
+      if [ "$NEW_VERSION" == "`echo -e "$NEW_VERSION\n${CRATE_VERSION_MASTER_ARR[MASTER_CRATE_INDEX]}" | sort -Vr | head -n1`" ]; then
+        UPDATED_VERSIONS_ARR+=("$CRATE_NAME: ${CRATE_VERSION_MASTER_ARR[$MASTER_CRATE_INDEX]} -> $NEW_VERSION")
+      else
+        DOWNGRADED_VERSIONS_ARR+=("$CRATE_NAME: ${CRATE_VERSION_MASTER_ARR[$MASTER_CRATE_INDEX]} -> $NEW_VERSION")
+      fi
     fi
 done
 
@@ -168,6 +173,14 @@ fi
 if [ ${#UPDATED_VERSIONS_ARR[@]} -ne 0 ]; then
     echo "Crate versions that have been updated:"
     for line in ${UPDATED_VERSIONS_ARR[@]}; do
+      echo "- $line"
+    done
+    echo
+fi
+
+if [ ${#DOWNGRADED_VERSIONS_ARR[@]} -ne 0 ]; then
+    echo "Crate versions that have been downgraded:"
+    for line in ${DOWNGRADED_VERSIONS_ARR[@]}; do
       echo "- $line"
     done
     echo

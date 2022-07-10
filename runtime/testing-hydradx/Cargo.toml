@@ -1,6 +1,6 @@
 [package]
 name = "testing-hydradx-runtime"
-version = "105.0.0"
+version = "108.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -14,15 +14,10 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
 
 [dependencies]
-getrandom = { version = "0.2.3", features = ["js"] }
 hex-literal = "0.3.1"
-tracing-core = { optional = true, version = "0.1.17" }
 serde = { features = ["derive"], optional = true, version = "1.0.101" }
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
-hash-db = { version = "0.15.2", default-features = false }
-memory-db = { version = "0.27.0", default-features = false }
-trie-db = { version = "0.22.6", default-features = false }
 smallvec = "1.6.1"
 
 # local dependencies
@@ -47,6 +42,7 @@ pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "p
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-tips = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-proxy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+pallet-multisig = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
@@ -55,7 +51,7 @@ hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false}
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false}
-pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse", rev = "08a9b3f8e7c690ce8282e0222d1e594988e58831", default-features = false}
+pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse", branch = "apopiak/collator-rewards", default-features = false}
 
 # ORML dependencies
 orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
@@ -137,6 +133,7 @@ runtime-benchmarks = [
     "pallet-collective/runtime-benchmarks",
     "pallet-tips/runtime-benchmarks",
     "pallet-proxy/runtime-benchmarks",
+    "pallet-multisig/runtime-benchmarks",
     "pallet-utility/runtime-benchmarks",
     "pallet-democracy/runtime-benchmarks",
     "pallet-asset-registry/runtime-benchmarks",
@@ -182,6 +179,7 @@ std = [
     "pallet-collective/std",
     "pallet-tips/std",
     "pallet-proxy/std",
+    "pallet-multisig/std",
     "pallet-transaction-payment/std",
     "pallet-transaction-payment-rpc-runtime-api/std",
     "pallet-democracy/std",
