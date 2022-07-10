@@ -38,7 +38,7 @@ const TOKEN_DECIMALS: u8 = 12;
 const TOKEN_SYMBOL: &str = "HDX";
 const PROTOCOL_ID: &str = "hdx";
 const STASH: Balance = 100 * UNITS;
-const INITIAL_BALANCE: u128 = 10_000;
+const INITIAL_BALANCE: u128 = 1_000_000 * UNITS;
 const INITIAL_TOKEN_BALANCE: Balance = 1_000 * UNITS;
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
@@ -230,7 +230,7 @@ fn testnet_parachain_genesis(
 		},
 		balances: BalancesConfig {
 			// Configure endowed accounts with initial balance of a lot.
-			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1 * UNITS)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k.0, k.1)).collect(),
 		},
 		council: CouncilConfig {
 			// Intergalactic council member
