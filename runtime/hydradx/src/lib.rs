@@ -73,7 +73,7 @@ pub use hex_literal::hex;
 pub use pallet_claims;
 pub use pallet_genesis_history;
 
-pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] = hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
+pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] = hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"];
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -102,7 +102,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 108,
+	spec_version: 109,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
