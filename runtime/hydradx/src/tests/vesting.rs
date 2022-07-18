@@ -18,7 +18,7 @@ fn schedule_object() -> Schedule {
 }
 
 #[test]
-fn vested_transfer_from_vesting_account_should_work() {
+fn vested_transfer_should_work_when_signed_by_vesting_account() {
 	new_test_ext().execute_with(|| {
 		let from: AccountId = vesting_account();
 		let to: AccountId = BOB;
@@ -34,23 +34,18 @@ fn vested_transfer_from_vesting_account_should_work() {
 }
 
 #[test]
-fn vested_transfer_from_gc_account_should_work() {
+fn vested_transfer_should_work_when_sent_from_root() {
 	new_test_ext().execute_with(|| {
-		let from: AccountId = GALACTIC_COUNCIL_ACCOUNT.into();
 		let to: AccountId = BOB;
 
 		let vesting_schedule = schedule_object();
 
-		assert_ok!(Vesting::vested_transfer(
-			RawOrigin::Signed(from).into(),
-			to,
-			vesting_schedule
-		));
+		assert_ok!(Vesting::vested_transfer(RawOrigin::Root.into(), to, vesting_schedule));
 	});
 }
 
 #[test]
-fn vested_transfer_from_other_account_than_gc_and_vesting_should_not_work() {
+fn vested_transfer_should_not_work_when_signed_by_other_account() {
 	new_test_ext().execute_with(|| {
 		let from: AccountId = ALICE;
 		let to: AccountId = BOB;

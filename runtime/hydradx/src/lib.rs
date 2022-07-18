@@ -73,8 +73,6 @@ pub use hex_literal::hex;
 pub use pallet_claims;
 pub use pallet_genesis_history;
 
-pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] = hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
-
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -581,21 +579,21 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
 }
 
-pub struct GalacticCouncilOrVestingOrRoot;
+pub struct VestingOrRoot;
 
-impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
+impl EnsureOrigin<Origin> for VestingOrRoot {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
 			RawOrigin::Signed(caller) => {
-				if caller == GALACTIC_COUNCIL_ACCOUNT.into() || caller == VestingPalletId::get().into_account() {
+				if caller == VestingPalletId::get().into_account() {
 					Ok(caller)
 				} else {
 					Err(Origin::from(Some(caller)))
 				}
 			}
-			RawOrigin::Root => Ok(GALACTIC_COUNCIL_ACCOUNT.into()),
+			RawOrigin::Root => Ok(VestingPalletId::get().into_account()),
 			r => Err(Origin::from(r)),
 		})
 	}
@@ -610,7 +608,7 @@ impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = GalacticCouncilOrVestingOrRoot;
+	type VestedTransferOrigin = VestingOrRoot;
 	type WeightInfo = weights::vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
