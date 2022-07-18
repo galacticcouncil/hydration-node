@@ -89,7 +89,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, Price, SimpleImbalance, Tradable};
+use crate::types::{AssetReserveState, AssetState, Balance, Price, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -99,7 +99,7 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::{Position, Price, SimpleImbalance, Tradable};
+	use crate::types::{Position, Price, SimpleImbalance, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -199,7 +199,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Tradable state of hub asset.
-	pub(super) type HubAssetTradability<T: Config> = StorageValue<_, Tradable, ValueQuery>;
+	pub(super) type HubAssetTradability<T: Config> = StorageValue<_, Tradability, ValueQuery>;
 
 	#[pallet::storage]
 	/// LP positions. Maps NFT instance id to corresponding position
@@ -264,7 +264,7 @@ pub mod pallet {
 			owner: T::AccountId,
 		},
 		/// Aseet's tradable state has been updated.
-		TradableStateUpdated { asset_id: T::AssetId, state: Tradable },
+		TradableStateUpdated { asset_id: T::AssetId, state: Tradability },
 	}
 
 	#[pallet::error]
@@ -388,7 +388,7 @@ pub mod pallet {
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
 				tvl: stable_asset_reserve,
-				tradable: Tradable::default(),
+				tradable: Tradability::default(),
 			};
 
 			let native_asset_state = AssetState::<Balance> {
@@ -396,7 +396,7 @@ pub mod pallet {
 				shares: native_asset_reserve,
 				protocol_shares: native_asset_reserve,
 				tvl: native_asset_tvl,
-				tradable: Tradable::default(),
+				tradable: Tradability::default(),
 			};
 
 			// Imbalance update and total hub asset liquidity for stable asset first
@@ -431,7 +431,10 @@ pub mod pallet {
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
 			<Assets<T>>::insert(T::NativeAssetId::get(), native_asset_state);
 
-			<HubAssetTradability<T>>::put(Tradable::SellOnly);
+			// Hub asset is not allowed to be boughts from the pool
+			<HubAssetTradability<T>>::put(
+				Tradability::SELL | Tradability::ADD_LIQUDIITY | Tradability::REMOVE_LIQUDITY,
+			);
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: T::StableCoinAssetId::get(),
@@ -493,7 +496,7 @@ pub mod pallet {
 				shares: amount,
 				protocol_shares: amount,
 				tvl: asset_tvl,
-				tradable: Tradable::default(),
+				tradable: Tradability::default(),
 			};
 
 			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
@@ -1001,7 +1004,7 @@ pub mod pallet {
 
 		/// Update asset's tradable state.
 		///
-		/// Change asset's state to one of `Tradable` states.
+		/// Change asset's state to one of `Tradability` states.
 		///
 		/// Only root can change this state.
 		///
@@ -1013,7 +1016,11 @@ pub mod pallet {
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
-		pub fn set_asset_tradable_state(origin: OriginFor<T>, asset_id: T::AssetId, state: Tradable) -> DispatchResult {
+		pub fn set_asset_tradable_state(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			state: Tradability,
+		) -> DispatchResult {
 			ensure_root(origin)?;
 
 			if asset_id == T::HubAssetId::get() {
@@ -1170,27 +1177,24 @@ impl<T: Config> Pallet<T> {
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.
 	fn allow_assets(asset_in: &AssetReserveState<Balance>, asset_out: &AssetReserveState<Balance>) -> bool {
-		matches!(
-			(&asset_in.tradable, &asset_out.tradable),
-			(Tradable::Allowed, Tradable::Allowed)
-				| (Tradable::Allowed, Tradable::BuyOnly)
-				| (Tradable::SellOnly, Tradable::BuyOnly)
-				| (Tradable::SellOnly, Tradable::Allowed)
-		)
+		asset_in.tradable.contains(Tradability::SELL) && asset_out.tradable.contains(Tradability::BUY)
 	}
 
 	/// Swap hub asset for asset_out.
 	/// Special handling of sell trade where asset in is Hub Asset.
 	fn sell_hub_asset(who: &T::AccountId, asset_out: T::AssetId, amount: Balance, limit: Balance) -> DispatchResult {
+		let f = HubAssetTradability::<T>::get();
+
+		f.contains(Tradability::SELL);
 		ensure!(
-			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::SellOnly),
+			HubAssetTradability::<T>::get().contains(Tradability::SELL),
 			Error::<T>::NotAllowed
 		);
 
 		let asset_out_state = Self::load_asset_state(asset_out)?;
 
 		ensure!(
-			matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
+			asset_out_state.tradable.contains(Tradability::BUY),
 			Error::<T>::NotAllowed
 		); // TODO: Add test for this!
 
@@ -1250,14 +1254,14 @@ impl<T: Config> Pallet<T> {
 		limit: Balance,
 	) -> DispatchResult {
 		ensure!(
-			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::SellOnly),
+			HubAssetTradability::<T>::get().contains(Tradability::SELL),
 			Error::<T>::NotAllowed
 		);
 
 		let asset_out_state = Self::load_asset_state(asset_out)?;
 
 		ensure!(
-			matches!(&asset_out_state.tradable, Tradable::Allowed | Tradable::BuyOnly),
+			asset_out_state.tradable.contains(Tradability::BUY),
 			Error::<T>::NotAllowed
 		); // TODO: Add test for this!
 
@@ -1310,7 +1314,7 @@ impl<T: Config> Pallet<T> {
 	/// Special handling of buy trade where asset out is Hub Asset.
 	fn buy_hub_asset(_who: &T::AccountId, _asset_in: T::AssetId, _amount: Balance, _limit: Balance) -> DispatchResult {
 		ensure!(
-			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
+			HubAssetTradability::<T>::get().contains(Tradability::BUY),
 			Error::<T>::NotAllowed
 		);
 
@@ -1329,7 +1333,7 @@ impl<T: Config> Pallet<T> {
 		_limit: Balance,
 	) -> DispatchResult {
 		ensure!(
-			matches!(HubAssetTradability::<T>::get(), Tradable::Allowed | Tradable::BuyOnly),
+			HubAssetTradability::<T>::get().contains(Tradability::BUY),
 			Error::<T>::NotAllowed
 		);
 

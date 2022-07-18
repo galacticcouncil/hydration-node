@@ -60,7 +60,7 @@ fn scenario_05() {
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
 					tvl: 1000000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -72,7 +72,7 @@ fn scenario_05() {
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 20000000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -84,7 +84,7 @@ fn scenario_05() {
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -96,7 +96,7 @@ fn scenario_05() {
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 2600000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 

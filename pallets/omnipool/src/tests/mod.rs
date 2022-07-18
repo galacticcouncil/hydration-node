@@ -1,4 +1,4 @@
-use crate::types::{Position, SimpleImbalance, Tradable};
+use crate::types::{Position, SimpleImbalance};
 use crate::*;
 use frame_support::assert_ok;
 use sp_runtime::{FixedPointNumber, FixedU128};

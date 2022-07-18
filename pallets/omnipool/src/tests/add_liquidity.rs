@@ -34,7 +34,7 @@ fn add_liquidity_works() {
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 3120 * ONE,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -79,7 +79,7 @@ fn add_stable_asset_liquidity_works() {
 					shares: 1400000000000000,
 					protocol_shares: 1000 * ONE,
 					tvl: 1400000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 

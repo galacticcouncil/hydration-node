@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::Tradable;
+use crate::types::Tradability;
 use frame_support::assert_noop;
 use sp_runtime::traits::One;
 
@@ -51,7 +51,7 @@ fn remove_liquidity_works() {
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE, // no change, price has not changed
 					tvl: 2_860_000_000_000_000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -123,7 +123,7 @@ fn full_liquidity_removal_works() {
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE,
 					tvl: 2_600_000_000_000_000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -190,7 +190,7 @@ fn partial_liquidity_removal_works() {
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: 2000 * ONE,
 					tvl: 2_860_000_000_000_000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -249,7 +249,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 				shares: 500000000000000,
 				protocol_shares: 100 * ONE,
 				tvl: 650000000000000,
-				tradable: Tradable::default(),
+				tradable: Tradability::default(),
 			};
 			assert_asset_state!(1_000, expected_state);
 
@@ -304,7 +304,7 @@ fn protocol_shares_update_works() {
 				shares: 500000000000000,
 				protocol_shares: 100 * ONE,
 				tvl: 650000000000000,
-				tradable: Tradable::default(),
+				tradable: Tradability::default(),
 			};
 			assert_asset_state!(1_000, expected_state);
 
@@ -324,7 +324,7 @@ fn protocol_shares_update_works() {
 				shares: 419999999999999,
 				protocol_shares: 419999999999999,
 				tvl: 182000000000002,
-				tradable: Tradable::default(),
+				tradable: Tradability::default(),
 			};
 			assert_asset_state!(1_000, expected_state);
 		});

@@ -1,6 +1,8 @@
 use super::*;
 use frame_support::pallet_prelude::*;
 use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
+use scale_info::build::Fields;
+use scale_info::{meta_type, Path, Type, TypeParameter};
 use sp_runtime::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Sub};
 
@@ -10,23 +12,54 @@ pub type Balance = u128;
 /// Fixed Balance type to represent asset price
 pub type Price = FixedU128;
 
-/// Asset's trade state. Indicates whether asset can be bought or sold to/from Omnipool
-#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum Tradable {
-	/// Asset is allowed to be bought and sold
-	Allowed,
-	/// Asset is not allowed to be bought nor sold
-	Frozen,
-	/// Asset is allowed to be sold but not bought
-	SellOnly,
-	/// Asset is allowed to be bought but not sold
-	BuyOnly,
+bitflags::bitflags! {
+	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
+	#[derive(Encode,Decode)]
+	pub struct Tradability: u8 {
+		/// Asset is frozen. No operations are allowed.
+		const FROZEN = 0b0000_0000;
+		/// Asset is allowed to be sold into omnipool
+		const SELL = 0b0000_0001;
+		/// Asset is allowed to be bought into omnipool
+		const BUY = 0b0000_0010;
+		/// Adding liquidity of asset is allowed
+		const ADD_LIQUDIITY = 0b0000_0100;
+		/// Removing liquidity of asset is not allowed
+		const REMOVE_LIQUDITY = 0b0000_1000;
+	}
 }
 
-impl Default for Tradable {
+impl Default for Tradability {
 	fn default() -> Self {
-		Tradable::Allowed
+		Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUDIITY | Tradability::REMOVE_LIQUDITY
 	}
+}
+
+impl MaxEncodedLen for Tradability {
+	fn max_encoded_len() -> usize {
+		u8::max_encoded_len()
+	}
+}
+
+impl TypeInfo for Tradability {
+	type Identity = Self;
+
+	fn type_info() -> Type {
+		Type::builder()
+			.path(Path::new("BitFlags", module_path!()))
+			.type_params(vec![TypeParameter::new("T", Some(meta_type::<Tradability>()))])
+			.composite(Fields::unnamed().field(|f| f.ty::<u64>().type_name("Tradability")))
+	}
+}
+
+#[test]
+fn tradability_should_allow_all_when_default() {
+	let default_tradability = Tradability::default();
+
+	assert!(default_tradability.contains(Tradability::BUY));
+	assert!(default_tradability.contains(Tradability::SELL));
+	assert!(default_tradability.contains(Tradability::ADD_LIQUDIITY));
+	assert!(default_tradability.contains(Tradability::REMOVE_LIQUDITY));
 }
 
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -40,7 +73,7 @@ pub struct AssetState<Balance> {
 	/// TVL of asset
 	pub(super) tvl: Balance,
 	/// Asset's trade state
-	pub(super) tradable: Tradable,
+	pub(super) tradable: Tradability,
 }
 
 impl<Balance> From<AssetReserveState<Balance>> for AssetState<Balance>
@@ -194,7 +227,7 @@ pub struct AssetReserveState<Balance> {
 	/// TVL of asset
 	pub(crate) tvl: Balance,
 	/// Asset's trade state
-	pub(crate) tradable: Tradable,
+	pub(crate) tradable: Tradability,
 }
 
 impl<Balance> From<&AssetReserveState<Balance>> for MathReserveState<Balance>

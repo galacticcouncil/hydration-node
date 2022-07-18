@@ -1,5 +1,6 @@
 use super::*;
 use frame_support::assert_noop;
+use pretty_assertions::assert_eq;
 
 #[test]
 fn simple_buy_works() {
@@ -53,7 +54,7 @@ fn simple_buy_works() {
 					shares: 2400 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 3120 * ONE,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 			assert_asset_state!(
@@ -64,7 +65,7 @@ fn simple_buy_works() {
 					shares: 2000 * ONE,
 					protocol_shares: 2000 * ONE,
 					tvl: 2600 * ONE,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 		});
@@ -187,7 +188,7 @@ fn buy_not_allowed_assets_fails() {
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				200,
-				Tradable::Frozen
+				Tradability::FROZEN
 			));
 
 			assert_noop!(
@@ -197,7 +198,7 @@ fn buy_not_allowed_assets_fails() {
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				200,
-				Tradable::SellOnly
+				Tradability::SELL
 			));
 
 			assert_noop!(
@@ -207,7 +208,7 @@ fn buy_not_allowed_assets_fails() {
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				200,
-				Tradable::BuyOnly
+				Tradability::BUY
 			));
 
 			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE));
@@ -215,7 +216,7 @@ fn buy_not_allowed_assets_fails() {
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				100,
-				Tradable::Frozen
+				Tradability::FROZEN
 			));
 
 			assert_noop!(
@@ -225,7 +226,7 @@ fn buy_not_allowed_assets_fails() {
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				100,
-				Tradable::BuyOnly
+				Tradability::BUY
 			));
 
 			assert_noop!(
@@ -235,7 +236,7 @@ fn buy_not_allowed_assets_fails() {
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				100,
-				Tradable::SellOnly
+				Tradability::SELL
 			));
 
 			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, 100, 50 * ONE, 100 * ONE));
@@ -302,7 +303,7 @@ fn buy_for_hub_asset_works() {
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
 					tvl: 1000000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -314,7 +315,7 @@ fn buy_for_hub_asset_works() {
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 20000000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -326,7 +327,7 @@ fn buy_for_hub_asset_works() {
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -338,7 +339,7 @@ fn buy_for_hub_asset_works() {
 					shares: 2000000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 2600000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 

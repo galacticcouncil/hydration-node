@@ -36,6 +36,7 @@ hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev =
 # third party
 log = { version = "0.4.14", default-features = false }
 primitive-types = "0.11.1"
+bitflags = "1.3.2"
 
 # Optional imports for benchmarking
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false , optional = true}
@@ -51,6 +52,7 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "p
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false}
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
 proptest = "1.0.0"
+pretty_assertions = "1.2.1"
 
 [features]
 default = ["std"]

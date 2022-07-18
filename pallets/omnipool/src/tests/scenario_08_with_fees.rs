@@ -84,7 +84,7 @@ fn fee_test_buy_sell() {
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
 					tvl: 1000000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -96,7 +96,7 @@ fn fee_test_buy_sell() {
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 20000000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -108,7 +108,7 @@ fn fee_test_buy_sell() {
 					shares: 2400000000000000,
 					protocol_shares: 2000000000000000,
 					tvl: 3120000000000000,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
@@ -120,7 +120,7 @@ fn fee_test_buy_sell() {
 					shares: 2006364027707802,
 					protocol_shares: 2000000000000000,
 					tvl: 5414546221723530,
-					tradable: Tradable::default(),
+					tradable: Tradability::default(),
 				}
 			);
 
