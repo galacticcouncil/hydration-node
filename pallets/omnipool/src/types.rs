@@ -1,8 +1,8 @@
 use super::*;
-use crate::types::BalanceUpdate::{Decrease, Increase};
 use frame_support::pallet_prelude::*;
+use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
 use sp_runtime::{FixedPointNumber, FixedU128};
-use sp_std::ops::{Add, Deref, Sub};
+use sp_std::ops::{Add, Sub};
 
 /// Balance type used in Omnipool
 pub type Balance = u128;
@@ -74,6 +74,19 @@ pub struct Position<Balance, AssetId> {
 	pub(super) price: Balance,
 }
 
+impl<Balance, AssetId> From<&Position<Balance, AssetId>> for hydra_dx_math::omnipool::types::Position<Balance>
+where
+	Balance: Copy + Into<u128>,
+{
+	fn from(position: &Position<Balance, AssetId>) -> Self {
+		Self {
+			amount: position.amount,
+			shares: position.shares,
+			price: FixedU128::from_inner(position.price.into()),
+		}
+	}
+}
+
 impl<Balance, AssetId> Position<Balance, AssetId>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
@@ -86,9 +99,9 @@ where
 	) -> Option<Self> {
 		Some(Self {
 			asset_id: self.asset_id,
-			amount : ( * delta_reserve + self.amount)?,
-			shares : ( * delta_shares + self.shares)?,
-			price: self.price
+			amount: (*delta_reserve + self.amount)?,
+			shares: (*delta_shares + self.shares)?,
+			price: self.price,
 		})
 	}
 }
@@ -167,161 +180,95 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 	}
 }
 
-/// Indicates whether delta amount should be added or subtracted.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub(crate) enum BalanceUpdate<Balance> {
-	Increase(Balance),
-	Decrease(Balance),
+/// Asset state representation including asset pool reserve.
+#[derive(Clone, Default, Debug)]
+pub struct AssetReserveState<Balance> {
+	/// Quantity of asset in omnipool
+	pub(crate) reserve: Balance,
+	/// Quantity of Hub Asset matching this asset
+	pub(crate) hub_reserve: Balance,
+	/// Quantity of LP shares for this asset
+	pub(crate) shares: Balance,
+	/// Quantity of LP shares for this asset owned by protocol
+	pub(crate) protocol_shares: Balance,
+	/// TVL of asset
+	pub(crate) tvl: Balance,
+	/// Asset's trade state
+	pub(crate) tradable: Tradable,
 }
 
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> BalanceUpdate<Balance> {
-	/// Merge two update together
-	pub(crate) fn merge(self, other: Self) -> Option<Self> {
-		self.checked_add(&other)
-	}
-}
-
-/// The addition operator + for BalanceUpdate.
-///
-/// Panics if overflows in debug builds, in non-debug debug it wraps instead. Use `checked_add` for safe operation.
-///
-/// # Example
-///
-/// ```ignore
-/// assert_eq!(BalanceUpdate::Increase(100) + BalanceUpdate::Increase(100), BalanceUpdate::Increase(200));
-/// ```
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Default> Add<Self> for BalanceUpdate<Balance> {
-	type Output = Self;
-
-	fn add(self, rhs: Self) -> Self::Output {
-		match (self, rhs) {
-			(Increase(a), Increase(b)) => BalanceUpdate::Increase(a + b),
-			(Decrease(a), Decrease(b)) => BalanceUpdate::Decrease(a + b),
-			(Increase(a), Decrease(b)) => {
-				if a >= b {
-					BalanceUpdate::Increase(a - b)
-				} else {
-					BalanceUpdate::Decrease(b - a)
-				}
-			}
-			(Decrease(a), Increase(b)) => {
-				if a >= b {
-					BalanceUpdate::Decrease(a - b)
-				} else {
-					BalanceUpdate::Increase(b - a)
-				}
-			}
+impl<Balance> From<&AssetReserveState<Balance>> for MathReserveState<Balance>
+where
+	Balance: Copy,
+{
+	fn from(state: &AssetReserveState<Balance>) -> Self {
+		Self {
+			reserve: state.reserve,
+			hub_reserve: state.hub_reserve,
+			shares: state.shares,
+			protocol_shares: state.protocol_shares,
+			tvl: state.tvl,
 		}
 	}
 }
 
-/// Performs addition that returns `None` instead of wrapping around on overflow
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> CheckedAdd for BalanceUpdate<Balance> {
-	fn checked_add(&self, v: &Self) -> Option<Self> {
-		match (self, v) {
-			(Increase(a), Increase(b)) => Some(BalanceUpdate::Increase(a.checked_add(b)?)),
-			(Decrease(a), Decrease(b)) => Some(BalanceUpdate::Decrease(a.checked_add(b)?)),
-			(Increase(a), Decrease(b)) => {
-				if a >= b {
-					Some(BalanceUpdate::Increase(a.checked_sub(b)?))
-				} else {
-					Some(BalanceUpdate::Decrease(b.checked_sub(a)?))
-				}
-			}
-			(Decrease(a), Increase(b)) => {
-				if a >= b {
-					Some(BalanceUpdate::Decrease(a.checked_sub(b)?))
-				} else {
-					Some(BalanceUpdate::Increase(b.checked_sub(a)?))
-				}
-			}
+impl<Balance> From<(&AssetState<Balance>, Balance)> for AssetReserveState<Balance>
+where
+	Balance: Copy,
+{
+	fn from((s, reserve): (&AssetState<Balance>, Balance)) -> Self {
+		Self {
+			reserve,
+			hub_reserve: s.hub_reserve,
+			shares: s.shares,
+			protocol_shares: s.protocol_shares,
+			tvl: s.tvl,
+			tradable: s.tradable,
 		}
 	}
 }
 
-impl<Balance: Default> Default for BalanceUpdate<Balance> {
-	fn default() -> Self {
-		BalanceUpdate::Increase(Balance::default())
-	}
-}
-
-impl<Balance: Default> Deref for BalanceUpdate<Balance> {
-	type Target = Balance;
-
-	fn deref(&self) -> &Self::Target {
-		match self {
-			Increase(amount) | Decrease(amount) => amount,
+impl<Balance> From<(AssetState<Balance>, Balance)> for AssetReserveState<Balance>
+where
+	Balance: Copy,
+{
+	fn from((s, reserve): (AssetState<Balance>, Balance)) -> Self {
+		Self {
+			reserve,
+			hub_reserve: s.hub_reserve,
+			shares: s.shares,
+			protocol_shares: s.protocol_shares,
+			tvl: s.tvl,
+			tradable: s.tradable,
 		}
 	}
 }
 
-impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + CheckedSub + Copy + Default> Add<Balance>
-	for BalanceUpdate<Balance>
+impl<Balance> AssetReserveState<Balance>
+where
+	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
-	type Output = Option<Balance>;
-
-	fn add(self, rhs: Balance) -> Self::Output {
-		match &self {
-			BalanceUpdate::Increase(amount) => rhs.checked_add(amount),
-			BalanceUpdate::Decrease(amount) => rhs.checked_sub(amount),
-		}
+	/// Calculate price for actual state
+	pub(crate) fn price(&self) -> Option<FixedU128> {
+		FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
 	}
-}
 
-/// Delta changes of asset state
-#[derive(Default, Clone, Debug)]
-pub(super) struct AssetStateChange<Balance>
-where
-	Balance: Default,
-{
-	pub(crate) delta_reserve: BalanceUpdate<Balance>,
-	pub(crate) delta_hub_reserve: BalanceUpdate<Balance>,
-	pub(crate) delta_shares: BalanceUpdate<Balance>,
-	pub(crate) delta_protocol_shares: BalanceUpdate<Balance>,
-	pub(crate) delta_tvl: BalanceUpdate<Balance>,
-}
-
-/// Delta changes after a trade is executed
-#[derive(Default)]
-pub(super) struct TradeStateChange<Balance>
-where
-	Balance: Default,
-{
-	pub(crate) asset_in: AssetStateChange<Balance>,
-	pub(crate) asset_out: AssetStateChange<Balance>,
-	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
-	pub(crate) hdx_hub_amount: Balance,
-}
-
-/// Delta changes after a trade with hub asset is executed.
-#[derive(Default)]
-pub(super) struct HubTradeStateChange<Balance>
-where
-	Balance: Default,
-{
-	pub(crate) asset: AssetStateChange<Balance>,
-	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
-}
-
-/// Delta changes after add or remove liquidity.
-#[derive(Default)]
-pub(super) struct LiquidityStateChange<Balance>
-where
-	Balance: Default,
-{
-	pub(crate) asset: AssetStateChange<Balance>,
-	pub(crate) delta_imbalance: BalanceUpdate<Balance>,
-	pub(crate) delta_position_reserve: BalanceUpdate<Balance>,
-	pub(crate) delta_position_shares: BalanceUpdate<Balance>,
-	pub(crate) lp_hub_amount: Balance,
+	/// Update current asset state with given delta changes.
+	pub(crate) fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
+		Some(Self {
+			reserve: (delta.delta_reserve + self.reserve)?,
+			hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
+			shares: (delta.delta_shares + self.shares)?,
+			protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
+			tvl: (delta.delta_tvl + self.tvl)?,
+			tradable: self.tradable,
+		})
+	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::BalanceUpdate;
-	use super::CheckedAdd;
 	use super::SimpleImbalance;
-	use cool_asserts::assert_panics;
 	#[test]
 	fn simple_imbalance_addition_works() {
 		assert_eq!(
@@ -489,165 +436,6 @@ mod tests {
 				value: 1u128,
 				negative: true
 			} - u128::MAX,
-			None
-		);
-	}
-
-	#[test]
-	fn balance_update_addition_works() {
-		assert_eq!(
-			BalanceUpdate::Increase(100) + BalanceUpdate::Increase(100),
-			BalanceUpdate::Increase(200)
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(500) + BalanceUpdate::Decrease(300),
-			BalanceUpdate::Increase(200)
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(300),
-			BalanceUpdate::Decrease(200)
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(0),
-			BalanceUpdate::Increase(100)
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(0) + BalanceUpdate::Decrease(100),
-			BalanceUpdate::Decrease(100)
-		);
-
-		assert_eq!(
-			BalanceUpdate::Decrease(100) + BalanceUpdate::Decrease(300),
-			BalanceUpdate::Decrease(400)
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(100),
-			BalanceUpdate::Decrease(100)
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(300),
-			BalanceUpdate::Increase(100)
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(0),
-			BalanceUpdate::Decrease(200)
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(0) + BalanceUpdate::Decrease(100),
-			BalanceUpdate::Decrease(100)
-		);
-
-		assert_eq!(
-			BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(100),
-			BalanceUpdate::Increase(0)
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(100) + BalanceUpdate::Increase(100),
-			BalanceUpdate::Decrease(0)
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(0) + BalanceUpdate::Decrease(0),
-			BalanceUpdate::Increase(0)
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(0) + BalanceUpdate::Increase(0),
-			BalanceUpdate::Decrease(0)
-		);
-
-		assert_eq!(
-			BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Decrease(1),
-			BalanceUpdate::Increase(u128::MAX - 1)
-		);
-
-		assert_panics!(BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Increase(1));
-		assert_panics!(BalanceUpdate::Decrease(u128::MAX) + BalanceUpdate::Decrease(1));
-	}
-
-	#[test]
-	fn balance_update_to_balance_addition_works() {
-		let zero = 0u32;
-		assert_eq!(BalanceUpdate::Increase(100u32) + 200u32, Some(300));
-		assert_eq!(BalanceUpdate::Decrease(50u32) + 100u32, Some(50));
-		assert_eq!(BalanceUpdate::Decrease(50u32) + 50u32, Some(0));
-		assert_eq!(BalanceUpdate::Decrease(50u32) + zero, None);
-		assert_eq!(BalanceUpdate::Increase(50u32) + zero, Some(50));
-
-		assert_eq!(BalanceUpdate::Decrease(100u32) + 50u32, None);
-	}
-
-	#[test]
-	fn balance_update_safe_addition_works() {
-		assert_eq!(
-			BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Increase(100)),
-			Some(BalanceUpdate::Increase(200))
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(500).checked_add(&BalanceUpdate::Decrease(300)),
-			Some(BalanceUpdate::Increase(200))
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(300)),
-			Some(BalanceUpdate::Decrease(200))
-		);
-
-		assert_eq!(
-			BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(0)),
-			Some(BalanceUpdate::Increase(100))
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(0).checked_add(&BalanceUpdate::Decrease(100)),
-			Some(BalanceUpdate::Decrease(100))
-		);
-
-		assert_eq!(
-			BalanceUpdate::Decrease(100).checked_add(&BalanceUpdate::Decrease(300)),
-			Some(BalanceUpdate::Decrease(400))
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(100)),
-			Some(BalanceUpdate::Decrease(100))
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(300)),
-			Some(BalanceUpdate::Increase(100))
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(0)),
-			Some(BalanceUpdate::Decrease(200))
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(0).checked_add(&BalanceUpdate::Decrease(100)),
-			Some(BalanceUpdate::Decrease(100))
-		);
-
-		assert_eq!(
-			BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(100)),
-			Some(BalanceUpdate::Increase(0))
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(100).checked_add(&BalanceUpdate::Increase(100)),
-			Some(BalanceUpdate::Decrease(0))
-		);
-		assert_eq!(
-			BalanceUpdate::Increase(0).checked_add(&BalanceUpdate::Decrease(0)),
-			Some(BalanceUpdate::Increase(0))
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(0).checked_add(&BalanceUpdate::Increase(0)),
-			Some(BalanceUpdate::Decrease(0))
-		);
-
-		assert_eq!(
-			BalanceUpdate::Increase(u128::MAX).checked_add(&BalanceUpdate::Decrease(1)),
-			Some(BalanceUpdate::Increase(u128::MAX - 1))
-		);
-
-		assert_eq!(
-			BalanceUpdate::Increase(u128::MAX).checked_add(&BalanceUpdate::Increase(1)),
-			None
-		);
-		assert_eq!(
-			BalanceUpdate::Decrease(u128::MAX).checked_add(&BalanceUpdate::Decrease(1)),
 			None
 		);
 	}

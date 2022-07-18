@@ -31,6 +31,8 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false }
 
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "d15420894f44bb54ddbbd238f8c7e624f107ea05", default-features = false }
+
 # third party
 log = { version = "0.4.14", default-features = false }
 primitive-types = "0.11.1"
@@ -48,7 +50,6 @@ sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkad
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false}
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "63b32194e7b9aff6a6350d2d4434525de4eec7c1", default-features = false }
-cool_asserts = "1.1.1"
 proptest = "1.0.0"
 
 [features]

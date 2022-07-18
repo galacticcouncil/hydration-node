@@ -75,6 +75,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -85,15 +86,10 @@ mod benchmarks;
 #[cfg(test)]
 mod tests;
 
-mod math;
 mod types;
 pub mod weights;
 
-use crate::math::types::AssetReserveState;
-use crate::math::{
-	calculate_buy_for_hub_asset_state_changes, calculate_delta_imbalance, calculate_sell_hub_state_changes,
-};
-use crate::types::{AssetState, Balance, BalanceUpdate, Price, SimpleImbalance, Tradable};
+use crate::types::{AssetReserveState, AssetState, Balance, Price, SimpleImbalance, Tradable};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -103,14 +99,11 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::math::{
-		calculate_add_liquidity_state_changes, calculate_asset_tvl, calculate_buy_state_changes,
-		calculate_remove_liquidity_state_changes, calculate_sell_state_changes,
-	};
 	use crate::types::{Position, Price, SimpleImbalance, Tradable};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use hydra_dx_math::omnipool::types::BalanceUpdate;
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -376,7 +369,7 @@ pub mod pallet {
 				.checked_mul_int(native_asset_reserve)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			let native_asset_tvl = calculate_asset_tvl(
+			let native_asset_tvl = hydra_dx_math::omnipool::calculate_asset_tvl(
 				native_asset_hub_reserve,
 				(stable_asset_reserve, stable_asset_hub_reserve),
 			)
@@ -488,8 +481,11 @@ pub mod pallet {
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
-			let asset_tvl = calculate_asset_tvl(hub_reserve, (stable_asset_reserve, stable_asset_hub_reserve))
-				.ok_or(ArithmeticError::Overflow)?;
+			let asset_tvl = hydra_dx_math::omnipool::calculate_asset_tvl(
+				hub_reserve,
+				(stable_asset_reserve, stable_asset_hub_reserve),
+			)
+			.ok_or(ArithmeticError::Overflow)?;
 
 			// Initial stale of asset
 			let state = AssetState::<Balance> {
@@ -575,8 +571,8 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset)?;
 
-			let state_changes = calculate_add_liquidity_state_changes(
-				&asset_state,
+			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
+				&(&asset_state).into(),
 				amount,
 				stable_asset,
 				asset == T::StableCoinAssetId::get(),
@@ -600,7 +596,7 @@ pub mod pallet {
 				Error::<T>::AssetWeightCapExceeded
 			);
 
-			let updated_asset_price = new_asset_state.price();
+			let updated_asset_price = new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?;
 
 			// Create LP position with given shares
 			let lp_position = Position::<Balance, T::AssetId> {
@@ -686,10 +682,10 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset_id)?;
 
-			let state_changes = calculate_remove_liquidity_state_changes::<T::AssetId>(
-				&asset_state,
+			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
+				&(&asset_state).into(),
 				amount,
-				&position,
+				&(&position).into(),
 				stable_asset,
 				asset_id == T::StableCoinAssetId::get(),
 			)
@@ -814,13 +810,13 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let state_changes = calculate_sell_state_changes(
-				&asset_in_state,
-				&asset_out_state,
+			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
+				&(&asset_in_state).into(),
+				&(&asset_out_state).into(),
 				amount,
 				T::AssetFee::get(),
 				T::ProtocolFee::get(),
-				&current_imbalance,
+				current_imbalance.value,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -931,13 +927,13 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let state_changes = calculate_buy_state_changes(
-				&asset_in_state,
-				&asset_out_state,
+			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
+				&(&asset_in_state).into(),
+				&(&asset_out_state).into(),
 				amount,
 				T::AssetFee::get(),
 				T::ProtocolFee::get(),
-				&current_imbalance,
+				current_imbalance.value,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1144,10 +1140,10 @@ impl<T: Config> Pallet<T> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
-		let delta_imbalance = calculate_delta_imbalance(
-			asset_state,
+		let delta_imbalance = hydra_dx_math::omnipool::calculate_delta_imbalance(
+			&(asset_state.into()),
 			*delta_amount,
-			&current_imbalance,
+			current_imbalance.value,
 			current_hub_asset_liquidity,
 		)?;
 
@@ -1198,8 +1194,12 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		); // TODO: Add test for this!
 
-		let state_changes = calculate_sell_hub_state_changes(&asset_out_state, amount, T::AssetFee::get())
-			.ok_or(ArithmeticError::Overflow)?;
+		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
+			&(&asset_out_state).into(),
+			amount,
+			T::AssetFee::get(),
+		)
+		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_reserve >= limit,
@@ -1261,8 +1261,12 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		); // TODO: Add test for this!
 
-		let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_out_state, amount, T::AssetFee::get())
-			.ok_or(ArithmeticError::Overflow)?;
+		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
+			&(&asset_out_state).into(),
+			amount,
+			T::AssetFee::get(),
+		)
+		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			*state_changes.asset.delta_reserve <= limit,

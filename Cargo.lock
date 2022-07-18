@@ -375,6 +375,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "az"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f771a5d1f5503f7f4279a30f3643d3421ba149848b89ecaaec0ea2acf04a5ac4"
+
+[[package]]
 name = "backtrace"
 version = "0.3.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -887,6 +893,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 
 [[package]]
+name = "bytemuck"
+version = "1.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c53dfa917ec274df8ed3c572698f381a24eef2efba9492d797301b72b6db408a"
+
+[[package]]
 name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1151,12 +1163,6 @@ name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
-
-[[package]]
-name = "cool_asserts"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fea70c9cbd7d29920c31f511d12313838ba4678c7d7cac08e5cc42471ecec443"
 
 [[package]]
 name = "core-foundation"
@@ -2251,6 +2257,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fixed"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36a65312835c1097a0c926ff3702df965285fadc33d948b87397ff8961bad881"
+dependencies = [
+ "az",
+ "bytemuck",
+ "half",
+ "typenum",
+]
+
+[[package]]
 name = "fixed-hash"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2835,6 +2853,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "half"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
+
+[[package]]
 name = "handlebars"
 version = "4.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3011,6 +3035,19 @@ version = "1.0.1"
 dependencies = [
  "cargo-lock",
  "platforms 1.1.0",
+]
+
+[[package]]
+name = "hydra-dx-math"
+version = "4.6.0"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=d15420894f44bb54ddbbd238f8c7e624f107ea05#d15420894f44bb54ddbbd238f8c7e624f107ea05"
+dependencies = [
+ "fixed",
+ "num-traits",
+ "parity-scale-codec 2.3.1",
+ "primitive-types 0.8.0",
+ "sp-arithmetic",
+ "sp-std",
 ]
 
 [[package]]
@@ -5517,8 +5554,8 @@ dependencies = [
  "frame-system",
  "log",
  "orml-traits",
- "parity-scale-codec 2.3.1",
  "pallet-session",
+ "parity-scale-codec 2.3.1",
  "scale-info",
  "sp-arithmetic",
  "sp-runtime",
@@ -5871,10 +5908,10 @@ dependencies = [
 name = "pallet-omnipool"
 version = "0.1.0"
 dependencies = [
- "cool_asserts",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "hydra-dx-math",
  "hydradx-traits",
  "log",
  "orml-tokens",
@@ -10575,7 +10612,7 @@ version = "4.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.16#19162e43be45817b44c7d48e50d03f074f60fbf4"
 dependencies = [
  "hash-db",
- "memory-db 0.28.0",
+ "memory-db",
  "parity-scale-codec 2.3.1",
  "scale-info",
  "sp-core",

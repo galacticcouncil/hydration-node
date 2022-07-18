@@ -1,9 +1,5 @@
 use super::*;
-use crate::math::{
-	calculate_add_liquidity_state_changes, calculate_buy_state_changes, calculate_remove_liquidity_state_changes,
-	calculate_sell_state_changes,
-};
-use crate::{AssetReserveState, FixedU128, SimpleImbalance};
+use crate::{AssetReserveState, FixedU128};
 use frame_support::assert_noop;
 use primitive_types::U256;
 use proptest::prelude::*;
@@ -12,26 +8,6 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000; // * 1_000 * 1_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
-
-fn asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
-	(
-		BALANCE_RANGE.0..BALANCE_RANGE.1,
-		BALANCE_RANGE.0..BALANCE_RANGE.1,
-		BALANCE_RANGE.0..BALANCE_RANGE.1,
-		BALANCE_RANGE.0..BALANCE_RANGE.1,
-		BALANCE_RANGE.0..BALANCE_RANGE.1,
-	)
-		.prop_map(
-			|(reserve, hub_reserve, shares, protocol_shares, tvl)| AssetReserveState {
-				reserve,
-				hub_reserve,
-				shares,
-				protocol_shares,
-				tvl,
-				..Default::default()
-			},
-		)
-}
 
 fn asset_reserve() -> impl Strategy<Value = Balance> {
 	BALANCE_RANGE.0..BALANCE_RANGE.1
@@ -44,19 +20,6 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 
 fn price() -> impl Strategy<Value = FixedU128> {
 	(0.1f64..2f64).prop_map(FixedU128::from_float)
-}
-
-fn stable_asset_state() -> impl Strategy<Value = (Balance, Balance)> {
-	(asset_reserve(), asset_reserve())
-}
-
-fn position() -> impl Strategy<Value = Position<Balance, AssetId>> {
-	(trade_amount(), price()).prop_map(|(amount, price)| Position {
-		asset_id: 100,
-		amount,
-		shares: amount,
-		price: price.into_inner(),
-	})
 }
 
 fn assert_asset_invariant(
@@ -106,189 +69,6 @@ fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
 		amount: reserve,
 		price,
 	})
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn sell_update_invariants_no_fees(asset_in in asset_state(), asset_out in asset_state(),
-		amount in trade_amount()
-	) {
-		let result =  calculate_sell_state_changes(&asset_in, &asset_out, amount,
-			Permill::from_percent(0),
-			Permill::from_percent(0),
-			&SimpleImbalance::default()
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let asset_in_state = asset_in.clone();
-		let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-
-		assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token in");
-
-		let asset_out_state = asset_out.clone();
-		let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-
-		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn sell_update_invariants_with_fees(asset_in in asset_state(),
-		asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-		protocol_fee in fee()
-	) {
-		let result =  calculate_sell_state_changes(&asset_in, &asset_out, amount,
-			asset_fee,
-			protocol_fee,
-			&SimpleImbalance::default()
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let asset_in_state = asset_in.clone();
-		let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-		assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token in");
-
-		let asset_out_state = asset_out.clone();
-		let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn sell_hub_update_invariants_with_fees(asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-	) {
-		let result = calculate_sell_hub_state_changes (&asset_out, amount,
-			asset_fee,
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let asset_out_state = asset_out.clone();
-		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn buy_hub_update_invariants_with_fees(asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-	) {
-		let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
-			asset_fee,
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let asset_out_state = asset_out.clone();
-		let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-		assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn buy_update_invariants_with_fees(asset_in in asset_state(), asset_out in asset_state(),
-		amount in trade_amount(),
-		asset_fee in fee(),
-		protocol_fee in fee()
-	) {
-		let result =  calculate_buy_state_changes(&asset_in, &asset_out, amount,
-			asset_fee,
-			protocol_fee,
-			&SimpleImbalance::default()
-		);
-
-		// ignore the invalid result
-		if let Some(state_changes) = result {
-			let asset_in_state = asset_in.clone();
-			let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-			assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token in");
-
-			let asset_out_state = asset_out.clone();
-			let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-			assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token out");
-		}
-	}
-}
-#[test]
-fn buy_update_invariants_no_fees_case() {
-	let asset_in = AssetReserveState {
-		reserve: 10000000000000000,
-		hub_reserve: 10000000000000000,
-		shares: 10000000000000000,
-		protocol_shares: 10000000000000000,
-		tvl: 10000000000000000,
-		tradable: Tradable::Allowed,
-	};
-	let asset_out = AssetReserveState {
-		reserve: 10000000000000000,
-		hub_reserve: 89999999999999991,
-		shares: 10000000000000000,
-		protocol_shares: 10000000000000000,
-		tvl: 10000000000000000,
-		tradable: Tradable::Allowed,
-	};
-	let amount = 1_000_000_000_000_000;
-
-	let result = calculate_buy_state_changes(
-		&asset_in,
-		&asset_out,
-		amount,
-		Permill::from_percent(0),
-		Permill::from_percent(0),
-		&SimpleImbalance::default(),
-	);
-
-	assert!(result.is_none()); // This fails because of not enough asset out in pool out
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn buy_update_invariants_no_fees(asset_in in asset_state(), asset_out in asset_state(),
-		amount in trade_amount()
-	) {
-		let result =  calculate_buy_state_changes(&asset_in, &asset_out, amount,
-
-		Permill::from_percent(0),
-		Permill::from_percent(0),
-			&SimpleImbalance::default()
-		);
-
-		// ignore the invalid result
-		if let Some(state_changes) = result {
-			let asset_in_state = asset_in.clone();
-			let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-			assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token in");
-
-			let asset_out_state = asset_out.clone();
-			let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-			assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token out");
-		}
-	}
 }
 
 proptest! {
@@ -1099,65 +879,6 @@ proptest! {
 proptest! {
 	#![proptest_config(ProptestConfig::with_cases(1000))]
 	#[test]
-	fn add_liquidity_prices(asset in asset_state(),
-		amount in trade_amount(),
-		stable_asset in stable_asset_state()
-	) {
-		let result = calculate_add_liquidity_state_changes(&asset,
-			amount,
-			stable_asset,
-			false
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let new_asset_state= asset.clone();
-		let new_asset_state = new_asset_state.delta_update(&state_changes.asset).unwrap();
-
-		// Price should not change
-		assert_eq_approx!(asset.price(),
-			new_asset_state.price(),
-			FixedU128::from_float(0.0000000001),
-			"Price has changed after add liquidity");
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
-	fn remove_liquidity_prices(asset in asset_state(),
-		position in position(),
-		stable_asset in stable_asset_state()
-	) {
-		let result = calculate_remove_liquidity_state_changes(&asset,
-			position.amount,
-			&position,
-			stable_asset,
-			false
-		);
-
-		assert!(result.is_some());
-
-		let state_changes = result.unwrap();
-
-		let new_asset_state= asset.clone();
-		let new_asset_state = new_asset_state.delta_update(&state_changes.asset).unwrap();
-
-		assert_ne!(new_asset_state.reserve, asset.reserve);
-
-		// Price should not change
-		assert_eq_approx!(asset.price(),
-			new_asset_state.price(),
-			FixedU128::from_float(0.0000000001),
-			"Price has changed after remove liquidity");
-	}
-}
-
-proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
-	#[test]
 	fn add_liquidity_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
 		stable_reserve in asset_reserve(),
@@ -1245,8 +966,8 @@ proptest! {
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 
 				// Price should not change
-				assert_eq_approx!(old_state_200.price(),
-						new_state_200.price(),
+				assert_eq_approx!(old_state_200.price().unwrap(),
+						new_state_200.price().unwrap(),
 						FixedU128::from_float(0.0000000001),
 						"Price has changed after add liquidity");
 
@@ -1339,8 +1060,8 @@ proptest! {
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 				// Price should not change
-				assert_eq_approx!(old_state_200.price(),
-						new_state_200.price(),
+				assert_eq_approx!(old_state_200.price().unwrap(),
+						new_state_200.price().unwrap(),
 						FixedU128::from_float(0.0000000001),
 						"Price has changed after remove liquidity");
 
