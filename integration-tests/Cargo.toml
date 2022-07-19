@@ -96,6 +96,8 @@ polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", 
 polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.16" }
 
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
+
+[dev-dependencies]
 xcm-emulator = { git = "https://github.com/zqhxuyuan/xcm-simulator", branch = "v0.9.16" }
 
 [features]
