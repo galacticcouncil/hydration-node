@@ -773,7 +773,36 @@ pub mod pallet {
 		/// A position is destroyed and liquidity owned by LP becomes pool owned liquidity.
 		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
 		#[transactional]
-		pub fn sacrifice_position(_origin: OriginFor<T>, _position_id: T::PositionInstanceId) -> DispatchResult {
+		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionInstanceId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(who.clone()),
+				Error::<T>::Forbidden
+			);
+
+			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
+
+			Assets::<T>::try_mutate(position.asset_id, |maybe_asset| -> DispatchResult {
+				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+
+				asset_state.protocol_shares = asset_state
+					.protocol_shares
+					.checked_add(position.shares)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				Ok(())
+			})?;
+
+			// Desotry position and burn NFT
+			<Positions<T>>::remove(position_id);
+			T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
+
+			Self::deposit_event(Event::PositionDestroyed {
+				position_id,
+				owner: who.clone(),
+			});
+
 			Ok(())
 		}
 
