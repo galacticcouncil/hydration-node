@@ -27,7 +27,7 @@
 //! The position is represented with a NFT token which saves the amount of shares distributed
 //! and the price of the asset at the time of provision.
 //!
-//! For traders this means that tehy can benefit from the fill asset position
+//! For traders this means that they can benefit from the fill asset position
 //! which can be used for trades with all other assets - there is no fragmented liquidity.
 //! They can send any token to the pool using the swap mechanism
 //! and in return they will receive the token of their choice in the appropriate quantity.
@@ -48,7 +48,7 @@
 //!
 //! * First two asset in pool must be Stable Asset and Native Asset. This must be achieved by calling
 //!   `initialize_pool` dispatchable.
-//! * Stable asset balance and native asset balance must be transffered to omnipool account manually.
+//! * Stable asset balance and native asset balance must be transferred to omnipool account manually.
 //! * All tokens added to the pool must be first registered in Asset Registry.
 //!
 //! ## Interface

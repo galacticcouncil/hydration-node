@@ -6,13 +6,13 @@ Omnipool implementation
 
 Omnipool is type of AMM where all assets are pooled together into one single pool.
 
-Liquidity provider can provide any aset of their choice to the Omnipool and in return 
+Liquidity provider can provide any asset of their choice to the Omnipool and in return 
 they will receive pool shares for this single asset.
 
 The position is represented with a NFT token which saves the amount of shares distributed 
 and the price of the asset at the time of provision.
 
-For traders this means that tehy can benefit from the fill asset position
+For traders this means that they can benefit from the fill asset position
 which can be used for trades with all other assets - there is no fragmented liquidity.
 They can send any token to the pool using the swap mechanism 
 and in return they will receive the token of their choice in the appropriate quantity.
