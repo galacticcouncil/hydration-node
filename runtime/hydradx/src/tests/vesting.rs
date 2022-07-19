@@ -40,7 +40,16 @@ fn vested_transfer_should_work_when_sent_from_root() {
 
 		let vesting_schedule = schedule_object();
 
+		// let bob_balance_before = Balances::free_balance(BOB);
+		let vesting_balance_before = Balances::free_balance(vesting_account());
+
 		assert_ok!(Vesting::vested_transfer(RawOrigin::Root.into(), to, vesting_schedule));
+
+		// let bob_balance_after = Balances::free_balance(BOB);
+		let vesting_balance_after = Balances::free_balance(vesting_account());
+
+		// vesting_balance_after is 0 ?!
+		assert_eq!(vesting_balance_before, vesting_balance_after);
 	});
 }
 
