@@ -62,6 +62,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 }
 
 #[test]
+#[ignore]
 fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 	//Arrange
 	TestNet::reset();

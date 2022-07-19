@@ -1,5 +1,6 @@
 #![cfg(test)]
-pub use hydradx_runtime::AccountId;
+pub use hydradx_runtime::{AccountId, VestingPalletId};
+
 use pallet_transaction_multi_payment::Price;
 use primitives::Balance;
 
@@ -149,6 +150,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(BOB), 1000 * UNITS),
 			(AccountId::from(CHARLIE), 1000 * UNITS),
 			(AccountId::from(DAVE), 1000 * UNITS),
+			(vesting_account(), 10_000 * UNITS)
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -250,4 +252,8 @@ fn last_hydradx_events(n: usize) -> Vec<hydradx_runtime::Event> {
 
 pub fn expect_hydradx_events(e: Vec<hydradx_runtime::Event>) {
 	assert_eq!(last_hydradx_events(e.len()), e);
+}
+
+pub fn vesting_account() -> AccountId {
+	VestingPalletId::get().into_account()
 }
