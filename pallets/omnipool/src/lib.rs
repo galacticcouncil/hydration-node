@@ -577,7 +577,7 @@ pub mod pallet {
 			ensure!(
 				asset_state.tradable.contains(Tradability::ADD_LIQUIDIITY),
 				Error::<T>::NotAllowed
-			);
+			); //TODO: test pls
 
 			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
 				&(&asset_state).into(),
@@ -693,7 +693,7 @@ pub mod pallet {
 			ensure!(
 				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
-			);
+			); //TODO: test pls
 
 			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
 				&(&asset_state).into(),
@@ -946,6 +946,8 @@ pub mod pallet {
 				Self::allow_assets(&asset_in_state, &asset_out_state),
 				Error::<T>::NotAllowed
 			);
+
+			ensure!(asset_out_state.reserve >= amount, Error::<T>::InsufficientLiquidity); //TODO: test pls
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
