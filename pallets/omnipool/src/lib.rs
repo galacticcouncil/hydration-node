@@ -800,7 +800,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::PositionDestroyed {
 				position_id,
-				owner: who.clone(),
+				owner: who,
 			});
 
 			Ok(())
