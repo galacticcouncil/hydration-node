@@ -254,15 +254,15 @@ benchmarks! {
 		// Initialize pool
 		let stable_amount: Balance = 1_000_000_000_000_000u128;
 		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
+		let stable_price: FixedU128 = FixedU128::from((1,2));
+		let native_price: FixedU128 = FixedU128::from(1);
 
 		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
 
-	}: _(RawOrigin::Root, T::StableCoinAssetId::get(), Tradable::BuyOnly)
+	}: _(RawOrigin::Root, T::StableCoinAssetId::get(), Tradability::BUY)
 	verify {
 		let asset_state = <Assets<T>>::get(T::StableCoinAssetId::get()).unwrap();
-		assert!(asset_state.tradable == Tradable::BuyOnly);
+		assert!(asset_state.tradable == Tradability::BUY);
 	}
 }
 
