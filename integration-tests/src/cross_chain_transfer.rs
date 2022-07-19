@@ -12,6 +12,56 @@ use xcm_emulator::TestExt;
 
 
 #[test]
+fn polkadot_should_receive_asset_when_sent_from_hydra() {
+	//Arrange
+	PolkadotRelay::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			0
+		);
+	});
+
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::Origin::root(),
+			1,
+			hydradx_runtime::AssetLocation(MultiLocation::parent())
+		));
+
+		//Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			1,
+			3 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X1(Junction::AccountId32 {
+						id: BOB,
+						network: NetworkId::Any,
+					})
+				)
+				.into()
+			),
+			4_600_000_000
+		));
+
+		//Assert
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(ALICE)),
+			200 * UNITS - 3 * UNITS
+		);
+	});
+
+	PolkadotRelay::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			2999680000000 // 3 * HDX - fee
+		);
+	});
+}
+
+#[test]
 fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 	//Arrange
 	TestNet::reset();
