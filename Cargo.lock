@@ -8483,7 +8483,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.5.0"
+version = "0.1.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
