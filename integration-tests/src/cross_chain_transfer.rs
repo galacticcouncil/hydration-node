@@ -63,6 +63,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 
 #[test]
 #[ignore]
+//TODO: it seems that the balance does not change on hydra. To be investigated
 fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 	//Arrange
 	TestNet::reset();
