@@ -31,7 +31,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b6bc9f287addba4ac1e4786118edc5154464d78", default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "d15420894f44bb54ddbbd238f8c7e624f107ea05", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "aea0ed65ba28aa33e4f15b537fa0ce7a48eb3cd6", default-features = false }
 
 # third party
 log = { version = "0.4.14", default-features = false }
