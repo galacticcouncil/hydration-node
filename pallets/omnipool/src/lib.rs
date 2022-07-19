@@ -431,9 +431,9 @@ pub mod pallet {
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
 			<Assets<T>>::insert(T::NativeAssetId::get(), native_asset_state);
 
-			// Hub asset is not allowed to be boughts from the pool
+			// Hub asset is not allowed to be bought from the pool
 			<HubAssetTradability<T>>::put(
-				Tradability::SELL | Tradability::ADD_LIQUDIITY | Tradability::REMOVE_LIQUDITY,
+				Tradability::SELL | Tradability::ADD_LIQUIDIITY | Tradability::REMOVE_LIQUIDITY,
 			);
 
 			Self::deposit_event(Event::TokenAdded {
@@ -574,6 +574,11 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset)?;
 
+			ensure!(
+				asset_state.tradable.contains(Tradability::ADD_LIQUIDIITY),
+				Error::<T>::NotAllowed
+			);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
@@ -685,6 +690,11 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset_id)?;
 
+			ensure!(
+				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+
 			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
@@ -755,6 +765,15 @@ pub mod pallet {
 				shares_removed: amount,
 			});
 
+			Ok(())
+		}
+
+		/// Sacrifice LP position in favor of pool.
+		///
+		/// A position is destroyed and liquidity owned by LP becomes pool owned liquidity.
+		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
+		#[transactional]
+		pub fn sacrifice_position(_origin: OriginFor<T>, _position_id: T::PositionInstanceId) -> DispatchResult {
 			Ok(())
 		}
 

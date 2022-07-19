@@ -6,6 +6,7 @@ pub trait WeightInfo {
 	fn add_token() -> Weight;
 	fn add_liquidity() -> Weight;
 	fn remove_liquidity() -> Weight;
+	fn sacrifice_position() -> Weight;
 	fn sell() -> Weight;
 	fn buy() -> Weight;
 	fn set_asset_tradable_state() -> Weight;
@@ -25,6 +26,10 @@ impl WeightInfo for () {
 	}
 
 	fn remove_liquidity() -> Weight {
+		0
+	}
+
+	fn sacrifice_position() -> Weight {
 		0
 	}
 
