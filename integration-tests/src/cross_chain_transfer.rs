@@ -27,7 +27,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		//Act
 		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
 			polkadot_runtime::Origin::signed(ALICE.into()),
-			Box::new(Parachain(2000).into().into()),
+			Box::new(Parachain(HYDRA_PARA_ID).into().into()),
 			Box::new(
 				Junction::AccountId32 {
 					id: BOB,
@@ -42,7 +42,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 
 		//Assert
 		assert_eq!(
-			polkadot_runtime::Balances::free_balance(&ParaId::from(2000i32).into_account()),
+			polkadot_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account()),
 			310 * UNITS
 		);
 	});
@@ -107,7 +107,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 }
 
 #[test]
-fn hydra_should_receive_asset_when_transferred_from_basilisk() {
+fn hydra_should_receive_asset_when_transferred_from_acala() {
 	// Arrange
 	TestNet::reset();
 
@@ -115,11 +115,11 @@ fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::Origin::root(),
 			1,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(3000), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
 	});
 
-	Basilisk::execute_with(|| {
+	Acala::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::Origin::signed(ALICE.into()),
@@ -129,7 +129,7 @@ fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 				MultiLocation::new(
 					1,
 					X2(
-						Junction::Parachain(2000),
+						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 {
 							id: BOB,
 							network: NetworkId::Any,
@@ -157,18 +157,18 @@ fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 }
 
 #[test]
-fn transfer_from_basilisk_should_fail_when_transferring_insufficient_amount() {
+fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::Origin::root(),
 			1,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(3000), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
 	});
 
-	Basilisk::execute_with(|| {
+	Acala::execute_with(|| {
 		assert_noop!(
 			hydradx_runtime::XTokens::transfer(
 				hydradx_runtime::Origin::signed(ALICE.into()),
@@ -178,7 +178,7 @@ fn transfer_from_basilisk_should_fail_when_transferring_insufficient_amount() {
 					MultiLocation::new(
 						1,
 						X2(
-							Junction::Parachain(2000),
+							Junction::Parachain(HYDRA_PARA_ID),
 							Junction::AccountId32 {
 								id: BOB,
 								network: NetworkId::Any,

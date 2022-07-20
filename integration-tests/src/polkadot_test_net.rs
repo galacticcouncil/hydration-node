@@ -12,6 +12,9 @@ pub const FALLBACK: [u8; 32] = [99u8; 32];
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
+pub const ACALA_PARA_ID : u32 = 2_000;
+pub const HYDRA_PARA_ID : u32 = 2_034;
+
 use cumulus_primitives_core::ParaId;
 //use cumulus_primitives_core::relay_chain::AccountId;
 use frame_support::traits::GenesisBuild;
@@ -41,12 +44,12 @@ decl_test_parachain! {
 }
 
 decl_test_parachain! {
-	pub struct Basilisk{
+	pub struct Acala{
 		Runtime = hydradx_runtime::Runtime,
 		Origin = hydradx_runtime::Origin,
 		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
 		DmpMessageHandler = hydradx_runtime::DmpQueue,
-		new_ext = basilisk_ext(),
+		new_ext = acala_ext(),
 	}
 }
 
@@ -54,8 +57,8 @@ decl_test_network! {
 	pub struct TestNet {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
-			(2000, Hydra),
-			(3000, Basilisk),
+			(2000, Acala),
+			(2034, Hydra),
 		],
 	}
 }
@@ -108,7 +111,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			(AccountId::from(ALICE), 2_002 * UNITS),
-			(ParaId::from(2000).into_account(), 10 * UNITS),
+			(ParaId::from(HYDRA_PARA_ID).into_account(), 10 * UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -165,7 +168,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&parachain_info::GenesisConfig {
-			parachain_id: 2000u32.into(),
+			parachain_id: HYDRA_PARA_ID.into(),
 		},
 		&mut t,
 	)
@@ -207,7 +210,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn basilisk_ext() -> sp_io::TestExternalities {
+pub fn acala_ext() -> sp_io::TestExternalities {
 	use hydradx_runtime::{Runtime, System};
 
 	let mut t = frame_system::GenesisConfig::default()
@@ -222,7 +225,7 @@ pub fn basilisk_ext() -> sp_io::TestExternalities {
 
 	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&parachain_info::GenesisConfig {
-			parachain_id: 3000.into(),
+			parachain_id: ACALA_PARA_ID.into(),
 		},
 		&mut t,
 	)
