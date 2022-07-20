@@ -240,20 +240,6 @@ pub fn basilisk_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-fn last_hydradx_events(n: usize) -> Vec<hydradx_runtime::Event> {
-	frame_system::Pallet::<hydradx_runtime::Runtime>::events()
-		.into_iter()
-		.rev()
-		.take(n)
-		.rev()
-		.map(|e| e.event)
-		.collect()
-}
-
-pub fn expect_hydradx_events(e: Vec<hydradx_runtime::Event>) {
-	assert_eq!(last_hydradx_events(e.len()), e);
-}
-
 pub fn vesting_account() -> AccountId {
 	VestingPalletId::get().into_account()
 }
