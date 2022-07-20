@@ -107,10 +107,9 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 }
 
 #[test]
-#[ignore]
-//TODO: it seems that the balance does not change on hydra. To be investigated
+// TODO: it seems that the balance does not change on hydra. To be investigated
 fn hydra_should_receive_asset_when_transferred_from_basilisk() {
-	//Arrange
+	// Arrange
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -122,7 +121,7 @@ fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 	});
 
 	Basilisk::execute_with(|| {
-		//Act
+		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::Origin::signed(ALICE.into()),
 			0,
@@ -143,7 +142,7 @@ fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 			399_600_000_000
 		));
 
-		//Assert
+		// Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
 			200 * UNITS - 30 * UNITS
@@ -153,11 +152,7 @@ fn hydra_should_receive_asset_when_transferred_from_basilisk() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			10080 * UNITS / 10
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
-			22 * UNITS // fees should go to treasury
+			1_030 * UNITS
 		);
 	});
 }
