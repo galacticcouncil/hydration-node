@@ -183,3 +183,32 @@ fn add_insufficient_liquidity_fails() {
 			);
 		});
 }
+
+#[test]
+fn adding_liquidity_should_fails_when_asset_state_does_not_include_add_liquidity() {
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.with_min_added_liquidity(ONE)
+		.with_asset_weight_cap((1, 100))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::add_token(
+				Origin::signed(LP1),
+				1_000,
+				2000 * ONE,
+				FixedU128::from_float(0.65)
+			));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				1000,
+				Tradability::SELL | Tradability::BUY | Tradability::REMOVE_LIQUIDITY
+			));
+
+			assert_noop!(
+				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2 * ONE),
+				Error::<Test>::NotAllowed
+			);
+		});
+}
