@@ -341,7 +341,13 @@ impl ExtBuilder {
 				);
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
-					assert_ok!(Omnipool::add_token(Origin::signed(owner), asset_id, amount, price,));
+					assert_ok!(Omnipool::add_token(
+						Origin::signed(owner),
+						asset_id,
+						amount,
+						price,
+						owner
+					));
 				}
 			});
 		}

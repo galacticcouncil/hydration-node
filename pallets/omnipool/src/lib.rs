@@ -129,7 +129,7 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
 		/// Add token origin
-		type AddTokenOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
+		type AddTokenOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Origin to be able to change asset tradabilit state.
 		type ManageAssetOrigin: EnsureOrigin<Self::Origin>;
@@ -474,8 +474,9 @@ pub mod pallet {
 			asset: T::AssetId,
 			amount: Balance,
 			initial_price: Price,
+			position_owner: T::AccountId,
 		) -> DispatchResult {
-			let who = T::AddTokenOrigin::ensure_origin(origin)?;
+			T::AddTokenOrigin::ensure_origin(origin)?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
@@ -502,7 +503,7 @@ pub mod pallet {
 				tradable: Tradability::default(),
 			};
 
-			T::Currency::transfer(asset, &who, &Self::protocol_account(), amount)?;
+			T::Currency::transfer(asset, &position_owner, &Self::protocol_account(), amount)?;
 
 			let lp_position = Position::<Balance, T::AssetId> {
 				asset_id: asset,
@@ -511,13 +512,13 @@ pub mod pallet {
 				price: initial_price.into_inner(),
 			};
 
-			let instance_id = Self::create_and_mint_position_instance(&who)?;
+			let instance_id = Self::create_and_mint_position_instance(&position_owner)?;
 
 			<Positions<T>>::insert(instance_id, lp_position);
 
 			Self::deposit_event(Event::PositionCreated {
 				position_id: instance_id,
-				owner: who,
+				owner: position_owner,
 				asset,
 				amount,
 				shares: amount,

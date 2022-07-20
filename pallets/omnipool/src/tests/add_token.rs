@@ -143,7 +143,8 @@ fn add_token_works() {
 				Origin::signed(LP1),
 				1_000,
 				token_amount,
-				token_price
+				token_price,
+				LP1
 			));
 
 			assert_pool_state!(11_800 * ONE, 23_600 * ONE, SimpleImbalance::default());
@@ -169,7 +170,7 @@ fn add_non_registered_asset_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_token(Origin::signed(LP1), 2_000, 2000 * ONE, FixedU128::from_float(0.5)),
+				Omnipool::add_token(Origin::signed(LP1), 2_000, 2000 * ONE, FixedU128::from_float(0.5), LP1),
 				Error::<Test>::AssetNotRegistered
 			);
 		});
@@ -186,7 +187,7 @@ fn add_token_with_zero_price_fails() {
 			let token_price = FixedU128::from(0);
 
 			assert_noop!(
-				Omnipool::add_token(Origin::signed(LP1), 1_000, 100 * ONE, token_price),
+				Omnipool::add_token(Origin::signed(LP1), 1_000, 100 * ONE, token_price, LP1),
 				Error::<Test>::InvalidInitialAssetPrice
 			);
 		});
@@ -204,19 +205,20 @@ fn cannot_add_existing_asset() {
 				Origin::signed(LP1),
 				1_000,
 				2000 * ONE,
-				FixedU128::from_float(0.5)
+				FixedU128::from_float(0.5),
+				LP1
 			));
 
 			assert_noop!(
-				Omnipool::add_token(Origin::signed(LP1), 1_000, 2000 * ONE, FixedU128::from_float(0.5)),
+				Omnipool::add_token(Origin::signed(LP1), 1_000, 2000 * ONE, FixedU128::from_float(0.5), LP1),
 				Error::<Test>::AssetAlreadyAdded
 			);
 			assert_noop!(
-				Omnipool::add_token(Origin::signed(LP1), DAI, 2000 * ONE, FixedU128::from_float(0.5)),
+				Omnipool::add_token(Origin::signed(LP1), DAI, 2000 * ONE, FixedU128::from_float(0.5), LP1),
 				Error::<Test>::AssetAlreadyAdded
 			);
 			assert_noop!(
-				Omnipool::add_token(Origin::signed(LP1), HDX, 2000 * ONE, FixedU128::from_float(0.5)),
+				Omnipool::add_token(Origin::signed(LP1), HDX, 2000 * ONE, FixedU128::from_float(0.5), LP1),
 				Error::<Test>::AssetAlreadyAdded
 			);
 		});
@@ -226,7 +228,7 @@ fn cannot_add_existing_asset() {
 fn first_assset_must_be_hub_asset() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			Omnipool::add_token(Origin::signed(LP1), HDX, 2000 * ONE, FixedU128::from_float(0.5)),
+			Omnipool::add_token(Origin::signed(LP1), HDX, 2000 * ONE, FixedU128::from_float(0.5), LP1),
 			Error::<Test>::NoStableAssetInPool
 		);
 	});
@@ -241,7 +243,7 @@ fn add_token_with_insufficient_balance_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_token(Origin::signed(LP3), 1_000, 1000 * ONE, FixedU128::from_float(0.6)),
+				Omnipool::add_token(Origin::signed(LP3), 1_000, 1000 * ONE, FixedU128::from_float(0.6), LP3),
 				orml_tokens::Error::<Test>::BalanceTooLow
 			);
 		});
