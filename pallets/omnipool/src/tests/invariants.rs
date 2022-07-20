@@ -998,10 +998,14 @@ proptest! {
 
 				let position = <Positions<Test>>::get(position_id).unwrap();
 
+				let before_buy_state_200 = Omnipool::load_asset_state(200).unwrap();
+
 				// Let's do a trade so imbalance and price changes
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
 
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+
+				assert_asset_invariant(&before_buy_state_200, &old_state_200, FixedU128::from((TOLERANCE,ONE)), "Invariant 200");
 
 				assert_ok!(Omnipool::remove_liquidity(Origin::signed(seller), position_id, position.shares));
 
