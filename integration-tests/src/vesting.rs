@@ -13,7 +13,7 @@ type AccountId = AccountId32;
 type Balance = u128;
 type Schedule = VestingSchedule<BlockNumber, Balance>;
 
-fn schedule_object() -> Schedule {
+fn vesting_schedule() -> Schedule {
 	Schedule {
 		start: 0,
 		period: 1,
@@ -25,19 +25,21 @@ fn schedule_object() -> Schedule {
 #[test]
 fn vested_transfer_should_work_when_signed_by_vesting_account() {
 	Hydra::execute_with(|| {
+		//Arrange
 		let from: AccountId = vesting_account();
 		let to: AccountId = AccountId::from(BOB);
 
 		let from_balance_before = hydradx_runtime::Balances::free_balance(&from);
 		let to_balance_before = hydradx_runtime::Balances::free_balance(&to);
 
-		let vesting_schedule = schedule_object();
+		//Act
 		assert_ok!(Vesting::vested_transfer(
 			RawOrigin::Signed(from.clone()).into(),
 			to.clone(),
-			vesting_schedule
+			vesting_schedule()
 		));
 
+		//Assert
 		let from_balance_after = hydradx_runtime::Balances::free_balance(from);
 		let to_balance_after = hydradx_runtime::Balances::free_balance(to);
 
@@ -49,19 +51,21 @@ fn vested_transfer_should_work_when_signed_by_vesting_account() {
 #[test]
 fn vested_transfer_should_work_when_sent_from_root() {
 	Hydra::execute_with(|| {
+		//Arrange
 		let to: AccountId = AccountId::from(BOB);
 		let vesting_account: AccountId = vesting_account();
 
 		let vesting_account_balance_before = hydradx_runtime::Balances::free_balance(&vesting_account);
 		let to_balance_before = hydradx_runtime::Balances::free_balance(&to);
 
-		let vesting_schedule = schedule_object();
+		//Act
 		assert_ok!(Vesting::vested_transfer(
 			RawOrigin::Root.into(),
 			to.clone(),
-			vesting_schedule
+			vesting_schedule()
 		));
 
+		//Assert
 		let vesting_account_balance_after = hydradx_runtime::Balances::free_balance(vesting_account);
 		let to_balance_after = hydradx_runtime::Balances::free_balance(to);
 
@@ -74,15 +78,13 @@ fn vested_transfer_should_work_when_sent_from_root() {
 }
 
 #[test]
-fn vested_transfer_should_not_work_when_signed_by_other_account() {
+fn vested_transfer_should_fail_when_signed_by_other_account_than_vested_or_root() {
 	Hydra::execute_with(|| {
 		let from: AccountId = AccountId::from(ALICE);
 		let to: AccountId = AccountId::from(BOB);
 
-		let vesting_schedule = schedule_object();
-
 		assert_noop!(
-			Vesting::vested_transfer(RawOrigin::Signed(from).into(), to, vesting_schedule),
+			Vesting::vested_transfer(RawOrigin::Signed(from).into(), to, vesting_schedule()),
 			BadOrigin
 		);
 	});
