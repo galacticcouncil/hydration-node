@@ -8,16 +8,10 @@ mod add_token;
 mod buy;
 mod invariants;
 mod remove_liquidity;
-mod scenario_04;
-mod scenario_05;
-mod scenario_06;
-mod scenario_08;
-mod scenario_08_simple;
-mod scenario_08_with_fees;
-mod scenario_09;
 mod sell;
 
 pub(crate) mod mock;
+mod verification;
 
 use mock::*;
 
