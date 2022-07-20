@@ -11,6 +11,7 @@ mod remove_liquidity;
 mod sell;
 
 pub(crate) mod mock;
+mod types;
 mod verification;
 
 use mock::*;
