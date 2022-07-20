@@ -191,7 +191,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
 		currencies: vec![(1, Price::from(1))],
 		account_currencies: vec![],
-		fallback_account: Option::Some(AccountId::from(ALICE)) //TODO: Dani - is it good to use this fallback account?
+		fallback_account: Option::Some(AccountId::from(ALICE))
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
