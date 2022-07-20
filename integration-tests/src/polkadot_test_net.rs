@@ -8,6 +8,7 @@ pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
+pub const FALLBACK: [u8; 32] = [99u8; 32];
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
@@ -106,7 +107,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
-			(AccountId::from(ALICE), 2002 * UNITS),
+			(AccountId::from(ALICE), 2_002 * UNITS),
 			(ParaId::from(2000).into_account(), 10 * UNITS),
 		],
 	}
@@ -145,9 +146,9 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
 			(AccountId::from(ALICE), 200 * UNITS),
-			(AccountId::from(BOB), 1000 * UNITS),
-			(AccountId::from(CHARLIE), 1000 * UNITS),
-			(AccountId::from(DAVE), 1000 * UNITS),
+			(AccountId::from(BOB), 1_000 * UNITS),
+			(AccountId::from(CHARLIE), 1_000 * UNITS),
+			(AccountId::from(DAVE), 1_000 * UNITS),
 			(vesting_account(), 10_000 * UNITS),
 		],
 	}
@@ -155,8 +156,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_asset_registry::GenesisConfig::<Runtime> {
-		asset_names: vec![(b"KSM".to_vec(), 1_000_000u128), (b"aUSD".to_vec(), 1_000u128)],
-		native_asset_name: b"BSX".to_vec(),
+		asset_names: vec![(b"BSX".to_vec(), 1_000_000u128), (b"aUSD".to_vec(), 1_000u128)],
+		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
 	}
 	.assimilate_storage(&mut t)
@@ -174,7 +175,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), 1, 200 * UNITS),
 			(AccountId::from(ALICE), 2, 200 * UNITS),
 			(AccountId::from(BOB), 1, 1_000 * UNITS),
-			(AccountId::from(CHARLIE), 1, 1000 * UNITS),
+			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), 1, 1_000 * UNITS),
 		],
 	}
@@ -192,7 +193,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
 		currencies: vec![(1, Price::from(1))],
 		account_currencies: vec![],
-		fallback_account: Option::Some(AccountId::from(ALICE)),
+		fallback_account: Option::Some(AccountId::from(FALLBACK)),
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
