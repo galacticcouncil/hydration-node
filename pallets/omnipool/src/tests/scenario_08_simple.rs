@@ -18,21 +18,10 @@ fn sell_fee_test() {
 		.with_asset_fee(Permill::from_percent(10))
 		.with_protocol_fee(Permill::from_percent(20))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(1.1), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP1),
-				100,
-				2000000000000000,
-				FixedU128::from_float(0.65)
-			));
-
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP1),
-				200,
-				2000000000000000,
-				FixedU128::from_float(1.1)
-			));
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
 
 			assert_ok!(Omnipool::sell(

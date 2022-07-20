@@ -13,17 +13,12 @@ fn remove_liquidity_works() {
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP2),
-				1_000,
-				token_amount,
-				token_price
-			));
 			let liq_added = 400 * ONE;
 
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
@@ -78,19 +73,14 @@ fn full_liquidity_removal_works() {
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(0.65);
 
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP2),
-				1_000,
-				token_amount,
-				token_price
-			));
 			let liq_added = 400 * ONE;
 			let lp1_position_id = <PositionInstanceSequencer<Test>>::get();
+
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
 			assert!(
@@ -144,17 +134,11 @@ fn partial_liquidity_removal_works() {
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
-
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP2),
-				1_000,
-				token_amount,
-				token_price
-			));
 			let liq_added = 400 * ONE;
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
 
@@ -222,18 +206,9 @@ fn lp_receives_lrna_when_price_is_higher() {
 			(LP2, DAI, 50000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP3, 100 * ONE)
 		.build()
 		.execute_with(|| {
-			let token_amount = 100 * ONE;
-			let token_price = FixedU128::from_float(0.65);
-
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP3),
-				1_000,
-				token_amount,
-				token_price
-			));
-
 			let liq_added = 400 * ONE;
 
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
@@ -277,18 +252,9 @@ fn protocol_shares_update_works() {
 			(LP2, 1_000, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP3, 100 * ONE)
 		.build()
 		.execute_with(|| {
-			let token_amount = 100 * ONE;
-			let token_price = FixedU128::from_float(0.65);
-
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP3),
-				1_000,
-				token_amount,
-				token_price
-			));
-
 			let liq_added = 400 * ONE;
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
 
@@ -340,14 +306,9 @@ fn remove_liquidity_by_non_owner_fails() {
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::one(), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP2),
-				1_000,
-				2_000 * ONE,
-				FixedU128::one()
-			));
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
 
@@ -368,14 +329,9 @@ fn remove_liquidity_from_non_existing_position_fails() {
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::one(), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP2),
-				1_000,
-				2_000 * ONE,
-				FixedU128::one()
-			));
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
 
 			assert_noop!(
@@ -395,14 +351,9 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 			(LP1, 1_000, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::one(), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP2),
-				1_000,
-				2_000 * ONE,
-				FixedU128::one()
-			));
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
 

@@ -39,6 +39,7 @@ use sp_runtime::{
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
+pub type AccountId = u64;
 pub type Balance = u128;
 pub type AssetId = u32;
 
@@ -180,6 +181,7 @@ pub struct ExtBuilder {
 	min_liquidity: u128,
 	min_trade_limit: u128,
 	init_pool: Option<(FixedU128, FixedU128)>,
+	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
 
 impl Default for ExtBuilder {
@@ -221,6 +223,7 @@ impl Default for ExtBuilder {
 			registered_assets: vec![],
 			min_trade_limit: 0,
 			init_pool: None,
+			pool_tokens: vec![],
 		}
 	}
 }
@@ -265,6 +268,17 @@ impl ExtBuilder {
 
 	pub fn with_initial_pool(mut self, stable_price: FixedU128, native_price: FixedU128) -> Self {
 		self.init_pool = Some((stable_price, native_price));
+		self
+	}
+
+	pub fn with_token(
+		mut self,
+		asset_id: AssetId,
+		price: FixedU128,
+		position_owner: AccountId,
+		amount: Balance,
+	) -> Self {
+		self.pool_tokens.push((asset_id, price, position_owner, amount));
 		self
 	}
 
@@ -325,6 +339,10 @@ impl ExtBuilder {
 						.unwrap() + stable_amount,
 					SimpleImbalance::default()
 				);
+
+				for (asset_id, price, owner, amount) in self.pool_tokens {
+					assert_ok!(Omnipool::add_token(Origin::signed(owner), asset_id, amount, price,));
+				}
 			});
 		}
 

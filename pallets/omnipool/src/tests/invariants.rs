@@ -107,13 +107,12 @@ proptest! {
 				stable_price,
 				FixedU128::from(1),
 			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
-
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -207,13 +206,12 @@ proptest! {
 				stable_price,
 				FixedU128::from(1),
 			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
-
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -299,13 +297,12 @@ proptest! {
 				stable_price,
 				FixedU128::from(1),
 			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
-
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -395,13 +392,12 @@ proptest! {
 				stable_price,
 				FixedU128::from(1),
 			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
-
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -499,33 +495,12 @@ fn buy_invariant_case_01() {
 		.with_registered_asset(300)
 		.with_registered_asset(400)
 		.with_initial_pool(stable_price, FixedU128::from(1))
+		.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+		.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+		.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+		.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp1),
-				token_1.asset_id,
-				token_1.amount,
-				token_1.price
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp2),
-				token_2.asset_id,
-				token_2.amount,
-				token_2.price
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp3),
-				token_3.asset_id,
-				token_3.amount,
-				token_3.price
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp4),
-				token_4.asset_id,
-				token_4.amount,
-				token_4.price
-			));
-
 			let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 			let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 			let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -638,33 +613,12 @@ fn buy_invariant_case_02() {
 		.with_registered_asset(300)
 		.with_registered_asset(400)
 		.with_initial_pool(stable_price, FixedU128::from(1))
+		.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+		.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+		.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+		.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp1),
-				token_1.asset_id,
-				token_1.amount,
-				token_1.price
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp2),
-				token_2.asset_id,
-				token_2.amount,
-				token_2.price
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp3),
-				token_3.asset_id,
-				token_3.amount,
-				token_3.price
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(lp4),
-				token_4.asset_id,
-				token_4.amount,
-				token_4.price
-			));
-
 			let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 			let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 			let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -767,13 +721,12 @@ proptest! {
 				stable_price,
 				FixedU128::from(1),
 			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
-
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -844,13 +797,12 @@ proptest! {
 				stable_price,
 				FixedU128::from(1),
 			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
-
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -1032,13 +984,12 @@ proptest! {
 				stable_price,
 				FixedU128::from(1),
 			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price));
-
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 

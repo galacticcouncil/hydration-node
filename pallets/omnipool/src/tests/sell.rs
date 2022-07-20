@@ -16,15 +16,10 @@ fn simple_sell_works() {
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(0.65);
-
-			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
-
-			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
-
 			let liq_added = 400 * ONE;
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 100, liq_added));
 
@@ -160,13 +155,9 @@ fn sell_limit_works() {
 		])
 		.with_registered_asset(100)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(0.65);
-
-			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price));
-
 			assert_noop!(
 				Omnipool::sell(Origin::signed(LP1), 100, HDX, 50 * ONE, 1000 * ONE),
 				Error::<Test>::BuyLimitNotReached
@@ -186,14 +177,9 @@ fn sell_hub_asset_limit() {
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::one(), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP2),
-				100,
-				2000 * ONE,
-				Price::from(1)
-			));
 			assert_noop!(
 				Omnipool::sell(Origin::signed(LP3), LRNA, HDX, 50 * ONE, 1000 * ONE),
 				Error::<Test>::BuyLimitNotReached
@@ -216,21 +202,10 @@ fn sell_hub_works() {
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP1),
-				100,
-				2000000000000000,
-				FixedU128::from_float(0.65)
-			));
-
-			assert_ok!(Omnipool::add_token(
-				Origin::signed(LP1),
-				200,
-				2000000000000000,
-				FixedU128::from_float(0.65)
-			));
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
 
 			assert_ok!(Omnipool::sell(
@@ -325,15 +300,10 @@ fn sell_not_allowed_asset_fails() {
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(0.65);
-
-			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
-
-			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
-
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				100,
@@ -408,20 +378,10 @@ fn simple_sell_with_fee_works() {
 		.with_registered_asset(200)
 		.with_asset_fee(Permill::from_percent(10))
 		.with_initial_pool(FixedU128::from(1), FixedU128::from(1))
+		.with_token(100, FixedU128::one(), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::one(), LP3, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(1.0);
-
-			assert_ok!(Omnipool::add_token(Origin::signed(LP2), 100, token_amount, token_price,));
-
-			assert_ok!(Omnipool::add_token(Origin::signed(LP3), 200, token_amount, token_price,));
-
-			assert_eq!(
-				Tokens::free_balance(200, &Omnipool::protocol_account()),
-				2000000000000000
-			);
-
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
