@@ -18,9 +18,8 @@ use polkadot_primitives::v1::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_runtime::traits::AccountIdConversion;
 
-use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 use hydradx_runtime::NativeExistentialDeposit;
-
+use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
 decl_test_relay_chain! {
 	pub struct PolkadotRelay {
@@ -49,7 +48,6 @@ decl_test_parachain! {
 		new_ext = basilisk_ext(),
 	}
 }
-
 
 decl_test_network! {
 	pub struct TestNet {
@@ -112,14 +110,14 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 			(ParaId::from(2000).into_account(), 10 * UNITS),
 		],
 	}
-		.assimilate_storage(&mut t)
-		.unwrap();
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	polkadot_runtime_parachains::configuration::GenesisConfig::<Runtime> {
 		config: default_parachains_host_configuration(),
 	}
-		.assimilate_storage(&mut t)
-		.unwrap();
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
@@ -127,7 +125,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 		},
 		&mut t,
 	)
-		.unwrap();
+	.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
@@ -135,8 +133,8 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 }
 
 pub fn hydra_ext() -> sp_io::TestExternalities {
-	use hydradx_runtime::{MultiTransactionPayment, Runtime, System};
 	use frame_support::traits::OnInitialize;
+	use hydradx_runtime::{MultiTransactionPayment, Runtime, System};
 
 	let existential_deposit = NativeExistentialDeposit::get();
 
@@ -150,7 +148,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(BOB), 1000 * UNITS),
 			(AccountId::from(CHARLIE), 1000 * UNITS),
 			(AccountId::from(DAVE), 1000 * UNITS),
-			(vesting_account(), 10_000 * UNITS)
+			(vesting_account(), 10_000 * UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -164,9 +162,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.assimilate_storage(&mut t)
 	.unwrap();
 
-	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(&parachain_info::GenesisConfig {
+	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
+		&parachain_info::GenesisConfig {
 			parachain_id: 2000u32.into(),
-		}, &mut t,)
+		},
+		&mut t,
+	)
 	.unwrap();
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
@@ -191,7 +192,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
 		currencies: vec![(1, Price::from(1))],
 		account_currencies: vec![],
-		fallback_account: Option::Some(AccountId::from(ALICE))
+		fallback_account: Option::Some(AccountId::from(ALICE)),
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
@@ -215,8 +216,8 @@ pub fn basilisk_ext() -> sp_io::TestExternalities {
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![(AccountId::from(ALICE), 200 * UNITS)],
 	}
-		.assimilate_storage(&mut t)
-		.unwrap();
+	.assimilate_storage(&mut t)
+	.unwrap();
 
 	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&parachain_info::GenesisConfig {
@@ -224,7 +225,7 @@ pub fn basilisk_ext() -> sp_io::TestExternalities {
 		},
 		&mut t,
 	)
-		.unwrap();
+	.unwrap();
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
@@ -232,13 +233,12 @@ pub fn basilisk_ext() -> sp_io::TestExternalities {
 		},
 		&mut t,
 	)
-		.unwrap();
+	.unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
-
 
 fn last_hydradx_events(n: usize) -> Vec<hydradx_runtime::Event> {
 	frame_system::Pallet::<hydradx_runtime::Runtime>::events()

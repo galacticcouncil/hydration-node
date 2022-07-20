@@ -63,10 +63,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 fn polkadot_should_receive_asset_when_sent_from_hydra() {
 	//Arrange
 	PolkadotRelay::execute_with(|| {
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
-			0
-		);
+		assert_eq!(hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)), 0);
 	});
 
 	Hydra::execute_with(|| {
