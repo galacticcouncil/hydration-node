@@ -243,18 +243,25 @@ fn lp_receives_lrna_when_price_is_higher() {
 
 #[test]
 fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_change() {
+	let asset_a: AssetId = 1_000;
+
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP3, 1_000, 100 * ONE),
-			(LP1, 1_000, 5000 * ONE),
-			(LP2, 1_000, 5000 * ONE),
+			(LP3, asset_a, 100 * ONE),
+			(LP1, asset_a, 5000 * ONE),
+			(LP2, asset_a, 5000 * ONE),
 		])
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP3, 100 * ONE)
+		.with_token(asset_a, FixedU128::from_float(0.65), LP3, 100 * ONE)
 		.build()
 		.execute_with(|| {
+			// Arrange
+			// - init pool
+			// - add asset_a with initial liquidity of 100 * ONE
+			// - add more liquidity of asset a - 400 * ONE
+			// - perform a sell so the price changes - adding 1000 * ONE of asset a
 			let liq_added = 400 * ONE;
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
 
@@ -262,25 +269,18 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 
 			assert_ok!(Omnipool::sell(Origin::signed(LP2), 1_000, HDX, 1000 * ONE, 10 * ONE));
 
-			assert_balance!(Omnipool::protocol_account(), 1000, 1500 * ONE);
-
-			let expected_state = AssetReserveState {
-				reserve: 1500 * ONE,
-				hub_reserve: 108333333333334,
-				shares: 500000000000000,
-				protocol_shares: Balance::zero(),
-				tvl: 650000000000000,
-				tradable: Tradability::default(),
-			};
-			assert_asset_state!(1_000, expected_state);
-
+			// ACT
 			assert_ok!(Omnipool::remove_liquidity(
 				Origin::signed(LP1),
 				current_position_id,
-				liq_added
+				400 * ONE
 			));
-			assert_balance!(Omnipool::protocol_account(), 1000, 1259999999999997);
-			assert_balance!(LP1, 1000, 4840000000000003);
+
+			// Assert
+			// - check if balance of LP and protocol are correct
+			// - check new state of asset a in the pool ( should have updated protocol shares)
+			assert_balance!(Omnipool::protocol_account(), asset_a, 1259999999999997);
+			assert_balance!(LP1, asset_a, 4840000000000003);
 
 			assert_pool_state!(10807666666666667, 21182000000000002, SimpleImbalance::default());
 
@@ -292,7 +292,7 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 				tvl: 182000000000002,
 				tradable: Tradability::default(),
 			};
-			assert_asset_state!(1_000, expected_state);
+			assert_asset_state!(asset_a, expected_state);
 		});
 }
 
