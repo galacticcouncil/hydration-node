@@ -44,7 +44,7 @@ fn remove_liquidity_works() {
 					reserve: token_amount + liq_added - liq_removed,
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
-					protocol_shares: 2000 * ONE, // no change, price has not changed
+					protocol_shares: Balance::zero(),
 					tvl: 2_860_000_000_000_000,
 					tradable: Tradability::default(),
 				}
@@ -111,7 +111,7 @@ fn full_liquidity_removal_works() {
 					reserve: token_amount + liq_added - liq_removed,
 					hub_reserve: 1300000000000000,
 					shares: 2400 * ONE - liq_removed,
-					protocol_shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
 					tvl: 2_600_000_000_000_000,
 					tradable: Tradability::default(),
 				}
@@ -172,7 +172,7 @@ fn partial_liquidity_removal_works() {
 					reserve: token_amount + liq_added - liq_removed,
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
-					protocol_shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
 					tvl: 2_860_000_000_000_000,
 					tradable: Tradability::default(),
 				}
@@ -222,7 +222,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 				reserve: 200 * ONE,
 				hub_reserve: 812500000000001,
 				shares: 500000000000000,
-				protocol_shares: 100 * ONE,
+				protocol_shares: Balance::zero(),
 				tvl: 650000000000000,
 				tradable: Tradability::default(),
 			};
@@ -242,7 +242,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 }
 
 #[test]
-fn protocol_shares_update_works() {
+fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_change() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -268,7 +268,7 @@ fn protocol_shares_update_works() {
 				reserve: 1500 * ONE,
 				hub_reserve: 108333333333334,
 				shares: 500000000000000,
-				protocol_shares: 100 * ONE,
+				protocol_shares: Balance::zero(),
 				tvl: 650000000000000,
 				tradable: Tradability::default(),
 			};
@@ -288,7 +288,7 @@ fn protocol_shares_update_works() {
 				reserve: 1259999999999997,
 				hub_reserve: 91000000000001,
 				shares: 419999999999999,
-				protocol_shares: 419999999999999,
+				protocol_shares: 319999999999999,
 				tvl: 182000000000002,
 				tradable: Tradability::default(),
 			};

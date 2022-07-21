@@ -97,7 +97,7 @@ fn fee_test_buy_sell() {
 					reserve: 4243052260380451,
 					hub_reserve: 882383663986335,
 					shares: 2400000000000000,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 3120000000000000,
 					tradable: Tradability::default(),
 				}
@@ -109,7 +109,7 @@ fn fee_test_buy_sell() {
 					reserve: 1671684145777543,
 					hub_reserve: 2707273110861765,
 					shares: 2006364027707802,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 5414546221723530,
 					tradable: Tradability::default(),
 				}

@@ -73,7 +73,7 @@ fn scenario_04() {
 					reserve: 2452401746724892,
 					hub_reserve: 1526666666666666,
 					shares: 2400000000000000,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 3120000000000000,
 					tradable: Tradability::default(),
 				}
@@ -85,7 +85,7 @@ fn scenario_04() {
 					reserve: 1950000000000000,
 					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 2600000000000000,
 					tradable: Tradability::default(),
 				}

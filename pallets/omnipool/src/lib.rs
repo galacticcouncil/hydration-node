@@ -511,7 +511,7 @@ pub mod pallet {
 			let state = AssetState::<Balance> {
 				hub_reserve,
 				shares: amount,
-				protocol_shares: amount,
+				protocol_shares: Balance::zero(),
 				tvl: asset_tvl,
 				tradable: Tradability::default(),
 			};

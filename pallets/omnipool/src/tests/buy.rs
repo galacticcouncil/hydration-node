@@ -47,7 +47,7 @@ fn simple_buy_works() {
 					reserve: 2452401746724892,
 					hub_reserve: 1526666666666666,
 					shares: 2400 * ONE,
-					protocol_shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
 					tvl: 3120 * ONE,
 					tradable: Tradability::default(),
 				}
@@ -58,7 +58,7 @@ fn simple_buy_works() {
 					reserve: 1950 * ONE,
 					hub_reserve: 1333333333333334,
 					shares: 2000 * ONE,
-					protocol_shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
 					tvl: 2600 * ONE,
 					tradable: Tradability::default(),
 				}
@@ -302,7 +302,7 @@ fn buy_for_hub_asset_works() {
 					reserve: 2400000000000000,
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 3120000000000000,
 					tradable: Tradability::default(),
 				}
@@ -314,7 +314,7 @@ fn buy_for_hub_asset_works() {
 					reserve: 1950000000000000,
 					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 2600000000000000,
 					tradable: Tradability::default(),
 				}

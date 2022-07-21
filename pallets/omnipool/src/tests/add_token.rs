@@ -150,7 +150,7 @@ fn add_token_works() {
 					reserve: token_amount,
 					hub_reserve: 1300 * ONE,
 					shares: token_amount,
-					protocol_shares: token_amount,
+					protocol_shares: Balance::zero(),
 					tvl: 2600000000000000,
 					tradable: Tradability::default(),
 				}

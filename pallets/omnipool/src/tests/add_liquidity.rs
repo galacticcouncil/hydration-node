@@ -25,7 +25,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 					reserve: token_amount + liq_added,
 					hub_reserve: 1560 * ONE,
 					shares: 2400 * ONE,
-					protocol_shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
 					tvl: 3120 * ONE,
 					tradable: Tradability::default(),
 				}

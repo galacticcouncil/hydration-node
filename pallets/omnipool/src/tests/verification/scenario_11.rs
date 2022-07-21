@@ -105,7 +105,7 @@ fn complex_scenario_works() {
 					reserve: 4089236949625565,
 					hub_reserve: 1188430684479242,
 					shares: 2734332900513906,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 2376861368958484,
 					tradable: Tradability::default(),
 				}
@@ -117,7 +117,7 @@ fn complex_scenario_works() {
 					reserve: 1638588974363041,
 					hub_reserve: 2709090864095513,
 					shares: 2008863636363636,
-					protocol_shares: 2000000000000000,
+					protocol_shares: Balance::zero(),
 					tvl: 5378181728191026,
 					tradable: Tradability::default(),
 				}
