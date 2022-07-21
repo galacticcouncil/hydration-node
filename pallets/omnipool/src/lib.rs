@@ -268,6 +268,13 @@ pub mod pallet {
 		},
 		/// Aseet's tradable state has been updated.
 		TradableStateUpdated { asset_id: T::AssetId, state: Tradability },
+
+		/// Amount has been refunded for asset which has not been accepted to add to omnipool.
+		AssetRefunded {
+			asset_id: T::AssetId,
+			amount: Balance,
+			recipient: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
@@ -1097,6 +1104,34 @@ pub mod pallet {
 					Ok(())
 				})
 			}
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_token())]
+		#[transactional]
+		pub fn refund_refused_asset(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			amount: Balance,
+			recipient: T::AccountId,
+		) -> DispatchResult {
+			T::AddTokenOrigin::ensure_origin(origin)?;
+
+			// Make sure that asset is not in the pool
+			ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
+
+			let pool_balance = T::Currency::free_balance(asset_id, &Self::protocol_account());
+
+			ensure!(pool_balance >= amount, Error::<T>::InsufficientBalance);
+
+			T::Currency::transfer(asset_id, &Self::protocol_account(), &recipient, amount)?;
+
+			Self::deposit_event(Event::AssetRefunded {
+				asset_id,
+				amount,
+				recipient,
+			});
+
+			Ok(())
 		}
 	}
 
