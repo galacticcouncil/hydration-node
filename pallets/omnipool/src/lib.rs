@@ -131,8 +131,8 @@ pub mod pallet {
 		/// Add token origin
 		type AddTokenOrigin: EnsureOrigin<Self::Origin>;
 
-		/// Origin to be able to change asset tradabilit state.
-		type ManageAssetOrigin: EnsureOrigin<Self::Origin>;
+		/// Origin to be able to change asset tradabilit state and initialize Omnipool.
+		type ManageOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
@@ -334,7 +334,7 @@ pub mod pallet {
 			stable_asset_price: Price,
 			native_asset_price: Price,
 		) -> DispatchResult {
-			T::ManageAssetOrigin::ensure_origin(origin)?;
+			T::ManageOrigin::ensure_origin(origin)?;
 
 			ensure!(
 				!Assets::<T>::contains_key(T::StableCoinAssetId::get()),
@@ -1079,7 +1079,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			state: Tradability,
 		) -> DispatchResult {
-			T::ManageAssetOrigin::ensure_origin(origin)?;
+			T::ManageOrigin::ensure_origin(origin)?;
 
 			if asset_id == T::HubAssetId::get() {
 				HubAssetTradability::<T>::mutate(|value| -> DispatchResult {

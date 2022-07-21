@@ -169,7 +169,7 @@ impl Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type ManageAssetOrigin = EnsureRoot<Self::AccountId>;
+	type ManageOrigin = EnsureRoot<Self::AccountId>;
 }
 
 pub struct ExtBuilder {
