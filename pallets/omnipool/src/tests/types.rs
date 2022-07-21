@@ -6,7 +6,7 @@ fn tradability_should_allow_all_when_default() {
 
 	assert!(default_tradability.contains(Tradability::BUY));
 	assert!(default_tradability.contains(Tradability::SELL));
-	assert!(default_tradability.contains(Tradability::ADD_LIQUIDIITY));
+	assert!(default_tradability.contains(Tradability::ADD_LIQUIDITY));
 	assert!(default_tradability.contains(Tradability::REMOVE_LIQUIDITY));
 }
 

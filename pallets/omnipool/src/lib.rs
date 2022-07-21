@@ -50,6 +50,7 @@
 //!   `initialize_pool` dispatchable.
 //! * Stable asset balance and native asset balance must be transferred to omnipool account manually.
 //! * All tokens added to the pool must be first registered in Asset Registry.
+//! * Initial liquidity of new token being added to Omnipool must be transferred manually to pool account prior to calling add_token.
 //!
 //! ## Interface
 //!
@@ -57,11 +58,13 @@
 //!
 //! * `initialize_pool` - Initializes Omnipool with Stable and Native assets. This must be executed first.
 //! * `set_asset_tradable_state` - Updates state of an asset in the pool to allow/disallow trading.
-//! * `add_token` - Adds token to the pool.
+//! * `add_token` - Adds token to the pool. Initial liquidity must be transffered to pool account prior to calling add_token.
 //! * `add_liquidity` - Adds liquidity of selected asset to the pool. Mints corresponding position NFT.
 //! * `remove_liquidity` - Removes liquidity of selected position from the pool. Partial withdrawals are allowed.
 //! * `sell` - Trades an asset in for asset out by selling given amount of asset in.
 //! * `buy` - Trades an asset in for asset out by buying given amount of asset out.
+//! * `set_asset_tradable_state` - Updates asset's tradable asset with new flags. This allows/forbids asset operation such SELL,BUY,ADD or  REMOVE liquidtityy.
+//! * `refund_refused_asset` - Refunds the initial liquidity amount sent to pool account prior to add_token if the token has been refused to be added.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -443,7 +446,7 @@ pub mod pallet {
 
 			// Hub asset is not allowed to be bought from the pool
 			<HubAssetTradability<T>>::put(
-				Tradability::SELL | Tradability::ADD_LIQUIDIITY | Tradability::REMOVE_LIQUIDITY,
+				Tradability::SELL | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY,
 			);
 
 			Self::deposit_event(Event::TokenAdded {
@@ -465,12 +468,16 @@ pub mod pallet {
 		///
 		/// Can be called only after pool is initialized, otherwise it returns `NoStableAssetInPool`
 		///
-		/// Position NFT token is minted for LP.
+		/// Initial liquidity must be transferred to pool's account for this new token manually prior to calling `add_token`.
+		///
+		/// Initial liquidity is pool's account balance of the token.
+		///
+		/// Position NFT token is minted for `position_owner`.
 		///
 		/// Parameters:
 		/// - `asset`: The identifier of the new asset added to the pool. Must be registered in Asset registry
-		/// - `amount`: Amount of asset added to omnipool
 		/// - `initial_price`: Initial price
+		/// - `position_owner`: account id for which share are distributed in form on NFT
 		///
 		/// Emits `TokenAdded` event when successful.
 		///
@@ -562,6 +569,8 @@ pub mod pallet {
 		/// `add_liquidity` adds specified asset amount to pool and in exchange gives the origin
 		/// corresponding shares amount in form of NFT at current price.
 		///
+		/// Asset's tradable state must contain ADD_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
 		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
 		///
 		/// Parameters:
@@ -590,9 +599,9 @@ pub mod pallet {
 			let asset_state = Self::load_asset_state(asset)?;
 
 			ensure!(
-				asset_state.tradable.contains(Tradability::ADD_LIQUIDIITY),
+				asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
 				Error::<T>::NotAllowed
-			); //TODO: test pls
+			);
 
 			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
 				&(&asset_state).into(),
@@ -673,6 +682,8 @@ pub mod pallet {
 		///
 		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
 		///
+		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned.
+		///
 		/// if all shares from given position are removed, NFT is burned.
 		///
 		/// Parameters:
@@ -708,7 +719,7 @@ pub mod pallet {
 			ensure!(
 				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
-			); //TODO: test pls
+			);
 
 			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
 				&(&asset_state).into(),
@@ -786,6 +797,10 @@ pub mod pallet {
 		/// Sacrifice LP position in favor of pool.
 		///
 		/// A position is destroyed and liquidity owned by LP becomes pool owned liquidity.
+		///
+		/// Only owner of position can perform this action.
+		///
+		/// Emits `PositionDestroyed`.
 		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
 		#[transactional]
 		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionInstanceId) -> DispatchResult {
@@ -826,6 +841,8 @@ pub mod pallet {
 		/// Price is determined by the Omnipool.
 		///
 		/// Hub asset is traded separately.
+		///
+		/// Asset's tradable states must contain SELL flag for asset_in and BUY flag for asset_out, otherwise `NotAllowed` error is returned.
 		///
 		/// Parameters:
 		/// - `asset_in`: ID of asset sold to the pool
@@ -950,6 +967,8 @@ pub mod pallet {
 		///
 		/// Hub asset is traded separately.
 		///
+		/// Asset's tradable states must contain SELL flag for asset_in and BUY flag for asset_out, otherwise `NotAllowed` error is returned.
+		///
 		/// Parameters:
 		/// - `asset_in`: ID of asset sold to the pool
 		/// - `asset_out`: ID of asset bought from the pool
@@ -991,7 +1010,7 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
-			ensure!(asset_out_state.reserve >= amount, Error::<T>::InsufficientLiquidity); //TODO: test pls
+			ensure!(asset_out_state.reserve >= amount, Error::<T>::InsufficientLiquidity);
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
@@ -1069,10 +1088,6 @@ pub mod pallet {
 
 		/// Update asset's tradable state.
 		///
-		/// Change asset's state to one of `Tradability` states.
-		///
-		/// Only root can change this state.
-		///
 		/// Parameters:
 		/// - `asset_id`: asset id
 		/// - `state`: new state
@@ -1106,6 +1121,15 @@ pub mod pallet {
 			}
 		}
 
+		/// Refund given amount of asset to a recipient.
+		///
+		/// A refund is needed when a token is refused to be added to Omnipool, and initial liquidity of the asset has been already transferred to pool's account.
+		///
+		/// Transfer is performed only when asset is not in Omnipool and pool's balance has sufficient amount.
+		///
+		/// Only `AddTokenOrigin` can perform this operition -same as `add_token`o
+		///
+		/// Emits `AssetRefunded`
 		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_token())]
 		#[transactional]
 		pub fn refund_refused_asset(
@@ -1289,7 +1313,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(
 			asset_out_state.tradable.contains(Tradability::BUY),
 			Error::<T>::NotAllowed
-		); // TODO: Add test for this!
+		);
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_out_state).into(),
@@ -1356,7 +1380,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(
 			asset_out_state.tradable.contains(Tradability::BUY),
 			Error::<T>::NotAllowed
-		); // TODO: Add test for this!
+		);
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_out_state).into(),
@@ -1368,7 +1392,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(
 			*state_changes.asset.delta_reserve <= limit,
 			Error::<T>::SellLimitExceeded
-		); // TODO: Add test for this!
+		);
 
 		let new_asset_out_state = asset_out_state
 			.delta_update(&state_changes.asset)

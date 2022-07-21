@@ -23,7 +23,7 @@ bitflags::bitflags! {
 		/// Asset is allowed to be bought into omnipool
 		const BUY = 0b0000_0010;
 		/// Adding liquidity of asset is allowed
-		const ADD_LIQUIDIITY = 0b0000_0100;
+		const ADD_LIQUIDITY = 0b0000_0100;
 		/// Removing liquidity of asset is not allowed
 		const REMOVE_LIQUIDITY = 0b0000_1000;
 	}
@@ -31,7 +31,7 @@ bitflags::bitflags! {
 
 impl Default for Tradability {
 	fn default() -> Self {
-		Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDIITY | Tradability::REMOVE_LIQUIDITY
+		Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
 	}
 }
 
