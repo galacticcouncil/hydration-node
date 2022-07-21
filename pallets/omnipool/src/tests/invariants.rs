@@ -854,6 +854,10 @@ proptest! {
 			.with_endowed_accounts(vec![
 				(Omnipool::protocol_account(), DAI, stable_reserve ),
 				(Omnipool::protocol_account(), HDX, native_reserve ),
+				(Omnipool::protocol_account(), token_1.asset_id, token_1.amount),
+				(Omnipool::protocol_account(), token_2.asset_id, token_2.amount),
+				(Omnipool::protocol_account(), token_3.asset_id, token_3.amount),
+				(Omnipool::protocol_account(), token_4.asset_id, token_4.amount),
 				(lp1, 100, token_1.amount + 2 * ONE),
 				(lp2, 200, token_2.amount + 2 * ONE),
 				(lp3, 300, token_3.amount + 2 * ONE),
@@ -876,7 +880,7 @@ proptest! {
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.amount, token_1.price,lp1));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp1), token_1.asset_id, token_1.price,lp1));
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -887,13 +891,13 @@ proptest! {
 								   "L/Q ratio changed"
 				);
 
-				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.amount, token_2.price,lp2));
-				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.amount, token_3.price, lp3));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp2), token_2.asset_id, token_2.price,lp2));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp3), token_3.asset_id, token_3.price, lp3));
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.amount, token_4.price,lp4));
+				assert_ok!(Omnipool::add_token(Origin::signed(lp4), token_4.asset_id, token_4.price,lp4));
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());

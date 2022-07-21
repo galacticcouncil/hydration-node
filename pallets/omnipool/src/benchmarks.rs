@@ -61,13 +61,14 @@ benchmarks! {
 		let token_price: FixedU128= FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
 
-		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
+		let p = Pallet::<T>::protocol_account();
+		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		let current_position_id = <PositionInstanceSequencer<T>>::get();
 
 		let owner = caller.clone();
 
-	}: _(RawOrigin::Signed(caller), token_id, token_amount, token_price, owner)
+	}: _(RawOrigin::Signed(caller), token_id, token_price, owner)
 	verify {
 		assert!(<Positions<T>>::get(current_position_id).is_some());
 		assert!(<Assets<T>>::get(token_id).is_some());
@@ -91,10 +92,11 @@ benchmarks! {
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
 
-		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
+		let p = Pallet::<T>::protocol_account();
+		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id,token_amount, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price, caller)?;
 
 		// Create LP provider account with correct balance
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -127,10 +129,11 @@ benchmarks! {
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
 
-		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
+		let p = Pallet::<T>::protocol_account();
+		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id,token_amount, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price, caller)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -174,10 +177,11 @@ benchmarks! {
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
 
-		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
+		let p = Pallet::<T>::protocol_account();
+		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id,token_amount, token_price,caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price,caller)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -222,10 +226,11 @@ benchmarks! {
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
 
-		T::Currency::update_balance(token_id, &caller, 500_000_000_000_000i128)?;
+		let p = Pallet::<T>::protocol_account();
+		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id,token_amount, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price, caller)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);

@@ -341,13 +341,14 @@ impl ExtBuilder {
 				);
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
-					assert_ok!(Omnipool::add_token(
+					//Tokens::set_balance(Origin::root(), Omnipool::protocol_account(), asset_id, amount, 0u128);
+					assert_ok!(Tokens::transfer(
 						Origin::signed(owner),
+						Omnipool::protocol_account(),
 						asset_id,
-						amount,
-						price,
-						owner
+						amount
 					));
+					assert_ok!(Omnipool::add_token(Origin::signed(owner), asset_id, price, owner));
 				}
 			});
 		}

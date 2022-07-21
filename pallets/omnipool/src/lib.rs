@@ -472,7 +472,6 @@ pub mod pallet {
 		pub fn add_token(
 			origin: OriginFor<T>,
 			asset: T::AssetId,
-			amount: Balance,
 			initial_price: Price,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
@@ -485,6 +484,13 @@ pub mod pallet {
 			ensure!(initial_price > FixedU128::zero(), Error::<T>::InvalidInitialAssetPrice);
 
 			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
+
+			let amount = T::Currency::free_balance(asset, &Self::protocol_account());
+
+			ensure!(
+				amount >= T::MinimumPoolLiquidity::get() && amount > 0,
+				Error::<T>::MissingBalance
+			);
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
@@ -502,8 +508,6 @@ pub mod pallet {
 				tvl: asset_tvl,
 				tradable: Tradability::default(),
 			};
-
-			T::Currency::transfer(asset, &position_owner, &Self::protocol_account(), amount)?;
 
 			let lp_position = Position::<Balance, T::AssetId> {
 				asset_id: asset,
