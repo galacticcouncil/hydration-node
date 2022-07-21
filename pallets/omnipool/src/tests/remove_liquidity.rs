@@ -265,9 +265,9 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			let liq_added = 400 * ONE;
 			let current_position_id = <PositionInstanceSequencer<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_a, liq_added));
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP2), 1_000, HDX, 1000 * ONE, 10 * ONE));
+			assert_ok!(Omnipool::sell(Origin::signed(LP2), asset_a, HDX, 1000 * ONE, 10 * ONE));
 
 			// ACT
 			assert_ok!(Omnipool::remove_liquidity(
