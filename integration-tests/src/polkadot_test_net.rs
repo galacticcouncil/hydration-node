@@ -12,8 +12,8 @@ pub const FALLBACK: [u8; 32] = [99u8; 32];
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
-pub const ACALA_PARA_ID : u32 = 2_000;
-pub const HYDRA_PARA_ID : u32 = 2_034;
+pub const ACALA_PARA_ID: u32 = 2_000;
+pub const HYDRA_PARA_ID: u32 = 2_034;
 
 use cumulus_primitives_core::ParaId;
 //use cumulus_primitives_core::relay_chain::AccountId;
