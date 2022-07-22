@@ -363,3 +363,32 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 			);
 		});
 }
+
+#[test]
+fn remove_liquidity_should_fail_when_asset_is_not_allowed_to_remove() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				1000,
+				Tradability::BUY | Tradability::ADD_LIQUIDITY
+			));
+
+			assert_noop!(
+				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 400 * ONE),
+				Error::<Test>::NotAllowed
+			);
+		});
+}

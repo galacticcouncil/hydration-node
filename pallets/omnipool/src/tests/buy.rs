@@ -377,3 +377,86 @@ fn simple_buy_with_fee_works() {
 			);
 		});
 }
+
+#[test]
+fn buy_should_fail_when_buying_more_than_in_pool() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			// Act
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 200, 100, 3000 * ONE, 100 * ONE),
+				Error::<Test>::InsufficientLiquidity
+			);
+		});
+}
+
+#[test]
+fn buy_for_hub_asset_should_fail_when_asset_out_is_not_allowed_to_sell() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 2, 1000 * ONE),
+			(LP1, 100, 5000000000000000),
+			(LP1, 200, 5000000000000000),
+			(LP2, 100, 1000000000000000),
+			(LP3, 100, 1000000000000000),
+			(LP3, 1, 100_000_000_000_000),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				200,
+				Tradability::SELL | Tradability::ADD_LIQUIDITY
+			));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP3), 200, 1, 50_000_000_000_000, 50_000_000_000_000),
+				Error::<Test>::NotAllowed
+			);
+		});
+}
+
+#[test]
+fn buy_for_hub_asset_should_fail_when_limit_exceeds() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 2, 1000 * ONE),
+			(LP1, 100, 5000000000000000),
+			(LP1, 200, 5000000000000000),
+			(LP2, 100, 1000000000000000),
+			(LP3, 100, 1000000000000000),
+			(LP3, 1, 100_000_000_000_000),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP3), 200, 1, 50_000_000_000_000, 100_000_000_000),
+				Error::<Test>::SellLimitExceeded
+			);
+		});
+}
