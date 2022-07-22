@@ -68,7 +68,7 @@ benchmarks! {
 
 		let owner = caller.clone();
 
-	}: _(RawOrigin::Signed(caller), token_id, token_price, owner)
+	}: _(RawOrigin::Root, token_id, token_price, owner)
 	verify {
 		assert!(<Positions<T>>::get(current_position_id).is_some());
 		assert!(<Assets<T>>::get(token_id).is_some());
@@ -96,7 +96,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, caller)?;
 
 		// Create LP provider account with correct balance
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -133,7 +133,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, caller)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -181,7 +181,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price,caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,caller)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -230,7 +230,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Signed(caller.clone()).into(), token_id, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, caller)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
