@@ -116,8 +116,9 @@ fn sacrifice_position_should_emit_event_when_succesful() {
 			frame_system::Pallet::<Test>::assert_last_event(
 				crate::Event::PositionDestroyed {
 					position_id,
-					owner: LP1
-				}.into()
+					owner: LP1,
+				}
+				.into(),
 			);
 		});
 }

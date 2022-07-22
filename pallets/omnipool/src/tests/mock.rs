@@ -28,7 +28,7 @@ use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
+use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{
@@ -155,7 +155,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type PositionInstanceId = u32;
 	type Currency = Tokens;
-	type AddTokenOrigin = EnsureSigned<Self::AccountId>;
+	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
@@ -348,7 +348,7 @@ impl ExtBuilder {
 						asset_id,
 						amount
 					));
-					assert_ok!(Omnipool::add_token(Origin::signed(owner), asset_id, price, owner));
+					assert_ok!(Omnipool::add_token(Origin::root(), asset_id, price, owner));
 				}
 			});
 		}
