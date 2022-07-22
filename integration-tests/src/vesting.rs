@@ -23,49 +23,23 @@ fn vesting_schedule() -> Schedule {
 }
 
 #[test]
-fn vested_transfer_should_work_when_signed_by_vesting_account() {
-	Hydra::execute_with(|| {
-		//Arrange
-		let from: AccountId = vesting_account();
-		let to: AccountId = AccountId::from(BOB);
-
-		let from_balance_before = hydradx_runtime::Balances::free_balance(&from);
-		let to_balance_before = hydradx_runtime::Balances::free_balance(&to);
-
-		//Act
-		assert_ok!(Vesting::vested_transfer(
-			RawOrigin::Signed(from.clone()).into(),
-			to.clone(),
-			vesting_schedule()
-		));
-
-		//Assert
-		let from_balance_after = hydradx_runtime::Balances::free_balance(from);
-		let to_balance_after = hydradx_runtime::Balances::free_balance(to);
-
-		assert_eq!(from_balance_after, from_balance_before.checked_sub(3_300).unwrap());
-		assert_eq!(to_balance_after, to_balance_before.checked_add(3_300).unwrap());
-	});
-}
-
-#[test]
 fn vested_transfer_should_work_when_sent_from_root() {
 	Hydra::execute_with(|| {
-		//Arrange
+		// Arrange
 		let to: AccountId = AccountId::from(BOB);
 		let vesting_account: AccountId = vesting_account();
 
 		let vesting_account_balance_before = hydradx_runtime::Balances::free_balance(&vesting_account);
 		let to_balance_before = hydradx_runtime::Balances::free_balance(&to);
 
-		//Act
+		// Act
 		assert_ok!(Vesting::vested_transfer(
 			RawOrigin::Root.into(),
 			to.clone(),
 			vesting_schedule()
 		));
 
-		//Assert
+		// Assert
 		let vesting_account_balance_after = hydradx_runtime::Balances::free_balance(vesting_account);
 		let to_balance_after = hydradx_runtime::Balances::free_balance(to);
 
@@ -78,7 +52,7 @@ fn vested_transfer_should_work_when_sent_from_root() {
 }
 
 #[test]
-fn vested_transfer_should_fail_when_signed_by_other_account_than_vested_or_root() {
+fn vested_transfer_should_fail_when_signed_by_any_account() {
 	Hydra::execute_with(|| {
 		let from: AccountId = AccountId::from(ALICE);
 		let to: AccountId = AccountId::from(BOB);

@@ -567,19 +567,12 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
 }
 
-pub struct VestingOrRoot;
-impl EnsureOrigin<Origin> for VestingOrRoot {
+pub struct RootAsVestingPallet;
+impl EnsureOrigin<Origin> for RootAsVestingPallet {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-			RawOrigin::Signed(caller) => {
-				if caller == VestingPalletId::get().into_account() {
-					Ok(caller)
-				} else {
-					Err(Origin::from(Some(caller)))
-				}
-			}
 			RawOrigin::Root => Ok(VestingPalletId::get().into_account()),
 			r => Err(Origin::from(r)),
 		})
@@ -595,7 +588,7 @@ impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = VestingOrRoot;
+	type VestedTransferOrigin = RootAsVestingPallet;
 	type WeightInfo = weights::vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
