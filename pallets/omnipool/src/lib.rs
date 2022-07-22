@@ -806,12 +806,12 @@ pub mod pallet {
 		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionInstanceId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
+
 			ensure!(
 				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(who.clone()),
 				Error::<T>::Forbidden
 			);
-
-			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
 
 			Assets::<T>::try_mutate(position.asset_id, |maybe_asset| -> DispatchResult {
 				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
