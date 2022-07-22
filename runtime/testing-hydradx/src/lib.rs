@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 108,
+	spec_version: 109,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -567,21 +567,12 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
 }
 
-pub struct BobOrVestingOrRoot;
-impl EnsureOrigin<Origin> for BobOrVestingOrRoot {
+pub struct RootAsVestingPallet;
+impl EnsureOrigin<Origin> for RootAsVestingPallet {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-			RawOrigin::Signed(caller) => {
-				if caller == hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"].into()
-					|| caller == VestingPalletId::get().into_account()
-				{
-					Ok(caller)
-				} else {
-					Err(Origin::from(Some(caller)))
-				}
-			}
 			RawOrigin::Root => Ok(VestingPalletId::get().into_account()),
 			r => Err(Origin::from(r)),
 		})
@@ -597,7 +588,7 @@ impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = BobOrVestingOrRoot;
+	type VestedTransferOrigin = RootAsVestingPallet;
 	type WeightInfo = weights::vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
