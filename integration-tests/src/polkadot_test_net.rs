@@ -8,6 +8,7 @@ pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
+pub const HAVENOT: [u8; 32] = [8u8; 32];
 pub const FALLBACK: [u8; 32] = [99u8; 32];
 
 pub const UNITS: Balance = 1_000_000_000_000;

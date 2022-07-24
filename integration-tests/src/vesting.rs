@@ -63,3 +63,33 @@ fn vested_transfer_should_fail_when_signed_by_any_account() {
 		);
 	});
 }
+
+#[test]
+fn update_schedules_should_remove_locks_when_set_to_empty() {
+	Hydra::execute_with(|| {
+		// Arrange
+		let to: AccountId = AccountId::from(HAVENOT);
+		assert_ok!(Vesting::vested_transfer(
+			RawOrigin::Root.into(),
+			to.clone(),
+			Schedule {
+				start: 0,
+				period: 1,
+				period_count: 10,
+				per_period: 1000 * UNITS,
+			}
+		));
+
+		// Act
+		assert_ok!(Vesting::update_vesting_schedules(
+			RawOrigin::Root.into(),
+			to.clone(),
+			vec![]
+		));
+
+		// Assert
+		assert_eq!(hydradx_runtime::Balances::locks(to.clone()), vec![]);
+		assert_eq!(hydradx_runtime::Balances::free_balance(vesting_account()), 0);
+		assert_eq!(hydradx_runtime::Balances::free_balance(to), 10_000 * UNITS);
+	});
+}
