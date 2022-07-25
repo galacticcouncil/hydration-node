@@ -611,7 +611,7 @@ pub mod pallet {
 			);
 
 			ensure!(
-				T::Currency::free_balance(asset, &who) >= amount,
+				T::Currency::ensure_can_withdraw(asset, &who, amount).is_ok(),
 				Error::<T>::InsufficientBalance
 			);
 
@@ -916,7 +916,7 @@ pub mod pallet {
 			);
 
 			ensure!(
-				T::Currency::free_balance(asset_in, &who) >= amount,
+				T::Currency::ensure_can_withdraw(asset_in, &who, amount).is_ok(),
 				Error::<T>::InsufficientBalance
 			);
 
@@ -1072,7 +1072,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			ensure!(
-				T::Currency::free_balance(asset_in, &who) >= *state_changes.asset_in.delta_reserve,
+				T::Currency::ensure_can_withdraw(asset_in, &who, *state_changes.asset_in.delta_reserve).is_ok(),
 				Error::<T>::InsufficientBalance
 			);
 
@@ -1190,9 +1190,10 @@ pub mod pallet {
 			// Make sure that asset is not in the pool
 			ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
 
-			let pool_balance = T::Currency::free_balance(asset_id, &Self::protocol_account());
-
-			ensure!(pool_balance >= amount, Error::<T>::InsufficientBalance);
+			ensure!(
+				T::Currency::ensure_can_withdraw(asset_id, &Self::protocol_account(), amount).is_ok(),
+				Error::<T>::InsufficientBalance
+			);
 
 			T::Currency::transfer(asset_id, &Self::protocol_account(), &recipient, amount)?;
 
