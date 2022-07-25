@@ -14,7 +14,7 @@ fn sacrifice_position_should_work_when_position_exists_with_correct_owner() {
 		.build()
 		.execute_with(|| {
 			// Arrange - create a position
-			let position_id = <PositionInstanceSequencer<Test>>::get();
+			let position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
 
 			let lp1_asset_balance = Tokens::free_balance(asset_id, &LP1);
@@ -59,7 +59,7 @@ fn sacrifice_position_should_fail_when_caller_is_not_position_owner() {
 		.build()
 		.execute_with(|| {
 			// Arrange - create a position
-			let position_id = <PositionInstanceSequencer<Test>>::get();
+			let position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
 
 			// Act
@@ -82,7 +82,7 @@ fn sacrifice_position_should_fail_when_position_does_not_exist() {
 		.build()
 		.execute_with(|| {
 			// Arrange - create a position
-			let position_id = <PositionInstanceSequencer<Test>>::get();
+			let position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
 
 			// Act
@@ -106,7 +106,7 @@ fn sacrifice_position_should_emit_event_when_succesful() {
 		.execute_with(|| {
 			System::set_block_number(1);
 			// Arrange - create a position
-			let position_id = <PositionInstanceSequencer<Test>>::get();
+			let position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_id, 400 * ONE));
 
 			// Act

@@ -134,15 +134,15 @@ pub mod pallet {
 		/// Add token origin
 		type AddTokenOrigin: EnsureOrigin<Self::Origin>;
 
-		/// Origin to be able to change asset tradabilit state and initialize Omnipool.
-		type ManageOrigin: EnsureOrigin<Self::Origin>;
+		/// Origin to be able to suspend asset trades and initialize Omnipool.
+		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
 		/// Native Asset ID
 		#[pallet::constant]
-		type NativeAssetId: Get<Self::AssetId>;
+		type HdxAssetId: Get<Self::AssetId>;
 
 		/// Hub Asset ID
 		#[pallet::constant]
@@ -214,7 +214,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Position ids sequencer
-	pub(super) type PositionInstanceSequencer<T: Config> = StorageValue<_, T::PositionInstanceId, ValueQuery>;
+	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionInstanceId, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -227,7 +227,7 @@ pub mod pallet {
 		},
 		/// Liquidity of an asset was added to Omnipool.
 		LiquidityAdded {
-			from: T::AccountId,
+			who: T::AccountId,
 			asset_id: T::AssetId,
 			amount: Balance,
 			position_id: T::PositionInstanceId,
@@ -268,6 +268,15 @@ pub mod pallet {
 		PositionDestroyed {
 			position_id: T::PositionInstanceId,
 			owner: T::AccountId,
+		},
+		/// LP Position was created and NFT instance minted.
+		PositionUpdated {
+			position_id: T::PositionInstanceId,
+			owner: T::AccountId,
+			asset: T::AssetId,
+			amount: Balance,
+			shares: Balance,
+			price: Price,
 		},
 		/// Aseet's tradable state has been updated.
 		TradableStateUpdated { asset_id: T::AssetId, state: Tradability },
@@ -344,14 +353,14 @@ pub mod pallet {
 			stable_asset_price: Price,
 			native_asset_price: Price,
 		) -> DispatchResult {
-			T::ManageOrigin::ensure_origin(origin)?;
+			T::TechnicalOrigin::ensure_origin(origin)?;
 
 			ensure!(
 				!Assets::<T>::contains_key(T::StableCoinAssetId::get()),
 				Error::<T>::AssetAlreadyAdded
 			);
 			ensure!(
-				!Assets::<T>::contains_key(T::NativeAssetId::get()),
+				!Assets::<T>::contains_key(T::HdxAssetId::get()),
 				Error::<T>::AssetAlreadyAdded
 			);
 
@@ -364,7 +373,7 @@ pub mod pallet {
 				Error::<T>::InvalidInitialAssetPrice
 			);
 
-			let native_asset_reserve = T::Currency::free_balance(T::NativeAssetId::get(), &Self::protocol_account());
+			let native_asset_reserve = T::Currency::free_balance(T::HdxAssetId::get(), &Self::protocol_account());
 			let stable_asset_reserve =
 				T::Currency::free_balance(T::StableCoinAssetId::get(), &Self::protocol_account());
 
@@ -442,7 +451,7 @@ pub mod pallet {
 			))?;
 
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
-			<Assets<T>>::insert(T::NativeAssetId::get(), native_asset_state);
+			<Assets<T>>::insert(T::HdxAssetId::get(), native_asset_state);
 
 			// Hub asset is not allowed to be bought from the pool
 			<HubAssetTradability<T>>::put(Tradability::SELL);
@@ -454,7 +463,7 @@ pub mod pallet {
 			});
 
 			Self::deposit_event(Event::TokenAdded {
-				asset_id: T::NativeAssetId::get(),
+				asset_id: T::HdxAssetId::get(),
 				initial_amount: native_asset_reserve,
 				initial_price: native_asset_price,
 			});
@@ -487,6 +496,9 @@ pub mod pallet {
 			initial_price: Price,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
+			//
+			// Preconditions
+			//
 			T::AddTokenOrigin::ensure_origin(origin)?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
@@ -504,6 +516,10 @@ pub mod pallet {
 				Error::<T>::MissingBalance
 			);
 
+			//
+			// Calculate state changes of add token
+			//
+
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
 			let asset_tvl = hydra_dx_math::omnipool::calculate_asset_tvl(
@@ -512,7 +528,11 @@ pub mod pallet {
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
-			// Initial stale of asset
+			//
+			// Post - update states
+			//
+
+			// Initial state of asset
 			let state = AssetState::<Balance> {
 				hub_reserve,
 				shares: amount,
@@ -580,6 +600,9 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
+			//
+			// Precondtions
+			//
 			let who = ensure_signed(origin)?;
 
 			ensure!(
@@ -601,6 +624,9 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			//
+			// Calculate add liquidity state changes
+			//
 			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
@@ -627,6 +653,10 @@ pub mod pallet {
 			);
 
 			let updated_asset_price = new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?;
+
+			//
+			// Post - update states
+			//
 
 			// Create LP position with given shares
 			let lp_position = Position::<Balance, T::AssetId> {
@@ -668,7 +698,7 @@ pub mod pallet {
 			Self::set_asset_state(asset, new_asset_state);
 
 			Self::deposit_event(Event::LiquidityAdded {
-				from: who,
+				who,
 				asset_id: asset,
 				amount,
 				position_id: instance_id,
@@ -697,6 +727,9 @@ pub mod pallet {
 			position_id: T::PositionInstanceId,
 			amount: Balance,
 		) -> DispatchResult {
+			//
+			// Preconditions
+			//
 			let who = ensure_signed(origin)?;
 
 			ensure!(
@@ -719,6 +752,10 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			//
+			// calculate state changes of remove liquidity
+			//
+
 			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
@@ -740,7 +777,10 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			// Token balance updates
+			//
+			// Post - update states
+			//
+
 			T::Currency::transfer(
 				asset_id,
 				&Self::protocol_account(),
@@ -777,6 +817,15 @@ pub mod pallet {
 					owner: who.clone(),
 				});
 			} else {
+				Self::deposit_event(Event::PositionUpdated {
+					position_id,
+					owner: who.clone(),
+					asset: asset_id,
+					amount: updated_position.amount,
+					shares: updated_position.shares,
+					price: FixedU128::from_inner(updated_position.price.into()),
+				});
+
 				<Positions<T>>::insert(position_id, updated_position);
 			}
 
@@ -1099,7 +1148,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			state: Tradability,
 		) -> DispatchResult {
-			T::ManageOrigin::ensure_origin(origin)?;
+			T::TechnicalOrigin::ensure_origin(origin)?;
 
 			if asset_id == T::HubAssetId::get() {
 				HubAssetTradability::<T>::mutate(|value| -> DispatchResult {
@@ -1200,7 +1249,7 @@ impl<T: Config> Pallet<T> {
 	/// Generate an nft instance id and mint NFT into the class and instance.
 	#[require_transactional]
 	fn create_and_mint_position_instance(owner: &T::AccountId) -> Result<T::PositionInstanceId, DispatchError> {
-		<PositionInstanceSequencer<T>>::try_mutate(|current_value| -> Result<T::PositionInstanceId, DispatchError> {
+		<NextPositionId<T>>::try_mutate(|current_value| -> Result<T::PositionInstanceId, DispatchError> {
 			let next_position_id = *current_value;
 
 			T::NFTHandler::mint_into(&T::NFTClassId::get(), &next_position_id, owner)?;
@@ -1216,12 +1265,12 @@ impl<T: Config> Pallet<T> {
 	/// Update Hub asset side of HDX subpool annd add given amount to hub_asset_reserve
 	fn update_hdx_subpool_hub_asset(hub_asset_amount: Balance) -> DispatchResult {
 		if hub_asset_amount > Balance::zero() {
-			let mut native_subpool = Assets::<T>::get(T::NativeAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
+			let mut native_subpool = Assets::<T>::get(T::HdxAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
 			native_subpool.hub_reserve = native_subpool
 				.hub_reserve
 				.checked_add(hub_asset_amount)
 				.ok_or(ArithmeticError::Overflow)?;
-			<Assets<T>>::insert(T::NativeAssetId::get(), native_subpool);
+			<Assets<T>>::insert(T::HdxAssetId::get(), native_subpool);
 		}
 		Ok(())
 	}

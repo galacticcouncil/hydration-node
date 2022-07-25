@@ -61,7 +61,7 @@ fn add_stable_asset_liquidity_works() {
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
-			let position_id = <PositionInstanceSequencer<Test>>::get();
+			let position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), DAI, liq_added));
 
 			assert_asset_state!(

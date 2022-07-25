@@ -161,7 +161,7 @@ impl Config for Test {
 	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
-	type NativeAssetId = HDXAssetId;
+	type HdxAssetId = HDXAssetId;
 	type NFTClassId = PosiitionClassId;
 	type NFTHandler = DummyNFT;
 	type AssetWeightCap = AssetWeightCap;
@@ -169,7 +169,7 @@ impl Config for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
-	type ManageOrigin = EnsureRoot<Self::AccountId>;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 }
 
 pub struct ExtBuilder {

@@ -41,7 +41,7 @@ benchmarks! {
 	}: _(RawOrigin::Root, stable_price, native_price)
 	verify {
 		assert!(<Assets<T>>::get(T::StableCoinAssetId::get()).is_some());
-		assert!(<Assets<T>>::get(T::NativeAssetId::get()).is_some());
+		assert!(<Assets<T>>::get(T::HdxAssetId::get()).is_some());
 	}
 
 	add_token{
@@ -64,7 +64,7 @@ benchmarks! {
 		let p = Pallet::<T>::protocol_account();
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
-		let current_position_id = <PositionInstanceSequencer<T>>::get();
+		let current_position_id = <NextPositionId<T>>::get();
 
 	}: _(RawOrigin::Root, token_id, token_price, owner)
 	verify {
@@ -102,7 +102,7 @@ benchmarks! {
 
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let current_position_id = <PositionInstanceSequencer<T>>::get();
+		let current_position_id = <NextPositionId<T>>::get();
 
 	}: _(RawOrigin::Signed(lp_provider), token_id, liquidity_added)
 	verify {
@@ -139,7 +139,7 @@ benchmarks! {
 
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let current_position_id = <PositionInstanceSequencer<T>>::get();
+		let current_position_id = <NextPositionId<T>>::get();
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider.clone()).into(), token_id, liquidity_added)?;
 
@@ -187,7 +187,7 @@ benchmarks! {
 
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let current_position_id = <PositionInstanceSequencer<T>>::get();
+		let current_position_id = <NextPositionId<T>>::get();
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
@@ -236,7 +236,7 @@ benchmarks! {
 
 		let liquidity_added = 300_000_000_000_000u128;
 
-		let current_position_id = <PositionInstanceSequencer<T>>::get();
+		let current_position_id = <NextPositionId<T>>::get();
 
 		crate::Pallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 

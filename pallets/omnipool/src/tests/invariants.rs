@@ -997,7 +997,7 @@ proptest! {
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				let position_id = <PositionInstanceSequencer<Test>>::get();
+				let position_id = <NextPositionId<Test>>::get();
 				assert_ok!(Omnipool::add_liquidity(Origin::signed(seller), 200, amount));
 
 				let position = <Positions<Test>>::get(position_id).unwrap();

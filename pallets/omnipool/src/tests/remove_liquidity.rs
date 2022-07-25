@@ -21,7 +21,7 @@ fn remove_liquidity_works() {
 
 			let liq_added = 400 * ONE;
 
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			let current_position_id = <NextPositionId<Test>>::get();
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
@@ -79,7 +79,7 @@ fn full_liquidity_removal_works() {
 			let token_amount = 2000 * ONE;
 
 			let liq_added = 400 * ONE;
-			let lp1_position_id = <PositionInstanceSequencer<Test>>::get();
+			let lp1_position_id = <NextPositionId<Test>>::get();
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
@@ -140,7 +140,7 @@ fn partial_liquidity_removal_works() {
 			let token_amount = 2000 * ONE;
 			let token_price = FixedU128::from_float(0.65);
 			let liq_added = 400 * ONE;
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			let current_position_id = <NextPositionId<Test>>::get();
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
@@ -211,7 +211,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
 
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			let current_position_id = <NextPositionId<Test>>::get();
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
@@ -263,7 +263,7 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			// - add more liquidity of asset a - 400 * ONE
 			// - perform a sell so the price changes - adding 1000 * ONE of asset a
 			let liq_added = 400 * ONE;
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			let current_position_id = <NextPositionId<Test>>::get();
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_a, liq_added));
 
@@ -309,7 +309,7 @@ fn remove_liquidity_by_non_owner_fails() {
 		.with_token(1_000, FixedU128::one(), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			let current_position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
 
 			assert_noop!(
@@ -354,7 +354,7 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 		.with_token(1_000, FixedU128::one(), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			let current_position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
 
 			assert_noop!(
@@ -377,7 +377,7 @@ fn remove_liquidity_should_fail_when_asset_is_not_allowed_to_remove() {
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			let current_position_id = <PositionInstanceSequencer<Test>>::get();
+			let current_position_id = <NextPositionId<Test>>::get();
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
 
 			assert_ok!(Omnipool::set_asset_tradable_state(
