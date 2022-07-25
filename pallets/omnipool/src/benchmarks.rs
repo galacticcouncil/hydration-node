@@ -56,7 +56,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
-		let caller: T::AccountId = account("caller", 0, 1);
+		let owner: T::AccountId = account("owner", 0, 1);
 
 		let token_price: FixedU128= FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
@@ -65,8 +65,6 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		let current_position_id = <PositionInstanceSequencer<T>>::get();
-
-		let owner = caller.clone();
 
 	}: _(RawOrigin::Root, token_id, token_price, owner)
 	verify {
@@ -87,7 +85,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
 
 		// Create account for token provider and set balance
-		let caller: T::AccountId = account("caller", 0, 1);
+		let owner: T::AccountId = account("owner", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
@@ -96,7 +94,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
 
 		// Create LP provider account with correct balance
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -124,7 +122,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
-		let caller: T::AccountId = account("caller", 0, 1);
+		let owner: T::AccountId = account("owner", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
@@ -133,7 +131,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -172,7 +170,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
-		let caller: T::AccountId = account("caller", 0, 1);
+		let owner: T::AccountId = account("owner", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
@@ -181,7 +179,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -221,7 +219,7 @@ benchmarks! {
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 		// Create account for token provider and set balance
-		let caller: T::AccountId = account("caller", 0, 1);
+		let owner: T::AccountId = account("owner", 0, 1);
 
 		let token_price = FixedU128::from((1,5));
 		let token_amount = 200_000_000_000_000u128;
@@ -230,7 +228,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, caller)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
