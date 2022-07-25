@@ -445,9 +445,7 @@ pub mod pallet {
 			<Assets<T>>::insert(T::NativeAssetId::get(), native_asset_state);
 
 			// Hub asset is not allowed to be bought from the pool
-			<HubAssetTradability<T>>::put(
-				Tradability::SELL | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY,
-			);
+			<HubAssetTradability<T>>::put(Tradability::SELL);
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: T::StableCoinAssetId::get(),
