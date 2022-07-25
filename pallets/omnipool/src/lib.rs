@@ -1300,9 +1300,6 @@ impl<T: Config> Pallet<T> {
 	/// Swap hub asset for asset_out.
 	/// Special handling of sell trade where asset in is Hub Asset.
 	fn sell_hub_asset(who: &T::AccountId, asset_out: T::AssetId, amount: Balance, limit: Balance) -> DispatchResult {
-		let f = HubAssetTradability::<T>::get();
-
-		f.contains(Tradability::SELL);
 		ensure!(
 			HubAssetTradability::<T>::get().contains(Tradability::SELL),
 			Error::<T>::NotAllowed
