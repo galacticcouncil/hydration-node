@@ -269,6 +269,19 @@ benchmarks! {
 		let asset_state = <Assets<T>>::get(T::StableCoinAssetId::get()).unwrap();
 		assert!(asset_state.tradable == Tradability::BUY);
 	}
+
+	refund_refused_asset{
+		let recipient: T::AccountId = account("recipient", 3, 1);
+
+		let asset_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
+		let amount = 1_000_000_000_000_000u128;
+
+		T::Currency::update_balance(asset_id, &Pallet::<T>::protocol_account(), amount as i128)?;
+
+	}: _(RawOrigin::Root, asset_id, amount, recipient.clone() )
+	verify {
+		assert!(T::Currency::free_balance(asset_id, &recipient) == amount);
+	}
 }
 
 #[cfg(test)]
