@@ -17,7 +17,13 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 			let native_price = FixedU128::from_float(1.5);
 
 			// ACT
-			assert_ok!(Omnipool::initialize_pool(Origin::root(), stable_price, native_price));
+			assert_ok!(Omnipool::initialize_pool(
+				Origin::root(),
+				stable_price,
+				native_price,
+				Permill::from_percent(100),
+				Permill::from_percent(100)
+			));
 
 			// ASSERT
 			// - pool state
@@ -73,7 +79,13 @@ fn initialize_pool_should_fail_when_already_initialized() {
 			let native_price = FixedU128::from_float(1.5);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
+				Omnipool::initialize_pool(
+					Origin::root(),
+					stable_price,
+					native_price,
+					Permill::from_percent(100),
+					Permill::from_percent(100)
+				),
 				Error::<Test>::AssetAlreadyAdded
 			);
 		});
@@ -89,7 +101,13 @@ fn initialize_pool_should_fail_when_stable_funds_missing_in_pool_account() {
 			let native_price = FixedU128::from_float(1.5);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
+				Omnipool::initialize_pool(
+					Origin::root(),
+					stable_price,
+					native_price,
+					Permill::from_percent(100),
+					Permill::from_percent(100)
+				),
 				Error::<Test>::MissingBalance
 			);
 		});
@@ -105,7 +123,13 @@ fn initialize_pool_should_fail_when_native_funds_missing_in_pool_account() {
 			let native_price = FixedU128::from_float(1.5);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
+				Omnipool::initialize_pool(
+					Origin::root(),
+					stable_price,
+					native_price,
+					Permill::from_percent(100),
+					Permill::from_percent(100)
+				),
 				Error::<Test>::MissingBalance
 			);
 		});
@@ -118,7 +142,13 @@ fn initialize_pool_should_fail_when_stable_price_is_zero() {
 		let native_price = FixedU128::from(1);
 
 		assert_noop!(
-			Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
+			Omnipool::initialize_pool(
+				Origin::root(),
+				stable_price,
+				native_price,
+				Permill::from_percent(100),
+				Permill::from_percent(100)
+			),
 			Error::<Test>::InvalidInitialAssetPrice
 		);
 	});
@@ -134,7 +164,13 @@ fn initialize_pool_should_fail_when_native_price_is_zero() {
 			let native_price = FixedU128::from(0);
 
 			assert_noop!(
-				Omnipool::initialize_pool(Origin::root(), stable_price, native_price),
+				Omnipool::initialize_pool(
+					Origin::root(),
+					stable_price,
+					native_price,
+					Permill::from_percent(100),
+					Permill::from_percent(100)
+				),
 				Error::<Test>::InvalidInitialAssetPrice
 			);
 		});

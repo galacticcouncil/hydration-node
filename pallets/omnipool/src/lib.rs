@@ -92,7 +92,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, Price, SimpleImbalance, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -159,10 +159,6 @@ pub mod pallet {
 		/// Asset fee
 		#[pallet::constant]
 		type AssetFee: Get<Permill>;
-
-		/// Asset weight cap
-		#[pallet::constant]
-		type AssetWeightCap: Get<(u32, u32)>;
 
 		/// TVL cap
 		#[pallet::constant]
@@ -352,6 +348,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stable_asset_price: Price,
 			native_asset_price: Price,
+			stable_weight_cap: Permill,
+			native_weight_cap: Permill,
 		) -> DispatchResult {
 			T::TechnicalOrigin::ensure_origin(origin)?;
 
@@ -410,7 +408,7 @@ pub mod pallet {
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
 				tvl: stable_asset_reserve,
-				cap: 1000000000000000000,
+				cap: FixedU128::from(stable_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
 
@@ -419,7 +417,7 @@ pub mod pallet {
 				shares: native_asset_reserve,
 				protocol_shares: native_asset_reserve,
 				tvl: native_asset_tvl,
-				cap: 1000000000000000000,
+				cap: FixedU128::from(native_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
 
@@ -496,6 +494,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset: T::AssetId,
 			initial_price: Price,
+			weight_cap: Permill,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
 			//
@@ -540,7 +539,7 @@ pub mod pallet {
 				shares: amount,
 				protocol_shares: Balance::zero(),
 				tvl: asset_tvl,
-				cap: 1000000000000000000,
+				cap: FixedU128::from(weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
 
@@ -1221,15 +1220,6 @@ impl<T: Config> Pallet<T> {
 	/// Protocol account address
 	fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account()
-	}
-
-	/// Convert asset weight cap to FixedU128
-	fn asset_weight_cap() -> Price {
-		let fee = T::AssetWeightCap::get();
-		match fee {
-			(_, 0) => FixedU128::zero(),
-			(a, b) => FixedU128::from((a, b)),
-		}
 	}
 
 	/// Retrieve stable asset detail from the pool.

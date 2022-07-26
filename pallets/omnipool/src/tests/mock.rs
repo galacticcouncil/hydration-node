@@ -61,7 +61,7 @@ pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
-	pub static ASSET_WEIGHT_CAP: RefCell<(u32,u32)> = RefCell::new((u32::MAX,1));
+	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
 	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(Balance::default());
@@ -146,7 +146,7 @@ parameter_types! {
 
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
-	pub AssetWeightCap: (u32,u32) =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
+	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
@@ -166,7 +166,6 @@ impl Config for Test {
 	type HdxAssetId = HDXAssetId;
 	type NFTClassId = PosiitionClassId;
 	type NFTHandler = DummyNFT;
-	type AssetWeightCap = AssetWeightCap;
 	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
@@ -179,7 +178,7 @@ pub struct ExtBuilder {
 	registered_assets: Vec<AssetId>,
 	asset_fee: Permill,
 	protocol_fee: Permill,
-	asset_weight_cap: (u32, u32),
+	asset_weight_cap: Permill,
 	min_liquidity: u128,
 	min_trade_limit: u128,
 	init_pool: Option<(FixedU128, FixedU128)>,
@@ -198,7 +197,7 @@ impl Default for ExtBuilder {
 			v.borrow_mut().clear();
 		});
 		ASSET_WEIGHT_CAP.with(|v| {
-			*v.borrow_mut() = (u32::MAX, 1);
+			*v.borrow_mut() = Permill::from_percent(100);
 		});
 		ASSET_FEE.with(|v| {
 			*v.borrow_mut() = Permill::from_percent(0);
@@ -220,7 +219,7 @@ impl Default for ExtBuilder {
 			],
 			asset_fee: Permill::from_percent(0),
 			protocol_fee: Permill::from_percent(0),
-			asset_weight_cap: (u32::MAX, 1),
+			asset_weight_cap: Permill::from_percent(100),
 			min_liquidity: 0,
 			registered_assets: vec![],
 			min_trade_limit: 0,
@@ -244,7 +243,7 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_asset_weight_cap(mut self, cap: (u32, u32)) -> Self {
+	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
 		self.asset_weight_cap = cap;
 		self
 	}
@@ -333,7 +332,13 @@ impl ExtBuilder {
 				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
 
-				assert_ok!(Omnipool::initialize_pool(Origin::root(), stable_price, native_price,));
+				assert_ok!(Omnipool::initialize_pool(
+					Origin::root(),
+					stable_price,
+					native_price,
+					Permill::from_percent(100),
+					Permill::from_percent(100)
+				));
 				assert_pool_state_approx!(
 					stable_price.checked_mul_int(stable_amount).unwrap() + native_amount,
 					FixedU128::from((stable_amount, stable_price.checked_mul_int(stable_amount).unwrap()))
@@ -343,14 +348,19 @@ impl ExtBuilder {
 				);
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
-					//Tokens::set_balance(Origin::root(), Omnipool::protocol_account(), asset_id, amount, 0u128);
 					assert_ok!(Tokens::transfer(
 						Origin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
-					assert_ok!(Omnipool::add_token(Origin::root(), asset_id, price, owner));
+					assert_ok!(Omnipool::add_token(
+						Origin::root(),
+						asset_id,
+						price,
+						self.asset_weight_cap,
+						owner
+					));
 				}
 			});
 		}

@@ -880,7 +880,7 @@ proptest! {
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_ok!(Omnipool::add_token(Origin::root(), token_1.asset_id, token_1.price,lp1));
+				assert_ok!(Omnipool::add_token(Origin::root(), token_1.asset_id, token_1.price,Permill::from_percent(100),lp1));
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
@@ -891,13 +891,13 @@ proptest! {
 								   "L/Q ratio changed"
 				);
 
-				assert_ok!(Omnipool::add_token(Origin::root(), token_2.asset_id, token_2.price,lp2));
-				assert_ok!(Omnipool::add_token(Origin::root(), token_3.asset_id, token_3.price, lp3));
+				assert_ok!(Omnipool::add_token(Origin::root(), token_2.asset_id, token_2.price,Permill::from_percent(100),lp2));
+				assert_ok!(Omnipool::add_token(Origin::root(), token_3.asset_id, token_3.price,Permill::from_percent(100), lp3));
 
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_ok!(Omnipool::add_token(Origin::root(), token_4.asset_id, token_4.price,lp4));
+				assert_ok!(Omnipool::add_token(Origin::root(), token_4.asset_id, token_4.price,Permill::from_percent(100),lp4));
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
