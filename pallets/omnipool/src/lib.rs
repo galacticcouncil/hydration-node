@@ -283,6 +283,9 @@ pub mod pallet {
 			amount: Balance,
 			recipient: T::AccountId,
 		},
+
+		/// Aseet's weight cap has been updated.
+		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
 	}
 
 	#[pallet::error]
@@ -1209,6 +1212,29 @@ pub mod pallet {
 			});
 
 			Ok(())
+		}
+
+		/// Update asset's weight cap
+		///
+		/// Parameters:
+		/// - `asset_id`: asset id
+		/// - `cap`: new weight cap
+		///
+		/// Emits `AssetWeightCapUpdated` event when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
+		#[transactional]
+		pub fn set_asset_weight_cap(origin: OriginFor<T>, asset_id: T::AssetId, cap: Permill) -> DispatchResult {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+
+			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
+				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+
+				asset_state.cap = FixedU128::from(cap).into_inner();
+				Self::deposit_event(Event::AssetWeightCapUpdated { asset_id, cap });
+
+				Ok(())
+			})
 		}
 	}
 

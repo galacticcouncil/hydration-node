@@ -11,6 +11,7 @@ pub trait WeightInfo {
 	fn buy() -> Weight;
 	fn set_asset_tradable_state() -> Weight;
 	fn refund_refused_token() -> Weight;
+	fn set_asset_weight_cap() -> Weight;
 }
 
 impl WeightInfo for () {
@@ -45,6 +46,10 @@ impl WeightInfo for () {
 	}
 
 	fn refund_refused_token() -> Weight {
+		0
+	}
+
+	fn set_asset_weight_cap() -> Weight {
 		0
 	}
 }
