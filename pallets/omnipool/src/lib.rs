@@ -410,6 +410,7 @@ pub mod pallet {
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
 				tvl: stable_asset_reserve,
+				cap: 1000000000000000000,
 				tradable: Tradability::default(),
 			};
 
@@ -418,6 +419,7 @@ pub mod pallet {
 				shares: native_asset_reserve,
 				protocol_shares: native_asset_reserve,
 				tvl: native_asset_tvl,
+				cap: 1000000000000000000,
 				tradable: Tradability::default(),
 			};
 
@@ -538,6 +540,7 @@ pub mod pallet {
 				shares: amount,
 				protocol_shares: Balance::zero(),
 				tvl: asset_tvl,
+				cap: 1000000000000000000,
 				tradable: Tradability::default(),
 			};
 
@@ -651,7 +654,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::DivisionByZero)?;
 
 			ensure!(
-				hub_reserve_ratio <= Self::asset_weight_cap(),
+				hub_reserve_ratio <= new_asset_state.weight_cap(),
 				Error::<T>::AssetWeightCapExceeded
 			);
 

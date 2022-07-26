@@ -40,6 +40,7 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 					shares: 100000000000000,
 					protocol_shares: 100000000000000,
 					tvl: 100000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -51,6 +52,7 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 					shares: 200000000000000,
 					protocol_shares: 200000000000000,
 					tvl: 600000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);

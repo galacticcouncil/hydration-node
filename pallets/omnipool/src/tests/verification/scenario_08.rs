@@ -81,6 +81,7 @@ fn complex_scenario_works() {
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
 					tvl: 1000000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -93,6 +94,7 @@ fn complex_scenario_works() {
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 20000000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -105,6 +107,7 @@ fn complex_scenario_works() {
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
 					tvl: 3120000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -117,6 +120,7 @@ fn complex_scenario_works() {
 					shares: 2008863636363636,
 					protocol_shares: Balance::zero(),
 					tvl: 5378181728191026,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);

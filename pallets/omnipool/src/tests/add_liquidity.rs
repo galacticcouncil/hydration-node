@@ -27,6 +27,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
 					tvl: 3120 * ONE,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -72,6 +73,7 @@ fn add_stable_asset_liquidity_works() {
 					shares: 1400000000000000,
 					protocol_shares: 1000 * ONE,
 					tvl: 1400000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);

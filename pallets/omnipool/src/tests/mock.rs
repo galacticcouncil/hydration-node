@@ -56,6 +56,8 @@ pub const ONE: Balance = 1_000_000_000_000;
 
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
+pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
+
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());

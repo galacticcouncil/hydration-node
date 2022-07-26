@@ -26,6 +26,7 @@ fn add_token_works() {
 					shares: token_amount,
 					protocol_shares: Balance::zero(),
 					tvl: 2600000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			)
