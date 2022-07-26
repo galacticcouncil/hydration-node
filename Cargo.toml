@@ -9,5 +9,6 @@ members = [
   'runtime/hydradx',
   'runtime/testing-hydradx',
   'primitives',
-  'utils/build-script-utils'
+  'utils/build-script-utils',
+  'integration-tests',
 ]

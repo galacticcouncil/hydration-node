@@ -63,17 +63,10 @@ use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 mod benchmarking;
 mod xcm;
 
-#[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod tests;
-
 pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
-
-pub const GALACTIC_COUNCIL_ACCOUNT: [u8; 32] = hex!["8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"];
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -102,7 +95,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 108,
+	spec_version: 109,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -581,21 +574,13 @@ impl orml_currencies::Config for Runtime {
 	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
 }
 
-pub struct GalacticCouncilOrVestingOrRoot;
-
-impl EnsureOrigin<Origin> for GalacticCouncilOrVestingOrRoot {
+pub struct RootAsVestingPallet;
+impl EnsureOrigin<Origin> for RootAsVestingPallet {
 	type Success = AccountId;
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-			RawOrigin::Signed(caller) => {
-				if caller == GALACTIC_COUNCIL_ACCOUNT.into() || caller == VestingPalletId::get().into_account() {
-					Ok(caller)
-				} else {
-					Err(Origin::from(Some(caller)))
-				}
-			}
-			RawOrigin::Root => Ok(GALACTIC_COUNCIL_ACCOUNT.into()),
+			RawOrigin::Root => Ok(VestingPalletId::get().into_account()),
 			r => Err(Origin::from(r)),
 		})
 	}
@@ -610,7 +595,7 @@ impl orml_vesting::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MinVestedTransfer = MinVestedTransfer;
-	type VestedTransferOrigin = GalacticCouncilOrVestingOrRoot;
+	type VestedTransferOrigin = RootAsVestingPallet;
 	type WeightInfo = weights::vesting::HydraWeight<Runtime>;
 	type MaxVestingSchedules = MaxVestingSchedules;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
