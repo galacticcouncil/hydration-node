@@ -826,7 +826,7 @@ pub mod pallet {
 					asset: asset_id,
 					amount: updated_position.amount,
 					shares: updated_position.shares,
-					price: FixedU128::from_inner(updated_position.price.into()),
+					price: FixedU128::from_inner(updated_position.price),
 				});
 
 				<Positions<T>>::insert(position_id, updated_position);
