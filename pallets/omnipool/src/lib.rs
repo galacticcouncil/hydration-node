@@ -591,6 +591,9 @@ pub mod pallet {
 		///
 		/// NFT is minted using NTFHandler which implements non-fungibles traits from frame_support.
 		///
+		/// Asset weight cap must be respected, otherwise `AssetWeightExceeded` error is returned.
+		/// Asset weight is ratio between new HubAsset reserve and total reserve of Hub asset in Omnipool.
+		///
 		/// Parameters:
 		/// - `asset`: The identifier of the new asset added to the pool. Must be already in the pool
 		/// - `amount`: Amount of asset added to omnipool
