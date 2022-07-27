@@ -1244,7 +1244,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
-	fn protocol_account() -> T::AccountId {
+	pub fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account()
 	}
 
