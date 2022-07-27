@@ -27,6 +27,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
 					tvl: 3120 * ONE,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -72,6 +73,7 @@ fn add_stable_asset_liquidity_works() {
 					shares: 1400000000000000,
 					protocol_shares: 1000 * ONE,
 					tvl: 1400000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -130,7 +132,7 @@ fn add_liquidity_with_insufficient_balance_fails() {
 fn add_liquidity_exceeding_weight_cap_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.with_asset_weight_cap((1, 100))
+		.with_asset_weight_cap(Permill::from_float(0.1))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP1, 100 * ONE)
 		.build()
@@ -147,7 +149,7 @@ fn add_insufficient_liquidity_fails() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.with_min_added_liquidity(5 * ONE)
-		.with_asset_weight_cap((1, 100))
+		.with_asset_weight_cap(Permill::from_float(0.1))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
@@ -164,7 +166,7 @@ fn add_liquidity_should_fail_when_asset_state_does_not_include_add_liquidity() {
 	ExtBuilder::default()
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.with_min_added_liquidity(ONE)
-		.with_asset_weight_cap((1, 100))
+		.with_asset_weight_cap(Permill::from_float(0.1))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()

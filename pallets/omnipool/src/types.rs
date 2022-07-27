@@ -1,4 +1,5 @@
 use super::*;
+use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::*;
 use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
 use scale_info::build::Fields;
@@ -62,6 +63,10 @@ pub struct AssetState<Balance> {
 	pub(super) protocol_shares: Balance,
 	/// TVL of asset
 	pub(super) tvl: Balance,
+	/// Asset's weight cap
+	/// Note: this should be Permill or FixedU128. But neither implements MaxEncodedLen in 0.9.16.
+	/// TODO: upgrade to 0.9.17 resolves this.
+	pub(super) cap: u128,
 	/// Asset's trade state
 	pub(super) tradable: Tradability,
 }
@@ -76,6 +81,7 @@ where
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
 			tvl: s.tvl,
+			cap: s.cap,
 			tradable: s.tradable,
 		}
 	}
@@ -216,6 +222,8 @@ pub struct AssetReserveState<Balance> {
 	pub(crate) protocol_shares: Balance,
 	/// TVL of asset
 	pub(crate) tvl: Balance,
+	/// Asset's weight cap
+	pub(super) cap: u128,
 	/// Asset's trade state
 	pub(crate) tradable: Tradability,
 }
@@ -246,6 +254,7 @@ where
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
 			tvl: s.tvl,
+			cap: s.cap,
 			tradable: s.tradable,
 		}
 	}
@@ -262,6 +271,7 @@ where
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
 			tvl: s.tvl,
+			cap: s.cap,
 			tradable: s.tradable,
 		}
 	}
@@ -276,6 +286,10 @@ where
 		FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
 	}
 
+	pub(crate) fn weight_cap(&self) -> FixedU128 {
+		FixedU128::from_inner(self.cap)
+	}
+
 	/// Update current asset state with given delta changes.
 	pub(crate) fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
 		Some(Self {
@@ -284,6 +298,7 @@ where
 			shares: (delta.delta_shares + self.shares)?,
 			protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
 			tvl: (delta.delta_tvl + self.tvl)?,
+			cap: self.cap,
 			tradable: self.tradable,
 		})
 	}

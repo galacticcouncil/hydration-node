@@ -54,6 +54,7 @@ fn simple_sell_works() {
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
 					tvl: 3120 * ONE,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -65,6 +66,7 @@ fn simple_sell_works() {
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
 					tvl: 2600 * ONE,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -236,6 +238,7 @@ fn sell_hub_works() {
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
 					tvl: 1000000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -248,6 +251,7 @@ fn sell_hub_works() {
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 20000000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -260,6 +264,7 @@ fn sell_hub_works() {
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
 					tvl: 3120000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -272,6 +277,7 @@ fn sell_hub_works() {
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
 					tvl: 2600000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);

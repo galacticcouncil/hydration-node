@@ -51,6 +51,7 @@ fn scenario_04() {
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
 					tvl: 1000000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -63,6 +64,7 @@ fn scenario_04() {
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 20000000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -75,6 +77,7 @@ fn scenario_04() {
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
 					tvl: 3120000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -87,6 +90,7 @@ fn scenario_04() {
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
 					tvl: 2600000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);

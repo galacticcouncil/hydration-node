@@ -92,7 +92,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, Price, SimpleImbalance, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -159,10 +159,6 @@ pub mod pallet {
 		/// Asset fee
 		#[pallet::constant]
 		type AssetFee: Get<Permill>;
-
-		/// Asset weight cap
-		#[pallet::constant]
-		type AssetWeightCap: Get<(u32, u32)>;
 
 		/// TVL cap
 		#[pallet::constant]
@@ -287,6 +283,9 @@ pub mod pallet {
 			amount: Balance,
 			recipient: T::AccountId,
 		},
+
+		/// Aseet's weight cap has been updated.
+		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
 	}
 
 	#[pallet::error]
@@ -352,6 +351,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stable_asset_price: Price,
 			native_asset_price: Price,
+			stable_weight_cap: Permill,
+			native_weight_cap: Permill,
 		) -> DispatchResult {
 			T::TechnicalOrigin::ensure_origin(origin)?;
 
@@ -410,6 +411,7 @@ pub mod pallet {
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
 				tvl: stable_asset_reserve,
+				cap: FixedU128::from(stable_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
 
@@ -418,6 +420,7 @@ pub mod pallet {
 				shares: native_asset_reserve,
 				protocol_shares: native_asset_reserve,
 				tvl: native_asset_tvl,
+				cap: FixedU128::from(native_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
 
@@ -494,6 +497,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset: T::AssetId,
 			initial_price: Price,
+			weight_cap: Permill,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
 			//
@@ -538,6 +542,7 @@ pub mod pallet {
 				shares: amount,
 				protocol_shares: Balance::zero(),
 				tvl: asset_tvl,
+				cap: FixedU128::from(weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
 
@@ -651,7 +656,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::DivisionByZero)?;
 
 			ensure!(
-				hub_reserve_ratio <= Self::asset_weight_cap(),
+				hub_reserve_ratio <= new_asset_state.weight_cap(),
 				Error::<T>::AssetWeightCapExceeded
 			);
 
@@ -1208,6 +1213,29 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Update asset's weight cap
+		///
+		/// Parameters:
+		/// - `asset_id`: asset id
+		/// - `cap`: new weight cap
+		///
+		/// Emits `AssetWeightCapUpdated` event when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
+		#[transactional]
+		pub fn set_asset_weight_cap(origin: OriginFor<T>, asset_id: T::AssetId, cap: Permill) -> DispatchResult {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+
+			Assets::<T>::try_mutate(asset_id, |maybe_asset| -> DispatchResult {
+				let asset_state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+
+				asset_state.cap = FixedU128::from(cap).into_inner();
+				Self::deposit_event(Event::AssetWeightCapUpdated { asset_id, cap });
+
+				Ok(())
+			})
+		}
 	}
 
 	#[pallet::hooks]
@@ -1218,15 +1246,6 @@ impl<T: Config> Pallet<T> {
 	/// Protocol account address
 	fn protocol_account() -> T::AccountId {
 		PalletId(*b"omnipool").into_account()
-	}
-
-	/// Convert asset weight cap to FixedU128
-	fn asset_weight_cap() -> Price {
-		let fee = T::AssetWeightCap::get();
-		match fee {
-			(_, 0) => FixedU128::zero(),
-			(a, b) => FixedU128::from((a, b)),
-		}
 	}
 
 	/// Retrieve stable asset detail from the pool.

@@ -46,6 +46,7 @@ fn remove_liquidity_works() {
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
 					tvl: 2_860_000_000_000_000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -113,6 +114,7 @@ fn full_liquidity_removal_works() {
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
 					tvl: 2_600_000_000_000_000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -174,6 +176,7 @@ fn partial_liquidity_removal_works() {
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
 					tvl: 2_860_000_000_000_000,
+					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
 			);
@@ -224,6 +227,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 				shares: 500000000000000,
 				protocol_shares: Balance::zero(),
 				tvl: 650000000000000,
+				cap: DEFAULT_WEIGHT_CAP,
 				tradable: Tradability::default(),
 			};
 			assert_asset_state!(1_000, expected_state);
@@ -290,6 +294,7 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 				shares: 419999999999999,
 				protocol_shares: 319999999999999,
 				tvl: 182000000000002,
+				cap: DEFAULT_WEIGHT_CAP,
 				tradable: Tradability::default(),
 			};
 			assert_asset_state!(asset_a, expected_state);

@@ -38,7 +38,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-	}: _(RawOrigin::Root, stable_price, native_price)
+	}: _(RawOrigin::Root, stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))
 	verify {
 		assert!(<Assets<T>>::get(T::StableCoinAssetId::get()).is_some());
 		assert!(<Assets<T>>::get(T::HdxAssetId::get()).is_some());
@@ -50,7 +50,7 @@ benchmarks! {
 		let native_amount: Balance = 1_000_000_000_000_000u128;
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -66,7 +66,7 @@ benchmarks! {
 
 		let current_position_id = <NextPositionId<T>>::get();
 
-	}: _(RawOrigin::Root, token_id, token_price, owner)
+	}: _(RawOrigin::Root, token_id, token_price,Permill::from_percent(100), owner)
 	verify {
 		assert!(<Positions<T>>::get(current_position_id).is_some());
 		assert!(<Assets<T>>::get(token_id).is_some());
@@ -79,7 +79,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -94,7 +94,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)?;
 
 		// Create LP provider account with correct balance
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -116,7 +116,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -131,7 +131,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -164,7 +164,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -179,7 +179,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -213,7 +213,7 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -228,7 +228,7 @@ benchmarks! {
 		T::Currency::update_balance(token_id, &p, token_amount as i128)?;
 
 		// Add the token to the pool
-		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price, owner)?;
+		crate::Pallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)?;
 
 		// Create LP provider account with correct balance aand add some liquidity
 		let lp_provider: T::AccountId = account("provider", 1, 1);
@@ -262,7 +262,7 @@ benchmarks! {
 		let stable_price: FixedU128 = FixedU128::from((1,2));
 		let native_price: FixedU128 = FixedU128::from(1);
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price)?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
 
 	}: _(RawOrigin::Root, T::StableCoinAssetId::get(), Tradability::BUY)
 	verify {
