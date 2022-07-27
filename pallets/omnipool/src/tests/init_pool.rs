@@ -196,7 +196,7 @@ fn update_weight_cap_of_native_stable_asset_should_work_when_pool_is_initialized
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
 					tvl: 20000000000000000,
-					cap: 1_000_0000_000_000,
+					cap: 10_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
