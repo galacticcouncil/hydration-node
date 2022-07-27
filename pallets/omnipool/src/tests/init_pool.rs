@@ -21,8 +21,8 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 				Origin::root(),
 				stable_price,
 				native_price,
-				Permill::from_percent(100),
-				Permill::from_percent(100)
+				Permill::from_percent(50),
+				Permill::from_percent(50)
 			));
 
 			// ASSERT
@@ -46,7 +46,7 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 					shares: 100000000000000,
 					protocol_shares: 100000000000000,
 					tvl: 100000000000000,
-					cap: DEFAULT_WEIGHT_CAP,
+					cap: 500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -58,7 +58,7 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 					shares: 200000000000000,
 					protocol_shares: 200000000000000,
 					tvl: 600000000000000,
-					cap: DEFAULT_WEIGHT_CAP,
+					cap: 500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -69,6 +69,7 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 			assert_eq!(HubAssetTradability::<Test>::get(), Tradability::SELL);
 		});
 }
+
 #[test]
 fn initialize_pool_should_fail_when_already_initialized() {
 	ExtBuilder::default()
@@ -172,6 +173,49 @@ fn initialize_pool_should_fail_when_native_price_is_zero() {
 					Permill::from_percent(100)
 				),
 				Error::<Test>::InvalidInitialAssetPrice
+			);
+		});
+}
+
+#[test]
+fn update_weight_cap_of_native_stable_asset_should_work_when_pool_is_initialized() {
+	ExtBuilder::default()
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::set_asset_weight_cap(
+				Origin::root(),
+				HDX,
+				Permill::from_rational(1u32, 100000u32),
+			));
+			assert_asset_state!(
+				HDX,
+				AssetReserveState {
+					reserve: 10000000000000000,
+					hub_reserve: 10000000000000000,
+					shares: 10000000000000000,
+					protocol_shares: 10000000000000000,
+					tvl: 20000000000000000,
+					cap: 1_000_0000_000_000,
+					tradable: Tradability::default(),
+				}
+			);
+			assert_ok!(Omnipool::set_asset_weight_cap(
+				Origin::root(),
+				DAI,
+				Permill::from_percent(2u32),
+			));
+			assert_asset_state!(
+				DAI,
+				AssetReserveState {
+					reserve: 1000000000000000,
+					hub_reserve: 500000000000000,
+					shares: 1000000000000000,
+					protocol_shares: 1000000000000000,
+					tvl: 1000000000000000,
+					cap: 20_000_000_000_000_000,
+					tradable: Tradability::default(),
+				}
 			);
 		});
 }
