@@ -6,17 +6,18 @@ use frame_support::{
 	traits::{Everything, Nothing},
 	PalletId,
 };
+use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 pub use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::latest::prelude::*;
 use polkadot_xcm::latest::Error;
-use sp_runtime::traits::Convert;
+use sp_runtime::traits::{AccountIdConversion, Convert};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
-	EnsureXcmOrigin, FixedWeightBounds, LocationInverter, ParentIsDefault, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeWeightCredit,
+	EnsureXcmOrigin, FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+	TakeWeightCredit,
 };
 use xcm_executor::{traits::WeightTrader, Assets, Config, XcmExecutor};
 
@@ -90,7 +91,7 @@ impl Config for XcmConfig {
 
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToCallOrigin;
-	type IsReserve = MultiNativeAsset;
+	type IsReserve = MultiNativeAsset<AbsoluteReserveProvider>;
 
 	type IsTeleporter = (); // disabled
 	type LocationInverter = LocationInverter<Ancestry>;
@@ -116,12 +117,21 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ChannelInfo = ParachainSystem;
 	type VersionWrapper = PolkadotXcm;
 	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
+	type ControllerOrigin = MoreThanHalfTechCommittee;
+	type ControllerOriginConverter = XcmOriginToCallOrigin;
+	type WeightInfo = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
 	type Event = Event;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
+}
+
+parameter_type_with_key! {
+	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
+		None
+	};
 }
 
 impl orml_xtokens::Config for Runtime {
@@ -136,6 +146,9 @@ impl orml_xtokens::Config for Runtime {
 	type BaseXcmWeight = BaseXcmWeight;
 	type LocationInverter = LocationInverter<Ancestry>;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
+	type MultiLocationsFilter = Everything;
+	type ReserveProvider = AbsoluteReserveProvider;
+	type MinXcmFee = ParachainMinFee;
 }
 
 impl orml_unknown_tokens::Config for Runtime {
@@ -172,7 +185,10 @@ impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
 		match id {
 			CORE_ASSET_ID => Some(MultiLocation::new(
 				1,
-				X2(Parachain(ParachainInfo::get().into()), GeneralKey(id.encode())),
+				X2(
+					Parachain(ParachainInfo::get().into()),
+					GeneralKey(id.encode().try_into().unwrap()),
+				),
 			)),
 			_ => {
 				if let Some(loc) = AssetRegistry::asset_to_location(id) {
@@ -262,7 +278,7 @@ pub type XcmRouter = (
 /// `Transact` in order to determine the dispatch Origin.
 pub type LocationToAccountId = (
 	// The parent (Relay-chain) origin converts to the default `AccountId`.
-	ParentIsDefault<AccountId>,
+	ParentIsPreset<AccountId>,
 	// Sibling parachain origins convert to AccountId via the `ParaId::into`.
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
@@ -271,7 +287,7 @@ pub type LocationToAccountId = (
 
 parameter_types! {
 	// The account which receives multi-currency tokens from failed attempts to deposit them
-	pub Alternative: AccountId = PalletId(*b"xcm/alte").into_account();
+	pub Alternative: AccountId = PalletId(*b"xcm/alte").into_account_truncating();
 }
 
 pub type LocalAssetTransactor = MultiCurrencyAdapter<

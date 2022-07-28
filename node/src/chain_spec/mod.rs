@@ -92,7 +92,6 @@ pub fn parachain_genesis(
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
 	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
-	tx_fee_payment_account: AccountId,          // Account use multi-payment pallet to send fees to in pool does not exists
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	elections: Vec<(AccountId, Balance)>,
@@ -150,7 +149,6 @@ pub fn parachain_genesis(
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: accepted_assets,
-			fallback_account: Some(tx_fee_payment_account),
 			account_currencies: vec![],
 		},
 		tokens: TokensConfig {

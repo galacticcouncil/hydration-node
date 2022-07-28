@@ -17,13 +17,23 @@
 
 use crate::mock::*;
 use crate::{
-	Claims, EcdsaSignature, Error, EthereumAddress, InvalidTransaction, SignedExtension, ValidTransaction,
-	ValidateClaim,
+	Claims, Config, EcdsaSignature, Error, EthereumAddress, InvalidTransaction, ModuleError, SignedExtension,
+	ValidTransaction, ValidateClaim,
 };
-use frame_support::dispatch::DispatchInfo;
+use frame_support::dispatch::{DispatchError, DispatchInfo};
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
 use sp_std::marker::PhantomData;
+
+/// convert an Error to a custom InvalidTransaction with the inner code being the error
+/// number.
+pub fn error_to_invalid<T: Config>(error: Error<T>) -> InvalidTransaction {
+	let error_number = match error.into() {
+		DispatchError::Module(ModuleError { error, .. }) => error[0],
+		_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
+	};
+	InvalidTransaction::Custom(error_number)
+}
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -136,7 +146,7 @@ fn signed_extention_invalid_sig() {
 
 		assert_eq!(
 			ValidateClaim::<Test>(PhantomData).validate(&ALICE, call, &info, 150),
-			InvalidTransaction::Custom(Error::<Test>::InvalidEthereumSignature.as_u8()).into()
+			error_to_invalid(Error::<Test>::InvalidEthereumSignature).into()
 		);
 	});
 }
@@ -151,7 +161,7 @@ fn signed_extention_no_claim_error() {
 
 		assert_eq!(
 			ValidateClaim::<Test>(PhantomData).validate(&BOB, call, &info, 150),
-			InvalidTransaction::Custom(Error::<Test>::NoClaimOrAlreadyClaimed.as_u8()).into()
+			error_to_invalid(Error::<Test>::NoClaimOrAlreadyClaimed).into()
 		);
 	});
 }

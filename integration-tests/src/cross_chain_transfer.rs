@@ -42,7 +42,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 
 		//Assert
 		assert_eq!(
-			polkadot_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account()),
+			polkadot_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account_truncating()),
 			310 * UNITS
 		);
 	});

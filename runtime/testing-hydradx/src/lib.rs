@@ -45,13 +45,18 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{EnsureOrigin, EqualPrivilegeOnly, Everything, Get, InstanceFilter, PrivilegeCmp, U128CurrencyToVote},
+	traits::{
+		EnsureOrigin, EqualPrivilegeOnly, Everything, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp,
+		U128CurrencyToVote,
+	},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
-		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	},
 };
 use hydradx_traits::pools::SpotPriceProvider;
+use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::Price;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -59,7 +64,6 @@ use sp_runtime::traits::BlockNumberProvider;
 
 pub use common_runtime::*;
 use orml_currencies::BasicCurrencyAdapter;
-use pallet_transaction_multi_payment::MultiCurrencyAdapter;
 
 mod xcm;
 
@@ -284,10 +288,11 @@ pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = MultiCurrencyAdapter<Balances, (), MultiTransactionPayment>;
-	type TransactionByteFee = TransactionByteFee;
+	type Event = Event;
+	type OnChargeTransaction = pallet_transaction_multi_payment::WithdrawFees<Balances, (), MultiTransactionPayment>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 }
 
@@ -312,6 +317,7 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type ReservedDmpWeight = ReservedDmpWeight;
 	type XcmpMessageHandler = XcmpQueue;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
+	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::AnyRelayNumber;
 }
 
 impl pallet_aura::Config for Runtime {
@@ -340,6 +346,7 @@ impl pallet_treasury::Config for Runtime {
 	type WeightInfo = weights::treasury::HydraWeight<Runtime>;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
+	type SpendOrigin = NeverEnsureOrigin<Balance>;
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -557,10 +564,13 @@ impl orml_tokens::Config for Runtime {
 	type OnDust = ();
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = DustRemovalWhitelist;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
+	type OnNewTokenAccount = AddTxAssetOnAccount<Runtime>;
+	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
 }
 
 impl orml_currencies::Config for Runtime {
-	type Event = Event;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type GetNativeCurrencyId = NativeAssetId;
@@ -573,14 +583,16 @@ impl EnsureOrigin<Origin> for RootAsVestingPallet {
 
 	fn try_origin(o: Origin) -> Result<Self::Success, Origin> {
 		Into::<Result<RawOrigin<AccountId>, Origin>>::into(o).and_then(|o| match o {
-			RawOrigin::Root => Ok(VestingPalletId::get().into_account()),
+			RawOrigin::Root => Ok(VestingPalletId::get().into_account_truncating()),
 			r => Err(Origin::from(r)),
 		})
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn successful_origin() -> Origin {
-		Origin::from(RawOrigin::Signed(Default::default()))
+		let zero_account_id = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
+			.expect("infinite length input; no invalid inputs for type; qed");
+		Origin::from(RawOrigin::Signed(zero_account_id))
 	}
 }
 
@@ -671,6 +683,10 @@ impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
 	}
 }
 
+parameter_types! {
+	pub TreasuryAccount: AccountId = Treasury::account_id();
+}
+
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
 	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommittee;
@@ -680,6 +696,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
+	type FeeReceiver = TreasuryAccount;
 }
 
 #[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
@@ -742,7 +759,7 @@ construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 5,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 7,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 9,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 9,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 11,
 		Utility: pallet_utility::{Pallet, Call, Event} = 13,
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 15,
@@ -763,7 +780,7 @@ construct_runtime!(
 
 		// ORML related modules
 		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>, Config<T>} = 77,
-		Currencies: orml_currencies::{Pallet, Call, Event<T>} = 79,
+		Currencies: orml_currencies::{Pallet, Call} = 79,
 		Vesting: orml_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 81,
 
 		// Parachain

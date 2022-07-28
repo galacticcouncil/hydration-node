@@ -49,6 +49,11 @@ use pallet_treasury::weights::WeightInfo;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
+	fn spend() -> Weight {
+		(22_063_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
 	fn propose_spend() -> Weight {
 		(28_725_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
@@ -63,6 +68,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		(9_721_000 as Weight) // Standard Error: 3_000
 			.saturating_add((120_000 as Weight).saturating_mul(p as Weight))
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn remove_approval() -> Weight {
+		(6_647_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn on_initialize_proposals(p: u32) -> Weight {

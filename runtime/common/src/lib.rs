@@ -21,14 +21,13 @@ pub mod weights;
 
 use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::traits::{Contains, EnsureOneOf, LockIdentifier};
+use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
 use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber};
 use scale_info::TypeInfo;
-use sp_core::u32_trait::{_1, _2, _3, _5};
 use sp_runtime::{
 	generic,
 	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
@@ -72,45 +71,45 @@ pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 pub type CouncilCollective = pallet_collective::Instance1;
 pub type TechnicalCollective = pallet_collective::Instance2;
 
-pub type TreasuryApproveOrigin = EnsureOneOf<
+pub type TreasuryApproveOrigin = EitherOfDiverse<
 	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
 >;
 
-pub type MoreThanHalfCouncil = EnsureOneOf<
+pub type MoreThanHalfCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 >;
 
-pub type MajorityOfCouncil = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
-	EnsureRoot<AccountId>,
->;
-
-pub type AllCouncilMembers = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
+pub type MajorityOfCouncil = EitherOfDiverse<
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
 	EnsureRoot<AccountId>,
 >;
 
-pub type MoreThanHalfTechCommittee = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, TechnicalCollective>,
+pub type AllCouncilMembers = EitherOfDiverse<
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>,
 	EnsureRoot<AccountId>,
 >;
 
-pub type EnsureSuperMajorityTechCommittee = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+pub type MoreThanHalfTechCommittee = EitherOfDiverse<
+	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 2>,
 	EnsureRoot<AccountId>,
 >;
 
-pub type AllTechnicalCommitteeMembers = EnsureOneOf<
-	pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+pub type EnsureSuperMajorityTechCommittee = EitherOfDiverse<
+	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>,
+	EnsureRoot<AccountId>,
+>;
+
+pub type AllTechnicalCommitteeMembers = EitherOfDiverse<
+	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
 	EnsureRoot<AccountId>,
 >;
 
 pub fn get_all_module_accounts() -> Vec<AccountId> {
 	vec![
-		TreasuryPalletId::get().into_account(),
-		VestingPalletId::get().into_account(),
+		TreasuryPalletId::get().into_account_truncating(),
+		VestingPalletId::get().into_account_truncating(),
 	]
 }
 

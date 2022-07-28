@@ -7,7 +7,9 @@
 
 use std::sync::Arc;
 
-use hydradx_runtime::{opaque::Block, AccountId, Balance, Index};
+use hydradx_runtime::{opaque::Block, AccountId, Balance, Hash, Index};
+use sc_consensus_manual_seal::rpc::{EngineCommand, ManualSeal, ManualSealApiServer};
+pub use sc_rpc::SubscriptionTaskExecutor;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
@@ -22,13 +24,15 @@ pub struct FullDeps<C, P> {
 	pub pool: Arc<P>,
 	/// Whether to deny unsafe calls
 	pub deny_unsafe: DenyUnsafe,
+	/// Manual seal command sink
+	pub command_sink: Option<futures::channel::mpsc::Sender<EngineCommand<Hash>>>,
 }
 
 /// RPC Extension Builder
-pub type RpcExtension = Result<jsonrpc_core::IoHandler<sc_rpc::Metadata>, sc_service::Error>;
+pub type RpcExtension = jsonrpsee::RpcModule<()>;
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P>(deps: FullDeps<C, P>) -> RpcExtension
+pub fn create_full<C, P>(deps: FullDeps<C, P>) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError>,
@@ -38,28 +42,27 @@ where
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + Sync + Send + 'static,
 {
-	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
-	use substrate_frame_rpc_system::{FullSystem, SystemApi};
+	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
+	use substrate_frame_rpc_system::{System, SystemApiServer};
 
-	let mut io = jsonrpc_core::IoHandler::default();
+	let mut module = RpcExtension::new(());
 	let FullDeps {
 		client,
 		pool,
 		deny_unsafe,
+		command_sink,
 	} = deps;
 
-	io.extend_with(SystemApi::to_delegate(FullSystem::new(
-		client.clone(),
-		pool,
-		deny_unsafe,
-	)));
+	if let Some(command_sink) = command_sink {
+		module.merge(
+			// We provide the rpc handler with the sending end of the channel to allow the rpc
+			// send EngineCommands to the background block authorship task.
+			ManualSeal::new(command_sink).into_rpc(),
+		)?;
+	}
 
-	io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(client)));
+	module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
+	module.merge(TransactionPayment::new(client).into_rpc())?;
 
-	// Extend this RPC with a custom API by using the following syntax.
-	// `YourRpcStruct` should have a reference to a client, which is needed
-	// to call into the runtime.
-	// `io.extend_with(YourRpcTrait::to_delegate(YourRpcStruct::new(ReferenceToClient, ...)));`
-
-	Ok(io)
+	Ok(module)
 }
