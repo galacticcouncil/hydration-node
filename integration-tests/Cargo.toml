@@ -9,11 +9,15 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/Basilisk-node"
 
 [dependencies]
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "8895cdf9f320bf544606e94b8fb0dcfd10b00345", default-features = false}
-pallet-price-oracle = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.26", default-features = false}
-pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.26", default-features = false }
-
 primitives = { default-features = false, path = "../primitives" }
+hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
+
+# HydraDX dependencies
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "8895cdf9f320bf544606e94b8fb0dcfd10b00345", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8895cdf9f320bf544606e94b8fb0dcfd10b00345", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "8895cdf9f320bf544606e94b8fb0dcfd10b00345", default-features = false}
+pallet-price-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "8895cdf9f320bf544606e94b8fb0dcfd10b00345", default-features = false}
+pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", rev = "8895cdf9f320bf544606e94b8fb0dcfd10b00345", default-features = false }
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false }
@@ -55,10 +59,6 @@ pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release
 xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26", default-features = false }
 polkadot-xcm = { package = "xcm", git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26", default-features = false }
 
-# HydraDX dependencies
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.26", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.26", default-features = false }
-
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false, optional = true }
 frame-executive = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", default-features = false }
@@ -94,8 +94,6 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
 polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
 polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
-
-hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 
 [dev-dependencies]
 xcm-emulator = { git = "https://github.com/zqhxuyuan/xcm-simulator", branch = "polkadot-v0.9.26" }

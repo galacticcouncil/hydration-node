@@ -1276,9 +1276,9 @@ dependencies = [
 
 [[package]]
 name = "ctor"
-version = "0.1.22"
+version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f877be4f7c9f246b183111634f75baa039715e3f46ce860677d3b19a69fb229c"
+checksum = "cdffe87e1d521a10f9696f833fe502293ea446d7f256c06128293a4119bdf4cb"
 dependencies = [
  "quote",
  "syn",
@@ -3180,7 +3180,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
- "hydradx-traits 0.7.1 (git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345)",
+ "hydradx-traits",
  "orml-benchmarking",
  "orml-currencies",
  "orml-tokens",
@@ -3243,18 +3243,6 @@ dependencies = [
  "xcm",
  "xcm-builder",
  "xcm-executor",
-]
-
-[[package]]
-name = "hydradx-traits"
-version = "0.7.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26#fc2164c79fdcad5b645e38133f6288fde6a858b0"
-dependencies = [
- "frame-support",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-std",
 ]
 
 [[package]]
@@ -5274,12 +5262,12 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "1.3.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26#fc2164c79fdcad5b645e38133f6288fde6a858b0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345#8895cdf9f320bf544606e94b8fb0dcfd10b00345"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydradx-traits 0.7.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26)",
+ "hydradx-traits",
  "orml-traits",
  "parity-scale-codec",
  "primitive-types",
@@ -5503,7 +5491,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26#fc2164c79fdcad5b645e38133f6288fde6a858b0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345#8895cdf9f320bf544606e94b8fb0dcfd10b00345"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5802,11 +5790,11 @@ dependencies = [
 [[package]]
 name = "pallet-nft"
 version = "3.2.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26#fc2164c79fdcad5b645e38133f6288fde6a858b0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345#8895cdf9f320bf544606e94b8fb0dcfd10b00345"
 dependencies = [
  "frame-support",
  "frame-system",
- "hydradx-traits 0.7.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26)",
+ "hydradx-traits",
  "orml-utilities",
  "pallet-uniques",
  "parity-scale-codec",
@@ -5911,12 +5899,12 @@ dependencies = [
 [[package]]
 name = "pallet-price-oracle"
 version = "0.3.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26#fc2164c79fdcad5b645e38133f6288fde6a858b0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345#8895cdf9f320bf544606e94b8fb0dcfd10b00345"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydradx-traits 0.7.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26)",
+ "hydradx-traits",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -5957,7 +5945,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.3.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26#fc2164c79fdcad5b645e38133f6288fde6a858b0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345#8895cdf9f320bf544606e94b8fb0dcfd10b00345"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6137,7 +6125,7 @@ source = "git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544
 dependencies = [
  "frame-support",
  "frame-system",
- "hydradx-traits 0.7.1 (git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345)",
+ "hydradx-traits",
  "orml-traits",
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -8421,7 +8409,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hydradx-runtime",
- "hydradx-traits 0.7.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.26)",
+ "hydradx-traits",
  "orml-currencies",
  "orml-tokens",
  "orml-traits",
@@ -11125,7 +11113,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
- "hydradx-traits 0.7.1 (git+https://github.com/galacticcouncil/warehouse?rev=8895cdf9f320bf544606e94b8fb0dcfd10b00345)",
+ "hydradx-traits",
  "orml-benchmarking",
  "orml-currencies",
  "orml-tokens",
