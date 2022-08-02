@@ -424,27 +424,7 @@ pub mod pallet {
 				tradable: Tradability::default(),
 			};
 
-			// Imbalance update and total hub asset liquidity for stable asset first
-			// Note: cannot be merged with native, because the calculations depend on updated values
-			let delta_imbalance = Self::recalculate_imbalance(
-				&((&stable_asset_state, stable_asset_reserve).into()),
-				BalanceUpdate::Decrease(stable_asset_reserve),
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			// No imbalance yet, use default value
-			Self::update_imbalance(SimpleImbalance::default(), delta_imbalance)?;
-
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(stable_asset_hub_reserve))?;
-
-			// Imbalance update total hub asset with native asset next
-			Self::recalculate_imbalance(
-				&((&native_asset_state, native_asset_reserve).into()),
-				BalanceUpdate::Decrease(native_asset_reserve),
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
-
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(native_asset_hub_reserve))?;
 
 			Self::update_tvl(&BalanceUpdate::Increase(
