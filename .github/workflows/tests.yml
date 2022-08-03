@@ -74,6 +74,8 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
       - run: git describe --tags --abbrev=0
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
       - name: Install Rust
         uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
         with:
