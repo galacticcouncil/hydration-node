@@ -26,6 +26,8 @@ serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.82"
 clap = { version = "3.2.11", features = [ "derive" ] }
 futures = "0.3.15"
+# temporary fix for missing logs https://github.com/paritytech/substrate/issues/11855
+tracing-core = "=0.1.26"
 
 # local dependencies
 common-runtime = { path = "../runtime/common" }
