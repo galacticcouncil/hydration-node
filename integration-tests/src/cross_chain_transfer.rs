@@ -101,7 +101,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 	PolkadotRelay::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
-			2999680000000 // 3 * HDX - fee
+			2999530582548 // 3 * HDX - fee
 		);
 	});
 }
