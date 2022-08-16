@@ -327,6 +327,8 @@ pub mod pallet {
 		InsufficientLiquidity,
 		/// Traded amount is below minimum allowed limit
 		InsufficientTradingAmount,
+		/// Sell or buy with same asset ids is not allowed.
+		SameAssetTradeNotAllowed,
 	}
 
 	#[pallet::call]
@@ -898,6 +900,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
+
 			ensure!(
 				amount >= T::MinimumTradingLimit::get(),
 				Error::<T>::InsufficientTradingAmount
@@ -1022,6 +1026,8 @@ pub mod pallet {
 			max_sell_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
 
 			ensure!(
 				amount >= T::MinimumTradingLimit::get(),

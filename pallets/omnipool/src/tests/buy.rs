@@ -466,3 +466,29 @@ fn buy_for_hub_asset_should_fail_when_limit_exceeds() {
 			);
 		});
 }
+
+#[test]
+fn buy_should_fail_when_trading_same_asset() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), 0, NATIVE_AMOUNT),
+			(Omnipool::protocol_account(), 2, 1000 * ONE),
+			(LP1, 100, 5000000000000000),
+			(LP1, 200, 5000000000000000),
+			(LP2, 100, 1000000000000000),
+			(LP3, 100, 1000000000000000),
+			(LP3, 1, 100_000_000_000_000),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP3), 200, 200, 50_000_000_000_000, 100_000_000_000),
+				Error::<Test>::SameAssetTradeNotAllowed
+			);
+		});
+}
