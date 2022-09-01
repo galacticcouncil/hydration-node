@@ -130,7 +130,7 @@ fn simple_imbalance_subtraction_works() {
 		} - 300,
 		Some(SimpleImbalance {
 			value: 0,
-			negative: false
+			negative: true,
 		})
 	);
 	assert_eq!(

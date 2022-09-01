@@ -202,6 +202,8 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 			(self.value.checked_add(&amount)?, self.negative)
 		} else if self.value < amount {
 			(amount.checked_sub(&self.value)?, true)
+		} else if self.value == amount {
+			(self.value.checked_sub(&amount)?, true)
 		} else {
 			(self.value.checked_sub(&amount)?, self.negative)
 		};
