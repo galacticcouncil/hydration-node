@@ -329,6 +329,8 @@ pub mod pallet {
 		InsufficientTradingAmount,
 		/// Sell or buy with same asset ids is not allowed.
 		SameAssetTradeNotAllowed,
+		/// LRNA update after trade results in non-zero value.
+		HubAssetUpdateError,
 	}
 
 	#[pallet::call]
@@ -980,14 +982,14 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
+			ensure!(*delta_hub_asset == Balance::zero(), Error::<T>::HubAssetUpdateError);
 
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
-
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -1107,14 +1109,15 @@ pub mod pallet {
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
+			ensure!(*delta_hub_asset == Balance::zero(), Error::<T>::HubAssetUpdateError);
 
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
