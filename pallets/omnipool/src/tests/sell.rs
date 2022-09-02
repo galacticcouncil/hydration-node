@@ -544,3 +544,46 @@ fn sell_should_work_when_trading_native_asset() {
 			);
 		});
 }
+
+#[test]
+fn sell_imbalance() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, 100, 5000000000000000),
+			(LP1, 200, 5000000000000000),
+			(LP2, 100, 1000000000000000),
+			(LP3, 100, 1000000000000000),
+			(LP3, 1, 100000000000000),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_protocol_fee(Permill::from_percent(20))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+
+			assert_ok!(Omnipool::sell(
+				Origin::signed(LP3),
+				1,
+				200,
+				50000000000000,
+				10000000000000
+			));
+
+			assert_pool_state!(
+				13410000000000000,
+				26720000000000000,
+				SimpleImbalance {
+					value: 98148148148148,
+					negative: true
+				}
+			);
+
+			assert_ok!(Omnipool::sell(Origin::signed(LP3), 200, 100, 1000000000000, 1,));
+		});
+}

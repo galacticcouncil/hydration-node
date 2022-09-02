@@ -786,7 +786,14 @@ pub mod pallet {
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
-			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
+			// burn only difference between delta hub and lp hub amount.
+			Self::update_hub_asset_liquidity(
+				&state_changes
+					.asset
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)?;
 
 			// LP receives some hub asset
 			if state_changes.lp_hub_amount > Balance::zero() {
@@ -982,7 +989,15 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			ensure!(*delta_hub_asset == Balance::zero(), Error::<T>::HubAssetUpdateError);
+			match delta_hub_asset {
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
 
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
@@ -1110,7 +1125,15 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			ensure!(*delta_hub_asset == Balance::zero(), Error::<T>::HubAssetUpdateError);
+			match delta_hub_asset {
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
 
 			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
 
