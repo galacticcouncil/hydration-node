@@ -329,7 +329,7 @@ pub mod pallet {
 		InsufficientTradingAmount,
 		/// Sell or buy with same asset ids is not allowed.
 		SameAssetTradeNotAllowed,
-		/// LRNA update after trade results in non-zero value.
+		/// LRNA update after trade results in positive value.
 		HubAssetUpdateError,
 	}
 
