@@ -329,6 +329,8 @@ pub mod pallet {
 		InsufficientTradingAmount,
 		/// Sell or buy with same asset ids is not allowed.
 		SameAssetTradeNotAllowed,
+		/// Imbalance results in positive value.
+		PositiveImbalance,
 	}
 
 	#[pallet::call]
@@ -1307,6 +1309,9 @@ impl<T: Config> Pallet<T> {
 			BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(ArithmeticError::Overflow)?,
 			BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(ArithmeticError::Overflow)?,
 		};
+
+		ensure!(imbalance.negative, Error::<T>::PositiveImbalance);
+
 		<HubAssetImbalance<T>>::put(imbalance);
 
 		Ok(())
