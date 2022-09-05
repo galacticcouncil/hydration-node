@@ -331,6 +331,8 @@ pub mod pallet {
 		SameAssetTradeNotAllowed,
 		/// Imbalance results in positive value.
 		PositiveImbalance,
+		/// Asset is not allowed to be refunded.
+		AssetRefundNotAllowed,
 	}
 
 	#[pallet::call]
@@ -1182,6 +1184,9 @@ pub mod pallet {
 			recipient: T::AccountId,
 		) -> DispatchResult {
 			T::AddTokenOrigin::ensure_origin(origin)?;
+
+			// Hub asset cannot be refunded
+			ensure!(asset_id != T::HubAssetId::get(), Error::<T>::AssetRefundNotAllowed);
 
 			// Make sure that asset is not in the pool
 			ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
