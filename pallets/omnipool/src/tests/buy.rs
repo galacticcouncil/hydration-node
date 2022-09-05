@@ -457,11 +457,11 @@ fn buy_for_hub_asset_should_fail_when_limit_exceeds() {
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
-		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(1.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::buy(Origin::signed(LP3), 200, 1, 50_000_000_000_000, 100_000_000_000),
+				Omnipool::buy(Origin::signed(LP3), 200, 1, 20_000_000_000_000, 30_000_000_000_000),
 				Error::<Test>::SellLimitExceeded
 			);
 		});

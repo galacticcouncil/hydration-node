@@ -1448,7 +1448,7 @@ impl<T: Config> Pallet<T> {
 		.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
-			*state_changes.asset.delta_reserve <= limit,
+			*state_changes.asset.delta_hub_reserve <= limit,
 			Error::<T>::SellLimitExceeded
 		);
 
