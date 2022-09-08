@@ -219,3 +219,24 @@ fn update_weight_cap_of_native_stable_asset_should_work_when_pool_is_initialized
 			);
 		});
 }
+
+#[test]
+fn initialize_pool_should_fail_when_stable_asset_is_not_registered() {
+	ExtBuilder::default()
+		.without_stable_asset_in_registry()
+		.build()
+		.execute_with(|| {
+			let stable_price = FixedU128::from_float(0.5);
+			let native_price = FixedU128::from_float(1.5);
+			assert_noop!(
+				Omnipool::initialize_pool(
+					Origin::root(),
+					stable_price,
+					native_price,
+					Permill::from_percent(50),
+					Permill::from_percent(50)
+				),
+				Error::<Test>::AssetNotRegistered
+			);
+		});
+}
