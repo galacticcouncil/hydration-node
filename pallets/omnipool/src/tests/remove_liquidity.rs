@@ -397,3 +397,24 @@ fn remove_liquidity_should_fail_when_asset_is_not_allowed_to_remove() {
 			);
 		});
 }
+
+#[test]
+fn remove_liquidity_should_fail_when_shares_amount_is_zero() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let current_position_id = <NextPositionId<Test>>::get();
+			assert_noop!(
+				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 0u128),
+				Error::<Test>::InvalidSharesAmount
+			);
+		});
+}

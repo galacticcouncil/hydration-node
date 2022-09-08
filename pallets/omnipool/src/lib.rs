@@ -284,7 +284,7 @@ pub mod pallet {
 			recipient: T::AccountId,
 		},
 
-		/// Aseet's weight cap has been updated.
+		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
 	}
 
@@ -331,6 +331,8 @@ pub mod pallet {
 		SameAssetTradeNotAllowed,
 		/// Imbalance results in positive value.
 		PositiveImbalance,
+		/// Amount of shares provided cannot be 0.
+		InvalidSharesAmount,
 	}
 
 	#[pallet::call]
@@ -723,6 +725,8 @@ pub mod pallet {
 			// Preconditions
 			//
 			let who = ensure_signed(origin)?;
+
+			ensure!(amount > Balance::zero(), Error::<T>::InvalidSharesAmount);
 
 			ensure!(
 				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(who.clone()),
@@ -1227,7 +1231,21 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn integrity_test() {
+			if T::MinimumPoolLiquidity::get() == Balance::zero() {
+				panic!("Minimum pool liquidity cannot be 0.");
+			}
+
+			if T::MinimumTradingLimit::get() == Balance::zero() {
+				panic!("Minimum trade limit cannot be 0.");
+			}
+
+			if T::HdxAssetId::get() == T::StableCoinAssetId::get() {
+				panic!("Same Hdx asset id and stable asset id.");
+			}
+		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
