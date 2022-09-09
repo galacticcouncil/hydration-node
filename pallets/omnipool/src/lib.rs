@@ -990,6 +990,9 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 
 			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
 				BalanceUpdate::Increase(_) => {
 					// trade can only burn some.
 					return Err(Error::<T>::HubAssetUpdateError.into());
@@ -1126,6 +1129,9 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 
 			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
 				BalanceUpdate::Increase(_) => {
 					// trade can only burn some.
 					return Err(Error::<T>::HubAssetUpdateError.into());
