@@ -102,7 +102,7 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::{Position, Price, SimpleImbalance, Tradability};
+	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -554,7 +554,7 @@ pub mod pallet {
 				Self::recalculate_imbalance(&((&state, amount).into()), BalanceUpdate::Decrease(amount))
 					.ok_or(ArithmeticError::Overflow)?;
 
-			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
+			Self::update_imbalance(delta_imbalance)?;
 
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
@@ -681,7 +681,7 @@ pub mod pallet {
 
 			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
+			Self::update_imbalance(delta_imbalance)?;
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
@@ -782,7 +782,7 @@ pub mod pallet {
 
 			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
+			Self::update_imbalance(delta_imbalance)?;
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
@@ -984,7 +984,7 @@ pub mod pallet {
 
 			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
-			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1113,7 +1113,7 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
-			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
@@ -1301,20 +1301,17 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update imbalance with given delta_imbalance - increase or decrease
-	fn update_imbalance(
-		current_imbalance: SimpleImbalance<Balance>,
-		delta_imbalance: BalanceUpdate<Balance>,
-	) -> DispatchResult {
-		let imbalance = match delta_imbalance {
-			BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(ArithmeticError::Overflow)?,
-			BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(ArithmeticError::Overflow)?,
-		};
+	fn update_imbalance(delta_imbalance: BalanceUpdate<Balance>) -> DispatchResult {
+		<HubAssetImbalance<T>>::try_mutate(|current_imbalance| -> DispatchResult {
+			*current_imbalance = match delta_imbalance {
+				BalanceUpdate::Decrease(amount) => (*current_imbalance).sub(amount).ok_or(ArithmeticError::Overflow)?,
+				BalanceUpdate::Increase(amount) => (*current_imbalance).add(amount).ok_or(ArithmeticError::Overflow)?,
+			};
 
-		ensure!(imbalance.negative, Error::<T>::PositiveImbalance);
+			ensure!((*current_imbalance).negative, Error::<T>::PositiveImbalance);
 
-		<HubAssetImbalance<T>>::put(imbalance);
-
-		Ok(())
+			Ok(())
+		})
 	}
 
 	/// Recalculate imbalance based on current imbalance and hub liquidity
@@ -1403,9 +1400,7 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		// Imbalance update
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-		Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
@@ -1469,8 +1464,7 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-		Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
