@@ -384,6 +384,11 @@ pub mod pallet {
 				Error::<T>::InvalidInitialAssetPrice
 			);
 
+			ensure!(
+				T::AssetRegistry::exists(T::StableCoinAssetId::get()),
+				Error::<T>::AssetNotRegistered
+			);
+
 			let native_asset_reserve = T::Currency::free_balance(T::HdxAssetId::get(), &Self::protocol_account());
 			let stable_asset_reserve =
 				T::Currency::free_balance(T::StableCoinAssetId::get(), &Self::protocol_account());

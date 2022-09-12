@@ -181,6 +181,7 @@ pub struct ExtBuilder {
 	asset_weight_cap: Permill,
 	min_liquidity: u128,
 	min_trade_limit: u128,
+	register_stable_asset: bool,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -224,6 +225,7 @@ impl Default for ExtBuilder {
 			registered_assets: vec![],
 			min_trade_limit: 0,
 			init_pool: None,
+			register_stable_asset: true,
 			pool_tokens: vec![],
 		}
 	}
@@ -272,6 +274,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn without_stable_asset_in_registry(mut self) -> Self {
+		self.register_stable_asset = false;
+		self
+	}
+
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -288,7 +295,9 @@ impl ExtBuilder {
 
 		// Add DAi and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
-			v.borrow_mut().insert(DAI, DAI);
+			if self.register_stable_asset {
+				v.borrow_mut().insert(DAI, DAI);
+			}
 			v.borrow_mut().insert(HDX, HDX);
 			v.borrow_mut().insert(REGISTERED_ASSET, REGISTERED_ASSET);
 			self.registered_assets.iter().for_each(|asset| {
