@@ -329,6 +329,8 @@ pub mod pallet {
 		InsufficientTradingAmount,
 		/// Sell or buy with same asset ids is not allowed.
 		SameAssetTradeNotAllowed,
+		/// LRNA update after trade results in positive value.
+		HubAssetUpdateError,
 		/// Imbalance results in positive value.
 		PositiveImbalance,
 	}
@@ -786,7 +788,14 @@ pub mod pallet {
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
-			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
+			// burn only difference between delta hub and lp hub amount.
+			Self::update_hub_asset_liquidity(
+				&state_changes
+					.asset
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)?;
 
 			// LP receives some hub asset
 			if state_changes.lp_hub_amount > Balance::zero() {
@@ -982,14 +991,25 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
+			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
-
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -1109,14 +1129,26 @@ pub mod pallet {
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
+			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,

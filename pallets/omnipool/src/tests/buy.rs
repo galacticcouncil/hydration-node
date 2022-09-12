@@ -492,3 +492,81 @@ fn buy_should_fail_when_trading_same_asset() {
 			);
 		});
 }
+
+#[test]
+fn buy_should_work_when_trading_native_asset() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+			(LP1, HDX, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_asset_fee(Permill::from_percent(10))
+		.with_protocol_fee(Permill::from_percent(20))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let liq_added = 400 * ONE;
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 100, liq_added));
+
+			let buy_amount = 50 * ONE;
+			let max_limit = 100 * ONE;
+
+			assert_ok!(Omnipool::buy(Origin::signed(LP1), 200, HDX, buy_amount, max_limit));
+
+			assert_eq!(Tokens::free_balance(HDX, &LP1), 953354861858628);
+			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
+			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
+			assert_eq!(
+				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
+				10046645138141372
+			);
+			assert_eq!(
+				Tokens::free_balance(200, &Omnipool::protocol_account()),
+				1950000000000000
+			);
+
+			let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
+
+			assert_pool_state!(
+				hub_reserves.iter().sum::<Balance>(),
+				26_720 * ONE,
+				SimpleImbalance {
+					value: 0u128,
+					negative: true
+				}
+			);
+
+			assert_asset_state!(
+				200,
+				AssetReserveState {
+					reserve: 1950000000000000,
+					hub_reserve: 1337142857142858,
+					shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
+					tvl: 2600 * ONE,
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+			assert_asset_state!(
+				HDX,
+				AssetReserveState {
+					reserve: 10046645138141372,
+					hub_reserve: 9962857142857142,
+					shares: 10000 * ONE,
+					protocol_shares: 10000000000000000,
+					tvl: 20000000000000000,
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+		});
+}
