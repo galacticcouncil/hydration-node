@@ -241,7 +241,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			assert_balance!(LP1, 1000, 4_760_000_000_000_000);
 			assert_balance!(LP1, LRNA, 470_689_655_172_413);
 
-			assert_pool_state!(9704310344827587, 541000000000086413, SimpleImbalance::default());
+			assert_pool_state!(10175000000000000, 541000000000086413, SimpleImbalance::default());
 		});
 }
 

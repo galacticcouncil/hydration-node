@@ -14,6 +14,7 @@ mod init_pool;
 pub(crate) mod mock;
 mod positions;
 mod refund;
+mod tradability;
 mod types;
 mod verification;
 
@@ -49,8 +50,22 @@ macro_rules! assert_balance_approx {
 }
 
 #[macro_export]
+macro_rules! assert_hub_asset {
+	( ) => {{
+		let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
+		assert_eq!(
+			Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
+			hub_reserves.iter().sum::<Balance>(),
+			"Hub liquidity incorrect\n"
+		);
+	}};
+}
+
+#[macro_export]
 macro_rules! assert_pool_state {
 	( $x:expr, $y:expr, $z:expr) => {{
+		let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
+		assert_eq!($x, hub_reserves.iter().sum::<Balance>());
 		assert_eq!(
 			Tokens::free_balance(LRNA, &Omnipool::protocol_account()),
 			$x,

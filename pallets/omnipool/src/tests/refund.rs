@@ -125,3 +125,22 @@ fn refund_refused_asset_should_emit_correct_event_when_succesful() {
 			);
 		});
 }
+
+#[test]
+fn refund_refused_asset_should_fail_when_refund_asset_is_hub_asset() {
+	let asset_id: AssetId = 1_000;
+
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, asset_id, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), asset_id, 1000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(asset_id, FixedU128::from_float(0.65), LP1, 1000 * ONE)
+		.build()
+		.execute_with(|| {
+			// Act
+			assert_noop!(
+				Omnipool::refund_refused_asset(Origin::root(), LRNA, 1000 * ONE, LP1),
+				Error::<Test>::AssetRefundNotAllowed
+			);
+		});
+}

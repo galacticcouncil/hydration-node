@@ -64,7 +64,7 @@ fn complex_scenario_works() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 14356887226495360u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14397521548574755u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 4089236949625567u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1638588974363038u128, 10);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
@@ -128,10 +128,10 @@ fn complex_scenario_works() {
 			);
 
 			assert_pool_state!(
-				14356887226495363,
+				14397521548574755,
 				28755043097149510,
 				SimpleImbalance {
-					value: 40259835553610,
+					value: 40258673773030,
 					negative: true
 				}
 			);

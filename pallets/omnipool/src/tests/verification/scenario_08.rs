@@ -22,7 +22,11 @@ fn complex_scenario_works() {
 		.with_token(200, FixedU128::from_float(1.1), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
+			assert_hub_asset!();
+
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+
+			assert_hub_asset!();
 
 			assert_ok!(Omnipool::sell(
 				Origin::signed(LP3),
@@ -50,7 +54,11 @@ fn complex_scenario_works() {
 				100000000000000000
 			));
 
+			assert_hub_asset!();
+
 			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 3, 200000000000000));
+
+			assert_hub_asset!();
 
 			assert_ok!(Omnipool::sell(
 				Origin::signed(LP3),
@@ -62,7 +70,7 @@ fn complex_scenario_works() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 14211575191619508u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14252209513698901u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 3589236949625567u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1638588974363038u128, 10);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
@@ -126,12 +134,14 @@ fn complex_scenario_works() {
 			);
 
 			assert_pool_state!(
-				14211575191619509,
+				14252209513698901,
 				29498181728191026,
 				SimpleImbalance {
 					value: 39852348990836,
 					negative: true
 				}
 			);
+
+			assert_ok!(Omnipool::sell(Origin::signed(LP3), 100, 200, 20000000000000, 1,));
 		});
 }

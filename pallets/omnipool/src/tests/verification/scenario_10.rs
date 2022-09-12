@@ -56,7 +56,7 @@ fn fee_test_buy_sell() {
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);
-			assert_balance_approx!(Omnipool::protocol_account(), 1, 14182282238540066u128, 10);
+			assert_balance_approx!(Omnipool::protocol_account(), 1, 14225180042050832u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 100, 4243052260380446u128, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 200, 1671684145777546u128, 10);
 			assert_balance_approx!(LP1, 100, 3000000000000000u128, 10);
@@ -120,7 +120,7 @@ fn fee_test_buy_sell() {
 			);
 
 			assert_pool_state!(
-				14182282238540070, // hub liquidity
+				14225180042050832,
 				29534546221723530,
 				SimpleImbalance {
 					value: 0,
