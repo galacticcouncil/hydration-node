@@ -64,8 +64,8 @@ thread_local! {
 	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
 	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(Balance::default());
-	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(Balance::default());
+	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
+	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 }
 
 construct_runtime!(
@@ -207,10 +207,10 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		MIN_ADDED_LIQUDIITY.with(|v| {
-			*v.borrow_mut() = 0;
+			*v.borrow_mut() = 1000u128;
 		});
 		MIN_TRADE_AMOUNT.with(|v| {
-			*v.borrow_mut() = 0;
+			*v.borrow_mut() = 1000u128;
 		});
 
 		Self {
