@@ -106,7 +106,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use hydra_dx_math::omnipool::types::BalanceUpdate;
+	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -629,6 +629,10 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 			//
 			// Calculate add liquidity state changes
 			//
@@ -637,6 +641,11 @@ pub mod pallet {
 				amount,
 				stable_asset,
 				asset == T::StableCoinAssetId::get(),
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -692,9 +701,7 @@ pub mod pallet {
 				*state_changes.asset.delta_reserve,
 			)?;
 
-			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
-				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(delta_imbalance)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
@@ -759,6 +766,10 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 			//
 			// calculate state changes of remove liquidity
 			//
@@ -769,6 +780,11 @@ pub mod pallet {
 				&(&position).into(),
 				stable_asset,
 				asset_id == T::StableCoinAssetId::get(),
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -795,9 +811,7 @@ pub mod pallet {
 				*state_changes.asset.delta_reserve,
 			)?;
 
-			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
-				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(delta_imbalance)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
