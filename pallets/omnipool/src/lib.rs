@@ -333,6 +333,8 @@ pub mod pallet {
 		HubAssetUpdateError,
 		/// Imbalance results in positive value.
 		PositiveImbalance,
+		/// HJb Asset's trabable is only allowed to be SELL or BUY.
+		InvalidHubAssetTradableState,
 		/// Asset is not allowed to be refunded.
 		AssetRefundNotAllowed,
 	}
@@ -1181,6 +1183,13 @@ pub mod pallet {
 			T::TechnicalOrigin::ensure_origin(origin)?;
 
 			if asset_id == T::HubAssetId::get() {
+				// current omnipool does not allow liquidity add or remove of hub asset.
+				// Although BUY is not supported yet, we can allow the new state to be set to SELL/BUY.
+				ensure!(
+					!state.contains(Tradability::ADD_LIQUIDITY) && !state.contains(Tradability::REMOVE_LIQUIDITY),
+					Error::<T>::InvalidHubAssetTradableState
+				);
+
 				HubAssetTradability::<T>::mutate(|value| -> DispatchResult {
 					*value = state;
 					Self::deposit_event(Event::TradableStateUpdated { asset_id, state });

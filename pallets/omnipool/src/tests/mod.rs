@@ -14,6 +14,7 @@ mod init_pool;
 pub(crate) mod mock;
 mod positions;
 mod refund;
+mod tradability;
 mod types;
 mod verification;
 
