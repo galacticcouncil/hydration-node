@@ -102,7 +102,7 @@ type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system:
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::{Position, Price, SimpleImbalance, Tradability};
+	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -329,10 +329,14 @@ pub mod pallet {
 		InsufficientTradingAmount,
 		/// Sell or buy with same asset ids is not allowed.
 		SameAssetTradeNotAllowed,
+		/// LRNA update after trade results in positive value.
+		HubAssetUpdateError,
 		/// Imbalance results in positive value.
 		PositiveImbalance,
 		/// HJb Asset's trabable is only allowed to be SELL or BUY.
 		InvalidHubAssetTradableState,
+		/// Asset is not allowed to be refunded.
+		AssetRefundNotAllowed,
 	}
 
 	#[pallet::call]
@@ -556,7 +560,7 @@ pub mod pallet {
 				Self::recalculate_imbalance(&((&state, amount).into()), BalanceUpdate::Decrease(amount))
 					.ok_or(ArithmeticError::Overflow)?;
 
-			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
+			Self::update_imbalance(delta_imbalance)?;
 
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
@@ -683,7 +687,7 @@ pub mod pallet {
 
 			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
+			Self::update_imbalance(delta_imbalance)?;
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
@@ -784,11 +788,18 @@ pub mod pallet {
 
 			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(<HubAssetImbalance<T>>::get(), delta_imbalance)?;
+			Self::update_imbalance(delta_imbalance)?;
 
 			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
-			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
+			// burn only difference between delta hub and lp hub amount.
+			Self::update_hub_asset_liquidity(
+				&state_changes
+					.asset
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(state_changes.lp_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)?;
 
 			// LP receives some hub asset
 			if state_changes.lp_hub_amount > Balance::zero() {
@@ -984,14 +995,25 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
+			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
 
-			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
-
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -1111,14 +1133,26 @@ pub mod pallet {
 						.ok_or(ArithmeticError::Overflow)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_hub_asset_liquidity(&delta_hub_asset)?;
 
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
+			match delta_hub_asset {
+				BalanceUpdate::Increase(val) if val == Balance::zero() => {
+					// nothing to do if zero.
+				}
+				BalanceUpdate::Increase(_) => {
+					// trade can only burn some.
+					return Err(Error::<T>::HubAssetUpdateError.into());
+				}
+				BalanceUpdate::Decrease(amount) => {
+					T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+				}
+			};
 
-			Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
+			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1191,6 +1225,9 @@ pub mod pallet {
 			recipient: T::AccountId,
 		) -> DispatchResult {
 			T::AddTokenOrigin::ensure_origin(origin)?;
+
+			// Hub asset cannot be refunded
+			ensure!(asset_id != T::HubAssetId::get(), Error::<T>::AssetRefundNotAllowed);
 
 			// Make sure that asset is not in the pool
 			ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
@@ -1310,20 +1347,17 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update imbalance with given delta_imbalance - increase or decrease
-	fn update_imbalance(
-		current_imbalance: SimpleImbalance<Balance>,
-		delta_imbalance: BalanceUpdate<Balance>,
-	) -> DispatchResult {
-		let imbalance = match delta_imbalance {
-			BalanceUpdate::Decrease(amount) => current_imbalance.sub(amount).ok_or(ArithmeticError::Overflow)?,
-			BalanceUpdate::Increase(amount) => current_imbalance.add(amount).ok_or(ArithmeticError::Overflow)?,
-		};
+	fn update_imbalance(delta_imbalance: BalanceUpdate<Balance>) -> DispatchResult {
+		<HubAssetImbalance<T>>::try_mutate(|current_imbalance| -> DispatchResult {
+			*current_imbalance = match delta_imbalance {
+				BalanceUpdate::Decrease(amount) => (*current_imbalance).sub(amount).ok_or(ArithmeticError::Overflow)?,
+				BalanceUpdate::Increase(amount) => (*current_imbalance).add(amount).ok_or(ArithmeticError::Overflow)?,
+			};
 
-		ensure!(imbalance.negative, Error::<T>::PositiveImbalance);
+			ensure!((*current_imbalance).negative, Error::<T>::PositiveImbalance);
 
-		<HubAssetImbalance<T>>::put(imbalance);
-
-		Ok(())
+			Ok(())
+		})
 	}
 
 	/// Recalculate imbalance based on current imbalance and hub liquidity
@@ -1412,9 +1446,7 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		// Imbalance update
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-		Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
@@ -1478,8 +1510,7 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-		Self::update_imbalance(current_imbalance, state_changes.delta_imbalance)?;
+		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
