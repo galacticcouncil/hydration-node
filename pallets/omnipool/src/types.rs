@@ -137,7 +137,7 @@ where
 
 /// Simple type to represent imbalance which can be positive or negative.
 // Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub(crate) struct SimpleImbalance<Balance> {
 	pub value: Balance,
 	pub negative: bool,
@@ -202,6 +202,8 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 			(self.value.checked_add(&amount)?, self.negative)
 		} else if self.value < amount {
 			(amount.checked_sub(&self.value)?, true)
+		} else if self.value == amount {
+			(self.value.checked_sub(&amount)?, true)
 		} else {
 			(self.value.checked_sub(&amount)?, self.negative)
 		};
