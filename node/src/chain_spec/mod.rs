@@ -20,8 +20,8 @@
 
 pub mod hydradx;
 pub mod local;
-pub mod staging;
 pub mod rococo;
+pub mod staging;
 
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
