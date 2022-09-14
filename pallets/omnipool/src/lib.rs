@@ -581,7 +581,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			//
-			// Precondtions
+			// Preconditions
 			//
 			let who = ensure_signed(origin)?;
 
@@ -594,8 +594,6 @@ pub mod pallet {
 				T::Currency::ensure_can_withdraw(asset, &who, amount).is_ok(),
 				Error::<T>::InsufficientBalance
 			);
-
-			let stable_asset = Self::stable_asset()?;
 
 			let asset_state = Self::load_asset_state(asset)?;
 
@@ -614,8 +612,6 @@ pub mod pallet {
 			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
-				stable_asset,
-				asset == T::StableCoinAssetId::get(),
 				I129 {
 					value: current_imbalance.value,
 					negative: current_imbalance.negative,
@@ -730,8 +726,6 @@ pub mod pallet {
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
-			let stable_asset = Self::stable_asset()?;
-
 			let asset_id = position.asset_id;
 
 			let asset_state = Self::load_asset_state(asset_id)?;
@@ -753,8 +747,6 @@ pub mod pallet {
 				&(&asset_state).into(),
 				amount,
 				&(&position).into(),
-				stable_asset,
-				asset_id == T::StableCoinAssetId::get(),
 				I129 {
 					value: current_imbalance.value,
 					negative: current_imbalance.negative,

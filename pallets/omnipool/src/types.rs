@@ -235,7 +235,6 @@ where
 			hub_reserve: state.hub_reserve,
 			shares: state.shares,
 			protocol_shares: state.protocol_shares,
-			tvl: state.shares,
 		}
 	}
 }
