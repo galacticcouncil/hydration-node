@@ -322,7 +322,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_pool_state!(
 				13393333333333334,
-				26720000000000000,
+				26786666666666668,
 				SimpleImbalance {
 					value: 661295833333340,
 					negative: true

@@ -196,10 +196,6 @@ pub mod pallet {
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
 
 	#[pallet::storage]
-	/// Total TVL. It equals to sum of each asset's tvl in omnipool
-	pub(super) type TotalTVL<T: Config> = StorageValue<_, Balance, ValueQuery>;
-
-	#[pallet::storage]
 	/// Tradable state of hub asset.
 	pub(super) type HubAssetTradability<T: Config> = StorageValue<_, Tradability, ValueQuery>;
 
@@ -439,7 +435,7 @@ pub mod pallet {
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
 			<Assets<T>>::insert(T::HdxAssetId::get(), native_asset_state);
 
-			Self::update_tvl()?;
+			Self::ensure_tvl_cap()?;
 
 			// Hub asset is not allowed to be bought from the pool
 			<HubAssetTradability<T>>::put(Tradability::SELL);
@@ -552,7 +548,7 @@ pub mod pallet {
 
 			<Assets<T>>::insert(asset, state);
 
-			Self::update_tvl()?;
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: asset,
@@ -686,7 +682,7 @@ pub mod pallet {
 
 			Self::set_asset_state(asset, new_asset_state);
 
-			Self::update_tvl()?;
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -836,7 +832,7 @@ pub mod pallet {
 
 			Self::set_asset_state(asset_id, new_asset_state);
 
-			Self::update_tvl()?;
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				who,
@@ -1397,9 +1393,8 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Update total tvl balance and check TVL cap if TVL increased.
-	#[require_transactional]
-	fn update_tvl() -> DispatchResult {
+	/// Calculate new tvl balance and ensure that it is below TVL Cap.
+	fn ensure_tvl_cap() -> DispatchResult {
 		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 		let stable_asset = Self::stable_asset()?;
 
@@ -1407,11 +1402,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(updated_tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
-
-		<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-			*tvl = updated_tvl;
-			Ok(())
-		})
+		Ok(())
 	}
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.

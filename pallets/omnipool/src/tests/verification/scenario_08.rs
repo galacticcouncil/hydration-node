@@ -131,7 +131,7 @@ fn complex_scenario_works() {
 
 			assert_pool_state!(
 				14252209513698901,
-				28464419027397802,
+				28504419027397802,
 				SimpleImbalance {
 					value: 209658537097485,
 					negative: true

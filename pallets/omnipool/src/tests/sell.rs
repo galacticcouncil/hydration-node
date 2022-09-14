@@ -279,7 +279,7 @@ fn sell_hub_works() {
 
 			assert_pool_state!(
 				13410000000000000,
-				26720000000000000,
+				26820000000000000,
 				SimpleImbalance {
 					value: 974938271604939,
 					negative: true
@@ -569,7 +569,7 @@ fn sell_imbalance() {
 
 			assert_pool_state!(
 				13410000000000000,
-				26720000000000000,
+				26820000000000000,
 				SimpleImbalance {
 					value: 974938271604939,
 					negative: true
