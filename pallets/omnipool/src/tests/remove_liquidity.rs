@@ -45,7 +45,6 @@ fn remove_liquidity_works() {
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
-					tvl: 2_860_000_000_000_000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -113,7 +112,6 @@ fn full_liquidity_removal_works() {
 					hub_reserve: 1300000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
-					tvl: 2_600_000_000_000_000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -175,7 +173,6 @@ fn partial_liquidity_removal_works() {
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
-					tvl: 2_860_000_000_000_000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -226,7 +223,6 @@ fn lp_receives_lrna_when_price_is_higher() {
 				hub_reserve: 812500000000001,
 				shares: 500000000000000,
 				protocol_shares: Balance::zero(),
-				tvl: 650000000000000,
 				cap: DEFAULT_WEIGHT_CAP,
 				tradable: Tradability::default(),
 			};
@@ -239,9 +235,9 @@ fn lp_receives_lrna_when_price_is_higher() {
 			));
 			assert_balance!(Omnipool::protocol_account(), 1000, 40 * ONE);
 			assert_balance!(LP1, 1000, 4_760_000_000_000_000);
-			assert_balance!(LP1, LRNA, 470_689_655_172_414); // TODO: colin - received one more lrna ?!
+			assert_balance!(LP1, LRNA, 470_689_655_172_414);
 
-			assert_pool_state!(10175000000000000, 541000000000086413, SimpleImbalance::default());
+			assert_pool_state!(10175000000000000, 32560000000005210414, SimpleImbalance::default());
 		});
 }
 
@@ -283,18 +279,16 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			// Assert
 			// - check if balance of LP and protocol are correct
 			// - check new state of asset a in the pool ( should have updated protocol shares)
-			//TODO :ask colin - this seemed to be an issue??!!!
 			assert_balance!(Omnipool::protocol_account(), asset_a, 1260000000000000);
 			assert_balance!(LP1, asset_a, 4840000000000000);
 
-			assert_pool_state!(10807666666666667, 21182000000000002, SimpleImbalance::default());
+			assert_pool_state!(10807666666666667, 21615333333333334, SimpleImbalance::default());
 
 			let expected_state = AssetReserveState {
 				reserve: 1260000000000000,
 				hub_reserve: 91000000000001,
 				shares: 420000000000000,
 				protocol_shares: 320000000000000,
-				tvl: 182000000000002,
 				cap: DEFAULT_WEIGHT_CAP,
 				tradable: Tradability::default(),
 			};

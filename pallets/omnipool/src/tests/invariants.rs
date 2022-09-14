@@ -52,10 +52,6 @@ fn sum_asset_hub_liquidity() -> Balance {
 	<Assets<Test>>::iter().fold(0, |acc, v| acc + v.1.hub_reserve)
 }
 
-fn sum_asset_tvl() -> Balance {
-	<Assets<Test>>::iter().fold(0, |acc, v| acc + v.1.tvl)
-}
-
 #[derive(Debug)]
 struct PoolToken {
 	asset_id: AssetId,
@@ -122,10 +118,6 @@ proptest! {
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
-				let total_asset_tvl = sum_asset_tvl();
-				let global_tvl = <TotalTVL<Test>>::get();
-
-				assert_eq!(global_tvl, total_asset_tvl, "Total TVL != sum of asset tvl");
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
@@ -937,9 +929,7 @@ proptest! {
 				);
 
 				// check enforcement of overall tvl cap
-				let total_asset_tvl = sum_asset_tvl();
 				let global_tvl = <TotalTVL<Test>>::get();
-				assert_eq!(global_tvl, total_asset_tvl, "Total TVL != sum of asset tvl");
 				assert!( global_tvl <= <Test as Config>::TVLCap::get());
 			});
 	}
@@ -1031,9 +1021,7 @@ proptest! {
 				);
 
 				// check enforcement of overall tvl cap
-				let total_asset_tvl = sum_asset_tvl();
 				let global_tvl = <TotalTVL<Test>>::get();
-				assert_eq!(global_tvl, total_asset_tvl, "Total TVL != sum of asset tvl");
 				assert!( global_tvl <= <Test as Config>::TVLCap::get());
 			});
 	}
