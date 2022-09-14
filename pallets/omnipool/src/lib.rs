@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::BalanceUpdate;
+use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -1453,10 +1453,18 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_out_state).into(),
 			amount,
 			T::AssetFee::get(),
+			I129 {
+				value: current_imbalance.value,
+				negative: current_imbalance.negative,
+			},
+			current_hub_asset_liquidity,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1518,10 +1526,18 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_out_state).into(),
 			amount,
 			T::AssetFee::get(),
+			I129 {
+				value: current_imbalance.value,
+				negative: current_imbalance.negative,
+			},
+			current_hub_asset_liquidity,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 

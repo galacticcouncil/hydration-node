@@ -287,7 +287,7 @@ fn sell_hub_works() {
 				13410000000000000,
 				26720000000000000,
 				SimpleImbalance {
-					value: 98148148148148,
+					value: 974938271604939,
 					negative: true
 				}
 			);
@@ -396,7 +396,7 @@ fn simple_sell_with_fee_works() {
 			let fee = Permill::from_percent(100).checked_sub(&fee).unwrap();
 
 			let expected_zero_fee = 47_619_047_619_047u128;
-			let expected_10_percent_fee = fee.mul_ceil(expected_zero_fee);
+			let expected_10_percent_fee = fee.mul_floor(expected_zero_fee);
 
 			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, sell_amount, min_limit));
 
@@ -496,7 +496,7 @@ fn sell_should_work_when_trading_native_asset() {
 			assert_ok!(Omnipool::sell(Origin::signed(LP1), HDX, 200, sell_amount, min_limit));
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 950000000000000);
-			assert_eq!(Tokens::free_balance(200, &LP1), 53_471_964_352_024);
+			assert_eq!(Tokens::free_balance(200, &LP1), 53_471_964_352_023);
 			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
 			assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
@@ -504,7 +504,7 @@ fn sell_should_work_when_trading_native_asset() {
 			);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
-				1946528035647976
+				1946528035647977
 			);
 
 			let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
@@ -521,7 +521,7 @@ fn sell_should_work_when_trading_native_asset() {
 			assert_asset_state!(
 				200,
 				AssetReserveState {
-					reserve: 1946528035647976,
+					reserve: 1946528035647977,
 					hub_reserve: 1339800995024876,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
@@ -579,7 +579,7 @@ fn sell_imbalance() {
 				13410000000000000,
 				26720000000000000,
 				SimpleImbalance {
-					value: 98148148148148,
+					value: 974938271604939,
 					negative: true
 				}
 			);

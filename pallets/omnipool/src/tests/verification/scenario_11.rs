@@ -131,7 +131,7 @@ fn complex_scenario_works() {
 				14397521548574755,
 				28755043097149510,
 				SimpleImbalance {
-					value: 40258673773030,
+					value: 211796164152816,
 					negative: true
 				}
 			);
