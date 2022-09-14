@@ -122,7 +122,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: "polkadot".into(),
+			relay_chain: "rococo".into(),
 			para_id: PARA_ID,
 		},
 	))
