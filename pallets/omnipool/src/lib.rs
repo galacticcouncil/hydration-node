@@ -444,14 +444,14 @@ pub mod pallet {
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(stable_asset_hub_reserve))?;
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(native_asset_hub_reserve))?;
 
+			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
+			<Assets<T>>::insert(T::HdxAssetId::get(), native_asset_state);
+
 			Self::update_tvl(&BalanceUpdate::Increase(
 				native_asset_tvl
 					.checked_add(stable_asset_reserve)
 					.ok_or(ArithmeticError::Overflow)?,
 			))?;
-
-			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
-			<Assets<T>>::insert(T::HdxAssetId::get(), native_asset_state);
 
 			// Hub asset is not allowed to be bought from the pool
 			<HubAssetTradability<T>>::put(Tradability::SELL);
@@ -571,9 +571,9 @@ pub mod pallet {
 
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
-			Self::update_tvl(&BalanceUpdate::Increase(asset_tvl))?;
-
 			<Assets<T>>::insert(asset, state);
+
+			Self::update_tvl(&BalanceUpdate::Increase(asset_tvl))?;
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: asset,
@@ -703,11 +703,11 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::update_tvl(&state_changes.asset.delta_tvl)?;
-
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 			Self::set_asset_state(asset, new_asset_state);
+
+			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -813,8 +813,6 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::update_tvl(&state_changes.asset.delta_tvl)?;
-
 			// burn only difference between delta hub and lp hub amount.
 			Self::update_hub_asset_liquidity(
 				&state_changes
@@ -858,6 +856,8 @@ pub mod pallet {
 			}
 
 			Self::set_asset_state(asset_id, new_asset_state);
+
+			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				who,
@@ -1421,14 +1421,15 @@ impl<T: Config> Pallet<T> {
 	/// Update total tvl balance and check TVL cap if TVL increased.
 	#[require_transactional]
 	fn update_tvl(delta_tvl: &BalanceUpdate<Balance>) -> DispatchResult {
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let stable_asset = Self::stable_asset()?;
+
+		let updated_tvl = hydra_dx_math::omnipool::calculate_tvl(current_hub_asset_liquidity, stable_asset ).ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(updated_tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
+
 		<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-			match delta_tvl {
-				BalanceUpdate::Increase(amount) => {
-					*tvl = tvl.checked_add(*amount).ok_or(ArithmeticError::Overflow)?;
-					ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
-				}
-				BalanceUpdate::Decrease(amount) => *tvl = tvl.checked_sub(*amount).ok_or(ArithmeticError::Underflow)?,
-			}
+			*tvl = updated_tvl;
 			Ok(())
 		})
 	}
