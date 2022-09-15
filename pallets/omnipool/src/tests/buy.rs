@@ -324,7 +324,7 @@ fn buy_for_hub_asset_works() {
 				13393333333333334,
 				26786666666666668,
 				SimpleImbalance {
-					value: 661295833333340,
+					value: 661295833333341,
 					negative: true
 				}
 			);
