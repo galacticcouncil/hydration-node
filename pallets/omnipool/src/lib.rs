@@ -481,9 +481,6 @@ pub mod pallet {
 			weight_cap: Permill,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
-			//
-			// Preconditions
-			//
 			T::AddTokenOrigin::ensure_origin(origin)?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
@@ -499,15 +496,7 @@ pub mod pallet {
 				Error::<T>::MissingBalance
 			);
 
-			//
-			// Calculate state changes of add token
-			//
-
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
-
-			//
-			// Post - update states
-			//
 
 			// Initial state of asset
 			let state = AssetState::<Balance> {
@@ -538,11 +527,21 @@ pub mod pallet {
 				price: initial_price,
 			});
 
-			let delta_imbalance =
-				Self::recalculate_imbalance(&((&state, amount).into()), BalanceUpdate::Decrease(amount))
-					.ok_or(ArithmeticError::Overflow)?;
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
-			Self::update_imbalance(delta_imbalance)?;
+			let delta_imbalance = hydra_dx_math::omnipool::calculate_delta_imbalance(
+				hub_reserve,
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			Self::update_imbalance(BalanceUpdate::Decrease(delta_imbalance))?;
 
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
@@ -1362,27 +1361,6 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})
-	}
-
-	/// Recalculate imbalance based on current imbalance and hub liquidity
-	fn recalculate_imbalance(
-		asset_state: &AssetReserveState<Balance>,
-		delta_amount: BalanceUpdate<Balance>,
-	) -> Option<BalanceUpdate<Balance>> {
-		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
-
-		let delta_imbalance = hydra_dx_math::omnipool::calculate_delta_imbalance(
-			&(asset_state.into()),
-			*delta_amount,
-			current_imbalance.value,
-			current_hub_asset_liquidity,
-		)?;
-
-		match delta_amount {
-			BalanceUpdate::Increase(_) => Some(BalanceUpdate::Increase(delta_imbalance)),
-			BalanceUpdate::Decrease(_) => Some(BalanceUpdate::Decrease(delta_imbalance)),
-		}
 	}
 
 	/// Calculate new tvl balance and ensure that it is below TVL Cap.
