@@ -196,10 +196,6 @@ pub mod pallet {
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
 
 	#[pallet::storage]
-	/// Total TVL. It equals to sum of each asset's tvl in omnipool
-	pub(super) type TotalTVL<T: Config> = StorageValue<_, Balance, ValueQuery>;
-
-	#[pallet::storage]
 	/// Tradable state of hub asset.
 	pub(super) type HubAssetTradability<T: Config> = StorageValue<_, Tradability, ValueQuery>;
 
@@ -409,12 +405,6 @@ pub mod pallet {
 				.checked_mul_int(native_asset_reserve)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			let native_asset_tvl = hydra_dx_math::omnipool::calculate_asset_tvl(
-				native_asset_hub_reserve,
-				(stable_asset_reserve, stable_asset_hub_reserve),
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
 			// Create NFT class
 			T::NFTHandler::create_class(
 				&T::NFTClassId::get(),
@@ -427,7 +417,6 @@ pub mod pallet {
 				hub_reserve: stable_asset_hub_reserve,
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
-				tvl: stable_asset_reserve,
 				cap: FixedU128::from(stable_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
@@ -436,7 +425,6 @@ pub mod pallet {
 				hub_reserve: native_asset_hub_reserve,
 				shares: native_asset_reserve,
 				protocol_shares: native_asset_reserve,
-				tvl: native_asset_tvl,
 				cap: FixedU128::from(native_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
@@ -444,14 +432,10 @@ pub mod pallet {
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(stable_asset_hub_reserve))?;
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(native_asset_hub_reserve))?;
 
-			Self::update_tvl(&BalanceUpdate::Increase(
-				native_asset_tvl
-					.checked_add(stable_asset_reserve)
-					.ok_or(ArithmeticError::Overflow)?,
-			))?;
-
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
 			<Assets<T>>::insert(T::HdxAssetId::get(), native_asset_state);
+
+			Self::ensure_tvl_cap()?;
 
 			// Hub asset is not allowed to be bought from the pool
 			<HubAssetTradability<T>>::put(Tradability::SELL);
@@ -508,8 +492,6 @@ pub mod pallet {
 
 			ensure!(initial_price > FixedU128::zero(), Error::<T>::InvalidInitialAssetPrice);
 
-			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
-
 			let amount = T::Currency::free_balance(asset, &Self::protocol_account());
 
 			ensure!(
@@ -523,12 +505,6 @@ pub mod pallet {
 
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
-			let asset_tvl = hydra_dx_math::omnipool::calculate_asset_tvl(
-				hub_reserve,
-				(stable_asset_reserve, stable_asset_hub_reserve),
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
 			//
 			// Post - update states
 			//
@@ -538,7 +514,6 @@ pub mod pallet {
 				hub_reserve,
 				shares: amount,
 				protocol_shares: Balance::zero(),
-				tvl: asset_tvl,
 				cap: FixedU128::from(weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
@@ -571,9 +546,9 @@ pub mod pallet {
 
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
-			Self::update_tvl(&BalanceUpdate::Increase(asset_tvl))?;
-
 			<Assets<T>>::insert(asset, state);
+
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: asset,
@@ -606,7 +581,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			//
-			// Precondtions
+			// Preconditions
 			//
 			let who = ensure_signed(origin)?;
 
@@ -619,8 +594,6 @@ pub mod pallet {
 				T::Currency::ensure_can_withdraw(asset, &who, amount).is_ok(),
 				Error::<T>::InsufficientBalance
 			);
-
-			let stable_asset = Self::stable_asset()?;
 
 			let asset_state = Self::load_asset_state(asset)?;
 
@@ -639,8 +612,6 @@ pub mod pallet {
 			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
-				stable_asset,
-				asset == T::StableCoinAssetId::get(),
 				I129 {
 					value: current_imbalance.value,
 					negative: current_imbalance.negative,
@@ -703,11 +674,11 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::update_tvl(&state_changes.asset.delta_tvl)?;
-
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 			Self::set_asset_state(asset, new_asset_state);
+
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -755,8 +726,6 @@ pub mod pallet {
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
-			let stable_asset = Self::stable_asset()?;
-
 			let asset_id = position.asset_id;
 
 			let asset_state = Self::load_asset_state(asset_id)?;
@@ -778,8 +747,6 @@ pub mod pallet {
 				&(&asset_state).into(),
 				amount,
 				&(&position).into(),
-				stable_asset,
-				asset_id == T::StableCoinAssetId::get(),
 				I129 {
 					value: current_imbalance.value,
 					negative: current_imbalance.negative,
@@ -812,8 +779,6 @@ pub mod pallet {
 			)?;
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
-
-			Self::update_tvl(&state_changes.asset.delta_tvl)?;
 
 			// burn only difference between delta hub and lp hub amount.
 			Self::update_hub_asset_liquidity(
@@ -858,6 +823,8 @@ pub mod pallet {
 			}
 
 			Self::set_asset_state(asset_id, new_asset_state);
+
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				who,
@@ -1418,19 +1385,16 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Update total tvl balance and check TVL cap if TVL increased.
-	#[require_transactional]
-	fn update_tvl(delta_tvl: &BalanceUpdate<Balance>) -> DispatchResult {
-		<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-			match delta_tvl {
-				BalanceUpdate::Increase(amount) => {
-					*tvl = tvl.checked_add(*amount).ok_or(ArithmeticError::Overflow)?;
-					ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
-				}
-				BalanceUpdate::Decrease(amount) => *tvl = tvl.checked_sub(*amount).ok_or(ArithmeticError::Underflow)?,
-			}
-			Ok(())
-		})
+	/// Calculate new tvl balance and ensure that it is below TVL Cap.
+	fn ensure_tvl_cap() -> DispatchResult {
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let stable_asset = Self::stable_asset()?;
+
+		let updated_tvl = hydra_dx_math::omnipool::calculate_tvl(current_hub_asset_liquidity, stable_asset)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		ensure!(updated_tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
+		Ok(())
 	}
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.

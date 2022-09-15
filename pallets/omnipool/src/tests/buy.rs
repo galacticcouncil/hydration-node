@@ -48,7 +48,6 @@ fn simple_buy_works() {
 					hub_reserve: 1526666666666666,
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 3120 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -60,7 +59,6 @@ fn simple_buy_works() {
 					hub_reserve: 1333333333333334,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -281,7 +279,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -294,7 +291,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -307,7 +303,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 3120000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -320,7 +315,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 2600000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -328,7 +322,7 @@ fn buy_for_hub_asset_works() {
 
 			assert_pool_state!(
 				13393333333333334,
-				26720000000000000,
+				26786666666666668,
 				SimpleImbalance {
 					value: 661295833333340,
 					negative: true
@@ -551,7 +545,6 @@ fn buy_should_work_when_trading_native_asset() {
 					hub_reserve: 1337142857142858,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -563,7 +556,6 @@ fn buy_should_work_when_trading_native_asset() {
 					hub_reserve: 9962857142857142,
 					shares: 10000 * ONE,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

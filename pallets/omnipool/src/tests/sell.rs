@@ -53,7 +53,6 @@ fn simple_sell_works() {
 					hub_reserve: 1_528_163_265_306_123,
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 3120 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -65,7 +64,6 @@ fn simple_sell_works() {
 					hub_reserve: 1331836734693877,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -238,7 +236,6 @@ fn sell_hub_works() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -251,7 +248,6 @@ fn sell_hub_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -264,7 +260,6 @@ fn sell_hub_works() {
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 3120000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -277,7 +272,6 @@ fn sell_hub_works() {
 					hub_reserve: 1350000000000000,
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 2600000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -285,7 +279,7 @@ fn sell_hub_works() {
 
 			assert_pool_state!(
 				13410000000000000,
-				26720000000000000,
+				26820000000000000,
 				SimpleImbalance {
 					value: 974938271604939,
 					negative: true
@@ -525,7 +519,6 @@ fn sell_should_work_when_trading_native_asset() {
 					hub_reserve: 1339800995024876,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -537,7 +530,6 @@ fn sell_should_work_when_trading_native_asset() {
 					hub_reserve: 9960199004975124,
 					shares: 10000 * ONE,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -577,7 +569,7 @@ fn sell_imbalance() {
 
 			assert_pool_state!(
 				13410000000000000,
-				26720000000000000,
+				26820000000000000,
 				SimpleImbalance {
 					value: 974938271604939,
 					negative: true
