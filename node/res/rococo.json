@@ -3,9 +3,9 @@
   "id": "hydra_rococo",
   "chainType": "Live",
   "bootNodes": [
-    "/dns/p2p-01.hydra.hydradx.io/tcp/30333/p2p/12D3KooWCtBQpwnWV7yMaEyBRkcAcAej78Q2uZawk5RcDrYktVQS",
-    "/dns/p2p-02.hydra.hydradx.io/tcp/30333/p2p/12D3KooWLfojmwK6cAFDhzewCjUsyzYAKrpL4Ze42D1bLo8gvS4j",
-    "/dns/p2p-03.hydra.hydradx.io/tcp/30333/p2p/12D3KooWEuEVHGrntL4Anje1k9z85V7thwhgPd9WnX4EJP5i13Xc"
+    "/dns/rococo-hydradx-p2p01.hydration.dev/tcp/30333/p2p/12D3KooWCtBQpwnWV7yMaEyBRkcAcAej78Q2uZawk5RcDrYktVQS",
+    "/dns/rococo-hydradx-p2p02.hydration.dev/tcp/30333/p2p/12D3KooWLfojmwK6cAFDhzewCjUsyzYAKrpL4Ze42D1bLo8gvS4j",
+    "/dns/rococo-hydradx-p2p03.hydration.dev/tcp/30333/p2p/12D3KooWEuEVHGrntL4Anje1k9z85V7thwhgPd9WnX4EJP5i13Xc"
   ],
   "telemetryEndpoints": [
     [
