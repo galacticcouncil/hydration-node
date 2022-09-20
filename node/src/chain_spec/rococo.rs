@@ -4,7 +4,7 @@ use hex_literal::hex;
 use sc_telemetry::TelemetryEndpoints;
 
 // The URL for the telemetry server.
-const TELEMETRY_URLS: [&str; 2] = [
+const _TELEMETRY_URLS: [&str; 2] = [
 	"wss://telemetry.polkadot.io/submit/",
 	"wss://telemetry.hydradx.io:9000/submit/",
 ];
@@ -100,21 +100,21 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 		},
 		// Bootnodes
 		vec![
-			"/dns/p2p-01.hydra.hydradx.io/tcp/30333/p2p/12D3KooWCtBQpwnWV7yMaEyBRkcAcAej78Q2uZawk5RcDrYktVQS"
+			"/dns/rococo-hydradx-p2p01.hydration.dev/tcp/30333/p2p/12D3KooWCtBQpwnWV7yMaEyBRkcAcAej78Q2uZawk5RcDrYktVQS"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-02.hydra.hydradx.io/tcp/30333/p2p/12D3KooWLfojmwK6cAFDhzewCjUsyzYAKrpL4Ze42D1bLo8gvS4j"
+			"/dns/rococo-hydradx-p2p02.hydration.dev/tcp/30333/p2p/12D3KooWLfojmwK6cAFDhzewCjUsyzYAKrpL4Ze42D1bLo8gvS4j"
 				.parse()
 				.unwrap(),
-			"/dns/p2p-03.hydra.hydradx.io/tcp/30333/p2p/12D3KooWEuEVHGrntL4Anje1k9z85V7thwhgPd9WnX4EJP5i13Xc"
+			"/dns/rococo-hydradx-p2p03.hydration.dev/tcp/30333/p2p/12D3KooWEuEVHGrntL4Anje1k9z85V7thwhgPd9WnX4EJP5i13Xc"
 				.parse()
 				.unwrap(),
 		],
 		// Telemetry
 		Some(
 			TelemetryEndpoints::new(vec![
-				(TELEMETRY_URLS[0].to_string(), 0),
-				(TELEMETRY_URLS[1].to_string(), 0),
+				(_TELEMETRY_URLS[0].to_string(), 0),
+				(_TELEMETRY_URLS[1].to_string(), 0),
 			])
 			.expect("Telemetry url is valid"),
 		),
