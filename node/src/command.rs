@@ -178,28 +178,28 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, import_queue, task_manager) = new_partial(&config, true)?;
+				let (client, _backend, import_queue, task_manager) = new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, _import_queue, task_manager) = new_partial(&config, true)?;
+				let (client, _backend, _import_queue, task_manager) = new_partial(&config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		}
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, _import_queue, task_manager) = new_partial(&config, true)?;
+				let (client, _backend, _import_queue, task_manager) = new_partial(&config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		}
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _backend, import_queue, task_manager) = new_partial(&config, true)?;
+				let (client, _backend, import_queue, task_manager) = new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		}
@@ -223,7 +223,7 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, backend, _import_queue, task_manager) = new_partial(&config, true)?;
+				let (client, backend, _import_queue, task_manager) = new_partial(&config)?;
 				Ok((cmd.run(client, backend, None), task_manager))
 			})
 		}
@@ -244,11 +244,11 @@ pub fn run() -> sc_cli::Result<()> {
 					let partials = crate::service::new_partial_impl::<
 						hydradx_runtime::RuntimeApi,
 						service::HydraDXExecutorDispatch,
-					>(&config, false)?;
+					>(&config)?;
 					cmd.run(partials.client)
 				}),
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let (client, backend, _, _) = new_partial(&config, false)?;
+					let (client, backend, _, _) = new_partial(&config)?;
 					let db = backend.expose_db();
 					let storage = backend.expose_storage();
 

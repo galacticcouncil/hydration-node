@@ -35,7 +35,6 @@ use cumulus_relay_chain_rpc_interface::RelayChainRPCInterface;
 use jsonrpsee::RpcModule;
 use polkadot_service::CollatorPair;
 use sc_client_api::ExecutorProvider;
-use sc_consensus::LongestChain;
 use sc_executor::{NativeElseWasmExecutor, NativeExecutionDispatch, NativeVersion};
 use sc_network::NetworkService;
 use sc_service::{ChainSpec, Configuration, PartialComponents, Role, TFullBackend, TFullClient, TaskManager};
@@ -79,7 +78,6 @@ impl sc_executor::NativeExecutionDispatch for TestingHydraDXExecutorDispatch {
 pub type FullBackend = TFullBackend<Block>;
 pub type FullClient<RuntimeApi, ExecutorDispatch> =
 	TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
-type MaybeFullSelectChain = Option<LongestChain<FullBackend, Block>>;
 
 /// Can be called for a `Configuration` to check what node it belongs to.
 pub trait IdentifyVariant {
@@ -138,7 +136,6 @@ where
 
 pub fn new_partial(
 	config: &Configuration,
-	instant_seal: bool,
 ) -> Result<
 	(
 		Arc<Client>,
@@ -155,7 +152,7 @@ pub fn new_partial(
 			import_queue,
 			task_manager,
 			..
-		} = new_partial_impl::<testing_hydradx_runtime::RuntimeApi, TestingHydraDXExecutorDispatch>(config, instant_seal)?;
+		} = new_partial_impl::<testing_hydradx_runtime::RuntimeApi, TestingHydraDXExecutorDispatch>(config)?;
 		Ok((
 			Arc::new(Client::TestingHydraDX(client)),
 			backend,
@@ -169,19 +166,18 @@ pub fn new_partial(
 			import_queue,
 			task_manager,
 			..
-		} = new_partial_impl::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(config, instant_seal)?;
+		} = new_partial_impl::<hydradx_runtime::RuntimeApi, HydraDXExecutorDispatch>(config)?;
 		Ok((Arc::new(Client::HydraDX(client)), backend, import_queue, task_manager))
 	}
 }
 
 pub fn new_partial_impl<RuntimeApi, Executor>(
 	config: &Configuration,
-	instant_seal: bool,
 ) -> Result<
 	PartialComponents<
 		FullClient<RuntimeApi, Executor>,
 		FullBackend,
-		MaybeFullSelectChain,
+		(),
 		sc_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
 		sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi, Executor>>,
 		(Option<Telemetry>, Option<TelemetryWorkerHandle>),
@@ -237,27 +233,12 @@ where
 		client.clone(),
 	);
 
-	let select_chain = if instant_seal {
-		Some(LongestChain::new(backend.clone()))
-	} else {
-		None
-	};
-
-	let import_queue = if instant_seal {
-		// instance sealing
-		sc_consensus_manual_seal::import_queue(
-			Box::new(client.clone()),
-			&task_manager.spawn_essential_handle(),
-			registry,
-		)
-	} else {
-		parachain_build_import_queue::<RuntimeApi, Executor>(
-			client.clone(),
-			config,
-			telemetry.as_ref().map(|telemetry| telemetry.handle()),
-			&task_manager,
-		)?
-	};
+	let import_queue = parachain_build_import_queue::<RuntimeApi, Executor>(
+		client.clone(),
+		config,
+		telemetry.as_ref().map(|telemetry| telemetry.handle()),
+		&task_manager,
+	)?;
 
 	Ok(PartialComponents {
 		client,
@@ -266,7 +247,7 @@ where
 		task_manager,
 		keystore_container,
 		transaction_pool,
-		select_chain,
+		select_chain: (),
 		other: (telemetry, telemetry_worker_handle),
 	})
 }
@@ -329,7 +310,7 @@ where
 
 	let parachain_config = prepare_node_config(parachain_config);
 
-	let params = new_partial_impl(&parachain_config, false)?;
+	let params = new_partial_impl(&parachain_config)?;
 	let (mut telemetry, telemetry_worker_handle) = params.other;
 	let client = params.client.clone();
 	let backend = params.backend.clone();
@@ -374,7 +355,6 @@ where
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				deny_unsafe,
-				command_sink: None,
 			};
 
 			crate::rpc::create_full(deps).map_err(Into::into)
