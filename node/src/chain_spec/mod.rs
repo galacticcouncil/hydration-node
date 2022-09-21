@@ -20,6 +20,7 @@
 
 pub mod hydradx;
 pub mod local;
+pub mod rococo;
 pub mod staging;
 
 use cumulus_primitives_core::ParaId;
