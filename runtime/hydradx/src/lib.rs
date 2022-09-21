@@ -59,7 +59,7 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
 pub use common_runtime::*;
-use orml_currencies::BasicCurrencyAdapter;
+use pallet_currencies::BasicCurrencyAdapter;
 
 mod benchmarking;
 mod xcm;
@@ -574,13 +574,6 @@ impl orml_tokens::Config for Runtime {
 	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
 }
 
-impl orml_currencies::Config for Runtime {
-	type MultiCurrency = Tokens;
-	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
-	type GetNativeCurrencyId = NativeAssetId;
-	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
-}
-
 pub struct RootAsVestingPallet;
 impl EnsureOrigin<Origin> for RootAsVestingPallet {
 	type Success = AccountId;
@@ -729,6 +722,14 @@ impl pallet_relaychain_info::Config for Runtime {
 	type RelaychainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 }
 
+impl pallet_currencies::Config for Runtime {
+	type Event = Event;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type GetNativeCurrencyId = NativeAssetId;
+	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const RewardPerCollator: Balance = 455_371_584_699_000; // 83333 HDX / 183 sessions
 	//GalacticCouncil collators
@@ -791,7 +792,7 @@ construct_runtime!(
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
-		Currencies: orml_currencies = 79,
+		Currencies: pallet_currencies = 79,
 		Vesting: orml_vesting = 81,
 
 		// Parachain
@@ -1009,7 +1010,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
 
-			orml_list_benchmark!(list, extra, orml_currencies, benchmarking::currencies);
+			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
 			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
 			orml_list_benchmark!(list, extra, pallet_transaction_multi_payment, benchmarking::multi_payment);
@@ -1062,7 +1063,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 
-			orml_add_benchmark!(params, batches, orml_currencies, benchmarking::currencies);
+			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
 			orml_add_benchmark!(params, batches, orml_vesting, benchmarking::vesting);
 			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);

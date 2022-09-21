@@ -63,7 +63,7 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
 pub use common_runtime::*;
-use orml_currencies::BasicCurrencyAdapter;
+use pallet_currencies::BasicCurrencyAdapter;
 
 mod xcm;
 
@@ -570,13 +570,6 @@ impl orml_tokens::Config for Runtime {
 	type OnKilledTokenAccount = RemoveTxAssetOnKilled<Runtime>;
 }
 
-impl orml_currencies::Config for Runtime {
-	type MultiCurrency = Tokens;
-	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
-	type GetNativeCurrencyId = NativeAssetId;
-	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
-}
-
 pub struct RootAsVestingPallet;
 impl EnsureOrigin<Origin> for RootAsVestingPallet {
 	type Success = AccountId;
@@ -746,6 +739,14 @@ impl pallet_collator_rewards::Config for Runtime {
 	// We wrap the ` SessionManager` implementation of `CollatorSelection` to get the collatrs that
 	// we hand out rewards to.
 	type SessionManager = CollatorSelection;
+}
+
+impl pallet_currencies::Config for Runtime {
+	type Event = Event;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type GetNativeCurrencyId = NativeAssetId;
+	type WeightInfo = weights::currencies::HydraWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

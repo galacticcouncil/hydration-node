@@ -52,9 +52,9 @@ pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse",
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "552f867fc61fcdb4eb2df2f4e9256ed3f329a58a", default-features = false}
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "552f867fc61fcdb4eb2df2f4e9256ed3f329a58a", default-features = false}
 pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse", rev = "552f867fc61fcdb4eb2df2f4e9256ed3f329a58a", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "552f867fc61fcdb4eb2df2f4e9256ed3f329a58a", default-features = false}
 
 # ORML dependencies
-orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8", default-features = false }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8", default-features = false }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8", default-features = false }
@@ -159,7 +159,6 @@ std = [
     "polkadot-xcm/std",
     "xcm-executor/std",
     "xcm-builder/std",
-    "orml-currencies/std",
     "orml-tokens/std",
     "orml-traits/std",
     "orml-vesting/std",
@@ -189,6 +188,7 @@ std = [
     "pallet-collator-selection/std",
     "pallet-authorship/std",
     "pallet-utility/std",
+    "pallet-currencies/std",
     "hydradx-traits/std",
     "pallet-transaction-multi-payment/std",
     "pallet-genesis-history/std",
