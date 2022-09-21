@@ -96,7 +96,7 @@ pub type MoreThanHalfTechCommittee = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 >;
 
-pub type EnsureSuperMajorityTechCommittee = EitherOfDiverse<
+pub type SuperMajorityTechCommittee = EitherOfDiverse<
 	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 2, 3>,
 	EnsureRoot<AccountId>,
 >;

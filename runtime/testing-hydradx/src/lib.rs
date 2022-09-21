@@ -682,7 +682,7 @@ parameter_types! {
 
 impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
-	type AcceptedCurrencyOrigin = EnsureSuperMajorityTechCommittee;
+	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type SpotPriceProvider = NoSpotPriceProvider;
 	type WeightInfo = weights::transaction_multi_payment::HydraWeight<Runtime>;
@@ -703,7 +703,7 @@ impl Default for AssetLocation {
 
 impl pallet_asset_registry::Config for Runtime {
 	type Event = Event;
-	type RegistryOrigin = EnsureSuperMajorityTechCommittee;
+	type RegistryOrigin = SuperMajorityTechCommittee;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
