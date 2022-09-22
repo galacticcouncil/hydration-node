@@ -52,7 +52,7 @@ use frame_support::{
 	},
 };
 use hydradx_traits::pools::SpotPriceProvider;
-use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
+use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::Price;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -293,7 +293,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
-	type OnChargeTransaction = pallet_transaction_multi_payment::WithdrawFees<Balances, (), MultiTransactionPayment>;
+	type OnChargeTransaction = TransferFees<Currencies, MultiTransactionPayment, DepositAll<Runtime>>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
