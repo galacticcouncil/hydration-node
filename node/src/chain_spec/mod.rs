@@ -17,6 +17,7 @@
 
 #![allow(clippy::or_fun_call)]
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::derive_partial_eq_without_eq)] //Needed due to bug 'https://github.com/rust-lang/rust-clippy/issues/8867'
 
 pub mod hydradx;
 pub mod local;
@@ -46,7 +47,7 @@ const PROTOCOL_ID: &str = "hdx";
 const STASH: Balance = 100 * UNITS;
 
 /// The extensions for the [`ChainSpec`].
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ChainSpecExtension, ChainSpecGroup)]
 #[serde(deny_unknown_fields)]
 pub struct Extensions {
 	/// The relay chain of the Parachain.

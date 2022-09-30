@@ -248,6 +248,8 @@ parameter_types! {
 	pub const DesiredMembers: u32 = 13;
 	pub const DesiredRunnersUp: u32 = 15;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
+	pub const MaxElectionCandidates: u32 = 1_000;
+	pub const MaxElectionVoters: u32 = 10_000;
 }
 
 // pallet tips
