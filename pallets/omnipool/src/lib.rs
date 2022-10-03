@@ -1323,6 +1323,14 @@ pub mod pallet {
 			if T::HdxAssetId::get() == T::StableCoinAssetId::get() {
 				panic!("Same Hdx asset id and stable asset id.");
 			}
+
+			if T::MaxInRatio::get() == Balance::zero() {
+				panic!("MaxInRatio is zero.");
+			}
+
+			if T::MaxOutRatio::get() == Balance::zero() {
+				panic!("MaxOutRatio is zero.");
+			}
 		}
 	}
 }
