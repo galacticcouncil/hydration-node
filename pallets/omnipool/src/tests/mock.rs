@@ -66,6 +66,8 @@ thread_local! {
 	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
+	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 }
 
 construct_runtime!(
@@ -149,6 +151,8 @@ parameter_types! {
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
+	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
+	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
 }
 
@@ -171,6 +175,8 @@ impl Config for Test {
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
 }
 
 pub struct ExtBuilder {
