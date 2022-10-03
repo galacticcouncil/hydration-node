@@ -235,7 +235,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			));
 			assert_balance!(Omnipool::protocol_account(), 1000, 40 * ONE);
 			assert_balance!(LP1, 1000, 4_760_000_000_000_000);
-			assert_balance!(LP1, LRNA, 470_689_655_172_414);
+			assert_balance!(LP1, LRNA, 470_689_655_172_412);
 
 			assert_pool_state!(10175000000000000, 32560000000005210414, SimpleImbalance::default());
 		});
