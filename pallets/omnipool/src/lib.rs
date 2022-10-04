@@ -1312,25 +1312,23 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn integrity_test() {
-			if T::MinimumPoolLiquidity::get() == Balance::zero() {
-				panic!("Minimum pool liquidity cannot be 0.");
-			}
-
-			if T::MinimumTradingLimit::get() == Balance::zero() {
-				panic!("Minimum trade limit cannot be 0.");
-			}
-
-			if T::HdxAssetId::get() == T::StableCoinAssetId::get() {
-				panic!("Same Hdx asset id and stable asset id.");
-			}
-
-			if T::MaxInRatio::get() == Balance::zero() {
-				panic!("MaxInRatio is zero.");
-			}
-
-			if T::MaxOutRatio::get() == Balance::zero() {
-				panic!("MaxOutRatio is zero.");
-			}
+			assert_ne!(
+				T::MinimumPoolLiquidity::get(),
+				Balance::zero(),
+				"Minimum pool liquidity is 0."
+			);
+			assert_ne!(
+				T::MinimumTradingLimit::get(),
+				Balance::zero(),
+				"Minimum trading limit is 0."
+			);
+			assert_ne!(
+				T::HdxAssetId::get(),
+				T::StableCoinAssetId::get(),
+				"Same Hdx asset id and stable asset id."
+			);
+			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
+			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
 		}
 	}
 }
