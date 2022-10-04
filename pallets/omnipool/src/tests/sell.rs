@@ -579,3 +579,99 @@ fn sell_imbalance() {
 			assert_ok!(Omnipool::sell(Origin::signed(LP3), 200, 100, 1000000000000, 1,));
 		});
 }
+
+#[test]
+fn sell_should_fail_when_exceeds_max_in_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_max_in_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
+				Error::<Test>::MaxInRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_should_fail_when_exceeds_max_out_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(1.00), LP3, 100 * ONE)
+		.with_max_out_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
+				Error::<Test>::MaxOutRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_lrna_should_fail_when_exceeds_max_in_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, LRNA, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_max_in_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), LRNA, 100, 1000 * ONE, 0u128),
+				Error::<Test>::MaxInRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, LRNA, 1500 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_max_out_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), LRNA, 100, 1500 * ONE, 0u128),
+				Error::<Test>::MaxOutRatioExceeded
+			);
+		});
+}
