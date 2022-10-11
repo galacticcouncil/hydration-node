@@ -17,8 +17,7 @@
 
 use crate::mock::*;
 use crate::{
-	Claims, EcdsaSignature, Error, error_to_invalid, EthereumAddress, SignedExtension,
-	ValidTransaction, ValidateClaim,
+	error_to_invalid, Claims, EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransaction, ValidateClaim,
 };
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
