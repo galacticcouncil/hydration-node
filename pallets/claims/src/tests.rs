@@ -17,23 +17,13 @@
 
 use crate::mock::*;
 use crate::{
-	Claims, Config, EcdsaSignature, Error, EthereumAddress, InvalidTransaction, ModuleError, SignedExtension,
+	Claims, EcdsaSignature, Error, error_to_invalid, EthereumAddress, SignedExtension,
 	ValidTransaction, ValidateClaim,
 };
-use frame_support::dispatch::{DispatchError, DispatchInfo};
+use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
 use sp_std::marker::PhantomData;
-
-/// convert an Error to a custom InvalidTransaction with the inner code being the error
-/// number.
-pub fn error_to_invalid<T: Config>(error: Error<T>) -> InvalidTransaction {
-	let error_number = match error.into() {
-		DispatchError::Module(ModuleError { error, .. }) => error[0],
-		_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
-	};
-	InvalidTransaction::Custom(error_number)
-}
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();

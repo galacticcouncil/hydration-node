@@ -278,22 +278,22 @@ async fn build_relay_chain_interface(
 /// Start a node with the given parachain `Configuration` and relay chain `Configuration`.
 ///
 /// This is the actual implementation that is abstract over the executor and the runtime api.
-async fn start_node_impl<RB, RuntimeApi, Executor, BIC>(
+async fn start_node_impl<RpcBuilder, RuntimeApi, Executor, ConsensusBuilder>(
 	parachain_config: Configuration,
 	polkadot_config: Configuration,
 	collator_options: CollatorOptions,
 	para_id: ParaId,
-	_rpc_ext_builder: RB,
-	build_consensus: BIC,
+	_rpc_ext_builder: RpcBuilder,
+	build_consensus: ConsensusBuilder,
 ) -> sc_service::error::Result<NewFull<Arc<FullClient<RuntimeApi, Executor>>>>
 where
-	RB: Fn(Arc<FullClient<RuntimeApi, Executor>>) -> Result<RpcModule<()>, sc_service::Error> + Send + 'static,
+	RpcBuilder: Fn(Arc<FullClient<RuntimeApi, Executor>>) -> Result<RpcModule<()>, sc_service::Error> + Send + 'static,
 	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, Executor>> + Send + Sync + 'static,
 	RuntimeApi::RuntimeApi: RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
 	RuntimeApi::RuntimeApi: CollectCollationInfo<Block>,
 	RuntimeApi::RuntimeApi: sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
 	Executor: NativeExecutionDispatch + 'static,
-	BIC: FnOnce(
+	ConsensusBuilder: FnOnce(
 		Arc<FullClient<RuntimeApi, Executor>>,
 		Option<&Registry>,
 		Option<TelemetryHandle>,
