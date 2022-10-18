@@ -185,10 +185,7 @@ impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
 		match id {
 			CORE_ASSET_ID => Some(MultiLocation::new(
 				1,
-				X2(
-					Parachain(ParachainInfo::get().into()),
-					GeneralIndex(id.into()),
-				),
+				X2(Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())),
 			)),
 			_ => {
 				if let Some(loc) = AssetRegistry::asset_to_location(id) {
