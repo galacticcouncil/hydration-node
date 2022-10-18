@@ -1,6 +1,6 @@
 use super::{AssetId, *};
 
-use codec::{Decode, Encode};
+use codec::Decode;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	traits::{Everything, Nothing},
@@ -187,7 +187,7 @@ impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
 				1,
 				X2(
 					Parachain(ParachainInfo::get().into()),
-					GeneralKey(id.encode().try_into().unwrap()),
+					GeneralIndex(id.into()),
 				),
 			)),
 			_ => {
