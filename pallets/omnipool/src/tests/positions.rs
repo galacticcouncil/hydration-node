@@ -34,7 +34,6 @@ fn sacrifice_position_should_work_when_position_exists_with_correct_owner() {
 					hub_reserve: 1560 * ONE,
 					shares: 2400 * ONE,
 					protocol_shares: 400 * ONE,
-					tvl: 3120 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

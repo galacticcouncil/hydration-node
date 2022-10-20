@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::BalanceUpdate;
+use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -106,7 +106,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use hydra_dx_math::omnipool::types::BalanceUpdate;
+	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -172,6 +172,14 @@ pub mod pallet {
 		#[pallet::constant]
 		type MinimumPoolLiquidity: Get<Balance>;
 
+		/// Max fraction of asset reserve to sell in single transaction
+		#[pallet::constant]
+		type MaxInRatio: Get<u128>;
+
+		/// Max fraction of asset reserve to buy in single transaction
+		#[pallet::constant]
+		type MaxOutRatio: Get<u128>;
+
 		/// Position identifier type
 		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
 
@@ -194,10 +202,6 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Imbalance of hub asset
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
-
-	#[pallet::storage]
-	/// Total TVL. It equals to sum of each asset's tvl in omnipool
-	pub(super) type TotalTVL<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::storage]
 	/// Tradable state of hub asset.
@@ -339,6 +343,10 @@ pub mod pallet {
 		InvalidHubAssetTradableState,
 		/// Asset is not allowed to be refunded.
 		AssetRefundNotAllowed,
+		/// Max fraction of asset reserve to buy has been exceeded.
+		MaxOutRatioExceeded,
+		/// Max fraction of asset reserve to sell has been exceeded.
+		MaxInRatioExceeded,
 	}
 
 	#[pallet::call]
@@ -409,12 +417,6 @@ pub mod pallet {
 				.checked_mul_int(native_asset_reserve)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			let native_asset_tvl = hydra_dx_math::omnipool::calculate_asset_tvl(
-				native_asset_hub_reserve,
-				(stable_asset_reserve, stable_asset_hub_reserve),
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
 			// Create NFT class
 			T::NFTHandler::create_class(
 				&T::NFTClassId::get(),
@@ -427,7 +429,6 @@ pub mod pallet {
 				hub_reserve: stable_asset_hub_reserve,
 				shares: stable_asset_reserve,
 				protocol_shares: stable_asset_reserve,
-				tvl: stable_asset_reserve,
 				cap: FixedU128::from(stable_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
@@ -436,7 +437,6 @@ pub mod pallet {
 				hub_reserve: native_asset_hub_reserve,
 				shares: native_asset_reserve,
 				protocol_shares: native_asset_reserve,
-				tvl: native_asset_tvl,
 				cap: FixedU128::from(native_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
@@ -444,14 +444,10 @@ pub mod pallet {
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(stable_asset_hub_reserve))?;
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(native_asset_hub_reserve))?;
 
-			Self::update_tvl(&BalanceUpdate::Increase(
-				native_asset_tvl
-					.checked_add(stable_asset_reserve)
-					.ok_or(ArithmeticError::Overflow)?,
-			))?;
-
 			<Assets<T>>::insert(T::StableCoinAssetId::get(), stable_asset_state);
 			<Assets<T>>::insert(T::HdxAssetId::get(), native_asset_state);
+
+			Self::ensure_tvl_cap()?;
 
 			// Hub asset is not allowed to be bought from the pool
 			<HubAssetTradability<T>>::put(Tradability::SELL);
@@ -497,9 +493,6 @@ pub mod pallet {
 			weight_cap: Permill,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
-			//
-			// Preconditions
-			//
 			T::AddTokenOrigin::ensure_origin(origin)?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
@@ -508,8 +501,6 @@ pub mod pallet {
 
 			ensure!(initial_price > FixedU128::zero(), Error::<T>::InvalidInitialAssetPrice);
 
-			let (stable_asset_reserve, stable_asset_hub_reserve) = Self::stable_asset()?;
-
 			let amount = T::Currency::free_balance(asset, &Self::protocol_account());
 
 			ensure!(
@@ -517,28 +508,13 @@ pub mod pallet {
 				Error::<T>::MissingBalance
 			);
 
-			//
-			// Calculate state changes of add token
-			//
-
 			let hub_reserve = initial_price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
-
-			let asset_tvl = hydra_dx_math::omnipool::calculate_asset_tvl(
-				hub_reserve,
-				(stable_asset_reserve, stable_asset_hub_reserve),
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-			//
-			// Post - update states
-			//
 
 			// Initial state of asset
 			let state = AssetState::<Balance> {
 				hub_reserve,
 				shares: amount,
 				protocol_shares: Balance::zero(),
-				tvl: asset_tvl,
 				cap: FixedU128::from(weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
@@ -563,17 +539,27 @@ pub mod pallet {
 				price: initial_price,
 			});
 
-			let delta_imbalance =
-				Self::recalculate_imbalance(&((&state, amount).into()), BalanceUpdate::Decrease(amount))
-					.ok_or(ArithmeticError::Overflow)?;
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
-			Self::update_imbalance(delta_imbalance)?;
+			let delta_imbalance = hydra_dx_math::omnipool::calculate_delta_imbalance(
+				hub_reserve,
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			Self::update_imbalance(BalanceUpdate::Decrease(delta_imbalance))?;
 
 			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
 
-			Self::update_tvl(&BalanceUpdate::Increase(asset_tvl))?;
-
 			<Assets<T>>::insert(asset, state);
+
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::TokenAdded {
 				asset_id: asset,
@@ -606,7 +592,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			//
-			// Precondtions
+			// Preconditions
 			//
 			let who = ensure_signed(origin)?;
 
@@ -620,8 +606,6 @@ pub mod pallet {
 				Error::<T>::InsufficientBalance
 			);
 
-			let stable_asset = Self::stable_asset()?;
-
 			let asset_state = Self::load_asset_state(asset)?;
 
 			ensure!(
@@ -629,14 +613,21 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 			//
 			// Calculate add liquidity state changes
 			//
 			let state_changes = hydra_dx_math::omnipool::calculate_add_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
-				stable_asset,
-				asset == T::StableCoinAssetId::get(),
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -692,15 +683,13 @@ pub mod pallet {
 				*state_changes.asset.delta_reserve,
 			)?;
 
-			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
-				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(delta_imbalance)?;
-
-			Self::update_tvl(&state_changes.asset.delta_tvl)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
 			Self::set_asset_state(asset, new_asset_state);
+
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -748,8 +737,6 @@ pub mod pallet {
 
 			ensure!(position.shares >= amount, Error::<T>::InsufficientShares);
 
-			let stable_asset = Self::stable_asset()?;
-
 			let asset_id = position.asset_id;
 
 			let asset_state = Self::load_asset_state(asset_id)?;
@@ -759,6 +746,10 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			let current_imbalance = <HubAssetImbalance<T>>::get();
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 			//
 			// calculate state changes of remove liquidity
 			//
@@ -767,8 +758,11 @@ pub mod pallet {
 				&(&asset_state).into(),
 				amount,
 				&(&position).into(),
-				stable_asset,
-				asset_id == T::StableCoinAssetId::get(),
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -795,11 +789,7 @@ pub mod pallet {
 				*state_changes.asset.delta_reserve,
 			)?;
 
-			let delta_imbalance = Self::recalculate_imbalance(&new_asset_state, state_changes.delta_imbalance)
-				.ok_or(ArithmeticError::Overflow)?;
-			Self::update_imbalance(delta_imbalance)?;
-
-			Self::update_tvl(&state_changes.asset.delta_tvl)?;
+			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			// burn only difference between delta hub and lp hub amount.
 			Self::update_hub_asset_liquidity(
@@ -844,6 +834,8 @@ pub mod pallet {
 			}
 
 			Self::set_asset_state(asset_id, new_asset_state);
+
+			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				who,
@@ -954,6 +946,15 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			ensure!(
+				amount
+					<= asset_in_state
+						.reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+				Error::<T>::MaxInRatioExceeded
+			);
+
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
@@ -969,6 +970,15 @@ pub mod pallet {
 			ensure!(
 				*state_changes.asset_out.delta_reserve >= min_buy_amount,
 				Error::<T>::BuyLimitNotReached
+			);
+
+			ensure!(
+				*state_changes.asset_out.delta_reserve
+					<= asset_out_state
+						.reserve
+						.checked_div(T::MaxOutRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxOutRatio is zero.
+				Error::<T>::MaxOutRatioExceeded
 			);
 
 			let new_asset_in_state = asset_in_state
@@ -1088,6 +1098,15 @@ pub mod pallet {
 
 			ensure!(asset_out_state.reserve >= amount, Error::<T>::InsufficientLiquidity);
 
+			ensure!(
+				amount
+					<= asset_out_state
+						.reserve
+						.checked_div(T::MaxOutRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxOutRatio is zero.
+				Error::<T>::MaxOutRatioExceeded
+			);
+
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
 			let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
@@ -1108,6 +1127,15 @@ pub mod pallet {
 			ensure!(
 				*state_changes.asset_in.delta_reserve <= max_sell_amount,
 				Error::<T>::SellLimitExceeded
+			);
+
+			ensure!(
+				*state_changes.asset_in.delta_reserve
+					<= asset_in_state
+						.reserve
+						.checked_div(T::MaxInRatio::get())
+						.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+				Error::<T>::MaxInRatioExceeded
 			);
 
 			let new_asset_in_state = asset_in_state
@@ -1284,17 +1312,23 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn integrity_test() {
-			if T::MinimumPoolLiquidity::get() == Balance::zero() {
-				panic!("Minimum pool liquidity cannot be 0.");
-			}
-
-			if T::MinimumTradingLimit::get() == Balance::zero() {
-				panic!("Minimum trade limit cannot be 0.");
-			}
-
-			if T::HdxAssetId::get() == T::StableCoinAssetId::get() {
-				panic!("Same Hdx asset id and stable asset id.");
-			}
+			assert_ne!(
+				T::MinimumPoolLiquidity::get(),
+				Balance::zero(),
+				"Minimum pool liquidity is 0."
+			);
+			assert_ne!(
+				T::MinimumTradingLimit::get(),
+				Balance::zero(),
+				"Minimum trading limit is 0."
+			);
+			assert_ne!(
+				T::HdxAssetId::get(),
+				T::StableCoinAssetId::get(),
+				"Same Hdx asset id and stable asset id."
+			);
+			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
+			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
 		}
 	}
 }
@@ -1383,40 +1417,16 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// Recalculate imbalance based on current imbalance and hub liquidity
-	fn recalculate_imbalance(
-		asset_state: &AssetReserveState<Balance>,
-		delta_amount: BalanceUpdate<Balance>,
-	) -> Option<BalanceUpdate<Balance>> {
-		let current_imbalance = <HubAssetImbalance<T>>::get();
+	/// Calculate new tvl balance and ensure that it is below TVL Cap.
+	fn ensure_tvl_cap() -> DispatchResult {
 		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let stable_asset = Self::stable_asset()?;
 
-		let delta_imbalance = hydra_dx_math::omnipool::calculate_delta_imbalance(
-			&(asset_state.into()),
-			*delta_amount,
-			current_imbalance.value,
-			current_hub_asset_liquidity,
-		)?;
+		let updated_tvl = hydra_dx_math::omnipool::calculate_tvl(current_hub_asset_liquidity, stable_asset)
+			.ok_or(ArithmeticError::Overflow)?;
 
-		match delta_amount {
-			BalanceUpdate::Increase(_) => Some(BalanceUpdate::Increase(delta_imbalance)),
-			BalanceUpdate::Decrease(_) => Some(BalanceUpdate::Decrease(delta_imbalance)),
-		}
-	}
-
-	/// Update total tvl balance and check TVL cap if TVL increased.
-	#[require_transactional]
-	fn update_tvl(delta_tvl: &BalanceUpdate<Balance>) -> DispatchResult {
-		<TotalTVL<T>>::try_mutate(|tvl| -> DispatchResult {
-			match delta_tvl {
-				BalanceUpdate::Increase(amount) => {
-					*tvl = tvl.checked_add(*amount).ok_or(ArithmeticError::Overflow)?;
-					ensure!(*tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
-				}
-				BalanceUpdate::Decrease(amount) => *tvl = tvl.checked_sub(*amount).ok_or(ArithmeticError::Underflow)?,
-			}
-			Ok(())
-		})
+		ensure!(updated_tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
+		Ok(())
 	}
 
 	/// Check if assets can be traded - asset_in must be allowed to be sold and asset_out allowed to be bought.
@@ -1432,17 +1442,30 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		let asset_out_state = Self::load_asset_state(asset_out)?;
+		let asset_state = Self::load_asset_state(asset_out)?;
 
+		ensure!(asset_state.tradable.contains(Tradability::BUY), Error::<T>::NotAllowed);
 		ensure!(
-			asset_out_state.tradable.contains(Tradability::BUY),
-			Error::<T>::NotAllowed
+			amount
+				<= asset_state
+					.hub_reserve
+					.checked_div(T::MaxInRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxInRatioExceeded
 		);
 
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
-			&(&asset_out_state).into(),
+			&(&asset_state).into(),
 			amount,
 			T::AssetFee::get(),
+			I129 {
+				value: current_imbalance.value,
+				negative: current_imbalance.negative,
+			},
+			current_hub_asset_liquidity,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1451,7 +1474,16 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::BuyLimitNotReached
 		);
 
-		let new_asset_out_state = asset_out_state
+		ensure!(
+			*state_changes.asset.delta_reserve
+				<= asset_state
+					.reserve
+					.checked_div(T::MaxOutRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxOutRatioExceeded
+		);
+
+		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1497,17 +1529,31 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::NotAllowed
 		);
 
-		let asset_out_state = Self::load_asset_state(asset_out)?;
+		let asset_state = Self::load_asset_state(asset_out)?;
+
+		ensure!(asset_state.tradable.contains(Tradability::BUY), Error::<T>::NotAllowed);
 
 		ensure!(
-			asset_out_state.tradable.contains(Tradability::BUY),
-			Error::<T>::NotAllowed
+			amount
+				<= asset_state
+					.reserve
+					.checked_div(T::MaxOutRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxOutRatioExceeded
 		);
 
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
-			&(&asset_out_state).into(),
+			&(&asset_state).into(),
 			amount,
 			T::AssetFee::get(),
+			I129 {
+				value: current_imbalance.value,
+				negative: current_imbalance.negative,
+			},
+			current_hub_asset_liquidity,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
@@ -1516,7 +1562,16 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::SellLimitExceeded
 		);
 
-		let new_asset_out_state = asset_out_state
+		ensure!(
+			*state_changes.asset.delta_hub_reserve
+				<= asset_state
+					.hub_reserve
+					.checked_div(T::MaxInRatio::get())
+					.ok_or(ArithmeticError::DivisionByZero)?, // Note: this can only fail if MaxInRatio is zero.
+			Error::<T>::MaxInRatioExceeded
+		);
+
+		let new_asset_out_state = asset_state
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 

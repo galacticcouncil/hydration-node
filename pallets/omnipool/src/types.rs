@@ -61,8 +61,6 @@ pub struct AssetState<Balance> {
 	pub(super) shares: Balance,
 	/// Quantity of LP shares for this asset owned by protocol
 	pub(super) protocol_shares: Balance,
-	/// TVL of asset
-	pub(super) tvl: Balance,
 	/// Asset's weight cap
 	/// Note: this should be Permill or FixedU128. But neither implements MaxEncodedLen in 0.9.16.
 	/// TODO: upgrade to 0.9.17 resolves this.
@@ -80,7 +78,6 @@ where
 			hub_reserve: s.hub_reserve,
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
-			tvl: s.tvl,
 			cap: s.cap,
 			tradable: s.tradable,
 		}
@@ -222,8 +219,6 @@ pub struct AssetReserveState<Balance> {
 	pub(crate) shares: Balance,
 	/// Quantity of LP shares for this asset owned by protocol
 	pub(crate) protocol_shares: Balance,
-	/// TVL of asset
-	pub(crate) tvl: Balance,
 	/// Asset's weight cap
 	pub(super) cap: u128,
 	/// Asset's trade state
@@ -240,7 +235,6 @@ where
 			hub_reserve: state.hub_reserve,
 			shares: state.shares,
 			protocol_shares: state.protocol_shares,
-			tvl: state.tvl,
 		}
 	}
 }
@@ -255,7 +249,6 @@ where
 			hub_reserve: s.hub_reserve,
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
-			tvl: s.tvl,
 			cap: s.cap,
 			tradable: s.tradable,
 		}
@@ -272,7 +265,6 @@ where
 			hub_reserve: s.hub_reserve,
 			shares: s.shares,
 			protocol_shares: s.protocol_shares,
-			tvl: s.tvl,
 			cap: s.cap,
 			tradable: s.tradable,
 		}
@@ -299,7 +291,6 @@ where
 			hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
 			shares: (delta.delta_shares + self.shares)?,
 			protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
-			tvl: (delta.delta_tvl + self.tvl)?,
 			cap: self.cap,
 			tradable: self.tradable,
 		})

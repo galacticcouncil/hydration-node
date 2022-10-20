@@ -14,8 +14,7 @@ fn asset_reserve() -> impl Strategy<Value = Balance> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
-	//Just(1000 * ONE)
-	1000..10000 * ONE
+	1000..5000 * ONE
 }
 
 fn price() -> impl Strategy<Value = FixedU128> {
@@ -50,10 +49,6 @@ fn fee() -> impl Strategy<Value = Permill> {
 
 fn sum_asset_hub_liquidity() -> Balance {
 	<Assets<Test>>::iter().fold(0, |acc, v| acc + v.1.hub_reserve)
-}
-
-fn sum_asset_tvl() -> Balance {
-	<Assets<Test>>::iter().fold(0, |acc, v| acc + v.1.tvl)
 }
 
 #[derive(Debug)]
@@ -122,10 +117,6 @@ proptest! {
 				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 				let old_asset_hub_liquidity = sum_asset_hub_liquidity();
-				let total_asset_tvl = sum_asset_tvl();
-				let global_tvl = <TotalTVL<Test>>::get();
-
-				assert_eq!(global_tvl, total_asset_tvl, "Total TVL != sum of asset tvl");
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
@@ -937,9 +928,12 @@ proptest! {
 				);
 
 				// check enforcement of overall tvl cap
-				let total_asset_tvl = sum_asset_tvl();
-				let global_tvl = <TotalTVL<Test>>::get();
-				assert_eq!(global_tvl, total_asset_tvl, "Total TVL != sum of asset tvl");
+				let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let stable_asset = <Assets<Test>>::get(DAI).unwrap();
+				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
+
+				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
 				assert!( global_tvl <= <Test as Config>::TVLCap::get());
 			});
 	}
@@ -1031,9 +1025,12 @@ proptest! {
 				);
 
 				// check enforcement of overall tvl cap
-				let total_asset_tvl = sum_asset_tvl();
-				let global_tvl = <TotalTVL<Test>>::get();
-				assert_eq!(global_tvl, total_asset_tvl, "Total TVL != sum of asset tvl");
+				let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let stable_asset = <Assets<Test>>::get(DAI).unwrap();
+				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
+
+				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
 				assert!( global_tvl <= <Test as Config>::TVLCap::get());
 			});
 	}

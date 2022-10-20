@@ -74,7 +74,6 @@ fn fee_test_buy_sell() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -87,7 +86,6 @@ fn fee_test_buy_sell() {
 					hub_reserve: 10135523267202732,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -96,11 +94,10 @@ fn fee_test_buy_sell() {
 			assert_asset_state!(
 				100,
 				AssetReserveState {
-					reserve: 4243052260380451,
-					hub_reserve: 882383663986335,
+					reserve: 4243052260380446,
+					hub_reserve: 882383663986336,
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 3120000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -109,11 +106,10 @@ fn fee_test_buy_sell() {
 			assert_asset_state!(
 				200,
 				AssetReserveState {
-					reserve: 1671684145777543,
-					hub_reserve: 2707273110861765,
+					reserve: 1671684145777545,
+					hub_reserve: 2707273110861764,
 					shares: 2006364027707802,
 					protocol_shares: Balance::zero(),
-					tvl: 5414546221723530,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -121,7 +117,7 @@ fn fee_test_buy_sell() {
 
 			assert_pool_state!(
 				14225180042050832,
-				29534546221723530,
+				28450360084101664,
 				SimpleImbalance {
 					value: 0,
 					negative: true

@@ -82,7 +82,6 @@ fn complex_scenario_works() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -95,7 +94,6 @@ fn complex_scenario_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -108,7 +106,6 @@ fn complex_scenario_works() {
 					hub_reserve: 1188430684479242,
 					shares: 2734332900513906,
 					protocol_shares: Balance::zero(),
-					tvl: 2376861368958484,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -121,7 +118,6 @@ fn complex_scenario_works() {
 					hub_reserve: 2709090864095513,
 					shares: 2008863636363636,
 					protocol_shares: Balance::zero(),
-					tvl: 5378181728191026,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -129,9 +125,9 @@ fn complex_scenario_works() {
 
 			assert_pool_state!(
 				14397521548574755,
-				28755043097149510,
+				28795043097149510,
 				SimpleImbalance {
-					value: 40258673773030,
+					value: 211796164152817,
 					negative: true
 				}
 			);

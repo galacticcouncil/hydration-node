@@ -45,7 +45,6 @@ fn remove_liquidity_works() {
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
-					tvl: 2_860_000_000_000_000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -113,7 +112,6 @@ fn full_liquidity_removal_works() {
 					hub_reserve: 1300000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
-					tvl: 2_600_000_000_000_000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -175,7 +173,6 @@ fn partial_liquidity_removal_works() {
 					hub_reserve: 1430000000000000,
 					shares: 2400 * ONE - liq_removed,
 					protocol_shares: Balance::zero(),
-					tvl: 2_860_000_000_000_000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -218,15 +215,14 @@ fn lp_receives_lrna_when_price_is_higher() {
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
 
-			assert_ok!(Omnipool::buy(Origin::signed(LP2), 1_000, DAI, 300 * ONE, 500000 * ONE));
+			assert_ok!(Omnipool::buy(Origin::signed(LP2), 1_000, DAI, 200 * ONE, 500000 * ONE));
 
-			assert_balance!(Omnipool::protocol_account(), 1000, 200 * ONE);
+			assert_balance!(Omnipool::protocol_account(), 1000, 300 * ONE);
 			let expected_state = AssetReserveState {
-				reserve: 200 * ONE,
-				hub_reserve: 812500000000001,
+				reserve: 300 * ONE,
+				hub_reserve: 541666666666667,
 				shares: 500000000000000,
 				protocol_shares: Balance::zero(),
-				tvl: 650000000000000,
 				cap: DEFAULT_WEIGHT_CAP,
 				tradable: Tradability::default(),
 			};
@@ -237,11 +233,11 @@ fn lp_receives_lrna_when_price_is_higher() {
 				current_position_id,
 				liq_added
 			));
-			assert_balance!(Omnipool::protocol_account(), 1000, 40 * ONE);
-			assert_balance!(LP1, 1000, 4_760_000_000_000_000);
-			assert_balance!(LP1, LRNA, 470_689_655_172_413);
+			assert_balance!(Omnipool::protocol_account(), 1000, 60 * ONE);
+			assert_balance!(LP1, 1000, 4_840_000_000_000_000);
+			assert_balance!(LP1, LRNA, 203_921_568_627_449);
 
-			assert_pool_state!(10175000000000000, 541000000000086413, SimpleImbalance::default());
+			assert_pool_state!(10391666666666667, 64723183391003641, SimpleImbalance::default());
 		});
 }
 
@@ -271,7 +267,17 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_a, liq_added));
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP2), asset_a, HDX, 1000 * ONE, 10 * ONE));
+			let expected_state = AssetReserveState::<Balance> {
+				reserve: 500000000000000,
+				hub_reserve: 325000000000000,
+				shares: 500000000000000,
+				protocol_shares: 0,
+				cap: DEFAULT_WEIGHT_CAP,
+				tradable: Tradability::default(),
+			};
+			assert_asset_state!(asset_a, expected_state);
+
+			assert_ok!(Omnipool::sell(Origin::signed(LP2), asset_a, HDX, 100 * ONE, 10 * ONE));
 
 			// ACT
 			assert_ok!(Omnipool::remove_liquidity(
@@ -283,17 +289,16 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			// Assert
 			// - check if balance of LP and protocol are correct
 			// - check new state of asset a in the pool ( should have updated protocol shares)
-			assert_balance!(Omnipool::protocol_account(), asset_a, 1259999999999997);
-			assert_balance!(LP1, asset_a, 4840000000000003);
+			assert_balance!(Omnipool::protocol_account(), asset_a, 206557377049181);
+			assert_balance!(LP1, asset_a, 4993442622950819);
 
-			assert_pool_state!(10807666666666667, 21182000000000002, SimpleImbalance::default());
+			assert_pool_state!(10647404371584700, 21294808743169400, SimpleImbalance::default());
 
 			let expected_state = AssetReserveState {
-				reserve: 1259999999999997,
-				hub_reserve: 91000000000001,
-				shares: 419999999999999,
-				protocol_shares: 319999999999999,
-				tvl: 182000000000002,
+				reserve: 206557377049181,
+				hub_reserve: 93237704918034,
+				shares: 172131147540984,
+				protocol_shares: 72131147540984,
 				cap: DEFAULT_WEIGHT_CAP,
 				tradable: Tradability::default(),
 			};

@@ -31,7 +31,6 @@ fn add_token_works() {
 					hub_reserve: 1300 * ONE,
 					shares: token_amount,
 					protocol_shares: Balance::zero(),
-					tvl: 2600000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}

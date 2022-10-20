@@ -45,7 +45,6 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 					hub_reserve: 50000000000000,
 					shares: 100000000000000,
 					protocol_shares: 100000000000000,
-					tvl: 100000000000000,
 					cap: 500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
@@ -57,7 +56,6 @@ fn initialize_pool_should_work_when_called_first_time_with_correct_params() {
 					hub_reserve: 300000000000000,
 					shares: 200000000000000,
 					protocol_shares: 200000000000000,
-					tvl: 600000000000000,
 					cap: 500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
@@ -195,7 +193,6 @@ fn update_weight_cap_of_native_stable_asset_should_work_when_pool_is_initialized
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: 10_000_000_000_000,
 					tradable: Tradability::default(),
 				}
@@ -212,7 +209,6 @@ fn update_weight_cap_of_native_stable_asset_should_work_when_pool_is_initialized
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000,
 					cap: 20_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}

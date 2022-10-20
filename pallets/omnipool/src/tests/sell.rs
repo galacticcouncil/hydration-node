@@ -53,7 +53,6 @@ fn simple_sell_works() {
 					hub_reserve: 1_528_163_265_306_123,
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 3120 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -65,7 +64,6 @@ fn simple_sell_works() {
 					hub_reserve: 1331836734693877,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -238,7 +236,6 @@ fn sell_hub_works() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -251,7 +248,6 @@ fn sell_hub_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -264,7 +260,6 @@ fn sell_hub_works() {
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 3120000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -277,7 +272,6 @@ fn sell_hub_works() {
 					hub_reserve: 1350000000000000,
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 2600000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -285,9 +279,9 @@ fn sell_hub_works() {
 
 			assert_pool_state!(
 				13410000000000000,
-				26720000000000000,
+				26820000000000000,
 				SimpleImbalance {
-					value: 98148148148148,
+					value: 974938271604939,
 					negative: true
 				}
 			);
@@ -396,7 +390,7 @@ fn simple_sell_with_fee_works() {
 			let fee = Permill::from_percent(100).checked_sub(&fee).unwrap();
 
 			let expected_zero_fee = 47_619_047_619_047u128;
-			let expected_10_percent_fee = fee.mul_ceil(expected_zero_fee);
+			let expected_10_percent_fee = fee.mul_floor(expected_zero_fee);
 
 			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, sell_amount, min_limit));
 
@@ -496,7 +490,7 @@ fn sell_should_work_when_trading_native_asset() {
 			assert_ok!(Omnipool::sell(Origin::signed(LP1), HDX, 200, sell_amount, min_limit));
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 950000000000000);
-			assert_eq!(Tokens::free_balance(200, &LP1), 53_471_964_352_024);
+			assert_eq!(Tokens::free_balance(200, &LP1), 53_471_964_352_023);
 			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
 			assert_eq!(
 				Tokens::free_balance(HDX, &Omnipool::protocol_account()),
@@ -504,7 +498,7 @@ fn sell_should_work_when_trading_native_asset() {
 			);
 			assert_eq!(
 				Tokens::free_balance(200, &Omnipool::protocol_account()),
-				1946528035647976
+				1946528035647977
 			);
 
 			let hub_reserves: Vec<Balance> = Assets::<Test>::iter().map(|v| v.1.hub_reserve).collect();
@@ -521,11 +515,10 @@ fn sell_should_work_when_trading_native_asset() {
 			assert_asset_state!(
 				200,
 				AssetReserveState {
-					reserve: 1946528035647976,
+					reserve: 1946528035647977,
 					hub_reserve: 1339800995024876,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -537,7 +530,6 @@ fn sell_should_work_when_trading_native_asset() {
 					hub_reserve: 9960199004975124,
 					shares: 10000 * ONE,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -577,13 +569,109 @@ fn sell_imbalance() {
 
 			assert_pool_state!(
 				13410000000000000,
-				26720000000000000,
+				26820000000000000,
 				SimpleImbalance {
-					value: 98148148148148,
+					value: 974938271604939,
 					negative: true
 				}
 			);
 
 			assert_ok!(Omnipool::sell(Origin::signed(LP3), 200, 100, 1000000000000, 1,));
+		});
+}
+
+#[test]
+fn sell_should_fail_when_exceeds_max_in_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_max_in_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
+				Error::<Test>::MaxInRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_should_fail_when_exceeds_max_out_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(1.00), LP3, 100 * ONE)
+		.with_max_out_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
+				Error::<Test>::MaxOutRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_lrna_should_fail_when_exceeds_max_in_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, LRNA, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_max_in_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), LRNA, 100, 1000 * ONE, 0u128),
+				Error::<Test>::MaxInRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, LRNA, 1500 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_max_out_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::sell(Origin::signed(LP1), LRNA, 100, 1500 * ONE, 0u128),
+				Error::<Test>::MaxOutRatioExceeded
+			);
 		});
 }

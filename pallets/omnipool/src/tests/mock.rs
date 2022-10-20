@@ -66,6 +66,8 @@ thread_local! {
 	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static MIN_ADDED_LIQUDIITY: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
+	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 }
 
 construct_runtime!(
@@ -149,6 +151,8 @@ parameter_types! {
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
+	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
+	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
 }
 
@@ -171,6 +175,8 @@ impl Config for Test {
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
 }
 
 pub struct ExtBuilder {
@@ -182,6 +188,8 @@ pub struct ExtBuilder {
 	min_liquidity: u128,
 	min_trade_limit: u128,
 	register_stable_asset: bool,
+	max_in_ratio: Balance,
+	max_out_ratio: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -212,6 +220,12 @@ impl Default for ExtBuilder {
 		MIN_TRADE_AMOUNT.with(|v| {
 			*v.borrow_mut() = 1000u128;
 		});
+		MAX_IN_RATIO.with(|v| {
+			*v.borrow_mut() = 1u128;
+		});
+		MAX_OUT_RATIO.with(|v| {
+			*v.borrow_mut() = 1u128;
+		});
 
 		Self {
 			endowed_accounts: vec![
@@ -227,6 +241,8 @@ impl Default for ExtBuilder {
 			init_pool: None,
 			register_stable_asset: true,
 			pool_tokens: vec![],
+			max_in_ratio: 1u128,
+			max_out_ratio: 1u128,
 		}
 	}
 }
@@ -278,6 +294,14 @@ impl ExtBuilder {
 		self.register_stable_asset = false;
 		self
 	}
+	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
+		self.max_in_ratio = value;
+		self
+	}
+	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
+		self.max_out_ratio = value;
+		self
+	}
 
 	pub fn with_token(
 		mut self,
@@ -322,6 +346,12 @@ impl ExtBuilder {
 
 		MIN_TRADE_AMOUNT.with(|v| {
 			*v.borrow_mut() = self.min_trade_limit;
+		});
+		MAX_IN_RATIO.with(|v| {
+			*v.borrow_mut() = self.max_in_ratio;
+		});
+		MAX_OUT_RATIO.with(|v| {
+			*v.borrow_mut() = self.max_out_ratio;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {

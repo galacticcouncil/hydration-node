@@ -48,7 +48,6 @@ fn simple_buy_works() {
 					hub_reserve: 1526666666666666,
 					shares: 2400 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 3120 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -60,7 +59,6 @@ fn simple_buy_works() {
 					hub_reserve: 1333333333333334,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -281,7 +279,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 500000000000000,
 					shares: 1000000000000000,
 					protocol_shares: 1000000000000000,
-					tvl: 1000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -294,7 +291,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 10000000000000000,
 					shares: 10000000000000000,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -307,7 +303,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 1560000000000000,
 					shares: 2400000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 3120000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -320,7 +315,6 @@ fn buy_for_hub_asset_works() {
 					hub_reserve: 1333333333333334,
 					shares: 2000000000000000,
 					protocol_shares: Balance::zero(),
-					tvl: 2600000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -328,9 +322,9 @@ fn buy_for_hub_asset_works() {
 
 			assert_pool_state!(
 				13393333333333334,
-				26720000000000000,
+				26786666666666668,
 				SimpleImbalance {
-					value: 65833333333334,
+					value: 661295833333341,
 					negative: true
 				}
 			);
@@ -551,7 +545,6 @@ fn buy_should_work_when_trading_native_asset() {
 					hub_reserve: 1337142857142858,
 					shares: 2000 * ONE,
 					protocol_shares: Balance::zero(),
-					tvl: 2600 * ONE,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
@@ -563,10 +556,105 @@ fn buy_should_work_when_trading_native_asset() {
 					hub_reserve: 9962857142857142,
 					shares: 10000 * ONE,
 					protocol_shares: 10000000000000000,
-					tvl: 20000000000000000,
 					cap: DEFAULT_WEIGHT_CAP,
 					tradable: Tradability::default(),
 				}
+			);
+		});
+}
+
+#[test]
+fn buy_should_fail_when_exceeds_max_out_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 100, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_max_out_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
+				Error::<Test>::MaxOutRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn buy_should_fail_when_exceeds_max_in_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+			(LP1, 200, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(1.00), LP3, 500 * ONE)
+		.with_max_in_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 100, 200, 200 * ONE, Balance::MAX),
+				Error::<Test>::MaxInRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn buy_for_lrna_should_fail_when_exceeds_max_in_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, LRNA, 1000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_max_in_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 100, LRNA, 1000 * ONE, Balance::MAX),
+				Error::<Test>::MaxInRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn buy_for_lrna_should_fail_when_exceeds_max_out_ratio() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 100, 2000 * ONE),
+			(LP1, LRNA, 1500 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(1.00), LP2, 2000 * ONE)
+		.with_max_out_ratio(3)
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				Omnipool::buy(Origin::signed(LP1), 100, LRNA, 1500 * ONE, Balance::MAX),
+				Error::<Test>::MaxOutRatioExceeded
 			);
 		});
 }
