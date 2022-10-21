@@ -25,7 +25,7 @@ primitives = { path = "../../primitives", default-features = false }
 common-runtime = { path = '../common', default-features = false }
 pallet-claims = { path = '../../pallets/claims', default-features = false }
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
-#pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
+pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
 
 # pallets
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -196,6 +196,7 @@ std = [
     "pallet-genesis-history/std",
     "pallet-asset-registry/std",
     "pallet-currencies/std",
+    "pallet-omnipool/std",
     "sp-api/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",

@@ -3340,6 +3340,7 @@ dependencies = [
  "pallet-identity",
  "pallet-multisig",
  "pallet-nft",
+ "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
