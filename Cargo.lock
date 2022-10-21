@@ -6089,7 +6089,6 @@ dependencies = [
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
- "log",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
