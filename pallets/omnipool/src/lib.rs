@@ -293,7 +293,7 @@ pub mod pallet {
 	}
 
 	#[pallet::error]
-	#[cfg_attr(test, derive(PartialEq))]
+	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
 		/// Balance too low
 		InsufficientBalance,
@@ -1411,7 +1411,7 @@ impl<T: Config> Pallet<T> {
 				BalanceUpdate::Increase(amount) => (*current_imbalance).add(amount).ok_or(ArithmeticError::Overflow)?,
 			};
 
-			ensure!((*current_imbalance).negative, Error::<T>::PositiveImbalance);
+			ensure!(current_imbalance.negative, Error::<T>::PositiveImbalance);
 
 			Ok(())
 		})
