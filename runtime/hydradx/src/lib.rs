@@ -806,7 +806,6 @@ parameter_types! {
 
 impl pallet_nft::Config for Runtime {
 	type Event = Event;
-	//Generated weight file is not used because we want different prices for now.
 	type WeightInfo = pallet_nft::weights::BasiliskWeight<Runtime>;
 	type NftCollectionId = CollectionId;
 	type NftItemId = ItemId;
@@ -819,8 +818,8 @@ impl pallet_nft::Config for Runtime {
 parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
-	pub ProtofolFee: Permill = Permill::from_rational(3u32,100u32);
-	pub AssetFee: Permill = Permill::from_rational(3u32,100u32);
+	pub ProtofolFee: Permill = Permill::from_rational(3u32,1000u32);
+	pub AssetFee: Permill = Permill::from_rational(3u32,1000u32);
 	pub const TVLCap : Balance= u128::MAX;
 	pub const MinTradingLimit : Balance = 1_000_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
