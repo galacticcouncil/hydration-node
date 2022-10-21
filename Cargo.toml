@@ -4,6 +4,7 @@ panic = 'unwind'
 [workspace]
 members = [
   'node',
+  'pallets/omnipool',
   'runtime/common',
   'runtime/hydradx',
   'runtime/testing-hydradx',
