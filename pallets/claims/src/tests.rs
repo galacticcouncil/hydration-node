@@ -17,8 +17,7 @@
 
 use crate::mock::*;
 use crate::{
-	Claims, EcdsaSignature, Error, EthereumAddress, InvalidTransaction, SignedExtension, ValidTransaction,
-	ValidateClaim,
+	error_to_invalid, Claims, EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransaction, ValidateClaim,
 };
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
@@ -136,7 +135,7 @@ fn signed_extention_invalid_sig() {
 
 		assert_eq!(
 			ValidateClaim::<Test>(PhantomData).validate(&ALICE, call, &info, 150),
-			InvalidTransaction::Custom(Error::<Test>::InvalidEthereumSignature.as_u8()).into()
+			error_to_invalid(Error::<Test>::InvalidEthereumSignature).into()
 		);
 	});
 }
@@ -151,7 +150,7 @@ fn signed_extention_no_claim_error() {
 
 		assert_eq!(
 			ValidateClaim::<Test>(PhantomData).validate(&BOB, call, &info, 150),
-			InvalidTransaction::Custom(Error::<Test>::NoClaimOrAlreadyClaimed.as_u8()).into()
+			error_to_invalid(Error::<Test>::NoClaimOrAlreadyClaimed).into()
 		);
 	});
 }

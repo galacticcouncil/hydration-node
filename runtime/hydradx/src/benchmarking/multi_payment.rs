@@ -63,7 +63,6 @@ runtime_benchmarks! {
 		let maker: AccountId = account("maker", 0, SEED);
 		let caller: AccountId = account("caller", 0, SEED);
 		let fallback_account: AccountId = account("fallback_account", 1, SEED);
-		pallet_transaction_multi_payment::FallbackAccount::<Runtime>::put(fallback_account);
 
 		let asset_id = register_asset(b"TST".to_vec(), 100u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))?;
 

@@ -19,9 +19,8 @@
 #![allow(clippy::unused_unit)]
 
 use codec::{Decode, Encode};
-use frame_support::transactional;
 use frame_support::{
-	dispatch::DispatchResult,
+	dispatch::{DispatchError, DispatchResult},
 	ensure,
 	sp_runtime::{
 		traits::{DispatchInfoOf, SignedExtension},
@@ -33,7 +32,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 use primitives::Balance;
 use scale_info::TypeInfo;
-use sp_runtime::traits::Zero;
+use sp_runtime::{traits::Zero, ModuleError};
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
 use weights::WeightInfo;
 
@@ -127,7 +126,6 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Claim xHDX by providing signed message with Ethereum address.
 		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
-		#[transactional]
 		pub fn claim(origin: OriginFor<T>, ethereum_signature: EcdsaSignature) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
 
@@ -208,6 +206,16 @@ impl<T: Config + Send + Sync> sp_std::fmt::Debug for ValidateClaim<T> {
 	}
 }
 
+/// convert an Error to a custom InvalidTransaction with the inner code being the error
+/// number.
+pub fn error_to_invalid<T: Config>(error: Error<T>) -> InvalidTransaction {
+	let error_number = match error.into() {
+		DispatchError::Module(ModuleError { error, .. }) => error[0],
+		_ => 0, // this case should never happen because an Error is always converted to DispatchError::Module(ModuleError)
+	};
+	InvalidTransaction::Custom(error_number)
+}
+
 impl<T: Config + Send + Sync> SignedExtension for ValidateClaim<T>
 where
 	<T as frame_system::Config>::Call: IsSubType<Call<T>>,
@@ -232,7 +240,7 @@ where
 		match call.is_sub_type() {
 			Some(Call::claim { ethereum_signature }) => match Pallet::<T>::validate_claim(who, ethereum_signature) {
 				Ok(_) => Ok(ValidTransaction::default()),
-				Err(error) => InvalidTransaction::Custom(error.as_u8()).into(),
+				Err(error) => error_to_invalid(error).into(),
 			},
 			_ => Ok(Default::default()),
 		}
