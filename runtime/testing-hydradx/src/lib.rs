@@ -43,6 +43,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
+use frame_support::traits::AsEnsureOriginWithArg;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -55,7 +56,6 @@ use frame_support::{
 		WeightToFeePolynomial,
 	},
 };
-use frame_support::traits::AsEnsureOriginWithArg;
 use hydradx_traits::pools::SpotPriceProvider;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
