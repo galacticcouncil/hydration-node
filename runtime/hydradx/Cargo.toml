@@ -143,6 +143,7 @@ runtime-benchmarks = [
     "pallet-xcm/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
     "cumulus-pallet-xcmp-queue/runtime-benchmarks",
+    "pallet-uniques/runtime-benchmarks",
 ]
 std = [
     "codec/std",

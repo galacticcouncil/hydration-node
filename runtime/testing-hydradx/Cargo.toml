@@ -142,6 +142,7 @@ runtime-benchmarks = [
     "pallet-asset-registry/runtime-benchmarks",
     "pallet-xcm/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
+    "pallet-uniques/runtime-benchmarks",
 ]
 std = [
     "codec/std",
