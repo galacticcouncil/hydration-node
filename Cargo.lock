@@ -6083,7 +6083,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8021,7 +8021,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.0.4"
+version = "5.0.5"
 dependencies = [
  "frame-support",
  "hex-literal",
