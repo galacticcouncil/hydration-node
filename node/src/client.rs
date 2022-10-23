@@ -194,6 +194,13 @@ impl sc_client_api::BlockBackend<Block> for Client {
 			Self::TestingHydraDX(client) => client.block_indexed_body(id),
 		}
 	}
+
+	fn requires_full_sync(&self) -> bool {
+		match self {
+			Self::HydraDX(client) => client.requires_full_sync(),
+			Self::TestingHydraDX(client) => client.requires_full_sync(),
+		}
+	}
 }
 
 impl sc_client_api::StorageProvider<Block, FullBackend> for Client {

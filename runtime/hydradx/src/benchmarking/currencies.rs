@@ -34,7 +34,7 @@ pub fn set_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
 }
 
 runtime_benchmarks! {
-	{ Runtime, orml_currencies }
+	{ Runtime, pallet_currencies }
 
 	// `transfer` non-native currency
 	transfer_non_native_currency {

@@ -63,4 +63,8 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn dispatch_as() -> Weight {
 		(12_392_000 as Weight)
 	}
+	fn force_batch(c: u32) -> Weight {
+		(19_136_000 as Weight) // Standard Error: 2_000
+			.saturating_add((2_697_000 as Weight).saturating_mul(c as Weight))
+	}
 }

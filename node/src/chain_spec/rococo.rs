@@ -82,9 +82,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 				vec![],
 				// accepted_assets
 				vec![],
-				// tx_fee_payment_account
-				// treasury
-				hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 				// token balances
 				vec![],
 				// claims data

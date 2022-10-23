@@ -42,7 +42,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 
 		//Assert
 		assert_eq!(
-			polkadot_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account()),
+			polkadot_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account_truncating()),
 			310 * UNITS
 		);
 	});
@@ -101,7 +101,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 	PolkadotRelay::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
-			2999680000000 // 3 * HDX - fee
+			2999530582548 // 3 * HDX - fee
 		);
 	});
 }

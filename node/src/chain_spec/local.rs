@@ -83,8 +83,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
 				// accepted assets
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
-				// tx fee payment account
-				get_account_id_from_seed::<sr25519::Public>("Alice"), // SAME AS ROOT
 				// token balances
 				vec![
 					(
