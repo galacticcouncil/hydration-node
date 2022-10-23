@@ -1104,6 +1104,8 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
 
+			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
+
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
 			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
@@ -1156,6 +1158,8 @@ impl_runtime_apis! {
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
+
+			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);

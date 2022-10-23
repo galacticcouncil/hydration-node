@@ -142,6 +142,10 @@ impl orml_tokens::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
 	type DustRemovalWhitelist = Everything;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 parameter_types! {
@@ -416,8 +420,8 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 pub struct DummyNFT;
 
 impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
-	type CollectionId = u32;
 	type ItemId = u32;
+	type CollectionId = u32;
 
 	fn owner(_class: &Self::CollectionId, instance: &Self::ItemId) -> Option<AccountId> {
 		let mut owner: Option<AccountId> = None;

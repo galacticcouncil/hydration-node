@@ -118,7 +118,7 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
 	type ControllerOrigin = MoreThanHalfTechCommittee;
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
-	type WeightInfo = ();
+	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {

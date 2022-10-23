@@ -26,8 +26,6 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 sp-npos-elections = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-
-pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -46,3 +44,7 @@ pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", bran
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false }
+
+# Cumulus dependencies
+pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
+cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.28", default-features = false }
