@@ -138,6 +138,10 @@ impl orml_tokens::Config for Test {
 	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 parameter_types! {
@@ -412,10 +416,10 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 pub struct DummyNFT;
 
 impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
-	type InstanceId = u32;
-	type ClassId = u32;
+	type ItemId = u32;
+	type CollectionId = u32;
 
-	fn owner(_class: &Self::ClassId, instance: &Self::InstanceId) -> Option<AccountId> {
+	fn owner(_class: &Self::CollectionId, instance: &Self::ItemId) -> Option<AccountId> {
 		let mut owner: Option<AccountId> = None;
 
 		POSITIONS.with(|v| {
@@ -428,13 +432,13 @@ impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
 }
 
 impl<AccountId: From<u64>> Create<AccountId> for DummyNFT {
-	fn create_class(_class: &Self::ClassId, _who: &AccountId, _admin: &AccountId) -> DispatchResult {
+	fn create_collection(_class: &Self::CollectionId, _who: &AccountId, _admin: &AccountId) -> DispatchResult {
 		Ok(())
 	}
 }
 
 impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
-	fn mint_into(_class: &Self::ClassId, _instance: &Self::InstanceId, _who: &AccountId) -> DispatchResult {
+	fn mint_into(_class: &Self::CollectionId, _instance: &Self::ItemId, _who: &AccountId) -> DispatchResult {
 		POSITIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.insert(*_instance, (*_who).into());
@@ -442,7 +446,11 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 		Ok(())
 	}
 
-	fn burn_from(_class: &Self::ClassId, instance: &Self::InstanceId) -> DispatchResult {
+	fn burn(
+		_class: &Self::CollectionId,
+		instance: &Self::ItemId,
+		_maybe_check_owner: Option<&AccountId>,
+	) -> DispatchResult {
 		POSITIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.remove(instance);

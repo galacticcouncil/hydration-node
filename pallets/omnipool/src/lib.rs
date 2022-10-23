@@ -97,7 +97,7 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 /// NFT class id type of provided nft implementation
-type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::ClassId;
+type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -189,7 +189,7 @@ pub mod pallet {
 		/// Non fungible handling - mint,burn, check owner
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
-			+ Inspect<Self::AccountId, InstanceId = Self::PositionInstanceId>;
+			+ Inspect<Self::AccountId, ItemId = Self::PositionInstanceId>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -418,7 +418,7 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 
 			// Create NFT class
-			T::NFTHandler::create_class(
+			T::NFTHandler::create_collection(
 				&T::NFTClassId::get(),
 				&Self::protocol_account(),
 				&Self::protocol_account(),
@@ -814,7 +814,7 @@ pub mod pallet {
 				// All liquidity removed, remove position and burn NFT instance
 
 				<Positions<T>>::remove(position_id);
-				T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
+				T::NFTHandler::burn(&T::NFTClassId::get(), &position_id, Some(&who))?;
 
 				Self::deposit_event(Event::PositionDestroyed {
 					position_id,
@@ -879,7 +879,7 @@ pub mod pallet {
 
 			// Desotry position and burn NFT
 			<Positions<T>>::remove(position_id);
-			T::NFTHandler::burn_from(&T::NFTClassId::get(), &position_id)?;
+			T::NFTHandler::burn(&T::NFTClassId::get(), &position_id, Some(&who))?;
 
 			Self::deposit_event(Event::PositionDestroyed {
 				position_id,
@@ -1336,7 +1336,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
 	pub fn protocol_account() -> T::AccountId {
-		PalletId(*b"omnipool").into_account()
+		PalletId(*b"omnipool").into_account_truncating()
 	}
 
 	/// Retrieve stable asset detail from the pool.
