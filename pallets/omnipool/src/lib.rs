@@ -1348,7 +1348,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Retrieve state of asset from the pool and its pool balance
-	fn load_asset_state(asset_id: T::AssetId) -> Result<AssetReserveState<Balance>, DispatchError> {
+	pub fn load_asset_state(asset_id: T::AssetId) -> Result<AssetReserveState<Balance>, DispatchError> {
 		let state = <Assets<T>>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 		let reserve = T::Currency::free_balance(asset_id, &Self::protocol_account());
 		Ok((state, reserve).into())

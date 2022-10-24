@@ -5,6 +5,7 @@ panic = 'unwind'
 members = [
   'node',
   'pallets/omnipool',
+  'pallets/omnipool-subpools',
   'runtime/common',
   'runtime/hydradx',
   'runtime/testing-hydradx',
