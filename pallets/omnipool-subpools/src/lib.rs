@@ -3,6 +3,8 @@
 use frame_support::pallet_prelude::DispatchResult;
 use sp_std::prelude::*;
 
+pub type Balance = u128;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -36,10 +38,15 @@ pub mod pallet {
 	where
 		<T as pallet_omnipool::Config>::AssetId: Into<<T as pallet_stableswap::Config>::AssetId>,
 	{
+		///
+		///
+		/// Limit to 2 assets.
+		///
 		#[pallet::weight(0)]
 		pub fn create_subpool(
 			origin: OriginFor<T>,
-			asset_id: <T as pallet_omnipool::Config>::AssetId,
+			asset_a: <T as pallet_omnipool::Config>::AssetId,
+			asset_b: <T as pallet_omnipool::Config>::AssetId,
 			amplification: u16,
 			trade_fee: Permill,
 			withdraw_fee: Permill,
@@ -47,12 +54,13 @@ pub mod pallet {
 			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
 
 			// Load state - return AssetNotFound if it does not exist
-			let _asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_id)?;
+			let _asset_state_a = pallet_omnipool::Pallet::<T>::load_asset_state(asset_a)?;
+			let _asset_state_b = pallet_omnipool::Pallet::<T>::load_asset_state(asset_a)?;
 
 			// Create new subpool
 			pallet_stableswap::Pallet::<T>::create_pool(
 				origin,
-				vec![asset_id.into()],
+				vec![asset_a.into(), asset_b.into()],
 				amplification,
 				trade_fee,
 				withdraw_fee,
@@ -62,11 +70,13 @@ pub mod pallet {
 
 			// Remove token from omnipool
 
+			// Add Share token to omnipool as another asset
+
 			Ok(())
 		}
 
 		#[pallet::weight(0)]
-		pub fn add_token_to_subpool(
+		pub fn move_token_to_subpool(
 			origin: OriginFor<T>,
 			_pool_id: <T as pallet_stableswap::Config>::AssetId,
 			asset_id: <T as pallet_omnipool::Config>::AssetId,
@@ -82,6 +92,23 @@ pub mod pallet {
 			// Move liquidity from omnipool account to subpool
 
 			// Remove token from omnipool
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn add_liquidity(
+			origin: OriginFor<T>,
+			asset_id: <T as pallet_omnipool::Config>::AssetId,
+			amount: Balance,
+		) -> DispatchResult {
+			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
+
+			// Figure out where is the asset
+			// 1. Stableswap pool
+			// 2. omnipool assset
+			// if stableswap - do add liquidity to subpool and then call omnipool's add_liquidity with shares to mint position
+			// if omnipool - call omnipool::add_liquidity
 
 			Ok(())
 		}
