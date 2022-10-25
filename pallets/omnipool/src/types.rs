@@ -88,16 +88,16 @@ where
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Position<Balance, AssetId> {
 	/// Provided Asset
-	pub(super) asset_id: AssetId,
+	pub asset_id: AssetId,
 	/// Amount of asset added to omnipool
-	pub(super) amount: Balance,
+	pub amount: Balance,
 	/// Quantity of LP shares owned by LP
-	pub(super) shares: Balance,
+	pub shares: Balance,
 	/// Price at which liquidity was provided
 	// TODO: Due to missing MaxEncodedLen impl for FixedU128, it is not possible to use that type in storage
 	// This can change in 0.9.17 where the missing trait is implemented
 	// And FixedU128 can be use instead.
-	pub(super) price: Balance,
+	pub price: Balance,
 }
 
 impl<Balance, AssetId> From<&Position<Balance, AssetId>> for hydra_dx_math::omnipool::types::Position<Balance>

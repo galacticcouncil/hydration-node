@@ -92,7 +92,7 @@ mod tests;
 pub mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -1687,5 +1687,14 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})
+	}
+
+	pub fn load_position(position_id: T::PositionInstanceId, owner: T::AccountId) -> Result<Position<Balance, T::AssetId>, DispatchError> {
+		ensure!(
+				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(owner),
+				Error::<T>::Forbidden
+			);
+
+		Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound.into())
 	}
 }

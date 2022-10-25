@@ -4,6 +4,7 @@
 mod tests;
 
 use frame_support::pallet_prelude::*;
+use orml_traits::currency::MultiCurrency;
 use sp_runtime::FixedU128;
 use sp_std::prelude::*;
 
@@ -58,7 +59,9 @@ pub mod pallet {
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
-	pub enum Error<T> {}
+	pub enum Error<T> {
+		WithdrawAssetNotSpecified,
+	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
@@ -250,19 +253,40 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
-			asset_id: <T as pallet_omnipool::Config>::AssetId,
-			position_id: Option<T::PositionInstanceId>,
+			position_id: T::PositionInstanceId,
 			share_amount: Balance,
+			asset: Option<<T as pallet_omnipool::Config>::AssetId>,
 		) -> DispatchResult {
-			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
+			let who = ensure_signed(origin.clone())?;
 
-			// Figure out where is the asset - isopools or subpool
-			// - if subpool and position provided, update it first to current and follow the spec
-			// - if subpool but no position, only sahres -> call stableswap::remove_liquid
-			// - if isopool and position provided -> call omnipool::remove_liquid
-			// - if isopool but no position -> Error
+			let position = pallet_omnipool::Pallet::<T>::load_position(position_id, who.clone())?;
 
-			Ok(())
+			if let Some((pool_id, details)) = MigratedAssets::<T>::get(&position.asset_id) {
+				// Asset has been migrated to subpool
+				// Convert position
+				// withdraw
+				Ok(())
+			} else {
+				// Asset should be in isopool, call omnipool::remove_liquidity
+				pallet_omnipool::Pallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
+
+				let is_position_asset_id_subpool_id = true; //TODO: figure out how
+
+				if is_position_asset_id_subpool_id {
+					ensure!(asset.is_some(), Error::<T>::WithdrawAssetNotSpecified);
+					let received = <T as pallet_omnipool::Config>::Currency::free_balance(position.asset_id, &who);
+					pallet_stableswap::Pallet::<T>::remove_liquidity_one_asset(
+						origin,
+						position.asset_id.into(),
+						asset.unwrap().into(),
+						received,
+					)?;
+					Ok(())
+				} else {
+					// Nothing else to do
+					Ok(())
+				}
+			}
 		}
 
 		#[pallet::weight(0)]
@@ -279,7 +303,32 @@ pub mod pallet {
 			// - if both in different subpool - handle here according to spec
 			// - if mixed - handle here according to spec
 
-			Ok(())
+			match (MigratedAssets::<T>::get(asset_in), MigratedAssets::<T>::get(asset_out)) {
+				(None, None) => {
+					// both are is0pool assets
+					pallet_omnipool::Pallet::<T>::sell(origin, asset_in, asset_out, amount, min_buy_amount)
+				}
+				(Some((pool_id_in, _)), Some((pool_id_out, _))) if pool_id_in == pool_id_out => {
+					// both are same subpool
+					pallet_stableswap::Pallet::<T>::sell(
+						origin,
+						pool_id_in,
+						asset_in.into(),
+						asset_out.into(),
+						amount,
+						min_buy_amount,
+					)
+				}
+				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
+					// both are subpool but different subpools
+					// TODO
+					Ok(())
+				}
+				_ => {
+					// TODO: Mixed cases - handled here according to spec
+					Ok(())
+				}
+			}
 		}
 
 		#[pallet::weight(0)]
@@ -288,7 +337,7 @@ pub mod pallet {
 			asset_out: <T as pallet_omnipool::Config>::AssetId,
 			asset_in: <T as pallet_omnipool::Config>::AssetId,
 			amount: Balance,
-			min_buy_amount: Balance,
+			max_sell_amount: Balance,
 		) -> DispatchResult {
 			// Figure out where each asset is - isopool or subpool
 			// - if both in isopool - call omnipool buy
@@ -296,7 +345,32 @@ pub mod pallet {
 			// - if both in different subpool - handle here according to spec
 			// - if mixed - handle here according to spec
 
-			Ok(())
+			match (MigratedAssets::<T>::get(asset_in), MigratedAssets::<T>::get(asset_out)) {
+				(None, None) => {
+					// both are is0pool assets
+					pallet_omnipool::Pallet::<T>::buy(origin, asset_out, asset_in, amount, max_sell_amount)
+				}
+				(Some((pool_id_in, _)), Some((pool_id_out, _))) if pool_id_in == pool_id_out => {
+					// both are same subpool
+					pallet_stableswap::Pallet::<T>::buy(
+						origin,
+						pool_id_in,
+						asset_in.into(),
+						asset_out.into(),
+						amount,
+						max_sell_amount,
+					)
+				}
+				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
+					// both are subpool but different subpools
+					// TODO
+					Ok(())
+				}
+				_ => {
+					// TODO: Mixed cases - handled here according to spec
+					Ok(())
+				}
+			}
 		}
 	}
 
