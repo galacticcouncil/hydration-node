@@ -149,9 +149,9 @@ pub mod pallet {
 			};
 			let asset_b_details = AssetDetail {
 				price: Default::default(), //TODO: correct price
-				shares: asset_state_a.shares,
-				hub_reserve: asset_state_a.hub_reserve,
-				share_tokens: asset_state_a.hub_reserve,
+				shares: asset_state_b.shares,
+				hub_reserve: asset_state_b.hub_reserve,
+				share_tokens: asset_state_b.hub_reserve,
 			};
 
 			MigratedAssets::<T>::insert(asset_a, (pool_id, asset_a_details));
