@@ -58,9 +58,9 @@ pub mod weights;
 pub use trade_execution::*;
 
 use crate::types::{AssetLiquidity, Balance, PoolInfo};
-use weights::WeightInfo;
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
+use weights::WeightInfo;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -214,6 +214,9 @@ pub mod pallet {
 
 		/// Asset is not in the pool.
 		AssetNotInPool,
+
+		/// Asset is already in the pool.
+		AssetInPool,
 
 		/// One or more assets are not registered in AssetRegistry
 		AssetNotRegistered,
@@ -683,6 +686,26 @@ impl<T: Config> Pallet<T> {
 		Ok(share_asset)
 	}
 
+	pub fn add_asset_to_existing_pool(pool_id: T::AssetId, asset_id: T::AssetId) -> DispatchResult {
+		ensure!(T::AssetRegistry::exists(asset_id), Error::<T>::AssetNotRegistered);
+
+		Pools::<T>::try_mutate(&pool_id, |maybe_pool| -> DispatchResult {
+			let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+			ensure!(pool.find_asset(asset_id).is_none(), Error::<T>::AssetInPool);
+
+			let mut assets = pool.assets.to_vec();
+
+			assets.push(asset_id);
+			assets.sort();
+
+			pool.assets = assets.try_into().map_err(|_| Error::<T>::MaxAssetsExceeded)?;
+
+			//TODO: we might need to transfer to new pool account if account of the pool changes - depends how it is constructed in T::AccountIdFor
+
+			Ok(())
+		})
+	}
+
 	pub fn move_liquidity_to_pool(
 		from: &T::AccountId,
 		pool_id: T::AssetId,
@@ -700,12 +723,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn deposit_shares(
-		who: &T::AccountId,
-		pool_id: T::AssetId,
-		amount: Balance
-	) -> DispatchResult {
-
+	pub fn deposit_shares(who: &T::AccountId, pool_id: T::AssetId, amount: Balance) -> DispatchResult {
 		ensure!(!amount.is_zero(), Error::<T>::InvalidAssetAmount);
 		let current_share_balance = T::Currency::free_balance(pool_id, &who);
 
@@ -721,7 +739,7 @@ impl<T: Config> Pallet<T> {
 		who: &T::AccountId,
 		pool_id: T::AssetId,
 		assets: &[AssetLiquidity<T::AssetId>],
-	) -> Result<Balance, DispatchError>{
+	) -> Result<Balance, DispatchError> {
 		let pool = Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound)?;
 		ensure!(assets.len() <= pool.assets.len(), Error::<T>::MaxAssetsExceeded);
 		let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();

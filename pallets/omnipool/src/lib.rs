@@ -1664,4 +1664,28 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
+	pub fn update_asset_state(
+		asset_id: T::AssetId,
+		delta_q: Balance,
+		delta_s: Balance,
+		delta_ps: Balance,
+		delta_cap: Balance,
+	) -> DispatchResult {
+		<Assets<T>>::try_mutate(&asset_id, |maybe_asset| -> DispatchResult {
+			let state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+
+			state.hub_reserve = state
+				.hub_reserve
+				.checked_add(delta_q)
+				.ok_or(ArithmeticError::Overflow)?;
+			state.shares = state.shares.checked_add(delta_s).ok_or(ArithmeticError::Overflow)?;
+			state.protocol_shares = state
+				.protocol_shares
+				.checked_add(delta_ps)
+				.ok_or(ArithmeticError::Overflow)?;
+			state.cap = state.cap.checked_add(delta_cap).ok_or(ArithmeticError::Overflow)?;
+
+			Ok(())
+		})
+	}
 }

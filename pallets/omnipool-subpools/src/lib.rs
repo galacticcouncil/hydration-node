@@ -4,11 +4,20 @@
 mod tests;
 
 use frame_support::pallet_prelude::*;
+use sp_runtime::FixedU128;
 use sp_std::prelude::*;
 
 pub use pallet::*;
 
 pub type Balance = u128;
+
+#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct AssetDetail {
+	pub(crate) price: FixedU128,
+	pub(crate) shares: Balance,
+	pub(crate) hub_reserve: Balance,
+	pub(crate) share_tokens: Balance,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -31,6 +40,17 @@ pub mod pallet {
 		/// The origin which can create a new pool
 		type CreatePoolOrigin: EnsureOrigin<Self::Origin>;
 	}
+
+	/// Assets migrated from Omnipool to a subpool
+	#[pallet::storage]
+	#[pallet::getter(fn migrated_assets)]
+	pub(super) type MigratedAssets<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		<T as pallet_omnipool::Config>::AssetId,
+		(<T as pallet_stableswap::Config>::AssetId, AssetDetail),
+		OptionQuery,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
@@ -121,28 +141,82 @@ pub mod pallet {
 			)?;
 
 			// Remember some stuff to be able to update LP positions later on
-			// price, shares, Qi
+			let asset_a_details = AssetDetail {
+				price: Default::default(), //TODO: correct price
+				shares: asset_state_a.shares,
+				hub_reserve: asset_state_a.hub_reserve,
+				share_tokens: asset_state_a.hub_reserve,
+			};
+			let asset_b_details = AssetDetail {
+				price: Default::default(), //TODO: correct price
+				shares: asset_state_a.shares,
+				hub_reserve: asset_state_a.hub_reserve,
+				share_tokens: asset_state_a.hub_reserve,
+			};
+
+			MigratedAssets::<T>::insert(asset_a, (pool_id, asset_a_details));
+			MigratedAssets::<T>::insert(asset_b, (pool_id, asset_b_details));
 
 			Ok(())
 		}
 
 		#[pallet::weight(0)]
-		pub fn move_token_to_subpool(
+		pub fn migrate_asset_to_subpool(
 			origin: OriginFor<T>,
-			_pool_id: <T as pallet_stableswap::Config>::AssetId,
+			pool_id: <T as pallet_stableswap::Config>::AssetId,
 			asset_id: <T as pallet_omnipool::Config>::AssetId,
 		) -> DispatchResult {
 			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
 
 			// Load state - return AssetNotFound if it does not exist
-			let _asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_id)?;
+			let asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_id)?;
+
+			let subpool_pool_state = pallet_omnipool::Pallet::<T>::load_asset_state(pool_id.into())?;
+
+			let omnipool_account = pallet_omnipool::Pallet::<T>::protocol_account();
 
 			// Add token to subpool
 			// this might require moving from one pool account to another - depends on how AccountIdFor is implemented!
+			pallet_stableswap::Pallet::<T>::add_asset_to_existing_pool(pool_id, asset_id.into())?;
 
 			// Move liquidity from omnipool account to subpool
+			pallet_stableswap::Pallet::<T>::move_liquidity_to_pool(
+				&omnipool_account,
+				pool_id,
+				&[AssetLiquidity::<<T as pallet_stableswap::Config>::AssetId> {
+					asset_id: asset_id.into(),
+					amount: asset_state.reserve,
+				}],
+			)?;
 
 			// Remove token from omnipool
+			pallet_omnipool::Pallet::<T>::remove_asset(asset_id)?;
+
+			let delta_q = asset_state.hub_reserve;
+			let delta_ps = asset_state.protocol_shares;
+			let delta_s = asset_state.hub_reserve * subpool_pool_state.shares / subpool_pool_state.hub_reserve;
+			let delta_u = asset_state.hub_reserve * subpool_pool_state.reserve / subpool_pool_state.hub_reserve;
+
+			pallet_omnipool::Pallet::<T>::update_asset_state(
+				pool_id.into(),
+				delta_q,
+				delta_s,
+				delta_ps,
+				asset_state.cap,
+			)?;
+
+			pallet_stableswap::Pallet::<T>::deposit_shares(&omnipool_account, pool_id.into(), delta_u)?;
+
+			// Remember some stuff to be able to update LP positions later on
+			// price, shares, Qi, delta_u
+			let asset_details = AssetDetail {
+				price: Default::default(), //TODO: correct price
+				shares: asset_state.shares,
+				hub_reserve: delta_q,
+				share_tokens: delta_u,
+			};
+
+			MigratedAssets::<T>::insert(asset_id, (pool_id, asset_details));
 
 			Ok(())
 		}
