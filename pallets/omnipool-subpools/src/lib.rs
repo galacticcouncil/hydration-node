@@ -208,7 +208,6 @@ pub mod pallet {
 			pallet_stableswap::Pallet::<T>::deposit_shares(&omnipool_account, pool_id.into(), delta_u)?;
 
 			// Remember some stuff to be able to update LP positions later on
-			// price, shares, Qi, delta_u
 			let asset_details = AssetDetail {
 				price: Default::default(), //TODO: correct price
 				shares: asset_state.shares,
@@ -229,11 +228,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
 
-			// Figure out where is the asset
-			// 1. Stableswap pool
-			// 2. omnipool assset
-			// if stableswap - do add liquidity to subpool and then call omnipool's add_liquidity with shares to mint position
-			// if omnipool - call omnipool::add_liquidity
+			// Figure out where is the asset - isopool or subpool
+			// if supbpool - do add liquidity to subpool and then call omnipool's add_liquidity with shares to mint position
+			// if isopool - call omnipool::add_liquidity
 
 			Ok(())
 		}
@@ -247,14 +244,45 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
 
-			// Figure out where is the asset
-			// 1. Stableswap pool
-			// 2. omnipool assset
-			// if stableswap:
-			// - if position id is provided - update position to current
-			// - follow the math
-			// -- if not position id provided -  only shares - call stableswal remove liquid
-			// if omnipool - call omnipool::add_liquidity
+			// Figure out where is the asset - isopools or subpool
+			// - if subpool and position provided, update it first to current and follow the spec
+			// - if subpool but no position, only sahres -> call stableswap::remove_liquid
+			// - if isopool and position provided -> call omnipool::remove_liquid
+			// - if isopool but no position -> Error
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn sell(
+			origin: OriginFor<T>,
+			asset_in: T::AssetId,
+			asset_out: T::AssetId,
+			amount: Balance,
+			min_buy_amount: Balance,
+		) -> DispatchResult {
+			// Figure out where each asset is - isopool or subpool
+			// - if both in isopool - call omnipool sell
+			// - if both in same subpool - call stableswap::sell
+			// - if both in different subpool - handle here according to spec
+			// - if mixed - handle here according to spec
+
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn buy(
+			origin: OriginFor<T>,
+			asset_out: T::AssetId,
+			asset_in: T::AssetId,
+			amount: Balance,
+			min_buy_amount: Balance,
+		) -> DispatchResult {
+			// Figure out where each asset is - isopool or subpool
+			// - if both in isopool - call omnipool buy
+			// - if both in same subpool - call stableswap buy
+			// - if both in different subpool - handle here according to spec
+			// - if mixed - handle here according to spec
 
 			Ok(())
 		}
