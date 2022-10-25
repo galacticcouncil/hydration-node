@@ -1,0 +1,66 @@
+[package]
+name = 'pallet-stableswap'
+version = '1.0.0'
+description = '2 asset stabelswap/curve AMM'
+authors = ['GalacticCouncil']
+edition = '2021'
+homepage = 'https://github.com/galacticcouncil/basilisk-node'
+license = 'Apache 2.0'
+repository = 'https://github.com/galacticcouncil/basilisk-node'
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+# parity
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.1.5" }
+
+# primitives
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false}
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+
+# FRAME
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+
+# Math
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev="7d2ba1e169bba6379d8eed7978633dedeb0752fc", default-features = false }
+
+# HydraDX dependencies
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "0742deb9268f7e53fe610fdbe8e0e3d923393f0b", default-features = false }
+
+# ORML dependencies
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false }
+
+# Optional imports for benchmarking
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false , optional = true}
+
+[dev-dependencies]
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false}
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false, features=["std"]}
+proptest = "1.0.0"
+
+[features]
+default = ['std']
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "hydra-dx-math/runtime-benchmarks",
+]
+std = [
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+    "scale-info/std",
+    "orml-tokens/std",
+    "frame-benchmarking/std",
+]

@@ -89,7 +89,7 @@ mod benchmarks;
 #[cfg(test)]
 mod tests;
 
-mod types;
+pub mod types;
 pub mod weights;
 
 use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
@@ -1634,5 +1634,34 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	pub fn remove_asset(asset_id: T::AssetId) -> DispatchResult {
+		<Assets<T>>::remove(asset_id);
+		Ok(())
+	}
+
+	pub fn add_asset(
+		asset_id: T::AssetId,
+		hub_reserve: Balance,
+		shares: Balance,
+		protocol_shares: Balance,
+		cap: Balance,
+		tradable: Tradability,
+	) -> DispatchResult {
+		ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
+		ensure!(T::AssetRegistry::exists(asset_id), Error::<T>::AssetNotRegistered);
+
+		let state = AssetState::<Balance> {
+			hub_reserve,
+			shares,
+			protocol_shares,
+			cap,
+			tradable,
+		};
+
+		<Assets<T>>::insert(asset_id, state);
+
+		Ok(())
 	}
 }

@@ -209,20 +209,20 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 }
 
 /// Asset state representation including asset pool reserve.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct AssetReserveState<Balance> {
 	/// Quantity of asset in omnipool
-	pub(crate) reserve: Balance,
+	pub reserve: Balance,
 	/// Quantity of Hub Asset matching this asset
-	pub(crate) hub_reserve: Balance,
+	pub hub_reserve: Balance,
 	/// Quantity of LP shares for this asset
-	pub(crate) shares: Balance,
+	pub shares: Balance,
 	/// Quantity of LP shares for this asset owned by protocol
-	pub(crate) protocol_shares: Balance,
+	pub protocol_shares: Balance,
 	/// Asset's weight cap
-	pub(super) cap: u128,
+	pub cap: u128,
 	/// Asset's trade state
-	pub(crate) tradable: Tradability,
+	pub tradable: Tradability,
 }
 
 impl<Balance> From<&AssetReserveState<Balance>> for MathReserveState<Balance>

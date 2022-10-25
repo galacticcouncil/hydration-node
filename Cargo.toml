@@ -6,6 +6,7 @@ members = [
   'node',
   'pallets/omnipool',
   'pallets/omnipool-subpools',
+  'pallets/stableswap',
   'runtime/common',
   'runtime/hydradx',
   'runtime/testing-hydradx',

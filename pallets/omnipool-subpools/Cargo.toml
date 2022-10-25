@@ -19,6 +19,7 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 
 # Local
 pallet-omnipool = { path = "../omnipool", default-features = false }
+pallet-stableswap = { path = "../stableswap", default-features = false }
 
 # primitives
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -33,7 +34,6 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "0742deb9268f7e53fe610fdbe8e0e3d923393f0b", default-features = false }
-pallet-stableswap = { git = "https://github.com/galacticcouncil/warehouse", rev = "0742deb9268f7e53fe610fdbe8e0e3d923393f0b", default-features = false }
 
 # Math
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "7d2ba1e169bba6379d8eed7978633dedeb0752fc", default-features = false }
@@ -54,6 +54,7 @@ sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkad
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false}
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false }
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "0742deb9268f7e53fe610fdbe8e0e3d923393f0b", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 
@@ -72,6 +73,7 @@ std = [
 	"orml-tokens/std",
 	"pallet-omnipool/std",
 	"pallet-stableswap/std",
+	"pallet-asset-registry/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

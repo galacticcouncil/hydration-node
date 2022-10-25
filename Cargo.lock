@@ -1025,7 +1025,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
- "pallet-asset-registry",
+ "pallet-asset-registry 1.3.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.28)",
  "pallet-balances",
  "pallet-claims",
  "pallet-collator-selection",
@@ -3327,7 +3327,7 @@ dependencies = [
  "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-asset-registry",
+ "pallet-asset-registry 1.3.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.28)",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -3408,6 +3408,7 @@ dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
+ "serde",
  "sp-std",
 ]
 
@@ -5466,6 +5467,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset-registry"
+version = "1.3.1"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=0742deb9268f7e53fe610fdbe8e0e3d923393f0b#0742deb9268f7e53fe610fdbe8e0e3d923393f0b"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits 0.8.2 (git+https://github.com/galacticcouncil/warehouse?rev=0742deb9268f7e53fe610fdbe8e0e3d923393f0b)",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitive-types 0.12.0",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-aura"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
@@ -6102,7 +6125,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydra-dx-math",
- "hydradx-traits 0.8.2 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.28)",
+ "hydradx-traits 0.8.2 (git+https://github.com/galacticcouncil/warehouse?rev=0742deb9268f7e53fe610fdbe8e0e3d923393f0b)",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
@@ -6129,6 +6152,7 @@ dependencies = [
  "hydradx-traits 0.8.2 (git+https://github.com/galacticcouncil/warehouse?rev=0742deb9268f7e53fe610fdbe8e0e3d923393f0b)",
  "orml-tokens",
  "orml-traits",
+ "pallet-asset-registry 1.3.1 (git+https://github.com/galacticcouncil/warehouse?rev=0742deb9268f7e53fe610fdbe8e0e3d923393f0b)",
  "pallet-balances",
  "pallet-omnipool",
  "pallet-stableswap",
@@ -6291,20 +6315,23 @@ dependencies = [
 [[package]]
 name = "pallet-stableswap"
 version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=0742deb9268f7e53fe610fdbe8e0e3d923393f0b#0742deb9268f7e53fe610fdbe8e0e3d923393f0b"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits 0.8.2 (git+https://github.com/galacticcouncil/warehouse?rev=0742deb9268f7e53fe610fdbe8e0e3d923393f0b)",
+ "orml-tokens",
  "orml-traits",
  "parity-scale-codec",
+ "proptest",
  "scale-info",
+ "sp-api",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "sp-tracing",
 ]
 
 [[package]]
@@ -8765,7 +8792,7 @@ dependencies = [
  "orml-vesting",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-asset-registry",
+ "pallet-asset-registry 1.3.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.28)",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -11409,7 +11436,7 @@ dependencies = [
  "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-asset-registry",
+ "pallet-asset-registry 1.3.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.28)",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
