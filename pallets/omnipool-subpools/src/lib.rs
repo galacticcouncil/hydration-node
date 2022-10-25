@@ -226,13 +226,25 @@ pub mod pallet {
 			asset_id: <T as pallet_omnipool::Config>::AssetId,
 			amount: Balance,
 		) -> DispatchResult {
-			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
+			let who = ensure_signed(origin.clone())?;
 
 			// Figure out where is the asset - isopool or subpool
 			// if supbpool - do add liquidity to subpool and then call omnipool's add_liquidity with shares to mint position
 			// if isopool - call omnipool::add_liquidity
 
-			Ok(())
+			if let Some((pool_id, _)) = MigratedAssets::<T>::get(&asset_id) {
+				let shares = pallet_stableswap::Pallet::<T>::do_add_liquidity(
+					&who,
+					pool_id,
+					&[AssetLiquidity {
+						asset_id: asset_id.into(),
+						amount,
+					}],
+				)?;
+				pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
+			} else {
+				pallet_omnipool::Pallet::<T>::add_liquidity(origin, asset_id, amount)
+			}
 		}
 
 		#[pallet::weight(0)]
@@ -256,8 +268,8 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn sell(
 			origin: OriginFor<T>,
-			asset_in: T::AssetId,
-			asset_out: T::AssetId,
+			asset_in: <T as pallet_omnipool::Config>::AssetId,
+			asset_out: <T as pallet_omnipool::Config>::AssetId,
 			amount: Balance,
 			min_buy_amount: Balance,
 		) -> DispatchResult {
@@ -273,8 +285,8 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn buy(
 			origin: OriginFor<T>,
-			asset_out: T::AssetId,
-			asset_in: T::AssetId,
+			asset_out: <T as pallet_omnipool::Config>::AssetId,
+			asset_in: <T as pallet_omnipool::Config>::AssetId,
 			amount: Balance,
 			min_buy_amount: Balance,
 		) -> DispatchResult {
