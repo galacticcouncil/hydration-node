@@ -118,6 +118,7 @@ pub mod pallet {
 				.hub_reserve
 				.checked_add(asset_state_b.hub_reserve)
 				.ok_or(ArithmeticError::Overflow)?;
+			//TODO: update recalculation of protocol shares
 			let protocol_shares = asset_state_a
 				.protocol_shares
 				.checked_add(asset_state_b.protocol_shares)
@@ -195,10 +196,12 @@ pub mod pallet {
 			// Remove token from omnipool
 			pallet_omnipool::Pallet::<T>::remove_asset(asset_id)?;
 
+			let share_issuance = <T as pallet_omnipool::Config>::Currency::total_issuance(pool_id.into());
+
 			let delta_q = asset_state.hub_reserve;
-			let delta_ps = asset_state.protocol_shares;
+			let delta_ps = asset_state.protocol_shares; //TODO; update recalcuation of protocol shares according to spec
 			let delta_s = asset_state.hub_reserve * subpool_pool_state.shares / subpool_pool_state.hub_reserve;
-			let delta_u = asset_state.hub_reserve * subpool_pool_state.reserve / subpool_pool_state.hub_reserve;
+			let delta_u = asset_state.hub_reserve * share_issuance / subpool_pool_state.hub_reserve;
 
 			pallet_omnipool::Pallet::<T>::update_asset_state(
 				pool_id.into(),
