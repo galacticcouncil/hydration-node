@@ -144,6 +144,7 @@ runtime-benchmarks = [
     "sp-runtime/runtime-benchmarks",
     "cumulus-pallet-xcmp-queue/runtime-benchmarks",
     "pallet-uniques/runtime-benchmarks",
+    "pallet-omnipool/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -193,6 +194,7 @@ std = [
     "pallet-collator-selection/std",
     "pallet-authorship/std",
     "pallet-utility/std",
+    "pallet-uniques/std",
     "hydradx-traits/std",
     "pallet-transaction-multi-payment/std",
     "pallet-genesis-history/std",
