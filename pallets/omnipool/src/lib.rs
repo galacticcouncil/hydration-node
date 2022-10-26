@@ -1253,7 +1253,7 @@ pub mod pallet {
 		/// Only `AddTokenOrigin` can perform this operition -same as `add_token`o
 		///
 		/// Emits `AssetRefunded`
-		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_token())]
+		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_asset())]
 		#[transactional]
 		pub fn refund_refused_asset(
 			origin: OriginFor<T>,
