@@ -695,6 +695,9 @@ impl<T: Config> Pallet<T> {
 
 		Pools::<T>::try_mutate(&pool_id, |maybe_pool| -> DispatchResult {
 			let pool = maybe_pool.as_mut().ok_or(Error::<T>::PoolNotFound)?;
+
+			let orig_account = pool.pool_account::<T>();
+
 			ensure!(pool.find_asset(asset_id).is_none(), Error::<T>::AssetInPool);
 
 			let mut assets = pool.assets.to_vec();
@@ -704,7 +707,15 @@ impl<T: Config> Pallet<T> {
 
 			pool.assets = assets.try_into().map_err(|_| Error::<T>::MaxAssetsExceeded)?;
 
-			//TODO: we might need to transfer to new pool account if account of the pool changes - depends how it is constructed in T::AccountIdFor
+			let pool_account = pool.pool_account::<T>();
+
+			if orig_account != pool_account {
+				// we need to transfer reserves to new account
+				for asset in pool.assets.iter() {
+					let balance = T::Currency::free_balance(*asset, &orig_account);
+					T::Currency::transfer(*asset, &orig_account, &pool_account, balance)?;
+				}
+			}
 
 			Ok(())
 		})
