@@ -778,17 +778,10 @@ impl<T: Config> Pallet<T> {
 			share_issuance,
 		)
 		.ok_or(ArithmeticError::Overflow)?;
-		ensure!(!share_amount.is_zero(), Error::<T>::InvalidAssetAmount);
-		let current_share_balance = T::Currency::free_balance(pool_id, &who);
-		ensure!(
-			current_share_balance.saturating_add(share_amount) >= T::MinPoolLiquidity::get(),
-			Error::<T>::InsufficientShareBalance
-		);
 
-		T::Currency::deposit(pool_id, &who, share_amount)?;
-		for asset in assets.iter() {
-			T::Currency::transfer(asset.asset_id, &who, &pool_account, asset.amount)?;
-		}
+		Self::deposit_shares(&who, pool_id, share_amount)?;
+
+		Self::move_liquidity_to_pool(&who, pool_id, &assets)?;
 
 		Ok(share_amount)
 	}
