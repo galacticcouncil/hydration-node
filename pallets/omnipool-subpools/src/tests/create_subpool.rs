@@ -1,11 +1,12 @@
 use super::*;
 
 use pallet_omnipool::types::{AssetReserveState, Tradability};
+use crate::AssetDetail;
 
 //TODO: Dani - add integration tests for creating pool, adding liq, and trading in it
 
 #[test]
-fn create_subpool_should_work() {
+fn create_subpool_should_work_with_single_pool() {
 	ExtBuilder::default()
 		.with_registered_asset(b"1000".to_vec())
 		.with_registered_asset(b"2000".to_vec())
@@ -81,5 +82,31 @@ fn create_subpool_should_work() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			let migrate_asset_3 = OmnipoolSubpools::migrated_assets(3);
+			assert!(migrate_asset_3.is_some());
+
+			assert_eq!(
+				migrate_asset_3.unwrap(),
+				(pool_id,AssetDetail {
+					price: Default::default(),
+					shares: 2000 * ONE,
+					hub_reserve: 1300 * ONE,
+					share_tokens: 1300 * ONE,
+				})
+			);
+
+			let migrate_asset_4 = OmnipoolSubpools::migrated_assets(4);
+			assert!(migrate_asset_4.is_some());
+			assert_eq!(
+				migrate_asset_4.unwrap(),
+				(pool_id,AssetDetail {
+					price: Default::default(),
+					shares: 2000 * ONE,
+					hub_reserve: 1300 * ONE,
+					share_tokens: 1300 * ONE,
+				})
+			);
+
 		});
 }
