@@ -1,7 +1,7 @@
 use super::*;
 
-use pallet_omnipool::types::{AssetReserveState, Tradability};
 use crate::AssetDetail;
+use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
 
 //TODO: Dani - add integration tests for creating pool, adding liq, and trading in it
@@ -63,19 +63,27 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				}
 			);
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(ASSET_3, pool_id, AssetDetail {
-				price: Default::default(),
-				shares: 2000 * ONE,
-				hub_reserve: 1300 * ONE,
-				share_tokens: 1300 * ONE,
-			});
+			assert_that_asset_is_migrated_to_omnipool_subpool(
+				ASSET_3,
+				pool_id,
+				AssetDetail {
+					price: Default::default(),
+					shares: 2000 * ONE,
+					hub_reserve: 1300 * ONE,
+					share_tokens: 1300 * ONE,
+				},
+			);
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(ASSET_4, pool_id, AssetDetail {
-				price: Default::default(),
-				shares: 2000 * ONE,
-				hub_reserve: 1300 * ONE,
-				share_tokens: 1300 * ONE,
-			});
+			assert_that_asset_is_migrated_to_omnipool_subpool(
+				ASSET_4,
+				pool_id,
+				AssetDetail {
+					price: Default::default(),
+					shares: 2000 * ONE,
+					hub_reserve: 1300 * ONE,
+					share_tokens: 1300 * ONE,
+				},
+			);
 
 			//TODO: ask Martin - change from 2000 for 2nd asset to something else to make the test more meaninhgufll, othewise the asset details are the same
 		});
@@ -83,29 +91,30 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 fn add_omnipool_token(asset_id: AssetId) {
 	assert_ok!(Omnipool::add_token(
-			Origin::root(),
-			asset_id,
-			FixedU128::from_float(0.65),
-			Permill::from_percent(100),
-			LP1
-			));
+		Origin::root(),
+		asset_id,
+		FixedU128::from_float(0.65),
+		Permill::from_percent(100),
+		LP1
+	));
 }
 
 fn assert_that_asset_is_not_found_in_omnipool(asset: AssetId) {
 	assert_err!(
-				Omnipool::load_asset_state(asset),
-				pallet_omnipool::Error::<Test>::AssetNotFound
-			);
+		Omnipool::load_asset_state(asset),
+		pallet_omnipool::Error::<Test>::AssetNotFound
+	);
 }
 
 fn assert_that_asset_is_migrated_to_omnipool_subpool(asset: AssetId, pool_id: AssetId, asset_details: AssetDetail) {
 	let migrate_asset = OmnipoolSubpools::migrated_assets(asset);
 
-	assert!(migrate_asset.is_some(), "Asset '{}' can not be found in omnipool asset migrated asset storage", asset);
-	assert_eq!(
-		migrate_asset.unwrap(),
-		(pool_id,asset_details)
+	assert!(
+		migrate_asset.is_some(),
+		"Asset '{}' can not be found in omnipool asset migrated asset storage",
+		asset
 	);
+	assert_eq!(migrate_asset.unwrap(), (pool_id, asset_details));
 }
 
 //TODO: add test for having multiple pools multiple assets
