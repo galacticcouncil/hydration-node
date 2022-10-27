@@ -50,6 +50,9 @@ pub type AssetId = u32;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
+pub const ASSET_3: AssetId = 3;
+pub const ASSET_4: AssetId = 4;
+pub const ASSET_5: AssetId = 5;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
@@ -515,6 +518,9 @@ impl AccountIdFor<Vec<u32>> for AccountIdConstructor {
 			std::mem::swap(&mut a, &mut b)
 		}
 		(a * 1000 + b) as u64
+
+		//TODO: use this impl once the transfer with sharetoken issue is sorted out
+		//let id  = assets.into_iter().sum::<u32>() as u64;
 	}
 
 	fn name(assets: &Vec<u32>, identifier: Option<&[u8]>) -> Vec<u8> {
