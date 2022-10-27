@@ -830,8 +830,8 @@ impl pallet_omnipool::Config for Runtime {
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
-	type PositionInstanceId = ItemId;
-	type NFTClassId = OmnipoolCollectionId;
+	type PositionItemId = ItemId;
+	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = NFT;
 	type WeightInfo = ();
 }

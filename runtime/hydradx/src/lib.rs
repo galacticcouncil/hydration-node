@@ -185,6 +185,8 @@ impl Contains<Call> for TransfersDisabled {
 			Call::XTokens(_) => false,
 			Call::PolkadotXcm(_) => false,
 			Call::OrmlXcm(_) => false,
+			Call::Uniques(_) => false,
+			Call::NFT(_) => false,
 			_ => true,
 		}
 	}
@@ -772,9 +774,9 @@ parameter_types! {
 	pub const ItemDeposit: Balance = 0;
 	pub const KeyLimit: u32 = 256;	// Max 256 bytes per key
 	pub const ValueLimit: u32 = 1024;	// Max 1024 bytes per value
-	pub const UniquesMetadataDepositBase: Balance = 0;
-	pub const AttributeDepositBase: Balance = 0;
-	pub const DepositPerByte: Balance = 0;
+	pub const UniquesMetadataDepositBase: Balance = 1_000 * UNITS;
+	pub const AttributeDepositBase: Balance = UNITS;
+	pub const DepositPerByte: Balance = UNITS;
 	pub const UniquesStringLimit: u32 = 72;
 }
 
@@ -845,8 +847,8 @@ impl pallet_omnipool::Config for Runtime {
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
-	type PositionInstanceId = ItemId;
-	type NFTClassId = OmnipoolCollectionId;
+	type PositionItemId = ItemId;
+	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = NFT;
 	type WeightInfo = ();
 }
