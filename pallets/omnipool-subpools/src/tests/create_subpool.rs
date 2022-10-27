@@ -8,6 +8,7 @@ use pretty_assertions::assert_eq;
 
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {
+	//Arrange
 	ExtBuilder::default()
 		.with_registered_asset(b"1000".to_vec())
 		.with_registered_asset(b"2000".to_vec())
@@ -20,6 +21,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			add_omnipool_token(ASSET_3);
 			add_omnipool_token(ASSET_4);
 
+			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
 				ASSET_3,
@@ -29,6 +31,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				Permill::from_percent(0),
 			));
 
+			//Assert
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 			let pool_id: AssetId = 5;
@@ -111,7 +114,7 @@ fn assert_that_asset_is_migrated_to_omnipool_subpool(asset: AssetId, pool_id: As
 
 	assert!(
 		migrate_asset.is_some(),
-		"Asset '{}' can not be found in omnipool asset migrated asset storage",
+		"Asset '{}' can not be found in omnipool subpools migrated asset storage",
 		asset
 	);
 	assert_eq!(migrate_asset.unwrap(), (pool_id, asset_details));
