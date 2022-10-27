@@ -53,6 +53,7 @@ pub const DAI: AssetId = 2;
 pub const ASSET_3: AssetId = 3;
 pub const ASSET_4: AssetId = 4;
 pub const ASSET_5: AssetId = 5;
+pub const ASSET_6: AssetId = 6;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
