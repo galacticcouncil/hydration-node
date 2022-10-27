@@ -10,8 +10,8 @@ use pretty_assertions::assert_eq;
 fn create_subpool_should_work_when_single_pool_is_created() {
 	//Arrange
 	ExtBuilder::default()
-		.with_registered_asset(b"1000".to_vec())
-		.with_registered_asset(b"2000".to_vec())
+		.with_registered_asset(b"ASSET_3".to_vec())
+		.with_registered_asset(b"ASSET_4".to_vec())
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -96,10 +96,10 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 fn create_subpool_should_work_when_multiple_pools_are_created() {
 	//Arrange
 	ExtBuilder::default()
-		.with_registered_asset(b"1000".to_vec())
-		.with_registered_asset(b"2000".to_vec())
-		.with_registered_asset(b"3000".to_vec())
-		.with_registered_asset(b"4000".to_vec())
+		.with_registered_asset(b"ASSET_3".to_vec())
+		.with_registered_asset(b"ASSET_4".to_vec())
+		.with_registered_asset(b"ASSET_5".to_vec())
+		.with_registered_asset(b"ASSET_6".to_vec())
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
