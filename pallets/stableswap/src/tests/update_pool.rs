@@ -8,17 +8,18 @@ use sp_runtime::Permill;
 fn update_pool_should_work_when_all_parames_are_updated() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.build()
 		.execute_with(|| {
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				100u16,
 				Permill::from_percent(0),
@@ -49,17 +50,18 @@ fn update_pool_should_work_when_all_parames_are_updated() {
 fn update_pool_should_work_when_only_amplification_is_updated() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.build()
 		.execute_with(|| {
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				100u16,
 				Permill::from_percent(0),
@@ -90,17 +92,18 @@ fn update_pool_should_work_when_only_amplification_is_updated() {
 fn update_pool_should_work_when_only_trade_fee_is_updated() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.build()
 		.execute_with(|| {
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				100u16,
 				Permill::from_percent(0),
@@ -131,17 +134,18 @@ fn update_pool_should_work_when_only_trade_fee_is_updated() {
 fn update_pool_should_work_when_only_withdraw_fee_is_updated() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.build()
 		.execute_with(|| {
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				100u16,
 				Permill::from_percent(0),
@@ -172,17 +176,18 @@ fn update_pool_should_work_when_only_withdraw_fee_is_updated() {
 fn update_pool_should_work_when_only_fees_is_updated() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.build()
 		.execute_with(|| {
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				100u16,
 				Permill::from_percent(0),
@@ -213,17 +218,18 @@ fn update_pool_should_work_when_only_fees_is_updated() {
 fn update_pool_should_fail_when_nothing_is_to_update() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.build()
 		.execute_with(|| {
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				100u16,
 				Permill::from_percent(0),
@@ -271,17 +277,18 @@ fn update_pool_should_fail_when_pool_does_not_exists() {
 fn update_pool_should_fail_when_amplification_is_outside_allowed_range() {
 	let asset_a: AssetId = 1;
 	let asset_b: AssetId = 2;
+	let pool_id: AssetId = 100;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, 1, 200 * ONE), (ALICE, 2, 200 * ONE)])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), asset_a)
 		.with_registered_asset("two".as_bytes().to_vec(), asset_b)
 		.build()
 		.execute_with(|| {
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				100u16,
 				Permill::from_percent(0),

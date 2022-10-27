@@ -44,7 +44,7 @@ extern crate core;
 
 use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::{ensure, transactional};
-use hydradx_traits::{AccountIdFor, Registry, ShareTokenRegistry};
+use hydradx_traits::{AccountIdFor, Registry};
 use sp_runtime::traits::Zero;
 use sp_runtime::{ArithmeticError, DispatchError, Permill};
 use sp_std::prelude::*;
@@ -115,7 +115,7 @@ pub mod pallet {
 		type ShareAccountId: AccountIdFor<Vec<Self::AssetId>, AccountId = Self::AccountId>;
 
 		/// Asset registry mechanism
-		type AssetRegistry: ShareTokenRegistry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
+		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
 		/// The origin which can create a new pool
 		type CreatePoolOrigin: EnsureOrigin<Self::Origin>;
@@ -218,6 +218,12 @@ pub mod pallet {
 		/// Asset is already in the pool.
 		AssetInPool,
 
+		/// Share asset is not registered in Registry.
+		ShareAssetNotRegistered,
+
+		/// Share asset is amount assets when creating a pool.
+		ShareAssetInPoolAssets,
+
 		/// One or more assets are not registered in AssetRegistry
 		AssetNotRegistered,
 
@@ -281,6 +287,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn create_pool(
 			origin: OriginFor<T>,
+			share_asset: T::AssetId,
 			assets: Vec<T::AssetId>,
 			amplification: u16,
 			trade_fee: Permill,
@@ -288,7 +295,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::CreatePoolOrigin::ensure_origin(origin)?;
 
-			let pool_id = Self::do_create_pool(&assets, amplification, trade_fee, withdraw_fee)?;
+			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, trade_fee, withdraw_fee)?;
 
 			Self::deposit_event(Event::PoolCreated {
 				pool_id,
@@ -643,11 +650,20 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn do_create_pool(
+		share_asset: T::AssetId,
 		assets: &[T::AssetId],
 		amplification: u16,
 		trade_fee: Permill,
 		withdraw_fee: Permill,
 	) -> Result<T::AssetId, DispatchError> {
+		ensure!(!Pools::<T>::contains_key(&share_asset), Error::<T>::PoolExists);
+		ensure!(
+			T::AssetRegistry::exists(share_asset),
+			Error::<T>::ShareAssetNotRegistered
+		);
+
+		ensure!(!assets.contains(&share_asset), Error::<T>::ShareAssetInPoolAssets);
+
 		let mut pool_assets = assets.to_vec();
 		pool_assets.sort();
 
@@ -668,20 +684,8 @@ impl<T: Config> Pallet<T> {
 		for asset in pool.assets.iter() {
 			ensure!(T::AssetRegistry::exists(*asset), Error::<T>::AssetNotRegistered);
 		}
-		let share_asset_ident = T::ShareAccountId::name(&pool.assets, Some(POOL_IDENTIFIER));
-		let share_asset = T::AssetRegistry::get_or_create_shared_asset(
-			share_asset_ident,
-			pool.assets.clone().into(),
-			T::MinPoolLiquidity::get(),
-		)?;
 
-		Pools::<T>::try_mutate(&share_asset, |maybe_pool| -> DispatchResult {
-			ensure!(maybe_pool.is_none(), Error::<T>::PoolExists);
-
-			*maybe_pool = Some(pool);
-
-			Ok(())
-		})?;
+		Pools::<T>::insert(&share_asset, pool);
 
 		Ok(share_asset)
 	}

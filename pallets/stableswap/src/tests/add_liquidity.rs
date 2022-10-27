@@ -7,6 +7,7 @@ use sp_runtime::Permill;
 
 #[test]
 fn add_initial_liquidity_should_work_when_called_first_time() {
+	let pool_id: AssetId = 100u32;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(BOB, 1, 200 * ONE),
@@ -14,6 +15,7 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			(ALICE, 1, 200 * ONE),
 			(ALICE, 2, 200 * ONE),
 		])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), 1)
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.build()
@@ -22,10 +24,9 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 			let asset_b: AssetId = 2;
 			let amplification: u16 = 100;
 
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				amplification,
 				Permill::from_percent(0),
@@ -61,6 +62,7 @@ fn add_initial_liquidity_should_work_when_called_first_time() {
 
 #[test]
 fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
+	let pool_id: AssetId = 100u32;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(BOB, 1, 200 * ONE),
@@ -68,6 +70,7 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			(ALICE, 1, 200 * ONE),
 			(ALICE, 2, 200 * ONE),
 		])
+		.with_registered_asset("pool".as_bytes().to_vec(), pool_id)
 		.with_registered_asset("one".as_bytes().to_vec(), 1)
 		.with_registered_asset("two".as_bytes().to_vec(), 2)
 		.build()
@@ -76,10 +79,9 @@ fn add_initial_liquidity_should_fail_when_lp_has_insufficient_balance() {
 			let asset_b: AssetId = 2;
 			let amplification: u16 = 100;
 
-			let pool_id = retrieve_current_asset_id();
-
 			assert_ok!(Stableswap::create_pool(
 				Origin::signed(ALICE),
+				pool_id,
 				vec![asset_a, asset_b],
 				amplification,
 				Permill::from_percent(0),
