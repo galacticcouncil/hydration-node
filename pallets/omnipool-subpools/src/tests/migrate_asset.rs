@@ -4,10 +4,12 @@ use pallet_omnipool::types::{AssetReserveState, Tradability};
 
 #[test]
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
+	let pool_id: AssetId = 6;
 	ExtBuilder::default()
 		.with_registered_asset(b"1000".to_vec())
 		.with_registered_asset(b"2000".to_vec())
 		.with_registered_asset(b"3000".to_vec())
+		.with_registered_asset(b"pool".to_vec())
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -42,14 +44,13 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			));
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
+				pool_id,
 				ASSET_3,
 				ASSET_4,
 				100u16,
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
-
-			let pool_id: AssetId = 6;
 
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),

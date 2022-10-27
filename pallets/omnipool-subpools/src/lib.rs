@@ -76,6 +76,7 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn create_subpool(
 			origin: OriginFor<T>,
+			share_asset: <T as pallet_omnipool::Config>::AssetId,
 			asset_a: <T as pallet_omnipool::Config>::AssetId,
 			asset_b: <T as pallet_omnipool::Config>::AssetId,
 			amplification: u16,
@@ -90,6 +91,7 @@ pub mod pallet {
 
 			// Create new subpool
 			let pool_id = pallet_stableswap::Pallet::<T>::do_create_pool(
+				share_asset.into(),
 				&[asset_a.into(), asset_b.into()],
 				amplification,
 				trade_fee,
