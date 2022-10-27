@@ -17,23 +17,8 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let token_price = FixedU128::from_float(0.65);
-
-			assert_ok!(Omnipool::add_token(
-				Origin::root(),
-				ASSET_3,
-				token_price,
-				Permill::from_percent(100),
-				LP1
-			));
-
-			assert_ok!(Omnipool::add_token(
-				Origin::root(),
-				ASSET_4,
-				token_price,
-				Permill::from_percent(100),
-				LP1
-			));
+			add_omnipool_token(ASSET_3);
+			add_omnipool_token(ASSET_4);
 
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
@@ -94,6 +79,16 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			//TODO: ask Martin - change from 2000 for 2nd asset to something else to make the test more meaninhgufll, othewise the asset details are the same
 		});
+}
+
+fn add_omnipool_token(asset_id: AssetId) {
+	assert_ok!(Omnipool::add_token(
+			Origin::root(),
+			asset_id,
+			FixedU128::from_float(0.65),
+			Permill::from_percent(100),
+			LP1
+			));
 }
 
 fn assert_that_asset_is_not_found_in_omnipool(asset: AssetId) {
