@@ -33,6 +33,7 @@ use orml_traits::MultiCurrency;
 // - ensure list of assets is sorted in stableswap pool ( this must be done in stableswap pallet) - few new tests are needed there to test the add asset
 
 // add liquidity:
+// - ensure tradable state is respected - only if add liquidity is allowed for asset.
 // - add liquidity to omnipool asset only
 // - add liquidity to subpool
 //      - ensure that LP does not have any shares in account ( because add liqudity first deposits shares to LP account and then move them to omnipool)
@@ -48,4 +49,4 @@ use orml_traits::MultiCurrency;
 // - this scenario happens when LP adds liquidity of asset and only after that, asset is migrated to subpool
 
 // remove liquidity:
-// -
+// - ensure tradable state is respected - only if remove liquidity is allowed for asset.
