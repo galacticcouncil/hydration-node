@@ -1,6 +1,7 @@
 use super::*;
 
 use pallet_omnipool::types::{AssetReserveState, Tradability};
+use pretty_assertions::assert_eq;
 
 #[test]
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
@@ -95,7 +96,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 					hub_reserve: 3900 * ONE,
 					shares: 3900 * ONE,
 					protocol_shares: 0,
-					cap: 3_000_000_000_000_000_000,
+					cap: 1_100_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
