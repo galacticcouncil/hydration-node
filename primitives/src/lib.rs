@@ -37,3 +37,9 @@ pub type Amount = i128;
 
 /// Price
 pub type Price = FixedU128;
+
+/// NFT Collection ID
+pub type CollectionId = u128;
+
+/// NFT Item ID
+pub type ItemId = u128;

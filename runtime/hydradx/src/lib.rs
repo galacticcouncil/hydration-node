@@ -32,7 +32,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, Perbill,
+	ApplyExtrinsicResult, Perbill, Permill,
 };
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
@@ -42,6 +42,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
+use frame_support::traits::AsEnsureOriginWithArg;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Contains, EnsureOrigin, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp, U128CurrencyToVote},
@@ -68,6 +69,7 @@ pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
+use pallet_nft::{CollectionId, ItemId};
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -96,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 110,
+	spec_version: 111,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -179,6 +181,8 @@ impl Contains<Call> for CallFilter {
 		match call {
 			Call::PolkadotXcm(_) => false,
 			Call::OrmlXcm(_) => false,
+			Call::Uniques(_) => false,
+			Call::NFT(_) => false,
 			_ => true,
 		}
 	}
@@ -761,6 +765,90 @@ impl pallet_collator_rewards::Config for Runtime {
 	type SessionManager = CollatorSelection;
 }
 
+parameter_types! {
+	pub const CollectionDeposit: Balance = 0;
+	pub const ItemDeposit: Balance = 0;
+	pub const KeyLimit: u32 = 256;	// Max 256 bytes per key
+	pub const ValueLimit: u32 = 1024;	// Max 1024 bytes per value
+	pub const UniquesMetadataDepositBase: Balance = 1_000 * UNITS;
+	pub const AttributeDepositBase: Balance = UNITS;
+	pub const DepositPerByte: Balance = UNITS;
+	pub const UniquesStringLimit: u32 = 72;
+}
+
+impl pallet_uniques::Config for Runtime {
+	type Event = Event;
+	type CollectionId = CollectionId;
+	type ItemId = ItemId;
+	type Currency = Balances;
+	type ForceOrigin = MajorityOfCouncil;
+	// Standard collection creation is disallowed
+	type CreateOrigin = AsEnsureOriginWithArg<NeverEnsureOrigin<AccountId>>;
+	type Locker = ();
+	type CollectionDeposit = CollectionDeposit;
+	type ItemDeposit = ItemDeposit;
+	type MetadataDepositBase = UniquesMetadataDepositBase;
+	type AttributeDepositBase = AttributeDepositBase;
+	type DepositPerByte = DepositPerByte;
+	type StringLimit = UniquesStringLimit;
+	type KeyLimit = KeyLimit;
+	type ValueLimit = ValueLimit;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type Helper = ();
+}
+
+parameter_types! {
+	pub ReserveCollectionIdUpTo: u128 = 999_999;
+}
+
+impl pallet_nft::Config for Runtime {
+	type Event = Event;
+	type WeightInfo = pallet_nft::weights::BasiliskWeight<Runtime>;
+	type NftCollectionId = CollectionId;
+	type NftItemId = ItemId;
+	type ProtocolOrigin = EnsureRoot<AccountId>;
+	type CollectionType = pallet_nft::CollectionType;
+	type Permissions = pallet_nft::NftPermissions;
+	type ReserveCollectionIdUpTo = ReserveCollectionIdUpTo;
+}
+
+parameter_types! {
+	pub const LRNA: AssetId = 1;
+	pub const StableAssetId: AssetId = 2;
+	pub ProtofolFee: Permill = Permill::from_rational(3u32,1000u32);
+	pub AssetFee: Permill = Permill::from_rational(3u32,1000u32);
+	pub const TVLCap : Balance= u128::MAX;
+	pub const MinTradingLimit : Balance = 1_000_000u128;
+	pub const MinPoolLiquidity: Balance = 1_000_000u128;
+	pub const MaxInRatio: Balance = 3u128;
+	pub const MaxOutRatio: Balance = 3u128;
+	pub const OmnipoolCollectionId: CollectionId = 3u128;
+}
+
+impl pallet_omnipool::Config for Runtime {
+	type Event = Event;
+	type AssetId = AssetId;
+	type Currency = Currencies;
+	type AddTokenOrigin = MajorityOfCouncil;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type AssetRegistry = AssetRegistry;
+	type HdxAssetId = NativeAssetId;
+	type HubAssetId = LRNA;
+	type StableCoinAssetId = StableAssetId;
+	type ProtocolFee = ProtofolFee;
+	type AssetFee = AssetFee;
+	type TVLCap = TVLCap;
+	type MinimumTradingLimit = MinTradingLimit;
+	type MinimumPoolLiquidity = MinPoolLiquidity;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type PositionItemId = ItemId;
+	type NFTCollectionId = OmnipoolCollectionId;
+	type NFTHandler = NFT;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -784,12 +872,15 @@ construct_runtime!(
 		Tips: pallet_tips = 27,
 		Proxy: pallet_proxy = 29,
 		Multisig: pallet_multisig = 31,
+		Uniques: pallet_uniques = 32,
 
 		// HydraDX related modules
 		AssetRegistry: pallet_asset_registry = 51,
 		Claims: pallet_claims = 53,
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
+		NFT: pallet_nft = 58,
+		Omnipool: pallet_omnipool = 59,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1007,6 +1098,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_democracy, Democracy);
 			list_benchmark!(list, extra, council, Council);
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
+			list_benchmark!(list, extra, pallet_omnipool, Omnipool);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1062,6 +1154,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_democracy, Democracy);
 			add_benchmark!(params, batches, council, Council);
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
+			add_benchmark!(params, batches, pallet_omnipool, Omnipool);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);

@@ -148,7 +148,7 @@ parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
 	pub const DAIAssetId: AssetId = DAI;
-	pub const PosiitionClassId: u32= 1000;
+	pub const PosiitionCollectionId: u32= 1000;
 
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
@@ -163,7 +163,7 @@ parameter_types! {
 impl Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
-	type PositionInstanceId = u32;
+	type PositionItemId = u32;
 	type Currency = Tokens;
 	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
@@ -172,7 +172,7 @@ impl Config for Test {
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
-	type NFTClassId = PosiitionClassId;
+	type NFTCollectionId = PosiitionCollectionId;
 	type NFTHandler = DummyNFT;
 	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<Test>;
