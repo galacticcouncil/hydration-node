@@ -142,7 +142,6 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 				vec![],
 				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
-				hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(), // treasury
 				vec![
 					(
 						get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -190,7 +189,6 @@ fn testnet_parachain_genesis(
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
 	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
-	tx_fee_payment_account: AccountId,          // Account use multi-payment pallet to send fees to in pool does not exists
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	elections: Vec<(AccountId, Balance)>,
@@ -249,7 +247,6 @@ fn testnet_parachain_genesis(
 		},
 		multi_transaction_payment: MultiTransactionPaymentConfig {
 			currencies: accepted_assets,
-			fallback_account: Some(tx_fee_payment_account),
 			account_currencies: vec![],
 		},
 		tokens: TokensConfig {

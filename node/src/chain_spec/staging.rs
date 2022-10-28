@@ -76,8 +76,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				vec![],
 				// accepted_assets
 				vec![],
-				// tx_fee_payment_account
-				hex!["0abad795adcb5dee45d29528005b1f78d55fc170844babde88df84016c6cd14d"].into(),
 				// token balances
 				vec![],
 				// claims data
