@@ -96,7 +96,7 @@ jobs:
         run: ./target/release/hydradx --version
       - name: Get hydradx chainspec json
         run: |
-          ./target/release/hydradx build-spec --chain testnet-hydradx --raw > hydradx-testnet-chainspec.json
+          ./target/release/hydradx build-spec --raw > hydradx-testnet-chainspec.json
       - name: Upload config file
         uses: actions/upload-artifact@v2
         with:
@@ -106,7 +106,7 @@ jobs:
         run: ./target/release/hydradx export-genesis-wasm --chain hydradx-testnet-chainspec.json > para-wasm
 
       - name: Generate genesis binary for testnet
-        run: ./target/release/hydradx export-genesis-state --chain hydradx-testnet-chain > para-genesis
+        run: ./target/release/hydradx export-genesis-state --chain hydradx-testnet-chainspec.json > para-genesis
 
       - name: Upload wasm binary
         uses: actions/upload-artifact@v2
