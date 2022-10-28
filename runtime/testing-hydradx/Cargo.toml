@@ -1,6 +1,6 @@
 [package]
 name = "testing-hydradx-runtime"
-version = "110.0.0"
+version = "111.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -25,6 +25,7 @@ primitives = { path = "../../primitives", default-features = false }
 common-runtime = { path = '../common', default-features = false }
 pallet-claims = { path = '../../pallets/claims', default-features = false }
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
+pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
 
 # pallets
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
@@ -45,6 +46,7 @@ pallet-proxy = { git = "https://github.com/paritytech/substrate", branch = "polk
 pallet-multisig = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.28", default-features = false }
@@ -53,6 +55,7 @@ pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/w
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.28", default-features = false}
 pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.28", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.28", default-features = false}
+pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", branch = "polkadot-v0.9.28", default-features = false}
 
 # ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false }
@@ -139,6 +142,7 @@ runtime-benchmarks = [
     "pallet-asset-registry/runtime-benchmarks",
     "pallet-xcm/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
+    "pallet-uniques/runtime-benchmarks",
 ]
 std = [
     "codec/std",
