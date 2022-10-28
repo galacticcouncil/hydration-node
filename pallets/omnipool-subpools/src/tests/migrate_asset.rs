@@ -4,12 +4,12 @@ use pallet_omnipool::types::{AssetReserveState, Tradability};
 
 #[test]
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
-	let pool_id: AssetId = 6;
+	let share_asset_as_pool_id: AssetId = 6;
 	ExtBuilder::default()
 		.with_registered_asset(b"1000".to_vec())
 		.with_registered_asset(b"2000".to_vec())
 		.with_registered_asset(b"3000".to_vec())
-		.with_registered_asset(b"pool".to_vec())
+		.with_registered_asset(b"share_asset_as_pool_id".to_vec())
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -44,7 +44,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			));
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
-				pool_id,
+				share_asset_as_pool_id,
 				ASSET_3,
 				ASSET_4,
 				100u16,
@@ -54,14 +54,14 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
-				pool_id,
+				share_asset_as_pool_id,
 				ASSET_5,
 			));
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let subpool = Stableswap::get_pool(pool_id).unwrap();
+			let subpool = Stableswap::get_pool(share_asset_as_pool_id).unwrap();
 
 			assert_eq!(subpool.assets.to_vec(), vec![ASSET_3, ASSET_4, ASSET_5]);
 
@@ -75,7 +75,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			let balance_a = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let balance_b = Tokens::free_balance(ASSET_4, &omnipool_account);
 			let balance_c = Tokens::free_balance(ASSET_5, &omnipool_account);
-			let balance_shares = Tokens::free_balance(pool_id, &omnipool_account);
+			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
 
 			assert_eq!(balance_a, 0);
 			assert_eq!(balance_b, 0);
@@ -86,7 +86,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				pallet_omnipool::Error::<Test>::AssetNotFound
 			);
 
-			let pool_asset = Omnipool::load_asset_state(pool_id).unwrap();
+			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id).unwrap();
 			assert_eq!(
 				pool_asset,
 				AssetReserveState::<Balance> {

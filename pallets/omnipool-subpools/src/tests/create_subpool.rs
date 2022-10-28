@@ -6,13 +6,17 @@ use pretty_assertions::assert_eq;
 
 //TODO: Dani - add integration tests for creating pool, adding liq, and trading in it
 
+
+//use withRegAddress like here  https://github.com/galacticcouncil/HydraDX-node/blob/cf2958f29717387154c28db98f4c4f6a2cc5c8da/pallets/omnipool/src/tests/buy.rs#L15
+
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {
-	let pool_id: AssetId = 5;
-	ExtBuilder::default()
+		let share_asset_as_pool_id: AssetId = 5;
+
+		ExtBuilder::default()
 		.with_registered_asset(b"ASSET_3".to_vec())
 		.with_registered_asset(b"ASSET_4".to_vec())
-		.with_registered_asset(b"pool".to_vec())
+		.with_registered_asset(b"share_asset_as_pool_id".to_vec())
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -25,7 +29,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
-				pool_id,
+				share_asset_as_pool_id,
 				ASSET_3,
 				ASSET_4,
 				100u16,
@@ -45,7 +49,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			let balance_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let balance_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
-			let balance_shares = Tokens::free_balance(pool_id, &omnipool_account);
+			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
 
 			assert_eq!(balance_3, 0);
 			assert_eq!(balance_4, 0);
@@ -54,7 +58,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			assert_that_asset_is_not_found_in_omnipool(ASSET_3);
 			assert_that_asset_is_not_found_in_omnipool(ASSET_4);
 
-			let pool_asset = Omnipool::load_asset_state(pool_id).unwrap();
+			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id).unwrap();
 			assert_eq!(
 				pool_asset,
 				AssetReserveState::<Balance> {
@@ -69,7 +73,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			assert_that_asset_is_migrated_to_omnipool_subpool(
 				ASSET_3,
-				pool_id,
+				share_asset_as_pool_id,
 				AssetDetail {
 					price: Default::default(),
 					shares: 2000 * ONE,
@@ -80,7 +84,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			assert_that_asset_is_migrated_to_omnipool_subpool(
 				ASSET_4,
-				pool_id,
+				share_asset_as_pool_id,
 				AssetDetail {
 					price: Default::default(),
 					shares: 2000 * ONE,
@@ -95,16 +99,16 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 #[test]
 fn create_subpool_should_work_when_multiple_pools_are_created() {
-	let pool_id: AssetId = 7;
-	let pool_id2: AssetId = 8;
+	let share_asset_as_pool_id1: AssetId = 7;
+	let share_asset_as_pool_id2: AssetId = 8;
 	//Arrange
 	ExtBuilder::default()
 		.with_registered_asset(b"ASSET_3".to_vec())
 		.with_registered_asset(b"ASSET_4".to_vec())
 		.with_registered_asset(b"ASSET_5".to_vec())
 		.with_registered_asset(b"ASSET_6".to_vec())
-		.with_registered_asset(b"pool".to_vec())
-		.with_registered_asset(b"pool2".to_vec())
+		.with_registered_asset(b"share_asset_as_pool_id1".to_vec())
+		.with_registered_asset(b"share_asset_as_pool_id2".to_vec())
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -121,7 +125,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
-				pool_id,
+				share_asset_as_pool_id1,
 				ASSET_3,
 				ASSET_4,
 				100u16,
@@ -131,7 +135,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
-				pool_id2,
+				share_asset_as_pool_id2,
 				ASSET_5,
 				ASSET_6,
 				100u16,
@@ -154,7 +158,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_eq!(omnipool_balance_of_asset3, 0);
 			assert_eq!(omnipool_balance_of_asset4, 0);
 
-			let balance_shares = Tokens::free_balance(pool_id, &omnipool_account);
+			let balance_shares = Tokens::free_balance(share_asset_as_pool_id1, &omnipool_account);
 			assert_eq!(balance_shares, 2600 * ONE);
 
 			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account2);
@@ -167,7 +171,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_eq!(omnipool_balance_of_asset_5, 0);
 			assert_eq!(omnipool_balance_of_asset_6, 0);
 
-			let balance_shares = Tokens::free_balance(pool_id2, &omnipool_account);
+			let balance_shares = Tokens::free_balance(share_asset_as_pool_id2, &omnipool_account);
 			assert_eq!(balance_shares, 2600 * ONE);
 
 			assert_that_asset_is_not_found_in_omnipool(ASSET_3);
@@ -175,7 +179,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_that_asset_is_not_found_in_omnipool(ASSET_5);
 			assert_that_asset_is_not_found_in_omnipool(ASSET_6);
 
-			let pool_asset = Omnipool::load_asset_state(pool_id).unwrap();
+			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id1).unwrap();
 			assert_eq!(
 				pool_asset,
 				AssetReserveState::<Balance> {
@@ -188,7 +192,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				}
 			);
 
-			let pool_asset = Omnipool::load_asset_state(pool_id2).unwrap();
+			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id2).unwrap();
 			assert_eq!(
 				pool_asset,
 				AssetReserveState::<Balance> {
@@ -203,7 +207,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 
 			assert_that_asset_is_migrated_to_omnipool_subpool(
 				ASSET_3,
-				pool_id,
+				share_asset_as_pool_id1,
 				AssetDetail {
 					price: Default::default(),
 					shares: 2000 * ONE,
@@ -214,7 +218,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 
 			assert_that_asset_is_migrated_to_omnipool_subpool(
 				ASSET_4,
-				pool_id,
+				share_asset_as_pool_id1,
 				AssetDetail {
 					price: Default::default(),
 					shares: 2000 * ONE,
@@ -225,7 +229,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 
 			assert_that_asset_is_migrated_to_omnipool_subpool(
 				ASSET_5,
-				pool_id2,
+				share_asset_as_pool_id2,
 				AssetDetail {
 					price: Default::default(),
 					shares: 2000 * ONE,
@@ -236,7 +240,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 
 			assert_that_asset_is_migrated_to_omnipool_subpool(
 				ASSET_6,
-				pool_id2,
+				share_asset_as_pool_id2,
 				AssetDetail {
 					price: Default::default(),
 					shares: 2000 * ONE,
@@ -250,7 +254,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_eq!(
 				migrate_asset_4.unwrap(),
 				(
-					pool_id,
+					share_asset_as_pool_id1,
 					AssetDetail {
 						price: Default::default(),
 						shares: 2000 * ONE,
