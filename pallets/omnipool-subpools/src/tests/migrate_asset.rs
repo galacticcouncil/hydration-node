@@ -47,6 +47,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				share_asset_as_pool_id,
 				ASSET_3,
 				ASSET_4,
+				Permill::from_percent(10),
 				100u16,
 				Permill::from_percent(0),
 				Permill::from_percent(0),

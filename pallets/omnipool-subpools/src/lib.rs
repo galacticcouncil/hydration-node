@@ -24,7 +24,6 @@ pub struct AssetDetail {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
@@ -88,6 +87,7 @@ pub mod pallet {
 			share_asset: <T as pallet_omnipool::Config>::AssetId,
 			asset_a: <T as pallet_omnipool::Config>::AssetId,
 			asset_b: <T as pallet_omnipool::Config>::AssetId,
+			share_asset_weight_cap: Permill,
 			amplification: u16,
 			trade_fee: Permill,
 			withdraw_fee: Permill,
@@ -124,21 +124,31 @@ pub mod pallet {
 				],
 			)?;
 
+			let recalculate_protocol_shares = |q: Balance, b: Balance, s: Balance| -> Result<Balance, DispatchError> {
+				// TODO: use safe math,consider doing mul first
+				Ok(q * b / s)
+			};
+
 			// Deposit pool shares to omnipool account
 			let hub_reserve = asset_state_a
 				.hub_reserve
 				.checked_add(asset_state_b.hub_reserve)
 				.ok_or(ArithmeticError::Overflow)?;
-			//TODO: update recalculation of protocol shares
-			let protocol_shares = asset_state_a
-				.protocol_shares
-				.checked_add(asset_state_b.protocol_shares)
-				.ok_or(ArithmeticError::Overflow)?;
-			let cap = asset_state_a
-				.cap
-				.checked_add(asset_state_b.cap)
-				.ok_or(ArithmeticError::Overflow)?;
+			let protocol_shares = recalculate_protocol_shares(
+				asset_state_a.hub_reserve,
+				asset_state_a.protocol_shares,
+				asset_state_a.shares,
+			)?
+			.checked_add(recalculate_protocol_shares(
+				asset_state_a.hub_reserve,
+				asset_state_a.protocol_shares,
+				asset_state_a.shares,
+			)?)
+			.ok_or(ArithmeticError::Overflow)?;
+
+			// Amount of share provided to omnipool
 			let shares = hub_reserve;
+
 			pallet_stableswap::Pallet::<T>::deposit_shares(&omnipool_account, pool_id, shares)?;
 
 			// Remove tokens from omnipool
@@ -151,7 +161,7 @@ pub mod pallet {
 				hub_reserve,
 				shares,
 				protocol_shares,
-				cap,
+				share_asset_weight_cap,
 				Tradability::default(),
 			)?;
 
@@ -213,7 +223,11 @@ pub mod pallet {
 			let share_issuance = <T as pallet_omnipool::Config>::Currency::total_issuance(pool_id.into());
 
 			let delta_q = asset_state.hub_reserve;
-			let delta_ps = asset_state.protocol_shares; //TODO; update recalcuation of protocol shares according to spec
+
+			//TODO: use safe math in following calculatations
+			let delta_ps = subpool_state.shares
+				* (asset_state.hub_reserve / subpool_state.hub_reserve)
+				* (asset_state.protocol_shares / asset_state.shares);
 			let delta_s = asset_state.hub_reserve * subpool_state.shares / subpool_state.hub_reserve;
 			let delta_u = asset_state.hub_reserve * share_issuance / subpool_state.hub_reserve;
 
@@ -311,7 +325,7 @@ pub mod pallet {
 
 			let position = pallet_omnipool::Pallet::<T>::load_position(position_id, who.clone())?;
 
-			if let Some((pool_id, details)) = MigratedAssets::<T>::get(&position.asset_id) {
+			if let Some((_pool_id, _details)) = MigratedAssets::<T>::get(&position.asset_id) {
 				// Asset has been migrated to subpool
 				// Convert position
 				// withdraw
@@ -326,7 +340,7 @@ pub mod pallet {
 						pallet_stableswap::Pallet::<T>::remove_liquidity_one_asset(
 							origin,
 							position.asset_id.into(),
-							asset.unwrap().into(),
+							withdraw_asset.into(),
 							received,
 						)
 					}
@@ -366,7 +380,7 @@ pub mod pallet {
 						min_buy_amount,
 					)
 				}
-				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
+				(Some((_pool_id_in, _)), Some((_pool_id_out, _))) => {
 					// both are subpool but different subpools
 					// TODO
 					Ok(())
@@ -408,7 +422,7 @@ pub mod pallet {
 						max_sell_amount,
 					)
 				}
-				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
+				(Some((_pool_id_in, _)), Some((_pool_id_out, _))) => {
 					// both are subpool but different subpools
 					// TODO
 					Ok(())

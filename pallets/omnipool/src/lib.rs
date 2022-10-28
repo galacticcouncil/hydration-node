@@ -1646,7 +1646,7 @@ impl<T: Config> Pallet<T> {
 		hub_reserve: Balance,
 		shares: Balance,
 		protocol_shares: Balance,
-		cap: Balance,
+		weight_cap: Permill,
 		tradable: Tradability,
 	) -> DispatchResult {
 		ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
@@ -1656,7 +1656,7 @@ impl<T: Config> Pallet<T> {
 			hub_reserve,
 			shares,
 			protocol_shares,
-			cap,
+			cap: FixedU128::from(weight_cap).into_inner(),
 			tradable,
 		};
 
@@ -1689,11 +1689,14 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	pub fn load_position(position_id: T::PositionInstanceId, owner: T::AccountId) -> Result<Position<Balance, T::AssetId>, DispatchError> {
+	pub fn load_position(
+		position_id: T::PositionInstanceId,
+		owner: T::AccountId,
+	) -> Result<Position<Balance, T::AssetId>, DispatchError> {
 		ensure!(
-				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(owner),
-				Error::<T>::Forbidden
-			);
+			T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(owner),
+			Error::<T>::Forbidden
+		);
 
 		Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound.into())
 	}
