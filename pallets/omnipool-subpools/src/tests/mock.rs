@@ -66,6 +66,7 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
 thread_local! {
+	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
 	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
@@ -86,7 +87,6 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Stableswap: pallet_stableswap,
-		AssetRegistry: pallet_asset_registry,
 		OmnipoolSubpools: pallet_omnipool_subpools,
 		Tokens: orml_tokens,
 	}
@@ -158,17 +158,6 @@ parameter_types! {
 	pub RegistryStringLimit: u32 = 100;
 }
 
-impl pallet_asset_registry::Config for Test {
-	type Event = Event;
-	type RegistryOrigin = EnsureRoot<AccountId>;
-	type AssetId = AssetId;
-	type Balance = Balance;
-	type AssetNativeLocation = u8;
-	type StringLimit = RegistryStringLimit;
-	type NativeAssetId = NativeAssetId;
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
@@ -186,6 +175,35 @@ parameter_types! {
 	pub const AmplificationRange: RangeInclusive<u16> = RangeInclusive::new(2, 10_000);
 }
 
+use hydradx_traits::{Registry, ShareTokenRegistry};
+use sp_runtime::traits::Zero;
+
+pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+
+impl<TAssetId> Registry<TAssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<TAssetId>
+where
+	TAssetId: Into<AssetId> + From<u32> + Default,
+{
+	fn exists(asset_id: TAssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+		matches!(asset, Some(_))
+	}
+
+	fn retrieve_asset(name: &Vec<u8>) -> Result<TAssetId, DispatchError> {
+		Ok(TAssetId::default())
+	}
+
+	fn create_asset(name: &Vec<u8>, _existential_deposit: Balance) -> Result<TAssetId, DispatchError> {
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			let l = v.borrow().len();
+			v.borrow_mut().insert(l as u32, l as u32);
+			l as u32
+		});
+
+		Ok(TAssetId::from(assigned))
+	}
+}
+
 impl pallet_omnipool::Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
@@ -201,7 +219,7 @@ impl pallet_omnipool::Config for Test {
 	type NFTClassId = PosiitionClassId;
 	type NFTHandler = DummyNFT;
 	type TVLCap = TVLCap;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry<AssetId>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -214,7 +232,7 @@ impl pallet_stableswap::Config for Test {
 	type AssetId = AssetId;
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
-	type AssetRegistry = AssetRegistry;
+	type AssetRegistry = DummyRegistry<AssetId>;
 	type CreatePoolOrigin = EnsureRoot<Self::AccountId>;
 	type MinPoolLiquidity = MinTradeAmount;
 	type MinTradingLimit = MinTradeAmount;
@@ -229,7 +247,7 @@ impl Config for Test {
 
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
-	registered_assets: Vec<Vec<u8>>,
+	registered_assets: Vec<AssetId>,
 	asset_fee: Permill,
 	protocol_fee: Permill,
 	asset_weight_cap: Permill,
@@ -272,16 +290,20 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = 1u128;
 		});
 
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().clear();
+		});
+
 		Self {
 			endowed_accounts: vec![
 				(Omnipool::protocol_account(), DAI, 1000 * ONE),
 				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			],
+			registered_assets: vec![],
 			asset_fee: Permill::from_percent(0),
 			protocol_fee: Permill::from_percent(0),
 			asset_weight_cap: Permill::from_percent(100),
 			min_liquidity: 0,
-			registered_assets: vec![],
 			min_trade_limit: 0,
 			init_pool: None,
 			register_stable_asset: true,
@@ -290,10 +312,6 @@ impl Default for ExtBuilder {
 			max_out_ratio: 1u128,
 		}
 	}
-}
-
-fn register_asset(name: Vec<u8>) -> DispatchResult {
-	AssetRegistry::register(Origin::root(), name, AssetType::Token, 0u128)
 }
 
 impl ExtBuilder {
@@ -305,8 +323,9 @@ impl ExtBuilder {
 		self.endowed_accounts.push(account);
 		self
 	}
-	pub fn with_registered_asset(mut self, name: Vec<u8>) -> Self {
-		self.registered_assets.push(name);
+
+	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
+		self.registered_assets.push(asset);
 		self
 	}
 
@@ -366,15 +385,6 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		/*
-		register_asset(b"lrna".to_vec()).unwrap();
-		register_asset(b"dai".to_vec()).unwrap();
-		self.registered_assets.iter().for_each(|asset| {
-			register_asset(asset.to_vec()).unwrap();
-		});
-
-		 */
-
 		ASSET_FEE.with(|v| {
 			*v.borrow_mut() = self.asset_fee;
 		});
@@ -414,11 +424,14 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				register_asset(b"lrna".to_vec()).unwrap();
-				register_asset(b"dai".to_vec()).unwrap();
-				self.registered_assets.iter().for_each(|asset| {
-					register_asset(asset.to_vec()).unwrap();
-				});
+				let mut all_assets: Vec<AssetId> = vec![LRNA, DAI];
+				all_assets.extend(self.registered_assets);
+
+				for asset in all_assets.into_iter() {
+					REGISTERED_ASSETS.with(|v| {
+						v.borrow_mut().insert(asset, asset);
+					});
+				}
 
 				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
@@ -501,7 +514,6 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 }
 
 use hydradx_traits::AccountIdFor;
-use pallet_asset_registry::AssetType;
 
 pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
 	POSITIONS.with(|v| v.borrow().get(&position_id).copied())

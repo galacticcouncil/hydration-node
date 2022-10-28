@@ -10,12 +10,12 @@ use pretty_assertions::assert_eq;
 
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {
-	let share_asset_as_pool_id: AssetId = 5;
+	let share_asset_as_pool_id: AssetId = ASSET_5;
 
 	ExtBuilder::default()
-		.with_registered_asset(b"ASSET_3".to_vec())
-		.with_registered_asset(b"ASSET_4".to_vec())
-		.with_registered_asset(b"share_asset_as_pool_id".to_vec())
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -103,12 +103,12 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 	let share_asset_as_pool_id2: AssetId = 8;
 	//Arrange
 	ExtBuilder::default()
-		.with_registered_asset(b"ASSET_3".to_vec())
-		.with_registered_asset(b"ASSET_4".to_vec())
-		.with_registered_asset(b"ASSET_5".to_vec())
-		.with_registered_asset(b"ASSET_6".to_vec())
-		.with_registered_asset(b"share_asset_as_pool_id1".to_vec())
-		.with_registered_asset(b"share_asset_as_pool_id2".to_vec())
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(ASSET_6)
+		.with_registered_asset(share_asset_as_pool_id1)
+		.with_registered_asset(share_asset_as_pool_id2)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))

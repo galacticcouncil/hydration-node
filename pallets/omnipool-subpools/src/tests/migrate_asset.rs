@@ -6,10 +6,10 @@ use pallet_omnipool::types::{AssetReserveState, Tradability};
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 	let share_asset_as_pool_id: AssetId = 6;
 	ExtBuilder::default()
-		.with_registered_asset(b"1000".to_vec())
-		.with_registered_asset(b"2000".to_vec())
-		.with_registered_asset(b"3000".to_vec())
-		.with_registered_asset(b"share_asset_as_pool_id".to_vec())
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
