@@ -1641,6 +1641,14 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	pub fn set_position(
+		position_id: T::PositionInstanceId,
+		position: &Position<Balance, T::AssetId>,
+	) -> DispatchResult {
+		<Positions<T>>::insert(position_id, position);
+		Ok(())
+	}
+
 	pub fn add_asset(
 		asset_id: T::AssetId,
 		hub_reserve: Balance,
@@ -1664,6 +1672,7 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
+
 	pub fn update_asset_state(
 		asset_id: T::AssetId,
 		delta_q: Balance,

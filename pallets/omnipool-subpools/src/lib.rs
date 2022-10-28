@@ -11,6 +11,7 @@ use sp_runtime::FixedU128;
 use sp_std::prelude::*;
 
 pub use pallet::*;
+use pallet_omnipool::types::Position;
 
 pub type Balance = u128;
 
@@ -326,28 +327,30 @@ pub mod pallet {
 
 			let position = pallet_omnipool::Pallet::<T>::load_position(position_id, who.clone())?;
 
-			if let Some((_pool_id, _details)) = MigratedAssets::<T>::get(&position.asset_id) {
-				// Asset has been migrated to subpool
-				// Convert position
-				// withdraw
-				Ok(())
+			let position = if let Some((pool_id, details)) = MigratedAssets::<T>::get(&position.asset_id) {
+				let position = Self::convert_position(pool_id.into(), details, position)?;
+				// Store the updated position
+				pallet_omnipool::Pallet::<T>::set_position(position_id, &position)?;
+				position
 			} else {
-				// Asset should be in isopool, call omnipool::remove_liquidity
-				pallet_omnipool::Pallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
+				position
+			};
 
-				match (Self::subpools(&position.asset_id.into()), asset) {
-					(Some(_), Some(withdraw_asset)) => {
-						let received = <T as pallet_omnipool::Config>::Currency::free_balance(position.asset_id, &who);
-						pallet_stableswap::Pallet::<T>::remove_liquidity_one_asset(
-							origin,
-							position.asset_id.into(),
-							withdraw_asset.into(),
-							received,
-						)
-					}
-					(Some(_), None) => Err(Error::<T>::WithdrawAssetNotSpecified.into()),
-					_ => Ok(()),
+			// Asset should be in isopool, call omnipool::remove_liquidity
+			pallet_omnipool::Pallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
+
+			match (Self::subpools(&position.asset_id.into()), asset) {
+				(Some(_), Some(withdraw_asset)) => {
+					let received = <T as pallet_omnipool::Config>::Currency::free_balance(position.asset_id, &who);
+					pallet_stableswap::Pallet::<T>::remove_liquidity_one_asset(
+						origin,
+						position.asset_id.into(),
+						withdraw_asset.into(),
+						received,
+					)
 				}
+				(Some(_), None) => Err(Error::<T>::WithdrawAssetNotSpecified.into()),
+				_ => Ok(()),
 			}
 		}
 
@@ -438,4 +441,14 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+}
+
+impl<T: Config> Pallet<T> {
+	fn convert_position(
+		pool_id: <T as pallet_omnipool::Config>::AssetId,
+		migration_details: AssetDetail,
+		position: Position<Balance, <T as pallet_omnipool::Config>::AssetId>,
+	) -> Result<Position<Balance, <T as pallet_omnipool::Config>::AssetId>, DispatchError> {
+		Ok(position)
+	}
 }
