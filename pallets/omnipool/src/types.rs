@@ -276,7 +276,7 @@ where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
 	/// Calculate price for actual state
-	pub(crate) fn price(&self) -> Option<FixedU128> {
+	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
 	}
 

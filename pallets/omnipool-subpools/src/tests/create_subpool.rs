@@ -6,14 +6,13 @@ use pretty_assertions::assert_eq;
 
 //TODO: Dani - add integration tests for creating pool, adding liq, and trading in it
 
-
 //use withRegAddress like here  https://github.com/galacticcouncil/HydraDX-node/blob/cf2958f29717387154c28db98f4c4f6a2cc5c8da/pallets/omnipool/src/tests/buy.rs#L15
 
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {
-		let share_asset_as_pool_id: AssetId = 5;
+	let share_asset_as_pool_id: AssetId = 5;
 
-		ExtBuilder::default()
+	ExtBuilder::default()
 		.with_registered_asset(b"ASSET_3".to_vec())
 		.with_registered_asset(b"ASSET_4".to_vec())
 		.with_registered_asset(b"share_asset_as_pool_id".to_vec())

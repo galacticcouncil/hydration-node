@@ -5,6 +5,7 @@ mod tests;
 
 use frame_support::pallet_prelude::*;
 use orml_traits::currency::MultiCurrency;
+use sp_runtime::traits::CheckedMul;
 use sp_runtime::FixedU128;
 use sp_std::prelude::*;
 
@@ -27,7 +28,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
-	use sp_runtime::{ArithmeticError, Permill};
+	use sp_runtime::{ArithmeticError, FixedPointNumber, Permill};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (crate) trait Store)]
@@ -53,6 +54,12 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Subpools
+	#[pallet::storage]
+	#[pallet::getter(fn subpools)]
+	pub(super) type Subpools<T: Config> =
+		StorageMap<_, Blake2_128Concat, <T as pallet_stableswap::Config>::AssetId, (), OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
 	pub enum Event<T: Config> {}
@@ -60,7 +67,9 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
+		SubpoolNotFound,
 		WithdrawAssetNotSpecified,
+		NotStableAsset,
 	}
 
 	#[pallet::call]
@@ -148,13 +157,13 @@ pub mod pallet {
 
 			// Remember some stuff to be able to update LP positions later on
 			let asset_a_details = AssetDetail {
-				price: Default::default(), //TODO: correct price
+				price: asset_state_a.price().ok_or(ArithmeticError::DivisionByZero)?,
 				shares: asset_state_a.shares,
 				hub_reserve: asset_state_a.hub_reserve,
 				share_tokens: asset_state_a.hub_reserve,
 			};
 			let asset_b_details = AssetDetail {
-				price: Default::default(), //TODO: correct price
+				price: asset_state_b.price().ok_or(ArithmeticError::DivisionByZero)?,
 				shares: asset_state_b.shares,
 				hub_reserve: asset_state_b.hub_reserve,
 				share_tokens: asset_state_b.hub_reserve,
@@ -162,6 +171,7 @@ pub mod pallet {
 
 			MigratedAssets::<T>::insert(asset_a, (pool_id, asset_a_details));
 			MigratedAssets::<T>::insert(asset_b, (pool_id, asset_b_details));
+			Subpools::<T>::insert(share_asset.into(), ());
 
 			Ok(())
 		}
@@ -174,10 +184,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
 
+			ensure!(Self::subpools(&pool_id).is_some(), Error::<T>::SubpoolNotFound);
+
 			// Load state - return AssetNotFound if it does not exist
 			let asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_id)?;
 
-			let subpool_pool_state = pallet_omnipool::Pallet::<T>::load_asset_state(pool_id.into())?;
+			let subpool_state = pallet_omnipool::Pallet::<T>::load_asset_state(pool_id.into())?;
 
 			let omnipool_account = pallet_omnipool::Pallet::<T>::protocol_account();
 
@@ -202,8 +214,17 @@ pub mod pallet {
 
 			let delta_q = asset_state.hub_reserve;
 			let delta_ps = asset_state.protocol_shares; //TODO; update recalcuation of protocol shares according to spec
-			let delta_s = asset_state.hub_reserve * subpool_pool_state.shares / subpool_pool_state.hub_reserve;
-			let delta_u = asset_state.hub_reserve * share_issuance / subpool_pool_state.hub_reserve;
+			let delta_s = asset_state.hub_reserve * subpool_state.shares / subpool_state.hub_reserve;
+			let delta_u = asset_state.hub_reserve * share_issuance / subpool_state.hub_reserve;
+
+			let price = asset_state
+				.price()
+				.ok_or(ArithmeticError::DivisionByZero)?
+				.checked_mul(
+					&FixedU128::checked_from_rational(share_issuance, subpool_state.shares)
+						.ok_or(ArithmeticError::DivisionByZero)?,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
 
 			pallet_omnipool::Pallet::<T>::update_asset_state(
 				pool_id.into(),
@@ -217,7 +238,7 @@ pub mod pallet {
 
 			// Remember some stuff to be able to update LP positions later on
 			let asset_details = AssetDetail {
-				price: Default::default(), //TODO: correct price
+				price,
 				shares: asset_state.shares,
 				hub_reserve: delta_q,
 				share_tokens: delta_u,
@@ -236,10 +257,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
-			// Figure out where is the asset - isopool or subpool
-			// if supbpool - do add liquidity to subpool and then call omnipool's add_liquidity with shares to mint position
-			// if isopool - call omnipool::add_liquidity
-
 			if let Some((pool_id, _)) = MigratedAssets::<T>::get(&asset_id) {
 				let shares = pallet_stableswap::Pallet::<T>::do_add_liquidity(
 					&who,
@@ -252,6 +269,34 @@ pub mod pallet {
 				pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 			} else {
 				pallet_omnipool::Pallet::<T>::add_liquidity(origin, asset_id, amount)
+			}
+		}
+
+		#[pallet::weight(0)]
+		pub fn add_liquidity_stable(
+			origin: OriginFor<T>,
+			asset_id: <T as pallet_omnipool::Config>::AssetId,
+			amount: Balance,
+			mint_nft: bool,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			if let Some((pool_id, _)) = MigratedAssets::<T>::get(&asset_id) {
+				let shares = pallet_stableswap::Pallet::<T>::do_add_liquidity(
+					&who,
+					pool_id,
+					&[AssetLiquidity {
+						asset_id: asset_id.into(),
+						amount,
+					}],
+				)?;
+				if mint_nft {
+					pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
+				} else {
+					Ok(())
+				}
+			} else {
+				Err(Error::<T>::NotStableAsset.into())
 			}
 		}
 
@@ -275,21 +320,18 @@ pub mod pallet {
 				// Asset should be in isopool, call omnipool::remove_liquidity
 				pallet_omnipool::Pallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
 
-				let is_position_asset_id_subpool_id = true; //TODO: figure out how
-
-				if is_position_asset_id_subpool_id {
-					ensure!(asset.is_some(), Error::<T>::WithdrawAssetNotSpecified);
-					let received = <T as pallet_omnipool::Config>::Currency::free_balance(position.asset_id, &who);
-					pallet_stableswap::Pallet::<T>::remove_liquidity_one_asset(
-						origin,
-						position.asset_id.into(),
-						asset.unwrap().into(),
-						received,
-					)?;
-					Ok(())
-				} else {
-					// Nothing else to do
-					Ok(())
+				match (Self::subpools(&position.asset_id.into()), asset) {
+					(Some(_), Some(withdraw_asset)) => {
+						let received = <T as pallet_omnipool::Config>::Currency::free_balance(position.asset_id, &who);
+						pallet_stableswap::Pallet::<T>::remove_liquidity_one_asset(
+							origin,
+							position.asset_id.into(),
+							asset.unwrap().into(),
+							received,
+						)
+					}
+					(Some(_), None) => Err(Error::<T>::WithdrawAssetNotSpecified.into()),
+					_ => Ok(()),
 				}
 			}
 		}

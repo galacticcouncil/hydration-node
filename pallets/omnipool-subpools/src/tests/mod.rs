@@ -10,19 +10,17 @@ use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Pe
 use hydradx_traits::AccountIdFor;
 use orml_traits::MultiCurrency;
 
-
 // Tests:
 // create subpool:
 // - ensure only origin can create
 // - assets must exists in omnipool
 // - ensure liquidity is transfered
-// - assert correct values in migrated assets
+// - assert correct values in migrated assets ( price ,shares, reserve ...  )
 // - ensure assets are removed from ommnipool
 // - assert correct state os share asset in omnipool
 // - tradable state must be preserved ( TODO: this is still something to be added to stableswap)
 // - assert share token cap ( TODO: missing implementation )
 // - asset event ( TODO: missing implementation )
-
 
 // migrate asset:
 // - ensure origin
