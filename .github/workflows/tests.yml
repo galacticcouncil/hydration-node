@@ -111,7 +111,7 @@ jobs:
       - name: Upload wasm binary
         uses: actions/upload-artifact@v2
         with:
-          name: para-wasm
+          name: devnet-para-wasm
           path: ./para-wasm
 
       - name: Upload genesis binary
