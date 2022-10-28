@@ -646,7 +646,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn get_pool(pool_id: T::AssetId) -> Result<PoolInfo<T::AssetId>, DispatchError> {
-		Pools::<T>::get(pool_id).ok_or(Error::<T>::PoolNotFound.into())
+		Pools::<T>::get(pool_id).ok_or_else(|| Error::<T>::PoolNotFound.into())
 	}
 
 	pub fn do_create_pool(
@@ -732,7 +732,7 @@ impl<T: Config> Pallet<T> {
 
 		for asset in assets.iter() {
 			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
-			T::Currency::transfer(asset.asset_id, &from, &pool_account, asset.amount)?;
+			T::Currency::transfer(asset.asset_id, from, &pool_account, asset.amount)?;
 		}
 
 		Ok(())
@@ -740,14 +740,14 @@ impl<T: Config> Pallet<T> {
 
 	pub fn deposit_shares(who: &T::AccountId, pool_id: T::AssetId, amount: Balance) -> DispatchResult {
 		ensure!(!amount.is_zero(), Error::<T>::InvalidAssetAmount);
-		let current_share_balance = T::Currency::free_balance(pool_id, &who);
+		let current_share_balance = T::Currency::free_balance(pool_id, who);
 
 		ensure!(
 			current_share_balance.saturating_add(amount) >= T::MinPoolLiquidity::get(),
 			Error::<T>::InsufficientShareBalance
 		);
 
-		T::Currency::deposit(pool_id, &who, amount)
+		T::Currency::deposit(pool_id, who, amount)
 	}
 
 	pub fn do_add_liquidity(
@@ -764,7 +764,7 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::InsufficientTradingAmount
 			);
 			ensure!(
-				T::Currency::free_balance(asset.asset_id, &who) >= asset.amount,
+				T::Currency::free_balance(asset.asset_id, who) >= asset.amount,
 				Error::<T>::InsufficientBalance
 			);
 			ensure!(pool.find_asset(asset.asset_id).is_some(), Error::<T>::AssetNotInPool);
@@ -794,9 +794,9 @@ impl<T: Config> Pallet<T> {
 		)
 		.ok_or(ArithmeticError::Overflow)?;
 
-		Self::deposit_shares(&who, pool_id, share_amount)?;
+		Self::deposit_shares(who, pool_id, share_amount)?;
 
-		Self::move_liquidity_to_pool(&who, pool_id, &assets)?;
+		Self::move_liquidity_to_pool(who, pool_id, assets)?;
 
 		Ok(share_amount)
 	}

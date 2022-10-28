@@ -1698,6 +1698,6 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::Forbidden
 		);
 
-		Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound.into())
+		Positions::<T>::get(position_id).ok_or_else(|| Error::<T>::PositionNotFound.into())
 	}
 }

@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::too_many_arguments)]
 
 #[cfg(test)]
 mod tests;
@@ -248,7 +249,7 @@ pub mod pallet {
 				asset_state.cap,
 			)?;
 
-			pallet_stableswap::Pallet::<T>::deposit_shares(&omnipool_account, pool_id.into(), delta_u)?;
+			pallet_stableswap::Pallet::<T>::deposit_shares(&omnipool_account, pool_id, delta_u)?;
 
 			// Remember some stuff to be able to update LP positions later on
 			let asset_details = AssetDetail {
