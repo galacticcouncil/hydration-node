@@ -94,6 +94,31 @@ jobs:
         run: time cargo build --release --quiet --locked
       - name: Version info
         run: ./target/release/hydradx --version
+      - name: Get hydradx chainspec json
+        run: |
+          ./target/release/hydradx build-spec --raw > hydradx-testnet-chainspec.json
+      - name: Upload config file
+        uses: actions/upload-artifact@v2
+        with:
+          name: hydradx-testnet-chainspec.json
+          path: ./hydradx-testnet-chainspec.json
+      - name: Generate wasm binary for testnet
+        run: ./target/release/hydradx export-genesis-wasm --chain hydradx-testnet-chainspec.json > para-wasm
+
+      - name: Generate genesis binary for testnet
+        run: ./target/release/hydradx export-genesis-state --chain hydradx-testnet-chainspec.json > para-genesis
+
+      - name: Upload wasm binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: para-wasm
+          path: ./para-wasm
+
+      - name: Upload genesis binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: para-genesis
+          path: ./para-genesis
       - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
