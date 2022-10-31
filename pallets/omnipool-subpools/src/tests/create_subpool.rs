@@ -250,6 +250,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					share_tokens: 1300 * ONE,
 				},
 			);
+
+			check that share token is added to omnipool.
+				check that pool is created in subpools storage
 		});
 }
 
