@@ -9,11 +9,11 @@ const _TELEMETRY_URLS: [&str; 2] = [
 	"wss://telemetry.hydradx.io:9000/submit/",
 ];
 
-// pub fn _parachain_config() -> Result<ChainSpec, String> {
-// 	ChainSpec::from_json_bytes(&include_bytes!("../../res/devnet.json")[..])
-// }
+pub fn parachain_config() -> Result<ChainSpec, String> {
+	ChainSpec::from_json_bytes(&include_bytes!("../../res/devnet.json")[..])
+}
 
-pub fn parachain_config_devnet() -> Result<ChainSpec, String> {
+pub fn _parachain_config_devnet() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());

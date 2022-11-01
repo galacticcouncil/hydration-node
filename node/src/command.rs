@@ -39,7 +39,7 @@ fn load_spec(id: &str, is_testing: bool) -> std::result::Result<Box<dyn sc_servi
 	if is_testing {
 		Ok(match id {
 			"local" => Box::new(testing_chain_spec::local_parachain_config()?),
-			"devnet" => Box::new(chain_spec::devnet::parachain_config_devnet()?),
+			"devnet" => Box::new(chain_spec::devnet::parachain_config()?),
 			path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
 			)?),
@@ -99,7 +99,7 @@ impl SubstrateCli for Cli {
 		if is_testing_runtime {
 			Ok(match id {
 				"local" => Box::new(testing_chain_spec::local_parachain_config()?),
-				"devnet" => Box::new(chain_spec::devnet::parachain_config_devnet()?),
+				"devnet" => Box::new(chain_spec::devnet::parachain_config()?),
 				path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
 					std::path::PathBuf::from(path),
 				)?),
