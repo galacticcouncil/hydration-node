@@ -19,6 +19,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::derive_partial_eq_without_eq)] //Needed due to bug 'https://github.com/rust-lang/rust-clippy/issues/8867'
 
+pub mod devnet;
 pub mod hydradx;
 pub mod local;
 pub mod rococo;
