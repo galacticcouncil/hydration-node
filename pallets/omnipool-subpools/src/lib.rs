@@ -41,7 +41,7 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// The origin which can create a new pool
-		type CreatePoolOrigin: EnsureOrigin<Self::Origin>;
+		type PoolMasterOrigin: EnsureOrigin<Self::Origin>;
 	}
 
 	/// Assets migrated from Omnipool to a subpool
@@ -94,7 +94,7 @@ pub mod pallet {
 			trade_fee: Permill,
 			withdraw_fee: Permill,
 		) -> DispatchResult {
-			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
+			<T as Config>::PoolMasterOrigin::ensure_origin(origin.clone())?;
 
 			// Load state - return AssetNotFound if it does not exist
 			let asset_state_a = pallet_omnipool::Pallet::<T>::load_asset_state(asset_a)?;
@@ -194,7 +194,7 @@ pub mod pallet {
 			pool_id: <T as pallet_stableswap::Config>::AssetId,
 			asset_id: <T as pallet_omnipool::Config>::AssetId,
 		) -> DispatchResult {
-			<T as Config>::CreatePoolOrigin::ensure_origin(origin.clone())?;
+			<T as Config>::PoolMasterOrigin::ensure_origin(origin.clone())?;
 
 			ensure!(Self::subpools(&pool_id).is_some(), Error::<T>::SubpoolNotFound);
 

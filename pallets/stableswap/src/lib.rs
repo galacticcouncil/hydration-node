@@ -27,7 +27,7 @@
 //!
 //! Maximum number of assets in pool is 5.
 //!
-//! A pool can be created only by allowed `CreatePoolOrigin`.
+//! A pool can be created only by allowed `PoolMasterOrigin`.
 //!
 //! First LP to provided liquidity must add initial liquidity of all pool assets. Subsequent calls to add_liquidity, LP can provide only 1 asset.
 //!
@@ -118,7 +118,7 @@ pub mod pallet {
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
 		/// The origin which can create a new pool
-		type CreatePoolOrigin: EnsureOrigin<Self::Origin>;
+		type PoolMasterOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Minimum pool liquidity
 		#[pallet::constant]
@@ -276,7 +276,7 @@ pub mod pallet {
 		/// initial liquidity.
 		///
 		/// Parameters:
-		/// - `origin`: Must be T::CreatePoolOrigin
+		/// - `origin`: Must be T::PoolMasterOrigin
 		/// - `assets`: List of Asset ids
 		/// - `amplification`: Pool amplification
 		/// - `trade_fee`: trade fee to be applied in sell/buy trades
@@ -293,7 +293,7 @@ pub mod pallet {
 			trade_fee: Permill,
 			withdraw_fee: Permill,
 		) -> DispatchResult {
-			T::CreatePoolOrigin::ensure_origin(origin)?;
+			T::PoolMasterOrigin::ensure_origin(origin)?;
 
 			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, trade_fee, withdraw_fee)?;
 
@@ -317,7 +317,7 @@ pub mod pallet {
 		/// if pool does not exist, `PoolNotFound` is returned.
 		///
 		/// Parameters:
-		/// - `origin`: Must be T::CreatePoolOrigin
+		/// - `origin`: Must be T::PoolMasterOrigin
 		/// - `pool_id`: pool to update
 		/// - `amplification`: new pool amplification or None
 		/// - `trade_fee`: new trade fee or None
@@ -333,7 +333,7 @@ pub mod pallet {
 			trade_fee: Option<Permill>,
 			withdraw_fee: Option<Permill>,
 		) -> DispatchResult {
-			T::CreatePoolOrigin::ensure_origin(origin)?;
+			T::PoolMasterOrigin::ensure_origin(origin)?;
 
 			ensure!(
 				amplification.is_some() || trade_fee.is_some() || withdraw_fee.is_some(),
