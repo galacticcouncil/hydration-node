@@ -2,9 +2,11 @@ use super::*;
 
 use crate::AssetDetail;
 use crate::{
+	Error,
 	add_omnipool_token, assert_that_asset_is_migrated_to_omnipool_subpool,
 	assert_that_asset_is_not_present_in_omnipool, assert_that_stableswap_subpool_is_created_with_poolinfo,
 };
+use frame_support::error::BadOrigin;
 use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pallet_stableswap::types::PoolInfo;
@@ -14,6 +16,70 @@ use sp_runtime::BoundedVec;
 //TODO: Dani - add integration tests for creating pool, adding liq, and trading in it
 
 //use withRegAddress like here  https://github.com/galacticcouncil/HydraDX-node/blob/cf2958f29717387154c28db98f4c4f6a2cc5c8da/pallets/omnipool/src/tests/buy.rs#L15
+
+#[test]
+fn create_subpool_should_fail_when_called_by_non_origin() {
+	let share_asset_as_pool_id: AssetId = ASSET_5;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			//Act
+			assert_noop!(OmnipoolSubpools::create_subpool(
+				mock::Origin::none(),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			),
+			BadOrigin);
+		});
+}
+
+#[test]
+fn create_subpool_should_fail_when_called_by_user() {
+	let share_asset_as_pool_id: AssetId = ASSET_5;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			//Act
+			assert_noop!(OmnipoolSubpools::create_subpool(
+				mock::Origin::signed(3),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			),
+			BadOrigin);
+		});
+}
+
+
 
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {
@@ -171,6 +237,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			let pool_account2 = AccountIdConstructor::from_assets(&vec![ASSET_5, ASSET_6], None);
 			let omnipool_account = Omnipool::protocol_account();
 
+			//Assert that liquidity is moved from omnipool account to subpool
 			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
 			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
 			assert_eq!(subpool_balance_of_asset_3, 2000 * ONE);
