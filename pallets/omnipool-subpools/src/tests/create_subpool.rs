@@ -254,6 +254,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 		});
 }
 
+
 #[test]
 fn create_subpool_should_work_when_multiple_pools_are_created() {
 	let share_asset_as_pool_id1: AssetId = 7;
@@ -433,6 +434,40 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 		});
 }
 
+
+#[test]
+fn create_subpool_should_fail_created_with_same_asset() {
+	let share_asset_as_pool_id: AssetId = ASSET_5;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+
+			//Act
+			assert_noop!(
+				OmnipoolSubpools::create_subpool(
+					Origin::root(),
+					share_asset_as_pool_id,
+					ASSET_3,
+					ASSET_3,
+					Permill::from_percent(10),
+					100u16,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				pallet_stableswap::Error::<Test>::SameAssets
+			);
+		});
+}
+
+
 #[macro_export]
 macro_rules! add_omnipool_token {
 	($asset_id:expr) => {
@@ -475,17 +510,18 @@ macro_rules! assert_that_asset_is_migrated_to_omnipool_subpool {
 	};
 }
 
+
 #[macro_export]
 macro_rules! assert_that_stableswap_subpool_is_created_with_poolinfo {
 	($pool_id:expr, $pool_info:expr) => {
-		let stableswapPool = Stableswap::pools($pool_id);
+		let stableswap_pool = Stableswap::pools($pool_id);
 		assert!(
-			stableswapPool.is_some(),
+			stableswap_pool.is_some(),
 			"subpool with id {} is not found in stableswap pools",
 			$pool_id
 		);
 		assert_eq!(
-			stableswapPool.unwrap(),
+			stableswap_pool.unwrap(),
 			$pool_info,
 			"subpool with id {} has different PoolInfo than expected",
 			$pool_id
