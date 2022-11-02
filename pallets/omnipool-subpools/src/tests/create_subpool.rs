@@ -157,7 +157,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 		.with_registered_asset(ASSET_5)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -184,14 +184,14 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			let balance_3 = Tokens::free_balance(ASSET_3, &pool_account);
 			let balance_4 = Tokens::free_balance(ASSET_4, &pool_account);
 			assert_eq!(balance_3, 2000 * ONE);
-			assert_eq!(balance_4, 2000 * ONE);
+			assert_eq!(balance_4, 3000 * ONE);
 
 			let balance_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let balance_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
 			assert_eq!(balance_3, 0);
 			assert_eq!(balance_4, 0);
-			assert_eq!(balance_shares, 2600 * ONE);
+			assert_eq!(balance_shares, 3250 * ONE);
 
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_3);
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_4);
@@ -210,9 +210,9 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			assert_eq!(
 				pool_asset,
 				AssetReserveState::<Balance> {
-					reserve: 2600 * ONE,
-					hub_reserve: 2600 * ONE,
-					shares: 2600 * ONE,
+					reserve: 3250 * ONE,
+					hub_reserve: 3250 * ONE,
+					shares: 3250 * ONE,
 					protocol_shares: 0,
 					cap: 1_000_000_000_000_000_00,
 					tradable: Tradability::default(),
@@ -235,9 +235,9 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				share_asset_as_pool_id,
 				AssetDetail {
 					price: FixedU128::from_float(0.65),
-					shares: 2000 * ONE,
-					hub_reserve: 1300 * ONE,
-					share_tokens: 1300 * ONE,
+					shares: 3000 * ONE,
+					hub_reserve: 1950 * ONE,
+					share_tokens: 1950 * ONE,
 				}
 			);
 
@@ -264,9 +264,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 		.with_registered_asset(share_asset_as_pool_id2)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_6, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_6, 5000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -307,7 +307,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
 			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
 			assert_eq!(subpool_balance_of_asset_3, 2000 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 2000 * ONE);
+			assert_eq!(subpool_balance_of_asset_4, 3000 * ONE);
 
 			let omnipool_balance_of_asset3 = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let omnipool_balance_of_asset4 = Tokens::free_balance(ASSET_4, &omnipool_account);
@@ -315,12 +315,12 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_eq!(omnipool_balance_of_asset4, 0);
 
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id1, &omnipool_account);
-			assert_eq!(balance_shares, 2600 * ONE);
+			assert_eq!(balance_shares, 3250 * ONE);
 
 			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account2);
 			let subpool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &pool_account2);
-			assert_eq!(subpool_balance_of_asset_5, 2000 * ONE);
-			assert_eq!(subpool_balance_of_asset_6, 2000 * ONE);
+			assert_eq!(subpool_balance_of_asset_5, 4000 * ONE);
+			assert_eq!(subpool_balance_of_asset_6, 5000 * ONE);
 
 			let omnipool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &omnipool_account);
 			let omnipool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &omnipool_account);
@@ -328,7 +328,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_eq!(omnipool_balance_of_asset_6, 0);
 
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id2, &omnipool_account);
-			assert_eq!(balance_shares, 2600 * ONE);
+			assert_eq!(balance_shares, 5850 * ONE);
 
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_3);
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_4);
@@ -359,9 +359,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_eq!(
 				pool_asset,
 				AssetReserveState::<Balance> {
-					reserve: 2600 * ONE,
-					hub_reserve: 2600 * ONE,
-					shares: 2600 * ONE,
+					reserve: 3250 * ONE,
+					hub_reserve: 3250 * ONE,
+					shares: 3250 * ONE,
 					protocol_shares: 0,
 					cap: 1_000_000_000_000_000_00,
 					tradable: Tradability::default(),
@@ -373,9 +373,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_eq!(
 				pool_asset,
 				AssetReserveState::<Balance> {
-					reserve: 2600 * ONE,
-					hub_reserve: 2600 * ONE,
-					shares: 2600 * ONE,
+					reserve: 5850 * ONE,
+					hub_reserve: 5850 * ONE,
+					shares: 5850 * ONE,
 					protocol_shares: 0,
 					cap: 1_000_000_000_000_000_00,
 					tradable: Tradability::default(),
@@ -399,9 +399,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				share_asset_as_pool_id1,
 				AssetDetail {
 					price: FixedU128::from_float(0.65),
-					shares: 2000 * ONE,
-					hub_reserve: 1300 * ONE,
-					share_tokens: 1300 * ONE,
+					shares: 3000 * ONE,
+					hub_reserve: 1950 * ONE,
+					share_tokens: 1950 * ONE,
 				}
 			);
 
@@ -410,9 +410,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				share_asset_as_pool_id2,
 				AssetDetail {
 					price: FixedU128::from_float(0.65),
-					shares: 2000 * ONE,
-					hub_reserve: 1300 * ONE,
-					share_tokens: 1300 * ONE,
+					shares: 4000 * ONE,
+					hub_reserve: 2600 * ONE,
+					share_tokens: 2600 * ONE,
 				}
 			);
 
@@ -421,9 +421,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				share_asset_as_pool_id2,
 				AssetDetail {
 					price: FixedU128::from_float(0.65),
-					shares: 2000 * ONE,
-					hub_reserve: 1300 * ONE,
-					share_tokens: 1300 * ONE,
+					shares: 5000 * ONE,
+					hub_reserve: 3250 * ONE,
+					share_tokens: 3250 * ONE,
 				}
 			);
 		});
