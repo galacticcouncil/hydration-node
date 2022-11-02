@@ -2,9 +2,8 @@ use super::*;
 
 use crate::AssetDetail;
 use crate::{
-	Error,
 	add_omnipool_token, assert_that_asset_is_migrated_to_omnipool_subpool,
-	assert_that_asset_is_not_present_in_omnipool, assert_that_stableswap_subpool_is_created_with_poolinfo,
+	assert_that_asset_is_not_present_in_omnipool, assert_that_stableswap_subpool_is_created_with_poolinfo, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::AssetState;
@@ -35,17 +34,19 @@ fn create_subpool_should_fail_when_called_by_non_origin() {
 			add_omnipool_token!(ASSET_4);
 
 			//Act
-			assert_noop!(OmnipoolSubpools::create_subpool(
-				mock::Origin::none(),
-				share_asset_as_pool_id,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			),
-			BadOrigin);
+			assert_noop!(
+				OmnipoolSubpools::create_subpool(
+					mock::Origin::none(),
+					share_asset_as_pool_id,
+					ASSET_3,
+					ASSET_4,
+					Permill::from_percent(10),
+					100u16,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				BadOrigin
+			);
 		});
 }
 
@@ -68,17 +69,19 @@ fn create_subpool_should_fail_when_called_by_user() {
 			add_omnipool_token!(ASSET_4);
 
 			//Act
-			assert_noop!(OmnipoolSubpools::create_subpool(
-				mock::Origin::signed(alice),
-				share_asset_as_pool_id,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			),
-			BadOrigin);
+			assert_noop!(
+				OmnipoolSubpools::create_subpool(
+					mock::Origin::signed(alice),
+					share_asset_as_pool_id,
+					ASSET_3,
+					ASSET_4,
+					Permill::from_percent(10),
+					100u16,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				BadOrigin
+			);
 		});
 }
 
@@ -89,7 +92,7 @@ fn create_subpool_should_fail_when_asset_a_does_not_exist_in_omnipool() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
-				.with_registered_asset(share_asset_as_pool_id)
+		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -99,17 +102,19 @@ fn create_subpool_should_fail_when_asset_a_does_not_exist_in_omnipool() {
 			add_omnipool_token!(ASSET_4);
 
 			//Act
-			assert_noop!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				share_asset_as_pool_id,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			),
-			pallet_omnipool::Error::<Test>::AssetNotFound);
+			assert_noop!(
+				OmnipoolSubpools::create_subpool(
+					Origin::root(),
+					share_asset_as_pool_id,
+					ASSET_3,
+					ASSET_4,
+					Permill::from_percent(10),
+					100u16,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				pallet_omnipool::Error::<Test>::AssetNotFound
+			);
 		});
 }
 
@@ -130,22 +135,21 @@ fn create_subpool_should_fail_when_asset_b_does_not_exist_in_omnipool() {
 			add_omnipool_token!(ASSET_3);
 
 			//Act
-			assert_noop!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				share_asset_as_pool_id,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			),
-			pallet_omnipool::Error::<Test>::AssetNotFound);
+			assert_noop!(
+				OmnipoolSubpools::create_subpool(
+					Origin::root(),
+					share_asset_as_pool_id,
+					ASSET_3,
+					ASSET_4,
+					Permill::from_percent(10),
+					100u16,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				),
+				pallet_omnipool::Error::<Test>::AssetNotFound
+			);
 		});
 }
-
-
-
 
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {
