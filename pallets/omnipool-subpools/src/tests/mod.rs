@@ -50,3 +50,6 @@ use orml_traits::MultiCurrency;
 // remove liquidity:
 // - ensure tradable state is respected - only if remove liquidity is allowed for asset ( should be handled by correspoding pallet) but good to test via this interface too
 // - ensure the position data is update correctly - mainly when position has to be migrated within remove liquidity - it should change asset id to share asset id and data recalculated
+
+//TODO: Dani - add complex integration tests for creating pool, adding liq, and trading in it
+

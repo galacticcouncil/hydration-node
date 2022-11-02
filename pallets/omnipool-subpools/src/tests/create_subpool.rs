@@ -12,10 +12,6 @@ use pallet_stableswap::types::PoolInfo;
 use pretty_assertions::assert_eq;
 use sp_runtime::BoundedVec;
 
-//TODO: Dani - add integration tests for creating pool, adding liq, and trading in it
-
-//use withRegAddress like here  https://github.com/galacticcouncil/HydraDX-node/blob/cf2958f29717387154c28db98f4c4f6a2cc5c8da/pallets/omnipool/src/tests/buy.rs#L15
-
 #[test]
 fn create_subpool_should_fail_when_called_by_non_origin() {
 	let share_asset_as_pool_id: AssetId = ASSET_5;
@@ -246,9 +242,6 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			);
 
 			assert!(OmnipoolSubpools::subpools(share_asset_as_pool_id).is_some());
-
-			//TODO: add test for having multiple pools multiple assets
-			//TODO: add test for adding a subpool with the same asset as an existing one
 
 			//TODO: ask Martin - change from 2000 for 2nd asset to something else to make the test more meaninhgufll, othewise the asset details are the same
 		});
