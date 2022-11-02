@@ -50,6 +50,7 @@ fn create_subpool_should_fail_when_called_by_non_origin() {
 
 #[test]
 fn create_subpool_should_fail_when_called_by_user() {
+	let alice = 99;
 	let share_asset_as_pool_id: AssetId = ASSET_5;
 
 	ExtBuilder::default()
@@ -66,7 +67,7 @@ fn create_subpool_should_fail_when_called_by_user() {
 
 			//Act
 			assert_noop!(OmnipoolSubpools::create_subpool(
-				mock::Origin::signed(3),
+				mock::Origin::signed(alice),
 				share_asset_as_pool_id,
 				ASSET_3,
 				ASSET_4,
