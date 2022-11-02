@@ -24,6 +24,7 @@ fn create_subpool_should_fail_when_called_by_non_origin() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
+		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -56,6 +57,7 @@ fn create_subpool_should_fail_when_called_by_user() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
+		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
@@ -79,6 +81,69 @@ fn create_subpool_should_fail_when_called_by_user() {
 			BadOrigin);
 		});
 }
+
+#[test]
+fn create_subpool_should_fail_when_asset_a_does_not_exist_in_omnipool() {
+	let share_asset_as_pool_id: AssetId = ASSET_5;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+				.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_4);
+
+			//Act
+			assert_noop!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			),
+			pallet_omnipool::Error::<Test>::AssetNotFound);
+		});
+}
+
+#[test]
+fn create_subpool_should_fail_when_asset_b_does_not_exist_in_omnipool() {
+	let share_asset_as_pool_id: AssetId = ASSET_5;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+
+			//Act
+			assert_noop!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			),
+			pallet_omnipool::Error::<Test>::AssetNotFound);
+		});
+}
+
 
 
 

@@ -98,7 +98,7 @@ pub mod pallet {
 
 			// Load state - return AssetNotFound if it does not exist
 			let asset_state_a = pallet_omnipool::Pallet::<T>::load_asset_state(asset_a)?;
-			let asset_state_b = pallet_omnipool::Pallet::<T>::load_asset_state(asset_a)?;
+			let asset_state_b = pallet_omnipool::Pallet::<T>::load_asset_state(asset_b)?;
 
 			// Create new subpool
 			let pool_id = pallet_stableswap::Pallet::<T>::do_create_pool(
