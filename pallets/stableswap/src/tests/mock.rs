@@ -146,7 +146,7 @@ impl Config for Test {
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
 	type AssetRegistry = DummyRegistry<Test>;
-	type CreatePoolOrigin = EnsureSigned<AccountId>;
+	type PoolMasterOrigin = EnsureSigned<AccountId>;
 	type MinPoolLiquidity = MinimumLiquidity;
 	type AmplificationRange = AmplificationRange;
 	type MinTradingLimit = MinimumTradingLimit;

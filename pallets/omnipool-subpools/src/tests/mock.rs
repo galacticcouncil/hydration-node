@@ -233,7 +233,7 @@ impl pallet_stableswap::Config for Test {
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
 	type AssetRegistry = DummyRegistry<AssetId>;
-	type CreatePoolOrigin = EnsureRoot<Self::AccountId>;
+	type PoolMasterOrigin = EnsureRoot<Self::AccountId>;
 	type MinPoolLiquidity = MinTradeAmount;
 	type MinTradingLimit = MinTradeAmount;
 	type AmplificationRange = AmplificationRange;
@@ -242,7 +242,7 @@ impl pallet_stableswap::Config for Test {
 
 impl Config for Test {
 	type Event = Event;
-	type CreatePoolOrigin = EnsureRoot<Self::AccountId>;
+	type PoolMasterOrigin = EnsureRoot<Self::AccountId>;
 }
 
 pub struct ExtBuilder {
