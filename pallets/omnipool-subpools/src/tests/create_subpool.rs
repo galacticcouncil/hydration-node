@@ -1,6 +1,10 @@
 use super::*;
 
 use crate::AssetDetail;
+use crate::{
+	add_omnipool_token, assert_that_asset_is_migrated_to_omnipool_subpool,
+	assert_that_asset_is_not_present_in_omnipool, assert_that_stableswap_subpool_is_created_with_poolinfo,
+};
 use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pallet_stableswap::types::PoolInfo;
@@ -25,8 +29,8 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			add_omnipool_token(ASSET_3);
-			add_omnipool_token(ASSET_4);
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
 
 			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
@@ -57,18 +61,17 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			assert_eq!(balance_4, 0);
 			assert_eq!(balance_shares, 2600 * ONE);
 
-			assert_that_asset_is_not_found_in_omnipool(ASSET_3);
-			assert_that_asset_is_not_found_in_omnipool(ASSET_4);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_3);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_4);
 
-			//TODO: add this assertion to next test
-			assert_that_stableswap_subpool_is_created_with_poolinfo(
+			assert_that_stableswap_subpool_is_created_with_poolinfo!(
 				share_asset_as_pool_id,
 				PoolInfo {
 					assets: vec![ASSET_3, ASSET_4].try_into().unwrap(),
 					amplification: 100,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0),
-				},
+				}
 			);
 
 			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id).unwrap();
@@ -84,7 +87,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				}
 			);
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
 				ASSET_3,
 				share_asset_as_pool_id,
 				AssetDetail {
@@ -92,10 +95,10 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 					shares: 2000 * ONE,
 					hub_reserve: 1300 * ONE,
 					share_tokens: 1300 * ONE,
-				},
+				}
 			);
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
 				ASSET_4,
 				share_asset_as_pool_id,
 				AssetDetail {
@@ -103,7 +106,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 					shares: 2000 * ONE,
 					hub_reserve: 1300 * ONE,
 					share_tokens: 1300 * ONE,
-				},
+				}
 			);
 
 			assert!(OmnipoolSubpools::subpools(share_asset_as_pool_id).is_some());
@@ -135,10 +138,10 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			add_omnipool_token(ASSET_3);
-			add_omnipool_token(ASSET_4);
-			add_omnipool_token(ASSET_5);
-			add_omnipool_token(ASSET_6);
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+			add_omnipool_token!(ASSET_6);
 
 			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
@@ -194,29 +197,29 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id2, &omnipool_account);
 			assert_eq!(balance_shares, 2600 * ONE);
 
-			assert_that_asset_is_not_found_in_omnipool(ASSET_3);
-			assert_that_asset_is_not_found_in_omnipool(ASSET_4);
-			assert_that_asset_is_not_found_in_omnipool(ASSET_5);
-			assert_that_asset_is_not_found_in_omnipool(ASSET_6);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_3);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_4);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_6);
 
-			assert_that_stableswap_subpool_is_created_with_poolinfo(
+			assert_that_stableswap_subpool_is_created_with_poolinfo!(
 				share_asset_as_pool_id1,
 				PoolInfo {
 					assets: vec![ASSET_3, ASSET_4].try_into().unwrap(),
 					amplification: 100,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0),
-				},
+				}
 			);
 
-			assert_that_stableswap_subpool_is_created_with_poolinfo(
+			assert_that_stableswap_subpool_is_created_with_poolinfo!(
 				share_asset_as_pool_id2,
 				PoolInfo {
 					assets: vec![ASSET_5, ASSET_6].try_into().unwrap(),
 					amplification: 100,
 					trade_fee: Permill::from_percent(0),
 					withdraw_fee: Permill::from_percent(0),
-				},
+				}
 			);
 
 			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id1).unwrap();
@@ -247,7 +250,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			);
 			assert!(OmnipoolSubpools::subpools(share_asset_as_pool_id2).is_some());
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
 				ASSET_3,
 				share_asset_as_pool_id1,
 				AssetDetail {
@@ -255,10 +258,10 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					shares: 2000 * ONE,
 					hub_reserve: 1300 * ONE,
 					share_tokens: 1300 * ONE,
-				},
+				}
 			);
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
 				ASSET_4,
 				share_asset_as_pool_id1,
 				AssetDetail {
@@ -266,10 +269,10 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					shares: 2000 * ONE,
 					hub_reserve: 1300 * ONE,
 					share_tokens: 1300 * ONE,
-				},
+				}
 			);
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
 				ASSET_5,
 				share_asset_as_pool_id2,
 				AssetDetail {
@@ -277,10 +280,10 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					shares: 2000 * ONE,
 					hub_reserve: 1300 * ONE,
 					share_tokens: 1300 * ONE,
-				},
+				}
 			);
 
-			assert_that_asset_is_migrated_to_omnipool_subpool(
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
 				ASSET_6,
 				share_asset_as_pool_id2,
 				AssetDetail {
@@ -288,48 +291,67 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					shares: 2000 * ONE,
 					hub_reserve: 1300 * ONE,
 					share_tokens: 1300 * ONE,
-				},
+				}
 			);
 		});
 }
 
-//TODO: use macros for helper methods
-
-fn add_omnipool_token(asset_id: AssetId) {
-	assert_ok!(Omnipool::add_token(
-		Origin::root(),
-		asset_id,
-		FixedU128::from_float(0.65),
-		Permill::from_percent(100),
-		LP1
-	));
+#[macro_export]
+macro_rules! add_omnipool_token {
+	($asset_id:expr) => {
+		assert_ok!(Omnipool::add_token(
+			Origin::root(),
+			$asset_id,
+			FixedU128::from_float(0.65),
+			Permill::from_percent(100),
+			LP1
+		));
+	};
 }
 
-fn assert_that_asset_is_not_found_in_omnipool(asset: AssetId) {
-	assert_err!(
-		Omnipool::load_asset_state(asset),
-		pallet_omnipool::Error::<Test>::AssetNotFound
-	);
+#[macro_export]
+macro_rules! assert_that_asset_is_not_present_in_omnipool {
+	($asset_id:expr) => {
+		assert_err!(
+			Omnipool::load_asset_state($asset_id),
+			pallet_omnipool::Error::<Test>::AssetNotFound
+		);
+	};
 }
 
-fn assert_that_asset_is_migrated_to_omnipool_subpool(asset: AssetId, pool_id: AssetId, asset_details: AssetDetail) {
-	let migrate_asset = OmnipoolSubpools::migrated_assets(asset);
+#[macro_export]
+macro_rules! assert_that_asset_is_migrated_to_omnipool_subpool {
+	($asset:expr, $pool_id:expr, $asset_details:expr) => {
+		let migrate_asset = OmnipoolSubpools::migrated_assets($asset);
 
-	assert!(
-		migrate_asset.is_some(),
-		"Asset '{}' can not be found in omnipool subpools migrated asset storage",
-		asset
-	);
-	assert_eq!(
-		migrate_asset.unwrap(),
-		(pool_id, asset_details),
-		"asset details for asset `{}` is not as expected",
-		asset
-	);
+		assert!(
+			migrate_asset.is_some(),
+			"Asset '{}' can not be found in omnipool subpools migrated asset storage",
+			$asset
+		);
+		assert_eq!(
+			migrate_asset.unwrap(),
+			($pool_id, $asset_details),
+			"asset details for asset `{}` is not as expected",
+			$asset
+		);
+	};
 }
 
-fn assert_that_stableswap_subpool_is_created_with_poolinfo(pool_id: AssetId, pool_info: PoolInfo<AssetId>) {
-	let stableswapPool = Stableswap::pools(pool_id);
-	assert!(stableswapPool.is_some());
-	assert_eq!(stableswapPool.unwrap(), pool_info);
+#[macro_export]
+macro_rules! assert_that_stableswap_subpool_is_created_with_poolinfo {
+	($pool_id:expr, $pool_info:expr) => {
+		let stableswapPool = Stableswap::pools($pool_id);
+		assert!(
+			stableswapPool.is_some(),
+			"subpool with id {} is not found in stableswap pools",
+			$pool_id
+		);
+		assert_eq!(
+			stableswapPool.unwrap(),
+			$pool_info,
+			"subpool with id {} has different PoolInfo than expected",
+			$pool_id
+		);
+	};
 }
