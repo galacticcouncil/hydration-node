@@ -1,8 +1,11 @@
 use super::*;
 
 use crate::AssetDetail;
+use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
+use pallet_stableswap::types::PoolInfo;
 use pretty_assertions::assert_eq;
+use sp_runtime::BoundedVec;
 
 //TODO: Dani - add integration tests for creating pool, adding liq, and trading in it
 
@@ -41,22 +44,32 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
+			//Assert that liquidity is moved from omnipool account to subpool
 			let balance_3 = Tokens::free_balance(ASSET_3, &pool_account);
 			let balance_4 = Tokens::free_balance(ASSET_4, &pool_account);
-
 			assert_eq!(balance_3, 2000 * ONE);
 			assert_eq!(balance_4, 2000 * ONE);
 
 			let balance_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let balance_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
-
 			assert_eq!(balance_3, 0);
 			assert_eq!(balance_4, 0);
 			assert_eq!(balance_shares, 2600 * ONE);
 
 			assert_that_asset_is_not_found_in_omnipool(ASSET_3);
 			assert_that_asset_is_not_found_in_omnipool(ASSET_4);
+
+			//TODO: add this assertion to next test
+			assert_that_stableswap_subpool_is_created_with_poolinfo(
+				share_asset_as_pool_id,
+				PoolInfo {
+					assets: vec![ASSET_3, ASSET_4].try_into().unwrap(),
+					amplification: 100,
+					trade_fee: Permill::from_percent(0),
+					withdraw_fee: Permill::from_percent(0),
+				},
+			);
 
 			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id).unwrap();
 			assert_eq!(
@@ -92,6 +105,11 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 					share_tokens: 1300 * ONE,
 				},
 			);
+
+			assert!(OmnipoolSubpools::subpools(share_asset_as_pool_id).is_some());
+
+			//TODO: add test for having multiple pools multiple assets
+			//TODO: add test for adding a subpool with the same asset as an existing one
 
 			//TODO: ask Martin - change from 2000 for 2nd asset to something else to make the test more meaninhgufll, othewise the asset details are the same
 		});
@@ -181,6 +199,26 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			assert_that_asset_is_not_found_in_omnipool(ASSET_5);
 			assert_that_asset_is_not_found_in_omnipool(ASSET_6);
 
+			assert_that_stableswap_subpool_is_created_with_poolinfo(
+				share_asset_as_pool_id1,
+				PoolInfo {
+					assets: vec![ASSET_3, ASSET_4].try_into().unwrap(),
+					amplification: 100,
+					trade_fee: Permill::from_percent(0),
+					withdraw_fee: Permill::from_percent(0),
+				},
+			);
+
+			assert_that_stableswap_subpool_is_created_with_poolinfo(
+				share_asset_as_pool_id2,
+				PoolInfo {
+					assets: vec![ASSET_5, ASSET_6].try_into().unwrap(),
+					amplification: 100,
+					trade_fee: Permill::from_percent(0),
+					withdraw_fee: Permill::from_percent(0),
+				},
+			);
+
 			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id1).unwrap();
 			assert_eq!(
 				pool_asset,
@@ -193,6 +231,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					tradable: Tradability::default(),
 				}
 			);
+			assert!(OmnipoolSubpools::subpools(share_asset_as_pool_id1).is_some());
 
 			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id2).unwrap();
 			assert_eq!(
@@ -206,6 +245,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					tradable: Tradability::default(),
 				}
 			);
+			assert!(OmnipoolSubpools::subpools(share_asset_as_pool_id2).is_some());
 
 			assert_that_asset_is_migrated_to_omnipool_subpool(
 				ASSET_3,
@@ -250,12 +290,10 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					share_tokens: 1300 * ONE,
 				},
 			);
-
-			check that share token is added to omnipool.
-				check that pool is created in subpools storage
 		});
 }
 
+//TODO: use macros for helper methods
 
 fn add_omnipool_token(asset_id: AssetId) {
 	assert_ok!(Omnipool::add_token(
@@ -282,8 +320,16 @@ fn assert_that_asset_is_migrated_to_omnipool_subpool(asset: AssetId, pool_id: As
 		"Asset '{}' can not be found in omnipool subpools migrated asset storage",
 		asset
 	);
-	assert_eq!(migrate_asset.unwrap(), (pool_id, asset_details), "asset details for asset `{}` is not as expected", asset);
+	assert_eq!(
+		migrate_asset.unwrap(),
+		(pool_id, asset_details),
+		"asset details for asset `{}` is not as expected",
+		asset
+	);
 }
 
-//TODO: add test for having multiple pools multiple assets
-//TODO: add test for adding a subpool with the same asset as an existing one
+fn assert_that_stableswap_subpool_is_created_with_poolinfo(pool_id: AssetId, pool_info: PoolInfo<AssetId>) {
+	let stableswapPool = Stableswap::pools(pool_id);
+	assert!(stableswapPool.is_some());
+	assert_eq!(stableswapPool.unwrap(), pool_info);
+}
