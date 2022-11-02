@@ -238,7 +238,7 @@ pub fn devnet_parachain_config() -> Result<ChainSpec, String> {
 					// Galactic Council
 					// 5GjfiRa32G5YhQja854QooT6fJimjDJUQhTywSwBSXeKbnsQ
 					hex!["cea84b21c8f4c2160b9be66cb43309bf76dce0d9f3c6687a0475c8f96394835b"].into(),
-					1_500_000_000,
+					1_500_000_000 * UNITS,
 				)],
 				// council members
 				// GC - same as sudo
