@@ -2,8 +2,8 @@ use super::*;
 
 use crate::{
 	add_omnipool_token, assert_that_asset_is_migrated_to_omnipool_subpool,
-	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_is_added_to_omnipool_as_another_asset,
-	AssetDetail, Error,
+	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail,
+	Error,
 };
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
@@ -69,7 +69,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			assert_eq!(balance_shares, 3900 * ONE);
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
 
-			assert_that_sharetoken_is_added_to_omnipool_as_another_asset!(
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				share_asset_as_pool_id,
 				AssetReserveState::<Balance> {
 					reserve: 3900 * ONE,

@@ -565,7 +565,7 @@ macro_rules! assert_that_asset_is_not_present_in_omnipool {
 }
 
 #[macro_export]
-macro_rules! assert_that_sharetoken_is_added_to_omnipool_as_another_asset {
+macro_rules! assert_that_sharetoken_in_omnipool_as_another_asset {
 	($share_asset_id:expr, $asset_reserve_state:expr) => {
 		let pool_asset = Omnipool::load_asset_state($share_asset_id);
 		assert!(
