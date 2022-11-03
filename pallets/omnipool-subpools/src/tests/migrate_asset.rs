@@ -18,8 +18,8 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -55,8 +55,8 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			let balance_b = Tokens::free_balance(ASSET_4, &pool_account);
 			let balance_c = Tokens::free_balance(ASSET_5, &pool_account);
 			assert_eq!(balance_a, 2000 * ONE);
-			assert_eq!(balance_b, 2000 * ONE);
-			assert_eq!(balance_c, 2000 * ONE);
+			assert_eq!(balance_b, 3000 * ONE);
+			assert_eq!(balance_c, 4000 * ONE);
 
 			let balance_a = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let balance_b = Tokens::free_balance(ASSET_4, &omnipool_account);
@@ -67,14 +67,14 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 
 			//Assert that share has been deposited to omnipool
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
-			assert_eq!(balance_shares, 3900 * ONE);
+			assert_eq!(balance_shares, 5850 * ONE);
 
 			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				share_asset_as_pool_id,
 				AssetReserveState::<Balance> {
-					reserve: 3900 * ONE,
-					hub_reserve: 3900 * ONE,
-					shares: 3900 * ONE,
+					reserve: 5850 * ONE,
+					hub_reserve: 5850 * ONE,
+					shares: 5850 * ONE,
 					protocol_shares: 0,
 					cap: 1_100_000_000_000_000_000,
 					tradable: Tradability::default(),
@@ -86,9 +86,9 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				share_asset_as_pool_id,
 				AssetDetail {
 					price: FixedU128::from_float(0.65),
-					shares: 2000 * ONE,
-					hub_reserve: 1300 * ONE,
-					share_tokens: 1300 * ONE,
+					shares: 4000 * ONE,
+					hub_reserve: 2600 * ONE,
+					share_tokens: 2600 * ONE,
 				}
 			);
 
