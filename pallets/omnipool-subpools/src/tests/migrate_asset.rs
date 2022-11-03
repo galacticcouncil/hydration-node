@@ -55,19 +55,19 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			assert_eq!(subpool.assets.to_vec(), vec![ASSET_3, ASSET_4, ASSET_5]);
 
 			//Assert that liquidty has been moved
-			let balance_a = Tokens::free_balance(ASSET_3, &pool_account);
-			let balance_b = Tokens::free_balance(ASSET_4, &pool_account);
-			let balance_c = Tokens::free_balance(ASSET_5, &pool_account);
-			assert_eq!(balance_a, 2000 * ONE);
-			assert_eq!(balance_b, 3000 * ONE);
-			assert_eq!(balance_c, 4000 * ONE);
+			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
+			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
+			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
+			assert_eq!(subpool_balance_of_asset_3, 2000 * ONE);
+			assert_eq!(subpool_balance_of_asset_4, 3000 * ONE);
+			assert_eq!(subpool_balance_of_asset_5, 4000 * ONE);
 
-			let balance_a = Tokens::free_balance(ASSET_3, &omnipool_account);
-			let balance_b = Tokens::free_balance(ASSET_4, &omnipool_account);
-			let balance_c = Tokens::free_balance(ASSET_5, &omnipool_account);
-			assert_eq!(balance_a, 0);
-			assert_eq!(balance_b, 0);
-			assert_eq!(balance_c, 0);
+			let omnipool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
+			let omnipool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
+			let omnipool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &omnipool_account);
+			assert_eq!(omnipool_balance_of_asset_3, 0);
+			assert_eq!(omnipool_balance_of_asset_4, 0);
+			assert_eq!(omnipool_balance_of_asset_5, 0);
 
 			//Assert that share has been deposited to omnipool
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
@@ -252,5 +252,152 @@ fn migrate_asset_to_subpool_should_fail_when_called_by_normal_user() {
 		});
 }
 
-//TODO: add tests for multiple pools with multiple assets, max number of assets
+#[test]
+fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
+	//Arrange
+	let share_asset_as_pool_id: AssetId = 20;
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(ASSET_6)
+		.with_registered_asset(ASSET_7)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_6, 6000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_7, 7000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+			add_omnipool_token!(ASSET_6);
+			add_omnipool_token!(ASSET_7);
+
+			assert_ok!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			//Act
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_5,
+			));
+
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_6,
+			));
+
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_7,
+			));
+
+			//Assert
+			let pool_account =
+				AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5, ASSET_6, ASSET_7], None);
+			let omnipool_account = Omnipool::protocol_account();
+			let subpool = Stableswap::get_pool(share_asset_as_pool_id).unwrap();
+
+			assert_eq!(
+				subpool.assets.to_vec(),
+				vec![ASSET_3, ASSET_4, ASSET_5, ASSET_6, ASSET_7]
+			);
+
+			//Assert that liquidty has been moved
+			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
+			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
+			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
+			let subpool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &pool_account);
+			let subpool_balance_of_asset_7 = Tokens::free_balance(ASSET_7, &pool_account);
+			assert_eq!(subpool_balance_of_asset_3, 3000 * ONE);
+			assert_eq!(subpool_balance_of_asset_4, 4000 * ONE);
+			assert_eq!(subpool_balance_of_asset_5, 5000 * ONE);
+			assert_eq!(subpool_balance_of_asset_6, 6000 * ONE);
+			assert_eq!(subpool_balance_of_asset_7, 7000 * ONE);
+
+			let omnipool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
+			let omnipool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
+			let omnipool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &omnipool_account);
+			let omnipool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &omnipool_account);
+			let omnipool_balance_of_asset_7 = Tokens::free_balance(ASSET_7, &omnipool_account);
+			assert_eq!(omnipool_balance_of_asset_3, 0);
+			assert_eq!(omnipool_balance_of_asset_4, 0);
+			assert_eq!(omnipool_balance_of_asset_5, 0);
+			assert_eq!(omnipool_balance_of_asset_6, 0);
+			assert_eq!(omnipool_balance_of_asset_7, 0);
+
+			//Assert that share has been deposited to omnipool
+			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
+			assert_eq!(balance_shares, 16250 * ONE);
+
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
+				share_asset_as_pool_id,
+				AssetReserveState::<Balance> {
+					reserve: 16250 * ONE,
+					hub_reserve: 16250 * ONE,
+					shares: 16250 * ONE,
+					protocol_shares: 0,
+					cap: 3_100_000_000_000_000_000,
+					tradable: Tradability::default(),
+				}
+			);
+
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
+				ASSET_5,
+				share_asset_as_pool_id,
+				AssetDetail {
+					price: FixedU128::from_float(0.65),
+					shares: 5000 * ONE,
+					hub_reserve: 3250 * ONE,
+					share_tokens: 3250 * ONE,
+				}
+			);
+
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
+				ASSET_6,
+				share_asset_as_pool_id,
+				AssetDetail {
+					price: FixedU128::from_float(0.65),
+					shares: 6000 * ONE,
+					hub_reserve: 3900 * ONE,
+					share_tokens: 3900 * ONE,
+				}
+			);
+
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
+				ASSET_7,
+				share_asset_as_pool_id,
+				AssetDetail {
+					price: FixedU128::from_float(0.65),
+					shares: 7000 * ONE,
+					hub_reserve: 4550 * ONE,
+					share_tokens: 4550 * ONE,
+				}
+			);
+
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_6);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_7);
+
+			//TODO: Adjust test to have non-zero protocol shares
+		});
+}
+
+//TODO: add tests for multiple pools with multiple assets,
 //TODO: at the end, mutation testing
