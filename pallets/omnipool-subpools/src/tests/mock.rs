@@ -619,3 +619,11 @@ macro_rules! assert_that_stableswap_subpool_is_created_with_poolinfo {
 		);
 	};
 }
+
+#[macro_export]
+macro_rules! assert_stableswap_pool_assets {
+	($pool_id:expr, $assets:expr) => {
+		let subpool = Stableswap::get_pool($pool_id).unwrap();
+		assert_eq!(subpool.assets.to_vec(), $assets);
+	};
+}
