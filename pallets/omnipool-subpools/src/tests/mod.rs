@@ -28,7 +28,7 @@ use orml_traits::MultiCurrency;
 // X ensure liquidity has been moved from omnipool to subpool - note this account of subpool can change after asset is added )
 // X ensure that all previous of all tokens are in correct account ( due to possible change of account id after token is added )
 // - same tests as per create subpool here.
-// X ensure list of assets is sorted in stableswap pool ( this must be done in stableswap pallet) - few new tests are needed there to test the add asset
+// ? (done in omnipool) ensure list of assets is sorted in stableswap pool ( this must be done in stableswap pallet) - few new tests are needed there to test the add asset
 
 // add liquidity:
 // - ensure tradable state is respected - only if add liquidity is allowed for asset ( should be handled by correspoding pallet) but good to test via this interface too

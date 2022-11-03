@@ -567,5 +567,77 @@ fn migrate_asset_to_subpool_should_sort_the_assets_in_subpool() {
 		});
 }
 
+#[test]
+fn migrate_asset_to_subpool_should_fail_when_doing_more_migration_than_max_pool_assets() {
+	//Arrange
+	let share_asset_as_pool_id: AssetId = 20;
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(ASSET_6)
+		.with_registered_asset(ASSET_7)
+		.with_registered_asset(ASSET_8)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_6, 6000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_7, 7000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_8, 8000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+			add_omnipool_token!(ASSET_6);
+			add_omnipool_token!(ASSET_7);
+			add_omnipool_token!(ASSET_8);
+
+			assert_ok!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_5,
+			));
+
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_6,
+			));
+
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_7,
+			));
+
+			//Act and assert
+			assert_noop!(
+				OmnipoolSubpools::migrate_asset_to_subpool(Origin::root(), share_asset_as_pool_id, ASSET_8),
+				pallet_stableswap::Error::<Test>::MaxAssetsExceeded
+			);
+
+			//Assert
+			assert_stableswap_pool_assets!(
+				share_asset_as_pool_id,
+				vec![ASSET_3, ASSET_4, ASSET_5, ASSET_6, ASSET_7]
+			);
+		});
+}
+
 //TODO: add tests for multiple pools with multiple assets,
 //TODO: at the end, mutation testing

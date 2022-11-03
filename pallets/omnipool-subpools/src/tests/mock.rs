@@ -55,6 +55,7 @@ pub const ASSET_4: AssetId = 4;
 pub const ASSET_5: AssetId = 5;
 pub const ASSET_6: AssetId = 6;
 pub const ASSET_7: AssetId = 7;
+pub const ASSET_8: AssetId = 8;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
