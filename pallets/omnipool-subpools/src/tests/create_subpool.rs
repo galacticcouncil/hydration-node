@@ -189,9 +189,11 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			let balance_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let balance_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
-			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
 			assert_eq!(balance_3, 0);
 			assert_eq!(balance_4, 0);
+
+			//Assert that share has been deposited to omnipool
+			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
 			assert_eq!(balance_shares, 3250 * ONE);
 
 			assert_that_stableswap_subpool_is_created_with_poolinfo!(

@@ -46,28 +46,28 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
 			let omnipool_account = Omnipool::protocol_account();
-
 			let subpool = Stableswap::get_pool(share_asset_as_pool_id).unwrap();
 
 			assert_eq!(subpool.assets.to_vec(), vec![ASSET_3, ASSET_4, ASSET_5]);
 
+			//Assert that liquidty has been moved
 			let balance_a = Tokens::free_balance(ASSET_3, &pool_account);
 			let balance_b = Tokens::free_balance(ASSET_4, &pool_account);
 			let balance_c = Tokens::free_balance(ASSET_5, &pool_account);
-
 			assert_eq!(balance_a, 2000 * ONE);
 			assert_eq!(balance_b, 2000 * ONE);
 			assert_eq!(balance_c, 2000 * ONE);
+
 			let balance_a = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let balance_b = Tokens::free_balance(ASSET_4, &omnipool_account);
 			let balance_c = Tokens::free_balance(ASSET_5, &omnipool_account);
-			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
-
 			assert_eq!(balance_a, 0);
 			assert_eq!(balance_b, 0);
 			assert_eq!(balance_c, 0);
+
+			//Assert that share has been deposited to omnipool
+			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
 			assert_eq!(balance_shares, 3900 * ONE);
-			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
 
 			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				share_asset_as_pool_id,
@@ -91,6 +91,10 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 					share_tokens: 1300 * ONE,
 				}
 			);
+
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
+
+			//TODO: Adjust test to have non-zero protocol shares
 		});
 }
 
