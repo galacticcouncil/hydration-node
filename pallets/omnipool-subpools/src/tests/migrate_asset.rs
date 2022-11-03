@@ -99,7 +99,30 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 }
 
 #[test]
-fn migrate_asset_to_subpool_should_fail_when_subpool_does_not_exist() {}
+fn migrate_asset_to_subpool_should_fail_when_subpool_does_not_exist() {
+	let share_asset_as_pool_id: AssetId = 6;
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+
+			assert_noop!(
+				OmnipoolSubpools::migrate_asset_to_subpool(Origin::root(), share_asset_as_pool_id, ASSET_5,),
+				Error::<Test>::SubpoolNotFound
+			);
+		});
+}
 
 //TODO: add tests for multiple pools with multiple assets, max number of assets
 //TODO: at the end, mutation testing
