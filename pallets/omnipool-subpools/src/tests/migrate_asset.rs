@@ -19,9 +19,9 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 		.with_registered_asset(ASSET_5)
 		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -58,9 +58,9 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
 			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
 			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 2000 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 3000 * ONE);
-			assert_eq!(subpool_balance_of_asset_5, 4000 * ONE);
+			assert_eq!(subpool_balance_of_asset_3, 3000 * ONE);
+			assert_eq!(subpool_balance_of_asset_4, 4000 * ONE);
+			assert_eq!(subpool_balance_of_asset_5, 5000 * ONE);
 
 			let omnipool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
 			let omnipool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
@@ -71,14 +71,14 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 
 			//Assert that share has been deposited to omnipool
 			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
-			assert_eq!(balance_shares, 5850 * ONE);
+			assert_eq!(balance_shares, 7800 * ONE);
 
 			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				share_asset_as_pool_id,
 				AssetReserveState::<Balance> {
-					reserve: 5850 * ONE,
-					hub_reserve: 5850 * ONE,
-					shares: 5850 * ONE,
+					reserve: 7800 * ONE,
+					hub_reserve: 7800 * ONE,
+					shares: 7800 * ONE,
 					protocol_shares: 0,
 					cap: 1_100_000_000_000_000_000,
 					tradable: Tradability::default(),
@@ -90,9 +90,9 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				share_asset_as_pool_id,
 				AssetDetail {
 					price: FixedU128::from_float(0.65),
-					shares: 4000 * ONE,
-					hub_reserve: 2600 * ONE,
-					share_tokens: 2600 * ONE,
+					shares: 5000 * ONE,
+					hub_reserve: 3250 * ONE,
+					share_tokens: 3250 * ONE,
 				}
 			);
 
@@ -112,9 +112,9 @@ fn migrate_asset_to_subpool_should_fail_when_subpool_does_not_exist() {
 		.with_registered_asset(ASSET_5)
 		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -140,9 +140,9 @@ fn migrate_asset_to_subpool_should_fail_when_token_does_not_exist() {
 		.with_registered_asset(ASSET_5)
 		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -180,9 +180,9 @@ fn migrate_asset_to_subpool_should_fail_when_called_from_non_origin() {
 		.with_registered_asset(ASSET_5)
 		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -218,9 +218,9 @@ fn migrate_asset_to_subpool_should_fail_when_called_by_normal_user() {
 		.with_registered_asset(ASSET_5)
 		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 2000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -399,7 +399,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 }
 
 #[test]
-fn migrate_asset_to_subpool_should_change_the_pool_when_called_consequently() {
+fn migrate_asset_to_subpool_should_update_subpool_when_called_consequently() {
 	//Arrange
 	let share_asset_as_pool_id: AssetId = 20;
 	ExtBuilder::default()
