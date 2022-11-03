@@ -1,11 +1,12 @@
 use super::*;
 
+use crate::{
+	add_omnipool_token, assert_that_asset_is_migrated_to_omnipool_subpool,
+	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_is_added_to_omnipool_as_another_asset,
+	AssetDetail, Error,
+};
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
-use crate::{
-	add_omnipool_token, Error,
-};
-
 
 #[test]
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
@@ -66,14 +67,10 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			assert_eq!(balance_b, 0);
 			assert_eq!(balance_c, 0);
 			assert_eq!(balance_shares, 3900 * ONE);
-			assert_err!(
-				Omnipool::load_asset_state(ASSET_5),
-				pallet_omnipool::Error::<Test>::AssetNotFound
-			);
+			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
 
-			let pool_asset = Omnipool::load_asset_state(share_asset_as_pool_id).unwrap();
-			assert_eq!(
-				pool_asset,
+			assert_that_sharetoken_is_added_to_omnipool_as_another_asset!(
+				share_asset_as_pool_id,
 				AssetReserveState::<Balance> {
 					reserve: 3900 * ONE,
 					hub_reserve: 3900 * ONE,
@@ -83,8 +80,22 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_that_asset_is_migrated_to_omnipool_subpool!(
+				ASSET_5,
+				share_asset_as_pool_id,
+				AssetDetail {
+					price: FixedU128::from_float(0.65),
+					shares: 2000 * ONE,
+					hub_reserve: 1300 * ONE,
+					share_tokens: 1300 * ONE,
+				}
+			);
 		});
 }
+
+#[test]
+fn migrate_asset_to_subpool_should_fail_when_subpool_does_not_exist() {}
 
 //TODO: add tests for multiple pools with multiple assets, max number of assets
 //TODO: at the end, mutation testing

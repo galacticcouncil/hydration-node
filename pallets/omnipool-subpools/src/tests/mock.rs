@@ -553,3 +553,68 @@ macro_rules! add_omnipool_token {
 		));
 	};
 }
+
+#[macro_export]
+macro_rules! assert_that_asset_is_not_present_in_omnipool {
+	($asset_id:expr) => {
+		assert_err!(
+			Omnipool::load_asset_state($asset_id),
+			pallet_omnipool::Error::<Test>::AssetNotFound
+		);
+	};
+}
+
+#[macro_export]
+macro_rules! assert_that_sharetoken_is_added_to_omnipool_as_another_asset {
+	($share_asset_id:expr, $asset_reserve_state:expr) => {
+		let pool_asset = Omnipool::load_asset_state($share_asset_id);
+		assert!(
+			pool_asset.is_ok(),
+			"there was an unexpected problem when loading share asset '{}'",
+			$share_asset_id
+		);
+		assert_eq!(
+			pool_asset.unwrap(),
+			$asset_reserve_state,
+			"Omnipool asset with share id '{}' is other than expected",
+			$share_asset_id
+		);
+	};
+}
+
+#[macro_export]
+macro_rules! assert_that_asset_is_migrated_to_omnipool_subpool {
+	($asset:expr, $pool_id:expr, $asset_details:expr) => {
+		let migrate_asset = OmnipoolSubpools::migrated_assets($asset);
+
+		assert!(
+			migrate_asset.is_some(),
+			"Asset '{}' can not be found in omnipool subpools migrated asset storage",
+			$asset
+		);
+		assert_eq!(
+			migrate_asset.unwrap(),
+			($pool_id, $asset_details),
+			"asset details for asset `{}` is not as expected",
+			$asset
+		);
+	};
+}
+
+#[macro_export]
+macro_rules! assert_that_stableswap_subpool_is_created_with_poolinfo {
+	($pool_id:expr, $pool_info:expr) => {
+		let stableswap_pool = Stableswap::pools($pool_id);
+		assert!(
+			stableswap_pool.is_some(),
+			"subpool with id {} is not found in stableswap pools",
+			$pool_id
+		);
+		assert_eq!(
+			stableswap_pool.unwrap(),
+			$pool_info,
+			"subpool with id {} has different PoolInfo than expected",
+			$pool_id
+		);
+	};
+}
