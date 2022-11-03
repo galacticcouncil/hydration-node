@@ -179,11 +179,11 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn _devnet_parachain_config() -> Result<ChainSpec, String> {
+pub fn devnet_parachain_config() -> Result<ChainSpec, String> {
 	ChainSpec::from_json_bytes(&include_bytes!("../res/devnet.json")[..])
 }
 
-pub fn devnet_parachain_config() -> Result<ChainSpec, String> {
+pub fn _devnet_parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
