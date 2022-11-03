@@ -52,4 +52,3 @@ use orml_traits::MultiCurrency;
 // - ensure the position data is update correctly - mainly when position has to be migrated within remove liquidity - it should change asset id to share asset id and data recalculated
 
 //TODO: Dani - add complex integration tests for creating pool, adding liq, and trading in it
-

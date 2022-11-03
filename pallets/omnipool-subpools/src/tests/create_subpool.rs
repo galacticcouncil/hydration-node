@@ -243,7 +243,8 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			assert!(OmnipoolSubpools::subpools(share_asset_as_pool_id).is_some());
 
-			//TODO: ask Martin - change from 2000 for 2nd asset to something else to make the test more meaninhgufll, othewise the asset details are the same
+			//TODO: ask Martin - ask martin how to change the procol shares so we have more meaningfull data
+			//Once it is done, make sure that all the mutations are killed
 		});
 }
 
@@ -457,18 +458,6 @@ fn create_subpool_should_fail_created_with_same_asset() {
 		});
 }
 
-#[macro_export]
-macro_rules! add_omnipool_token {
-	($asset_id:expr) => {
-		assert_ok!(Omnipool::add_token(
-			Origin::root(),
-			$asset_id,
-			FixedU128::from_float(0.65),
-			Permill::from_percent(100),
-			LP1
-		));
-	};
-}
 
 #[macro_export]
 macro_rules! assert_that_asset_is_not_present_in_omnipool {

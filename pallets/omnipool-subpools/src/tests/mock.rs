@@ -540,3 +540,16 @@ impl AccountIdFor<Vec<u32>> for AccountIdConstructor {
 		buf
 	}
 }
+
+#[macro_export]
+macro_rules! add_omnipool_token {
+	($asset_id:expr) => {
+		assert_ok!(Omnipool::add_token(
+			Origin::root(),
+			$asset_id,
+			FixedU128::from_float(0.65),
+			Permill::from_percent(100),
+			LP1
+		));
+	};
+}

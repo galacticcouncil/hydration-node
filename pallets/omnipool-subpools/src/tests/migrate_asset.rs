@@ -2,6 +2,10 @@ use super::*;
 
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
+use crate::{
+	add_omnipool_token, Error,
+};
+
 
 #[test]
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
@@ -18,31 +22,10 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let token_price = FixedU128::from_float(0.65);
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
 
-			let token_amount = 2000 * ONE;
-
-			assert_ok!(Omnipool::add_token(
-				Origin::root(),
-				ASSET_3,
-				token_price,
-				Permill::from_percent(100),
-				LP1
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::root(),
-				ASSET_4,
-				token_price,
-				Permill::from_percent(100),
-				LP1
-			));
-			assert_ok!(Omnipool::add_token(
-				Origin::root(),
-				ASSET_5,
-				token_price,
-				Permill::from_percent(100),
-				LP1
-			));
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
 				share_asset_as_pool_id,
@@ -102,6 +85,6 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			);
 		});
 }
-//TODO: use test helpers from create_subpool
-//TODO: add tests for multiple pools with multiple assets, max number of assets
 
+//TODO: add tests for multiple pools with multiple assets, max number of assets
+//TODO: at the end, mutation testing
