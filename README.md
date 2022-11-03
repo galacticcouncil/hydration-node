@@ -180,5 +180,17 @@ However, if the difference < 0 - your machine might not suitable to run HydraDX 
 ./target/release/hydra-dx --chain lerna
 ```
 
+### Testing of storage migrations and runtime upgrades
+
+The `try-runtime` tool can be used to test storage migrations and runtime upgrades against state from a real chain.
+Run the following command to test against the state on HydraDX
+```bash
+cargo run --features=try-runtime try-runtime on-runtime-upgrade live --uri wss://rpc.hydradx.cloud
+```
+or against HydraDX testnet on Rococo
+```bash
+cargo run --release --features=try-runtime try-runtime on-runtime-upgrade live --uri wss://rococo-hydradx-rpc.hydration.dev
+```
+
 ### Honorable contributions
 [@apopiak](https://github.com/apopiak) for great reviews [#87](https://github.com/galacticcouncil/HydraDX-node/pull/87) and support.
