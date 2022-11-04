@@ -545,6 +545,14 @@ impl AccountIdFor<Vec<u32>> for AccountIdConstructor {
 	}
 }
 
+//TODO: add this to test utils package - branch is already prepared, jsut need to use it
+#[macro_export]
+macro_rules! assert_balance {
+	( $x:expr, $y:expr, $z:expr) => {{
+		assert_eq!(Tokens::free_balance($y, &$x), $z);
+	}};
+}
+
 #[macro_export]
 macro_rules! add_omnipool_token {
 	($asset_id:expr) => {
