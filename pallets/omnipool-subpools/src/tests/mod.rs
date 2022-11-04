@@ -1,3 +1,4 @@
+mod add_liquidity;
 mod create_subpool;
 mod migrate_asset;
 pub(crate) mod mock;

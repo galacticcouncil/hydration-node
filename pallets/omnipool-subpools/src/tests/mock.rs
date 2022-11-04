@@ -47,6 +47,8 @@ pub type AccountId = u64;
 pub type Balance = u128;
 pub type AssetId = u32;
 
+pub const ALICE: AccountId = 1000;
+
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;

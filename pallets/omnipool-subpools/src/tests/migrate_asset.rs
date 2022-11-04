@@ -631,7 +631,7 @@ fn migrate_asset_to_subpool_should_fail_when_doing_more_migration_than_max_pool_
 				pallet_stableswap::Error::<Test>::MaxAssetsExceeded
 			);
 
-			//Assert
+			//Post condition
 			assert_stableswap_pool_assets!(
 				share_asset_as_pool_id,
 				vec![ASSET_3, ASSET_4, ASSET_5, ASSET_6, ASSET_7]
