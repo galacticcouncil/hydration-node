@@ -40,6 +40,13 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_stableswap_when_asset_i
 				Permill::from_percent(0),
 			));
 
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let omnipool_account = Omnipool::protocol_account();
+			let all_subpool_shares = 4550000000000000;
+			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_BALANCE);
+			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(&omnipool_account, share_asset_as_pool_id, all_subpool_shares);
+
 			//Act
 			let new_liquidity = 100 * ONE;
 			assert_ok!(OmnipoolSubpools::add_liquidity(
@@ -48,13 +55,17 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_stableswap_when_asset_i
 				new_liquidity
 			));
 
-			//Assert that liquidity is added to subpool from user account
-			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-			let omnipool_account = Omnipool::protocol_account();
-
+			//Assert that liquidity is added to subpool
+			let share_of_alice_to_be_deposited = 65051679689491;
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_BALANCE - new_liquidity);
 			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
-			assert_balance!(&omnipool_account, share_asset_as_pool_id, 4615051679689491);
+
+			//Assert that share of ALICE is deposited as NFT is minted for omnipool position
+			assert_balance!(
+				&omnipool_account,
+				share_asset_as_pool_id,
+				all_subpool_shares + share_of_alice_to_be_deposited
+			);
 		});
 }
 
