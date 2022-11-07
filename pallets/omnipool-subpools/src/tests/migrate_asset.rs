@@ -1,9 +1,9 @@
 use super::*;
 
 use crate::{
-	add_omnipool_token, assert_stableswap_pool_assets, assert_that_asset_is_migrated_to_omnipool_subpool,
-	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail,
-	Error,
+	add_omnipool_token, assert_balance, assert_stableswap_pool_assets,
+	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
+	assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
@@ -49,14 +49,11 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				ASSET_5,
 			));
 
-			//Assert
+			//Assert that liquidity has been moved
 			let pool_account_old = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account_old);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account_old);
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account_old);
-			assert_eq!(subpool_balance_of_asset_3, 0 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 0 * ONE);
-			assert_eq!(subpool_balance_of_asset_5, 0 * ONE);
+			assert_balance!(pool_account_old, ASSET_3, 0);
+			assert_balance!(pool_account_old, ASSET_4, 0);
+			assert_balance!(pool_account_old, ASSET_5, 0);
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
 			let omnipool_account = Omnipool::protocol_account();
@@ -64,24 +61,16 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 
 			assert_eq!(subpool.assets.to_vec(), vec![ASSET_3, ASSET_4, ASSET_5]);
 
-			//Assert that liquidty has been moved
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 3000 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 4000 * ONE);
-			assert_eq!(subpool_balance_of_asset_5, 5000 * ONE);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
+			assert_balance!(pool_account, ASSET_5, 5000 * ONE);
 
-			let omnipool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
-			let omnipool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
-			let omnipool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &omnipool_account);
-			assert_eq!(omnipool_balance_of_asset_3, 0);
-			assert_eq!(omnipool_balance_of_asset_4, 0);
-			assert_eq!(omnipool_balance_of_asset_5, 0);
+			assert_balance!(&omnipool_account, ASSET_3, 0);
+			assert_balance!(&omnipool_account, ASSET_4, 0);
+			assert_balance!(&omnipool_account, ASSET_5, 0);
 
 			//Assert that share has been deposited to omnipool
-			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
-			assert_eq!(balance_shares, 7800 * ONE);
+			assert_balance!(&omnipool_account, share_asset_as_pool_id, 7800 * ONE);
 
 			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				share_asset_as_pool_id,
@@ -393,31 +382,20 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 			);
 
 			//Assert that liquidty has been moved
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
-			let subpool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &pool_account);
-			let subpool_balance_of_asset_7 = Tokens::free_balance(ASSET_7, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 3000 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 4000 * ONE);
-			assert_eq!(subpool_balance_of_asset_5, 5000 * ONE);
-			assert_eq!(subpool_balance_of_asset_6, 6000 * ONE);
-			assert_eq!(subpool_balance_of_asset_7, 7000 * ONE);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
+			assert_balance!(pool_account, ASSET_5, 5000 * ONE);
+			assert_balance!(pool_account, ASSET_6, 6000 * ONE);
+			assert_balance!(pool_account, ASSET_7, 7000 * ONE);
 
-			let omnipool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
-			let omnipool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
-			let omnipool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &omnipool_account);
-			let omnipool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &omnipool_account);
-			let omnipool_balance_of_asset_7 = Tokens::free_balance(ASSET_7, &omnipool_account);
-			assert_eq!(omnipool_balance_of_asset_3, 0);
-			assert_eq!(omnipool_balance_of_asset_4, 0);
-			assert_eq!(omnipool_balance_of_asset_5, 0);
-			assert_eq!(omnipool_balance_of_asset_6, 0);
-			assert_eq!(omnipool_balance_of_asset_7, 0);
+			assert_balance!(&omnipool_account, ASSET_3, 0);
+			assert_balance!(&omnipool_account, ASSET_4, 0);
+			assert_balance!(&omnipool_account, ASSET_5, 0);
+			assert_balance!(&omnipool_account, ASSET_6, 0);
+			assert_balance!(&omnipool_account, ASSET_7, 0);
 
 			//Assert that share has been deposited to omnipool
-			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
-			assert_eq!(balance_shares, 16250 * ONE);
+			assert_balance!(&omnipool_account, share_asset_as_pool_id, 16250 * ONE);
 
 			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				share_asset_as_pool_id,
@@ -519,22 +497,16 @@ fn migrate_asset_to_subpool_should_update_subpool_when_called_consequently() {
 			assert_stableswap_pool_assets!(share_asset_as_pool_id, vec![ASSET_3, ASSET_4, ASSET_5]);
 
 			//Assert that the liquidty is moved from old pool account
-			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 0);
-			assert_eq!(subpool_balance_of_asset_4, 0);
-			assert_eq!(subpool_balance_of_asset_5, 0);
+			let old_pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			assert_balance!(old_pool_account, ASSET_3, 0);
+			assert_balance!(old_pool_account, ASSET_4, 0);
+			assert_balance!(old_pool_account, ASSET_5, 0);
 
 			//Assert that liquidty is moved to new pool account
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 3000 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 4000 * ONE);
-			assert_eq!(subpool_balance_of_asset_5, 5000 * ONE);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
+			assert_balance!(pool_account, ASSET_5, 5000 * ONE);
 
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
@@ -545,23 +517,19 @@ fn migrate_asset_to_subpool_should_update_subpool_when_called_consequently() {
 
 			assert_stableswap_pool_assets!(share_asset_as_pool_id, vec![ASSET_3, ASSET_4, ASSET_5, ASSET_6]);
 
-			//Assert that the liquidty is moved from old pool account
-			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 0);
-			assert_eq!(subpool_balance_of_asset_4, 0);
-			assert_eq!(subpool_balance_of_asset_5, 0);
+			//Assert that the liquidity is moved from old pool account
+			let old_pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
+			assert_balance!(old_pool_account, ASSET_3, 0);
+			assert_balance!(old_pool_account, ASSET_4, 0);
+			assert_balance!(old_pool_account, ASSET_5, 0);
+			assert_balance!(old_pool_account, ASSET_6, 0);
 
-			//Assert that liquidty is moved to new pool account
+			//Assert that liquidity is moved to new pool account
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5, ASSET_6], None);
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 3000 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 4000 * ONE);
-			assert_eq!(subpool_balance_of_asset_5, 5000 * ONE);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
+			assert_balance!(pool_account, ASSET_5, 5000 * ONE);
+			assert_balance!(pool_account, ASSET_6, 6000 * ONE);
 		});
 }
 

@@ -2,7 +2,7 @@ use super::*;
 
 use crate::AssetDetail;
 use crate::{
-	add_omnipool_token, assert_that_asset_is_migrated_to_omnipool_subpool,
+	add_omnipool_token, assert_balance, assert_that_asset_is_migrated_to_omnipool_subpool,
 	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset,
 	assert_that_stableswap_subpool_is_created_with_poolinfo, Error,
 };
@@ -184,19 +184,14 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			let omnipool_account = Omnipool::protocol_account();
 
 			//Assert that liquidity is moved from omnipool account to subpool
-			let balance_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let balance_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			assert_eq!(balance_3, 3000 * ONE);
-			assert_eq!(balance_4, 4000 * ONE);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
 
-			let balance_3 = Tokens::free_balance(ASSET_3, &omnipool_account);
-			let balance_4 = Tokens::free_balance(ASSET_4, &omnipool_account);
-			assert_eq!(balance_3, 0);
-			assert_eq!(balance_4, 0);
+			assert_balance!(&omnipool_account, ASSET_3, 0);
+			assert_balance!(&omnipool_account, ASSET_4, 0);
 
 			//Assert that share has been deposited to omnipool
-			let balance_shares = Tokens::free_balance(share_asset_as_pool_id, &omnipool_account);
-			assert_eq!(balance_shares, 4550 * ONE);
+			assert_balance!(&omnipool_account, share_asset_as_pool_id, 4550 * ONE);
 
 			assert_that_stableswap_subpool_is_created_with_poolinfo!(
 				share_asset_as_pool_id,
@@ -357,31 +352,17 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			let omnipool_account = Omnipool::protocol_account();
 
 			//Assert that liquidity is moved from omnipool account to subpool
-			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account);
-			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account);
-			assert_eq!(subpool_balance_of_asset_3, 3000 * ONE);
-			assert_eq!(subpool_balance_of_asset_4, 4000 * ONE);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
+			assert_balance!(&omnipool_account, ASSET_3, 0);
+			assert_balance!(&omnipool_account, ASSET_4, 0);
+			assert_balance!(&omnipool_account, share_asset_as_pool_id1, 4550 * ONE);
 
-			let omnipool_balance_of_asset3 = Tokens::free_balance(ASSET_3, &omnipool_account);
-			let omnipool_balance_of_asset4 = Tokens::free_balance(ASSET_4, &omnipool_account);
-			assert_eq!(omnipool_balance_of_asset3, 0);
-			assert_eq!(omnipool_balance_of_asset4, 0);
-
-			let balance_shares = Tokens::free_balance(share_asset_as_pool_id1, &omnipool_account);
-			assert_eq!(balance_shares, 4550 * ONE);
-
-			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account2);
-			let subpool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &pool_account2);
-			assert_eq!(subpool_balance_of_asset_5, 5000 * ONE);
-			assert_eq!(subpool_balance_of_asset_6, 6000 * ONE);
-
-			let omnipool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &omnipool_account);
-			let omnipool_balance_of_asset_6 = Tokens::free_balance(ASSET_6, &omnipool_account);
-			assert_eq!(omnipool_balance_of_asset_5, 0);
-			assert_eq!(omnipool_balance_of_asset_6, 0);
-
-			let balance_shares = Tokens::free_balance(share_asset_as_pool_id2, &omnipool_account);
-			assert_eq!(balance_shares, 7150 * ONE);
+			assert_balance!(pool_account2, ASSET_5, 5000 * ONE);
+			assert_balance!(pool_account2, ASSET_6, 6000 * ONE);
+			assert_balance!(&omnipool_account, ASSET_5, 0);
+			assert_balance!(&omnipool_account, ASSET_6, 0);
+			assert_balance!(&omnipool_account, share_asset_as_pool_id2, 7150 * ONE);
 
 			assert_that_stableswap_subpool_is_created_with_poolinfo!(
 				share_asset_as_pool_id1,
