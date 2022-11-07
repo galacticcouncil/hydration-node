@@ -213,6 +213,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::PositionInstanceId, Position<Balance, T::AssetId>>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionInstanceId, ValueQuery>;
 
