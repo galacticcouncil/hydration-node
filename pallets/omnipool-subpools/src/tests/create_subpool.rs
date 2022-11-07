@@ -13,8 +13,6 @@ use pallet_stableswap::types::PoolInfo;
 use pretty_assertions::assert_eq;
 use sp_runtime::BoundedVec;
 
-//TODO: use assert_balance macro in all tests
-
 #[test]
 fn create_subpool_should_fail_when_called_by_non_origin() {
 	let share_asset_as_pool_id: AssetId = ASSET_5;

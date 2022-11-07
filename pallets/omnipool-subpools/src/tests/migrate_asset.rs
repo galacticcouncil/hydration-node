@@ -9,8 +9,6 @@ use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
 
-//TODO: use assert_balance macro in all tests
-
 #[test]
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 	//Arrange
