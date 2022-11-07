@@ -48,7 +48,7 @@ use frame_support::{
 	traits::{Contains, EnsureOrigin, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
-		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		ConstantMultiplier, DispatchClass, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
 	},
 };
@@ -70,6 +70,8 @@ pub use hex_literal::hex;
 pub use pallet_claims;
 pub use pallet_genesis_history;
 use pallet_nft::{CollectionId, ItemId};
+
+use polkadot_xcm::latest::Weight;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
