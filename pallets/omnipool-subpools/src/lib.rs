@@ -3,7 +3,6 @@
 
 #[cfg(test)]
 mod tests;
-
 use frame_support::pallet_prelude::*;
 use orml_traits::currency::MultiCurrency;
 use sp_runtime::traits::CheckedMul;
@@ -128,6 +127,7 @@ pub mod pallet {
 
 			let recalculate_protocol_shares = |q: Balance, b: Balance, s: Balance| -> Result<Balance, DispatchError> {
 				// TODO: use safe math,consider doing mul first
+				// There might be problems with division rounding, so consider using fixed type
 				Ok(q * b / s)
 			};
 
@@ -226,10 +226,14 @@ pub mod pallet {
 
 			let delta_q = asset_state.hub_reserve;
 
-			//TODO: use safe math in following calculatations
-			let delta_ps = subpool_state.shares
-				* (asset_state.hub_reserve / subpool_state.hub_reserve)
-				* (asset_state.protocol_shares / asset_state.shares);
+			//TODO: use safe math in following calculatations. Also fixed type to avoid rounding2zero errors
+			//TODO: refactor delta_ps to have the original forumala like this
+			// let delta_ps = subpool_state.shares
+			//	* (asset_state.hub_reserve / subpool_state.hub_reserve)
+			//	* (asset_state.protocol_shares / asset_state.shares);
+			let delta_ps = subpool_state.shares * asset_state.hub_reserve / subpool_state.shares
+				* asset_state.protocol_shares
+				/ asset_state.shares;
 			let delta_s = asset_state.hub_reserve * subpool_state.shares / subpool_state.hub_reserve;
 			let delta_u = asset_state.hub_reserve * share_issuance / subpool_state.hub_reserve;
 
@@ -282,7 +286,7 @@ pub mod pallet {
 						amount,
 					}],
 				)?;
-				pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
+				pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares) //TODO: add test case for this - share is moved as liqudity to omnipol
 			} else {
 				pallet_omnipool::Pallet::<T>::add_liquidity(origin, asset_id, amount)
 			}
@@ -307,6 +311,7 @@ pub mod pallet {
 					}],
 				)?;
 				if mint_nft {
+					//TODO: test it if else, it stays alice account will receive the share, and not the NFT
 					pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 				} else {
 					Ok(())

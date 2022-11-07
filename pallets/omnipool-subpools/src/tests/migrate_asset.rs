@@ -9,6 +9,8 @@ use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
 
+//TODO: use assert_balance macro in all tests
+
 #[test]
 fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 	//Arrange
@@ -39,6 +41,9 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				Permill::from_percent(0),
 				Permill::from_percent(0),
 			));
+
+			let pool_account_old = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			//TODO:ensure that origin account does not have anything anymore
 
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
@@ -99,6 +104,70 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
 
 			//TODO: Adjust test to have non-zero protocol shares
+		});
+}
+
+#[test]
+fn migrate_asset_should_recalculate_protocol_shares_when_protocol_has_some_shares() {
+	//Arrange
+	let share_asset_as_pool_id: AssetId = 6;
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_3, 1000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_5, 1000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+
+			//We need to add liquidty then sacrificing it because we want to have some protocol shares for having meaningfull tests
+			let position_id: u32 = Omnipool::next_position_id();
+			assert_ok!(OmnipoolSubpools::add_liquidity(
+				Origin::signed(ALICE),
+				ASSET_5,
+				100 * ONE
+			));
+			assert_ok!(Omnipool::sacrifice_position(Origin::signed(ALICE), position_id));
+
+			assert_ok!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			//Act
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_5,
+			));
+
+			//Assert
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
+				share_asset_as_pool_id,
+				AssetReserveState::<Balance> {
+					reserve: 7865 * ONE,
+					hub_reserve: 7865 * ONE,
+					shares: 7865 * ONE,
+					protocol_shares: 65 * ONE,
+					cap: 1_100_000_000_000_000_000,
+					tradable: Tradability::default(),
+				}
+			);
 		});
 }
 
