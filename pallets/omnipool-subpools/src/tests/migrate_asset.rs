@@ -42,9 +42,6 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				Permill::from_percent(0),
 			));
 
-			let pool_account_old = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-			//TODO:ensure that origin account does not have anything anymore
-
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
@@ -53,6 +50,14 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			));
 
 			//Assert
+			let pool_account_old = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let subpool_balance_of_asset_3 = Tokens::free_balance(ASSET_3, &pool_account_old);
+			let subpool_balance_of_asset_4 = Tokens::free_balance(ASSET_4, &pool_account_old);
+			let subpool_balance_of_asset_5 = Tokens::free_balance(ASSET_5, &pool_account_old);
+			assert_eq!(subpool_balance_of_asset_3, 0 * ONE);
+			assert_eq!(subpool_balance_of_asset_4, 0 * ONE);
+			assert_eq!(subpool_balance_of_asset_5, 0 * ONE);
+
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
 			let omnipool_account = Omnipool::protocol_account();
 			let subpool = Stableswap::get_pool(share_asset_as_pool_id).unwrap();
@@ -462,8 +467,6 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_6);
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_7);
-
-			//TODO: Adjust test to have non-zero protocol shares
 		});
 }
 
