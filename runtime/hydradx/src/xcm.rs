@@ -22,7 +22,6 @@ use xcm_executor::{traits::WeightTrader, Assets, Config, XcmExecutor};
 
 use polkadot_xcm::latest::Weight;
 
-
 pub type LocalOriginToLocation = SignedToAccountId32<Origin, AccountId, RelayNetwork>;
 
 pub type Barrier = (
