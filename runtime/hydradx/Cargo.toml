@@ -202,6 +202,7 @@ std = [
     "pallet-asset-registry/std",
     "pallet-currencies/std",
     "pallet-omnipool/std",
+    "pallet-transaction-pause/std",
     "sp-api/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
@@ -263,4 +264,5 @@ try-runtime= [
     "pallet-collator-rewards/try-runtime",
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
+    "pallet-transaction-pause/try-runtime",
 ]

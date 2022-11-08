@@ -853,6 +853,12 @@ impl pallet_omnipool::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_transaction_pause::Config for Runtime {
+	type Event = Event;
+	type UpdateOrigin = SuperMajorityTechCommittee;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -885,6 +891,7 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		NFT: pallet_nft = 58,
 		Omnipool: pallet_omnipool = 59,
+		TransactionPause: pallet_transaction_pause = 60,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1108,6 +1115,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_claims, Claims);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
+			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
@@ -1164,6 +1172,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_claims, Claims);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
+			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);

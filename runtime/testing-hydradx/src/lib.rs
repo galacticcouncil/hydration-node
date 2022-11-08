@@ -836,6 +836,12 @@ impl pallet_omnipool::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_transaction_pause::Config for Runtime {
+	type Event = Event;
+	type UpdateOrigin = SuperMajorityTechCommittee;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -868,6 +874,7 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		NFT: pallet_nft = 58,
 		Omnipool: pallet_omnipool = 59,
+		TransactionPause: pallet_transaction_pause = 60,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
