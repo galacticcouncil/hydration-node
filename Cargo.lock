@@ -1035,19 +1035,19 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
- "pallet-asset-registry 1.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-asset-registry",
  "pallet-balances",
  "pallet-claims",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.0.1 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-currencies",
  "pallet-democracy",
  "pallet-identity",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-timestamp",
- "pallet-transaction-multi-payment 8.0.3 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "pallet-treasury",
  "pallet-utility",
@@ -3347,7 +3347,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
- "hydradx-traits 0.9.0",
+ "hydradx-traits",
  "orml-benchmarking",
  "orml-tokens",
  "orml-traits",
@@ -3356,7 +3356,7 @@ dependencies = [
  "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-asset-registry 1.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -3364,13 +3364,13 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.0.1 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-currencies",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft 4.0.1 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
@@ -3380,7 +3380,7 @@ dependencies = [
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
- "pallet-transaction-multi-payment 8.0.3 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -3414,20 +3414,6 @@ dependencies = [
  "xcm",
  "xcm-builder",
  "xcm-executor",
-]
-
-[[package]]
-name = "hydradx-traits"
-version = "0.8.4"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29#38d96eb73e5dc3be3425f784ea920ab63f775260"
-dependencies = [
- "frame-support",
- "impl-trait-for-tuples",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-arithmetic",
- "sp-std",
 ]
 
 [[package]]
@@ -5479,34 +5465,12 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "1.3.2"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29#38d96eb73e5dc3be3425f784ea920ab63f775260"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits 0.8.4",
- "orml-traits",
- "parity-scale-codec",
- "primitive-types 0.12.1",
- "scale-info",
- "serde",
- "sp-api",
- "sp-arithmetic",
- "sp-core",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
-name = "pallet-asset-registry"
-version = "1.3.2"
 source = "git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986#976e7bfbdbc42f0197d369e075a4e5cb17784986"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydradx-traits 0.9.0",
+ "hydradx-traits",
  "orml-traits",
  "parity-scale-codec",
  "primitive-types 0.12.1",
@@ -5786,23 +5750,6 @@ dependencies = [
 [[package]]
 name = "pallet-currencies"
 version = "1.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29#38d96eb73e5dc3be3425f784ea920ab63f775260"
-dependencies = [
- "frame-support",
- "frame-system",
- "orml-traits",
- "orml-utilities",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-currencies"
-version = "1.0.1"
 source = "git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986#976e7bfbdbc42f0197d369e075a4e5cb17784986"
 dependencies = [
  "frame-support",
@@ -6063,34 +6010,16 @@ dependencies = [
 [[package]]
 name = "pallet-nft"
 version = "4.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29#38d96eb73e5dc3be3425f784ea920ab63f775260"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986#976e7bfbdbc42f0197d369e075a4e5cb17784986"
 dependencies = [
  "frame-support",
  "frame-system",
- "hydradx-traits 0.8.4",
+ "hydradx-traits",
  "orml-utilities",
  "pallet-uniques",
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "syn",
-]
-
-[[package]]
-name = "pallet-nft"
-version = "4.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986#976e7bfbdbc42f0197d369e075a4e5cb17784986"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydradx-traits 0.9.0",
- "orml-utilities",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -6192,7 +6121,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydra-dx-math",
- "hydradx-traits 0.8.4",
+ "hydradx-traits",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
@@ -6221,22 +6150,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-price-oracle"
-version = "0.3.2"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29#38d96eb73e5dc3be3425f784ea920ab63f775260"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits 0.8.4",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
  "sp-std",
 ]
 
@@ -6449,29 +6362,11 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "8.0.3"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29#38d96eb73e5dc3be3425f784ea920ab63f775260"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydradx-traits 0.8.4",
- "orml-traits",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-transaction-multi-payment"
-version = "8.0.3"
 source = "git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986#976e7bfbdbc42f0197d369e075a4e5cb17784986"
 dependencies = [
  "frame-support",
  "frame-system",
- "hydradx-traits 0.9.0",
+ "hydradx-traits",
  "orml-traits",
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -8836,30 +8731,29 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "hydradx-runtime",
- "hydradx-traits 0.8.4",
+ "hydradx-traits",
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",
  "orml-vesting",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-asset-registry 1.3.2 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29)",
+ "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.0.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29)",
+ "pallet-currencies",
  "pallet-democracy",
  "pallet-elections-phragmen",
- "pallet-nft 4.0.1 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29)",
- "pallet-price-oracle",
+ "pallet-nft",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
- "pallet-transaction-multi-payment 8.0.3 (git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.29)",
+ "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -11490,7 +11384,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal",
- "hydradx-traits 0.9.0",
+ "hydradx-traits",
  "orml-benchmarking",
  "orml-tokens",
  "orml-traits",
@@ -11499,7 +11393,7 @@ dependencies = [
  "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
- "pallet-asset-registry 1.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -11507,13 +11401,13 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.0.1 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-currencies",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft 4.0.1 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
@@ -11523,7 +11417,7 @@ dependencies = [
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
- "pallet-transaction-multi-payment 8.0.3 (git+https://github.com/galacticcouncil/warehouse?rev=976e7bfbdbc42f0197d369e075a4e5cb17784986)",
+ "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
