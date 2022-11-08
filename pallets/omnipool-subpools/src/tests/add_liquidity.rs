@@ -226,6 +226,7 @@ fn TODO_add_liqudity_should_work_when_added_for_newly_migrated_asset() {
 			));
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 4550000000000000;
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
