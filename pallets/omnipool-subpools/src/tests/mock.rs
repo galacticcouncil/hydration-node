@@ -61,6 +61,9 @@ pub const ASSET_6: AssetId = 6;
 pub const ASSET_7: AssetId = 7;
 pub const ASSET_8: AssetId = 8;
 
+pub const SHARE_ASSET_AS_POOL_ID: AssetId = 500;
+pub const SHARE_ASSET_AS_POOL_ID_2: AssetId = 501;
+
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;

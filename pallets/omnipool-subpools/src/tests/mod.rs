@@ -32,12 +32,12 @@ use orml_traits::MultiCurrency;
 // - (replace to stablesawp tests as done in omnipool atm) ensure list of assets is sorted in stableswap pool ( this must be done in stableswap pallet) - few new tests are needed there to test the add asset
 //
 // add liquidity:
-// - ensure tradable state is respected - only if add liquidity is allowed for asset ( should be handled by correspoding pallet) but good to test via this interface too
-// -- test wieght cap - should not allow when it is over weigth cap - check omnipool test
-// - add liquidity to omnipool asset only
-// - add liquidity to subpool
-//      - ensure that LP does not have any shares in account ( because add liqudity first deposits shares to LP account and then move them to omnipool)
-//      - ensure NFT
+// X ensure tradable state is respected - only if add liquidity is allowed for asset ( should be handled by correspoding pallet) but good to test via this interface too
+// X -- test wieght cap - should not allow when it is over weigth cap - check omnipool test
+// X add liquidity to omnipool asset only
+// X add liquidity to subpool
+//      X ensure that LP does not have any shares in account ( because add liqudity first deposits shares to LP account and then move them to omnipool)
+//      X ensure NFT
 //      - assert correct liquiduity in subpool and in omnipool of share asset
 
 // add liquidity with choise : TODO: still to be added
