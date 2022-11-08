@@ -255,7 +255,7 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 			));
 
 			//Assert that liquidity is added to subpool
-			let share_of_alice_to_be_deposited = 64984152898695;
+			let deposited_asset_5_share_of_alice = 64984152898695;
 			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE - new_liquidity);
 			assert_balance!(&pool_account, ASSET_5, 5000 * ONE + new_liquidity);
 
@@ -263,7 +263,7 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 			assert_balance!(
 				&omnipool_account,
 				share_asset_as_pool_id,
-				all_subpool_shares + share_of_alice_to_be_deposited
+				all_subpool_shares + deposited_asset_5_share_of_alice
 			);
 
 			assert_that_nft_is_minted!(position_id_for_asset_5_liq);
@@ -274,8 +274,8 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 				position_id_for_asset_5_liq,
 				Position {
 					asset_id: share_asset_as_pool_id,
-					amount: share_of_alice_to_be_deposited,
-					shares: share_of_alice_to_be_deposited,
+					amount: deposited_asset_5_share_of_alice,
+					shares: deposited_asset_5_share_of_alice,
 					price: token_price.into_inner()
 				}
 			);
