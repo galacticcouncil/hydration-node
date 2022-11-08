@@ -12,6 +12,7 @@ use pretty_assertions::assert_eq;
 
 const ALICE_INITIAL_ASSET_3_BALANCE: u128 = 1000 * ONE;
 const ALICE_INITIAL_ASSET_4_BALANCE: u128 = 2000 * ONE;
+const ALICE_INITIAL_ASSET_5_BALANCE: u128 = 5000 * ONE;
 
 #[test]
 fn add_liqudity_should_add_liqudity_to_both_omnipool_and_stableswap_when_asset_is_already_migrated_to_subpool() {
@@ -197,22 +198,25 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 }
 
 #[test]
-fn TODO_add_liqudity_should_work_when_added_for_newly_migrated_asset() {
-	let share_asset_as_pool_id: AssetId = ASSET_5;
+fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
+	let share_asset_as_pool_id: AssetId = 6;
 
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
 		.with_registered_asset(ASSET_5)
+		.with_registered_asset(share_asset_as_pool_id)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
-		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
 
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
@@ -225,32 +229,55 @@ fn TODO_add_liqudity_should_work_when_added_for_newly_migrated_asset() {
 				Permill::from_percent(0),
 			));
 
-			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			//Act
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_5,
+			));
+
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4, ASSET_5], None);
 
 			let omnipool_account = Omnipool::protocol_account();
-			let all_subpool_shares = 4550000000000000;
-			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
+			let all_subpool_shares = 7800000000000000;
+			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE);
+			assert_balance!(&pool_account, ASSET_5, 5000 * ONE);
 			assert_balance!(&omnipool_account, share_asset_as_pool_id, all_subpool_shares);
 
 			//Act
+			let position_id_for_asset_5_liq = Omnipool::next_position_id();
+
 			let new_liquidity = 100 * ONE;
 			assert_ok!(OmnipoolSubpools::add_liquidity(
 				Origin::signed(ALICE),
-				ASSET_3,
+				ASSET_5,
 				new_liquidity
 			));
 
 			//Assert that liquidity is added to subpool
-			let share_of_alice_to_be_deposited = 65051679689491;
-			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+			let share_of_alice_to_be_deposited = 64984152898695;
+			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE - new_liquidity);
+			assert_balance!(&pool_account, ASSET_5, 5000 * ONE + new_liquidity);
 
-			//Assert that share of ALICE is deposited as NFT is minted for omnipool position and share is added to omnipool
+			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(
 				&omnipool_account,
 				share_asset_as_pool_id,
 				all_subpool_shares + share_of_alice_to_be_deposited
+			);
+
+			assert_that_nft_is_minted!(position_id_for_asset_5_liq);
+
+			let token_price = FixedU128::from_float(1.0);
+			assert_that_position_is_added_to_omnipool!(
+				ALICE,
+				position_id_for_asset_5_liq,
+				Position {
+					asset_id: share_asset_as_pool_id,
+					amount: share_of_alice_to_be_deposited,
+					shares: share_of_alice_to_be_deposited,
+					price: token_price.into_inner()
+				}
 			);
 		});
 }
