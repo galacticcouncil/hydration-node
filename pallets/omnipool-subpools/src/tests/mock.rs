@@ -43,6 +43,8 @@ use sp_runtime::{
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
+use pretty_assertions::*;
+
 pub type AccountId = u64;
 pub type Balance = u128;
 pub type AssetId = u32;
@@ -637,4 +639,23 @@ macro_rules! assert_stableswap_pool_assets {
 		let subpool = Stableswap::get_pool($pool_id).unwrap();
 		assert_eq!(subpool.assets.to_vec(), $assets);
 	};
+}
+
+#[macro_export]
+macro_rules! assert_that_nft_is_minted {
+	( $position_id:expr) => {{
+		assert!(
+			get_mock_minted_position($position_id).is_some(),
+			"Position instance was not minted with id {}",
+			$position_id
+		);
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_that_position_is_added_to_omnipool {
+	( $owner:expr, $position_id:expr, $position:expr) => {{
+		let position = Omnipool::load_position($position_id, $owner);
+		assert_eq!(position.unwrap(), $position, "The position is as expected")
+	}};
 }
