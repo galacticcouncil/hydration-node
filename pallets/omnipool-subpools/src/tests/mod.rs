@@ -33,7 +33,7 @@ use orml_traits::MultiCurrency;
 //
 // add liquidity:
 // - ensure tradable state is respected - only if add liquidity is allowed for asset ( should be handled by correspoding pallet) but good to test via this interface too
-// -- test wieght cap - should not allow when it is over weigth cap
+// -- test wieght cap - should not allow when it is over weigth cap - check omnipool test
 // - add liquidity to omnipool asset only
 // - add liquidity to subpool
 //      - ensure that LP does not have any shares in account ( because add liqudity first deposits shares to LP account and then move them to omnipool)

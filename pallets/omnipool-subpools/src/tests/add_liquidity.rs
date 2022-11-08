@@ -282,4 +282,103 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 		});
 }
 
+#[test]
+fn add_liqudity_should_add_liqudity_to_both_omnipool_when_asset_is_not_migrated_to_subpool() {
+	let share_asset_as_pool_id: AssetId = ASSET_5;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			//Act
+			let position_id: u32 = Omnipool::next_position_id();
+			let new_liquidity = 100 * ONE;
+			assert_ok!(OmnipoolSubpools::add_liquidity(
+				Origin::signed(ALICE),
+				ASSET_3,
+				new_liquidity
+			));
+
+			//Assert that liquidity is not added to stableswap subpool
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let omnipool_account = Omnipool::protocol_account();
+			assert_balance!(&pool_account, ASSET_3, 0);
+			assert_balance!(&omnipool_account, share_asset_as_pool_id, 0);
+
+			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
+			assert_that_nft_is_minted!(position_id);
+
+			let token_price = FixedU128::from_float(0.65);
+			assert_that_position_is_added_to_omnipool!(
+				ALICE,
+				position_id,
+				Position {
+					asset_id: ASSET_3,
+					amount: new_liquidity,
+					shares: new_liquidity,
+					price: token_price.into_inner()
+				}
+			);
+		});
+}
+
+#[test]
+fn add_liqudity_should_fail_when_omnipool_asset_has_invalid_state() {
+	//Arrange
+	let share_asset_as_pool_id: AssetId = ASSET_5;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(share_asset_as_pool_id)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			assert_ok!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				share_asset_as_pool_id,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(50),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				share_asset_as_pool_id,
+				Tradability::FROZEN
+			));
+
+			//Act and assert
+			let new_liquidity = 100 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::add_liquidity(Origin::signed(ALICE), ASSET_3, new_liquidity),
+				pallet_omnipool::Error::<Test>::NotAllowed
+			);
+		});
+}
+
+//TODO: add liqudity when it is not migrated - then added
+//TODO: add liqudity fail tradable when not migrated
+
 //TODO: Add liqudity without enough balance
+//TODO: Add liqudity fail with wrong origin
