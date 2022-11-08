@@ -232,7 +232,7 @@ fn TODO_add_liqudity_should_work_when_added_for_newly_migrated_asset() {
 			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
 			assert_balance!(&omnipool_account, share_asset_as_pool_id, all_subpool_shares);
 
-			//Act
+			// Act
 			let new_liquidity = 100 * ONE;
 			assert_ok!(OmnipoolSubpools::add_liquidity(
 				Origin::signed(ALICE),
