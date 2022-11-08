@@ -49,14 +49,14 @@ pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", b
 pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse dependencies
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false}
-pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false}
+pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
 
 
 # ORML dependencies
@@ -213,9 +213,4 @@ std = [
     "sp-trie/std",
     "sp-transaction-pool/std",
     "sp-version/std",
-]
-try-runtime= [
-    "frame-try-runtime",
-    "frame-executive/try-runtime",
-    "frame-system/try-runtime",
 ]

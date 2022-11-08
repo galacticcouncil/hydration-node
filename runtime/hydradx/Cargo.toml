@@ -49,14 +49,14 @@ pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", b
 pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse dependencies
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false}
-pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
-pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "976e7bfbdbc42f0197d369e075a4e5cb17784986", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false}
+pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "13f181936e8303716373cbae2b66fb799bebe03a", default-features = false }
 
 # ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
@@ -221,4 +221,46 @@ try-runtime= [
     "frame-try-runtime",
     "frame-executive/try-runtime",
     "frame-system/try-runtime",
+    "pallet-currencies/try-runtime",
+    "orml-tokens/try-runtime",
+    "orml-vesting/try-runtime",
+    "orml-xtokens/try-runtime",
+    "orml-xcm/try-runtime",
+    "orml-unknown-tokens/try-runtime",
+    "cumulus-pallet-parachain-system/try-runtime",
+    "cumulus-pallet-aura-ext/try-runtime",
+    "cumulus-pallet-xcm/try-runtime",
+    "cumulus-pallet-xcmp-queue/try-runtime",
+    "parachain-info/try-runtime",
+    "pallet-aura/try-runtime",
+    "pallet-balances/try-runtime",
+    "pallet-elections-phragmen/try-runtime",
+    "pallet-session/try-runtime",
+    "pallet-timestamp/try-runtime",
+    "pallet-transaction-payment/try-runtime",
+    "pallet-transaction-pause/try-runtime",
+    "pallet-utility/try-runtime",
+    "pallet-treasury/try-runtime",
+    "pallet-collective/try-runtime",
+    "pallet-democracy/try-runtime",
+    "pallet-proxy/try-runtime",
+    "pallet-multisig/try-runtime",
+    "pallet-scheduler/try-runtime",
+    "pallet-tips/try-runtime",
+    "pallet-collator-selection/try-runtime",
+    "pallet-authorship/try-runtime",
+    "pallet-uniques/try-runtime",
+    "pallet-preimage/try-runtime",
+    "pallet-identity/try-runtime",
+    "pallet-xcm/try-runtime",
+    "cumulus-pallet-dmp-queue/try-runtime",
+    "pallet-asset-registry/try-runtime",
+    "pallet-nft/try-runtime",
+    "pallet-transaction-multi-payment/try-runtime",
+    "pallet-relaychain-info/try-runtime",
+    "pallet-omnipool/try-runtime",
+    "pallet-sudo/try-runtime",
+    "pallet-collator-rewards/try-runtime",
+    "pallet-genesis-history/try-runtime",
+    "pallet-claims/try-runtime",
 ]
