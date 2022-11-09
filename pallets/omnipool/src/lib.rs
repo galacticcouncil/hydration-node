@@ -201,6 +201,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Imbalance of hub asset
+	#[pallet::getter(fn current_imbalance)]
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
 
 	#[pallet::storage]
@@ -1357,7 +1358,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Set new state of asset.
 	/// This converts the new state into correct state type ( by removing the reserve)
-	fn set_asset_state(asset_id: T::AssetId, new_state: AssetReserveState<Balance>) {
+	pub fn set_asset_state(asset_id: T::AssetId, new_state: AssetReserveState<Balance>) {
 		<Assets<T>>::insert(asset_id, Into::<AssetState<Balance>>::into(new_state));
 	}
 

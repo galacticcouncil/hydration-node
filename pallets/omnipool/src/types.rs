@@ -135,7 +135,7 @@ where
 /// Simple type to represent imbalance which can be positive or negative.
 // Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
 #[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub(crate) struct SimpleImbalance<Balance> {
+pub struct SimpleImbalance<Balance> {
 	pub value: Balance,
 	pub negative: bool,
 }
@@ -285,7 +285,7 @@ where
 	}
 
 	/// Update current asset state with given delta changes.
-	pub(crate) fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
+	pub fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
 		Some(Self {
 			reserve: (delta.delta_reserve + self.reserve)?,
 			hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
