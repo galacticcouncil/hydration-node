@@ -654,11 +654,28 @@ macro_rules! assert_that_nft_is_minted {
 		);
 	}};
 }
+#[macro_export]
+macro_rules! assert_that_nft_is_not_minted {
+	( $position_id:expr) => {{
+		assert!(
+			get_mock_minted_position($position_id).is_none(),
+			"Position instance was not minted with id {}",
+			$position_id
+		);
+	}};
+}
 
 #[macro_export]
 macro_rules! assert_that_position_is_added_to_omnipool {
 	( $owner:expr, $position_id:expr, $position:expr) => {{
 		let position = Omnipool::load_position($position_id, $owner);
 		assert_eq!(position.unwrap(), $position, "The position is as expected")
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_that_position_is_not_added_to_omnipool {
+	( $owner:expr, $position_id:expr) => {{
+		assert!(Omnipool::load_position($position_id, $owner).is_err());
 	}};
 }

@@ -1,4 +1,5 @@
 mod add_liquidity;
+mod add_liquidity_stable;
 mod create_subpool;
 mod migrate_asset;
 pub(crate) mod mock;
@@ -41,8 +42,8 @@ use orml_traits::MultiCurrency;
 //      X assert correct liquiduity in subpool and in omnipool of share asset
 
 // add liquidity with choise : TODO: still to be added
-// - when adding liquidity to subpool, user will have a choice to keep the share or deposits it to omnipool and get NFT instead ( previous case )
-// - in this case, need to test if he gets shares only and not NFT
+// X when adding liquidity to subpool, user will have a choice to keep the share or deposits it to omnipool and get NFT instead ( previous case )
+// X in this case, need to test if he gets shares only and not NFT
 
 // convert position: TODO: missing implemenation
 // - it will be possible to convert selected position

@@ -286,7 +286,7 @@ pub mod pallet {
 						amount,
 					}],
 				)?;
-				pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares) //TODO: add test case for this - share is moved as liqudity to omnipol
+				pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 			} else {
 				pallet_omnipool::Pallet::<T>::add_liquidity(origin, asset_id, amount)
 			}
@@ -311,7 +311,6 @@ pub mod pallet {
 					}],
 				)?;
 				if mint_nft {
-					//TODO: test it if else, it stays alice account will receive the share, and not the NFT
 					pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 				} else {
 					Ok(())
