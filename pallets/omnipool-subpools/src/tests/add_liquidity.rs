@@ -141,6 +141,8 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 			));
 
 			//Assert that liquidity is added to subpool
+			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
+
 			let deposited_asset_3_share_of_alice = 65051679689491;
 			let deposited_asset_4_share_of_alice = 324772754874054;
 			let all_share_of_alice_to_be_deposited =
@@ -432,5 +434,5 @@ fn add_liqudity_should_fail_when_weight_cap_exceeded() {
 		});
 }
 
-//TODO: Add liqudity without enough balance
+//Add liqudity without enough balance
 //TODO: Add liqudity fail with wrong origin

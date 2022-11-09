@@ -38,7 +38,7 @@ use orml_traits::MultiCurrency;
 // X add liquidity to subpool
 //      X ensure that LP does not have any shares in account ( because add liqudity first deposits shares to LP account and then move them to omnipool)
 //      X ensure NFT
-//      - assert correct liquiduity in subpool and in omnipool of share asset
+//      X assert correct liquiduity in subpool and in omnipool of share asset
 
 // add liquidity with choise : TODO: still to be added
 // - when adding liquidity to subpool, user will have a choice to keep the share or deposits it to omnipool and get NFT instead ( previous case )
