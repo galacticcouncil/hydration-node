@@ -434,5 +434,63 @@ fn add_liqudity_should_fail_when_weight_cap_exceeded() {
 		});
 }
 
-//Add liqudity without enough balance
+#[test]
+fn add_liqudity_should_fail_when_user_has_not_enough_balance_for_migrated_asset() {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			assert_ok!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				SHARE_ASSET_AS_POOL_ID,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(50),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			//Act
+			let new_liquidity = 100 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::add_liquidity(Origin::signed(ALICE), ASSET_3, new_liquidity),
+				pallet_stableswap::Error::<Test>::InsufficientBalance
+			);
+		});
+}
+
+#[test]
+fn add_liqudity_should_fail_when_user_has_not_enough_balance_for_not_migrated_asset() {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			//Act
+			let new_liquidity = 100 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::add_liquidity(Origin::signed(ALICE), ASSET_3, new_liquidity),
+				pallet_omnipool::Error::<Test>::InsufficientBalance
+			);
+		});
+}
+
 //TODO: Add liqudity fail with wrong origin
