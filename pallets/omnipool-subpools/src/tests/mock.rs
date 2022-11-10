@@ -550,11 +550,42 @@ impl AccountIdFor<Vec<u32>> for AccountIdConstructor {
 	}
 }
 
-//TODO: add this to test utils package - branch is already prepared, jsut need to use it
+//TODO: add this to test utils package once HydraDX is moved to 9.29
 #[macro_export]
 macro_rules! assert_balance {
 	( $x:expr, $y:expr, $z:expr) => {{
 		assert_eq!(Tokens::free_balance($y, &$x), $z);
+	}};
+}
+
+//TODO: add this to test utils package once HydraDX is moved to 9.29
+#[macro_export]
+macro_rules! assert_balance_approx {
+	( $who:expr, $asset:expr, $expected_balance:expr, $delta:expr) => {{
+		let balance = Tokens::free_balance($asset, &$who);
+
+		let diff = if balance >= $expected_balance {
+			balance - $expected_balance
+		} else {
+			$expected_balance - balance
+		};
+		if diff > $delta {
+			panic!(
+				"\n{} not equal\nleft: {:?}\nright: {:?}\n",
+				"The balances are not equal", balance, $expected_balance
+			);
+		}
+	}};
+}
+
+//TODO: use this from test utils package once HydraDX is moved to 9.29
+#[macro_export]
+macro_rules! assert_eq_approx {
+	( $x:tt, $y:tt, $z:tt, $r:tt) => {{
+		let diff = if $x >= $y { $x - $y } else { $y - $x };
+		if diff > $z {
+			panic!("\n{} not equal\nleft: {:?}\nright: {:?}\n", $r, $x, $y);
+		}
 	}};
 }
 
@@ -645,7 +676,7 @@ macro_rules! assert_stableswap_pool_assets {
 }
 
 #[macro_export]
-macro_rules! assert_that_nft_is_minted {
+macro_rules! assert_that_nft_position_is_present {
 	( $position_id:expr) => {{
 		assert!(
 			get_mock_minted_position($position_id).is_some(),
@@ -655,7 +686,7 @@ macro_rules! assert_that_nft_is_minted {
 	}};
 }
 #[macro_export]
-macro_rules! assert_that_nft_is_not_minted {
+macro_rules! assert_that_nft_position_is_not_present {
 	( $position_id:expr) => {{
 		assert!(
 			get_mock_minted_position($position_id).is_none(),
@@ -674,7 +705,7 @@ macro_rules! assert_that_position_is_added_to_omnipool {
 }
 
 #[macro_export]
-macro_rules! assert_that_position_is_not_added_to_omnipool {
+macro_rules! assert_that_position_is_not_present_in_omnipool {
 	( $owner:expr, $position_id:expr) => {{
 		assert!(Omnipool::load_position($position_id, $owner).is_err());
 	}};

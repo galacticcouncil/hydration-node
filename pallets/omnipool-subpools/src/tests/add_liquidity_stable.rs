@@ -3,9 +3,9 @@ use super::*;
 use crate::{
 	add_omnipool_token, assert_balance, assert_stableswap_pool_assets,
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_nft_is_minted, assert_that_nft_is_not_minted, assert_that_position_is_added_to_omnipool,
-	assert_that_position_is_not_added_to_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail,
-	Error,
+	assert_that_nft_position_is_not_present, assert_that_nft_position_is_present,
+	assert_that_position_is_added_to_omnipool, assert_that_position_is_not_present_in_omnipool,
+	assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Position, Tradability};
@@ -75,7 +75,7 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 				all_subpool_shares + deposited_share_of_alice
 			);
 
-			assert_that_nft_is_minted!(position_id);
+			assert_that_nft_position_is_present!(position_id);
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_added_to_omnipool!(
@@ -168,8 +168,8 @@ fn add_liqudity_stable_should_add_liqudity_to_subpool_but_not_to_omnipool_when_m
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, deposited_share_of_alice);
 			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
-			assert_that_nft_is_not_minted!(position_id);
-			assert_that_position_is_not_added_to_omnipool!(ALICE, position_id);
+			assert_that_nft_position_is_not_present!(position_id);
+			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
 		});
 }
 

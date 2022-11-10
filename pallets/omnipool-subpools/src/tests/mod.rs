@@ -3,6 +3,7 @@ mod add_liquidity_stable;
 mod create_subpool;
 mod migrate_asset;
 pub(crate) mod mock;
+mod remove_liquidity;
 
 use mock::*;
 
@@ -61,3 +62,6 @@ use orml_traits::MultiCurrency;
 
 //Integration tests
 // - add complex integration tests for creating pool, adding liq, and trading in it
+
+//Questions:
+//tradeable asset state - change in omnipool only? In stableswap there is no such thing

@@ -57,6 +57,8 @@ orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "0742deb9268f7e53fe610fdbe8e0e3d923393f0b", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
+mutagen = {git = "https://github.com/llogiq/mutagen"}
+test-case = "2.2.2"
 
 [features]
 default = ["std"]

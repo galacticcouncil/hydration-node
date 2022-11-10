@@ -1,9 +1,10 @@
 use super::*;
 
 use crate::{
-	add_omnipool_token, assert_balance, assert_stableswap_pool_assets,
+	add_omnipool_token, assert_balance, assert_balance_approx, assert_stableswap_pool_assets,
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_nft_position_is_present, assert_that_position_is_added_to_omnipool,
+	assert_that_nft_position_is_not_present, assert_that_nft_position_is_present,
+	assert_that_position_is_added_to_omnipool, assert_that_position_is_not_present_in_omnipool,
 	assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
@@ -16,7 +17,7 @@ const ALICE_INITIAL_ASSET_4_BALANCE: u128 = 2000 * ONE;
 const ALICE_INITIAL_ASSET_5_BALANCE: u128 = 5000 * ONE;
 
 #[test]
-fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_already_migrated_to_subpool() {
+fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -45,11 +46,7 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 4550000000000000;
-			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
-			//Act
 			let position_id: u32 = Omnipool::next_position_id();
 			let new_liquidity = 100 * ONE;
 			assert_ok!(OmnipoolSubpools::add_liquidity(
@@ -58,7 +55,6 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 				new_liquidity
 			));
 
-			//Assert
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
 			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
@@ -71,22 +67,96 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 				all_subpool_shares + deposited_share_of_alice
 			);
 
-			assert_that_nft_position_is_present!(position_id);
-
-			let token_price = FixedU128::from_float(1.0);
-			assert_that_position_is_added_to_omnipool!(
-				ALICE,
+			//Act
+			assert_ok!(OmnipoolSubpools::remove_liquidity(
+				Origin::signed(ALICE),
 				position_id,
-				Position {
-					asset_id: SHARE_ASSET_AS_POOL_ID,
-					amount: deposited_share_of_alice,
-					shares: deposited_share_of_alice,
-					price: token_price.into_inner()
-				}
+				deposited_share_of_alice,
+				Option::Some(ASSET_3),
+			));
+
+			//Assert
+			let delta_due_to_rounding_error = 10;
+			assert_balance_approx!(
+				ALICE,
+				ASSET_3,
+				ALICE_INITIAL_ASSET_3_BALANCE,
+				delta_due_to_rounding_error
 			);
+
+			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+
+			assert_that_nft_position_is_not_present!(position_id);
+			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
 		});
 }
 
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::SELL)]
+#[test_case(Tradability::BUY)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+fn remove_liqudity_should_fail_when_asset_has_tradable_state_disallowing_removing_liquidty(tradability: Tradability) {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			assert_ok!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				SHARE_ASSET_AS_POOL_ID,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(50),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			let position_id: u32 = Omnipool::next_position_id();
+			let new_liquidity = 100 * ONE;
+			assert_ok!(OmnipoolSubpools::add_liquidity(
+				Origin::signed(ALICE),
+				ASSET_3,
+				new_liquidity
+			));
+
+			let omnipool_account = Omnipool::protocol_account();
+			let all_subpool_shares = 4550000000000000;
+			let deposited_share_of_alice = 65051679689491;
+			assert_balance!(
+				&omnipool_account,
+				SHARE_ASSET_AS_POOL_ID,
+				all_subpool_shares + deposited_share_of_alice
+			);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				SHARE_ASSET_AS_POOL_ID,
+				tradability
+			));
+
+			//Act
+			assert_noop!(
+				OmnipoolSubpools::remove_liquidity(
+					Origin::signed(ALICE),
+					position_id,
+					deposited_share_of_alice,
+					Option::Some(ASSET_3),
+				),
+				pallet_omnipool::Error::<Test>::NotAllowed
+			);
+		});
+}
+/*
 #[test]
 fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 	ExtBuilder::default()
@@ -170,8 +240,8 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 				all_subpool_shares + all_share_of_alice_to_be_deposited
 			);
 
-			assert_that_nft_position_is_present!(position_id_for_asset_3_liq);
-			assert_that_nft_position_is_present!(position_id_for_asset_4_liq);
+			assert_that_nft_is_minted!(position_id_for_asset_3_liq);
+			assert_that_nft_is_minted!(position_id_for_asset_4_liq);
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_added_to_omnipool!(
@@ -265,7 +335,7 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 				all_subpool_shares + deposited_asset_5_share_of_alice
 			);
 
-			assert_that_nft_position_is_present!(position_id_for_asset_5_liq);
+			assert_that_nft_is_minted!(position_id_for_asset_5_liq);
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_added_to_omnipool!(
@@ -313,7 +383,7 @@ fn add_liqudity_should_add_liqudity_to_only_omnipool_when_asset_is_not_migrated_
 			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 0);
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_that_nft_position_is_present!(position_id);
+			assert_that_nft_is_minted!(position_id);
 
 			let token_price = FixedU128::from_float(0.65);
 			assert_that_position_is_added_to_omnipool!(
@@ -329,11 +399,8 @@ fn add_liqudity_should_add_liqudity_to_only_omnipool_when_asset_is_not_migrated_
 		});
 }
 
-#[test_case(Tradability::FROZEN)]
-#[test_case(Tradability::SELL)]
-#[test_case(Tradability::BUY)]
-#[test_case(Tradability::REMOVE_LIQUIDITY)]
-fn add_liqudity_should_fail_when_omnipool_asset_has_no_tradeable_state_and_asset_is_migrated(tradability: Tradability) {
+#[test]
+fn add_liqudity_should_fail_when_omnipool_asset_has_no_tradeable_state_and_asset_is_migrated() {
 	//Arrange
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
@@ -363,7 +430,7 @@ fn add_liqudity_should_fail_when_omnipool_asset_has_no_tradeable_state_and_asset
 			assert_ok!(Omnipool::set_asset_tradable_state(
 				Origin::root(),
 				SHARE_ASSET_AS_POOL_ID,
-				tradability
+				Tradability::FROZEN
 			));
 
 			//Act and assert
@@ -532,5 +599,4 @@ fn add_liqudity_should_fail_with_invalid_origin() {
 			);
 		});
 }
-
-//TODO: Add liqudity fail with wrong origin
+*/
