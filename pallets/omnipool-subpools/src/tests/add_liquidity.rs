@@ -283,12 +283,13 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 
 #[test]
 fn add_liqudity_should_add_liqudity_to_only_omnipool_when_asset_is_not_migrated_to_subpool() {
+	let omnipool_account_asset_3_balance = 3000 * ONE;
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
 		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, omnipool_account_asset_3_balance))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
 		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
@@ -306,11 +307,16 @@ fn add_liqudity_should_add_liqudity_to_only_omnipool_when_asset_is_not_migrated_
 				new_liquidity
 			));
 
-			//Assert that liquidity is not added to stableswap subpool
+			//Assert that liquidity is added only to omnipool
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 			assert_balance!(&pool_account, ASSET_3, 0);
 			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 0);
+			assert_balance!(
+				&omnipool_account,
+				ASSET_3,
+				omnipool_account_asset_3_balance + new_liquidity
+			);
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
 			assert_that_nft_position_is_present!(position_id);

@@ -335,6 +335,7 @@ pub mod pallet {
 
 			let position = pallet_omnipool::Pallet::<T>::load_position(position_id, who.clone())?;
 
+			//TODO: bug?! - we should use `asset` param to get the migrated asset instead of the poistion_asset_id, because it is the share id which is not migrated to subpool
 			let position = if let Some((pool_id, details)) = MigratedAssets::<T>::get(&position.asset_id) {
 				let position = Self::convert_position(pool_id.into(), details, position)?;
 				// Store the updated position
