@@ -5,7 +5,7 @@ use crate::{
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
 	assert_that_nft_position_is_not_present, assert_that_nft_position_is_present,
 	assert_that_position_is_added_to_omnipool, assert_that_position_is_not_present_in_omnipool,
-	assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail, Error,
+	assert_that_sharetoken_in_omnipool_as_another_asset, create_subpool, AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Position, Tradability};
@@ -34,16 +34,7 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(50),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
@@ -131,16 +122,7 @@ fn add_liqudity_stable_should_add_liqudity_to_subpool_but_not_to_omnipool_when_m
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(50),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
@@ -189,18 +171,9 @@ fn add_liqudity_should_fail_with_invalid_origin() {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(50),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
-			//Act
+			//Act and assert
 			assert_noop!(
 				OmnipoolSubpools::add_liquidity_stable(Origin::none(), ASSET_3, 100 * ONE, MINTING_DEPOSIT_NFT),
 				BadOrigin

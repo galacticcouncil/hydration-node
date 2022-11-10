@@ -4,7 +4,7 @@ use crate::AssetDetail;
 use crate::{
 	add_omnipool_token, assert_balance, assert_that_asset_is_migrated_to_omnipool_subpool,
 	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset,
-	assert_that_stableswap_subpool_is_created_with_poolinfo, Error,
+	assert_that_stableswap_subpool_is_created_with_poolinfo, create_subpool, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::AssetState;
@@ -33,16 +33,7 @@ fn sell_should_work_when_both_asset_in_subpool() {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			//Act
 			let amount_to_sell = 100 * ONE;

@@ -603,6 +603,22 @@ macro_rules! add_omnipool_token {
 }
 
 #[macro_export]
+macro_rules! create_subpool {
+	($pool_id:expr, $asset_a:expr, $asset_b:expr) => {
+		assert_ok!(OmnipoolSubpools::create_subpool(
+			Origin::root(),
+			$pool_id,
+			$asset_a,
+			$asset_b,
+			Permill::from_percent(50),
+			100u16,
+			Permill::from_percent(0),
+			Permill::from_percent(0),
+		));
+	};
+}
+
+#[macro_export]
 macro_rules! assert_that_asset_is_not_present_in_omnipool {
 	($asset_id:expr) => {
 		assert_err!(

@@ -5,7 +5,7 @@ use crate::{
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
 	assert_that_nft_position_is_not_present, assert_that_nft_position_is_present,
 	assert_that_position_is_added_to_omnipool, assert_that_position_is_not_present_in_omnipool,
-	assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail, Error,
+	assert_that_sharetoken_in_omnipool_as_another_asset, create_subpool, AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Position, Tradability};
@@ -32,16 +32,7 @@ fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(50),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
@@ -168,16 +159,7 @@ fn remove_liqudity_should_fail_when_asset_has_tradable_state_disallowing_removin
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(50),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			let position_id: u32 = Omnipool::next_position_id();
 			let new_liquidity = 100 * ONE;
@@ -231,16 +213,7 @@ fn remove_liqudity_should_fail_when_asset_is_migrated_but_withdraw_asset_is_not_
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(50),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
@@ -295,16 +268,7 @@ fn remove_liquidity_should_fail_when_called_with_non_origin() {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(50),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			let position_id: u32 = Omnipool::next_position_id();
 			let new_liquidity = 100 * ONE;

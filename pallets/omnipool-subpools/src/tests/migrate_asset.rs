@@ -3,7 +3,7 @@ use super::*;
 use crate::{
 	add_omnipool_token, assert_balance, assert_stableswap_pool_assets,
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_sharetoken_in_omnipool_as_another_asset, AssetDetail, Error,
+	assert_that_sharetoken_in_omnipool_as_another_asset, create_subpool, AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
@@ -28,16 +28,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			add_omnipool_token!(ASSET_4);
 			add_omnipool_token!(ASSET_5);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
@@ -76,7 +67,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 					hub_reserve: 7800 * ONE,
 					shares: 7800 * ONE,
 					protocol_shares: 0,
-					cap: 1_100_000_000_000_000_000,
+					cap: 1_500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -126,16 +117,7 @@ fn migrate_asset_should_recalculate_protocol_shares_when_protocol_has_some_share
 			));
 			assert_ok!(Omnipool::sacrifice_position(Origin::signed(ALICE), position_id));
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
@@ -152,7 +134,7 @@ fn migrate_asset_should_recalculate_protocol_shares_when_protocol_has_some_share
 					hub_reserve: 7865 * ONE,
 					shares: 7865 * ONE,
 					protocol_shares: 65 * ONE,
-					cap: 1_100_000_000_000_000_000,
+					cap: 1_500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -205,16 +187,7 @@ fn migrate_asset_to_subpool_should_fail_when_token_does_not_exist() {
 			add_omnipool_token!(ASSET_4);
 			add_omnipool_token!(ASSET_5);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			//Act and assert
 			let non_existing_token = 99;
@@ -244,16 +217,7 @@ fn migrate_asset_to_subpool_should_fail_when_called_from_non_origin() {
 			add_omnipool_token!(ASSET_4);
 			add_omnipool_token!(ASSET_5);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			//Act and assert
 			assert_noop!(
@@ -281,16 +245,7 @@ fn migrate_asset_to_subpool_should_fail_when_called_by_normal_user() {
 			add_omnipool_token!(ASSET_4);
 			add_omnipool_token!(ASSET_5);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			//Act and assert
 			let alice = 99;
@@ -330,16 +285,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 			add_omnipool_token!(ASSET_6);
 			add_omnipool_token!(ASSET_7);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
@@ -393,7 +339,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 					hub_reserve: 16250 * ONE,
 					shares: 16250 * ONE,
 					protocol_shares: 0,
-					cap: 3_100_000_000_000_000_000,
+					cap: 3_500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -462,16 +408,7 @@ fn migrate_asset_to_subpool_should_update_subpool_when_called_consequently() {
 			add_omnipool_token!(ASSET_6);
 			add_omnipool_token!(ASSET_7);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			assert_stableswap_pool_assets!(SHARE_ASSET_AS_POOL_ID, vec![ASSET_3, ASSET_4]);
 
@@ -546,16 +483,7 @@ fn migrate_asset_to_subpool_should_sort_the_assets_in_subpool() {
 			add_omnipool_token!(ASSET_6);
 			add_omnipool_token!(ASSET_7);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_5,
-				ASSET_3,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_5, ASSET_3);
 
 			assert_stableswap_pool_assets!(SHARE_ASSET_AS_POOL_ID, vec![ASSET_3, ASSET_5]);
 
@@ -622,16 +550,7 @@ fn migrate_asset_to_subpool_should_fail_when_doing_more_migration_than_max_pool_
 			add_omnipool_token!(ASSET_7);
 			add_omnipool_token!(ASSET_8);
 
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
