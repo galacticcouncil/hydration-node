@@ -38,7 +38,7 @@ impl<AssetId> PoolInfo<AssetId>
 where
 	AssetId: Ord + Copy,
 {
-	pub(crate) fn find_asset(&self, asset: AssetId) -> Option<usize> {
+	pub fn find_asset(&self, asset: AssetId) -> Option<usize> {
 		self.assets.iter().position(|v| *v == asset)
 	}
 
@@ -53,7 +53,7 @@ where
 		T::ShareAccountId::from_assets(&self.assets, Some(POOL_IDENTIFIER))
 	}
 
-	pub(crate) fn balances<T: Config>(&self) -> Vec<Balance>
+	pub fn balances<T: Config>(&self) -> Vec<Balance>
 	where
 		T::ShareAccountId: AccountIdFor<Vec<AssetId>, AccountId = T::AccountId>,
 		T::AssetId: From<AssetId>,
