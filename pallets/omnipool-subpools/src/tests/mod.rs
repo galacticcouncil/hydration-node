@@ -4,6 +4,7 @@ mod create_subpool;
 mod migrate_asset;
 pub(crate) mod mock;
 mod remove_liquidity;
+mod sell;
 
 use mock::*;
 
