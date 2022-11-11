@@ -135,6 +135,7 @@ runtime-benchmarks = [
     "pallet-claims/runtime-benchmarks",
     "pallet-identity/runtime-benchmarks",
     "pallet-collective/runtime-benchmarks",
+    "pallet-transaction-pause/runtime-benchmarks",
     "pallet-tips/runtime-benchmarks",
     "pallet-proxy/runtime-benchmarks",
     "pallet-multisig/runtime-benchmarks",
