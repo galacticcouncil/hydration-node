@@ -431,8 +431,8 @@ pub mod pallet {
 					pallet_stableswap::Pallet::<T>::buy(
 						origin,
 						pool_id_in,
+						asset_out.into(), //TODO: Martin - double chcek: the asset_out and asset_in was the other way around. I think it was a bug, so swapped them. If so, then we can remove this comment
 						asset_in.into(),
-						asset_out.into(),
 						amount,
 						max_sell_amount,
 					)
@@ -440,6 +440,7 @@ pub mod pallet {
 				(Some((_pool_id_in, _)), Some((_pool_id_out, _))) => {
 					// both are subpool but different subpools
 					// TODO: add limit
+					// TODO: Martin - in the test `buy_should_work_when_assets_are_in_different_subpool` in buy.rs testfile, I got math error, so we should check this
 					Self::handle_subpools_buy(&who, asset_in, asset_out, _pool_id_in, _pool_id_out, amount)
 				}
 				_ => {

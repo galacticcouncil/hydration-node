@@ -1,11 +1,11 @@
 mod add_liquidity;
 mod add_liquidity_stable;
+mod buy;
 mod create_subpool;
 mod migrate_asset;
 pub(crate) mod mock;
 mod remove_liquidity;
 mod sell;
-
 use mock::*;
 
 use frame_support::{assert_err, assert_noop, assert_ok};
@@ -54,6 +54,9 @@ use orml_traits::MultiCurrency;
 // remove liquidity:
 // X ensure tradable state is respected - only if remove liquidity is allowed for asset ( should be handled by correspoding pallet) but good to test via this interface too
 // - ensure the position data is update correctly - mainly when position has to be migrated within remove liquidity - it should change asset id to share asset id and data recalculated
+
+// buy and sell
+// Discuss with Martin if we need more negative test cases, or mainly only just the happy path as the rest is up to the pallets
 
 //Mutation testing
 // - execute mutation testing on all extrinsics and based on result, adding additional tests
