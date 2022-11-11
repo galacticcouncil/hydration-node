@@ -43,7 +43,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
-use frame_support::traits::AsEnsureOriginWithArg;
+use frame_support::traits::{AsEnsureOriginWithArg, Contains};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -209,11 +209,29 @@ parameter_types! {
 	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
 }
 
+pub struct BaseFilter;
+impl Contains<Call> for BaseFilter {
+	fn contains(call: &Call) -> bool {
+		if matches!(call, Call::System(_) | Call::Timestamp(_) | Call::ParachainSystem(_)) {
+			// always allow
+			// Note: this is done to avoid unnecessary check of paused storage.
+			return true;
+		}
+
+		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
+			// if paused, dont allow!
+			return false;
+		}
+
+		return true;
+	}
+}
+
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = BaseFilter;
 	/// The ubiquitous origin type.
 	type Origin = Origin;
 	/// The aggregated dispatch type that is available for extrinsics.

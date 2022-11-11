@@ -173,10 +173,20 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 	}
 }
 
-pub struct TransfersDisabled;
-impl Contains<Call> for TransfersDisabled {
+pub struct BaseFilter;
+impl Contains<Call> for BaseFilter {
 	fn contains(call: &Call) -> bool {
-		#[allow(clippy::match_like_matches_macro)]
+		if matches!(call, Call::System(_) | Call::Timestamp(_) | Call::ParachainSystem(_)) {
+			// always allow
+			// Note: this is done to avoid unnecessary check of paused storage.
+			return true;
+		}
+
+		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
+			// if paused, dont allow!
+			return false;
+		}
+
 		match call {
 			Call::Balances(_) => false,
 			Call::Currencies(_) => false,
@@ -219,7 +229,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = TransfersDisabled;
+	type BaseCallFilter = BaseFilter;
 	type BlockWeights = BlockWeights;
 	type BlockLength = BlockLength;
 	/// The ubiquitous origin type.
