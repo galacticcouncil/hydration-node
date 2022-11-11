@@ -175,34 +175,80 @@ fn sell_should_work_when_both_asset_in_omnipool() {
 		});
 }
 
-/*
+#[ignore] // Implement once it is implemented in the prod code
 #[test]
-fn sell_should_fail_when_called_by_non_user() {
+fn sell_should_work_when_one_asset_in_omnipool_and_other_in_subpool() {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			//Act
+			let amount_to_sell = 100 * ONE;
+			assert_ok!(OmnipoolSubpools::sell(
+				Origin::signed(ALICE),
+				ASSET_3,
+				ASSET_5,
+				amount_to_sell,
+				0
+			));
+
+			//Assert
+			/*let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let omnipool_account = Omnipool::protocol_account();
+
+			let amount_to_get = 99835772816269;
+
+			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
+			assert_balance!(ALICE, ASSET_4, 0);
+			assert_balance!(ALICE, ASSET_5, amount_to_get);
+
+			assert_balance!(pool_account, ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_sell);
+			assert_balance!(pool_account, ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE);
+			assert_balance!(pool_account, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get);
+
+			assert_balance!(omnipool_account, ASSET_3, 0);
+			assert_balance!(omnipool_account, ASSET_4, 0);
+			assert_balance!(omnipool_account, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE -);*/
+		});
+}
+
+#[test]
+fn sell_should_fail_when_called_by_non_signed_user() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
 		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			//Act
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			//Act and assert
+			let amount_to_sell = 100 * ONE;
 			assert_noop!(
-				OmnipoolSubpools::create_subpool(
-					mock::Origin::signed(alice),
-					SHARE_ASSET_AS_POOL_ID,
-					ASSET_3,
-					ASSET_4,
-					Permill::from_percent(10),
-					100u16,
-					Permill::from_percent(0),
-					Permill::from_percent(0),
-				),
+				OmnipoolSubpools::sell(Origin::none(), ASSET_3, ASSET_4, amount_to_sell, 0),
 				BadOrigin
 			);
 		});
@@ -210,34 +256,27 @@ fn sell_should_fail_when_called_by_non_user() {
 
 #[test]
 fn sell_should_fail_when_called_by_root() {
-	let alice = 99;
-
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
 		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
 		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			//Act
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			//Act and assert
+			let amount_to_sell = 100 * ONE;
 			assert_noop!(
-				OmnipoolSubpools::create_subpool(
-					mock::Origin::signed(alice),
-					SHARE_ASSET_AS_POOL_ID,
-					ASSET_3,
-					ASSET_4,
-					Permill::from_percent(10),
-					100u16,
-					Permill::from_percent(0),
-					Permill::from_percent(0),
-				),
+				OmnipoolSubpools::sell(Origin::root(), ASSET_3, ASSET_4, amount_to_sell, 0),
 				BadOrigin
 			);
 		});
-}*/
+}
