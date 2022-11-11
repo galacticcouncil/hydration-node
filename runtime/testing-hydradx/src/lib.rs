@@ -47,8 +47,7 @@ use frame_support::traits::{AsEnsureOriginWithArg, Contains};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		EnsureOrigin, EqualPrivilegeOnly, Everything, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp,
-		U128CurrencyToVote,
+		EnsureOrigin, EqualPrivilegeOnly, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp, U128CurrencyToVote,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
@@ -110,7 +109,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 112,
+	spec_version: 113,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -223,7 +222,7 @@ impl Contains<Call> for BaseFilter {
 			return false;
 		}
 
-		return true;
+		true
 	}
 }
 
@@ -812,7 +811,6 @@ impl pallet_nft::Config for Runtime {
 	type WeightInfo = pallet_nft::weights::BasiliskWeight<Runtime>;
 	type NftCollectionId = CollectionId;
 	type NftItemId = ItemId;
-	type ProtocolOrigin = EnsureRoot<AccountId>;
 	type CollectionType = pallet_nft::CollectionType;
 	type Permissions = pallet_nft::NftPermissions;
 	type ReserveCollectionIdUpTo = ReserveCollectionIdUpTo;

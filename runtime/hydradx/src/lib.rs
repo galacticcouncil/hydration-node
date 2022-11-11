@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+#![allow(clippy::match_like_matches_macro)]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -97,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 112,
+	spec_version: 113,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -820,7 +821,6 @@ impl pallet_nft::Config for Runtime {
 	type WeightInfo = pallet_nft::weights::BasiliskWeight<Runtime>;
 	type NftCollectionId = CollectionId;
 	type NftItemId = ItemId;
-	type ProtocolOrigin = EnsureRoot<AccountId>;
 	type CollectionType = pallet_nft::CollectionType;
 	type Permissions = pallet_nft::NftPermissions;
 	type ReserveCollectionIdUpTo = ReserveCollectionIdUpTo;
