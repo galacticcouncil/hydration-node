@@ -2,8 +2,6 @@ use super::*;
 use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::*;
 use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
-use scale_info::build::Fields;
-use scale_info::{meta_type, Path, Type, TypeParameter};
 use sp_runtime::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Sub};
 
@@ -15,7 +13,7 @@ pub type Price = FixedU128;
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
-	#[derive(Encode,Decode)]
+	#[derive(Encode,Decode, MaxEncodedLen, TypeInfo)]
 	pub struct Tradability: u8 {
 		/// Asset is frozen. No operations are allowed.
 		const FROZEN = 0b0000_0000;
@@ -33,23 +31,6 @@ bitflags::bitflags! {
 impl Default for Tradability {
 	fn default() -> Self {
 		Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
-	}
-}
-
-impl MaxEncodedLen for Tradability {
-	fn max_encoded_len() -> usize {
-		u8::max_encoded_len()
-	}
-}
-
-impl TypeInfo for Tradability {
-	type Identity = Self;
-
-	fn type_info() -> Type {
-		Type::builder()
-			.path(Path::new("BitFlags", module_path!()))
-			.type_params(vec![TypeParameter::new("T", Some(meta_type::<Tradability>()))])
-			.composite(Fields::unnamed().field(|f| f.ty::<u64>().type_name("Tradability")))
 	}
 }
 
