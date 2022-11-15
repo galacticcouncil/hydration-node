@@ -251,7 +251,7 @@ impl pallet_stableswap::Config for Test {
 
 impl Config for Test {
 	type Event = Event;
-	type PoolMasterOrigin = EnsureRoot<Self::AccountId>;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 }
 
 pub struct ExtBuilder {

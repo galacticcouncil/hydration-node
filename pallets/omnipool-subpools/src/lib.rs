@@ -3,6 +3,9 @@
 
 #[cfg(test)]
 mod tests;
+mod types;
+
+use crate::types::{AssetDetail, Balance};
 use frame_support::pallet_prelude::*;
 use hydra_dx_math::omnipool_subpools::SubpoolState;
 use orml_traits::currency::MultiCurrency;
@@ -13,18 +16,11 @@ use sp_std::prelude::*;
 pub use pallet::*;
 use pallet_omnipool::types::Position;
 
-pub type Balance = u128;
-
-#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct AssetDetail {
-	pub(crate) price: FixedU128,
-	pub(crate) shares: Balance,
-	pub(crate) hub_reserve: Balance,
-	pub(crate) share_tokens: Balance,
-}
-
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type StableswapPallet<T> = pallet_stableswap::Pallet<T>;
+
+type AssetIdOf<T> = <T as pallet_omnipool::Config>::AssetId;
+type StableswapAssetIdOf<T> = <T as pallet_stableswap::Config>::AssetId;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -43,26 +39,20 @@ pub mod pallet {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		/// The origin which can create a new pool
-		type PoolMasterOrigin: EnsureOrigin<Self::Origin>;
+		/// Checks that an origin has the authority to manage a subpool.
+		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
 	}
 
-	/// Assets migrated from Omnipool to a subpool
 	#[pallet::storage]
 	#[pallet::getter(fn migrated_assets)]
-	pub(super) type MigratedAssets<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		<T as pallet_omnipool::Config>::AssetId,
-		(<T as pallet_stableswap::Config>::AssetId, AssetDetail),
-		OptionQuery,
-	>;
+	/// Details of asset migrated from Omnipool to a subpool.
+	pub(super) type MigratedAssets<T: Config> =
+		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, (StableswapAssetIdOf<T>, AssetDetail), OptionQuery>;
 
-	/// Subpools
 	#[pallet::storage]
 	#[pallet::getter(fn subpools)]
-	pub(super) type Subpools<T: Config> =
-		StorageMap<_, Blake2_128Concat, <T as pallet_stableswap::Config>::AssetId, (), OptionQuery>;
+	/// Existing subpool IDs.
+	pub(super) type Subpools<T: Config> = StorageMap<_, Blake2_128Concat, StableswapAssetIdOf<T>, (), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
@@ -83,22 +73,24 @@ pub mod pallet {
 		<T as pallet_omnipool::Config>::AssetId:
 			Into<<T as pallet_stableswap::Config>::AssetId> + From<<T as pallet_stableswap::Config>::AssetId>,
 	{
+		/// Create new subpool by migrating 2 assets from Omnipool to new stabelswap subpool.
 		///
+		/// New subpools must be created from precisely 2 assets.
 		///
-		/// Limit to 2 assets.
+		/// TODO: add more desc pls
 		///
 		#[pallet::weight(0)]
 		pub fn create_subpool(
 			origin: OriginFor<T>,
-			share_asset: <T as pallet_omnipool::Config>::AssetId,
-			asset_a: <T as pallet_omnipool::Config>::AssetId,
-			asset_b: <T as pallet_omnipool::Config>::AssetId,
+			share_asset: AssetIdOf<T>,
+			asset_a: AssetIdOf<T>,
+			asset_b: AssetIdOf<T>,
 			share_asset_weight_cap: Permill,
 			amplification: u16,
 			trade_fee: Permill,
 			withdraw_fee: Permill,
 		) -> DispatchResult {
-			<T as Config>::PoolMasterOrigin::ensure_origin(origin.clone())?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin.clone())?;
 
 			// Load state - return AssetNotFound if it does not exist
 			let asset_state_a = OmnipoolPallet::<T>::load_asset_state(asset_a)?;
@@ -119,11 +111,11 @@ pub mod pallet {
 				&omnipool_account,
 				pool_id,
 				&[
-					AssetLiquidity::<<T as pallet_stableswap::Config>::AssetId> {
+					AssetLiquidity::<StableswapAssetIdOf<T>> {
 						asset_id: asset_a.into(),
 						amount: asset_state_a.reserve,
 					},
-					AssetLiquidity::<<T as pallet_stableswap::Config>::AssetId> {
+					AssetLiquidity::<StableswapAssetIdOf<T>> {
 						asset_id: asset_b.into(),
 						amount: asset_state_b.reserve,
 					},
@@ -196,10 +188,10 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn migrate_asset_to_subpool(
 			origin: OriginFor<T>,
-			pool_id: <T as pallet_stableswap::Config>::AssetId,
-			asset_id: <T as pallet_omnipool::Config>::AssetId,
+			pool_id: StableswapAssetIdOf<T>,
+			asset_id: AssetIdOf<T>,
 		) -> DispatchResult {
-			<T as Config>::PoolMasterOrigin::ensure_origin(origin.clone())?;
+			<T as Config>::AuthorityOrigin::ensure_origin(origin.clone())?;
 
 			ensure!(Self::subpools(&pool_id).is_some(), Error::<T>::SubpoolNotFound);
 
@@ -214,11 +206,11 @@ pub mod pallet {
 			// this might require moving from one pool account to another - depends on how AccountIdFor is implemented!
 			StableswapPallet::<T>::add_asset_to_existing_pool(pool_id, asset_id.into())?;
 
-			// Move liquidity from omnipool account to subpool
+			// Move liquidity from omnipool account to subpools
 			StableswapPallet::<T>::move_liquidity_to_pool(
 				&omnipool_account,
 				pool_id,
-				&[AssetLiquidity::<<T as pallet_stableswap::Config>::AssetId> {
+				&[AssetLiquidity::<StableswapAssetIdOf<T>> {
 					asset_id: asset_id.into(),
 					amount: asset_state.reserve,
 				}],
@@ -269,11 +261,7 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(0)]
-		pub fn add_liquidity(
-			origin: OriginFor<T>,
-			asset_id: <T as pallet_omnipool::Config>::AssetId,
-			amount: Balance,
-		) -> DispatchResult {
+		pub fn add_liquidity(origin: OriginFor<T>, asset_id: AssetIdOf<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
 			if let Some((pool_id, _)) = MigratedAssets::<T>::get(&asset_id) {
@@ -294,7 +282,7 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn add_liquidity_stable(
 			origin: OriginFor<T>,
-			asset_id: <T as pallet_omnipool::Config>::AssetId,
+			asset_id: AssetIdOf<T>,
 			amount: Balance,
 			mint_nft: bool,
 		) -> DispatchResult {
@@ -324,7 +312,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			position_id: T::PositionInstanceId,
 			share_amount: Balance,
-			asset: Option<<T as pallet_omnipool::Config>::AssetId>,
+			asset: Option<AssetIdOf<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
@@ -361,8 +349,8 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn sell(
 			origin: OriginFor<T>,
-			asset_in: <T as pallet_omnipool::Config>::AssetId,
-			asset_out: <T as pallet_omnipool::Config>::AssetId,
+			asset_in: AssetIdOf<T>,
+			asset_out: AssetIdOf<T>,
 			amount: Balance,
 			min_buy_amount: Balance,
 		) -> DispatchResult {
@@ -404,8 +392,8 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn buy(
 			origin: OriginFor<T>,
-			asset_out: <T as pallet_omnipool::Config>::AssetId,
-			asset_in: <T as pallet_omnipool::Config>::AssetId,
+			asset_out: AssetIdOf<T>,
+			asset_in: AssetIdOf<T>,
 			amount: Balance,
 			max_sell_amount: Balance,
 		) -> DispatchResult {
@@ -465,10 +453,10 @@ where
 
 	fn handle_subpools_buy(
 		who: &T::AccountId,
-		asset_in: <T as pallet_omnipool::Config>::AssetId,
-		asset_out: <T as pallet_omnipool::Config>::AssetId,
-		subpool_id_in: <T as pallet_stableswap::Config>::AssetId,
-		subpool_id_out: <T as pallet_stableswap::Config>::AssetId,
+		asset_in: AssetIdOf<T>,
+		asset_out: AssetIdOf<T>,
+		subpool_id_in: StableswapAssetIdOf<T>,
+		subpool_id_out: StableswapAssetIdOf<T>,
 		amount_out: Balance,
 	) -> DispatchResult {
 		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
@@ -558,10 +546,10 @@ where
 
 	fn handle_subpools_sell(
 		who: &T::AccountId,
-		asset_in: <T as pallet_omnipool::Config>::AssetId,
-		asset_out: <T as pallet_omnipool::Config>::AssetId,
-		subpool_id_in: <T as pallet_stableswap::Config>::AssetId,
-		subpool_id_out: <T as pallet_stableswap::Config>::AssetId,
+		asset_in: AssetIdOf<T>,
+		asset_out: AssetIdOf<T>,
+		subpool_id_in: StableswapAssetIdOf<T>,
+		subpool_id_out: StableswapAssetIdOf<T>,
 		amount_out: Balance,
 	) -> DispatchResult {
 		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
