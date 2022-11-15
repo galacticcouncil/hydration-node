@@ -24,6 +24,7 @@ pub struct AssetDetail {
 }
 
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
+type StableswapPallet<T> = pallet_stableswap::Pallet<T>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -100,21 +101,21 @@ pub mod pallet {
 			<T as Config>::PoolMasterOrigin::ensure_origin(origin.clone())?;
 
 			// Load state - return AssetNotFound if it does not exist
-			let asset_state_a = pallet_omnipool::Pallet::<T>::load_asset_state(asset_a)?;
-			let asset_state_b = pallet_omnipool::Pallet::<T>::load_asset_state(asset_b)?;
+			let asset_state_a = OmnipoolPallet::<T>::load_asset_state(asset_a)?;
+			let asset_state_b = OmnipoolPallet::<T>::load_asset_state(asset_b)?;
 
 			// Create new subpool
-			let pool_id = pallet_stableswap::Pallet::<T>::do_create_pool(
+			let pool_id = StableswapPallet::<T>::do_create_pool(
 				share_asset.into(),
 				&[asset_a.into(), asset_b.into()],
 				amplification,
 				trade_fee,
 				withdraw_fee,
 			)?;
-			let omnipool_account = pallet_omnipool::Pallet::<T>::protocol_account();
+			let omnipool_account = OmnipoolPallet::<T>::protocol_account();
 
 			// Move liquidity from omnipool account to subpool
-			pallet_stableswap::Pallet::<T>::move_liquidity_to_pool(
+			StableswapPallet::<T>::move_liquidity_to_pool(
 				&omnipool_account,
 				pool_id,
 				&[
@@ -155,14 +156,14 @@ pub mod pallet {
 			// Amount of share provided to omnipool
 			let shares = hub_reserve;
 
-			pallet_stableswap::Pallet::<T>::deposit_shares(&omnipool_account, pool_id, shares)?;
+			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, shares)?;
 
 			// Remove tokens from omnipool
-			pallet_omnipool::Pallet::<T>::remove_asset(asset_a)?;
-			pallet_omnipool::Pallet::<T>::remove_asset(asset_b)?;
+			OmnipoolPallet::<T>::remove_asset(asset_a)?;
+			OmnipoolPallet::<T>::remove_asset(asset_b)?;
 
 			// Add Share token to omnipool as another asset - LRNA is Qi + Qj
-			pallet_omnipool::Pallet::<T>::add_asset(
+			OmnipoolPallet::<T>::add_asset(
 				pool_id.into(),
 				hub_reserve,
 				shares,
@@ -203,18 +204,18 @@ pub mod pallet {
 			ensure!(Self::subpools(&pool_id).is_some(), Error::<T>::SubpoolNotFound);
 
 			// Load state - return AssetNotFound if it does not exist
-			let asset_state = pallet_omnipool::Pallet::<T>::load_asset_state(asset_id)?;
+			let asset_state = OmnipoolPallet::<T>::load_asset_state(asset_id)?;
 
-			let subpool_state = pallet_omnipool::Pallet::<T>::load_asset_state(pool_id.into())?;
+			let subpool_state = OmnipoolPallet::<T>::load_asset_state(pool_id.into())?;
 
-			let omnipool_account = pallet_omnipool::Pallet::<T>::protocol_account();
+			let omnipool_account = OmnipoolPallet::<T>::protocol_account();
 
 			// Add token to subpool
 			// this might require moving from one pool account to another - depends on how AccountIdFor is implemented!
-			pallet_stableswap::Pallet::<T>::add_asset_to_existing_pool(pool_id, asset_id.into())?;
+			StableswapPallet::<T>::add_asset_to_existing_pool(pool_id, asset_id.into())?;
 
 			// Move liquidity from omnipool account to subpool
-			pallet_stableswap::Pallet::<T>::move_liquidity_to_pool(
+			StableswapPallet::<T>::move_liquidity_to_pool(
 				&omnipool_account,
 				pool_id,
 				&[AssetLiquidity::<<T as pallet_stableswap::Config>::AssetId> {
@@ -224,7 +225,7 @@ pub mod pallet {
 			)?;
 
 			// Remove token from omnipool
-			pallet_omnipool::Pallet::<T>::remove_asset(asset_id)?;
+			OmnipoolPallet::<T>::remove_asset(asset_id)?;
 
 			let share_issuance = <T as pallet_omnipool::Config>::Currency::total_issuance(pool_id.into());
 
@@ -250,15 +251,9 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			pallet_omnipool::Pallet::<T>::update_asset_state(
-				pool_id.into(),
-				delta_q,
-				delta_s,
-				delta_ps,
-				asset_state.cap,
-			)?;
+			OmnipoolPallet::<T>::update_asset_state(pool_id.into(), delta_q, delta_s, delta_ps, asset_state.cap)?;
 
-			pallet_stableswap::Pallet::<T>::deposit_shares(&omnipool_account, pool_id, delta_u)?;
+			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, delta_u)?;
 
 			// Remember some stuff to be able to update LP positions later on
 			let asset_details = AssetDetail {
@@ -282,7 +277,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 
 			if let Some((pool_id, _)) = MigratedAssets::<T>::get(&asset_id) {
-				let shares = pallet_stableswap::Pallet::<T>::do_add_liquidity(
+				let shares = StableswapPallet::<T>::do_add_liquidity(
 					&who,
 					pool_id,
 					&[AssetLiquidity {
@@ -290,9 +285,9 @@ pub mod pallet {
 						amount,
 					}],
 				)?;
-				pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
+				OmnipoolPallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 			} else {
-				pallet_omnipool::Pallet::<T>::add_liquidity(origin, asset_id, amount)
+				OmnipoolPallet::<T>::add_liquidity(origin, asset_id, amount)
 			}
 		}
 
@@ -306,7 +301,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 
 			if let Some((pool_id, _)) = MigratedAssets::<T>::get(&asset_id) {
-				let shares = pallet_stableswap::Pallet::<T>::do_add_liquidity(
+				let shares = StableswapPallet::<T>::do_add_liquidity(
 					&who,
 					pool_id,
 					&[AssetLiquidity {
@@ -315,7 +310,7 @@ pub mod pallet {
 					}],
 				)?;
 				if mint_nft {
-					pallet_omnipool::Pallet::<T>::add_liquidity(origin, pool_id.into(), shares)
+					OmnipoolPallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 				} else {
 					Ok(())
 				}
@@ -333,25 +328,25 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
-			let position = pallet_omnipool::Pallet::<T>::load_position(position_id, who.clone())?;
+			let position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 
 			//TODO: bug?! - we should use `asset` param to get the migrated asset instead of the poistion_asset_id, because it is the share id which is not migrated to subpool
 			let position = if let Some((pool_id, details)) = MigratedAssets::<T>::get(&position.asset_id) {
 				let position = Self::convert_position(pool_id.into(), details, position)?;
 				// Store the updated position
-				pallet_omnipool::Pallet::<T>::set_position(position_id, &position)?;
+				OmnipoolPallet::<T>::set_position(position_id, &position)?;
 				position
 			} else {
 				position
 			};
 
 			// Asset should be in isopool, call omnipool::remove_liquidity
-			pallet_omnipool::Pallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
+			OmnipoolPallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
 
 			match (Self::subpools(&position.asset_id.into()), asset) {
 				(Some(_), Some(withdraw_asset)) => {
 					let received = <T as pallet_omnipool::Config>::Currency::free_balance(position.asset_id, &who);
-					pallet_stableswap::Pallet::<T>::remove_liquidity_one_asset(
+					StableswapPallet::<T>::remove_liquidity_one_asset(
 						origin,
 						position.asset_id.into(),
 						withdraw_asset.into(),
@@ -381,11 +376,11 @@ pub mod pallet {
 			match (MigratedAssets::<T>::get(asset_in), MigratedAssets::<T>::get(asset_out)) {
 				(None, None) => {
 					// both are is0pool assets
-					pallet_omnipool::Pallet::<T>::sell(origin, asset_in, asset_out, amount, min_buy_amount)
+					OmnipoolPallet::<T>::sell(origin, asset_in, asset_out, amount, min_buy_amount)
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) if pool_id_in == pool_id_out => {
 					// both are same subpool
-					pallet_stableswap::Pallet::<T>::sell(
+					StableswapPallet::<T>::sell(
 						origin,
 						pool_id_in,
 						asset_in.into(),
@@ -424,11 +419,11 @@ pub mod pallet {
 			match (MigratedAssets::<T>::get(asset_in), MigratedAssets::<T>::get(asset_out)) {
 				(None, None) => {
 					// both are is0pool assets
-					pallet_omnipool::Pallet::<T>::buy(origin, asset_out, asset_in, amount, max_sell_amount)
+					OmnipoolPallet::<T>::buy(origin, asset_out, asset_in, amount, max_sell_amount)
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) if pool_id_in == pool_id_out => {
 					// both are same subpool
-					pallet_stableswap::Pallet::<T>::buy(
+					StableswapPallet::<T>::buy(
 						origin,
 						pool_id_in,
 						asset_out.into(), //TODO: Martin - double chcek: the asset_out and asset_in was the other way around. I think it was a bug, so swapped them. If so, then we can remove this comment
@@ -476,8 +471,8 @@ where
 		subpool_id_out: <T as pallet_stableswap::Config>::AssetId,
 		amount_out: Balance,
 	) -> DispatchResult {
-		let subpool_in = pallet_stableswap::Pallet::<T>::get_pool(subpool_id_in)?;
-		let subpool_out = pallet_stableswap::Pallet::<T>::get_pool(subpool_id_out)?;
+		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
+		let subpool_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
 
 		let idx_in = subpool_in
 			.find_asset(asset_in.into())
@@ -486,8 +481,8 @@ where
 			.find_asset(asset_out.into())
 			.ok_or(pallet_stableswap::Error::<T>::AssetNotInPool)?;
 
-		let share_asset_state_in = pallet_omnipool::Pallet::<T>::load_asset_state(subpool_id_in.into())?;
-		let share_asset_state_out = pallet_omnipool::Pallet::<T>::load_asset_state(subpool_id_out.into())?;
+		let share_asset_state_in = OmnipoolPallet::<T>::load_asset_state(subpool_id_in.into())?;
+		let share_asset_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 
 		let share_issuance_in = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_in.into());
 		let share_issuance_out = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_out.into());
@@ -495,7 +490,7 @@ where
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
 		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
 		let withdraw_fee = subpool_out.withdraw_fee;
-		let current_imbalance = pallet_omnipool::Pallet::<T>::current_imbalance();
+		let current_imbalance = OmnipoolPallet::<T>::current_imbalance();
 
 		let result = hydra_dx_math::omnipool_subpools::calculate_buy_between_subpools(
 			SubpoolState {
@@ -569,8 +564,8 @@ where
 		subpool_id_out: <T as pallet_stableswap::Config>::AssetId,
 		amount_out: Balance,
 	) -> DispatchResult {
-		let subpool_in = pallet_stableswap::Pallet::<T>::get_pool(subpool_id_in)?;
-		let subpool_out = pallet_stableswap::Pallet::<T>::get_pool(subpool_id_out)?;
+		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
+		let subpool_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
 
 		let idx_in = subpool_in
 			.find_asset(asset_in.into())
@@ -579,8 +574,8 @@ where
 			.find_asset(asset_out.into())
 			.ok_or(pallet_stableswap::Error::<T>::AssetNotInPool)?;
 
-		let share_asset_state_in = pallet_omnipool::Pallet::<T>::load_asset_state(subpool_id_in.into())?;
-		let share_asset_state_out = pallet_omnipool::Pallet::<T>::load_asset_state(subpool_id_out.into())?;
+		let share_asset_state_in = OmnipoolPallet::<T>::load_asset_state(subpool_id_in.into())?;
+		let share_asset_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 
 		let share_issuance_in = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_in.into());
 		let share_issuance_out = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_out.into());
@@ -588,7 +583,7 @@ where
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
 		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
 		let withdraw_fee = subpool_out.withdraw_fee;
-		let current_imbalance = pallet_omnipool::Pallet::<T>::current_imbalance();
+		let current_imbalance = OmnipoolPallet::<T>::current_imbalance();
 
 		let result = hydra_dx_math::omnipool_subpools::calculate_sell_between_subpools(
 			SubpoolState {
