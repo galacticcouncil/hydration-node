@@ -46,6 +46,8 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn migrated_assets)]
 	/// Details of asset migrated from Omnipool to a subpool.
+	/// Key is id of migrated asset.
+	/// Value is tuple of (Subpool id, AssetDetail).
 	pub(super) type MigratedAssets<T: Config> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf<T>, (StableswapAssetIdOf<T>, AssetDetail), OptionQuery>;
 
@@ -56,7 +58,12 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
-	pub enum Event<T: Config> {}
+	pub enum Event<T: Config> {
+		SubpoolCreated {
+			id: StableswapAssetIdOf<T>,
+			assets: (AssetIdOf<T>, AssetIdOf<T>),
+		},
+	}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
@@ -150,7 +157,7 @@ pub mod pallet {
 
 			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, shares)?;
 
-			// Remove tokens from omnipool
+			// Remove assets from omnipool
 			OmnipoolPallet::<T>::remove_asset(asset_a)?;
 			OmnipoolPallet::<T>::remove_asset(asset_b)?;
 
@@ -181,6 +188,11 @@ pub mod pallet {
 			MigratedAssets::<T>::insert(asset_a, (pool_id, asset_a_details));
 			MigratedAssets::<T>::insert(asset_b, (pool_id, asset_b_details));
 			Subpools::<T>::insert(share_asset.into(), ());
+
+			Self::deposit_event(Event::SubpoolCreated {
+				id: pool_id,
+				assets: (asset_a, asset_b),
+			});
 
 			Ok(())
 		}
