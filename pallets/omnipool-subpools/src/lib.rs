@@ -64,6 +64,10 @@ pub mod pallet {
 			id: StableswapAssetIdOf<T>,
 			assets: (AssetIdOf<T>, AssetIdOf<T>),
 		},
+		AssetMigrated {
+			asset_id: AssetIdOf<T>,
+			pool_id: StableswapAssetIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -266,6 +270,8 @@ pub mod pallet {
 			};
 
 			MigratedAssets::<T>::insert(asset_id, (pool_id, asset_details));
+
+			Self::deposit_event(Event::AssetMigrated { asset_id, pool_id });
 
 			Ok(())
 		}
