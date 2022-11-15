@@ -21,6 +21,7 @@ type StableswapPallet<T> = pallet_stableswap::Pallet<T>;
 
 type AssetIdOf<T> = <T as pallet_omnipool::Config>::AssetId;
 type StableswapAssetIdOf<T> = <T as pallet_stableswap::Config>::AssetId;
+type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -207,18 +208,16 @@ pub mod pallet {
 
 			ensure!(Self::subpools(&pool_id).is_some(), Error::<T>::SubpoolNotFound);
 
-			// Load state - return AssetNotFound if it does not exist
+			// Load asset state - returns AssetNotFound if it does not exist
 			let asset_state = OmnipoolPallet::<T>::load_asset_state(asset_id)?;
 
 			let subpool_state = OmnipoolPallet::<T>::load_asset_state(pool_id.into())?;
 
 			let omnipool_account = OmnipoolPallet::<T>::protocol_account();
 
-			// Add token to subpool
-			// this might require moving from one pool account to another - depends on how AccountIdFor is implemented!
 			StableswapPallet::<T>::add_asset_to_existing_pool(pool_id, asset_id.into())?;
 
-			// Move liquidity from omnipool account to subpools
+			// Move liquidity from omnipool account to subpool
 			StableswapPallet::<T>::move_liquidity_to_pool(
 				&omnipool_account,
 				pool_id,
@@ -228,10 +227,9 @@ pub mod pallet {
 				}],
 			)?;
 
-			// Remove token from omnipool
 			OmnipoolPallet::<T>::remove_asset(asset_id)?;
 
-			let share_issuance = <T as pallet_omnipool::Config>::Currency::total_issuance(pool_id.into());
+			let share_issuance = CurrencyOf::<T>::total_issuance(pool_id.into());
 
 			let delta_q = asset_state.hub_reserve;
 
@@ -345,7 +343,7 @@ pub mod pallet {
 
 			match (Self::subpools(&position.asset_id.into()), asset) {
 				(Some(_), Some(withdraw_asset)) => {
-					let received = <T as pallet_omnipool::Config>::Currency::free_balance(position.asset_id, &who);
+					let received = CurrencyOf::<T>::free_balance(position.asset_id, &who);
 					StableswapPallet::<T>::remove_liquidity_one_asset(
 						origin,
 						position.asset_id.into(),
@@ -484,8 +482,8 @@ where
 		let share_asset_state_in = OmnipoolPallet::<T>::load_asset_state(subpool_id_in.into())?;
 		let share_asset_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 
-		let share_issuance_in = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_in.into());
-		let share_issuance_out = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_out.into());
+		let share_issuance_in = CurrencyOf::<T>::total_issuance(subpool_id_in.into());
+		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
 
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
 		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
@@ -577,8 +575,8 @@ where
 		let share_asset_state_in = OmnipoolPallet::<T>::load_asset_state(subpool_id_in.into())?;
 		let share_asset_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 
-		let share_issuance_in = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_in.into());
-		let share_issuance_out = <T as pallet_omnipool::Config>::Currency::total_issuance(subpool_id_out.into());
+		let share_issuance_in = CurrencyOf::<T>::total_issuance(subpool_id_in.into());
+		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
 
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
 		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
