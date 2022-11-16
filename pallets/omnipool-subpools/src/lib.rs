@@ -31,6 +31,7 @@ pub mod pallet {
 	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
 	use sp_runtime::{ArithmeticError, FixedPointNumber, Permill};
+	use std::cmp::min;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (crate) trait Store)]
@@ -78,6 +79,7 @@ pub mod pallet {
 		WithdrawAssetNotSpecified,
 		NotStableAsset,
 		Math,
+		Limit,
 	}
 
 	#[pallet::call]
@@ -413,8 +415,15 @@ pub mod pallet {
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
 					// both are subpool but different subpools
-					// TODO: add limit
-					Self::handle_subpools_sell(&who, asset_in, asset_out, pool_id_in, pool_id_out, amount)
+					Self::handle_subpools_sell(
+						&who,
+						asset_in,
+						asset_out,
+						pool_id_in,
+						pool_id_out,
+						amount,
+						min_buy_amount,
+					)
 				}
 				(Some((pool_id_in, _)), None) => {
 					// Selling stableasset and buying omnipool asset
@@ -460,9 +469,16 @@ pub mod pallet {
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
 					// both are subpool but different subpools
-					// TODO: add limit
 					// TODO: Martin - in the test `buy_should_work_when_assets_are_in_different_subpool` in buy.rs testfile, I got math error, so we should check this
-					Self::handle_subpools_buy(&who, asset_in, asset_out, pool_id_in, pool_id_out, amount)
+					Self::handle_subpools_buy(
+						&who,
+						asset_in,
+						asset_out,
+						pool_id_in,
+						pool_id_out,
+						amount,
+						max_sell_amount,
+					)
 				}
 				(Some((pool_id_in, _)), None) => {
 					// Selling stableasset and buying omnipool asset
@@ -516,6 +532,7 @@ where
 		subpool_id_in: StableswapAssetIdOf<T>,
 		subpool_id_out: StableswapAssetIdOf<T>,
 		amount_out: Balance,
+		max_limit: Balance,
 	) -> DispatchResult {
 		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
 		let subpool_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
@@ -560,6 +577,8 @@ where
 			current_imbalance.value,
 		)
 		.ok_or(Error::<T>::Math)?;
+
+		ensure!(*result.asset_in.amount <= max_limit, Error::<T>::Limit);
 
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
@@ -608,7 +627,8 @@ where
 		asset_out: AssetIdOf<T>,
 		subpool_id_in: StableswapAssetIdOf<T>,
 		subpool_id_out: StableswapAssetIdOf<T>,
-		amount_out: Balance,
+		amount_in: Balance,
+		min_limit: Balance,
 	) -> DispatchResult {
 		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
 		let subpool_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
@@ -641,7 +661,7 @@ where
 			},
 			idx_in,
 			idx_out,
-			amount_out,
+			amount_in,
 			&(&share_asset_state_in).into(),
 			&(&share_asset_state_out).into(),
 			share_issuance_in,
@@ -651,6 +671,8 @@ where
 			current_imbalance.value,
 		)
 		.ok_or(Error::<T>::Math)?;
+
+		ensure!(*result.asset_out.amount >= min_limit, Error::<T>::Limit);
 
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
