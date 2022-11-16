@@ -235,16 +235,39 @@ pub mod pallet {
 			let share_issuance = CurrencyOf::<T>::total_issuance(pool_id.into());
 			let delta_q = asset_state.hub_reserve;
 
-			//TODO: use safe math in following calculatations. Also fixed type to avoid rounding2zero errors
-			//TODO: refactor delta_ps to have the original forumala like this
-			// let delta_ps = subpool_state.shares
-			//	* (asset_state.hub_reserve / subpool_state.hub_reserve)
-			//	* (asset_state.protocol_shares / asset_state.shares);
-			let delta_ps = subpool_state.shares * asset_state.hub_reserve / subpool_state.shares
-				* asset_state.protocol_shares
-				/ asset_state.shares;
-			let delta_s = asset_state.hub_reserve * subpool_state.shares / subpool_state.hub_reserve;
-			let delta_u = asset_state.hub_reserve * share_issuance / subpool_state.hub_reserve;
+			//TODO: ask Colin about rounding here
+			let delta_ps = (|| -> Option<Balance> {
+				let p1 = subpool_state
+					.shares
+					.hp_checked_mul(&asset_state.hub_reserve)?
+					.checked_div_inner(&subpool_state.hub_reserve)?;
+				//TODO: add checked_mul_inner to the trait in math library
+				let p2 = p1
+					.to_inner()?
+					.hp_checked_mul(&asset_state.protocol_shares)?
+					.checked_div_inner(&asset_state.shares)?;
+				p2.to_inner()
+			})()
+			.ok_or(ArithmeticError::Overflow)?;
+
+			let delta_s = (|| -> Option<Balance> {
+				asset_state
+					.hub_reserve
+					.hp_checked_mul(&subpool_state.shares)?
+					.checked_div_inner(&subpool_state.hub_reserve)?
+					.to_inner()
+			})()
+			.ok_or(ArithmeticError::Overflow)?;
+
+			let delta_u = (|| -> Option<Balance> {
+				asset_state
+					.hub_reserve
+					.hp_checked_mul(&share_issuance)?
+					.checked_div_inner(&subpool_state.hub_reserve)?
+					.to_inner()
+			})()
+			.ok_or(ArithmeticError::Overflow)?;
+
 			let price = asset_state
 				.price()
 				.ok_or(ArithmeticError::DivisionByZero)?
