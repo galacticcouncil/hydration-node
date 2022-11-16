@@ -104,13 +104,11 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			assert!(OmnipoolSubpools::subpools(SHARE_ASSET_AS_POOL_ID).is_some());
 
-			expect_events(vec![crate::tests::mock::Event::OmnipoolSubpools(
-				crate::Event::SubpoolCreated {
-					id: SHARE_ASSET_AS_POOL_ID,
-					assets: (ASSET_3, ASSET_4),
-				}
-				.into(),
-			)]);
+			expect_events(vec![crate::Event::SubpoolCreated {
+				id: SHARE_ASSET_AS_POOL_ID,
+				assets: (ASSET_3, ASSET_4),
+			}
+			.into()]);
 		});
 }
 

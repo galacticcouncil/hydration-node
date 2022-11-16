@@ -84,6 +84,12 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			);
 
 			assert_that_asset_is_not_present_in_omnipool!(ASSET_5);
+
+			expect_events(vec![crate::Event::AssetMigrated {
+				asset_id: ASSET_5,
+				pool_id: SHARE_ASSET_AS_POOL_ID,
+			}
+			.into()]);
 		});
 }
 
@@ -293,18 +299,39 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 				SHARE_ASSET_AS_POOL_ID,
 				ASSET_5,
 			));
+			expect_events(vec![crate::Event::AssetMigrated {
+				asset_id: ASSET_5,
+				pool_id: SHARE_ASSET_AS_POOL_ID,
+			}
+			.into()]);
 
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
 				SHARE_ASSET_AS_POOL_ID,
 				ASSET_6,
 			));
+			expect_events(vec![crate::Event::AssetMigrated {
+				asset_id: ASSET_6,
+				pool_id: SHARE_ASSET_AS_POOL_ID,
+			}
+			.into()]);
 
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
 				SHARE_ASSET_AS_POOL_ID,
 				ASSET_7,
 			));
+			expect_events(vec![crate::Event::AssetMigrated {
+				asset_id: ASSET_7,
+				pool_id: SHARE_ASSET_AS_POOL_ID,
+			}
+			.into()]);
+
+			expect_events(vec![crate::Event::AssetMigrated {
+				asset_id: ASSET_7,
+				pool_id: SHARE_ASSET_AS_POOL_ID,
+			}
+			.into()]);
 
 			//Assert
 			let pool_account =
