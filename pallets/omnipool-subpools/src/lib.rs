@@ -411,14 +411,18 @@ pub mod pallet {
 						min_buy_amount,
 					)
 				}
-				(Some((_pool_id_in, _)), Some((_pool_id_out, _))) => {
+				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
 					// both are subpool but different subpools
 					// TODO: add limit
-					Self::handle_subpools_sell(&who, asset_in, asset_out, _pool_id_in, _pool_id_out, amount)
+					Self::handle_subpools_sell(&who, asset_in, asset_out, pool_id_in, pool_id_out, amount)
 				}
-				_ => {
-					// TODO: Mixed cases - handled here according to spec
-					Ok(())
+				(Some((pool_id_in, _)), None) => {
+					// Selling stableasset and buying omnipool asset
+					Self::resolve_mixed_sell_stable_in(&who, asset_in, asset_out, pool_id_in, amount, min_buy_amount)
+				}
+				(None, Some((pool_id_out, _))) => {
+					// Buying stableasset and selling omnipool asset
+					Self::resolve_mixed_sell_asset_in(&who, asset_in, asset_out, pool_id_out, amount, min_buy_amount)
 				}
 			}
 		}
@@ -454,15 +458,19 @@ pub mod pallet {
 						max_sell_amount,
 					)
 				}
-				(Some((_pool_id_in, _)), Some((_pool_id_out, _))) => {
+				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
 					// both are subpool but different subpools
 					// TODO: add limit
 					// TODO: Martin - in the test `buy_should_work_when_assets_are_in_different_subpool` in buy.rs testfile, I got math error, so we should check this
-					Self::handle_subpools_buy(&who, asset_in, asset_out, _pool_id_in, _pool_id_out, amount)
+					Self::handle_subpools_buy(&who, asset_in, asset_out, pool_id_in, pool_id_out, amount)
 				}
-				_ => {
-					// TODO: Mixed cases - handled here according to spec
-					Ok(())
+				(Some((pool_id_in, _)), None) => {
+					// Selling stableasset and buying omnipool asset
+					Self::resolve_mixed_buy_asset_out(&who, asset_in, asset_out, pool_id_in, amount, max_sell_amount)
+				}
+				(None, Some((pool_id_out, _))) => {
+					// Buying stableasset and selling omnipool asset
+					Self::resolve_mixed_buyl_stable_out(&who, asset_in, asset_out, pool_id_out, amount, max_sell_amount)
 				}
 			}
 		}
@@ -681,6 +689,58 @@ where
 		OmnipoolPallet::<T>::set_asset_state(subpool_id_in.into(), updated_state_in);
 		OmnipoolPallet::<T>::set_asset_state(subpool_id_out.into(), updated_state_out);
 
+		Ok(())
+	}
+
+	/// Handle sell between subpool and Omnipool where asset in is stable asset and asset out is omnipool asset.
+	fn resolve_mixed_sell_stable_in(
+		who: &T::AccountId,
+		asset_in: AssetIdOf<T>,                //stableasset
+		asset_out: AssetIdOf<T>,               // omnipool asset
+		subpool_id_in: StableswapAssetIdOf<T>, // pool id in which the stable asset is
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> DispatchResult {
+		// TODO: if omnipool asset is LRNA -> not allowed
+		Ok(())
+	}
+
+	/// Handle sell between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
+	fn resolve_mixed_sell_asset_in(
+		who: &T::AccountId,
+		asset_in: AssetIdOf<T>,                 // omnipool asset
+		asset_out: AssetIdOf<T>,                // stable asset
+		subpool_id_out: StableswapAssetIdOf<T>, // pool id in which the stable asset is
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> DispatchResult {
+		// TODO: if omnipool asset is LRNA
+		Ok(())
+	}
+
+	/// Handle buy between subpool and omnipool where asset in is stable asset and asset out is omnipool asset.
+	fn resolve_mixed_buy_asset_out(
+		who: &T::AccountId,
+		asset_in: AssetIdOf<T>,                // stable asset
+		asset_out: AssetIdOf<T>,               // omnipool asset
+		subpool_id_in: StableswapAssetIdOf<T>, // pool id in which the stable asset is
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> DispatchResult {
+		// TODO: if omnipool asset is LRNA -t not allowed
+		Ok(())
+	}
+
+	/// Handle buy between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
+	fn resolve_mixed_buyl_stable_out(
+		who: &T::AccountId,
+		asset_in: AssetIdOf<T>,                 // omnipool asset
+		asset_out: AssetIdOf<T>,                // stable asset
+		subpool_id_out: StableswapAssetIdOf<T>, // pool id in which the stable asset is
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> DispatchResult {
+		// TODO: if omnipool asset is LRNA
 		Ok(())
 	}
 }
