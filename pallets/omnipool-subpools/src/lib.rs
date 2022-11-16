@@ -1104,12 +1104,10 @@ where
 		amount_out: Balance,
 		max_limit: Balance,
 	) -> DispatchResult {
-		/*
-		ensure!(asset_in == <T as pallet_omnipool::Config>::HubAssetId::get(),
+		ensure!(
+			asset_in == <T as pallet_omnipool::Config>::HubAssetId::get(),
 			pallet_omnipool::Error::<T>::NotAllowed
-		};
-
-		 */
+		);
 
 		let share_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 		let subpool_state_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
