@@ -27,6 +27,7 @@ type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::*;
+	use hydra_dx_math::omnipool_subpools::types::{CheckedMathInner, HpCheckedMath};
 	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
 	use sp_runtime::{ArithmeticError, FixedPointNumber, Permill};
@@ -135,9 +136,12 @@ pub mod pallet {
 			)?;
 
 			let recalculate_protocol_shares = |q: Balance, b: Balance, s: Balance| -> Result<Balance, DispatchError> {
-				// TODO: use safe math,consider doing mul first
-				// There might be problems with division rounding, so consider using fixed type
-				Ok(q * b / s)
+				q.hp_checked_mul(&b)
+					.ok_or(ArithmeticError::Overflow)?
+					.checked_div_inner(&s)
+					.ok_or(ArithmeticError::DivisionByZero)?
+					.to_inner()
+					.ok_or(ArithmeticError::DivisionByZero.into())
 			};
 
 			// Deposit pool shares to omnipool account
@@ -214,14 +218,10 @@ pub mod pallet {
 
 			// Load asset state - returns AssetNotFound if it does not exist
 			let asset_state = OmnipoolPallet::<T>::load_asset_state(asset_id)?;
-
 			let subpool_state = OmnipoolPallet::<T>::load_asset_state(pool_id.into())?;
-
 			let omnipool_account = OmnipoolPallet::<T>::protocol_account();
 
 			StableswapPallet::<T>::add_asset_to_existing_pool(pool_id, asset_id.into())?;
-
-			// Move liquidity from omnipool account to subpool
 			StableswapPallet::<T>::move_liquidity_to_pool(
 				&omnipool_account,
 				pool_id,
@@ -230,11 +230,9 @@ pub mod pallet {
 					amount: asset_state.reserve,
 				}],
 			)?;
-
 			OmnipoolPallet::<T>::remove_asset(asset_id)?;
 
 			let share_issuance = CurrencyOf::<T>::total_issuance(pool_id.into());
-
 			let delta_q = asset_state.hub_reserve;
 
 			//TODO: use safe math in following calculatations. Also fixed type to avoid rounding2zero errors
@@ -247,7 +245,6 @@ pub mod pallet {
 				/ asset_state.shares;
 			let delta_s = asset_state.hub_reserve * subpool_state.shares / subpool_state.hub_reserve;
 			let delta_u = asset_state.hub_reserve * share_issuance / subpool_state.hub_reserve;
-
 			let price = asset_state
 				.price()
 				.ok_or(ArithmeticError::DivisionByZero)?
@@ -258,17 +255,14 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 
 			OmnipoolPallet::<T>::update_asset_state(pool_id.into(), delta_q, delta_s, delta_ps, asset_state.cap)?;
-
 			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, delta_u)?;
 
-			// Remember some stuff to be able to update LP positions later on
 			let asset_details = AssetDetail {
 				price,
 				shares: asset_state.shares,
 				hub_reserve: delta_q,
 				share_tokens: delta_u,
 			};
-
 			MigratedAssets::<T>::insert(asset_id, (pool_id, asset_details));
 
 			Self::deposit_event(Event::AssetMigrated { asset_id, pool_id });
@@ -313,6 +307,7 @@ pub mod pallet {
 						amount,
 					}],
 				)?;
+
 				if mint_nft {
 					OmnipoolPallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 				} else {
@@ -582,7 +577,6 @@ where
 		let share_asset_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 
 		let share_issuance_in = CurrencyOf::<T>::total_issuance(subpool_id_in.into());
-		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
 
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
 		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
@@ -632,7 +626,6 @@ where
 			&OmnipoolPallet::<T>::protocol_account(),
 			*result.iso_pool.asset_out.delta_reserve,
 		)?;
-
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_in.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
