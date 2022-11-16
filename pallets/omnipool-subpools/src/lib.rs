@@ -482,8 +482,6 @@ where
 		migration_details: AssetDetail,
 		position: Position<Balance, <T as pallet_omnipool::Config>::AssetId>,
 	) -> Result<Position<Balance, <T as pallet_omnipool::Config>::AssetId>, DispatchError> {
-		let asset_id = position.asset_id;
-
 		let converted = hydra_dx_math::omnipool_subpools::convert_position(
 			(&position).into(),
 			MigrationDetails {
@@ -496,7 +494,7 @@ where
 		.ok_or(Error::<T>::Math)?;
 
 		Ok(Position {
-			asset_id,
+			asset_id: pool_id,
 			amount: converted.amount,
 			shares: converted.shares,
 			price: converted.price.into_inner(),
