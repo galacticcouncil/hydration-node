@@ -725,7 +725,6 @@ where
 		amount_in: Balance,
 		min_limit: Balance,
 	) -> DispatchResult {
-		// TODO: if omnipool asset is LRNA -> not allowed
 		if asset_out == <T as pallet_omnipool::Config>::HubAssetId::get() {
 			// LRNA is not allowed to be bought
 			return Err(pallet_omnipool::Error::<T>::NotAllowed.into());
@@ -803,7 +802,71 @@ where
 		amount_in: Balance,
 		min_limit: Balance,
 	) -> DispatchResult {
-		// TODO: if omnipool asset is LRNA
+		if asset_out == <T as pallet_omnipool::Config>::HubAssetId::get() {
+			// TODO: if omnipool asset is LRNA
+			return Err(pallet_omnipool::Error::<T>::NotAllowed.into());
+		}
+
+		let asset_state_in = OmnipoolPallet::<T>::load_asset_state(asset_in)?;
+		let share_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
+		let subpool_state_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
+
+		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
+
+		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
+		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
+		let withdraw_fee = subpool_state_out.withdraw_fee;
+		let current_imbalance = OmnipoolPallet::<T>::current_imbalance();
+
+		let idx_out = subpool_state_out
+			.find_asset(asset_out.into())
+			.ok_or(pallet_stableswap::Error::<T>::AssetNotInPool)?;
+
+		let result = hydra_dx_math::omnipool_subpools::calculate_stable_out_given_iso_in(
+			SubpoolState {
+				reserves: &subpool_state_out.balances::<T>(),
+				amplification: subpool_state_out.amplification as u128,
+			},
+			idx_out,
+			&(&asset_state_in).into(),
+			&(&share_state_out).into(),
+			share_issuance_out,
+			amount_in,
+			asset_fee,
+			protocol_fee,
+			withdraw_fee,
+			current_imbalance.value,
+		)
+		.ok_or(Error::<T>::Math)?;
+
+		ensure!(*result.subpool.amount >= min_limit, Error::<T>::Limit);
+
+		// Update subpools - transfer between subpool and who
+		<T as pallet_stableswap::Config>::Currency::transfer(
+			asset_in.into(),
+			who,
+			&OmnipoolPallet::<T>::protocol_account(),
+			*result.isopool.asset_in.delta_reserve, // TODO: this should be == amount_in - add assert_Debug for this !
+		)?;
+		<T as pallet_stableswap::Config>::Currency::transfer(
+			asset_out.into(),
+			&subpool_state_out.pool_account::<T>(),
+			who,
+			*result.subpool.amount,
+		)?;
+
+		let updated_asset_state = asset_state_in
+			.delta_update(&result.isopool.asset_in)
+			.ok_or(Error::<T>::Math)?;
+		let updated_share_state = share_state_out
+			.delta_update(&result.isopool.asset_out)
+			.ok_or(Error::<T>::Math)?;
+
+		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
+
+		OmnipoolPallet::<T>::set_asset_state(subpool_id_out.into(), updated_share_state);
+		OmnipoolPallet::<T>::set_asset_state(asset_in, updated_asset_state);
+
 		Ok(())
 	}
 
