@@ -141,7 +141,7 @@ pub mod pallet {
 					.checked_div_inner(&s)
 					.ok_or(ArithmeticError::DivisionByZero)?
 					.to_inner()
-					.ok_or(ArithmeticError::DivisionByZero.into())
+					.ok_or(ArithmeticError::Overflow.into())
 			};
 
 			// Deposit pool shares to omnipool account
