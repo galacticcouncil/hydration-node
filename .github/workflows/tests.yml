@@ -96,7 +96,7 @@ jobs:
         run: ./target/release/hydradx --version
       - name: Get hydradx chainspec json
         run: |
-          ./target/release/testing-hydradx build-spec --raw > hydradx-testnet-chainspec.json
+          ./target/release/testing-hydradx build-spec --chain devnet --raw > hydradx-testnet-chainspec.json
       - name: Upload config file
         uses: actions/upload-artifact@v2
         with:
