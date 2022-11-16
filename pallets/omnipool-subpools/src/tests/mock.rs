@@ -468,6 +468,7 @@ impl ExtBuilder {
 						owner
 					));
 				}
+				System::set_block_number(1);
 			});
 		}
 
