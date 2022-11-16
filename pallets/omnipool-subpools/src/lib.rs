@@ -415,7 +415,7 @@ pub mod pallet {
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
 					// both are subpool but different subpools
-					Self::handle_subpools_sell(
+					Self::resolve_sell_between_subpools(
 						&who,
 						asset_in,
 						asset_out,
@@ -470,7 +470,7 @@ pub mod pallet {
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
 					// both are subpool but different subpools
 					// TODO: Martin - in the test `buy_should_work_when_assets_are_in_different_subpool` in buy.rs testfile, I got math error, so we should check this
-					Self::handle_subpools_buy(
+					Self::resolve_buy_between_subpools(
 						&who,
 						asset_in,
 						asset_out,
@@ -525,7 +525,7 @@ where
 		})
 	}
 
-	fn handle_subpools_buy(
+	fn resolve_buy_between_subpools(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,
 		asset_out: AssetIdOf<T>,
@@ -621,7 +621,7 @@ where
 		Ok(())
 	}
 
-	fn handle_subpools_sell(
+	fn resolve_sell_between_subpools(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,
 		asset_out: AssetIdOf<T>,
