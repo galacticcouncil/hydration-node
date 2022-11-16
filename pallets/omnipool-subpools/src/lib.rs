@@ -7,7 +7,7 @@ mod types;
 
 use crate::types::{AssetDetail, Balance};
 use frame_support::pallet_prelude::*;
-use hydra_dx_math::omnipool_subpools::SubpoolState;
+use hydra_dx_math::omnipool_subpools::{MigrationDetails, SubpoolState};
 use orml_traits::currency::MultiCurrency;
 use sp_runtime::traits::CheckedMul;
 use sp_runtime::FixedU128;
@@ -482,7 +482,25 @@ where
 		migration_details: AssetDetail,
 		position: Position<Balance, <T as pallet_omnipool::Config>::AssetId>,
 	) -> Result<Position<Balance, <T as pallet_omnipool::Config>::AssetId>, DispatchError> {
-		Ok(position)
+		let asset_id = position.asset_id;
+
+		let converted = hydra_dx_math::omnipool_subpools::convert_position(
+			(&position).into(),
+			MigrationDetails {
+				price: migration_details.price,
+				shares: migration_details.shares,
+				hub_reserve: migration_details.hub_reserve,
+				share_tokens: migration_details.share_tokens,
+			},
+		)
+		.ok_or(Error::<T>::Math)?;
+
+		Ok(Position {
+			asset_id,
+			amount: converted.amount,
+			shares: converted.shares,
+			price: converted.price.into_inner(),
+		})
 	}
 
 	fn handle_subpools_buy(
