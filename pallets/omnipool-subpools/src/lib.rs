@@ -243,10 +243,8 @@ pub mod pallet {
 					.shares
 					.hp_checked_mul(&asset_state.hub_reserve)?
 					.checked_div_inner(&subpool_state.hub_reserve)?;
-				//TODO: add checked_mul_inner to the trait in math library
 				let p2 = p1
-					.to_inner()?
-					.hp_checked_mul(&asset_state.protocol_shares)?
+					.checked_mul_inner(&asset_state.protocol_shares)?
 					.checked_div_inner(&asset_state.shares)?;
 				p2.to_inner()
 			})()
@@ -354,7 +352,6 @@ pub mod pallet {
 
 			let position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 
-			//TODO: bug?! - we should use `asset` param to get the migrated asset instead of the poistion_asset_id, because it is the share id which is not migrated to subpool
 			let position = if let Some((pool_id, details)) = MigratedAssets::<T>::get(&position.asset_id) {
 				let position = Self::convert_position(pool_id.into(), details, position)?;
 				// Store the updated position
@@ -461,7 +458,7 @@ pub mod pallet {
 					StableswapPallet::<T>::buy(
 						origin,
 						pool_id_in,
-						asset_out.into(), //TODO: Martin - double chcek: the asset_out and asset_in was the other way around. I think it was a bug, so swapped them. If so, then we can remove this comment
+						asset_out.into(),
 						asset_in.into(),
 						amount,
 						max_sell_amount,
@@ -469,7 +466,6 @@ pub mod pallet {
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
 					// both are subpool but different subpools
-					// TODO: Martin - in the test `buy_should_work_when_assets_are_in_different_subpool` in buy.rs testfile, I got math error, so we should check this
 					Self::resolve_buy_between_subpools(
 						&who,
 						asset_in,
