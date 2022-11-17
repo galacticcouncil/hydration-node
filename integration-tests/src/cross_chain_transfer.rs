@@ -6,12 +6,25 @@ use frame_support::{assert_noop, assert_ok};
 use polkadot_xcm::latest::prelude::*;
 
 use cumulus_primitives_core::ParaId;
+use frame_support::weights::Weight;
+use hex_literal::hex;
 use orml_traits::currency::MultiCurrency;
-use sp_runtime::traits::AccountIdConversion;
+use polkadot_xcm::VersionedMultiAssets;
+use pretty_assertions::assert_eq;
+use sp_core::H256;
+use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
 use xcm_emulator::TestExt;
 
+// Determine the hash for assets expected to be have been trapped.
+fn determine_hash<M>(origin: &MultiLocation, assets: M) -> H256
+where
+	M: Into<MultiAssets>,
+{
+	let versioned = VersionedMultiAssets::from(assets.into());
+	BlakeTwo256::hash_of(&(origin, &versioned))
+}
+
 #[test]
-#[ignore]
 //TODO: This test is ignored as cross chain reserve transfer disabled on polkadot v0.9.16 within pallet_xcm (via pallet config `XcmReserveTransferFilter`).
 //From polkadot v0.9.19 this filter allows such transfer (https://github.com/paritytech/polkadot/blob/f00a2772497aadddf75b8b4b475843ea0d910c48/runtime/polkadot/src/xcm_config.rs#L185), so we should remove the #[ignore] tag once we upgrade to that version
 fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
@@ -23,6 +36,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
 	});
+
 	PolkadotRelay::execute_with(|| {
 		//Act
 		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
@@ -47,14 +61,15 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		);
 	});
 
+	let fees = 463510162460;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			12780 * UNITS / 10
+			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
 		);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
-			22 * UNITS
+			fees
 		);
 	});
 }
@@ -148,10 +163,15 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		);
 	});
 
+	let fee = 463_510_162_460;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1_030 * UNITS
+			1_030 * UNITS - fee
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
+			fee // fees should go to treasury
 		);
 	});
 }
@@ -203,5 +223,57 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
 			1000 * UNITS
 		);
+	});
+}
+
+#[test]
+fn assets_should_be_trapped_when_assets_are_unknown() {
+	TestNet::reset();
+
+	Acala::execute_with(|| {
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			0,
+			30 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 {
+							id: BOB,
+							network: NetworkId::Any,
+						}
+					)
+				)
+				.into()
+			),
+			399_600_000_000
+		));
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 30 * UNITS
+		);
+	});
+
+	Hydra::execute_with(|| {
+		expect_hydra_events(vec![
+			cumulus_pallet_xcmp_queue::Event::Fail {
+				message_hash: Some(hex!["4efbf4d7ba73f43d5bb4ebbec3189e132ccf2686aed37e97985af019e1cf62dc"].into()),
+				error: XcmError::AssetNotFound,
+				weight: Weight::from_ref_time(300_000_000),
+			}
+			.into(),
+			pallet_relaychain_info::Event::CurrentBlockNumbers {
+				parachain_block_number: 1,
+				relaychain_block_number: 4,
+			}
+			.into(),
+		]);
+		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
+		let loc = MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0)));
+		let asset: MultiAsset = (loc, 30 * UNITS).into();
+		let hash = determine_hash(&origin, vec![asset]);
+		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 1);
 	});
 }
