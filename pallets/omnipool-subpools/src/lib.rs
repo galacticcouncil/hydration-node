@@ -760,12 +760,17 @@ where
 
 		ensure!(*result.isopool.asset_out.delta_reserve >= min_limit, Error::<T>::Limit);
 
+		debug_assert_eq!(
+			*result.subpool.amount, amount_in,
+			"Returned amount is not equal to amount_in"
+		);
+
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
 			&subpool_state_in.pool_account::<T>(),
-			*result.subpool.amount, // TODO: this should be == amount_in - add assert_Debug for this !
+			*result.subpool.amount,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
@@ -836,12 +841,17 @@ where
 
 		ensure!(*result.subpool.amount >= min_limit, Error::<T>::Limit);
 
+		debug_assert_eq!(
+			*result.isopool.asset_in.delta_reserve, amount_in,
+			"Returned amount is not equal to amount_in"
+		);
+
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.isopool.asset_in.delta_reserve, // TODO: this should be == amount_in - add assert_Debug for this !
+			*result.isopool.asset_in.delta_reserve,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
@@ -911,12 +921,17 @@ where
 
 		ensure!(*result.subpool.amount >= min_limit, Error::<T>::Limit);
 
+		debug_assert_eq!(
+			*result.isopool.asset.delta_reserve, amount_in,
+			"Returned amount is not equal to amount_in"
+		);
+
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.isopool.asset.delta_reserve, // TODO: this should be == amount_in - add assert_Debug for this !
+			*result.isopool.asset.delta_reserve,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
@@ -984,6 +999,11 @@ where
 
 		ensure!(*result.subpool.amount <= max_limit, Error::<T>::Limit);
 
+		debug_assert_eq!(
+			*result.isopool.asset_out.delta_reserve, amount_out,
+			"Returned amount is not equal to amount_out"
+		);
+
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
@@ -995,7 +1015,7 @@ where
 			asset_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
 			who,
-			*result.isopool.asset_out.delta_reserve, // TODO: this should be == amount_out - add assert_Debug for this !
+			*result.isopool.asset_out.delta_reserve,
 		)?;
 
 		let updated_asset_state = asset_state
@@ -1023,10 +1043,14 @@ where
 		max_limit: Balance,
 	) -> DispatchResult {
 		if asset_in == <T as pallet_omnipool::Config>::HubAssetId::get() {
-			// TODO: if omnipool asset is LRNA
-
-			// different math calculation
-			return Err(pallet_omnipool::Error::<T>::NotAllowed.into());
+			return Self::resolve_mixed_buy_stable_out_given_hub_asset_in(
+				who,
+				asset_in,
+				asset_out,
+				subpool_id_out,
+				amount_out,
+				max_limit,
+			);
 		}
 
 		let asset_state_in = OmnipoolPallet::<T>::load_asset_state(asset_in)?;
@@ -1063,6 +1087,11 @@ where
 
 		ensure!(*result.isopool.asset_in.delta_reserve <= max_limit, Error::<T>::Limit);
 
+		debug_assert_eq!(
+			*result.subpool.amount, amount_out,
+			"Returned amount is not equal to amount_out"
+		);
+
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
@@ -1074,7 +1103,7 @@ where
 			asset_out.into(),
 			&subpool_state_out.pool_account::<T>(),
 			who,
-			*result.subpool.amount, // TODO: this should be == amount_out - add assert_Debug for this !
+			*result.subpool.amount,
 		)?;
 
 		let updated_asset_state = asset_state_in
@@ -1140,6 +1169,11 @@ where
 
 		ensure!(*result.isopool.asset.delta_reserve <= max_limit, Error::<T>::Limit);
 
+		debug_assert_eq!(
+			*result.subpool.amount, amount_out,
+			"Returned amount is not equal to amount_out"
+		);
+
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
@@ -1151,7 +1185,7 @@ where
 			asset_out.into(),
 			&subpool_state_out.pool_account::<T>(),
 			who,
-			*result.subpool.amount, // TODO: this should be == amount_out - add assert_Debug for this !
+			*result.subpool.amount,
 		)?;
 
 		let updated_share_state = share_state_out
