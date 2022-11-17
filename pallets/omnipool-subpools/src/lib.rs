@@ -424,11 +424,25 @@ pub mod pallet {
 				}
 				(Some((pool_id_in, _)), None) => {
 					// Selling stableasset and buying omnipool asset
-					Self::resolve_mixed_sell_stable_in(&who, asset_in, asset_out, pool_id_in, amount, min_buy_amount)
+					Self::resolve_mixed_trade_iso_out_given_stable_in(
+						&who,
+						asset_in,
+						asset_out,
+						pool_id_in,
+						amount,
+						min_buy_amount,
+					)
 				}
 				(None, Some((pool_id_out, _))) => {
 					// Buying stableasset and selling omnipool asset
-					Self::resolve_mixed_sell_asset_in(&who, asset_in, asset_out, pool_id_out, amount, min_buy_amount)
+					Self::resolve_mixed_trade_stable_out_given_asset_in(
+						&who,
+						asset_in,
+						asset_out,
+						pool_id_out,
+						amount,
+						min_buy_amount,
+					)
 				}
 			}
 		}
@@ -478,11 +492,25 @@ pub mod pallet {
 				}
 				(Some((pool_id_in, _)), None) => {
 					// Selling stableasset and buying omnipool asset
-					Self::resolve_mixed_buy_asset_out(&who, asset_in, asset_out, pool_id_in, amount, max_sell_amount)
+					Self::resolve_mixed_trade_stable_in_given_asset_out(
+						&who,
+						asset_in,
+						asset_out,
+						pool_id_in,
+						amount,
+						max_sell_amount,
+					)
 				}
 				(None, Some((pool_id_out, _))) => {
 					// Buying stableasset and selling omnipool asset
-					Self::resolve_mixed_buy_stable_out(&who, asset_in, asset_out, pool_id_out, amount, max_sell_amount)
+					Self::resolve_mixed_trade_iso_in_given_stable_out(
+						&who,
+						asset_in,
+						asset_out,
+						pool_id_out,
+						amount,
+						max_sell_amount,
+					)
 				}
 			}
 		}
@@ -686,7 +714,6 @@ where
 			*result.asset_out.amount,
 		)?;
 
-		// Update ispools - mint/burn share asset
 		//TODO: should be part of omnipool to pdate state according to given changes
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
@@ -713,7 +740,7 @@ where
 	}
 
 	/// Handle sell between subpool and Omnipool where asset in is stable asset and asset out is omnipool asset.
-	fn resolve_mixed_sell_stable_in(
+	fn resolve_mixed_trade_iso_out_given_stable_in(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                //stableasset
 		asset_out: AssetIdOf<T>,               // omnipool asset
@@ -765,7 +792,6 @@ where
 			"Returned amount is not equal to amount_in"
 		);
 
-		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
@@ -778,6 +804,8 @@ where
 			who,
 			*result.isopool.asset_out.delta_reserve,
 		)?;
+
+		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
 
 		let updated_asset_state = asset_state_out
 			.delta_update(&result.isopool.asset_out)
@@ -795,7 +823,7 @@ where
 	}
 
 	/// Handle sell between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
-	fn resolve_mixed_sell_asset_in(
+	fn resolve_mixed_trade_stable_out_given_asset_in(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
 		asset_out: AssetIdOf<T>,                // stable asset
@@ -804,7 +832,14 @@ where
 		min_limit: Balance,
 	) -> DispatchResult {
 		if asset_in == <T as pallet_omnipool::Config>::HubAssetId::get() {
-			return Self::resolve_mixed_sell_hub_asset(who, asset_in, asset_out, subpool_id_out, amount_in, min_limit);
+			return Self::resolve_mixed_trade_stable_out_given_hub_asset_in(
+				who,
+				asset_in,
+				asset_out,
+				subpool_id_out,
+				amount_in,
+				min_limit,
+			);
 		}
 
 		let asset_state_in = OmnipoolPallet::<T>::load_asset_state(asset_in)?;
@@ -846,7 +881,6 @@ where
 			"Returned amount is not equal to amount_in"
 		);
 
-		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
@@ -859,6 +893,8 @@ where
 			who,
 			*result.subpool.amount,
 		)?;
+
+		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
 
 		let updated_asset_state = asset_state_in
 			.delta_update(&result.isopool.asset_in)
@@ -874,7 +910,7 @@ where
 
 		Ok(())
 	}
-	fn resolve_mixed_sell_hub_asset(
+	fn resolve_mixed_trade_stable_out_given_hub_asset_in(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
 		asset_out: AssetIdOf<T>,                // stable asset
@@ -926,7 +962,6 @@ where
 			"Returned amount is not equal to amount_in"
 		);
 
-		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
@@ -940,6 +975,8 @@ where
 			*result.subpool.amount,
 		)?;
 
+		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
+
 		let updated_share_state = share_state_out
 			.delta_update(&result.isopool.asset)
 			.ok_or(Error::<T>::Math)?;
@@ -952,7 +989,7 @@ where
 	}
 
 	/// Handle buy between subpool and omnipool where asset in is stable asset and asset out is omnipool asset.
-	fn resolve_mixed_buy_asset_out(
+	fn resolve_mixed_trade_stable_in_given_asset_out(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                // stable asset
 		asset_out: AssetIdOf<T>,               // omnipool asset
@@ -1025,6 +1062,8 @@ where
 			.delta_update(&result.isopool.asset_in)
 			.ok_or(Error::<T>::Math)?;
 
+		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
+
 		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
 
 		OmnipoolPallet::<T>::set_asset_state(subpool_id_in.into(), updated_share_state);
@@ -1034,7 +1073,7 @@ where
 	}
 
 	/// Handle buy between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
-	fn resolve_mixed_buy_stable_out(
+	fn resolve_mixed_trade_iso_in_given_stable_out(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
 		asset_out: AssetIdOf<T>,                // stable asset
@@ -1043,7 +1082,7 @@ where
 		max_limit: Balance,
 	) -> DispatchResult {
 		if asset_in == <T as pallet_omnipool::Config>::HubAssetId::get() {
-			return Self::resolve_mixed_buy_stable_out_given_hub_asset_in(
+			return Self::resolve_mixed_trade_hub_asset_in_given_stable_out(
 				who,
 				asset_in,
 				asset_out,
@@ -1113,6 +1152,8 @@ where
 			.delta_update(&result.isopool.asset_out)
 			.ok_or(Error::<T>::Math)?;
 
+		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
+
 		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
 
 		OmnipoolPallet::<T>::set_asset_state(subpool_id_out.into(), updated_share_state);
@@ -1121,7 +1162,7 @@ where
 		Ok(())
 	}
 
-	fn resolve_mixed_buy_stable_out_given_hub_asset_in(
+	fn resolve_mixed_trade_hub_asset_in_given_stable_out(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
 		asset_out: AssetIdOf<T>,                // stable asset
@@ -1187,6 +1228,8 @@ where
 			who,
 			*result.subpool.amount,
 		)?;
+
+		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
 
 		let updated_share_state = share_state_out
 			.delta_update(&result.isopool.asset)
