@@ -175,7 +175,6 @@ fn sell_should_work_when_both_asset_in_omnipool() {
 		});
 }
 
-#[ignore] // Implement once it is implemented in the prod code
 #[test]
 fn sell_should_work_when_one_asset_in_omnipool_and_other_in_subpool() {
 	ExtBuilder::default()
@@ -208,10 +207,10 @@ fn sell_should_work_when_one_asset_in_omnipool_and_other_in_subpool() {
 			));
 
 			//Assert
-			/*let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 99835772816269;
+			let amount_to_get = 96759404300066;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -219,11 +218,15 @@ fn sell_should_work_when_one_asset_in_omnipool_and_other_in_subpool() {
 
 			assert_balance!(pool_account, ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_sell);
 			assert_balance!(pool_account, ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE);
-			assert_balance!(pool_account, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get);
+			assert_balance!(pool_account, ASSET_5, 0);
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
-			assert_balance!(omnipool_account, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE -);*/
+			assert_balance!(
+				omnipool_account,
+				ASSET_5,
+				OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get
+			);
 		});
 }
 

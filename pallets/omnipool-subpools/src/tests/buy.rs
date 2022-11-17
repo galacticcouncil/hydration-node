@@ -181,9 +181,9 @@ fn buy_should_work_when_both_asset_in_omnipool() {
 		});
 }
 
-#[ignore] // Implement once it is implemented in the prod code
 #[test]
 fn buy_should_work_when_one_asset_in_omnipool_and_other_in_subpool() {
+	let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -193,7 +193,7 @@ fn buy_should_work_when_one_asset_in_omnipool_and_other_in_subpool() {
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
-		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, alice_initial_asset_3_balance))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -205,31 +205,40 @@ fn buy_should_work_when_one_asset_in_omnipool_and_other_in_subpool() {
 
 			//Act
 			let amount_to_buy = 100 * ONE;
-			assert_ok!(OmnipoolSubpools::sell(
+			assert_ok!(OmnipoolSubpools::buy(
 				Origin::signed(ALICE),
 				ASSET_5,
 				ASSET_3,
 				amount_to_buy,
-				MAX_SELL_AMOUNT
+				alice_initial_asset_3_balance
 			));
 
 			//Assert
-			/*let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 99835772816269;
+			//TODO: ask Martin - it feels too much, comparing to other tests
+			let amount_to_spend = 10007114246671614;
 
-			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
+			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, 0);
-			assert_balance!(ALICE, ASSET_5, amount_to_get);
+			assert_balance!(ALICE, ASSET_5, amount_to_buy);
 
-			assert_balance!(pool_account, ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_sell);
+			assert_balance!(
+				pool_account,
+				ASSET_3,
+				OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_spend
+			);
 			assert_balance!(pool_account, ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE);
-			assert_balance!(pool_account, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get);
+			assert_balance!(pool_account, ASSET_5, 0);
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
-			assert_balance!(omnipool_account, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE -);*/
+			assert_balance!(
+				omnipool_account,
+				ASSET_5,
+				OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_buy
+			);
 		});
 }
 
