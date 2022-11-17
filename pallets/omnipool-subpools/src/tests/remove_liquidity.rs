@@ -17,6 +17,72 @@ const ALICE_INITIAL_ASSET_4_BALANCE: u128 = 2000 * ONE;
 const ALICE_INITIAL_ASSET_5_BALANCE: u128 = 5000 * ONE;
 
 #[test]
+fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let omnipool_account = Omnipool::protocol_account();
+			let all_subpool_shares = 4550000000000000;
+
+			let position_id: u32 = Omnipool::next_position_id();
+			let new_liquidity = 100 * ONE;
+			assert_ok!(OmnipoolSubpools::add_liquidity(
+				Origin::signed(ALICE),
+				ASSET_3,
+				new_liquidity
+			));
+
+			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
+			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+
+			//Assert that share of ALICE is deposited and added to omnipool
+			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
+			let deposited_share_of_alice = 65051679689491;
+			assert_balance!(
+				&omnipool_account,
+				SHARE_ASSET_AS_POOL_ID,
+				all_subpool_shares + deposited_share_of_alice
+			);
+
+			//Act
+			assert_ok!(OmnipoolSubpools::remove_liquidity(
+				Origin::signed(ALICE),
+				position_id,
+				deposited_share_of_alice,
+				Option::Some(ASSET_3),
+			));
+
+			//Assert
+			let delta_due_to_rounding_error = 10;
+			assert_balance_approx!(
+				ALICE,
+				ASSET_3,
+				ALICE_INITIAL_ASSET_3_BALANCE,
+				delta_due_to_rounding_error
+			);
+
+			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+
+			assert_that_nft_position_is_not_present!(position_id);
+			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
+		});
+}
+
+#[test]
 fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool_creation() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
@@ -101,75 +167,6 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 					price: token_price.into_inner()
 				}
 			);
-		});
-}
-
-#[test]
-fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
-	ExtBuilder::default()
-		.with_registered_asset(ASSET_3)
-		.with_registered_asset(ASSET_4)
-		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
-		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
-		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.build()
-		.execute_with(|| {
-			add_omnipool_token!(ASSET_3);
-			add_omnipool_token!(ASSET_4);
-
-			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
-
-			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-			let omnipool_account = Omnipool::protocol_account();
-			let all_subpool_shares = 4550000000000000;
-
-			let position_id: u32 = Omnipool::next_position_id();
-			let new_liquidity = 100 * ONE;
-			assert_ok!(OmnipoolSubpools::add_liquidity(
-				Origin::signed(ALICE),
-				ASSET_3,
-				new_liquidity
-			));
-
-			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
-
-			//Assert that share of ALICE is deposited and added to omnipool
-			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
-			let deposited_share_of_alice = 65051679689491;
-			assert_balance!(
-				&omnipool_account,
-				SHARE_ASSET_AS_POOL_ID,
-				all_subpool_shares + deposited_share_of_alice
-			);
-
-			//Act
-			assert_ok!(OmnipoolSubpools::remove_liquidity(
-				Origin::signed(ALICE),
-				position_id,
-				deposited_share_of_alice,
-				Option::Some(ASSET_3),
-			));
-
-			//Assert
-			let delta_due_to_rounding_error = 10;
-			assert_balance_approx!(
-				ALICE,
-				ASSET_3,
-				ALICE_INITIAL_ASSET_3_BALANCE,
-				delta_due_to_rounding_error
-			);
-
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
-
-			assert_that_nft_position_is_not_present!(position_id);
-			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
-
-			//TODO: verify the bug with Martin first in remove_li, asset should be used, and not position.asset_id,
-			//TODO: Once convert is implemented: ensure the position data is update correctly - mainly when position has to be migrated within remove liquidity - it should change asset id to share asset id and data recalculated
 		});
 }
 
