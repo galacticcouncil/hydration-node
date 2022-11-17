@@ -25,8 +25,6 @@ where
 }
 
 #[test]
-//TODO: This test is ignored as cross chain reserve transfer disabled on polkadot v0.9.16 within pallet_xcm (via pallet config `XcmReserveTransferFilter`).
-//From polkadot v0.9.19 this filter allows such transfer (https://github.com/paritytech/polkadot/blob/f00a2772497aadddf75b8b4b475843ea0d910c48/runtime/polkadot/src/xcm_config.rs#L185), so we should remove the #[ignore] tag once we upgrade to that version
 fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 	//Arrange
 	Hydra::execute_with(|| {
