@@ -601,6 +601,15 @@ macro_rules! add_omnipool_token {
 			LP1
 		));
 	};
+	($asset_id:expr, $price:expr) => {
+		assert_ok!(Omnipool::add_token(
+			Origin::root(),
+			$asset_id,
+			$price,
+			Permill::from_percent(100),
+			LP1
+		));
+	};
 }
 
 #[macro_export]
@@ -707,14 +716,14 @@ macro_rules! assert_that_nft_position_is_not_present {
 	( $position_id:expr) => {{
 		assert!(
 			get_mock_minted_position($position_id).is_none(),
-			"Position instance was not minted with id {}",
+			"Position instance is present with id {}",
 			$position_id
 		);
 	}};
 }
 
 #[macro_export]
-macro_rules! assert_that_position_is_added_to_omnipool {
+macro_rules! assert_that_position_is_present_in_omnipool {
 	( $owner:expr, $position_id:expr, $position:expr) => {{
 		let position = Omnipool::load_position($position_id, $owner);
 		assert_eq!(position.unwrap(), $position, "The position is as expected")
@@ -724,7 +733,10 @@ macro_rules! assert_that_position_is_added_to_omnipool {
 #[macro_export]
 macro_rules! assert_that_position_is_not_present_in_omnipool {
 	( $owner:expr, $position_id:expr) => {{
-		assert!(Omnipool::load_position($position_id, $owner).is_err());
+		assert!(
+			Omnipool::load_position($position_id, $owner).is_err(),
+			"Position in omnipool is (unexpectedly) present"
+		);
 	}};
 }
 

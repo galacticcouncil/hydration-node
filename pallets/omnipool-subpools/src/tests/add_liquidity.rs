@@ -3,7 +3,7 @@ use super::*;
 use crate::{
 	add_omnipool_token, assert_balance, assert_stableswap_pool_assets,
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_nft_position_is_present, assert_that_position_is_added_to_omnipool,
+	assert_that_nft_position_is_present, assert_that_position_is_present_in_omnipool,
 	assert_that_sharetoken_in_omnipool_as_another_asset, create_subpool, AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
@@ -65,7 +65,7 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 			assert_that_nft_position_is_present!(position_id);
 
 			let token_price = FixedU128::from_float(1.0);
-			assert_that_position_is_added_to_omnipool!(
+			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id,
 				Position {
@@ -156,7 +156,7 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 			assert_that_nft_position_is_present!(position_id_for_asset_4_liq);
 
 			let token_price = FixedU128::from_float(1.0);
-			assert_that_position_is_added_to_omnipool!(
+			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id_for_asset_3_liq,
 				Position {
@@ -167,7 +167,7 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 				}
 			);
 
-			assert_that_position_is_added_to_omnipool!(
+			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id_for_asset_4_liq,
 				Position {
@@ -241,7 +241,7 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 			assert_that_nft_position_is_present!(position_id_for_asset_5_liq);
 
 			let token_price = FixedU128::from_float(1.0);
-			assert_that_position_is_added_to_omnipool!(
+			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id_for_asset_5_liq,
 				Position {
@@ -295,7 +295,7 @@ fn add_liqudity_should_add_liqudity_to_only_omnipool_when_asset_is_not_migrated_
 			assert_that_nft_position_is_present!(position_id);
 
 			let token_price = FixedU128::from_float(0.65);
-			assert_that_position_is_added_to_omnipool!(
+			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id,
 				Position {
