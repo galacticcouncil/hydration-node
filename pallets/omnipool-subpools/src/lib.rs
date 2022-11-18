@@ -631,7 +631,7 @@ where
 			*result.iso_pool.asset_out.delta_reserve,
 		)?;
 
-		<T as pallet_omnipool::Config>::Currency::withdraw(
+		<T as pallet_omnipool::Config>::Currency::deposit(
 			subpool_id_in.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
 			*result.iso_pool.asset_in.delta_reserve,
@@ -814,9 +814,12 @@ where
 			*result.isopool.asset_out.delta_reserve,
 		)?;
 
-		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
-
-		//TODO: for Martin - a deposit is missing as the reserve of AssetReserveState of sharetoken should be increased due to liquidty addition
+		//TODO: VERIFY only this update subpool share state in omnipool. - might need to burn or mint some shares!
+		<T as pallet_omnipool::Config>::Currency::deposit(
+			subpool_id_in.into(),
+			&OmnipoolPallet::<T>::protocol_account(),
+			*result.isopool.asset_in.delta_reserve,
+		)?;
 
 		let updated_asset_state = asset_state_out
 			.delta_update(&result.isopool.asset_out)
@@ -906,9 +909,13 @@ where
 			*result.subpool.amount,
 		)?;
 
-		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
-
-		//TODO: for Martin - a withdraw is missing as the reserve of AssetReserveState of sharetoken should be decreased due to liquidty removing to the pool
+		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
+		// TODO: part of omnipool pallet ?
+		<T as pallet_omnipool::Config>::Currency::withdraw(
+			subpool_id_out.into(),
+			&OmnipoolPallet::<T>::protocol_account(),
+			*result.isopool.asset_out.delta_reserve,
+		)?;
 
 		let updated_asset_state = asset_state_in
 			.delta_update(&result.isopool.asset_in)
@@ -975,15 +982,16 @@ where
 		ensure!(*result.subpool.amount >= min_limit, Error::<T>::Limit);
 
 		debug_assert_eq!(
-			*result.isopool.asset.delta_reserve, amount_in,
+			*result.isopool.asset.delta_hub_reserve, amount_in,
 			"Returned amount is not equal to amount_in"
 		);
 
+		//TODO: VERIFY is this delta_hub_reserve to tansfer ??! and burn the delta_reserve?
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.isopool.asset.delta_reserve,
+			*result.isopool.asset.delta_hub_reserve,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
@@ -992,7 +1000,12 @@ where
 			*result.subpool.amount,
 		)?;
 
-		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
+		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
+		<T as pallet_omnipool::Config>::Currency::withdraw(
+			subpool_id_out.into(),
+			&OmnipoolPallet::<T>::protocol_account(),
+			*result.isopool.asset.delta_reserve,
+		)?;
 
 		let updated_share_state = share_state_out
 			.delta_update(&result.isopool.asset)
@@ -1071,6 +1084,13 @@ where
 			&OmnipoolPallet::<T>::protocol_account(),
 			who,
 			*result.isopool.asset_out.delta_reserve,
+		)?;
+
+		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
+		<T as pallet_omnipool::Config>::Currency::deposit(
+			subpool_id_in.into(),
+			&OmnipoolPallet::<T>::protocol_account(),
+			*result.isopool.asset_in.delta_reserve,
 		)?;
 
 		let updated_asset_state = asset_state
@@ -1164,14 +1184,19 @@ where
 			*result.subpool.amount,
 		)?;
 
+		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
+		<T as pallet_omnipool::Config>::Currency::withdraw(
+			subpool_id_out.into(),
+			&OmnipoolPallet::<T>::protocol_account(),
+			*result.isopool.asset_out.delta_reserve,
+		)?;
+
 		let updated_asset_state = asset_state_in
 			.delta_update(&result.isopool.asset_in)
 			.ok_or(Error::<T>::Math)?;
 		let updated_share_state = share_state_out
 			.delta_update(&result.isopool.asset_out)
 			.ok_or(Error::<T>::Math)?;
-
-		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
 
 		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
 
@@ -1241,7 +1266,7 @@ where
 			asset_in.into(),
 			who,
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.isopool.asset.delta_reserve,
+			*result.isopool.asset.delta_hub_reserve,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
@@ -1251,6 +1276,13 @@ where
 		)?;
 
 		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
+		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
+		// TODO: COLIN : here we transfer the hub reserve from WHOP and burn the delta_reserve ??!
+		<T as pallet_omnipool::Config>::Currency::withdraw(
+			subpool_id_out.into(),
+			&OmnipoolPallet::<T>::protocol_account(),
+			*result.isopool.asset.delta_reserve,
+		)?;
 
 		let updated_share_state = share_state_out
 			.delta_update(&result.isopool.asset)
