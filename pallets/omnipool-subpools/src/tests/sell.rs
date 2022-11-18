@@ -123,6 +123,30 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			assert_balance!(omnipool_account, ASSET_4, 0);
 			assert_balance!(omnipool_account, ASSET_5, 0);
 			assert_balance!(omnipool_account, ASSET_6, 0);
+
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4615051679689492,
+					hub_reserve: 4485865259344810,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
+
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
+				SHARE_ASSET_AS_POOL_ID_2,
+				AssetReserveState::<Balance> {
+					reserve: 7086435426815585,
+					hub_reserve: 7214134740655190,
+					shares: 7150 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
 		});
 }
 
@@ -228,6 +252,19 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 				omnipool_account,
 				ASSET_5,
 				OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get
+			);
+
+			//TODO:strange that the reserve does not change. It should be increased, veryify it with Martin
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4550 * ONE, //TODO: this is not correct as it should be increased
+					hub_reserve: 4485865259344810,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
 			);
 		});
 }
