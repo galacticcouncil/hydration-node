@@ -685,6 +685,8 @@ pub mod pallet {
 				*state_changes.asset.delta_reserve,
 			)?;
 
+			debug_assert_eq!(*state_changes.asset.delta_reserve, amount);
+
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
@@ -990,6 +992,11 @@ pub mod pallet {
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_reserve, amount,
+				"delta_reserve_in is not equal to given amount in"
+			);
+
 			T::Currency::transfer(
 				asset_in,
 				&who,
@@ -1146,6 +1153,11 @@ pub mod pallet {
 			let new_asset_out_state = asset_out_state
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
+
+			debug_assert_eq!(
+				*state_changes.asset_out.delta_reserve, amount,
+				"delta_reserve_out is not equal to given amount out"
+			);
 
 			T::Currency::transfer(
 				asset_in,
