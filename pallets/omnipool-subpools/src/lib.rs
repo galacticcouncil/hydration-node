@@ -7,6 +7,7 @@ mod types;
 
 use crate::types::{AssetDetail, Balance};
 use frame_support::pallet_prelude::*;
+use frame_support::require_transactional;
 use hydra_dx_math::omnipool_subpools::{MigrationDetails, SubpoolState};
 use orml_traits::currency::MultiCurrency;
 use sp_runtime::traits::CheckedMul;
@@ -388,19 +389,14 @@ pub mod pallet {
 			min_buy_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			// Figure out where each asset is - isopool or subpool
-			// - if both in isopool - call omnipool sell
-			// - if both in same subpool - call stableswap::sell
-			// - if both in different subpool - handle here according to spec
-			// - if mixed - handle here according to spec
 
 			match (MigratedAssets::<T>::get(asset_in), MigratedAssets::<T>::get(asset_out)) {
 				(None, None) => {
-					// both are is0pool assets
+					// both assets are omnipool assets
 					OmnipoolPallet::<T>::sell(origin, asset_in, asset_out, amount, min_buy_amount)
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) if pool_id_in == pool_id_out => {
-					// both are same subpool
+					// both assets are migrated stable assets and in the same subpool
 					StableswapPallet::<T>::sell(
 						origin,
 						pool_id_in,
@@ -411,7 +407,7 @@ pub mod pallet {
 					)
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
-					// both are subpool but different subpools
+					// both assets are migrated stable assets but in the different subpools
 					Self::resolve_sell_between_subpools(
 						&who,
 						asset_in,
@@ -423,7 +419,7 @@ pub mod pallet {
 					)
 				}
 				(Some((pool_id_in, _)), None) => {
-					// Selling stableasset and buying omnipool asset
+					// Selling stable asset and buy omnipool asset
 					Self::resolve_mixed_trade_iso_out_given_stable_in(
 						&who,
 						asset_in,
@@ -434,7 +430,7 @@ pub mod pallet {
 					)
 				}
 				(None, Some((pool_id_out, _))) => {
-					// Buying stableasset and selling omnipool asset
+					// Sell omnipool asset and buy stable asset
 					Self::resolve_mixed_trade_stable_out_given_asset_in(
 						&who,
 						asset_in,
@@ -456,19 +452,14 @@ pub mod pallet {
 			max_sell_amount: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			// Figure out where each asset is - isopool or subpool
-			// - if both in isopool - call omnipool buy
-			// - if both in same subpool - call stableswap buy
-			// - if both in different subpool - handle here according to spec
-			// - if mixed - handle here according to spec
 
 			match (MigratedAssets::<T>::get(asset_in), MigratedAssets::<T>::get(asset_out)) {
 				(None, None) => {
-					// both are is0pool assets
+					// both assets are omnipool assets
 					OmnipoolPallet::<T>::buy(origin, asset_out, asset_in, amount, max_sell_amount)
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) if pool_id_in == pool_id_out => {
-					// both are same subpool
+					// both assets are migrated stable assets and in the same subpool
 					StableswapPallet::<T>::buy(
 						origin,
 						pool_id_in,
@@ -479,7 +470,7 @@ pub mod pallet {
 					)
 				}
 				(Some((pool_id_in, _)), Some((pool_id_out, _))) => {
-					// both are subpool but different subpools
+					// both assets are migrated stable assets but in the different subpools
 					Self::resolve_buy_between_subpools(
 						&who,
 						asset_in,
@@ -491,7 +482,7 @@ pub mod pallet {
 					)
 				}
 				(Some((pool_id_in, _)), None) => {
-					// Selling stableasset and buying omnipool asset
+					// Buy omnipool asset and sell stable asset
 					Self::resolve_mixed_trade_stable_in_given_asset_out(
 						&who,
 						asset_in,
@@ -502,7 +493,7 @@ pub mod pallet {
 					)
 				}
 				(None, Some((pool_id_out, _))) => {
-					// Buying stableasset and selling omnipool asset
+					// Buy stablea _sset and sell omnipool asset
 					Self::resolve_mixed_trade_iso_in_given_stable_out(
 						&who,
 						asset_in,
@@ -525,6 +516,9 @@ where
 	<T as pallet_omnipool::Config>::AssetId:
 		Into<<T as pallet_stableswap::Config>::AssetId> + From<<T as pallet_stableswap::Config>::AssetId>,
 {
+	/// Convert LP Omnipool position to Stableswap subpool position.
+	///
+	/// New position has asset_id to subpool id.
 	fn convert_position(
 		pool_id: <T as pallet_omnipool::Config>::AssetId,
 		migration_details: AssetDetail,
@@ -549,6 +543,8 @@ where
 		})
 	}
 
+	/// Resolve buy trade between two different Stableswap subpools.
+	#[require_transactional]
 	fn resolve_buy_between_subpools(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,
@@ -645,6 +641,8 @@ where
 		Ok(())
 	}
 
+	/// Resolve sell trade between two different Stableswap subpools.
+	#[require_transactional]
 	fn resolve_sell_between_subpools(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,
@@ -739,10 +737,11 @@ where
 		Ok(())
 	}
 
-	/// Handle sell between subpool and Omnipool where asset in is stable asset and asset out is omnipool asset.
+	/// Resolve sell trade between subpool and Omnipool where asset in is stable asset and asset out is omnipool asset.
+	#[require_transactional]
 	fn resolve_mixed_trade_iso_out_given_stable_in(
 		who: &T::AccountId,
-		asset_in: AssetIdOf<T>,                //stableasset
+		asset_in: AssetIdOf<T>,                // stable asset
 		asset_out: AssetIdOf<T>,               // omnipool asset
 		subpool_id_in: StableswapAssetIdOf<T>, // pool id in which the stable asset is
 		amount_in: Balance,
@@ -822,7 +821,8 @@ where
 		Ok(())
 	}
 
-	/// Handle sell between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
+	/// Handle sell trade between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
+	#[require_transactional]
 	fn resolve_mixed_trade_stable_out_given_asset_in(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
@@ -910,6 +910,9 @@ where
 
 		Ok(())
 	}
+
+	/// Handle sell trade between subpool and omnipool where asset in is hub asset and asset out is stable asset.
+	#[require_transactional]
 	fn resolve_mixed_trade_stable_out_given_hub_asset_in(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
@@ -988,7 +991,8 @@ where
 		Ok(())
 	}
 
-	/// Handle buy between subpool and omnipool where asset in is stable asset and asset out is omnipool asset.
+	/// Handle buy itrade between subpool and omnipool where asset in is stable asset and asset out is omnipool asset.
+	#[require_transactional]
 	fn resolve_mixed_trade_stable_in_given_asset_out(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                // stable asset
@@ -1072,7 +1076,8 @@ where
 		Ok(())
 	}
 
-	/// Handle buy between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
+	/// Resolve buy trade between subpool and omnipool where asset in is omnipool asset and asset out is stable asset.
+	#[require_transactional]
 	fn resolve_mixed_trade_iso_in_given_stable_out(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
@@ -1162,6 +1167,8 @@ where
 		Ok(())
 	}
 
+	/// Resolve buy trade between subpool and omnipool where asset in is hub asset and asset out is stable asset.
+	#[require_transactional]
 	fn resolve_mixed_trade_hub_asset_in_given_stable_out(
 		who: &T::AccountId,
 		asset_in: AssetIdOf<T>,                 // omnipool asset
