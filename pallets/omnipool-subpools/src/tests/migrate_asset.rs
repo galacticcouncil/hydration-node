@@ -67,7 +67,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 					hub_reserve: 7800 * ONE,
 					shares: 7800 * ONE,
 					protocol_shares: 0,
-					cap: 1_500_000_000_000_000_000,
+					cap: 500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -140,7 +140,7 @@ fn migrate_asset_should_recalculate_protocol_shares_when_protocol_has_some_share
 					hub_reserve: 7865 * ONE,
 					shares: 7865 * ONE,
 					protocol_shares: 65 * ONE,
-					cap: 1_500_000_000_000_000_000,
+					cap: 500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -366,7 +366,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 					hub_reserve: 16250 * ONE,
 					shares: 16250 * ONE,
 					protocol_shares: 0,
-					cap: 3_500_000_000_000_000_000,
+					cap: 500_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
