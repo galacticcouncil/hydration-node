@@ -248,10 +248,19 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
-			assert_balance!(
-				omnipool_account,
+			let new_quantity_of_asset_5_in_omnipool = OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get;
+			assert_balance!(omnipool_account, ASSET_5, new_quantity_of_asset_5_in_omnipool);
+
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				ASSET_5,
-				OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get
+				AssetReserveState::<Balance> {
+					reserve: new_quantity_of_asset_5_in_omnipool,
+					hub_reserve: 3314134740655190,
+					shares: 5000 * ONE,
+					protocol_shares: 0,
+					cap: 1000000000000000000,
+					tradable: Tradability::default(),
+				}
 			);
 
 			//TODO:strange that the reserve does not change. It should be increased, veryify it with Martin
@@ -316,10 +325,32 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
-			assert_balance!(
-				omnipool_account,
+			let new_quantity_of_asset_5_in_omnipool = OMNIPOOL_INITIAL_ASSET_5_BALANCE + amount_to_sell;
+			assert_balance!(omnipool_account, ASSET_5, new_quantity_of_asset_5_in_omnipool);
+
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				ASSET_5,
-				OMNIPOOL_INITIAL_ASSET_5_BALANCE + amount_to_sell
+				AssetReserveState::<Balance> {
+					reserve: new_quantity_of_asset_5_in_omnipool,
+					hub_reserve: 3186274509803922,
+					shares: 5000 * ONE,
+					protocol_shares: 0,
+					cap: 1000000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
+
+			//TODO:strange that the reserve does not change. It should be decreased, veryify it with Martin
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4550 * ONE, //TODO: this is not correct as it should be decreased
+					hub_reserve: 4613725490196078,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
 			);
 		});
 }
