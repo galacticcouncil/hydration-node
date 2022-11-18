@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, TradeStateChange, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -1690,41 +1690,53 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn update_asset_state_2(
-		asset_id: T::AssetId,
-		delta: AssetStateChange<Balance>
-	) -> Result<AssetReserveState<Balance>, DispatchError> {
+	#[require_transactional]
+	pub fn update_asset_state_given_trade_result(
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		trade: TradeStateChange<Balance>,
+	) -> DispatchResult {
+		let delta_hub_asset = trade
+			.asset_in
+			.delta_hub_reserve
+			.merge(
+				trade
+					.asset_out
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(trade.hdx_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
 
-		let mut state = Self::load_asset_state(asset_id)?;
+		match delta_hub_asset {
+			BalanceUpdate::Increase(val) if val == Balance::zero() => {
+				// nothing to do if zero.
+			}
+			BalanceUpdate::Increase(_) => {
+				// trade can only burn some.
+				return Err(Error::<T>::HubAssetUpdateError.into());
+			}
+			BalanceUpdate::Decrease(amount) => {
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+			}
+		};
 
+		Self::update_imbalance(trade.delta_imbalance)?;
 
+		Self::update_asset_state(asset_in, trade.asset_in)?;
+		Self::update_asset_state(asset_out, trade.asset_out)?;
 
-		Ok(state)
+		Self::update_hdx_subpool_hub_asset(trade.hdx_hub_amount)?;
+
+		Ok(())
 	}
 
-	pub fn update_asset_state(
-		asset_id: T::AssetId,
-		delta_q: Balance,
-		delta_s: Balance,
-		delta_ps: Balance,
-		delta_cap: Balance,
-	) -> DispatchResult {
-		<Assets<T>>::try_mutate(&asset_id, |maybe_asset| -> DispatchResult {
-			let state = maybe_asset.as_mut().ok_or(Error::<T>::AssetNotFound)?;
+	pub fn update_asset_state(asset_id: T::AssetId, delta: AssetStateChange<Balance>) -> DispatchResult {
+		let mut state = Self::load_asset_state(asset_id)?;
+		let updated_state = state.delta_update(&delta).ok_or(ArithmeticError::Overflow)?;
+		Self::set_asset_state(asset_id, updated_state);
 
-			state.hub_reserve = state
-				.hub_reserve
-				.checked_add(delta_q)
-				.ok_or(ArithmeticError::Overflow)?;
-			state.shares = state.shares.checked_add(delta_s).ok_or(ArithmeticError::Overflow)?;
-			state.protocol_shares = state
-				.protocol_shares
-				.checked_add(delta_ps)
-				.ok_or(ArithmeticError::Overflow)?;
-			state.cap = state.cap.checked_add(delta_cap).ok_or(ArithmeticError::Overflow)?;
-
-			Ok(())
-		})
+		Ok(())
 	}
 
 	pub fn load_position(

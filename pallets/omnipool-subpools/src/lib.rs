@@ -28,6 +28,7 @@ type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::*;
+	use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
 	use hydra_dx_math::omnipool_subpools::types::{CheckedMathInner, HpCheckedMath};
 	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
@@ -278,7 +279,15 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			OmnipoolPallet::<T>::update_asset_state(pool_id.into(), delta_q, delta_s, delta_ps, asset_state.cap)?;
+			OmnipoolPallet::<T>::update_asset_state(
+				pool_id.into(),
+				AssetStateChange {
+					delta_reserve: BalanceUpdate::Increase(0u128),
+					delta_hub_reserve: BalanceUpdate::Increase(delta_q),
+					delta_shares: BalanceUpdate::Increase(delta_s),
+					delta_protocol_shares: BalanceUpdate::Increase(delta_ps),
+				},
+			)?;
 			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, delta_u)?;
 
 			let asset_details = AssetDetail {
