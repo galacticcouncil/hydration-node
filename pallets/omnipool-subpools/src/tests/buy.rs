@@ -73,7 +73,6 @@ fn buy_should_work_when_both_asset_in_same_subpool() {
 }
 
 #[test]
-#[ignore] //TODO: Something is off with this, discuss it with Martin
 fn buy_should_work_when_assets_are_in_different_subpool() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
@@ -244,7 +243,6 @@ fn buy_should_work_when_buying_omnipool_asset_with_stablepool_asset() {
 		});
 }
 
-#[ignore]
 #[test]
 fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 	let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
@@ -306,7 +304,6 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 		});
 }
 
-#[ignore]
 #[test]
 fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 	ExtBuilder::default()

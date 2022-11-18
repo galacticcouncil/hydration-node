@@ -69,3 +69,5 @@ use orml_traits::MultiCurrency;
 
 //Questions:
 //tradeable asset state - change in omnipool only? In stableswap there is no such thing
+
+// Trades with subpool - ensure withdraw fee is applied
