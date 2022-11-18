@@ -807,6 +807,8 @@ where
 
 		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
 
+		//TODO: for Martin - a deposit is missing as the reserve of AssetReserveState of sharetoken should be increased due to liquidty addition
+
 		let updated_asset_state = asset_state_out
 			.delta_update(&result.isopool.asset_out)
 			.ok_or(Error::<T>::Math)?;
@@ -896,6 +898,8 @@ where
 		)?;
 
 		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
+
+		//TODO: for Martin - a withdraw is missing as the reserve of AssetReserveState of sharetoken should be decreased due to liquidty removing to the pool
 
 		let updated_asset_state = asset_state_in
 			.delta_update(&result.isopool.asset_in)
