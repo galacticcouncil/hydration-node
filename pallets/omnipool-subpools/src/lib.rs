@@ -713,12 +713,13 @@ where
 		)?;
 
 		//TODO: should be part of omnipool to pdate state according to given changes
+
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
 			*result.iso_pool.asset_out.delta_reserve,
 		)?;
-		<T as pallet_omnipool::Config>::Currency::withdraw(
+		<T as pallet_omnipool::Config>::Currency::deposit(
 			subpool_id_in.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
 			*result.iso_pool.asset_in.delta_reserve,

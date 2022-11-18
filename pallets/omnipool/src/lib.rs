@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -1650,11 +1650,13 @@ impl<T: Config> Pallet<T> {
 		Err(Error::<T>::NotAllowed.into())
 	}
 
+	/// Remove asset from list of Omnipool assets.
 	pub fn remove_asset(asset_id: T::AssetId) -> DispatchResult {
 		<Assets<T>>::remove(asset_id);
 		Ok(())
 	}
 
+	/// Insert or update position with given position data.
 	pub fn set_position(
 		position_id: T::PositionInstanceId,
 		position: &Position<Balance, T::AssetId>,
@@ -1663,6 +1665,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Add new asset to list of Omnipool assets.
 	pub fn add_asset(
 		asset_id: T::AssetId,
 		hub_reserve: Balance,
@@ -1685,6 +1688,18 @@ impl<T: Config> Pallet<T> {
 		<Assets<T>>::insert(asset_id, state);
 
 		Ok(())
+	}
+
+	pub fn update_asset_state_2(
+		asset_id: T::AssetId,
+		delta: AssetStateChange<Balance>
+	) -> Result<AssetReserveState<Balance>, DispatchError> {
+
+		let mut state = Self::load_asset_state(asset_id)?;
+
+
+
+		Ok(state)
 	}
 
 	pub fn update_asset_state(
