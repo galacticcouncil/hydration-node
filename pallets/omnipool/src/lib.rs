@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, TradeStateChange, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -1370,7 +1370,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Set new state of asset.
 	/// This converts the new state into correct state type ( by removing the reserve)
-	pub fn set_asset_state(asset_id: T::AssetId, new_state: AssetReserveState<Balance>) {
+	fn set_asset_state(asset_id: T::AssetId, new_state: AssetReserveState<Balance>) {
 		<Assets<T>>::insert(asset_id, Into::<AssetState<Balance>>::into(new_state));
 	}
 
@@ -1691,7 +1691,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	#[require_transactional]
-	pub fn update_asset_state_given_trade_result(
+	pub fn update_omnipool_state_given_trade_result(
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		trade: TradeStateChange<Balance>,
@@ -1728,6 +1728,16 @@ impl<T: Config> Pallet<T> {
 
 		Self::update_hdx_subpool_hub_asset(trade.hdx_hub_amount)?;
 
+		Ok(())
+	}
+
+	#[require_transactional]
+	pub fn update_omnipool_state_given_hub_asset_trade(
+		asset: T::AssetId,
+		trade: HubTradeStateChange<Balance>,
+	) -> DispatchResult {
+		Self::update_imbalance(trade.delta_imbalance)?;
+		Self::update_asset_state(asset, trade.asset)?;
 		Ok(())
 	}
 
