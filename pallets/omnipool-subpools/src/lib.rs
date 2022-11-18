@@ -624,7 +624,6 @@ where
 		)?;
 
 		// Update ispools - mint/burn share asset
-		//TODO: should be part of omnipool to pdate state according to given changes
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -637,15 +636,11 @@ where
 			*result.iso_pool.asset_in.delta_reserve,
 		)?;
 
-		let updated_state_in = share_asset_state_in
-			.delta_update(&result.iso_pool.asset_in)
-			.ok_or(Error::<T>::Math)?;
-		let updated_state_out = share_asset_state_out
-			.delta_update(&result.iso_pool.asset_out)
-			.ok_or(Error::<T>::Math)?;
-
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_in.into(), updated_state_in);
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_out.into(), updated_state_out);
+		OmnipoolPallet::<T>::update_asset_state_given_trade_result(
+			subpool_id_in.into(),
+			subpool_id_out.into(),
+			result.iso_pool,
+		)?;
 
 		Ok(())
 	}
@@ -721,8 +716,6 @@ where
 			*result.asset_out.amount,
 		)?;
 
-		//TODO: should be part of omnipool to pdate state according to given changes
-
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -734,15 +727,11 @@ where
 			*result.iso_pool.asset_in.delta_reserve,
 		)?;
 
-		let updated_state_in = share_asset_state_in
-			.delta_update(&result.iso_pool.asset_in)
-			.ok_or(Error::<T>::Math)?;
-		let updated_state_out = share_asset_state_out
-			.delta_update(&result.iso_pool.asset_out)
-			.ok_or(Error::<T>::Math)?;
-
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_in.into(), updated_state_in);
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_out.into(), updated_state_out);
+		OmnipoolPallet::<T>::update_asset_state_given_trade_result(
+			subpool_id_in.into(),
+			subpool_id_out.into(),
+			result.iso_pool,
+		)?;
 
 		Ok(())
 	}
@@ -821,17 +810,7 @@ where
 			*result.isopool.asset_in.delta_reserve,
 		)?;
 
-		let updated_asset_state = asset_state_out
-			.delta_update(&result.isopool.asset_out)
-			.ok_or(Error::<T>::Math)?;
-		let updated_share_state = share_state_in
-			.delta_update(&result.isopool.asset_in)
-			.ok_or(Error::<T>::Math)?;
-
-		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
-
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_in.into(), updated_share_state);
-		OmnipoolPallet::<T>::set_asset_state(asset_out, updated_asset_state);
+		OmnipoolPallet::<T>::update_asset_state_given_trade_result(subpool_id_in.into(), asset_out, result.isopool)?;
 
 		Ok(())
 	}
@@ -917,17 +896,7 @@ where
 			*result.isopool.asset_out.delta_reserve,
 		)?;
 
-		let updated_asset_state = asset_state_in
-			.delta_update(&result.isopool.asset_in)
-			.ok_or(Error::<T>::Math)?;
-		let updated_share_state = share_state_out
-			.delta_update(&result.isopool.asset_out)
-			.ok_or(Error::<T>::Math)?;
-
-		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
-
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_out.into(), updated_share_state);
-		OmnipoolPallet::<T>::set_asset_state(asset_in, updated_asset_state);
+		OmnipoolPallet::<T>::update_asset_state_given_trade_result(asset_in, subpool_id_out.into(), result.isopool)?;
 
 		Ok(())
 	}
@@ -1093,19 +1062,7 @@ where
 			*result.isopool.asset_in.delta_reserve,
 		)?;
 
-		let updated_asset_state = asset_state
-			.delta_update(&result.isopool.asset_out)
-			.ok_or(Error::<T>::Math)?;
-		let updated_share_state = share_state
-			.delta_update(&result.isopool.asset_in)
-			.ok_or(Error::<T>::Math)?;
-
-		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
-
-		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
-
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_in.into(), updated_share_state);
-		OmnipoolPallet::<T>::set_asset_state(asset_out, updated_asset_state);
+		OmnipoolPallet::<T>::update_asset_state_given_trade_result(subpool_id_in.into(), asset_out, result.isopool)?;
 
 		Ok(())
 	}
@@ -1191,17 +1148,7 @@ where
 			*result.isopool.asset_out.delta_reserve,
 		)?;
 
-		let updated_asset_state = asset_state_in
-			.delta_update(&result.isopool.asset_in)
-			.ok_or(Error::<T>::Math)?;
-		let updated_share_state = share_state_out
-			.delta_update(&result.isopool.asset_out)
-			.ok_or(Error::<T>::Math)?;
-
-		//TODO: update imbalance still! - should really be part of omnbipool to update given trade state changes.
-
-		OmnipoolPallet::<T>::set_asset_state(subpool_id_out.into(), updated_share_state);
-		OmnipoolPallet::<T>::set_asset_state(asset_in, updated_asset_state);
+		OmnipoolPallet::<T>::update_asset_state_given_trade_result(asset_in, subpool_id_out.into(), result.isopool)?;
 
 		Ok(())
 	}
