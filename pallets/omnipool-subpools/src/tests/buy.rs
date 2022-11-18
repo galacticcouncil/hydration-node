@@ -282,21 +282,17 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			));
 
 			//Assert
-			/*let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
 			//TODO: ask Martin - it feels too much, comparing to other tests
-			let amount_to_spend = 10007114246671614;
+			let amount_to_spend = 103646788477421;
 
-			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
+			assert_balance!(ALICE, ASSET_3, amount_to_buy);
 			assert_balance!(ALICE, ASSET_4, 0);
-			assert_balance!(ALICE, ASSET_5, amount_to_buy);
+			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE - amount_to_spend);
 
-			assert_balance!(
-				pool_account,
-				ASSET_3,
-				OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_spend
-			);
+			assert_balance!(pool_account, ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE - amount_to_buy);
 			assert_balance!(pool_account, ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE);
 			assert_balance!(pool_account, ASSET_5, 0);
 
@@ -305,13 +301,14 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			assert_balance!(
 				omnipool_account,
 				ASSET_5,
-				OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_buy
-			);*/
+				OMNIPOOL_INITIAL_ASSET_5_BALANCE + amount_to_spend
+			);
 		});
 }
 
 #[test]
 fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
+	let initial_omnipool_LRNA_balance = 15050000000000000;
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -324,10 +321,15 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let omnipool_account = Omnipool::protocol_account();
+
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			assert_balance!(omnipool_account, LRNA, initial_omnipool_LRNA_balance);
 
 			//Act
 			let amount_to_buy = 100 * ONE;
@@ -340,31 +342,19 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 			));
 
 			//Assert
-			/*let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-			let omnipool_account = Omnipool::protocol_account();
+			let amount_to_spend = 65058491248243;
 
-			//TODO: ask Martin - it feels too much, comparing to other tests
-			let amount_to_spend = 10007114246671614;
-
-			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
+			assert_balance!(ALICE, ASSET_3, amount_to_buy);
 			assert_balance!(ALICE, ASSET_4, 0);
-			assert_balance!(ALICE, ASSET_5, amount_to_buy);
+			assert_balance!(ALICE, LRNA, ALICE_INITIAL_LRNA_BALANCE - amount_to_spend);
 
-			assert_balance!(
-				pool_account,
-				ASSET_3,
-				OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_spend
-			);
+			assert_balance!(pool_account, ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE - amount_to_buy);
 			assert_balance!(pool_account, ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE);
-			assert_balance!(pool_account, ASSET_5, 0);
+			assert_balance!(pool_account, LRNA, 0);
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
-			assert_balance!(
-				omnipool_account,
-				ASSET_5,
-				OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_buy
-			);*/
+			assert_balance!(omnipool_account, LRNA, initial_omnipool_LRNA_balance + amount_to_spend);
 		});
 }
 
