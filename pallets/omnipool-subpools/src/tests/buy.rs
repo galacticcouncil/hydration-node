@@ -74,6 +74,8 @@ fn buy_should_work_when_both_asset_in_same_subpool() {
 
 #[test]
 fn buy_should_work_when_assets_are_in_different_subpool() {
+	let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
+
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -86,7 +88,7 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_6, OMNIPOOL_INITIAL_ASSET_6_BALANCE))
-		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, alice_initial_asset_3_balance))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -105,7 +107,7 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 				ASSET_5,
 				ASSET_3,
 				amount_to_buy,
-				MAX_SELL_AMOUNT
+				MAX_SELL_AMOUNT * 100
 			));
 
 			//Assert
@@ -113,21 +115,25 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 			let pool_account2 = AccountIdConstructor::from_assets(&vec![ASSET_5, ASSET_6], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			//let amount_to_spend = 4902260110173227;
-			//assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
+			let amount_to_spend = 3015047807836695;
+			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, 0);
 			assert_balance!(ALICE, ASSET_5, amount_to_buy);
 			assert_balance!(ALICE, ASSET_6, 0);
 
-			/*	assert_balance!(pool_account, ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_sell);
+			assert_balance!(
+				pool_account,
+				ASSET_3,
+				OMNIPOOL_INITIAL_ASSET_3_BALANCE + amount_to_spend
+			);
 			assert_balance!(pool_account, ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE);
-			assert_balance!(pool_account2, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get);
+			assert_balance!(pool_account2, ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_buy);
 			assert_balance!(pool_account2, ASSET_6, OMNIPOOL_INITIAL_ASSET_6_BALANCE);
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
 			assert_balance!(omnipool_account, ASSET_5, 0);
-			assert_balance!(omnipool_account, ASSET_6, 0);*/
+			assert_balance!(omnipool_account, ASSET_6, 0);
 		});
 }
 
@@ -219,7 +225,7 @@ fn buy_should_work_when_buying_omnipool_asset_with_stablepool_asset() {
 			let omnipool_account = Omnipool::protocol_account();
 
 			//TODO: ask Martin - it feels too much, comparing to other tests
-			let amount_to_spend = 10007114246671614;
+			let amount_to_spend = 10110908322255201;
 
 			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, 0);
