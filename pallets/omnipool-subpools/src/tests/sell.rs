@@ -353,7 +353,6 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 		});
 }
 
-#[ignore]
 #[test]
 fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 	ExtBuilder::default()
@@ -367,10 +366,28 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+			let omnipool_account = Omnipool::protocol_account();
+
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			/*assert_that_sharetoken_in_omnipool_as_another_asset!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 0,
+					hub_reserve: 3186274509803922,
+					shares: 5000 * ONE,
+					protocol_shares: 0,
+					cap: 1000000000000000000,
+					tradable: Tradability::default(),
+				}
+			);*/
+
+			let initial_LRNA_balance_in_omnipool = 15050000000000000;
+			assert_balance!(omnipool_account, LRNA, initial_LRNA_balance_in_omnipool);
 
 			//Act
 			let amount_to_sell = 100 * ONE;
@@ -383,25 +400,21 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 			));
 
 			//Assert
-			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 2903401662274523;
+			let amount_to_get = 2849601919937206;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_get);
 			assert_balance!(ALICE, ASSET_4, 0);
-			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE - amount_to_sell);
 
 			assert_balance!(pool_account, ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE - amount_to_get);
 			assert_balance!(pool_account, ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE);
-			assert_balance!(pool_account, ASSET_5, 0);
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
 			assert_balance!(
 				omnipool_account,
-				ASSET_5,
-				OMNIPOOL_INITIAL_ASSET_5_BALANCE + amount_to_sell
+				LRNA,
+				initial_LRNA_balance_in_omnipool + amount_to_sell
 			);
 		});
 }
