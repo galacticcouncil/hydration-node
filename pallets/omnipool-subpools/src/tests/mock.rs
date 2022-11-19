@@ -622,8 +622,8 @@ macro_rules! create_subpool {
 			$asset_b,
 			Permill::from_percent(50),
 			100u16,
-			Permill::from_percent(0),
-			Permill::from_percent(0),
+			Permill::from_float(0.003),
+			Permill::from_float(0.003),
 		));
 	};
 }

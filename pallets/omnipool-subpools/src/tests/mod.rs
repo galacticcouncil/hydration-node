@@ -7,6 +7,7 @@ pub(crate) mod mock;
 mod remove_liquidity;
 mod sell;
 use mock::*;
+mod verification;
 
 use frame_support::{assert_err, assert_noop, assert_ok};
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
