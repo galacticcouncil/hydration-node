@@ -263,11 +263,10 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 				}
 			);
 
-			//TODO:strange that the reserve does not change. It should be increased, veryify it with Martin
 			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4550 * ONE, //TODO: this is not correct as it should be increased
+					reserve: 4615051679689492,
 					hub_reserve: 4485865259344810,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
@@ -340,11 +339,10 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 				}
 			);
 
-			//TODO:strange that the reserve does not change. It should be decreased, veryify it with Martin
 			assert_that_sharetoken_in_omnipool_as_another_asset!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4550 * ONE, //TODO: this is not correct as it should be decreased
+					reserve: 4487154696132598,
 					hub_reserve: 4613725490196078,
 					shares: 4550 * ONE,
 					protocol_shares: 0,

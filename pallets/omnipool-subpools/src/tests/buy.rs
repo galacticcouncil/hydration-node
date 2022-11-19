@@ -342,7 +342,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 			));
 
 			//Assert
-			let amount_to_spend = 65058491248243;
+			let amount_to_spend = 66002228702843;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_buy);
 			assert_balance!(ALICE, ASSET_4, 0);
