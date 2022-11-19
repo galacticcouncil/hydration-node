@@ -374,18 +374,6 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
-			/*assert_that_sharetoken_in_omnipool_as_another_asset!(
-				SHARE_ASSET_AS_POOL_ID,
-				AssetReserveState::<Balance> {
-					reserve: 0,
-					hub_reserve: 3186274509803922,
-					shares: 5000 * ONE,
-					protocol_shares: 0,
-					cap: 1000000000000000000,
-					tradable: Tradability::default(),
-				}
-			);*/
-
 			let initial_LRNA_balance_in_omnipool = 15050000000000000;
 			assert_balance!(omnipool_account, LRNA, initial_LRNA_balance_in_omnipool);
 
@@ -400,7 +388,6 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 			));
 
 			//Assert
-
 			let amount_to_get = 2849601919937206;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_get);
@@ -415,6 +402,18 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 				omnipool_account,
 				LRNA,
 				initial_LRNA_balance_in_omnipool + amount_to_sell
+			);
+
+			assert_that_sharetoken_in_omnipool_as_another_asset!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4452150537634409,
+					hub_reserve: 4650000000000000,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
 			);
 		});
 }
