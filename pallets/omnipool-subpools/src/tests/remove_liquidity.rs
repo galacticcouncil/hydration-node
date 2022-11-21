@@ -51,7 +51,7 @@ fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
-			let deposited_share_of_alice = 65051679689491;
+			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
 				&omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
@@ -256,7 +256,7 @@ fn remove_liqudity_should_fail_when_asset_has_tradable_state_disallowing_removin
 
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 4550000000000000;
-			let deposited_share_of_alice = 65051679689491;
+			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
 				&omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
@@ -317,7 +317,7 @@ fn remove_liqudity_should_fail_when_asset_is_migrated_but_withdraw_asset_is_not_
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
-			let deposited_share_of_alice = 65051679689491;
+			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
 				&omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,

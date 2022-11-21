@@ -50,19 +50,7 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 			));
 
 			//Assert
-			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
-
-			//Assert that share of ALICE is deposited and added to omnipool
-			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
-			let deposited_share_of_alice = 65051679689491;
-			assert_balance!(
-				&omnipool_account,
-				SHARE_ASSET_AS_POOL_ID,
-				all_subpool_shares + deposited_share_of_alice
-			);
-
-			assert_that_nft_position_is_present!(position_id);
+			let deposited_share_of_alice = 65493725412861;
 
 			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_present_in_omnipool!(
@@ -75,6 +63,19 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 					price: token_price.into_inner()
 				}
 			);
+
+			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
+			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+
+			//Assert that share of ALICE is deposited and added to omnipool
+			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
+			assert_balance!(
+				&omnipool_account,
+				SHARE_ASSET_AS_POOL_ID,
+				all_subpool_shares + deposited_share_of_alice
+			);
+
+			assert_that_nft_position_is_present!(position_id);
 		});
 }
 
@@ -126,10 +127,34 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 			//Assert that liquidity is added to subpool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
 
-			let deposited_asset_3_share_of_alice = 65051679689491;
-			let deposited_asset_4_share_of_alice = 324772754874054;
+			let deposited_asset_3_share_of_alice = 65493725412861;
+			let deposited_asset_4_share_of_alice = 322830953197269;
 			let all_share_of_alice_to_be_deposited =
 				deposited_asset_3_share_of_alice + deposited_asset_4_share_of_alice;
+
+			let token_price = FixedU128::from_float(1.0);
+			assert_that_position_is_present_in_omnipool!(
+				ALICE,
+				position_id_for_asset_3_liq,
+				Position {
+					asset_id: SHARE_ASSET_AS_POOL_ID,
+					amount: deposited_asset_3_share_of_alice,
+					shares: deposited_asset_3_share_of_alice,
+					price: token_price.into_inner()
+				}
+			);
+
+			assert_that_position_is_present_in_omnipool!(
+				ALICE,
+				position_id_for_asset_4_liq,
+				Position {
+					asset_id: SHARE_ASSET_AS_POOL_ID,
+					amount: deposited_asset_4_share_of_alice,
+					shares: deposited_asset_4_share_of_alice,
+					price: token_price.into_inner()
+				}
+			);
+
 			assert_balance!(
 				ALICE,
 				ASSET_3,
@@ -154,29 +179,6 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 
 			assert_that_nft_position_is_present!(position_id_for_asset_3_liq);
 			assert_that_nft_position_is_present!(position_id_for_asset_4_liq);
-
-			let token_price = FixedU128::from_float(1.0);
-			assert_that_position_is_present_in_omnipool!(
-				ALICE,
-				position_id_for_asset_3_liq,
-				Position {
-					asset_id: SHARE_ASSET_AS_POOL_ID,
-					amount: deposited_asset_3_share_of_alice,
-					shares: deposited_asset_3_share_of_alice,
-					price: token_price.into_inner()
-				}
-			);
-
-			assert_that_position_is_present_in_omnipool!(
-				ALICE,
-				position_id_for_asset_4_liq,
-				Position {
-					asset_id: SHARE_ASSET_AS_POOL_ID,
-					amount: deposited_asset_4_share_of_alice,
-					shares: deposited_asset_4_share_of_alice,
-					price: token_price.into_inner()
-				}
-			);
 		});
 }
 
@@ -227,7 +229,7 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 			));
 
 			//Assert that liquidity is added to subpool
-			let deposited_asset_5_share_of_alice = 64984152898695;
+			let deposited_asset_5_share_of_alice = 64843346424590;
 			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE - new_liquidity);
 			assert_balance!(&pool_account, ASSET_5, 5000 * ONE + new_liquidity);
 

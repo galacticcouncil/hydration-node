@@ -53,7 +53,7 @@ fn sell_should_work_when_both_asset_in_same_subpool() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 99536265497821;
+			let amount_to_get = 98446129714113;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
 			assert_balance!(ALICE, ASSET_4, amount_to_get);
@@ -107,7 +107,7 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			let pool_account2 = AccountIdConstructor::from_assets(&vec![ASSET_5, ASSET_6], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 4902553321565673;
+			let amount_to_get = 97944844908417;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -127,8 +127,8 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4615051679689492,
-					hub_reserve: 4485865259344810,
+					reserve: 4615493725412862,
+					hub_reserve: 4485435628698236,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
@@ -139,8 +139,8 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID_2,
 				AssetReserveState::<Balance> {
-					reserve: 7086435426815585,
-					hub_reserve: 7214134740655190,
+					reserve: 7086013426306942,
+					hub_reserve: 7214564371301764,
 					shares: 7150 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
@@ -236,7 +236,7 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 96759404300066;
+			let amount_to_get = 97394957631199;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -255,7 +255,7 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 				ASSET_5,
 				AssetReserveState::<Balance> {
 					reserve: new_quantity_of_asset_5_in_omnipool,
-					hub_reserve: 3314134740655190,
+					hub_reserve: 3314564371301764,
 					shares: 5000 * ONE,
 					protocol_shares: 0,
 					cap: 1000000000000000000,
@@ -266,8 +266,8 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4615051679689492,
-					hub_reserve: 4485865259344810,
+					reserve: 4615493725412862,
+					hub_reserve: 4485435628698236,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
@@ -312,7 +312,7 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 2903691441997818;
+			let amount_to_get = 95863515768316;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_get);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -388,7 +388,7 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 			));
 
 			//Assert
-			let amount_to_get = 2850053076108166;
+			let amount_to_get = 149216847560367;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_get);
 			assert_balance!(ALICE, ASSET_4, 0);

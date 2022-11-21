@@ -59,7 +59,7 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
-			let deposited_share_of_alice = 65051679689491;
+			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
 				&omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
@@ -146,7 +146,7 @@ fn add_liqudity_stable_should_add_liqudity_to_subpool_but_not_to_omnipool_when_m
 			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited to stableswap
-			let deposited_share_of_alice = 65051679689491;
+			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, deposited_share_of_alice);
 			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 

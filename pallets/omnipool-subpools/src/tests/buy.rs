@@ -55,7 +55,7 @@ fn buy_should_work_when_both_asset_in_same_subpool() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_spend = 100167393207983;
+			let amount_to_spend = 98743876403980;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, amount_to_buy);
@@ -249,7 +249,7 @@ fn buy_should_work_when_buying_omnipool_asset_with_stablepool_asset() {
 			let omnipool_account = Omnipool::protocol_account();
 
 			//TODO: ask Martin - it feels too much, comparing to other tests
-			let amount_to_spend = 10110908322255201;
+			let amount_to_spend = 102771024834982;
 
 			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -343,7 +343,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			let omnipool_account = Omnipool::protocol_account();
 
 			//TODO: ask Martin - it feels too much, comparing to other tests
-			let amount_to_spend = 103969781846489;
+			let amount_to_spend = 104471838625069;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_buy);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -364,8 +364,8 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			assert_asset_state_in_omnipool!(
 				ASSET_5,
 				AssetReserveState::<Balance> {
-					reserve: 5103969781846489,
-					hub_reserve: 3183796279083995,
+					reserve: 5104471838625069,
+					hub_reserve: 3183483132777371,
 					shares: 5000 * ONE,
 					protocol_shares: 0,
 					cap: 1000000000000000000,
@@ -376,8 +376,8 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4484745745989727,
-					hub_reserve: 4616203720916005,
+					reserve: 4484441537945676,
+					hub_reserve: 4616516867222629,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
@@ -423,7 +423,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 			));
 
 			//Assert
-			let amount_to_spend = 66203720916005;
+			let amount_to_spend = 66516867222629;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_buy);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -440,8 +440,8 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4484745745989727,
-					hub_reserve: 4616203720916005,
+					reserve: 4484441537945676,
+					hub_reserve: 4616516867222629,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
