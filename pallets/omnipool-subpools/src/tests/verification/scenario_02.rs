@@ -21,7 +21,7 @@ const OMNIPOOL_INITIAL_HDX_BALANCE: Balance = 1_000_000 * ONE;
 const OMNIPOOL_INITIAL_DAI_BALANCE: Balance = 1_000_000 * ONE;
 
 #[test]
-fn subpool_trades_should_work_correct_when_trade_asset_in_given_stable_out() {
+fn subpool_trades_should_work_correct_when_trade_stable_out_given_asset_in() {
 	ExtBuilder::default()
 		.with_registered_asset(USDA)
 		.with_registered_asset(USDB)
@@ -51,13 +51,17 @@ fn subpool_trades_should_work_correct_when_trade_asset_in_given_stable_out() {
 
 			create_subpool!(SUBPOOL_ID, USDA, USDB);
 
-			let amount_to_buy = 1000 * ONE;
-			assert_ok!(OmnipoolSubpools::buy(
+			let usda_alice = Tokens::free_balance(USDA, &ALICE);
+
+			assert_eq!(usda_alice, 0u128);
+
+			let amount_to_sell = 1000 * ONE;
+			assert_ok!(OmnipoolSubpools::sell(
 				Origin::signed(ALICE),
-				USDA,
 				R1,
-				amount_to_buy,
-				u128::MAX,
+				USDA,
+				amount_to_sell,
+				0u128
 			));
 
 			let r1_state = Omnipool::load_asset_state(R1).unwrap();
@@ -67,14 +71,14 @@ fn subpool_trades_should_work_correct_when_trade_asset_in_given_stable_out() {
 			let usda_alice = Tokens::free_balance(USDA, &ALICE);
 			let r1_alice = Tokens::free_balance(R1, &ALICE);
 
-			assert_eq!(usda_alice, amount_to_buy);
-			assert_eq!(r1_alice, 7994963527675544);
+			assert_eq!(usda_alice, 499372810804422);
+			assert_eq!(r1_alice, 9000000000000000);
 
 			assert_eq!(
 				r1_state,
 				AssetReserveState {
-					reserve: 1002005036472324456,
-					hub_reserve: 49899948782723517040,
+					reserve: 1001000000000000000,
+					hub_reserve: 49950049950049950050,
 					shares: 1000000000000000000u128,
 					protocol_shares: 0u128,
 					cap: 1000000000000000000u128,
@@ -84,14 +88,14 @@ fn subpool_trades_should_work_correct_when_trade_asset_in_given_stable_out() {
 
 			assert_eq!(
 				subpool_state.balances::<Test>(),
-				vec![999000000000000000, 1000000000000000000]
+				vec![999500627189195578, 1000000000000000000]
 			);
 
 			assert_eq!(
 				subpool_share_state,
 				AssetReserveState {
-					reserve: 199899998808927996301,
-					hub_reserve: 200100051217276482960,
+					reserve: 199950062421972534333,
+					hub_reserve: 200049950049950049950,
 					shares: 200000000000000000000u128,
 					protocol_shares: 0u128,
 					cap: 500000000000000000u128,

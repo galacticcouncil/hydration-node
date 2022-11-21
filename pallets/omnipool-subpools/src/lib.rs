@@ -881,6 +881,8 @@ where
 			&OmnipoolPallet::<T>::protocol_account(),
 			*result.isopool.asset_in.delta_reserve,
 		)?;
+
+		dbg!(*result.subpool.amount);
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
 			&subpool_state_out.pool_account::<T>(),
