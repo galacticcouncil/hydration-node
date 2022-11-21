@@ -64,6 +64,7 @@ use pallet_currencies::BasicCurrencyAdapter;
 
 mod benchmarking;
 mod xcm;
+mod migrations;
 
 pub use hex_literal::hex;
 /// Import HydraDX pallets
@@ -950,6 +951,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsReversedWithSystemFirst,
+	migrations::OnRuntimeUpgradeMigration,
 >;
 
 impl_runtime_apis! {
