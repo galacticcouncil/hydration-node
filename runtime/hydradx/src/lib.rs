@@ -55,7 +55,7 @@ use frame_support::{
 use hydradx_traits::pools::SpotPriceProvider;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
-use primitives::Price;
+use primitives::{CollectionId, ItemId, Price};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
@@ -69,7 +69,6 @@ pub use hex_literal::hex;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
-use pallet_nft::{CollectionId, ItemId};
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -196,7 +195,6 @@ impl Contains<Call> for BaseFilter {
 			Call::PolkadotXcm(_) => false,
 			Call::OrmlXcm(_) => false,
 			Call::Uniques(_) => false,
-			Call::NFT(_) => false,
 			_ => true,
 		}
 	}
@@ -813,20 +811,6 @@ impl pallet_uniques::Config for Runtime {
 }
 
 parameter_types! {
-	pub ReserveCollectionIdUpTo: u128 = 999_999;
-}
-
-impl pallet_nft::Config for Runtime {
-	type Event = Event;
-	type WeightInfo = pallet_nft::weights::BasiliskWeight<Runtime>;
-	type NftCollectionId = CollectionId;
-	type NftItemId = ItemId;
-	type CollectionType = pallet_nft::CollectionType;
-	type Permissions = pallet_nft::NftPermissions;
-	type ReserveCollectionIdUpTo = ReserveCollectionIdUpTo;
-}
-
-parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
 	pub ProtofolFee: Permill = Permill::from_rational(3u32,1000u32);
@@ -858,7 +842,7 @@ impl pallet_omnipool::Config for Runtime {
 	type MaxOutRatio = MaxOutRatio;
 	type PositionItemId = ItemId;
 	type NFTCollectionId = OmnipoolCollectionId;
-	type NFTHandler = NFT;
+	type NFTHandler = Uniques;
 	type WeightInfo = ();
 }
 
@@ -898,7 +882,6 @@ construct_runtime!(
 		Claims: pallet_claims = 53,
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
-		NFT: pallet_nft = 58,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
 

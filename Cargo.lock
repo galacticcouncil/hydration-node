@@ -3379,7 +3379,6 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
@@ -6014,25 +6013,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-nft"
-version = "5.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5#b7cc6ff5efb641e4fd4da524459ce8111c32aef5"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "orml-utilities",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "syn",
 ]
 
 [[package]]
@@ -8757,7 +8737,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-democracy",
  "pallet-elections-phragmen",
- "pallet-nft",
+ "pallet-price-oracle",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
@@ -11417,7 +11397,6 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
