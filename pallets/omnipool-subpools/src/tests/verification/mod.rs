@@ -1,1 +1,1 @@
-mod scenaario_01;
+mod scenario_01;
