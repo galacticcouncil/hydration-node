@@ -63,8 +63,8 @@ pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
 mod benchmarking;
-mod xcm;
 mod migrations;
+mod xcm;
 
 pub use hex_literal::hex;
 /// Import HydraDX pallets
