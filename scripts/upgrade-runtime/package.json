@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "upgrade": "node index.js hydradx_runtime.compact.compressed.wasm",
-    "chain": "polkadot-launch ../../rococo-local/config.json",
+    "upgrade": "node index.js testing_hydradx_runtime.compact.compressed.wasm",
+    "chain": "polkadot-launch ../../rococo-local/testing-config.json",
     "start": "run-p -lr chain upgrade"
   },
   "author": "",

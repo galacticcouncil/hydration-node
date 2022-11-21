@@ -298,11 +298,6 @@ impl pallet_transaction_payment::Config for Runtime {
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 }
 
-impl pallet_sudo::Config for Runtime {
-	type Event = Event;
-	type Call = Call;
-}
-
 // Parachain Config
 
 parameter_types! {
@@ -892,9 +887,6 @@ construct_runtime!(
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
 		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
-
-		// TEMPORARY
-		Sudo: pallet_sudo = 255, // Let's make it last one.
 	}
 );
 

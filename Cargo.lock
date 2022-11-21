@@ -3347,7 +3347,6 @@ dependencies = [
  "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
- "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
