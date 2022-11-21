@@ -2,8 +2,8 @@ pub use super::mock::*;
 use super::*;
 use crate::AssetDetail;
 use crate::{
-	add_omnipool_token, assert_balance, assert_that_asset_is_migrated_to_omnipool_subpool,
-	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset,
+	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance,
+	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
 	assert_that_stableswap_subpool_is_created_with_poolinfo, Error, Event,
 };
 use frame_support::error::BadOrigin;
@@ -65,7 +65,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				}
 			);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 4550 * ONE,
@@ -150,7 +150,7 @@ fn protocol_share_calculation_should_work_when_protocol_has_shares() {
 			));
 
 			//Assert
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 4615 * ONE,
@@ -248,7 +248,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				}
 			);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 4550 * ONE,
@@ -260,7 +260,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				}
 			);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID_2,
 				AssetReserveState::<Balance> {
 					reserve: 7150 * ONE,

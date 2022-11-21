@@ -1,9 +1,9 @@
 use super::*;
 
 use crate::{
-	add_omnipool_token, assert_balance, assert_stableswap_pool_assets,
-	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_sharetoken_in_omnipool_as_another_asset, create_subpool, AssetDetail, Error,
+	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance, assert_stableswap_pool_assets,
+	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool, create_subpool,
+	AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
@@ -60,7 +60,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			//Assert that share has been deposited to omnipool
 			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 7800 * ONE);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 7800 * ONE,
@@ -133,7 +133,7 @@ fn migrate_asset_should_recalculate_protocol_shares_when_protocol_has_some_share
 			));
 
 			//Assert
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 7865 * ONE,
@@ -359,7 +359,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 			//Assert that share has been deposited to omnipool
 			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 16250 * ONE);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 16250 * ONE,

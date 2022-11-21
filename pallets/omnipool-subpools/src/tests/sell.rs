@@ -2,8 +2,8 @@ use super::*;
 
 use crate::AssetDetail;
 use crate::{
-	add_omnipool_token, assert_balance, assert_that_asset_is_migrated_to_omnipool_subpool,
-	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset,
+	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance,
+	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
 	assert_that_stableswap_subpool_is_created_with_poolinfo, create_subpool, Error,
 };
 use frame_support::error::BadOrigin;
@@ -124,7 +124,7 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			assert_balance!(omnipool_account, ASSET_5, 0);
 			assert_balance!(omnipool_account, ASSET_6, 0);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 4615051679689492,
@@ -136,7 +136,7 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 				}
 			);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID_2,
 				AssetReserveState::<Balance> {
 					reserve: 7086435426815585,
@@ -251,7 +251,7 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 			let new_quantity_of_asset_5_in_omnipool = OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_get;
 			assert_balance!(omnipool_account, ASSET_5, new_quantity_of_asset_5_in_omnipool);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				ASSET_5,
 				AssetReserveState::<Balance> {
 					reserve: new_quantity_of_asset_5_in_omnipool,
@@ -263,7 +263,7 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 				}
 			);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 4615051679689492,
@@ -327,7 +327,7 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 			let new_quantity_of_asset_5_in_omnipool = OMNIPOOL_INITIAL_ASSET_5_BALANCE + amount_to_sell;
 			assert_balance!(omnipool_account, ASSET_5, new_quantity_of_asset_5_in_omnipool);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				ASSET_5,
 				AssetReserveState::<Balance> {
 					reserve: new_quantity_of_asset_5_in_omnipool,
@@ -339,7 +339,7 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 				}
 			);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 4487154696132598,
@@ -404,7 +404,7 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 				initial_LRNA_balance_in_omnipool + amount_to_sell
 			);
 
-			assert_that_sharetoken_in_omnipool_as_another_asset!(
+			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
 					reserve: 4452150537634409,

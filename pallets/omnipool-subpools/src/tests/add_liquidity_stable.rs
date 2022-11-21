@@ -1,11 +1,11 @@
 use super::*;
 
 use crate::{
-	add_omnipool_token, assert_balance, assert_stableswap_pool_assets,
+	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance, assert_stableswap_pool_assets,
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
 	assert_that_nft_position_is_not_present, assert_that_nft_position_is_present,
-	assert_that_position_is_not_present_in_omnipool, assert_that_position_is_present_in_omnipool,
-	assert_that_sharetoken_in_omnipool_as_another_asset, create_subpool, AssetDetail, Error,
+	assert_that_position_is_not_present_in_omnipool, assert_that_position_is_present_in_omnipool, create_subpool,
+	AssetDetail, Error,
 };
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Position, Tradability};

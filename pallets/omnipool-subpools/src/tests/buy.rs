@@ -2,8 +2,8 @@ use super::*;
 
 use crate::AssetDetail;
 use crate::{
-	add_omnipool_token, assert_balance, assert_that_asset_is_migrated_to_omnipool_subpool,
-	assert_that_asset_is_not_present_in_omnipool, assert_that_sharetoken_in_omnipool_as_another_asset,
+	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance,
+	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
 	assert_that_stableswap_subpool_is_created_with_poolinfo, create_subpool, Error,
 };
 use frame_support::error::BadOrigin;
