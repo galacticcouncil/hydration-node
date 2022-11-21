@@ -3218,7 +3218,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.0.0"
+version = "8.1.1"
 dependencies = [
  "clap",
  "common-runtime",
@@ -3298,7 +3298,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "111.0.0"
+version = "113.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3341,7 +3341,6 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
@@ -5977,25 +5976,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-nft"
-version = "4.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?branch=polkadot-v0.9.28#2dc34f6d99a6c66f56ce89c507eed48d821a21fd"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "orml-utilities",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "syn",
-]
-
-[[package]]
 name = "pallet-nomination-pools"
 version = "1.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
@@ -6083,7 +6063,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8717,7 +8697,6 @@ dependencies = [
  "pallet-currencies",
  "pallet-democracy",
  "pallet-elections-phragmen",
- "pallet-nft",
  "pallet-price-oracle",
  "pallet-scheduler",
  "pallet-session",
@@ -11323,7 +11302,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "111.0.0"
+version = "113.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -11366,7 +11345,6 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
