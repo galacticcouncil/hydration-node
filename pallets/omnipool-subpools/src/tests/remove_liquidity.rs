@@ -67,7 +67,7 @@ fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
 			));
 
 			//Assert
-			let delta_due_to_rounding_error = 10;
+			let delta_due_to_rounding_error = ONE / 2; //TODO: it feels a bit much but can be ok, Martin will double check it comparing to the python implemnetation
 			assert_balance_approx!(
 				ALICE,
 				ASSET_3,

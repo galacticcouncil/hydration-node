@@ -134,6 +134,30 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 			assert_balance!(omnipool_account, ASSET_4, 0);
 			assert_balance!(omnipool_account, ASSET_5, 0);
 			assert_balance!(omnipool_account, ASSET_6, 0);
+
+			assert_asset_state_in_omnipool!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4559818835687771,
+					hub_reserve: 4540202307593956,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
+
+			assert_asset_state_in_omnipool!(
+				SHARE_ASSET_AS_POOL_ID_2,
+				AssetReserveState::<Balance> {
+					reserve: 7140215715064476,
+					hub_reserve: 7159797692406044,
+					shares: 7150 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
 		});
 }
 
@@ -241,10 +265,31 @@ fn buy_should_work_when_buying_omnipool_asset_with_stablepool_asset() {
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
-			assert_balance!(
-				omnipool_account,
+			let new_balance_of_asset_5_in_omnipool = OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_buy;
+			assert_balance!(omnipool_account, ASSET_5, new_balance_of_asset_5_in_omnipool);
+
+			assert_asset_state_in_omnipool!(
 				ASSET_5,
-				OMNIPOOL_INITIAL_ASSET_5_BALANCE - amount_to_buy
+				AssetReserveState::<Balance> {
+					reserve: new_balance_of_asset_5_in_omnipool,
+					hub_reserve: 3316326530612245,
+					shares: 5000 * ONE,
+					protocol_shares: 0,
+					cap: 1000000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
+
+			assert_asset_state_in_omnipool!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4617307692307693,
+					hub_reserve: 4483673469387755,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
 			);
 		});
 }
@@ -270,6 +315,18 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			add_omnipool_token!(ASSET_5);
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			assert_asset_state_in_omnipool!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4550 * ONE,
+					hub_reserve: 4550 * ONE,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
 
 			//Act
 			let amount_to_buy = 100 * ONE;
@@ -302,6 +359,30 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 				omnipool_account,
 				ASSET_5,
 				OMNIPOOL_INITIAL_ASSET_5_BALANCE + amount_to_spend
+			);
+
+			assert_asset_state_in_omnipool!(
+				ASSET_5,
+				AssetReserveState::<Balance> {
+					reserve: 5103969781846489,
+					hub_reserve: 3183796279083995,
+					shares: 5000 * ONE,
+					protocol_shares: 0,
+					cap: 1000000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
+
+			assert_asset_state_in_omnipool!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4484745745989727,
+					hub_reserve: 4616203720916005,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
 			);
 		});
 }
@@ -355,6 +436,18 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
 			assert_balance!(omnipool_account, LRNA, initial_omnipool_LRNA_balance + amount_to_spend);
+
+			assert_asset_state_in_omnipool!(
+				SHARE_ASSET_AS_POOL_ID,
+				AssetReserveState::<Balance> {
+					reserve: 4484745745989727,
+					hub_reserve: 4616203720916005,
+					shares: 4550 * ONE,
+					protocol_shares: 0,
+					cap: 500000000000000000,
+					tradable: Tradability::default(),
+				}
+			);
 		});
 }
 
