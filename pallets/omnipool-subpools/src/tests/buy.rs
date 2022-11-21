@@ -55,7 +55,7 @@ fn buy_should_work_when_both_asset_in_same_subpool() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_spend = 99867789838467;
+			let amount_to_spend = 100167393207983;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, amount_to_buy);
@@ -115,7 +115,7 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 			let pool_account2 = AccountIdConstructor::from_assets(&vec![ASSET_5, ASSET_6], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_spend = 3015047807836695;
+			let amount_to_spend = 3015093247346625;
 			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, 0);
 			assert_balance!(ALICE, ASSET_5, amount_to_buy);
@@ -286,7 +286,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			let omnipool_account = Omnipool::protocol_account();
 
 			//TODO: ask Martin - it feels too much, comparing to other tests
-			let amount_to_spend = 103646788477421;
+			let amount_to_spend = 103969781846489;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_buy);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -342,7 +342,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 			));
 
 			//Assert
-			let amount_to_spend = 66002228702843;
+			let amount_to_spend = 66203720916005;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_buy);
 			assert_balance!(ALICE, ASSET_4, 0);
