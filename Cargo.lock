@@ -6143,6 +6143,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-price-oracle"
+version = "0.3.2"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5#b7cc6ff5efb641e4fd4da524459ce8111c32aef5"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-proxy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.29#cc370aa61e15c18d23a2f686b812fd576a630afe"
