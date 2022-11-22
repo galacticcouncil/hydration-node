@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "113.0.0"
+version = "114.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -56,7 +56,6 @@ pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/w
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
-pallet-nft = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 
 # ORML dependencies
@@ -260,7 +259,6 @@ try-runtime= [
     "pallet-xcm/try-runtime",
     "cumulus-pallet-dmp-queue/try-runtime",
     "pallet-asset-registry/try-runtime",
-    "pallet-nft/try-runtime",
     "pallet-transaction-multi-payment/try-runtime",
     "pallet-relaychain-info/try-runtime",
     "pallet-omnipool/try-runtime",

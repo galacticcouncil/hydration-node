@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.1.1"
+version = "8.2.0"
 dependencies = [
  "clap",
  "common-runtime",
@@ -3353,7 +3353,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "113.0.0"
+version = "114.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3397,7 +3397,6 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
@@ -6032,25 +6031,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-nft"
-version = "5.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5#b7cc6ff5efb641e4fd4da524459ce8111c32aef5"
-dependencies = [
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "orml-utilities",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "syn",
 ]
 
 [[package]]
@@ -8776,7 +8756,6 @@ dependencies = [
  "pallet-currencies",
  "pallet-democracy",
  "pallet-elections-phragmen",
- "pallet-nft",
  "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
@@ -11395,7 +11374,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "113.0.0"
+version = "114.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -11439,7 +11418,6 @@ dependencies = [
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-multisig",
- "pallet-nft",
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
