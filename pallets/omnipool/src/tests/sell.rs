@@ -695,6 +695,7 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_max_trade_volume_limit(1_000 * ONE)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
@@ -728,6 +729,7 @@ fn sell_should_fail_when_trade_volume_limit_exceeded() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
 		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
+		.with_max_trade_volume_limit(1_000 * ONE)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;

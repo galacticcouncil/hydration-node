@@ -68,6 +68,7 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static MAX_TRADE_VOLUME_LIMIT: RefCell<Balance> = RefCell::new(u128::MAX);
 }
 
 construct_runtime!(
@@ -158,7 +159,7 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
-	pub const MaxTradeVolumeLimit: Balance = 1_000 * ONE;
+	pub MaxTradeVolumeLimit: Balance = MAX_TRADE_VOLUME_LIMIT.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -198,6 +199,7 @@ pub struct ExtBuilder {
 	max_out_ratio: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
+	max_trade_volume_limit: Balance,
 }
 
 impl Default for ExtBuilder {
@@ -249,6 +251,7 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
+			max_trade_volume_limit: u128::MAX,
 		}
 	}
 }
@@ -308,6 +311,10 @@ impl ExtBuilder {
 		self.max_out_ratio = value;
 		self
 	}
+	pub fn with_max_trade_volume_limit(mut self, value: Balance) -> Self {
+		self.max_trade_volume_limit = value;
+		self
+	}
 
 	pub fn with_token(
 		mut self,
@@ -358,6 +365,9 @@ impl ExtBuilder {
 		});
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = self.max_out_ratio;
+		});
+		MAX_TRADE_VOLUME_LIMIT.with(|v| {
+			*v.borrow_mut() = self.max_trade_volume_limit;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {
