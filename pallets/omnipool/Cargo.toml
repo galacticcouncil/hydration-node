@@ -52,6 +52,7 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch =
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.28", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
+test-case = "2.2.2"
 
 [features]
 default = ["std"]

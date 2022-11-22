@@ -158,6 +158,7 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
+	pub const MaxTradeVolumeLimit: Balance = 1_000 * ONE;
 }
 
 impl Config for Test {
@@ -181,6 +182,7 @@ impl Config for Test {
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
+	type MaxTradeVolumeLimit = MaxTradeVolumeLimit;
 }
 
 pub struct ExtBuilder {

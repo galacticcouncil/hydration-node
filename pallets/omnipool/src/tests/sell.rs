@@ -2,6 +2,7 @@ use super::*;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
 use sp_runtime::Permill;
+use test_case::test_case;
 
 #[test]
 fn simple_sell_works() {
@@ -672,6 +673,62 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 			assert_noop!(
 				Omnipool::sell(Origin::signed(LP1), LRNA, 100, 1500 * ONE, 0u128),
 				Error::<Test>::MaxOutRatioExceeded
+			);
+		});
+}
+
+#[test]
+fn sell_should_work_when_trade_volume_limit_not_exceeded() {
+	const DOT: AssetId = 100;
+	const AUSD: AssetId = 200;
+	const TRADER: u64 = 11u64;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2000 * ONE),
+			(LP1, AUSD, 2000 * ONE),
+			(TRADER, DOT, 2000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(AUSD)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let min_limit = 10 * ONE;
+			let sell_amount: Balance = 999;
+
+			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit));
+		});
+}
+
+#[test_case(1000 * ONE)]
+#[test_case(1001 * ONE)]
+fn sell_should_fail_when_trade_volume_limit_exceeded(sell_amount: Balance) {
+	const DOT: AssetId = 100;
+	const AUSD: AssetId = 200;
+	const TRADER: u64 = 11u64;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2000 * ONE),
+			(LP1, AUSD, 2000 * ONE),
+			(TRADER, DOT, 2000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(AUSD)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			let min_limit = 10 * ONE;
+
+			assert_noop!(Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
+				Error::<Test>::TradeVolumeLimitExceeded
 			);
 		});
 }

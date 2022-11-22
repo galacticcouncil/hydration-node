@@ -194,6 +194,10 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Max trade volume in a block
+		#[pallet::constant]
+		type MaxTradeVolumeLimit: Get<Balance>;
 	}
 
 	#[pallet::storage]
@@ -348,6 +352,8 @@ pub mod pallet {
 		MaxOutRatioExceeded,
 		/// Max fraction of asset reserve to sell has been exceeded.
 		MaxInRatioExceeded,
+		/// The trade volume in the current block exceeded the limit
+		TradeVolumeLimitExceeded,
 	}
 
 	#[pallet::call]
@@ -967,6 +973,10 @@ pub mod pallet {
 				current_imbalance.value,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(*state_changes.asset_out.delta_reserve <= T::MaxTradeVolumeLimit::get(),
+				Error::<T>::TradeVolumeLimitExceeded
+			);
 
 			ensure!(
 				*state_changes.asset_out.delta_reserve >= min_buy_amount,
