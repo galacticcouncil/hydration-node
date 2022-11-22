@@ -109,7 +109,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 113,
+	spec_version: 114,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -803,20 +803,6 @@ impl pallet_uniques::Config for Runtime {
 }
 
 parameter_types! {
-	pub ReserveCollectionIdUpTo: u128 = 999_999;
-}
-
-impl pallet_nft::Config for Runtime {
-	type Event = Event;
-	type WeightInfo = pallet_nft::weights::BasiliskWeight<Runtime>;
-	type NftCollectionId = CollectionId;
-	type NftItemId = ItemId;
-	type CollectionType = pallet_nft::CollectionType;
-	type Permissions = pallet_nft::NftPermissions;
-	type ReserveCollectionIdUpTo = ReserveCollectionIdUpTo;
-}
-
-parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
 	pub ProtofolFee: Permill = Permill::from_rational(3u32,1000u32);
@@ -848,7 +834,7 @@ impl pallet_omnipool::Config for Runtime {
 	type MaxOutRatio = MaxOutRatio;
 	type PositionItemId = ItemId;
 	type NFTCollectionId = OmnipoolCollectionId;
-	type NFTHandler = NFT;
+	type NFTHandler = Uniques;
 	type WeightInfo = ();
 }
 
@@ -888,7 +874,6 @@ construct_runtime!(
 		Claims: pallet_claims = 53,
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
-		NFT: pallet_nft = 58,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
 

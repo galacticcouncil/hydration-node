@@ -180,10 +180,6 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 }
 
 pub fn devnet_parachain_config() -> Result<ChainSpec, String> {
-	ChainSpec::from_json_bytes(&include_bytes!("../res/devnet.json")[..])
-}
-
-pub fn _devnet_parachain_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 	let mut properties = Map::new();
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
@@ -268,13 +264,13 @@ pub fn _devnet_parachain_config() -> Result<ChainSpec, String> {
 		},
 		// Bootnodes
 		vec![
-			"/dns/devnet-hydradx-p2p01.intergalactic.limited/tcp/30333/p2p/12D3KooWJYVVHudGGvJUQ98cHLKAr47LonxTckP498FMiFD3XfWw"
+			"/dns/p2p01.hydradx.dev/tcp/30333/p2p/12D3KooWJYVVHudGGvJUQ98cHLKAr47LonxTckP498FMiFD3XfWw"
 				.parse()
 				.unwrap(),
-			"/dns/devnet-hydradx-p2p02.intergalactic.limited/tcp/30333/p2p/12D3KooWQ42FDCxisiPZLvbE8JdEoQvcUUp6oaJte41ZGhAsZKHi"
+			"/dns/p2p02.hydradx.dev/tcp/30333/p2p/12D3KooWQ42FDCxisiPZLvbE8JdEoQvcUUp6oaJte41ZGhAsZKHi"
 				.parse()
 				.unwrap(),
-			"/dns/devnet-hydradx-p2p03.intergalactic.limited/tcp/30333/p2p/12D3KooWSbDL1xmE1tAUJ4zvUgUBPHni2FA7nNj2ZPWNSBEpMFzS"
+			"/dns/p2p03.hydradx.dev/tcp/30333/p2p/12D3KooWSbDL1xmE1tAUJ4zvUgUBPHni2FA7nNj2ZPWNSBEpMFzS"
 				.parse()
 				.unwrap(),
 		],
