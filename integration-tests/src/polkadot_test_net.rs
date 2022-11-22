@@ -14,6 +14,10 @@ pub const UNITS: Balance = 1_000_000_000_000;
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 
+pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
+pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+
 use cumulus_primitives_core::ParaId;
 //use cumulus_primitives_core::relay_chain::AccountId;
 use frame_support::traits::GenesisBuild;
@@ -148,8 +152,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Runtime> {
 		balances: vec![
-			(AccountId::from(ALICE), 200 * UNITS),
-			(AccountId::from(BOB), 1_000 * UNITS),
+			(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE),
+			(AccountId::from(BOB), BOB_INITIAL_NATIVE_BALANCE),
 			(AccountId::from(CHARLIE), 1_000 * UNITS),
 			(AccountId::from(DAVE), 1_000 * UNITS),
 			(vesting_account(), 10_000 * UNITS),
@@ -217,7 +221,7 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 		.unwrap();
 
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![(AccountId::from(ALICE), 200 * UNITS)],
+		balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
@@ -245,4 +249,18 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 
 pub fn vesting_account() -> AccountId {
 	VestingPalletId::get().into_account_truncating()
+}
+
+fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
+	frame_system::Pallet::<hydradx_runtime::Runtime>::events()
+		.into_iter()
+		.rev()
+		.take(n)
+		.rev()
+		.map(|e| e.event)
+		.collect()
+}
+
+pub fn expect_hydra_events(e: Vec<hydradx_runtime::Event>) {
+	assert_eq!(last_hydra_events(e.len()), e);
 }

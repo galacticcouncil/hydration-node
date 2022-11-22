@@ -1,6 +1,6 @@
 [package]
 name = "runtime-integration-tests"
-version = "0.1.2"
+version = "0.1.3"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -16,7 +16,6 @@ hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
-pallet-price-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -95,6 +94,9 @@ polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", 
 polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1" }
 
 [dev-dependencies]
+hex-literal = "0.3.1"
+pretty_assertions = "1.2.1"
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5" }
 xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", rev = "0460d04c798028e7bef82c907082e11753ed173b" }
 
 [features]
