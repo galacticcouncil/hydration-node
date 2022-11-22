@@ -11,6 +11,7 @@ members = [
   'primitives',
   'utils/build-script-utils',
   'integration-tests',
+  'integration-tests/parachain-runtime-mock',
 ]
 
 [patch."https://github.com/paritytech/polkadot"]

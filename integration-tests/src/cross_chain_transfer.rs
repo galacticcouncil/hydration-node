@@ -120,7 +120,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 }
 
 #[test]
-fn hydra_should_receive_asset_when_transferred_from_acala() {
+fn hydra_should_receive_asset_when_transferred_from_other_parachain() {
 	// Arrange
 	TestNet::reset();
 
@@ -128,11 +128,11 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::Origin::root(),
 			1,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(OTHER_PARA_ID), GeneralIndex(0))))
 		));
 	});
 
-	Acala::execute_with(|| {
+	OtherParachain::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::Origin::signed(ALICE.into()),
@@ -175,18 +175,18 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 }
 
 #[test]
-fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
+fn transfer_from_other_parachain_should_fail_when_transferring_insufficient_amount() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::Origin::root(),
 			1,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(OTHER_PARA_ID), GeneralIndex(0))))
 		));
 	});
 
-	Acala::execute_with(|| {
+	OtherParachain::execute_with(|| {
 		assert_noop!(
 			hydradx_runtime::XTokens::transfer(
 				hydradx_runtime::Origin::signed(ALICE.into()),
@@ -228,7 +228,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 fn assets_should_be_trapped_when_assets_are_unknown() {
 	TestNet::reset();
 
-	Acala::execute_with(|| {
+	OtherParachain::execute_with(|| {
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::Origin::signed(ALICE.into()),
 			0,
@@ -268,8 +268,8 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 			}
 			.into(),
 		]);
-		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
-		let loc = MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0)));
+		let origin = MultiLocation::new(1, X1(Parachain(OTHER_PARA_ID)));
+		let loc = MultiLocation::new(1, X2(Parachain(OTHER_PARA_ID), GeneralIndex(0)));
 		let asset: MultiAsset = (loc, 30 * UNITS).into();
 		let hash = determine_hash(&origin, vec![asset]);
 		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 1);

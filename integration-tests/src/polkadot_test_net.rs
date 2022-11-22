@@ -2,7 +2,7 @@
 pub use hydradx_runtime::{AccountId, VestingPalletId};
 
 use pallet_transaction_multi_payment::Price;
-use primitives::Balance;
+use primitives::{AssetId, Balance};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -11,10 +11,14 @@ pub const DAVE: [u8; 32] = [7u8; 32];
 
 pub const UNITS: Balance = 1_000_000_000_000;
 
-pub const ACALA_PARA_ID: u32 = 2_000;
+pub const OTHER_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 
+pub const AUSD: AssetId = 1;
+
 pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_AUSD_BALANCE_ON_OTHER_PARACHAIN: u128 = 200 * UNITS;
+pub const BOB_INITIAL_AUSD_BALANCE_ON_OTHER_PARACHAIN: u128 = 1000 * UNITS;
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 
@@ -48,12 +52,12 @@ decl_test_parachain! {
 }
 
 decl_test_parachain! {
-	pub struct Acala{
-		Runtime = hydradx_runtime::Runtime,
-		Origin = hydradx_runtime::Origin,
-		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
-		DmpMessageHandler = hydradx_runtime::DmpQueue,
-		new_ext = acala_ext(),
+	pub struct OtherParachain{
+		Runtime = parachain_runtime_mock::Runtime,
+		Origin = parachain_runtime_mock::Origin,
+		XcmpMessageHandler = parachain_runtime_mock::XcmpQueue,
+		DmpMessageHandler = parachain_runtime_mock::DmpQueue,
+		new_ext = other_parachain_ext(),
 	}
 }
 
@@ -61,7 +65,7 @@ decl_test_network! {
 	pub struct TestNet {
 		relay_chain = PolkadotRelay,
 		parachains = vec![
-			(2000, Acala),
+			(2000, OtherParachain),
 			(2034, Hydra),
 		],
 	}
@@ -213,8 +217,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn acala_ext() -> sp_io::TestExternalities {
-	use hydradx_runtime::{Runtime, System};
+pub fn other_parachain_ext() -> sp_io::TestExternalities {
+	use frame_support::traits::OnInitialize;
+	use parachain_runtime_mock::{MultiTransactionPayment, NativeExistentialDeposit, Runtime, System};
+
+	let existential_deposit = NativeExistentialDeposit::get();
 
 	let mut t = frame_system::GenesisConfig::default()
 		.build_storage::<Runtime>()
@@ -226,12 +233,33 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 	.assimilate_storage(&mut t)
 	.unwrap();
 
+	pallet_asset_registry::GenesisConfig::<Runtime> {
+		asset_names: vec![(b"AUSD".to_vec(), 1_000_000u128)],
+		native_asset_name: b"BSX".to_vec(),
+		native_existential_deposit: existential_deposit,
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
 	<parachain_info::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&parachain_info::GenesisConfig {
-			parachain_id: ACALA_PARA_ID.into(),
+			parachain_id: OTHER_PARA_ID.into(),
 		},
 		&mut t,
 	)
+	.unwrap();
+
+	orml_tokens::GenesisConfig::<Runtime> {
+		balances: vec![
+			(
+				AccountId::from(ALICE),
+				AUSD,
+				ALICE_INITIAL_AUSD_BALANCE_ON_OTHER_PARACHAIN,
+			),
+			(AccountId::from(BOB), AUSD, BOB_INITIAL_AUSD_BALANCE_ON_OTHER_PARACHAIN),
+		],
+	}
+	.assimilate_storage(&mut t)
 	.unwrap();
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
@@ -242,8 +270,20 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 	)
 	.unwrap();
 
+	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
+		currencies: vec![(1, Price::from_inner(462_962_963_000_u128))], //0.000_000_462_962_963
+		account_currencies: vec![],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
 	let mut ext = sp_io::TestExternalities::new(t);
-	ext.execute_with(|| System::set_block_number(1));
+	ext.execute_with(|| {
+		System::set_block_number(1);
+		// Make sure the prices are up-to-date.
+		MultiTransactionPayment::on_initialize(1);
+	});
+
 	ext
 }
 
