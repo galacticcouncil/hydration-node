@@ -698,9 +698,15 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded() {
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount: Balance = 999;
+			let sell_amount: Balance = 999 * ONE;
 
-			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				Origin::signed(TRADER),
+				DOT,
+				AUSD,
+				sell_amount,
+				min_limit
+			));
 		});
 }
 
@@ -727,7 +733,8 @@ fn sell_should_fail_when_trade_volume_limit_exceeded(sell_amount: Balance) {
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
 
-			assert_noop!(Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
+			assert_noop!(
+				Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
 				Error::<Test>::TradeVolumeLimitExceeded
 			);
 		});
