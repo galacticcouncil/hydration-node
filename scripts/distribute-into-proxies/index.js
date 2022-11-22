@@ -19,12 +19,23 @@ multisig 2/3
  */
 const multisig = '' //TODO
 
-// TODO
+
+const period = 10000;
+const daysToBlocks = (days) => days * 24 * 60 * 60 / 6;
+const daysToPeriodCount = (days) => daysToBlocks(days) / period;
+
 const vesting = {
-  start: '13517962',
-  period: '10000',
+  start: 13517962,
+  period,
   per_period: '',
-  period_count: '1000',
+  period_count: daysToPeriodCount(356*2),
+}
+
+const teamVesting = {
+  start: vesting.start + daysToBlocks(122),
+  period,
+  per_period: '',
+  period_count: daysToPeriodCount(356*2),
 }
 
 const allocation = {
@@ -51,18 +62,18 @@ const allocation = {
     ['2250000', vesting]
   ],
   founders: [
-    ['153326250', vesting],
-    ['144000000', vesting],
-    ['119362500', vesting],
-    ['9686250', vesting],
-    ['107100000', vesting]
+    ['153326250', teamVesting],
+    ['144000000', teamVesting],
+    ['119362500', teamVesting],
+    ['9686250', teamVesting],
+    ['107100000', teamVesting]
   ],
   advisors: [
-    ['6750000', vesting],
-    ['6750000', vesting],
-    ['13500000', vesting],
-    ['6750000', vesting],
-    ['1350000', vesting]
+    ['6750000', teamVesting],
+    ['6750000', teamVesting],
+    ['13500000', teamVesting],
+    ['6750000', teamVesting],
+    ['1350000', teamVesting]
   ],
   strategic: [
     ['50561797.752809', vesting],
@@ -88,25 +99,25 @@ const allocation = {
     ['3745318.35205993', vesting]
   ],
   employees: [
-    ['33750000', vesting],
-    ['27000000', vesting],
-    ['6750000', vesting],
-    ['6750000', vesting],
-    ['8100000', vesting],
-    ['13500000', vesting],
-    ['1350000', vesting],
-    ['3375000', vesting],
-    ['6750000', vesting],
-    ['6750000', vesting],
-    ['3375000', vesting],
-    ['6750000', vesting],
-    ['3375000', vesting],
-    ['10125000', vesting],
-    ['6750000', vesting],
-    ['3375000', vesting],
-    ['6750000', vesting],
-    ['10125000', vesting],
-    ['76725000', vesting]
+    ['33750000', teamVesting],
+    ['27000000', teamVesting],
+    ['6750000', teamVesting],
+    ['6750000', teamVesting],
+    ['8100000', teamVesting],
+    ['13500000', teamVesting],
+    ['1350000', teamVesting],
+    ['3375000', teamVesting],
+    ['6750000', teamVesting],
+    ['6750000', teamVesting],
+    ['3375000', teamVesting],
+    ['6750000', teamVesting],
+    ['3375000', teamVesting],
+    ['10125000', teamVesting],
+    ['6750000', teamVesting],
+    ['3375000', teamVesting],
+    ['6750000', teamVesting],
+    ['10125000', teamVesting],
+    ['76725000', teamVesting]
   ]
 }
 
@@ -143,7 +154,7 @@ function calculateSchedule([amount, {start, period, period_count}]) {
     .toFixed()
   const remainder = total.mod(period_count).toFixed()
 
-  //console.log({total: total.toFixed(), remainder})
+  console.log({total: total.toFixed(), remainder})
 
   return {
     remainder,
