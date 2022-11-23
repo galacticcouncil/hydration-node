@@ -17,7 +17,7 @@
 
 use super::*;
 pub use crate as pallet_circuit_breaker;
-pub use frame_support::{assert_ok, parameter_types};
+pub use frame_support::{assert_ok, assert_noop, parameter_types};
 pub use frame_support::traits::{Everything, OnFinalize};
 use frame_system as system;
 use sp_core::H256;

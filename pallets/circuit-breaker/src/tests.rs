@@ -77,3 +77,16 @@ fn liquidity_storage_should_be_cleared_in_the_next_block() {
 			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), None);
 		});
 }
+
+#[test]
+fn max_limit_calculation_throws_error_when_overflow_happens() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+			//Arrange
+            let asset_id = 100;
+
+            assert_noop!(CircuitBreaker::before_pool_state_change(asset_id, Balance::MAX),
+			ArithmeticError::Overflow);
+		});
+}
