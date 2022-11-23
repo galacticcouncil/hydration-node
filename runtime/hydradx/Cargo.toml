@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "114.0.0"
+version = "115.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -35,7 +35,6 @@ pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "p
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-aura = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
-pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-preimage = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -179,7 +178,6 @@ std = [
     "pallet-aura/std",
     "pallet-balances/std",
     "pallet-session/std",
-    "pallet-sudo/std",
     "pallet-timestamp/std",
     "pallet-preimage/std",
     "pallet-scheduler/std",
@@ -262,7 +260,6 @@ try-runtime= [
     "pallet-transaction-multi-payment/try-runtime",
     "pallet-relaychain-info/try-runtime",
     "pallet-omnipool/try-runtime",
-    "pallet-sudo/try-runtime",
     "pallet-collator-rewards/try-runtime",
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",

@@ -98,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 114,
+	spec_version: 115,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -174,8 +174,8 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 	}
 }
 
-pub struct BaseFilter;
-impl Contains<Call> for BaseFilter {
+pub struct CallFilter;
+impl Contains<Call> for CallFilter {
 	fn contains(call: &Call) -> bool {
 		if matches!(call, Call::System(_) | Call::Timestamp(_) | Call::ParachainSystem(_)) {
 			// always allow
@@ -189,10 +189,6 @@ impl Contains<Call> for BaseFilter {
 		}
 
 		match call {
-			Call::Balances(_) => false,
-			Call::Currencies(_) => false,
-			Call::Tokens(_) => false,
-			Call::XTokens(_) => false,
 			Call::PolkadotXcm(_) => false,
 			Call::OrmlXcm(_) => false,
 			Call::Uniques(_) => false,
@@ -229,7 +225,7 @@ parameter_types! {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = BaseFilter;
+	type BaseCallFilter = CallFilter;
 	type BlockWeights = BlockWeights;
 	type BlockLength = BlockLength;
 	/// The ubiquitous origin type.
@@ -311,11 +307,6 @@ impl pallet_transaction_payment::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
-}
-
-impl pallet_sudo::Config for Runtime {
-	type Event = Event;
-	type Call = Call;
 }
 
 // Parachain Config
@@ -828,7 +819,7 @@ impl pallet_omnipool::Config for Runtime {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Currency = Currencies;
-	type AddTokenOrigin = MajorityOfCouncil;
+	type AddTokenOrigin = EnsureRoot<AccountId>;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
@@ -914,9 +905,6 @@ construct_runtime!(
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
 		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
-
-		// TEMPORARY
-		Sudo: pallet_sudo = 255, // Let's make it last one.
 	}
 );
 

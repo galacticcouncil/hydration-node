@@ -3256,7 +3256,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.2.0"
+version = "8.3.0"
 dependencies = [
  "clap",
  "common-runtime",
@@ -3353,7 +3353,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "114.0.0"
+version = "115.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3403,7 +3403,6 @@ dependencies = [
  "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
- "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
@@ -11374,7 +11373,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "114.0.0"
+version = "115.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
