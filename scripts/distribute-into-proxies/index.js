@@ -19,7 +19,7 @@ const UNIT = 1000000000000
 multisig 2/3
   TODO
  */
-const multisig = '7KNL7wgm4RoALDP2UPfTXAJhHMacmd4Hbv1jCpWuYerjjgN8' //TODO
+const multisig = '7JEDFF1sRpUyTejVFVBGbq4AfdViA1vqkbGnu4WWWVTud3dg' //TODO
 
 
 const period = 11250;
@@ -287,14 +287,15 @@ async function main() {
     from,
     api.tx.utility.batchAll([toVestingAddress, ...vestings]),
   )
+  log('funds distributed:', transferred)
   const transferred = receipt4.events
     .filter(({event}) => event.method === 'Transfer')
     .map(({event}) => event.data.amount.toString())
     .reduce((a, num) => a.plus(num), new BigNumber(0))
     .minus(grandTotalTotal)
+    .plus(distribution.length * proxyFunding)
     .toFixed()
   assert.equal(transferred, grandTotalTotal, 'difference between total and transferred')
-  log('funds distributed:', transferred)
 }
 
 main()
