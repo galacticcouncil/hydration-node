@@ -374,6 +374,7 @@ pub mod pallet {
 			native_asset_price: Price,
 			stable_weight_cap: Permill,
 			native_weight_cap: Permill,
+			owner: Option<T::AccountId>,
 		) -> DispatchResult {
 			T::TechnicalOrigin::ensure_origin(origin)?;
 
@@ -425,11 +426,31 @@ pub mod pallet {
 				&Self::protocol_account(),
 			)?;
 
+			let (stable_protocol_shares, native_protocol_shares) = if let Some(position_owner) = owner {
+				let _ = Self::create_position(
+					&position_owner,
+					T::HdxAssetId::get(),
+					native_asset_reserve,
+					native_asset_reserve,
+					native_asset_price,
+				)?;
+				let _ = Self::create_position(
+					&position_owner,
+					T::StableCoinAssetId::get(),
+					stable_asset_reserve,
+					stable_asset_reserve,
+					native_asset_price,
+				)?;
+				(Balance::zero(), Balance::zero())
+			} else {
+				(stable_asset_reserve, native_asset_reserve)
+			};
+
 			// Initial stale of native and stable assets
 			let stable_asset_state = AssetState::<Balance> {
 				hub_reserve: stable_asset_hub_reserve,
 				shares: stable_asset_reserve,
-				protocol_shares: stable_asset_reserve,
+				protocol_shares: stable_protocol_shares,
 				cap: FixedU128::from(stable_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};
@@ -437,7 +458,7 @@ pub mod pallet {
 			let native_asset_state = AssetState::<Balance> {
 				hub_reserve: native_asset_hub_reserve,
 				shares: native_asset_reserve,
-				protocol_shares: native_asset_reserve,
+				protocol_shares: native_protocol_shares,
 				cap: FixedU128::from(native_weight_cap).into_inner(),
 				tradable: Tradability::default(),
 			};

@@ -380,7 +380,8 @@ impl ExtBuilder {
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
-					Permill::from_percent(100)
+					Permill::from_percent(100),
+					None,
 				));
 				assert_pool_state_approx!(
 					stable_price.checked_mul_int(stable_amount).unwrap() + native_amount,

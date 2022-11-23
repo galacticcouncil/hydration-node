@@ -29,7 +29,7 @@ use orml_traits::MultiCurrencyExtended;
 benchmarks! {
 	 where_clause {  where T::AssetId: From<u32>,
 		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
-		T: crate::pallet::Config
+		T: crate::pallet::Config,
 	}
 
 	initialize_pool{
@@ -40,13 +40,20 @@ benchmarks! {
 
 		let acc = crate::Pallet::<T>::protocol_account();
 
+		let owner: T::AccountId = account("owner", 0, 1);
+
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-	}: _(RawOrigin::Root, stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100))
+		let native_position_id = <NextPositionId<T>>::get();
+		let stable_position_id = <NextPositionId<T>>::get() + T::PositionItemId::from(1u32);
+
+	}: _(RawOrigin::Root, stable_price, native_price, Permill::from_percent(100), Permill::from_percent(100), Some(owner))
 	verify {
 		assert!(<Assets<T>>::get(T::StableCoinAssetId::get()).is_some());
 		assert!(<Assets<T>>::get(T::HdxAssetId::get()).is_some());
+		assert!(<Positions<T>>::get(native_position_id).is_some());
+		assert!(<Positions<T>>::get(stable_position_id).is_some());
 	}
 
 	add_token{
@@ -60,7 +67,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -92,7 +99,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -132,7 +139,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -183,7 +190,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -235,7 +242,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
@@ -288,7 +295,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 	}: _(RawOrigin::Root, T::StableCoinAssetId::get(), Tradability::BUY)
 	verify {
@@ -320,7 +327,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price, native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 		// Register new asset in asset registry
 		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::one())?;
@@ -363,7 +370,7 @@ benchmarks! {
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
-		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+		crate::Pallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100), None)?;
 
 	}: _(RawOrigin::Root, T::StableCoinAssetId::get(), Permill::from_percent(10))
 	verify {
