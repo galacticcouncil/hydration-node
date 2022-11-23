@@ -47,7 +47,7 @@ fn load_spec(id: &str, is_testing: bool) -> std::result::Result<Box<dyn sc_servi
 	} else {
 		Ok(match id {
 			"" => Box::new(chain_spec::hydradx::parachain_config()?),
-			"local" => Box::new(chain_spec::local::parachain_config()?),
+			"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 			"staging" => Box::new(chain_spec::staging::parachain_config()?),
 			"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
@@ -107,7 +107,7 @@ impl SubstrateCli for Cli {
 		} else {
 			Ok(match id {
 				"hydradx" => Box::new(chain_spec::hydradx::parachain_config()?),
-				"local" => Box::new(chain_spec::local::parachain_config()?),
+				"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 				"staging" => Box::new(chain_spec::staging::parachain_config()?),
 				"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
 				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),

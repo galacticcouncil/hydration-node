@@ -63,6 +63,7 @@ pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
 mod benchmarking;
+mod migrations;
 mod xcm;
 
 pub use hex_literal::hex;
@@ -950,6 +951,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsReversedWithSystemFirst,
+	migrations::OnRuntimeUpgradeMigration,
 >;
 
 impl_runtime_apis! {
