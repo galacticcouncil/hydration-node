@@ -18,7 +18,7 @@
 use super::*;
 pub use crate as pallet_circuit_breaker;
 pub use frame_support::{assert_ok, parameter_types};
-use frame_support::traits::Everything;
+pub use frame_support::traits::{Everything, OnFinalize};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -74,10 +74,15 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+parameter_types! {
+	pub const MaxVolumeLimit: Percent = Percent::from_percent(50);
+}
+
 impl Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
+	type MaxVolumeLimit = MaxVolumeLimit;
 }
 
 #[derive(Default)]

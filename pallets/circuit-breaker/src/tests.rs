@@ -31,10 +31,10 @@ fn on_trade_should_store_liquidity_when_called_first_time() {
 			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), None);
 
 			// Act
-            assert_ok!(CircuitBreaker::on_trade(asset_id, initial_liquidity));
+            assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
 
 			// Assert
-			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), Some(initial_liquidity));
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id).unwrap(), (500_000, 1_500_000));
 		});
 }
 
@@ -46,14 +46,34 @@ fn on_trade_should_overwrite_liquidity_when_called_consequently() {
 			//Arrange
             let asset_id = 100;
             let initial_liquidity = 1_000_000;
-            assert_ok!(CircuitBreaker::on_trade(asset_id, initial_liquidity));
-			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), Some(initial_liquidity));
+            assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id).unwrap(), (500_000, 1_500_000));
 
 			// Act
 			let new_liquidity = 2_000_000;
-			assert_ok!(CircuitBreaker::on_trade(asset_id, new_liquidity));
+			assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, new_liquidity));
 
 			// Assert
-			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), Some(initial_liquidity));
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id).unwrap(), (500_000, 1_500_000));
+		});
+}
+
+#[test]
+fn liquidity_storage_should_be_cleared_in_the_next_block() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+			//Arrange
+            let asset_id = 100;
+            let initial_liquidity = 1_000_000;
+
+            assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id).unwrap(), (500_000, 1_500_000));
+
+			// Act
+			CircuitBreaker::on_finalize(2);
+
+			// Assert
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), None);
 		});
 }

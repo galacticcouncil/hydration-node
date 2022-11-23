@@ -20,7 +20,9 @@
 pub use primitives::Balance;
 
 use scale_info::TypeInfo;
-use sp_runtime::DispatchResult;
+use sp_runtime::{ArithmeticError, DispatchResult, Percent};
+use frame_support::traits::Get;
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
 
 #[cfg(test)]
 mod mock;
@@ -36,6 +38,20 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use codec::HasCompact;
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+		fn on_finalize(_n: T::BlockNumber) {
+			let _ = <InitialLiquidity<T>>::clear(u32::MAX, None);
+		}
+
+		// fn integrity_test() {
+		// 	assert_ne!(
+		// 		T::MaxValueLimit::get().is_zero(),
+		// 		"Max Value Limit is 0."
+		// 	);
+		// }
+	}
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -59,7 +75,12 @@ pub mod pallet {
             + Copy
             + PartialOrd
             + MaybeSerializeDeserialize
-            + Default;
+            + Default
+			+ CheckedAdd
+			+ CheckedSub
+			+ AtLeast32BitUnsigned;
+
+		type MaxVolumeLimit: Get<Percent>;
 	}
 
 	#[pallet::pallet]
@@ -69,7 +90,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn initial_liquidity)]
-	pub type InitialLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, T::Balance>;
+	pub type InitialLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -79,23 +100,27 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {}
 }
 
-impl<T: Config> Pallet<T> {
-
-	pub fn something() {
-
-	}
-}
+impl<T: Config> Pallet<T> {}
 
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
 pub trait OnTradeHandler<AssetId, Balance> {
-    fn on_trade(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
+    fn before_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
+	fn after_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
 }
 
 impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn on_trade(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
+	fn before_pool_state_change(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
 		if !<InitialLiquidity<T>>::contains_key(asset_id) {
-			<InitialLiquidity<T>>::insert(asset_id, initial_liquidity);
+			let liquidity_diff = T::MaxVolumeLimit::get().mul_floor(initial_liquidity);
+			let min_limit = initial_liquidity.checked_sub(&liquidity_diff)
+				.ok_or(ArithmeticError::Underflow)?;
+			let max_limit = initial_liquidity.checked_add(&liquidity_diff)
+				.ok_or(ArithmeticError::Overflow)?;
+			<InitialLiquidity<T>>::insert(asset_id, (min_limit, max_limit));
 		}
+		Ok(())
+	}
+	fn after_pool_state_change(asset_id: T::AssetId, liquidity: T::Balance) -> DispatchResult {
 		Ok(())
 	}
 }
