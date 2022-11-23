@@ -5635,6 +5635,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-circuit-breaker"
+version = "1.0.0"
+dependencies = [
+ "derive_more",
+ "frame-support",
+ "frame-system",
+ "hex-literal",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "primitives",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-claims"
 version = "3.4.1"
 dependencies = [

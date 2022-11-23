@@ -11,6 +11,7 @@ members = [
   'primitives',
   'utils/build-script-utils',
   'integration-tests',
+  'pallets/circuit-breaker',
 ]
 
 [patch."https://github.com/paritytech/polkadot"]
