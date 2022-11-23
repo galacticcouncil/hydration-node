@@ -18,13 +18,15 @@
 use super::*;
 pub use crate as pallet_circuit_breaker;
 use frame_support::parameter_types;
-use frame_support::traits::Everything;
+use frame_support::traits::{Everything, Nothing};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+use frame_system::GenesisConfig;
+
 use orml_traits::parameter_type_with_key;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -39,6 +41,8 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		Tokens: orml_tokens::{Pallet, Event<T>},,
+
 		CircuitBreaker: pallet_circuit_breaker::{Pallet, Storage, Event<T>},
 	}
 );
@@ -75,10 +79,26 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+impl orml_tokens::Config for Test {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = i128;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
+	type MaxLocks = ();
+	type DustRemovalWhitelist = ();
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+	type ReserveIdentifier = ();
+	type MaxReserves = ();
+}
+
 impl Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
-	type Balance = Balance;
+	type Currency = Tokens;
 }
 
 #[derive(Default)]

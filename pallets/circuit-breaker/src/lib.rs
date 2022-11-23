@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 use codec::{Decode, Encode};
+use frame_support::traits::Currency;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
@@ -27,6 +28,7 @@ use orml_traits::MultiCurrency;
 pub use primitives::Balance;
 
 use scale_info::TypeInfo;
+use sp_runtime::DispatchResult;
 
 #[cfg(test)]
 mod mock;
@@ -36,6 +38,9 @@ mod tests;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+
+type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -59,13 +64,17 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Balance type
+
+		/// Multi currency mechanism
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
+
+		/*/// Balance type
         type Balance: Parameter
             + Member
             + Copy
             + PartialOrd
             + MaybeSerializeDeserialize
-            + Default;
+            + Default;*/
 	}
 
 	#[pallet::pallet]
@@ -75,7 +84,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn initial_liquidity)]
-	pub type InitialLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, Balance>;
+	pub type InitialLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, BalanceOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -97,8 +106,8 @@ pub trait OnTradeHandler<AssetId, Balance> {
     fn on_trade(asset_id: AssetId, initial_liquidity: Balance);
 }
 
-impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn on_trade(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatResult {
+impl<T: Config> OnTradeHandler<T::AssetId, BalanceOf<T>> for Pallet<T> {
+	fn on_trade(asset_id: T::AssetId, initial_liquidity: BalanceOf<T>) -> DispatchResult {
 		<InitialLiquidity<T>>::insert(asset_id, initial_liquidity);
 		Ok(())
 	}
