@@ -119,7 +119,7 @@ const allocation = {
     ['3375000', teamVesting],
     ['6750000', teamVesting],
     ['10125000', teamVesting],
-    ['76697176.503760355067', teamVesting]
+    ['76587176.503760355067', teamVesting]
   ]
 }
 
@@ -141,12 +141,12 @@ const totals = {
 const grandTotal = total(Object.values(allocation).flat());
 const proxyFunding = 1000 * UNIT;
 
-assert.equal(grandTotal.toFixed(), '1499972176.503760355067');
+assert.equal(grandTotal.toFixed(), '1499862176.503760355067');
 assert.equal(totals.angel, '202500000');
 assert.equal(totals.seed, '337500000');
 assert.equal(totals.founders, '568575000');
 assert.equal(totals.strategic, '150000000');
-assert.equal(totals.employees, '241397176.503760355067');
+assert.equal(totals.employees, '241287176.503760355067');
 
 function calculateSchedule([amount, {start, period, period_count}]) {
   const total = new BigNumber(amount).multipliedBy(UNIT).minus(proxyFunding)
