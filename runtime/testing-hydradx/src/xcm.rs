@@ -6,12 +6,13 @@ use frame_support::{
 	traits::{Everything, Nothing},
 	PalletId,
 };
+use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 pub use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::latest::prelude::*;
-use polkadot_xcm::latest::Error;
+use primitives::Price;
 use sp_runtime::traits::{AccountIdConversion, Convert};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom, AllowTopLevelPaidExecutionFrom,
@@ -19,7 +20,9 @@ use xcm_builder::{
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	TakeWeightCredit,
 };
-use xcm_executor::{traits::WeightTrader, Assets, Config, XcmExecutor};
+use xcm_executor::{Config, XcmExecutor};
+
+use polkadot_xcm::latest::Weight;
 
 pub type LocalOriginToLocation = SignedToAccountId32<Origin, AccountId, RelayNetwork>;
 
@@ -72,18 +75,6 @@ parameter_types! {
 	pub const MaxAssetsForTransfer: usize = 2;
 }
 
-pub struct TradePassthrough();
-impl WeightTrader for TradePassthrough {
-	fn new() -> Self {
-		Self()
-	}
-
-	fn buy_weight(&mut self, _weight: Weight, payment: Assets) -> Result<Assets, Error> {
-		// Just let it through for now
-		Ok(payment)
-	}
-}
-
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type Call = Call;
@@ -98,7 +89,26 @@ impl Config for XcmConfig {
 
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<BaseXcmWeight, Call, MaxInstructions>;
-	type Trader = TradePassthrough;
+	// We calculate weight fees the same way as for regular extrinsics and use the prices and choice
+	// of accepted currencies of the transaction payment pallet. Fees go to the same fee receiver as
+	// configured in `MultiTransactionPayment`.
+	type Trader = MultiCurrencyTrader<
+		AssetId,
+		Balance,
+		Price,
+		WeightToFee,
+		MultiTransactionPayment,
+		CurrencyIdConvert,
+		ToFeeReceiver<
+			AccountId,
+			AssetId,
+			Balance,
+			Price,
+			CurrencyIdConvert,
+			DepositAll<Runtime>,
+			MultiTransactionPayment,
+		>,
+	>;
 
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
