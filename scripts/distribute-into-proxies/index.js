@@ -19,7 +19,7 @@ const UNIT = 1000000000000
 multisig 2/3
   TODO
  */
-const multisig = '' //TODO
+const multisig = '7KNL7wgm4RoALDP2UPfTXAJhHMacmd4Hbv1jCpWuYerjjgN8' //TODO
 
 
 const period = 11250;
@@ -119,7 +119,7 @@ const allocation = {
     ['3375000', teamVesting],
     ['6750000', teamVesting],
     ['10125000', teamVesting],
-    ['76725000', teamVesting]
+    ['76698176.503760355067', teamVesting]
   ]
 }
 
@@ -140,12 +140,12 @@ const totals = {
 
 const grandTotal = total(Object.values(allocation).flat());
 
-assert.equal(grandTotal, '1500000000');
+assert.equal(grandTotal, '1499973176.503760355067');
 assert.equal(totals.angel, '202500000');
 assert.equal(totals.seed, '337500000');
 assert.equal(totals.founders, '568575000');
 assert.equal(totals.strategic, '150000000');
-assert.equal(totals.employees, '241425000');
+assert.equal(totals.employees, '241398176.503760355067');
 
 function calculateSchedule([amount, {start, period, period_count}]) {
   const total = new BigNumber(amount).multipliedBy(UNIT)
@@ -215,7 +215,10 @@ async function main() {
   const vestingAddress = hdxAddress(vestingPubKey)
   log('vestingAddress account:', vestingAddress)
   log('controller multisig:', multisig)
-  log('total to be distributed:', total)
+  log('total to be distributed:', grandTotal.toFixed())
+
+  const grandTotalTotal = grandTotal.multipliedBy(UNIT).toFixed()
+  log(grandTotalTotal)
 
   log('creating anonymous proxies...')
   const proxies = distribution.map(() =>
@@ -233,7 +236,7 @@ async function main() {
   log('proxies created:', anonymousProxies)
   log('gc proxy:', anonymousProxies[anonymousProxies.length - 1])
 
-  log('funding proxies...')
+  log(`funding proxies ${anonymousProxies.length}...`)
   const transfers = anonymousProxies.map((anon) =>
     api.tx.balances.forceTransfer(activeAccount, anon, 1000 * UNIT),
   )
@@ -272,7 +275,7 @@ async function main() {
   log('all proxies delegated to multisig')
 
   log('distributing funds...')
-  const toVestingAddress = api.tx.sudo.sudo(api.tx.balances.forceTransfer(activeAccount, vestingAddress, total))
+  const toVestingAddress = api.tx.sudo.sudo(api.tx.balances.forceTransfer(activeAccount, vestingAddress, grandTotalTotal))
   const vestings = distribution
     .map(({remainder, schedule}, i) =>
       api.tx.sudo.sudoAs(
@@ -287,9 +290,8 @@ async function main() {
     .filter(({event}) => event.method === 'Transfer')
     .map(({event}) => event.data.amount.toString())
     .reduce((a, num) => a.plus(num), new BigNumber(0))
-    .minus(total)
-    .toFixed()
-  assert.equal(transferred, total, 'difference between total and transferred')
+    .minus(grandTotalTotal)
+  assert.equal(transferred, grandTotalTotal, 'difference between total and transferred')
   log('funds distributed:', transferred)
 }
 
