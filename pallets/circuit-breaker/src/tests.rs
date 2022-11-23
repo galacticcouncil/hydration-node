@@ -19,13 +19,41 @@ use super::*;
 use crate::mock::*;
 
 #[test]
-fn sell_should_work_when_trade_volume_limit_not_exceeded() {
+fn on_trade_should_store_liquidity_when_called_first_time() {
 	ExtBuilder::default()
 		.build()
 		.execute_with(|| {
+			// Arrange
+            let asset_id = 100;
+            let initial_liquidity = 1_000_000;
+
+			// storage should be empty prior calling on_trade
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), None);
+
+			// Act
+            assert_ok!(CircuitBreaker::on_trade(asset_id, initial_liquidity));
+
+			// Assert
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), Some(initial_liquidity));
+		});
+}
+
+#[test]
+fn on_trade_should_overwrite_liquidity_when_called_consequently() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+			//Arrange
             let asset_id = 100;
             let initial_liquidity = 1_000_000;
             assert_ok!(CircuitBreaker::on_trade(asset_id, initial_liquidity));
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), Some(initial_liquidity));
+
+			// Act
+			let new_liquidity = 2_000_000;
+			assert_ok!(CircuitBreaker::on_trade(asset_id, new_liquidity));
+
+			// Assert
 			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), Some(initial_liquidity));
 		});
 }

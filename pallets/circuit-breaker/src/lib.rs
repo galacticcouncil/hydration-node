@@ -16,15 +16,7 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-use codec::{Decode, Encode};
-use frame_support::traits::Currency;
 #[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "std")]
-use sp_core::bytes;
-use sp_core::RuntimeDebug;
-use sp_std::vec::Vec;
-use orml_traits::MultiCurrency;
 pub use primitives::Balance;
 
 use scale_info::TypeInfo;
@@ -39,14 +31,10 @@ mod tests;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 	use codec::HasCompact;
 
 	#[pallet::config]
@@ -65,16 +53,13 @@ pub mod pallet {
 			+ TypeInfo;
 
 
-		/// Multi currency mechanism
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
-
-		/*/// Balance type
+		/// Balance type
         type Balance: Parameter
             + Member
             + Copy
             + PartialOrd
             + MaybeSerializeDeserialize
-            + Default;*/
+            + Default;
 	}
 
 	#[pallet::pallet]
@@ -84,7 +69,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn initial_liquidity)]
-	pub type InitialLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, BalanceOf<T>>;
+	pub type InitialLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, T::Balance>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -103,12 +88,14 @@ impl<T: Config> Pallet<T> {
 
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
 pub trait OnTradeHandler<AssetId, Balance> {
-    fn on_trade(asset_id: AssetId, initial_liquidity: Balance);
+    fn on_trade(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
 }
 
-impl<T: Config> OnTradeHandler<T::AssetId, BalanceOf<T>> for Pallet<T> {
-	fn on_trade(asset_id: T::AssetId, initial_liquidity: BalanceOf<T>) -> DispatchResult {
-		<InitialLiquidity<T>>::insert(asset_id, initial_liquidity);
+impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
+	fn on_trade(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
+		if !<InitialLiquidity<T>>::contains_key(asset_id) {
+			<InitialLiquidity<T>>::insert(asset_id, initial_liquidity);
+		}
 		Ok(())
 	}
 }

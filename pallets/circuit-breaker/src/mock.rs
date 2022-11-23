@@ -17,17 +17,14 @@
 
 use super::*;
 pub use crate as pallet_circuit_breaker;
-use frame_support::parameter_types;
-use frame_support::traits::{Everything, Nothing};
+pub use frame_support::{assert_ok, parameter_types};
+use frame_support::traits::Everything;
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use frame_system::GenesisConfig;
-
-use orml_traits::parameter_type_with_key;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -41,8 +38,6 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Event<T>},,
-
 		CircuitBreaker: pallet_circuit_breaker::{Pallet, Storage, Event<T>},
 	}
 );
@@ -79,26 +74,10 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-impl orml_tokens::Config for Test {
-	type Event = Event;
-	type Balance = Balance;
-	type Amount = i128;
-	type CurrencyId = AssetId;
-	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
-	type MaxLocks = ();
-	type DustRemovalWhitelist = ();
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
-	type ReserveIdentifier = ();
-	type MaxReserves = ();
-}
-
 impl Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
-	type Currency = Tokens;
+	type Balance = Balance;
 }
 
 #[derive(Default)]
@@ -107,7 +86,7 @@ pub struct ExtBuilder {}
 impl ExtBuilder {
 	// builds genesis config
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		let mut ext = sp_io::TestExternalities::new(t);
         ext.execute_with(|| System::set_block_number(1));
