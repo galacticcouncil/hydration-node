@@ -92,7 +92,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -520,25 +520,7 @@ pub mod pallet {
 				tradable: Tradability::default(),
 			};
 
-			let lp_position = Position::<Balance, T::AssetId> {
-				asset_id: asset,
-				amount,
-				shares: amount,
-				price: initial_price.into_inner(),
-			};
-
-			let instance_id = Self::create_and_mint_position_instance(&position_owner)?;
-
-			<Positions<T>>::insert(instance_id, lp_position);
-
-			Self::deposit_event(Event::PositionCreated {
-				position_id: instance_id,
-				owner: position_owner,
-				asset,
-				amount,
-				shares: amount,
-				price: initial_price,
-			});
+			let _ = Self::create_position(&position_owner, asset, amount, amount, initial_price)?;
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			let current_hub_asset_liquidity =
@@ -651,31 +633,13 @@ pub mod pallet {
 
 			let updated_asset_price = new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?;
 
-			//
-			// Post - update states
-			//
-
-			// Create LP position with given shares
-			let lp_position = Position::<Balance, T::AssetId> {
-				asset_id: asset,
-				amount,
-				shares: *state_changes.asset.delta_shares,
-				// Note: position needs price after asset state is updated.
-				price: updated_asset_price.into_inner(),
-			};
-
-			let instance_id = Self::create_and_mint_position_instance(&who)?;
-
-			<Positions<T>>::insert(instance_id, lp_position);
-
-			Self::deposit_event(Event::PositionCreated {
-				position_id: instance_id,
-				owner: who.clone(),
+			let position_id = Self::create_position(
+				&who,
 				asset,
 				amount,
-				shares: *state_changes.asset.delta_shares,
-				price: updated_asset_price,
-			});
+				*state_changes.asset.delta_shares,
+				updated_asset_price,
+			)?;
 
 			T::Currency::transfer(
 				asset,
@@ -696,7 +660,7 @@ pub mod pallet {
 				who,
 				asset_id: asset,
 				amount,
-				position_id: instance_id,
+				position_id,
 			});
 			Ok(())
 		}
@@ -1635,5 +1599,38 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	/// Create new position for given account.
+	///
+	/// Emits `PositionCreated` on success.
+	fn create_position(
+		owner: &T::AccountId,
+		asset_id: T::AssetId,
+		amount: Balance,
+		shares: Balance,
+		price: FixedU128,
+	) -> Result<T::PositionItemId, DispatchError> {
+		let lp_position = Position::<Balance, T::AssetId> {
+			asset_id,
+			amount,
+			shares,
+			price: price.into_inner(),
+		};
+
+		let position_id = Self::create_and_mint_position_instance(owner)?;
+
+		<Positions<T>>::insert(position_id, lp_position);
+
+		Self::deposit_event(Event::PositionCreated {
+			position_id,
+			owner: owner.clone(),
+			asset: asset_id,
+			amount,
+			shares,
+			price,
+		});
+
+		Ok(position_id)
 	}
 }
