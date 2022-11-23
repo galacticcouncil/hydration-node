@@ -15,11 +15,12 @@ const RPC = process.env.RPC_SERVER || 'ws://127.0.0.1:9988'
 let proxyIndex = 2000
 const UNIT = 1000000000000
 
-/*
-multisig 2/3
-  TODO
- */
-const multisig = '7JEDFF1sRpUyTejVFVBGbq4AfdViA1vqkbGnu4WWWVTud3dg' //TODO
+const signatories = [
+  "7MwypY3vf9S8t4bKokcqJ53YpvgDzQaFK3nVTSJimcN6vv9W",
+  "7KBuMLWJuiA6cFrRruoMLvLRNPHP3HkVsG1v7twqDB3P3YUB",
+  "7NVGmnZM7pBsYAVQkDgXjCa9FPduCfCUWw3CmC25txkQ5qdp",
+];
+const multisig = '7KLwBuNihkhssdxuHxDzoDRyXRFq7LwqTUNw7UuZEwP92CNZ'
 
 
 const period = 11250;
@@ -111,15 +112,16 @@ const allocation = {
     ['3375000', teamVesting],
     ['6750000', teamVesting],
     ['6750000', teamVesting],
-    ['3375000', teamVesting],
+    ['6750000', teamVesting],
     ['6750000', teamVesting],
     ['3375000', teamVesting],
     ['10125000', teamVesting],
     ['6750000', teamVesting],
     ['3375000', teamVesting],
     ['6750000', teamVesting],
+    ['3375000', teamVesting],
     ['10125000', teamVesting],
-    ['76587176.503760355067', teamVesting]
+    ['69860000', teamVesting]
   ]
 }
 
@@ -140,13 +142,14 @@ const totals = {
 
 const grandTotal = total(Object.values(allocation).flat());
 const proxyFunding = 1000 * UNIT;
+const signerFunding = 10000 * UNIT;
 
-assert.equal(grandTotal.toFixed(), '1499862176.503760355067');
+assert.equal(grandTotal.toFixed(), '1499885000');
 assert.equal(totals.angel, '202500000');
 assert.equal(totals.seed, '337500000');
 assert.equal(totals.founders, '568575000');
 assert.equal(totals.strategic, '150000000');
-assert.equal(totals.employees, '241287176.503760355067');
+assert.equal(totals.employees, '241310000');
 
 function calculateSchedule([amount, {start, period, period_count}]) {
   const total = new BigNumber(amount).multipliedBy(UNIT).minus(proxyFunding)
@@ -221,6 +224,18 @@ async function main() {
 
   const grandTotalTotal = grandTotal.multipliedBy(UNIT).toFixed()
   log(grandTotalTotal)
+
+  log('funding multisigs...')
+  const sigs = signatories.map(signer =>
+    api.tx.balances.forceTransfer(activeAccount, signer, signerFunding+""),
+  )
+  const receipt0 = await sendAndWait(from, api.tx.sudo.sudo(api.tx.utility.batchAll(sigs)))
+  const funded = receipt0.events
+    .filter(({event}) => event.method === 'Transfer')
+    .map(({event}) => event.data.amount.toString())
+    .reduce((a, num) => a.plus(num), new BigNumber(0))
+    .toFixed()
+  assert.equal(funded, new BigNumber(signerFunding).times(signatories.length).toFixed(), 'different amount funded to multisigs')
 
   log('creating anonymous proxies...')
   const proxies = distribution.map(() =>
