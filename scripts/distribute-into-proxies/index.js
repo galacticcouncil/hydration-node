@@ -287,7 +287,7 @@ async function main() {
     from,
     api.tx.utility.batchAll([toVestingAddress, ...vestings]),
   )
-  log('funds distributed:', transferred)
+
   const transferred = receipt4.events
     .filter(({event}) => event.method === 'Transfer')
     .map(({event}) => event.data.amount.toString())
@@ -295,6 +295,7 @@ async function main() {
     .minus(grandTotalTotal)
     .plus(distribution.length * proxyFunding)
     .toFixed()
+  log('funds distributed:', transferred)
   assert.equal(transferred, grandTotalTotal, 'difference between total and transferred')
 }
 
