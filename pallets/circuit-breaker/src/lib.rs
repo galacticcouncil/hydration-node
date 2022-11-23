@@ -21,7 +21,9 @@ pub use primitives::Balance;
 
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchResult, Percent};
-use frame_support::traits::Get;
+use frame_support::{ensure,
+	traits::Get
+};
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
 
 #[cfg(test)]
@@ -96,6 +98,16 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {}
 
+	#[pallet::error]
+	#[cfg_attr(test, derive(PartialEq, Eq))]
+	pub enum Error<T> {
+		/// Entry does not exist in the storage
+		EntryNotExist,
+		/// Minimum pool volume has been reached
+		MinPoolVolumeReached,
+		/// Maximum pool volume has been reached
+		MaxPoolVolumeReached,
+	}
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {}
 }
@@ -105,7 +117,7 @@ impl<T: Config> Pallet<T> {}
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
 pub trait OnTradeHandler<AssetId, Balance> {
     fn before_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
-	fn after_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
+	fn after_pool_state_change(asset_id: AssetId, update_liquidity_state: Balance) -> DispatchResult;
 }
 
 impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
@@ -120,7 +132,11 @@ impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
 		}
 		Ok(())
 	}
-	fn after_pool_state_change(asset_id: T::AssetId, liquidity: T::Balance) -> DispatchResult {
+	fn after_pool_state_change(asset_id: T::AssetId, update_liquidity_state: T::Balance) -> DispatchResult {
+		let (min_limit, max_limit) = Pallet::<T>::initial_liquidity(asset_id)
+			.ok_or(Error::<T>::EntryNotExist)?;
+		ensure!(min_limit <= update_liquidity_state, Error::<T>::MinPoolVolumeReached);
+		ensure!(max_limit >= update_liquidity_state, Error::<T>::MaxPoolVolumeReached);
 		Ok(())
 	}
 }
