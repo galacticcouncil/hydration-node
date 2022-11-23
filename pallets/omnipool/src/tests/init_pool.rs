@@ -243,3 +243,58 @@ fn initialize_pool_should_fail_when_stable_asset_is_not_registered() {
 			);
 		});
 }
+
+#[test]
+fn initialize_pool_should_mint_nft_position_when_owner_is_provided() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 100 * ONE),
+			(Omnipool::protocol_account(), HDX, 200 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			let stable_amount = 100 * ONE;
+			let native_amount = 200 * ONE;
+
+			let hdx_position_id = <NextPositionId<Test>>::get();
+			let stable_position_id = hdx_position_id + 1;
+
+			let stable_price = FixedU128::from_float(0.5);
+			let native_price = FixedU128::from_float(1.5);
+
+			// ACT
+			assert_ok!(Omnipool::initialize_pool(
+				Origin::root(),
+				stable_price,
+				native_price,
+				Permill::from_percent(50),
+				Permill::from_percent(50),
+				Some(LP1),
+			));
+
+			let hdx_position = Positions::<Test>::get(hdx_position_id).unwrap();
+
+			let expected = Position::<Balance, AssetId> {
+				asset_id: HDX,
+				amount: native_amount,
+				shares: native_amount,
+				price: native_price.into_inner(),
+			};
+
+			assert_eq!(hdx_position, expected);
+
+			assert_eq!(get_mock_minted_position(hdx_position_id), Some(LP1));
+
+			let stable_position = Positions::<Test>::get(stable_position_id).unwrap();
+
+			let expected = Position::<Balance, AssetId> {
+				asset_id: DAI,
+				amount: stable_amount,
+				shares: stable_amount,
+				price: stable_price.into_inner(),
+			};
+
+			assert_eq!(stable_position, expected);
+			assert_eq!(get_mock_minted_position(stable_position_id), Some(LP1));
+		});
+}

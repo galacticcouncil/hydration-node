@@ -439,7 +439,7 @@ pub mod pallet {
 					T::StableCoinAssetId::get(),
 					stable_asset_reserve,
 					stable_asset_reserve,
-					native_asset_price,
+					stable_asset_price,
 				)?;
 				(Balance::zero(), Balance::zero())
 			} else {
