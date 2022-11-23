@@ -23,8 +23,8 @@ const multisig = '7KNL7wgm4RoALDP2UPfTXAJhHMacmd4Hbv1jCpWuYerjjgN8' //TODO
 
 
 const period = 11250;
-const daysToBlocks = (days) => days * 24 * 60 * 60 / 6;
-const daysToPeriodCount = (days) => daysToBlocks(days) / period;
+const daysToBlocks = (days) => Math.floor(days * 24 * 60 * 60 / 6);
+const daysToPeriodCount = (days) => Math.floor(days * 24 * 60 * 60 / 6 / period);
 
 const vesting = {
   start: 13517962,
@@ -278,8 +278,7 @@ async function main() {
   const toVestingAddress = api.tx.sudo.sudo(api.tx.balances.forceTransfer(activeAccount, vestingAddress, grandTotalTotal))
   const vestings = distribution
     .map(({remainder, schedule}, i) =>
-      api.tx.sudo.sudoAs(
-        vestingAddress,
+      api.tx.sudo.sudo(
         api.tx.vesting.vestedTransfer(anonymousProxies[i], schedule),
       ));
   const receipt4 = await sendAndWait(
@@ -291,6 +290,7 @@ async function main() {
     .map(({event}) => event.data.amount.toString())
     .reduce((a, num) => a.plus(num), new BigNumber(0))
     .minus(grandTotalTotal)
+    .toFixed()
   assert.equal(transferred, grandTotalTotal, 'difference between total and transferred')
   log('funds distributed:', transferred)
 }
