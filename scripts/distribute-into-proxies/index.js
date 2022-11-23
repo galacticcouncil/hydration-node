@@ -211,9 +211,9 @@ async function main() {
   const from = keyring.addFromUri(ACCOUNT_SECRET)
   const activeAccount = hdxAddress(from.addressRaw)
   log('active account:', activeAccount)
-  const treasuryPubKey = stringToU8a('modlpy/trsry'.padEnd(32, '\0'))
-  const treasury = hdxAddress(treasuryPubKey)
-  log('treasury account:', treasury)
+  const vestingPubKey = stringToU8a('modlpy/vstng'.padEnd(32, '\0'))
+  const vestingAddress = hdxAddress(vestingPubKey)
+  log('vestingAddress account:', vestingAddress)
   log('controller multisig:', multisig)
   log('total to be distributed:', total)
 
@@ -272,16 +272,16 @@ async function main() {
   log('all proxies delegated to multisig')
 
   log('distributing funds...')
-  const toTreasury = api.tx.sudo.sudo(api.tx.balances.forceTransfer(activeAccount, treasury, total))
+  const toVestingAddress = api.tx.sudo.sudo(api.tx.balances.forceTransfer(activeAccount, vestingAddress, total))
   const vestings = distribution
     .map(({remainder, schedule}, i) =>
       api.tx.sudo.sudoAs(
-        treasury,
+        vestingAddress,
         api.tx.vesting.vestedTransfer(anonymousProxies[i], schedule),
       ));
   const receipt4 = await sendAndWait(
     from,
-    api.tx.utility.batchAll([toTreasury, ...vestings]),
+    api.tx.utility.batchAll([toVestingAddress, ...vestings]),
   )
   const transferred = receipt4.events
     .filter(({event}) => event.method === 'Transfer')
