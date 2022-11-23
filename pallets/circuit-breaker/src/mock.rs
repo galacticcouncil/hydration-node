@@ -39,7 +39,6 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Event<T>},
 		CircuitBreaker: pallet_circuit_breaker::{Pallet, Storage, Event<T>},
 	}
 );
@@ -76,32 +75,10 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		0
-	};
-}
-
-impl orml_tokens::Config for Test {
-	type Event = Event;
-	type Balance = Balance;
-	type Amount = i128;
-	type CurrencyId = AssetId;
-	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
-	type MaxLocks = ();
-	type DustRemovalWhitelist = Everything;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
-}
-
 impl Config for Test {
 	type Event = Event;
-	type Currency = Tokens;
 	type AssetId = AssetId;
+	type Balance = Balance;
 }
 
 #[derive(Default)]

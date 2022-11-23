@@ -17,3 +17,15 @@
 
 use super::*;
 use crate::mock::*;
+
+#[test]
+fn sell_should_work_when_trade_volume_limit_not_exceeded() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+            let asset_id = 100;
+            let initial_liquidity = 1_000_000;
+            assert_ok!(CircuitBreaker::on_trade(asset_id, initial_liquidity));
+			assert_eq!(CircuitBreaker::initial_liquidity(asset_id), Some(initial_liquidity));
+		});
+}

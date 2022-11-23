@@ -24,7 +24,7 @@ use sp_core::bytes;
 use sp_core::RuntimeDebug;
 use sp_std::vec::Vec;
 use orml_traits::MultiCurrency;
-use primitives::Balance;
+pub use primitives::Balance;
 
 use scale_info::TypeInfo;
 
@@ -59,8 +59,13 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Multi currency mechanism
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
+		/// Balance type
+        type Balance: Parameter
+            + Member
+            + Copy
+            + PartialOrd
+            + MaybeSerializeDeserialize
+            + Default;
 	}
 
 	#[pallet::pallet]
@@ -89,10 +94,12 @@ impl<T: Config> Pallet<T> {
 
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
 pub trait OnTradeHandler<AssetId, Balance> {
-    fn on_trade();
+    fn on_trade(asset_id: AssetId, initial_liquidity: Balance);
 }
 
-impl<T: Config> OnTradeHandler<T::AssetId, T::AssetId> for Pallet<T> {
-	fn on_trade() {
+impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
+	fn on_trade(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatResult {
+		<InitialLiquidity<T>>::insert(asset_id, initial_liquidity);
+		Ok(())
 	}
 }
