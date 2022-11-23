@@ -98,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 115,
+	spec_version: 116,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -805,9 +805,9 @@ impl pallet_uniques::Config for Runtime {
 parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
-	pub ProtofolFee: Permill = Permill::from_rational(3u32,1000u32);
-	pub AssetFee: Permill = Permill::from_rational(3u32,1000u32);
-	pub const TVLCap : Balance= u128::MAX;
+	pub ProtofolFee: Permill = Permill::from_rational(5u32,10000u32);
+	pub AssetFee: Permill = Permill::from_rational(15u32,10000u32);
+	pub const TVLCap : Balance = 100_000_000_000_000_000u128;
 	pub const MinTradingLimit : Balance = 1_000_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
