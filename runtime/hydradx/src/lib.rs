@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+#![allow(clippy::match_like_matches_macro)]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -48,8 +49,7 @@ use frame_support::{
 	traits::{Contains, EnsureOrigin, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp, U128CurrencyToVote},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
-		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial,
+		ConstantMultiplier, DispatchClass, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
 use hydradx_traits::pools::SpotPriceProvider;
@@ -63,6 +63,7 @@ pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
 mod benchmarking;
+mod migrations;
 mod xcm;
 
 pub use hex_literal::hex;
@@ -97,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 113,
+	spec_version: 114,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -133,7 +134,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
 		let p = CENTS; // 1_000_000_000_000
-		let q = 10 * Balance::from(ExtrinsicBaseWeight::get()); // 7_919_840_000
+		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
@@ -176,7 +177,17 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 pub struct CallFilter;
 impl Contains<Call> for CallFilter {
 	fn contains(call: &Call) -> bool {
-		#[allow(clippy::match_like_matches_macro)]
+		if matches!(call, Call::System(_) | Call::Timestamp(_) | Call::ParachainSystem(_)) {
+			// always allow
+			// Note: this is done to avoid unnecessary check of paused storage.
+			return true;
+		}
+
+		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
+			// if paused, dont allow!
+			return false;
+		}
+
 		match call {
 			Call::PolkadotXcm(_) => false,
 			Call::OrmlXcm(_) => false,
@@ -827,6 +838,12 @@ impl pallet_omnipool::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_transaction_pause::Config for Runtime {
+	type Event = Event;
+	type UpdateOrigin = SuperMajorityTechCommittee;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -858,6 +875,7 @@ construct_runtime!(
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
+		TransactionPause: pallet_transaction_pause = 60,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -921,6 +939,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsReversedWithSystemFirst,
+	migrations::OnRuntimeUpgradeMigration,
 >;
 
 impl_runtime_apis! {
@@ -1017,8 +1036,8 @@ impl_runtime_apis! {
 			(weight, BlockWeights::get().max_block)
 		}
 
-		fn execute_block_no_check(block: Block) -> Weight {
-			Executive::execute_block_no_check(block)
+		fn execute_block(block: Block, state_root_check: bool, try_state: frame_try_runtime::TryStateSelect) -> Weight {
+			Executive::try_execute_block(block, state_root_check, try_state).unwrap()
 		}
 	}
 
@@ -1078,6 +1097,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_claims, Claims);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
+			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
@@ -1134,6 +1154,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_claims, Claims);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
+			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);

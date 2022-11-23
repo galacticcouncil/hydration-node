@@ -83,7 +83,7 @@ pub mod chain {
 	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
 
 	/// We allow for
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND / 2;
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_ref_time(WEIGHT_PER_SECOND.ref_time() / 2);
 }
 
 #[cfg(test)]
