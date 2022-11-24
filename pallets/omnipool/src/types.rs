@@ -81,6 +81,12 @@ pub struct Position<Balance, AssetId> {
 	pub(super) price: Balance,
 }
 
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct AssetCoefficient{
+	pub coeff : FixedU128,
+	pub amount_taken_offline : Balance
+}
+
 impl<Balance, AssetId> From<&Position<Balance, AssetId>> for hydra_dx_math::omnipool::types::Position<Balance>
 where
 	Balance: Copy + Into<u128>,

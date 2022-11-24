@@ -94,7 +94,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability,AssetCoefficient};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -225,6 +225,12 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn asset_coefficients_and_offline_amounts)]
+	/// Coefficients and asset quantity to take offline for security purposes
+	pub(super) type AssetCoefficientsAndAmountsTakenOffline<T: Config> =
+	StorageMap<_, Blake2_128Concat, T::AssetId, AssetCoefficient>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -359,8 +365,7 @@ pub mod pallet {
 		MaxInRatioExceeded,
 		/// The trade volume in the current block exceeded the limit
 		TradeVolumeLimitExceeded,
-		PriceOracleError,
-	}
+		PriceOracleError,}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -1353,6 +1358,8 @@ pub mod pallet {
 	}
 }
 
+
+
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
 	pub fn protocol_account() -> T::AccountId {
@@ -1662,39 +1669,67 @@ impl<T: Config> Pallet<T> {
 
 		Ok(FixedU128::from_rational(volume,asset_a_total_liq))
 	}
-	fn calculate_liquidity_coefficient(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<(FixedU128, FixedU128), DispatchError> {
-		let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::TenMinutes, [1; 8])
-			.map_err(|_| Error::<T>::PriceOracleError)?;
-		let asset_a_vol_in_per_10_mins = oracle_entry.volume.a_in;
-		let asset_b_vol_in_per_10_mins = oracle_entry.volume.b_in;
 
-		let normalized_volume_asset_a_per_10_mins = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_10_mins)?;
-		let normalized_volume_asset_b_per_10_mins = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_10_mins)?;
+	fn get_ampunt_taken_offline(asset: T::AssetId, coeff: FixedU128) -> Result<Balance, DispatchError> {
+		let asset_a_state = Self::load_asset_state(asset)?;
+		let asset_a_total_liq = asset_a_state.reserve;
 
-		let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::Day, [1; 8])
-			.map_err(|_| Error::<T>::PriceOracleError)?;
-		let asset_a_vol_in_per_day = oracle_entry.volume.a_in;
-		let asset_b_vol_in_per_day = oracle_entry.volume.b_in;
+		let coeff_complement = FixedU128::from(1).checked_sub(&coeff).ok_or(ArithmeticError::Overflow)?;
 
-		let normalized_volume_asset_a_per_day = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_day)?;
-		let normalized_volume_asset_b_per_day = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_day)?;
+		let amount = coeff_complement.checked_mul_int(asset_a_total_liq).ok_or(ArithmeticError::Overflow)?;
 
-		let min_ratio_to_apply_coeff = FixedU128::from(5);
-		let min = FixedU128::from(1);
+		Ok(amount)
+	}
 
-		//TODO: add check that we only apply coeff if the volume ration is bigger than F
+	fn calculate_liquidity_coefficient(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<(AssetCoefficient, AssetCoefficient), DispatchError> {
+		let coeffs_and_offline_amounts_for_asset_a = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_a);
+		let coeffs_and_offline_amounts_for_asset_b = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_b);
 
-		let asset_a_coef = normalized_volume_asset_a_per_day.checked_div(&normalized_volume_asset_a_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-		let asset_a_coef = asset_a_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
-		let asset_a_coef = asset_a_coef.min(min);
+		match (coeffs_and_offline_amounts_for_asset_a,coeffs_and_offline_amounts_for_asset_b){
+			(Some(coeff_a),Some(coeff_b)) => Ok((coeff_a, coeff_b)),
+			//TODO: handle none-some and some-none arms
+			_ => {
+				let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::TenMinutes, [1; 8])
+					.map_err(|_| Error::<T>::PriceOracleError)?;
+				let asset_a_vol_in_per_10_mins = oracle_entry.volume.a_in;
+				let asset_b_vol_in_per_10_mins = oracle_entry.volume.b_in;
 
+				let normalized_volume_asset_a_per_10_mins = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_10_mins)?;
+				let normalized_volume_asset_b_per_10_mins = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_10_mins)?;
 
-		let asset_b_coef = normalized_volume_asset_b_per_day.checked_div(&normalized_volume_asset_b_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-		let asset_b_coef = asset_b_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
-		let asset_b_coef = asset_b_coef.min(min);
+				let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::Day, [1; 8])
+					.map_err(|_| Error::<T>::PriceOracleError)?;
+				let asset_a_vol_in_per_day = oracle_entry.volume.a_in;
+				let asset_b_vol_in_per_day = oracle_entry.volume.b_in;
 
+				let normalized_volume_asset_a_per_day = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_day)?;
+				let normalized_volume_asset_b_per_day = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_day)?;
 
-		//TODO: consider adding limit for coeff, because for example with a 0.05 we would take offline 95% of the liquidty, which we don' want usually
-		Ok((asset_a_coef, asset_b_coef))
+				let min_ratio_to_apply_coeff = FixedU128::from(5);
+				let min = FixedU128::from(1);
+
+				//TODO: add check that we only apply coeff if the volume ration is bigger than F
+
+				let asset_a_coef = normalized_volume_asset_a_per_day.checked_div(&normalized_volume_asset_a_per_10_mins).ok_or(ArithmeticError::Overflow)?;
+				let asset_a_coef = asset_a_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
+				let asset_a_coef = asset_a_coef.min(min);
+
+				let asset_b_coef = normalized_volume_asset_b_per_day.checked_div(&normalized_volume_asset_b_per_10_mins).ok_or(ArithmeticError::Overflow)?;
+				let asset_b_coef = asset_b_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
+				let asset_b_coef = asset_b_coef.min(min);
+
+				let amount_taken_offline_asset_a = Self::get_ampunt_taken_offline(asset_a,asset_a_coef)?;
+				let amount_taken_offline_asset_b = Self::get_ampunt_taken_offline(asset_b,asset_b_coef)?;
+
+				let asset_coeff_and_amount_a = AssetCoefficient {coeff: asset_a_coef, amount_taken_offline: amount_taken_offline_asset_a};
+				let asset_coeff_and_amount_b = AssetCoefficient {coeff: asset_b_coef, amount_taken_offline: amount_taken_offline_asset_b};
+
+				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_a, asset_coeff_and_amount_a);
+				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_b, asset_coeff_and_amount_b);
+
+				//TODO: consider adding limit for coeff, because for example with a 0.05 we would take offline 95% of the liquidty, which we don' want usually
+				Ok((asset_coeff_and_amount_a, asset_coeff_and_amount_b))
+			} }
+
 	}
 }
