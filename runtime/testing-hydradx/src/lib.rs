@@ -833,6 +833,7 @@ impl pallet_omnipool::Config for Runtime {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type PositionItemId = ItemId;
+	type CollectionId = CollectionId;
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = ();
