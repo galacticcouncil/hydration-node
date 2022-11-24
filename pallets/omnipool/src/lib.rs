@@ -1679,18 +1679,22 @@ impl<T: Config> Pallet<T> {
 		let normalized_volume_asset_a_per_day = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_day)?;
 		let normalized_volume_asset_b_per_day = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_day)?;
 
-		let f_coef = FixedU128::from(5);
+		let min_ratio_to_apply_coeff = FixedU128::from(5);
 		let min = FixedU128::from(1);
 
+		//TODO: add check that we only apply coeff if the volume ration is bigger than F
+
 		let asset_a_coef = normalized_volume_asset_a_per_day.checked_div(&normalized_volume_asset_a_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-		let asset_a_coef = asset_a_coef.checked_mul(&f_coef).ok_or(ArithmeticError::Overflow)?;
+		let asset_a_coef = asset_a_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
 		let asset_a_coef = asset_a_coef.min(min);
 
 
 		let asset_b_coef = normalized_volume_asset_b_per_day.checked_div(&normalized_volume_asset_b_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-		let asset_b_coef = asset_b_coef.checked_mul(&f_coef).ok_or(ArithmeticError::Overflow)?;
+		let asset_b_coef = asset_b_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
 		let asset_b_coef = asset_b_coef.min(min);
 
+
+		//TODO: consider adding limit for coeff, because for example with a 0.05 we would take offline 95% of the liquidty, which we don' want usually
 		Ok((asset_a_coef, asset_b_coef))
 	}
 }
