@@ -28,7 +28,7 @@ const daysToBlocks = (days) => Math.floor(days * 24 * 60 * 60 / 6);
 const daysToPeriodCount = (days) => Math.floor(days * 24 * 60 * 60 / 6 / period);
 
 const vesting = {
-  start: 13517962,
+  start: 13371337,
   period,
   per_period: '',
   period_count: daysToPeriodCount(30*12),
