@@ -66,107 +66,107 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn initialize_pool() -> Weight {
-		(110_771_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(10 as Weight))
-			.saturating_add(T::DbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(110_771_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(10 as u64))
+			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}
 	fn add_token() -> Weight {
-		(103_310_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(14 as Weight))
-			.saturating_add(T::DbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(103_310_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(14 as u64))
+			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}
 	fn add_liquidity() -> Weight {
-		(139_531_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(16 as Weight))
-			.saturating_add(T::DbWeight::get().writes(12 as Weight))
+		Weight::from_ref_time(139_531_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(16 as u64))
+			.saturating_add(T::DbWeight::get().writes(12 as u64))
 	}
 	fn remove_liquidity() -> Weight {
-		(175_741_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(18 as Weight))
-			.saturating_add(T::DbWeight::get().writes(15 as Weight))
+		Weight::from_ref_time(175_741_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(18 as u64))
+			.saturating_add(T::DbWeight::get().writes(15 as u64))
 	}
 	fn sell() -> Weight {
-		(121_641_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(14 as Weight))
-			.saturating_add(T::DbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(121_641_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(14 as u64))
+			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}
 	fn buy() -> Weight {
-		(121_521_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(14 as Weight))
-			.saturating_add(T::DbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(121_521_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(14 as u64))
+			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}
 	fn set_asset_tradable_state() -> Weight {
-		(21_030_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(21_030_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn refund_refused_asset() -> Weight {
-		(72_851_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(8 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
+		Weight::from_ref_time(72_851_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(8 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
 	fn sacrifice_position() -> Weight {
-		(56_001_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(56_001_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(7 as u64))
 	}
 	fn set_asset_weight_cap() -> Weight {
-		(20_790_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(20_790_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn initialize_pool() -> Weight {
-		(110_771_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(10 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(110_771_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(10 as u64))
+			.saturating_add(RocksDbWeight::get().writes(10 as u64))
 	}
 	fn add_token() -> Weight {
-		(103_310_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(14 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(103_310_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(14 as u64))
+			.saturating_add(RocksDbWeight::get().writes(10 as u64))
 	}
 	fn add_liquidity() -> Weight {
-		(139_531_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(16 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(12 as Weight))
+		Weight::from_ref_time(139_531_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(16 as u64))
+			.saturating_add(RocksDbWeight::get().writes(12 as u64))
 	}
 	fn remove_liquidity() -> Weight {
-		(175_741_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(18 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(15 as Weight))
+		Weight::from_ref_time(175_741_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(18 as u64))
+			.saturating_add(RocksDbWeight::get().writes(15 as u64))
 	}
 	fn sell() -> Weight {
-		(121_641_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(14 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(121_641_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(14 as u64))
+			.saturating_add(RocksDbWeight::get().writes(10 as u64))
 	}
 	fn buy() -> Weight {
-		(121_521_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(14 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(10 as Weight))
+		Weight::from_ref_time(121_521_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(14 as u64))
+			.saturating_add(RocksDbWeight::get().writes(10 as u64))
 	}
 	fn set_asset_tradable_state() -> Weight {
-		(21_030_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(21_030_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	fn refund_refused_asset() -> Weight {
-		(72_851_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(8 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
+		Weight::from_ref_time(72_851_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(8 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
 	fn sacrifice_position() -> Weight {
-		(56_001_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(56_001_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
 	fn set_asset_weight_cap() -> Weight {
-		(20_790_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(20_790_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

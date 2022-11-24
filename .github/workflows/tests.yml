@@ -272,9 +272,9 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/download-artifact@v2
-        name: Download runtime wasm from pipeline
+        name: Download testing runtime wasm from pipeline
         with:
-          name: hydradx_runtime.compact.compressed.wasm
+          name: testing_hydradx_runtime.compact.compressed.wasm
           path: scripts/upgrade-runtime
       - uses: dawidd6/action-download-artifact@v2
         name: Download node binary from base
@@ -290,7 +290,7 @@ jobs:
           latest: true
           fileName: polkadot
           out-file-path: ../polkadot/target/release
-      - run: chmod +x ./hydradx && ./hydradx --version
+      - run: chmod +x ./hydradx && mv ./hydradx ./testing-hydradx && ./testing-hydradx --version
         name: HydraDX version
         working-directory: target/release
       - run: chmod +x ./polkadot && ./polkadot --version
