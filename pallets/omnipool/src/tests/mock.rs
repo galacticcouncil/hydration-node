@@ -28,6 +28,7 @@ use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
+use frame_support::dispatch::Weight;
 use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -161,6 +162,46 @@ parameter_types! {
 	pub const TVLCap: Balance = Balance::MAX;
 }
 
+pub struct PriceOracleMock {}
+
+impl AggregatedOracle<AssetId, Balance, u64, Price> for PriceOracleMock {
+	type Error = DispatchError;
+
+	fn get_entry(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod, source: Source) -> Result<AggregatedEntry<Balance, u64, Price>, Self::Error> {
+		match period {
+			OraclePeriod::TenMinutes => {
+				Ok(AggregatedEntry {
+					price: FixedU128::from_float(0.6),
+					liquidity: Balance::zero(),
+					volume: Volume {
+						a_in: 10_000_000,
+						a_out: 20_000_000,
+						b_in: 50_000_000,
+						b_out: 1_00_000_000
+					},
+					oracle_age: 10
+				})
+			},
+			_ => {
+				Ok(AggregatedEntry {
+					price: FixedU128::from_float(0.6),
+					liquidity: Balance::zero(),
+					volume: Volume {
+						a_in: 1_000_000,
+						a_out: 2_000_000,
+						b_in: 5_000_000,
+						b_out: 10_000_000
+					},
+					oracle_age: 10
+				})
+			} }
+	}
+
+	fn get_entry_weight() -> Weight {
+		todo!()
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
@@ -183,6 +224,7 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
+	type PriceOracle = PriceOracleMock;
 }
 
 pub struct ExtBuilder {
@@ -424,6 +466,8 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_system::pallet_prelude::BlockNumberFor;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
@@ -470,7 +514,8 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 	}
 }
 
-use hydradx_traits::Registry;
+use hydradx_traits::{AggregatedEntry, Registry, Source, Volume};
+use crate::types::Price;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 

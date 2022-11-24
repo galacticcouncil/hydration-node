@@ -83,6 +83,7 @@ use hydradx_traits::{AggregatedOracle, Registry, oracle::OraclePeriod};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_runtime::traits::{CheckedDiv, CheckedMul};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -972,10 +973,9 @@ pub mod pallet {
 			let (asset_in_coef, asset_out_coef) = Self::calculate_liquidity_coefficient(asset_in, asset_out)?;
 			let mut asset_in_state_with_coef = asset_in_state.clone();
 			let mut asset_out_state_with_coef = asset_out_state.clone();
-			asset_in_state_with_coef.reserve = asset_in_state_with_coef.reserve.checked_mul(asset_in_coef)
-				.ok_or(ArithmeticError::Overflow)?;
-			asset_out_state_with_coef.reserve = asset_out_state_with_coef.reserve.checked_mul(asset_out_coef)
-				.ok_or(ArithmeticError::Overflow)?;
+
+			asset_in_state_with_coef.reserve = asset_in_coef.checked_mul_int(asset_in_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
+			asset_out_state_with_coef.reserve = asset_out_coef.checked_mul_int(asset_out_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
 			
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state_with_coef).into(),
@@ -1656,12 +1656,13 @@ impl<T: Config> Pallet<T> {
 		Err(Error::<T>::NotAllowed.into())
 	}
 
-	fn get_normalized_volume(asset: T::AssetId, volume: Balance) -> Result<Balance, DispatchError> {
+	fn get_normalized_volume(asset: T::AssetId, volume: Balance) -> Result<FixedU128, DispatchError> {
 		let asset_a_state = Self::load_asset_state(asset)?;
 		let asset_a_total_liq = asset_a_state.reserve;
-		volume.checked_div(asset_a_total_liq).ok_or(ArithmeticError::Overflow.into())
+
+		Ok(FixedU128::from_rational(volume,asset_a_total_liq))
 	}
-	fn calculate_liquidity_coefficient(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<(Balance, Balance), DispatchError> {
+	fn calculate_liquidity_coefficient(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<(FixedU128, FixedU128), DispatchError> {
 		let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::TenMinutes, [1; 8])
 			.map_err(|_| Error::<T>::PriceOracleError)?;
 		let asset_a_vol_in_per_10_mins = oracle_entry.volume.a_in;
@@ -1678,16 +1679,17 @@ impl<T: Config> Pallet<T> {
 		let normalized_volume_asset_a_per_day = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_day)?;
 		let normalized_volume_asset_b_per_day = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_day)?;
 
-		let f_coef = 5;
+		let f_coef = FixedU128::from(5);
+		let min = FixedU128::from(1);
 
-		let asset_a_coef = normalized_volume_asset_a_per_day.checked_div(normalized_volume_asset_a_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-		let asset_a_coef = asset_a_coef.checked_mul(f_coef).ok_or(ArithmeticError::Overflow)?;
-		let asset_a_coef = asset_a_coef.min(1);
+		let asset_a_coef = normalized_volume_asset_a_per_day.checked_div(&normalized_volume_asset_a_per_10_mins).ok_or(ArithmeticError::Overflow)?;
+		let asset_a_coef = asset_a_coef.checked_mul(&f_coef).ok_or(ArithmeticError::Overflow)?;
+		let asset_a_coef = asset_a_coef.min(min);
 
 
-		let asset_b_coef = normalized_volume_asset_b_per_day.checked_div(normalized_volume_asset_b_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-		let asset_b_coef = asset_b_coef.checked_mul(f_coef).ok_or(ArithmeticError::Overflow)?;
-		let asset_b_coef = asset_b_coef.min(1);
+		let asset_b_coef = normalized_volume_asset_b_per_day.checked_div(&normalized_volume_asset_b_per_10_mins).ok_or(ArithmeticError::Overflow)?;
+		let asset_b_coef = asset_b_coef.checked_mul(&f_coef).ok_or(ArithmeticError::Overflow)?;
+		let asset_b_coef = asset_b_coef.min(min);
 
 		Ok((asset_a_coef, asset_b_coef))
 	}
