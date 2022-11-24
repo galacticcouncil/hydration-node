@@ -31,14 +31,14 @@ const vesting = {
   start: 13371337,
   period,
   per_period: '',
-  period_count: daysToPeriodCount(30*12),
+  period_count: daysToPeriodCount(356*2),
 }
 
 const teamVesting = {
   start: vesting.start + daysToBlocks(30*6),
   period,
   per_period: '',
-  period_count: daysToPeriodCount(30*24),
+  period_count: daysToPeriodCount(356*2),
 }
 
 const allocation = {
@@ -174,6 +174,8 @@ function calculateSchedule([amount, {start, period, period_count}]) {
 }
 
 const distribution = Object.values(allocation).flat().map(calculateSchedule)
+
+console.log(distribution);
 
 const totalDistributed = distribution
   .reduce(
