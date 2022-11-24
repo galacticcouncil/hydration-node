@@ -764,7 +764,7 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_token(TKN1, FixedU128::from_float(0.65), LP3, 2000 * ONE)
-		.with_10_mins_daily_volume_ratio(100)
+		.with_10_mins_daily_volume_ratio(1)
 		.build()
 		.execute_with(|| {
 			let sell_amount = 50 * ONE;
