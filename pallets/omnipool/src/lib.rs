@@ -79,7 +79,7 @@ use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
-use hydradx_traits::Registry;
+use hydradx_traits::{AggregatedOracle, Registry, oracle::OraclePeriod};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -109,6 +109,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+	use hydradx_traits::AggregatedOracle;
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -199,6 +200,8 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		type PriceOracle: AggregatedOracle<Self::AssetId, Balance, Self::BlockNumber, Price, Error=DispatchError>;
 	}
 
 	#[pallet::storage]
@@ -355,6 +358,7 @@ pub mod pallet {
 		MaxInRatioExceeded,
 		/// The trade volume in the current block exceeded the limit
 		TradeVolumeLimitExceeded,
+		PriceOracleError,
 	}
 
 	#[pallet::call]
@@ -965,9 +969,17 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
+			let (asset_in_coef, asset_out_coef) = Self::calculate_liquidity_coefficient(asset_in, asset_out)?;
+			let mut asset_in_state_with_coef = asset_in_state.clone();
+			let mut asset_out_state_with_coef = asset_out_state.clone();
+			asset_in_state_with_coef.reserve = asset_in_state_with_coef.reserve.checked_mul(asset_in_coef)
+				.ok_or(ArithmeticError::Overflow)?;
+			asset_out_state_with_coef.reserve = asset_out_state_with_coef.reserve.checked_mul(asset_out_coef)
+				.ok_or(ArithmeticError::Overflow)?;
+			
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
-				&(&asset_in_state).into(),
-				&(&asset_out_state).into(),
+				&(&asset_in_state_with_coef).into(),
+				&(&asset_out_state_with_coef).into(),
 				amount,
 				T::AssetFee::get(),
 				T::ProtocolFee::get(),
@@ -1642,5 +1654,41 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	fn get_normalized_volume(asset: T::AssetId, volume: Balance) -> Result<Balance, DispatchError> {
+		let asset_a_state = Self::load_asset_state(asset)?;
+		let asset_a_total_liq = asset_a_state.reserve;
+		volume.checked_div(asset_a_total_liq).ok_or(ArithmeticError::Overflow.into())
+	}
+	fn calculate_liquidity_coefficient(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<(Balance, Balance), DispatchError> {
+		let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::TenMinutes, [1; 8])
+			.map_err(|_| Error::<T>::PriceOracleError)?;
+		let asset_a_vol_in_per_10_mins = oracle_entry.volume.a_in;
+		let asset_b_vol_in_per_10_mins = oracle_entry.volume.b_in;
+
+		let normalized_volume_asset_a_per_10_mins = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_10_mins)?;
+		let normalized_volume_asset_b_per_10_mins = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_10_mins)?;
+
+		let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::Day, [1; 8])
+			.map_err(|_| Error::<T>::PriceOracleError)?;
+		let asset_a_vol_in_per_day = oracle_entry.volume.a_in;
+		let asset_b_vol_in_per_day = oracle_entry.volume.b_in;
+
+		let normalized_volume_asset_a_per_day = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_day)?;
+		let normalized_volume_asset_b_per_day = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_day)?;
+
+		let f_coef = 5;
+
+		let asset_a_coef = normalized_volume_asset_a_per_day.checked_div(normalized_volume_asset_a_per_10_mins).ok_or(ArithmeticError::Overflow)?;
+		let asset_a_coef = asset_a_coef.checked_mul(f_coef).ok_or(ArithmeticError::Overflow)?;
+		let asset_a_coef = asset_a_coef.min(1);
+
+
+		let asset_b_coef = normalized_volume_asset_b_per_day.checked_div(normalized_volume_asset_b_per_10_mins).ok_or(ArithmeticError::Overflow)?;
+		let asset_b_coef = asset_b_coef.checked_mul(f_coef).ok_or(ArithmeticError::Overflow)?;
+		let asset_b_coef = asset_b_coef.min(1);
+
+		Ok((asset_a_coef, asset_b_coef))
 	}
 }
