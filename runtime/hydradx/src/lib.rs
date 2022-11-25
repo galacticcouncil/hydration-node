@@ -812,7 +812,7 @@ parameter_types! {
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
-	pub const OmnipoolCollectionId: CollectionId = 3u128;
+	pub const OmnipoolCollectionId: CollectionId = 1337u128;
 }
 
 impl pallet_omnipool::Config for Runtime {
