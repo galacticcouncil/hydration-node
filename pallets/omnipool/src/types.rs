@@ -81,7 +81,7 @@ pub struct Position<Balance, AssetId> {
 	pub(super) price: Balance,
 }
 
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, Encode, Decode, Default, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AssetCoefficient{
 	pub coeff : FixedU128,
 	pub amount_taken_offline : Balance

@@ -975,12 +975,24 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
+			let offline_amount_for_asset_a = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_in).unwrap_or(AssetCoefficient::default()).amount_taken_offline;
+			let offline_amount_for_asset_b = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_out).unwrap_or(AssetCoefficient::default()).amount_taken_offline;
+
 			let (asset_in_coef, asset_out_coef) = Self::calculate_liquidity_coefficient(asset_in, asset_out)?;
+
+			let lerna_amount_nominator_asset_a = asset_in_coef.coeff.checked_mul(&FixedU128::from_inner(asset_in_state.reserve)).ok_or(ArithmeticError::Overflow)?.checked_mul(&FixedU128::from_inner(asset_in_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+			let lerna_amount_asset_a_updated = lerna_amount_nominator_asset_a.checked_div(&FixedU128::from_inner(asset_in_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_a)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
+			let delta_lerna_amount_asset_a = lerna_amount_asset_a_updated.checked_sub(&FixedU128::from_inner(asset_in_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+
+			let lerna_amount_nominator_asset_b = asset_out_coef.coeff.checked_mul(&FixedU128::from_inner(asset_out_state.reserve)).ok_or(ArithmeticError::Overflow)?.checked_mul(&FixedU128::from_inner(asset_out_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+			let lerna_amount_asset_b_updated = lerna_amount_nominator_asset_b.checked_div(&FixedU128::from_inner(asset_out_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_b)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
+			let delta_lerna_amount_asset_b = lerna_amount_asset_b_updated.checked_sub(&FixedU128::from_inner(asset_out_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+
 			let mut asset_in_state_with_coef = asset_in_state.clone();
 			let mut asset_out_state_with_coef = asset_out_state.clone();
 
-			asset_in_state_with_coef.reserve = asset_in_coef.checked_mul_int(asset_in_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
-			asset_out_state_with_coef.reserve = asset_out_coef.checked_mul_int(asset_out_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
+			asset_in_state_with_coef.reserve = asset_in_coef.coeff.checked_mul_int(asset_in_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
+			asset_out_state_with_coef.reserve = asset_out_coef.coeff.checked_mul_int(asset_out_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
 			
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state_with_coef).into(),
@@ -1724,8 +1736,8 @@ impl<T: Config> Pallet<T> {
 				let asset_coeff_and_amount_a = AssetCoefficient {coeff: asset_a_coef, amount_taken_offline: amount_taken_offline_asset_a};
 				let asset_coeff_and_amount_b = AssetCoefficient {coeff: asset_b_coef, amount_taken_offline: amount_taken_offline_asset_b};
 
-				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_a, asset_coeff_and_amount_a);
-				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_b, asset_coeff_and_amount_b);
+				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_a, asset_coeff_and_amount_a.clone());
+				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_b, asset_coeff_and_amount_b.clone());
 
 				//TODO: consider adding limit for coeff, because for example with a 0.05 we would take offline 95% of the liquidty, which we don' want usually
 				Ok((asset_coeff_and_amount_a, asset_coeff_and_amount_b))
