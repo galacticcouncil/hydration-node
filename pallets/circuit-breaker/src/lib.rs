@@ -47,12 +47,12 @@ pub mod pallet {
 			let _ = <InitialLiquidity<T>>::clear(u32::MAX, None);
 		}
 
-		// fn integrity_test() {
-		// 	assert_ne!(
-		// 		T::MaxValueLimit::get().is_zero(),
-		// 		"Max Value Limit is 0."
-		// 	);
-		// }
+		fn integrity_test() {
+			assert!(
+				!T::MaxVolumeLimit::get().is_zero(),
+				"Circuit Breaker: Max Volume Limit is set to 0."
+			);
+		}
 	}
 
 	#[pallet::config]
