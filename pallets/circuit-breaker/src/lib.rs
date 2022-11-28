@@ -44,7 +44,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_finalize(_n: T::BlockNumber) {
-			let _ = <InitialLiquidity<T>>::clear(u32::MAX, None);
+			let _ = <AllowedLiquidityRangePerAsset<T>>::clear(u32::MAX, None);
 		}
 
 		fn integrity_test() {
@@ -91,8 +91,8 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	#[pallet::getter(fn initial_liquidity)]
-	pub type InitialLiquidity<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
+	#[pallet::getter(fn allowed_liqudity_range_per_asset)]
+	pub type AllowedLiquidityRangePerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -122,18 +122,18 @@ pub trait OnTradeHandler<AssetId, Balance> {
 
 impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
 	fn before_pool_state_change(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
-		if !<InitialLiquidity<T>>::contains_key(asset_id) {
+		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_id) {
 			let liquidity_diff = T::MaxVolumeLimit::get().mul_floor(initial_liquidity);
 			let min_limit = initial_liquidity.checked_sub(&liquidity_diff)
 				.ok_or(ArithmeticError::Underflow)?;
 			let max_limit = initial_liquidity.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
-			<InitialLiquidity<T>>::insert(asset_id, (min_limit, max_limit));
+			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, (min_limit, max_limit));
 		}
 		Ok(())
 	}
 	fn after_pool_state_change(asset_id: T::AssetId, update_liquidity_state: T::Balance) -> DispatchResult {
-		let (min_limit, max_limit) = Pallet::<T>::initial_liquidity(asset_id)
+		let (min_limit, max_limit) = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
 			.ok_or(Error::<T>::EntryNotExist)?;
 		ensure!(min_limit <= update_liquidity_state, Error::<T>::MinPoolVolumeReached);
 		ensure!(max_limit >= update_liquidity_state, Error::<T>::MaxPoolVolumeReached);
