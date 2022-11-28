@@ -183,7 +183,6 @@ impl Config for Test {
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
-	type MaxTradeVolumeLimit = MaxTradeVolumeLimit;
 }
 
 pub struct ExtBuilder {

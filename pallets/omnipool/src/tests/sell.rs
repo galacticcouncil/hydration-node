@@ -2,7 +2,6 @@ use super::*;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
 use sp_runtime::Permill;
-use test_case::test_case;
 
 #[test]
 fn simple_sell_works() {
@@ -677,6 +676,7 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 		});
 }
 
+/*
 #[test]
 fn sell_should_work_when_trade_volume_limit_not_exceeded() {
 	const DOT: AssetId = 100;
@@ -740,4 +740,4 @@ fn sell_should_fail_when_trade_volume_limit_exceeded() {
 				Error::<Test>::TradeVolumeLimitExceeded
 			);
 		});
-}
+}*/
