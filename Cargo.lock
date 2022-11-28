@@ -6094,6 +6094,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-circuit-breaker",
  "parity-scale-codec",
  "pretty_assertions",
  "primitive-types 0.12.0",

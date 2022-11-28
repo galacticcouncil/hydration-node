@@ -35,6 +35,7 @@ mod tests;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -115,12 +116,12 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {}
 
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
-pub trait OnTradeHandler<AssetId, Balance> {
+pub trait BeforeAndAfterPoolStateChangeHandler<AssetId, Balance> {
     fn before_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
 	fn after_pool_state_change(asset_id: AssetId, update_liquidity_state: Balance) -> DispatchResult;
 }
 
-impl<T: Config> OnTradeHandler<T::AssetId, T::Balance> for Pallet<T> {
+impl<T: Config> BeforeAndAfterPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
 	fn before_pool_state_change(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
 		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_id) {
 			let liquidity_diff = T::MaxVolumeLimit::get().mul_floor(initial_liquidity);

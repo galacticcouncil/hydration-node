@@ -1,7 +1,9 @@
 use super::*;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
-use sp_runtime::Permill;
+use sp_runtime::{Percent, Permill};
+
+const TEN_PERCENT: Percent = Percent::from_percent(10);
 
 #[test]
 fn simple_sell_works() {
@@ -676,12 +678,15 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 		});
 }
 
-/*
+
 #[test]
-fn sell_should_work_when_trade_volume_limit_not_exceeded() {
+fn sell_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded() {
 	const DOT: AssetId = 100;
 	const AUSD: AssetId = 200;
 	const TRADER: u64 = 11u64;
+
+	let initial_dot_amount = 10000 * ONE;
+
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -693,13 +698,13 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded() {
 		.with_registered_asset(DOT)
 		.with_registered_asset(AUSD)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
-		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
-		.with_max_trade_volume_limit(1_000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
+		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
+		.with_max_trade_volume_limit(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = 1001 * ONE; //this results in amount_out 999.99 which is checked against max trade volume limit
+			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount);
 
 			assert_ok!(Omnipool::sell(
 				Origin::signed(TRADER),
@@ -712,10 +717,13 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded() {
 }
 
 #[test]
-fn sell_should_fail_when_trade_volume_limit_exceeded() {
+fn sell_should_fail_when_asset_in_trade_volume_limit_exceeded() {
 	const DOT: AssetId = 100;
 	const AUSD: AssetId = 200;
 	const TRADER: u64 = 11u64;
+
+	let initial_dot_amount = 10000 * ONE;
+
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -727,17 +735,20 @@ fn sell_should_fail_when_trade_volume_limit_exceeded() {
 		.with_registered_asset(DOT)
 		.with_registered_asset(AUSD)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
-		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
-		.with_max_trade_volume_limit(1_000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
+		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
+		.with_max_trade_volume_limit(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = 1002 * ONE; //this results in amount_out 1000.99 which checked against max_trade_volume_limit
+			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + 1 * ONE;
 
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
-				Error::<Test>::TradeVolumeLimitExceeded
+				pallet_circuit_breaker::Error::<Test>::MaxPoolVolumeReached
 			);
+
 		});
-}*/
+}
+
+//TODO Dani: add integration tests for complex cases

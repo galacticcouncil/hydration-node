@@ -33,6 +33,8 @@ hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", branch 
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "7d2ba1e169bba6379d8eed7978633dedeb0752fc", default-features = false }
 
+pallet-circuit-breaker = {path="../circuit-breaker", default-features = false}
+
 # third party
 primitive-types = { version = "0.12.0", default-features = false }
 bitflags = "1.3.2"

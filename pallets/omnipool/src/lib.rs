@@ -82,6 +82,7 @@ use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use pallet_circuit_breaker::BeforeAndAfterPoolStateChangeHandler;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -108,14 +109,16 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+	use hydradx_traits::OnTradeHandler;
 	use sp_runtime::ArithmeticError;
+
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config  {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -194,6 +197,8 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		type BeforeAfterTradeHandler: BeforeAndAfterPoolStateChangeHandler<Self::AssetId, Balance>;
 	}
 
 	#[pallet::storage]
@@ -942,6 +947,8 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
+			T::BeforeAfterTradeHandler::before_pool_state_change(asset_in, asset_in_state.reserve)?;
+
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
 				Error::<T>::NotAllowed
@@ -1030,8 +1037,9 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_in, new_asset_in_state.clone());
 			Self::set_asset_state(asset_out, new_asset_out_state);
+			T::BeforeAfterTradeHandler::after_pool_state_change(asset_in, new_asset_in_state.reserve)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
