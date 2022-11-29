@@ -2,6 +2,7 @@ use super::*;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
 use sp_runtime::{Percent, Permill};
+use test_case::test_case;
 
 #[test]
 fn simple_sell_works() {
@@ -676,8 +677,10 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 		});
 }
 
-#[test]
-fn sell_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded() {
+#[test_case(0)]
+#[test_case(1 * ONE)]
+#[test_case(100 * ONE)]
+fn sell_should_work_when_asset_in_trade_volume_limit_not_exceeded(diff_from_max_limit: Balance) {
 	const DOT: AssetId = 100;
 	const AUSD: AssetId = 200;
 	const TRADER: u64 = 11u64;
@@ -701,7 +704,7 @@ fn sell_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded()
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount);
+			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount) - diff_from_max_limit;
 
 			assert_ok!(Omnipool::sell(
 				Origin::signed(TRADER),
