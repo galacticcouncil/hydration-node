@@ -1476,6 +1476,7 @@ impl<T: Config> Pallet<T> {
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		T::BeforeAfterTradeHandler::before_pool_state_change(T::HubAssetId::get(), current_hub_asset_liquidity)?;
+		T::BeforeAfterTradeHandler::before_pool_state_change(asset_out, asset_state.reserve)?;
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
@@ -1527,6 +1528,7 @@ impl<T: Config> Pallet<T> {
 
 		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 		T::BeforeAfterTradeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
+		T::BeforeAfterTradeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
