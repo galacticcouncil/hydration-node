@@ -1569,6 +1569,8 @@ impl<T: Config> Pallet<T> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
+		T::BeforeAfterTradeHandler::before_pool_state_change(T::HubAssetId::get(), current_hub_asset_liquidity)?;
+
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount,
@@ -1615,6 +1617,9 @@ impl<T: Config> Pallet<T> {
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
+
+		let new_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		T::BeforeAfterTradeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
