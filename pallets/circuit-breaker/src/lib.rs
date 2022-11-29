@@ -19,12 +19,10 @@
 #[cfg(feature = "std")]
 pub use primitives::Balance;
 
+use frame_support::{ensure, traits::Get};
 use scale_info::TypeInfo;
-use sp_runtime::{ArithmeticError, DispatchResult, Percent};
-use frame_support::{ensure,
-	traits::Get
-};
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
+use sp_runtime::{ArithmeticError, DispatchResult, Percent};
 
 #[cfg(test)]
 mod mock;
@@ -35,12 +33,11 @@ mod tests;
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
 
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
 	use codec::HasCompact;
+	use frame_support::pallet_prelude::*;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
@@ -50,8 +47,8 @@ pub mod pallet {
 
 		fn integrity_test() {
 			assert!(
-				!T::MaxVolumeLimit::get().is_zero(),
-				"Circuit Breaker: Max Volume Limit is set to 0."
+				!T::MaxNetTradeVolumeLimitPerBlock::get().is_zero(),
+				"Circuit Breaker: Max Net Trade Volume Limit Per Block is set to 0."
 			);
 		}
 	}
@@ -71,19 +68,18 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-
 		/// Balance type
-        type Balance: Parameter
-            + Member
-            + Copy
-            + PartialOrd
-            + MaybeSerializeDeserialize
-            + Default
+		type Balance: Parameter
+			+ Member
+			+ Copy
+			+ PartialOrd
+			+ MaybeSerializeDeserialize
+			+ Default
 			+ CheckedAdd
 			+ CheckedSub
 			+ AtLeast32BitUnsigned;
 
-		type MaxVolumeLimit: Get<Percent>;
+		type MaxNetTradeVolumeLimitPerBlock: Get<Percent>;
 	}
 
 	#[pallet::pallet]
@@ -93,7 +89,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn allowed_liqudity_range_per_asset)]
-	pub type AllowedLiquidityRangePerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
+	pub type AllowedLiquidityRangePerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -117,25 +114,27 @@ impl<T: Config> Pallet<T> {}
 
 /// Handler used by AMM pools to perform some tasks when a trade is executed.
 pub trait BeforeAndAfterPoolStateChangeHandler<AssetId, Balance> {
-    fn before_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
+	fn before_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
 	fn after_pool_state_change(asset_id: AssetId, update_liquidity_state: Balance) -> DispatchResult;
 }
 
 impl<T: Config> BeforeAndAfterPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
 	fn before_pool_state_change(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
 		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_id) {
-			let liquidity_diff = T::MaxVolumeLimit::get().mul_floor(initial_liquidity);
-			let min_limit = initial_liquidity.checked_sub(&liquidity_diff)
+			let liquidity_diff = T::MaxNetTradeVolumeLimitPerBlock::get().mul_floor(initial_liquidity);
+			let min_limit = initial_liquidity
+				.checked_sub(&liquidity_diff)
 				.ok_or(ArithmeticError::Underflow)?;
-			let max_limit = initial_liquidity.checked_add(&liquidity_diff)
+			let max_limit = initial_liquidity
+				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
 			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, (min_limit, max_limit));
 		}
 		Ok(())
 	}
 	fn after_pool_state_change(asset_id: T::AssetId, update_liquidity_state: T::Balance) -> DispatchResult {
-		let (min_limit, max_limit) = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
-			.ok_or(Error::<T>::EntryNotExist)?;
+		let (min_limit, max_limit) =
+			Pallet::<T>::allowed_liqudity_range_per_asset(asset_id).ok_or(Error::<T>::EntryNotExist)?;
 		ensure!(min_limit <= update_liquidity_state, Error::<T>::MinPoolVolumeReached);
 		ensure!(max_limit >= update_liquidity_state, Error::<T>::MaxPoolVolumeReached);
 		Ok(())

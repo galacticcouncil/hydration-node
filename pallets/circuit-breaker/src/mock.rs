@@ -17,8 +17,8 @@
 
 use super::*;
 pub use crate as pallet_circuit_breaker;
-pub use frame_support::{assert_ok, assert_noop, parameter_types};
 pub use frame_support::traits::{Everything, OnFinalize};
+pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -82,7 +82,7 @@ impl Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxVolumeLimit = MaxVolumeLimit;
+	type MaxNetTradeVolumeLimitPerBlock = MaxVolumeLimit;
 }
 
 #[derive(Default)]
@@ -94,7 +94,7 @@ impl ExtBuilder {
 		let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 		let mut ext = sp_io::TestExternalities::new(t);
-        ext.execute_with(|| System::set_block_number(1));
-        ext
+		ext.execute_with(|| System::set_block_number(1));
+		ext
 	}
 }

@@ -81,8 +81,8 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 use pallet_circuit_breaker::BeforeAndAfterPoolStateChangeHandler;
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -109,16 +109,14 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
-	use hydradx_traits::OnTradeHandler;
 	use sp_runtime::ArithmeticError;
-
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config  {
+	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 

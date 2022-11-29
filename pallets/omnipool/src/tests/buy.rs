@@ -684,7 +684,7 @@ fn buy_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded(di
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
 		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
-		.with_max_trade_volume_limit(TEN_PERCENT)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) - diff_from_min_limit;
@@ -721,7 +721,7 @@ fn buy_should_fail_when_asset_in_trade_volume_max_limit_exceeded() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
 		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
-		.with_max_trade_volume_limit(TEN_PERCENT)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + 1 * ONE;

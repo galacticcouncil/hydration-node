@@ -18,9 +18,9 @@
 //! Test environment for Assets pallet.
 
 use crate::*;
+use sp_runtime::Percent;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use sp_runtime::{Percent};
 
 use crate as pallet_omnipool;
 
@@ -62,7 +62,6 @@ pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 pub const FIVE_PERCENT: Percent = Percent::from_percent(5);
 pub const TEN_PERCENT: Percent = Percent::from_percent(10);
 
-
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
@@ -73,7 +72,7 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_TRADE_VOLUME_LIMIT: RefCell<Percent> = RefCell::new(Percent::from_percent(100));
+	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<Percent> = RefCell::new(Percent::from_percent(100));
 }
 
 construct_runtime!(
@@ -165,7 +164,7 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
-	pub MaxTradeVolumeLimit: Percent = MAX_TRADE_VOLUME_LIMIT.with(|v| *v.borrow());
+	pub MaxTradeVolumeLimit: Percent = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -196,7 +195,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
-	type MaxVolumeLimit = MaxTradeVolumeLimit;
+	type MaxNetTradeVolumeLimitPerBlock = MaxTradeVolumeLimit;
 }
 
 pub struct ExtBuilder {
@@ -212,7 +211,7 @@ pub struct ExtBuilder {
 	max_out_ratio: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
-	max_trade_volume_limit: Percent,
+	max_net_trade_volume_limit_per_block: Percent,
 }
 
 impl Default for ExtBuilder {
@@ -264,7 +263,7 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
-			max_trade_volume_limit: Percent::from_percent(100),
+			max_net_trade_volume_limit_per_block: Percent::from_percent(100),
 		}
 	}
 }
@@ -325,9 +324,8 @@ impl ExtBuilder {
 		self
 	}
 
-	//TODO: rename it
-	pub fn with_max_trade_volume_limit(mut self, value: Percent) -> Self {
-		self.max_trade_volume_limit = value;
+	pub fn with_max_trade_volume_limit_per_block(mut self, value: Percent) -> Self {
+		self.max_net_trade_volume_limit_per_block = value;
 		self
 	}
 
@@ -381,8 +379,8 @@ impl ExtBuilder {
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = self.max_out_ratio;
 		});
-		MAX_TRADE_VOLUME_LIMIT.with(|v| {
-			*v.borrow_mut() = self.max_trade_volume_limit;
+		MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_net_trade_volume_limit_per_block;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {

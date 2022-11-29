@@ -1,7 +1,7 @@
 use super::*;
 use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
-use sp_runtime::{Percent, Permill};
+use sp_runtime::Permill;
 use test_case::test_case;
 
 #[test]
@@ -700,7 +700,7 @@ fn sell_should_work_when_asset_in_trade_volume_limit_not_exceeded(diff_from_max_
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
 		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
-		.with_max_trade_volume_limit(TEN_PERCENT)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
@@ -737,7 +737,7 @@ fn sell_should_fail_when_asset_in_trade_volume_max_limit_exceeded() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
 		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
-		.with_max_trade_volume_limit(TEN_PERCENT)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
@@ -771,7 +771,7 @@ fn sell_should_fail_when_consequent_trade_together_reaches_max_limit() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
 		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
-		.with_max_trade_volume_limit(TEN_PERCENT)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
