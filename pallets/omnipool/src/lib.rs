@@ -1102,6 +1102,8 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
+			//TODO: handle case for hub asset - for that we need to check the hubreserve? or not? Ask Martin
+			T::BeforeAfterTradeHandler::before_pool_state_change(asset_in, asset_in_state.reserve)?;
 			T::BeforeAfterTradeHandler::before_pool_state_change(asset_out, asset_out_state.reserve)?;
 
 			ensure!(
@@ -1199,9 +1201,10 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_in, new_asset_in_state.clone());
 			Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
+			T::BeforeAfterTradeHandler::after_pool_state_change(asset_in, new_asset_in_state.reserve)?;
 			T::BeforeAfterTradeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
