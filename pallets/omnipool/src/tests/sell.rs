@@ -751,6 +751,42 @@ fn sell_should_fail_when_asset_in_trade_volume_max_limit_exceeded() {
 }
 
 #[test]
+fn sell_should_fail_when_asset_out_trade_volume_exceeds_min_limit() {
+	const DOT: AssetId = 100;
+	const AUSD: AssetId = 200;
+	const TRADER: u64 = 11u64;
+
+	let initial_dot_amount = 10000 * ONE;
+	let initial_ausd_amount = 10000 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2000000 * ONE),
+			(LP1, AUSD, 2000000 * ONE),
+			(TRADER, DOT, 2000000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(AUSD)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
+		.with_token(AUSD, FixedU128::from_float(0.50), LP1, initial_ausd_amount)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let min_limit = 10 * ONE;
+			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount);
+
+			//Asset_out amount would be 1056_910_569_105_689 in a successful trade, but it fails due to limit
+			assert_noop!(
+				Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
+				pallet_circuit_breaker::Error::<Test>::MinPoolVolumeReached
+			);
+		});
+}
+
+#[test]
 fn sell_should_fail_when_consequent_trade_together_reaches_max_limit() {
 	const DOT: AssetId = 100;
 	const AUSD: AssetId = 200;
