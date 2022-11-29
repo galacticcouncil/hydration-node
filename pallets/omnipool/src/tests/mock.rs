@@ -59,6 +59,7 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
+pub const FIVE_PERCENT: Percent = Percent::from_percent(5);
 pub const TEN_PERCENT: Percent = Percent::from_percent(10);
 
 
