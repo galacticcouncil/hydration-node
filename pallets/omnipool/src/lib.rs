@@ -1039,6 +1039,7 @@ pub mod pallet {
 
 			Self::set_asset_state(asset_in, new_asset_in_state.clone());
 			Self::set_asset_state(asset_out, new_asset_out_state);
+
 			T::BeforeAfterTradeHandler::after_pool_state_change(asset_in, new_asset_in_state.reserve)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
@@ -1099,6 +1100,8 @@ pub mod pallet {
 
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
+
+			T::BeforeAfterTradeHandler::before_pool_state_change(asset_out, asset_out_state.reserve)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -1196,7 +1199,9 @@ pub mod pallet {
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
-			Self::set_asset_state(asset_out, new_asset_out_state);
+			Self::set_asset_state(asset_out, new_asset_out_state.clone());
+
+			T::BeforeAfterTradeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 

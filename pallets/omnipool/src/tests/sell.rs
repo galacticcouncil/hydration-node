@@ -3,8 +3,6 @@ use frame_support::assert_noop;
 use pretty_assertions::assert_eq;
 use sp_runtime::{Percent, Permill};
 
-const TEN_PERCENT: Percent = Percent::from_percent(10);
-
 #[test]
 fn simple_sell_works() {
 	ExtBuilder::default()
@@ -717,7 +715,7 @@ fn sell_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded()
 }
 
 #[test]
-fn sell_should_fail_when_asset_in_trade_volume_limit_exceeded() {
+fn sell_should_fail_when_asset_in_trade_volume_max_limit_exceeded() {
 	const DOT: AssetId = 100;
 	const AUSD: AssetId = 200;
 	const TRADER: u64 = 11u64;

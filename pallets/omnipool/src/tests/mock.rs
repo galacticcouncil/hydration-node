@@ -59,6 +59,9 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
+pub const TEN_PERCENT: Percent = Percent::from_percent(10);
+
+
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
@@ -320,6 +323,8 @@ impl ExtBuilder {
 		self.max_out_ratio = value;
 		self
 	}
+
+	//TODO: rename it
 	pub fn with_max_trade_volume_limit(mut self, value: Percent) -> Self {
 		self.max_trade_volume_limit = value;
 		self
