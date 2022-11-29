@@ -1473,8 +1473,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		//TODO: create a function for this
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		T::BeforeAfterTradeHandler::before_pool_state_change(T::HubAssetId::get(), current_hub_asset_liquidity)?;
 
@@ -1526,7 +1525,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
-		let new_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 		T::BeforeAfterTradeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
 
 		Self::deposit_event(Event::SellExecuted {
@@ -1567,7 +1566,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		T::BeforeAfterTradeHandler::before_pool_state_change(T::HubAssetId::get(), current_hub_asset_liquidity)?;
 
@@ -1618,7 +1617,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		let new_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 		T::BeforeAfterTradeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
 
 		Self::deposit_event(Event::BuyExecuted {
@@ -1663,5 +1662,9 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	fn get_hub_asset_balance_of_protocol_account() -> Balance {
+		T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
 	}
 }
