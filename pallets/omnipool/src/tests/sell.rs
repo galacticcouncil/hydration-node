@@ -745,7 +745,7 @@ fn sell_should_fail_when_asset_in_trade_volume_max_limit_exceeded() {
 
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
-				pallet_circuit_breaker::Error::<Test>::MaxPoolVolumeReached
+				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
 			);
 		});
 }
@@ -781,7 +781,7 @@ fn sell_should_fail_when_asset_out_trade_volume_exceeds_min_limit() {
 			//Asset_out amount would be 1056_910_569_105_689 in a successful trade, but it fails due to limit
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
-				pallet_circuit_breaker::Error::<Test>::MinPoolVolumeReached
+				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
 			);
 		});
 }
@@ -831,7 +831,7 @@ fn sell_should_fail_when_consequent_trade_together_reaches_max_limit() {
 					sell_amount_to_exceed_limit,
 					min_limit
 				),
-				pallet_circuit_breaker::Error::<Test>::MaxPoolVolumeReached
+				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
 			);
 		});
 }

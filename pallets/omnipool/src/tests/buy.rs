@@ -728,7 +728,7 @@ fn buy_should_fail_when_asset_out_trade_volume_exceeds_min_trade_volume_per_bloc
 
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, AUSD, buy_amount, Balance::MAX),
-				pallet_circuit_breaker::Error::<Test>::MinPoolVolumeReached
+				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
 			);
 		});
 }
@@ -739,7 +739,6 @@ fn buy_should_fail_when_asset_in_trade_volume_exceeds_max_trade_volume_per_block
 	const AUSD: AssetId = 200;
 	const TRADER: u64 = 11u64;
 
-	let trader_initial_ausd_balance = 2000000 * ONE;
 	let initial_dot_amount = 10000 * ONE;
 	let initial_ausd_amount = 10000 * ONE;
 
@@ -765,7 +764,7 @@ fn buy_should_fail_when_asset_in_trade_volume_exceeds_max_trade_volume_per_block
 			//Asset_in amount would be 1250_000_000_000_002 in a successful trade, but it fails due to limit
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, AUSD, buy_amount, Balance::MAX),
-				pallet_circuit_breaker::Error::<Test>::MaxPoolVolumeReached
+				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
 			);
 		});
 }

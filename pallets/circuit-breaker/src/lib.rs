@@ -101,10 +101,10 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Entry does not exist in the storage
 		EntryNotExist,
-		/// Minimum pool volume has been reached
-		MinPoolVolumeReached,
-		/// Maximum pool volume has been reached
-		MaxPoolVolumeReached,
+		/// Minimum pool trade volume per block has been reached
+		MinTradeVolumePerBlockReached,
+		/// Maximum pool trade volume per block has been reached
+		MaxTradeVolumePerBlockReached,
 	}
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {}
@@ -135,8 +135,14 @@ impl<T: Config> BeforeAndAfterPoolStateChangeHandler<T::AssetId, T::Balance> for
 	fn after_pool_state_change(asset_id: T::AssetId, update_liquidity_state: T::Balance) -> DispatchResult {
 		let (min_limit, max_limit) =
 			Pallet::<T>::allowed_liqudity_range_per_asset(asset_id).ok_or(Error::<T>::EntryNotExist)?;
-		ensure!(min_limit <= update_liquidity_state, Error::<T>::MinPoolVolumeReached);
-		ensure!(max_limit >= update_liquidity_state, Error::<T>::MaxPoolVolumeReached);
+		ensure!(
+			min_limit <= update_liquidity_state,
+			Error::<T>::MinTradeVolumePerBlockReached
+		);
+		ensure!(
+			max_limit >= update_liquidity_state,
+			Error::<T>::MaxTradeVolumePerBlockReached
+		);
 		Ok(())
 	}
 }
