@@ -82,6 +82,7 @@ use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use pallet_circuit_breaker::BeforeAndAfterPoolStateChangeHandler;
+use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
@@ -185,13 +186,17 @@ pub mod pallet {
 		/// Position identifier type
 		type PositionItemId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
 
+		/// Collection id type
+		type CollectionId: TypeInfo + MaxEncodedLen;
+
 		/// Non fungible class id
+		#[pallet::constant]
 		type NFTCollectionId: Get<NFTCollectionIdOf<Self>>;
 
 		/// Non fungible handling - mint,burn, check owner
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
-			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId>;
+			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;

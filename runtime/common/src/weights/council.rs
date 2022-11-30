@@ -50,75 +50,75 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn set_members(m: u32, n: u32, p: u32) -> Weight {
-		(0 as Weight) // Standard Error: 39_000
-			.saturating_add((3_815_000 as Weight).saturating_mul(m as Weight)) // Standard Error: 39_000
-			.saturating_add((139_000 as Weight).saturating_mul(n as Weight)) // Standard Error: 16_000
-			.saturating_add((5_687_000 as Weight).saturating_mul(p as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(p as Weight)))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(p as Weight)))
+		Weight::zero()
+			.saturating_add(Weight::from_ref_time(3_815_000 as u64).saturating_mul(m as u64)) // Standard Error: 39_000
+			.saturating_add(Weight::from_ref_time(139_000 as u64).saturating_mul(n as u64)) // Standard Error: 16_000
+			.saturating_add(Weight::from_ref_time(5_687_000 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(p as u64)))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(p as u64)))
 	}
 	fn execute(b: u32, m: u32) -> Weight {
-		(16_710_000 as Weight) // Standard Error: 0
-			.saturating_add((2_000 as Weight).saturating_mul(b as Weight)) // Standard Error: 3_000
-			.saturating_add((100_000 as Weight).saturating_mul(m as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		Weight::from_ref_time(16_710_000 as u64) // Standard Error: 0
+			.saturating_add(Weight::from_ref_time(2_000 as u64).saturating_mul(b as u64)) // Standard Error: 3_000
+			.saturating_add(Weight::from_ref_time(100_000 as u64).saturating_mul(m as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
 	}
 	fn propose_execute(b: u32, m: u32) -> Weight {
-		(20_381_000 as Weight) // Standard Error: 0
-			.saturating_add((2_000 as Weight).saturating_mul(b as Weight)) // Standard Error: 4_000
-			.saturating_add((155_000 as Weight).saturating_mul(m as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+		Weight::from_ref_time(20_381_000 as u64) // Standard Error: 0
+			.saturating_add(Weight::from_ref_time(2_000 as u64).saturating_mul(b as u64)) // Standard Error: 4_000
+			.saturating_add(Weight::from_ref_time(155_000 as u64).saturating_mul(m as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
 	}
 	fn propose_proposed(b: u32, m: u32, p: u32) -> Weight {
-		(27_857_000 as Weight) // Standard Error: 0
-			.saturating_add((4_000 as Weight).saturating_mul(b as Weight)) // Standard Error: 16_000
-			.saturating_add((166_000 as Weight).saturating_mul(m as Weight)) // Standard Error: 6_000
-			.saturating_add((392_000 as Weight).saturating_mul(p as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(27_857_000 as u64) // Standard Error: 0
+			.saturating_add(Weight::from_ref_time(4_000 as u64).saturating_mul(b as u64)) // Standard Error: 16_000
+			.saturating_add(Weight::from_ref_time(166_000 as u64).saturating_mul(m as u64)) // Standard Error: 6_000
+			.saturating_add(Weight::from_ref_time(392_000 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	fn vote(m: u32) -> Weight {
-		(27_036_000 as Weight) // Standard Error: 10_000
-			.saturating_add((151_000 as Weight).saturating_mul(m as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(27_036_000 as u64) // Standard Error: 10_000
+			.saturating_add(Weight::from_ref_time(151_000 as u64).saturating_mul(m as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn close_early_disapproved(m: u32, p: u32) -> Weight {
-		(29_500_000 as Weight) // Standard Error: 19_000
-			.saturating_add((207_000 as Weight).saturating_mul(m as Weight)) // Standard Error: 6_000
-			.saturating_add((349_000 as Weight).saturating_mul(p as Weight))
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(29_500_000 as u64) // Standard Error: 19_000
+			.saturating_add(Weight::from_ref_time(207_000 as u64).saturating_mul(m as u64)) // Standard Error: 6_000
+			.saturating_add(Weight::from_ref_time(349_000 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	fn close_early_approved(b: u32, m: u32, p: u32) -> Weight {
-		(38_838_000 as Weight) // Standard Error: 0
-			.saturating_add((1_000 as Weight).saturating_mul(b as Weight)) // Standard Error: 24_000
-			.saturating_add((303_000 as Weight).saturating_mul(m as Weight)) // Standard Error: 8_000
-			.saturating_add((360_000 as Weight).saturating_mul(p as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(38_838_000 as u64) // Standard Error: 0
+			.saturating_add(Weight::from_ref_time(1_000 as u64).saturating_mul(b as u64)) // Standard Error: 24_000
+			.saturating_add(Weight::from_ref_time(303_000 as u64).saturating_mul(m as u64)) // Standard Error: 8_000
+			.saturating_add(Weight::from_ref_time(360_000 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	fn close_disapproved(m: u32, p: u32) -> Weight {
-		(30_672_000 as Weight) // Standard Error: 18_000
-			.saturating_add((326_000 as Weight).saturating_mul(m as Weight)) // Standard Error: 6_000
-			.saturating_add((384_000 as Weight).saturating_mul(p as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(30_672_000 as u64) // Standard Error: 18_000
+			.saturating_add(Weight::from_ref_time(326_000 as u64).saturating_mul(m as u64)) // Standard Error: 6_000
+			.saturating_add(Weight::from_ref_time(384_000 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	fn close_approved(b: u32, m: u32, p: u32) -> Weight {
-		(41_533_000 as Weight) // Standard Error: 0
-			.saturating_add((1_000 as Weight).saturating_mul(b as Weight)) // Standard Error: 20_000
-			.saturating_add((305_000 as Weight).saturating_mul(m as Weight)) // Standard Error: 6_000
-			.saturating_add((383_000 as Weight).saturating_mul(p as Weight))
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(41_533_000 as u64) // Standard Error: 0
+			.saturating_add(Weight::from_ref_time(1_000 as u64).saturating_mul(b as u64)) // Standard Error: 20_000
+			.saturating_add(Weight::from_ref_time(305_000 as u64).saturating_mul(m as u64)) // Standard Error: 6_000
+			.saturating_add(Weight::from_ref_time(383_000 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	fn disapprove_proposal(p: u32) -> Weight {
-		(18_970_000 as Weight) // Standard Error: 10_000
-			.saturating_add((352_000 as Weight).saturating_mul(p as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(18_970_000 as u64) // Standard Error: 10_000
+			.saturating_add(Weight::from_ref_time(352_000 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 }

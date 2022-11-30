@@ -67,7 +67,7 @@ fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn sell_invariants_feeless(amount in trade_amount(),
 		stable_price in price(),
@@ -158,7 +158,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn sell_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
@@ -253,7 +253,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn buy_invariants_feeless(amount in trade_amount(),
 		stable_price in price(),
@@ -344,7 +344,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn buy_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
@@ -673,7 +673,7 @@ fn buy_invariant_case_02() {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn sell_hub_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
@@ -749,7 +749,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn buy_hub_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
@@ -820,7 +820,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn add_liquidity_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),
@@ -940,7 +940,7 @@ proptest! {
 }
 
 proptest! {
-	#![proptest_config(ProptestConfig::with_cases(1000))]
+	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn remove_all_liquidity_invariants_with_fees(amount in trade_amount(),
 		stable_price in price(),

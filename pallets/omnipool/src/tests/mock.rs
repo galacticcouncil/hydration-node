@@ -188,6 +188,7 @@ impl Config for Test {
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
+	type CollectionId = u32;
 	type BeforeAfterTradeHandler = CircuitBreaker;
 }
 
