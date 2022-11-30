@@ -189,7 +189,7 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
-	type BeforeAfterTradeHandler = CircuitBreaker;
+	type PoolStateChangeHandler = CircuitBreaker;
 }
 
 impl pallet_circuit_breaker::Config for Test {

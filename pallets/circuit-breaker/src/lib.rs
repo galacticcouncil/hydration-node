@@ -23,6 +23,7 @@ use frame_support::{ensure, traits::Get};
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
 use sp_runtime::{ArithmeticError, DispatchResult, Percent};
+use hydradx_traits::{OnPoolStateChangeHandler, Source};
 
 #[cfg(test)]
 mod mock;
@@ -112,37 +113,31 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {}
 
-/// Handler used by AMM pools to perform some tasks when a trade is executed.
-pub trait BeforeAndAfterPoolStateChangeHandler<AssetId, Balance> {
-	fn before_pool_state_change(asset_id: AssetId, initial_liquidity: Balance) -> DispatchResult;
-	fn after_pool_state_change(asset_id: AssetId, update_liquidity_state: Balance) -> DispatchResult;
-}
-
-impl<T: Config> BeforeAndAfterPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn before_pool_state_change(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
-		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_id) {
-			let liquidity_diff = T::MaxNetTradeVolumeLimitPerBlock::get().mul_floor(initial_liquidity);
-			let min_limit = initial_liquidity
+impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
+	fn before_pool_state_change(_source: Source, asset_a: T::AssetId, _asset_b: T::AssetId, _amount_in: T::Balance, _amount_out: T::Balance, initial_liq_amount: T::Balance) -> DispatchResult {
+		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_a) {
+			let liquidity_diff = T::MaxNetTradeVolumeLimitPerBlock::get().mul_floor(initial_liq_amount);
+			let min_limit = initial_liq_amount
 				.checked_sub(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
-			let max_limit = initial_liquidity
+			let max_limit = initial_liq_amount
 				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
-			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, (min_limit, max_limit));
+			<AllowedLiquidityRangePerAsset<T>>::insert(asset_a, (min_limit, max_limit));
 		}
 		Ok(())
 	}
-	fn after_pool_state_change(asset_id: T::AssetId, update_liquidity_state: T::Balance) -> DispatchResult {
+	fn after_pool_state_change(_source: Source, asset_a: T::AssetId, _asset_b: T::AssetId, _amount_in: T::Balance, _amount_out: T::Balance, new_liq_amount: T::Balance) -> DispatchResult {
 		let (min_limit, max_limit) =
-			Pallet::<T>::allowed_liqudity_range_per_asset(asset_id).ok_or(Error::<T>::EntryNotExist)?;
+			Pallet::<T>::allowed_liqudity_range_per_asset(asset_a).ok_or(Error::<T>::EntryNotExist)?;
 
 		//TODO: tell don't ask, add this in some LimitRange object or so
 		ensure!(
-			min_limit <= update_liquidity_state,
+			min_limit <= new_liq_amount,
 			Error::<T>::MinTradeVolumePerBlockReached
 		);
 		ensure!(
-			max_limit >= update_liquidity_state,
+			max_limit >= new_liq_amount,
 			Error::<T>::MaxTradeVolumePerBlockReached
 		);
 		Ok(())

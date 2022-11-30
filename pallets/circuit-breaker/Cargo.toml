@@ -27,6 +27,9 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 # Local dependencies
 primitives = {path = '../../primitives', default-features = false}
 
+# Warehouse
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "245e941f570fc5694ca97a07550048f15148e671", default-features = false }
+
 # ORML
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
