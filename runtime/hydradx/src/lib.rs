@@ -847,7 +847,6 @@ impl pallet_transaction_pause::Config for Runtime {
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
-	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNetTradeVolumeLimitPerBlock = MaxNetTradeVolumeLimitPerBlock;

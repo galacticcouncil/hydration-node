@@ -56,9 +56,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The overarching event type.
-		// type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
 		/// Identifier for the class of asset.
 		type AssetId: Member
 			+ Parameter
@@ -92,10 +89,6 @@ pub mod pallet {
 	#[pallet::getter(fn allowed_liqudity_range_per_asset)]
 	pub type AllowedLiquidityRangePerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
-
-	// #[pallet::event]
-	// #[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	// pub enum Event<T: Config> {}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
