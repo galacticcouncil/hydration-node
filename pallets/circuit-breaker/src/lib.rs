@@ -20,10 +20,10 @@
 pub use primitives::Balance;
 
 use frame_support::{ensure, traits::Get};
+use hydradx_traits::OnPoolStateChangeHandler;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
 use sp_runtime::{ArithmeticError, DispatchResult, Percent};
-use hydradx_traits::{OnPoolStateChangeHandler, Source};
 
 #[cfg(test)]
 mod mock;
@@ -57,7 +57,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		// type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -93,9 +93,9 @@ pub mod pallet {
 	pub type AllowedLiquidityRangePerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
 
-	#[pallet::event]
-	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config> {}
+	// #[pallet::event]
+	// #[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	// pub enum Event<T: Config> {}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
@@ -111,35 +111,57 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {}
 }
 
-impl<T: Config> Pallet<T> {}
-
-impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn before_pool_state_change(_source: Source, asset_a: T::AssetId, _asset_b: T::AssetId, _amount_in: T::Balance, _amount_out: T::Balance, initial_liq_amount: T::Balance) -> DispatchResult {
-		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_a) {
-			let liquidity_diff = T::MaxNetTradeVolumeLimitPerBlock::get().mul_floor(initial_liq_amount);
-			let min_limit = initial_liq_amount
+impl<T: Config> Pallet<T> {
+	fn calculate_and_store_liquidity_limits(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
+		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_id) {
+			let liquidity_diff = T::MaxNetTradeVolumeLimitPerBlock::get().mul_floor(initial_liquidity);
+			let min_limit = initial_liquidity
 				.checked_sub(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
-			let max_limit = initial_liq_amount
+			let max_limit = initial_liquidity
 				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
-			<AllowedLiquidityRangePerAsset<T>>::insert(asset_a, (min_limit, max_limit));
+			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, (min_limit, max_limit));
 		}
 		Ok(())
 	}
-	fn after_pool_state_change(_source: Source, asset_a: T::AssetId, _asset_b: T::AssetId, _amount_in: T::Balance, _amount_out: T::Balance, new_liq_amount: T::Balance) -> DispatchResult {
+
+	fn test_liquidity_limits(asset_id: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
 		let (min_limit, max_limit) =
-			Pallet::<T>::allowed_liqudity_range_per_asset(asset_a).ok_or(Error::<T>::EntryNotExist)?;
+			Pallet::<T>::allowed_liqudity_range_per_asset(asset_id).ok_or(Error::<T>::EntryNotExist)?;
 
 		//TODO: tell don't ask, add this in some LimitRange object or so
 		ensure!(
-			min_limit <= new_liq_amount,
+			min_limit <= updated_liquidity,
 			Error::<T>::MinTradeVolumePerBlockReached
 		);
 		ensure!(
-			max_limit >= new_liq_amount,
+			max_limit >= updated_liquidity,
 			Error::<T>::MaxTradeVolumePerBlockReached
 		);
+		Ok(())
+	}
+}
+
+impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
+	fn before_pool_state_change(
+		asset_a: T::AssetId,
+		asset_b: T::AssetId,
+		initial_liquidity_a: T::Balance,
+		initial_liquidity_b: T::Balance,
+	) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_liquidity_limits(asset_a, initial_liquidity_a)?;
+		Pallet::<T>::calculate_and_store_liquidity_limits(asset_b, initial_liquidity_b)?;
+		Ok(())
+	}
+	fn after_pool_state_change(
+		asset_a: T::AssetId,
+		asset_b: T::AssetId,
+		updated_liquidity_a: T::Balance,
+		updated_liquidity_b: T::Balance,
+	) -> DispatchResult {
+		Pallet::<T>::test_liquidity_limits(asset_a, updated_liquidity_a)?;
+		Pallet::<T>::test_liquidity_limits(asset_b, updated_liquidity_b)?;
 		Ok(())
 	}
 }

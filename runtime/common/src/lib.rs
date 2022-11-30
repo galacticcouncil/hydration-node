@@ -314,3 +314,8 @@ parameter_types! {
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
 }
+
+// pallet circuit breaker registry
+parameter_types! {
+	pub const MaxNetTradeVolumeLimitPerBlock: Percent = Percent::from_percent(20);
+}

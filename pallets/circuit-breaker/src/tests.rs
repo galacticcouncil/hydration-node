@@ -29,7 +29,10 @@ fn on_trade_should_store_liquidity_when_called_first_time() {
 		assert_eq!(CircuitBreaker::allowed_liqudity_range_per_asset(asset_id), None);
 
 		// Act
-		assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
+			asset_id,
+			initial_liquidity
+		));
 
 		// Assert
 		assert_eq!(
@@ -40,12 +43,15 @@ fn on_trade_should_store_liquidity_when_called_first_time() {
 }
 
 #[test]
-fn on_trade_should_overwrite_liquidity_when_called_consequently() {
+fn on_trade_should_not_overwrite_liquidity_when_called_consequently() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_id = 100;
 		let initial_liquidity = 1_000_000;
-		assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
+			asset_id,
+			initial_liquidity
+		));
 		assert_eq!(
 			CircuitBreaker::allowed_liqudity_range_per_asset(asset_id).unwrap(),
 			(500_000, 1_500_000)
@@ -53,7 +59,10 @@ fn on_trade_should_overwrite_liquidity_when_called_consequently() {
 
 		// Act
 		let new_liquidity = 2_000_000;
-		assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, new_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
+			asset_id,
+			new_liquidity
+		));
 
 		// Assert
 		assert_eq!(
@@ -70,7 +79,10 @@ fn liquidity_storage_should_be_cleared_in_the_next_block() {
 		let asset_id = 100;
 		let initial_liquidity = 1_000_000;
 
-		assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
+			asset_id,
+			initial_liquidity
+		));
 		assert_eq!(
 			CircuitBreaker::allowed_liqudity_range_per_asset(asset_id).unwrap(),
 			(500_000, 1_500_000)
@@ -91,40 +103,46 @@ fn max_limit_calculation_throws_error_when_overflow_happens() {
 		let asset_id = 100;
 
 		assert_noop!(
-			CircuitBreaker::before_pool_state_change(asset_id, Balance::MAX),
+			CircuitBreaker::calculate_and_store_liquidity_limits(asset_id, Balance::MAX),
 			ArithmeticError::Overflow
 		);
 	});
 }
 
 #[test]
-fn after_pool_state_change_should_work_when_liquidity_is_between_allowed_limits() {
+fn test_liquidity_limits_should_work_when_liquidity_is_between_allowed_limits() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_id = 100;
 		let initial_liquidity = 1_000_000;
 
-		assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
+			asset_id,
+			initial_liquidity
+		));
 		assert_eq!(
 			CircuitBreaker::allowed_liqudity_range_per_asset(asset_id).unwrap(),
 			(500_000, 1_500_000)
 		);
 
 		// Act & Assert
-		assert_ok!(CircuitBreaker::after_pool_state_change(asset_id, initial_liquidity));
-		assert_ok!(CircuitBreaker::after_pool_state_change(asset_id, 500_000));
-		assert_ok!(CircuitBreaker::after_pool_state_change(asset_id, 1_500_000));
+		assert_ok!(CircuitBreaker::test_liquidity_limits(asset_id, initial_liquidity));
+		assert_ok!(CircuitBreaker::test_liquidity_limits(asset_id, 500_000));
+		assert_ok!(CircuitBreaker::test_liquidity_limits(asset_id, 1_500_000));
 	});
 }
 
 #[test]
-fn after_pool_state_change_should_fail_when_min_limit_is_reached() {
+fn test_liquidity_limits_should_fail_when_min_limit_is_reached() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_id = 100;
 		let initial_liquidity = 1_000_000;
 
-		assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
+			asset_id,
+			initial_liquidity
+		));
 		assert_eq!(
 			CircuitBreaker::allowed_liqudity_range_per_asset(asset_id).unwrap(),
 			(500_000, 1_500_000)
@@ -132,20 +150,23 @@ fn after_pool_state_change_should_fail_when_min_limit_is_reached() {
 
 		// Act & Assert
 		assert_noop!(
-			CircuitBreaker::after_pool_state_change(asset_id, 499_999),
+			CircuitBreaker::test_liquidity_limits(asset_id, 499_999),
 			Error::<Test>::MinTradeVolumePerBlockReached
 		);
 	});
 }
 
 #[test]
-fn after_pool_state_change_should_fail_when_max_limit_is_reached() {
+fn test_liquidity_limits_should_fail_when_max_limit_is_reached() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let asset_id = 100;
 		let initial_liquidity = 1_000_000;
 
-		assert_ok!(CircuitBreaker::before_pool_state_change(asset_id, initial_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
+			asset_id,
+			initial_liquidity
+		));
 		assert_eq!(
 			CircuitBreaker::allowed_liqudity_range_per_asset(asset_id).unwrap(),
 			(500_000, 1_500_000)
@@ -153,7 +174,7 @@ fn after_pool_state_change_should_fail_when_max_limit_is_reached() {
 
 		// Act & Assert
 		assert_noop!(
-			CircuitBreaker::after_pool_state_change(asset_id, 1_500_001),
+			CircuitBreaker::test_liquidity_limits(asset_id, 1_500_001),
 			Error::<Test>::MaxTradeVolumePerBlockReached
 		);
 	});

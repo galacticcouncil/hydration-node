@@ -79,7 +79,7 @@ use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
-use hydradx_traits::{Registry, OnPoolStateChangeHandler};
+use hydradx_traits::{OnPoolStateChangeHandler, Registry};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -949,8 +949,12 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			T::PoolStateChangeHandler::before_pool_state_change(Default::default(), asset_in, asset_out, Balance::zero(), Balance::zero(), asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::before_pool_state_change(Default::default(), asset_out, asset_in, Balance::zero(), Balance::zero(), asset_out_state.reserve)?;
+			T::PoolStateChangeHandler::before_pool_state_change(
+				asset_in,
+				asset_out,
+				asset_in_state.reserve,
+				asset_out_state.reserve,
+			)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -1044,8 +1048,12 @@ pub mod pallet {
 			Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 			//TODO: use reference instead of cloning before
-			T::PoolStateChangeHandler::after_pool_state_change(Default::default(), asset_in, asset_out, Balance::zero(), Balance::zero(), new_asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::after_pool_state_change(Default::default(), asset_out, asset_in, Balance::zero(), Balance::zero(), new_asset_out_state.reserve)?;
+			T::PoolStateChangeHandler::after_pool_state_change(
+				asset_in,
+				asset_out,
+				new_asset_in_state.reserve,
+				new_asset_out_state.reserve,
+			)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1107,8 +1115,12 @@ pub mod pallet {
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
 			//TODO: handle case for hub asset - for that we need to check the hubreserve? or not? Ask Martin
-			T::PoolStateChangeHandler::before_pool_state_change(Default::default(), asset_in, asset_out, Balance::zero(), Balance::zero(), asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::before_pool_state_change(Default::default(), asset_out, asset_in, Balance::zero(), Balance::zero(), asset_out_state.reserve)?;
+			T::PoolStateChangeHandler::before_pool_state_change(
+				asset_in,
+				asset_out,
+				asset_in_state.reserve,
+				asset_out_state.reserve,
+			)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -1208,8 +1220,12 @@ pub mod pallet {
 			Self::set_asset_state(asset_in, new_asset_in_state.clone());
 			Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
-			T::PoolStateChangeHandler::after_pool_state_change(Default::default(), asset_in, asset_out, Balance::zero(), Balance::zero(), new_asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::after_pool_state_change(Default::default(), asset_out, asset_in, Balance::zero(), Balance::zero(), new_asset_out_state.reserve)?;
+			T::PoolStateChangeHandler::after_pool_state_change(
+				asset_in,
+				asset_out,
+				new_asset_in_state.reserve,
+				new_asset_out_state.reserve,
+			)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1479,8 +1495,12 @@ impl<T: Config> Pallet<T> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		T::PoolStateChangeHandler::before_pool_state_change(Default::default(), T::HubAssetId::get(), asset_out, Balance::zero(), Balance::zero(), current_hub_asset_liquidity)?;
-		T::PoolStateChangeHandler::before_pool_state_change(Default::default(), asset_out, T::HubAssetId::get(), Balance::zero(), Balance::zero(), asset_state.reserve)?;
+		T::PoolStateChangeHandler::before_pool_state_change(
+			T::HubAssetId::get(),
+			asset_out,
+			current_hub_asset_liquidity,
+			asset_state.reserve,
+		)?;
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
@@ -1531,8 +1551,12 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
-		T::PoolStateChangeHandler::after_pool_state_change(Default::default(), T::HubAssetId::get(), asset_out, Balance::zero(), Balance::zero(), new_hub_asset_liquidity)?;
-		T::PoolStateChangeHandler::after_pool_state_change(Default::default(), asset_out, T::HubAssetId::get(), Balance::zero(), Balance::zero(), new_asset_out_state.reserve)?;
+		T::PoolStateChangeHandler::after_pool_state_change(
+			T::HubAssetId::get(),
+			asset_out,
+			new_hub_asset_liquidity,
+			new_asset_out_state.reserve,
+		)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1574,8 +1598,12 @@ impl<T: Config> Pallet<T> {
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		T::PoolStateChangeHandler::before_pool_state_change(Default::default(), T::HubAssetId::get(), asset_out, Balance::zero(), Balance::zero(), current_hub_asset_liquidity)?;
-		T::PoolStateChangeHandler::before_pool_state_change(Default::default(), asset_out, T::HubAssetId::get(), Balance::zero(), Balance::zero(), asset_state.reserve)?;
+		T::PoolStateChangeHandler::before_pool_state_change(
+			T::HubAssetId::get(),
+			asset_out,
+			current_hub_asset_liquidity,
+			asset_state.reserve,
+		)?;
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
@@ -1625,8 +1653,12 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
-		T::PoolStateChangeHandler::after_pool_state_change(Default::default(), T::HubAssetId::get(), asset_out, Balance::zero(), Balance::zero(), new_hub_asset_liquidity)?;
-		T::PoolStateChangeHandler::after_pool_state_change(Default::default(), asset_out, T::HubAssetId::get(), Balance::zero(), Balance::zero(), new_asset_out_state.reserve)?;
+		T::PoolStateChangeHandler::after_pool_state_change(
+			T::HubAssetId::get(),
+			asset_out,
+			new_hub_asset_liquidity,
+			new_asset_out_state.reserve,
+		)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
