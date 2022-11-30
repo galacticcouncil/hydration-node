@@ -37,8 +37,8 @@ frame_support::construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		CircuitBreaker: pallet_circuit_breaker::{Pallet, Storage, Event<T>},
+		System: frame_system,
+		CircuitBreaker: pallet_circuit_breaker,
 	}
 );
 
@@ -79,7 +79,6 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNetTradeVolumeLimitPerBlock = MaxVolumeLimit;

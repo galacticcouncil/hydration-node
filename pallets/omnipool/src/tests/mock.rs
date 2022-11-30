@@ -81,11 +81,11 @@ construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Omnipool: pallet_omnipool::{Pallet, Call, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Event<T>},
-		CircuitBreaker: pallet_circuit_breaker::{Pallet,Storage, Event<T>},
+		System: frame_system,
+		Balances: pallet_balances,
+		Omnipool: pallet_omnipool,
+		Tokens: orml_tokens,
+		CircuitBreaker: pallet_circuit_breaker,
 	}
 );
 
@@ -193,7 +193,6 @@ impl Config for Test {
 }
 
 impl pallet_circuit_breaker::Config for Test {
-	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNetTradeVolumeLimitPerBlock = MaxTradeVolumeLimit;

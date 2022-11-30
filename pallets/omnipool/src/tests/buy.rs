@@ -661,7 +661,7 @@ fn buy_for_lrna_should_fail_when_exceeds_max_out_ratio() {
 }
 
 #[test_case(0)]
-#[test_case(1 * ONE)]
+#[test_case(ONE)]
 #[test_case(100 * ONE)]
 fn buy_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded(diff_from_min_limit: Balance) {
 	const DOT: AssetId = 100;
@@ -724,7 +724,7 @@ fn buy_should_fail_when_asset_out_trade_volume_exceeds_min_trade_volume_per_bloc
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + 1 * ONE;
+			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + ONE;
 
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, AUSD, buy_amount, Balance::MAX),
@@ -830,7 +830,7 @@ fn buy_asset_for_hub_asset_should_fail_when_asset_out_trade_volume_exceeds_min_l
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + 1 * ONE;
+			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + ONE;
 
 			//Act and assert
 			assert_noop!(
@@ -840,7 +840,7 @@ fn buy_asset_for_hub_asset_should_fail_when_asset_out_trade_volume_exceeds_min_l
 		});
 }
 
-#[test_case(1 * ONE)]
+#[test_case(ONE)]
 #[test_case(10 * ONE)]
 #[test_case(100 * ONE)]
 fn buy_asset_for_hub_asset_should_pass_when_hub_asset_trade_volume_does_not_exceeds_max_limit(buy_amount: Balance) {

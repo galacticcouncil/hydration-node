@@ -265,4 +265,5 @@ try-runtime= [
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
     "pallet-transaction-pause/try-runtime",
+    "pallet-circuit-breaker/try-runtime",
 ]

@@ -678,7 +678,7 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 }
 
 #[test_case(0)]
-#[test_case(1 * ONE)]
+#[test_case(ONE)]
 #[test_case(100 * ONE)]
 fn sell_should_work_when_asset_in_trade_volume_limit_not_exceeded(diff_from_max_limit: Balance) {
 	const DOT: AssetId = 100;
@@ -741,7 +741,7 @@ fn sell_should_fail_when_asset_in_trade_volume_max_limit_exceeded() {
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + 1 * ONE;
+			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + ONE;
 
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
@@ -775,10 +775,8 @@ fn sell_hub_asset_should_fail_when_hub_asset_as_asset_in_trade_volume_max_limit_
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + 1 * ONE;
-
 			let lrna_balance_in_omnipool = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-			let sell_amount = TEN_PERCENT.mul_floor(lrna_balance_in_omnipool) + 1 * ONE;
+			let sell_amount = TEN_PERCENT.mul_floor(lrna_balance_in_omnipool) + ONE;
 
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), LRNA, AUSD, sell_amount, min_limit),
@@ -824,7 +822,7 @@ fn sell_hub_asset_should_fail_when_asset_out_trade_volume_max_limit_exceeded() {
 }
 
 #[test_case(0)]
-#[test_case(1 * ONE)]
+#[test_case(ONE)]
 #[test_case(100 * ONE)]
 fn sell_hub_asset_should_pass_when_hub_asset_as_asset_in_does_not_exceed_trade_limit(diff_from_net_limit: Balance) {
 	const DOT: AssetId = 100;
@@ -935,7 +933,7 @@ fn sell_should_fail_when_consequent_trade_together_reaches_max_limit() {
 				min_limit
 			));
 
-			let sell_amount_to_exceed_limit = FIVE_PERCENT.mul_floor(initial_dot_amount) + 1 * ONE;
+			let sell_amount_to_exceed_limit = FIVE_PERCENT.mul_floor(initial_dot_amount) + ONE;
 
 			assert_noop!(
 				Omnipool::sell(
