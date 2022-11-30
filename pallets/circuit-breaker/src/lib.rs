@@ -124,7 +124,7 @@ impl<T: Config> BeforeAndAfterPoolStateChangeHandler<T::AssetId, T::Balance> for
 			let liquidity_diff = T::MaxNetTradeVolumeLimitPerBlock::get().mul_floor(initial_liquidity);
 			let min_limit = initial_liquidity
 				.checked_sub(&liquidity_diff)
-				.ok_or(ArithmeticError::Underflow)?;
+				.ok_or(ArithmeticError::Overflow)?;
 			let max_limit = initial_liquidity
 				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
