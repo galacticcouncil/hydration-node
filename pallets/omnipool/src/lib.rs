@@ -1492,6 +1492,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
+
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		T::PoolStateChangeHandler::before_pool_state_change(
@@ -1550,6 +1551,7 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
+
 		T::PoolStateChangeHandler::after_pool_state_change(
 			T::HubAssetId::get(),
 			asset_out,
@@ -1595,6 +1597,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
+
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		T::PoolStateChangeHandler::before_pool_state_change(
