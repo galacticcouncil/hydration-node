@@ -179,3 +179,17 @@ fn test_liquidity_limits_should_fail_when_max_limit_is_reached() {
 		);
 	});
 }
+
+#[test]
+fn test_liquidity_limits_should_fail_when_liqudity_limit_not_stored() {
+	ExtBuilder::default().build().execute_with(|| {
+		let asset_id = 100;
+		let liqudity = 100_000_000;
+
+		// Act & Assert
+		assert_noop!(
+			CircuitBreaker::test_liquidity_limits(asset_id, liqudity),
+			Error::<Test>::AllowedLiquidityNotStoredForAsset
+		);
+	});
+}
