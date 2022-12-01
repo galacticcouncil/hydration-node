@@ -1114,7 +1114,6 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			//TODO: handle case for hub asset - for that we need to check the hubreserve? or not? Ask Martin
 			T::PoolStateChangeHandler::before_pool_state_change(
 				asset_in,
 				asset_out,
