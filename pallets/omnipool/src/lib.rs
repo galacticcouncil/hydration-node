@@ -197,6 +197,7 @@ pub mod pallet {
 			+ Create<Self::AccountId>
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
+		/// Handler for state changes
 		type PoolStateChangeHandler: OnPoolStateChangeHandler<Self::AssetId, Balance>;
 
 		/// Weight information for extrinsics in this pallet.
