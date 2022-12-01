@@ -5699,7 +5699,6 @@ dependencies = [
  "derive_more",
  "frame-support",
  "frame-system",
- "hex-literal",
  "hydradx-traits",
  "parity-scale-codec",
  "primitives",

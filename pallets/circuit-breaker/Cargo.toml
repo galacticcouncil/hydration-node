@@ -30,9 +30,6 @@ primitives = {path = '../../primitives', default-features = false}
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "2064dd9ee1d64da251721f895e61aae18f39e03a", default-features = false }
 
-[dev-dependencies]
-hex-literal = '0.3.4'
-
 [features]
 default = ['std']
 std = [
