@@ -189,7 +189,7 @@ fn test_liquidity_limits_should_fail_when_liqudity_limit_not_stored() {
 		// Act & Assert
 		assert_noop!(
 			CircuitBreaker::test_liquidity_limits(asset_id, liqudity),
-			Error::<Test>::AllowedLiquidityNotStoredForAsset
+			Error::<Test>::LiquidityLimitNotStoredForAsset
 		);
 	});
 }

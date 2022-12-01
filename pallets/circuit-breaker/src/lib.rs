@@ -93,8 +93,8 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
-		/// Entry does not exist in the storage
-		AllowedLiquidityNotStoredForAsset,
+		/// Allowed liquidity limit is not stored for asset
+		LiquidityLimitNotStoredForAsset,
 		/// Minimum pool trade volume per block has been reached
 		MinTradeVolumePerBlockReached,
 		/// Maximum pool trade volume per block has been reached
@@ -121,7 +121,7 @@ impl<T: Config> Pallet<T> {
 
 	fn test_liquidity_limits(asset_id: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
 		let (min_limit, max_limit) = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
-			.ok_or(Error::<T>::AllowedLiquidityNotStoredForAsset)?;
+			.ok_or(Error::<T>::LiquidityLimitNotStoredForAsset)?;
 
 		//TODO: tell don't ask, add this in some LimitRange object or so
 		ensure!(
