@@ -5701,8 +5701,6 @@ dependencies = [
  "frame-system",
  "hex-literal",
  "hydradx-traits",
- "orml-tokens",
- "orml-traits",
  "parity-scale-codec",
  "primitives",
  "scale-info",
