@@ -663,36 +663,34 @@ fn buy_for_lrna_should_fail_when_exceeds_max_out_ratio() {
 #[test_case(0)]
 #[test_case(ONE)]
 #[test_case(100 * ONE)]
-fn buy_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded(diff_from_min_limit: Balance) {
-	const DOT: AssetId = 100;
-	const AUSD: AssetId = 200;
-	const TRADER: u64 = 11u64;
-
-	let initial_dot_amount = 10000 * ONE;
+fn buy_should_work_when_trade_volume_limit_not_exceeded(diff_from_min_limit: Balance) {
+	// Arrange
+	let initial_liquidity = 10_000 * ONE;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, DOT, 2000000 * ONE),
-			(LP1, AUSD, 2000000 * ONE),
-			(TRADER, DOT, 2000000 * ONE),
-			(TRADER, AUSD, 2000000 * ONE),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, DOT, 2_000_000 * ONE),
+			(TRADER, ACA, 2_000_000 * ONE),
 		])
 		.with_registered_asset(DOT)
-		.with_registered_asset(AUSD)
+		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
-		.with_token(AUSD, FixedU128::from_float(0.8), LP1, 10000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.8), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) - diff_from_min_limit;
+			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity) - diff_from_min_limit;
 
+			// Act & Assert
 			assert_ok!(Omnipool::buy(
 				Origin::signed(TRADER),
 				DOT,
-				AUSD,
+				ACA,
 				buy_amount,
 				Balance::MAX
 			));
@@ -700,104 +698,228 @@ fn buy_should_work_when_both_asset_in_and_out_trade_volume_limit_not_exceeded(di
 }
 
 #[test]
-fn buy_should_fail_when_asset_out_trade_volume_exceeds_min_trade_volume_per_block_limit() {
+fn buy_should_fail_when_trade_volume_max_limit_exceeded() {
+	// Arrange
 	const DOT: AssetId = 100;
-	const AUSD: AssetId = 200;
+	const ACA: AssetId = 200;
 	const TRADER: u64 = 11u64;
 
-	let initial_dot_amount = 10000 * ONE;
+	let initial_liquidity = 10_000 * ONE;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, DOT, 2000000 * ONE),
-			(LP1, AUSD, 2000000 * ONE),
-			(TRADER, DOT, 2000000 * ONE),
-			(TRADER, AUSD, 2000000 * ONE),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, DOT, 2_000_000 * ONE),
+			(TRADER, ACA, 2_000_000 * ONE),
 		])
 		.with_registered_asset(DOT)
-		.with_registered_asset(AUSD)
+		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
-		.with_token(AUSD, FixedU128::from_float(0.8), LP1, 10000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + ONE;
+			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity);
 
-			assert_noop!(
-				Omnipool::buy(Origin::signed(TRADER), DOT, AUSD, buy_amount, Balance::MAX),
-				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
-			);
-		});
-}
-
-#[test]
-fn buy_should_fail_when_asset_in_trade_volume_exceeds_max_trade_volume_per_block_limit() {
-	const DOT: AssetId = 100;
-	const AUSD: AssetId = 200;
-	const TRADER: u64 = 11u64;
-
-	let initial_dot_amount = 10000 * ONE;
-	let initial_ausd_amount = 10000 * ONE;
-
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, DOT, 2000000 * ONE),
-			(LP1, AUSD, 2000000 * ONE),
-			(TRADER, DOT, 2000000 * ONE),
-			(TRADER, AUSD, 2000000 * ONE),
-		])
-		.with_registered_asset(DOT)
-		.with_registered_asset(AUSD)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
-		.with_token(AUSD, FixedU128::from_float(0.65), LP1, initial_ausd_amount)
-		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
-		.build()
-		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount);
-
+			// Act & assert
 			//Asset_in amount would be 1250_000_000_000_002 in a successful trade, but it fails due to limit
 			assert_noop!(
-				Omnipool::buy(Origin::signed(TRADER), DOT, AUSD, buy_amount, Balance::MAX),
+				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
 				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
 			);
 		});
 }
 
 #[test]
-fn buy_asset_for_hub_asset_should_fail_when_hub_asset_trade_volume_exceeds_max_limit() {
-	const DOT: AssetId = 100;
-	const AUSD: AssetId = 200;
-	const TRADER: u64 = 11u64;
-
-	let initial_dot_amount = 100000 * ONE;
+fn buy_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
+	// Arrange
+	let initial_liquidity = 10_000 * ONE;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, DOT, 2000000 * ONE),
-			(LP1, AUSD, 2000000 * ONE),
-			(TRADER, LRNA, 2000000 * ONE),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, DOT, 2_000_000 * ONE),
+			(TRADER, ACA, 2_000_000 * ONE),
 		])
 		.with_registered_asset(DOT)
-		.with_registered_asset(AUSD)
+		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
-		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = 13500 * ONE;
-			let lrna_balance_in_omnipool = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-			assert_eq!(lrna_balance_in_omnipool, 82000 * ONE);
+			let buy_amount = FIVE_PERCENT.mul_floor(initial_liquidity);
 
-			//Act and assert
+			// Act & assert
+			assert_ok!(Omnipool::buy(
+				Origin::signed(TRADER),
+				DOT,
+				ACA,
+				buy_amount,
+				Balance::MAX
+			));
+
+			let buy_amount_to_exceed_limit = buy_amount + ONE;
+
+			assert_noop!(
+				Omnipool::buy(
+					Origin::signed(TRADER),
+					DOT,
+					ACA,
+					buy_amount_to_exceed_limit,
+					Balance::MAX
+				),
+				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
+			);
+		});
+}
+
+#[test]
+fn buy_should_fail_when_trade_volume_min_limit_exceeded() {
+	// Arrange
+	let initial_liquidity = 10_000 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, DOT, 2_000_000 * ONE),
+			(TRADER, ACA, 2_000_000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(ACA)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.8), LP1, initial_liquidity)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity) + ONE;
+
+			// Act & assert
+			assert_noop!(
+				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
+				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
+			);
+		});
+}
+
+#[test]
+fn buy_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
+	// Arrange
+	let initial_liquidity = 10_000 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, DOT, 2_000_000 * ONE),
+			(TRADER, ACA, 2_000_000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(ACA)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.8), LP1, initial_liquidity)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let buy_amount = FIVE_PERCENT.mul_floor(initial_liquidity);
+
+			// Act & assert
+			assert_ok!(Omnipool::buy(
+				Origin::signed(TRADER),
+				DOT,
+				ACA,
+				buy_amount,
+				Balance::MAX
+			));
+
+			let buy_amount_to_exceed_limit = buy_amount + ONE;
+
+			assert_noop!(
+				Omnipool::buy(
+					Origin::signed(TRADER),
+					DOT,
+					ACA,
+					buy_amount_to_exceed_limit,
+					Balance::MAX
+				),
+				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
+			);
+		});
+}
+
+#[test_case(ONE)]
+#[test_case(10 * ONE)]
+#[test_case(100 * ONE)]
+fn buy_asset_for_hub_asset_should_work_when_trade_volume_limit_not_exceeded(buy_amount: Balance) {
+	// Arrange
+	let initial_liquidity = 100_000 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, LRNA, 2_000_000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(ACA)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			// Act & assert
+			assert_ok!(Omnipool::buy(
+				Origin::signed(TRADER),
+				DOT,
+				LRNA,
+				buy_amount,
+				Balance::MAX
+			),);
+		});
+}
+
+#[test]
+fn buy_asset_for_hub_asset_should_fail_when_trade_volume_max_limit_exceeded() {
+	// Arrange
+	let initial_liquidity = 100_000 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, LRNA, 2_000_000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(ACA)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.65), LP1, 10_000 * ONE)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let buy_amount = 13_500 * ONE;
+
+			// Act & assert
 			//Amount_in would be 10_144_508_670_520_232 during successful trade, but it fails as it is more than 10% of `lrna_balance_in_omnipool`
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, LRNA, buy_amount, Balance::MAX),
@@ -807,32 +929,69 @@ fn buy_asset_for_hub_asset_should_fail_when_hub_asset_trade_volume_exceeds_max_l
 }
 
 #[test]
-fn buy_asset_for_hub_asset_should_fail_when_asset_out_trade_volume_exceeds_min_limit() {
-	const DOT: AssetId = 100;
-	const AUSD: AssetId = 200;
-	const TRADER: u64 = 11u64;
-
-	let initial_dot_amount = 100000 * ONE;
+fn buy_asset_for_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
+	// Arrange
+	let initial_liquidity = 100_000 * ONE;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, DOT, 2000000 * ONE),
-			(LP1, AUSD, 2000000 * ONE),
-			(TRADER, LRNA, 2000000 * ONE),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, LRNA, 2_000_000 * ONE),
 		])
 		.with_registered_asset(DOT)
-		.with_registered_asset(AUSD)
+		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
-		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
+		.with_token(DOT, FixedU128::from_float(1.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.65), LP1, 10_000 * ONE)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_dot_amount) + ONE;
+			let lrna_balance_in_omnipool = Omnipool::get_hub_asset_balance_of_protocol_account();
+			let buy_amount = FIVE_PERCENT.mul_floor(lrna_balance_in_omnipool);
 
-			//Act and assert
+			// Act & assert
+			assert_ok!(Omnipool::buy(
+				Origin::signed(TRADER),
+				DOT,
+				LRNA,
+				buy_amount,
+				Balance::MAX
+			));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(TRADER), DOT, LRNA, buy_amount, Balance::MAX),
+				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
+			);
+		});
+}
+
+#[test]
+fn buy_asset_for_hub_asset_should_fail_when_trade_volume_min_limit_exceeded() {
+	// Arrange
+	let initial_liquidity = 100_000 * ONE;
+
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, LRNA, 2_000_000 * ONE),
+		])
+		.with_registered_asset(DOT)
+		.with_registered_asset(ACA)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity) + ONE;
+
+			// Act & assert
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, LRNA, buy_amount, Balance::MAX),
 				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
@@ -840,42 +999,41 @@ fn buy_asset_for_hub_asset_should_fail_when_asset_out_trade_volume_exceeds_min_l
 		});
 }
 
-#[test_case(ONE)]
-#[test_case(10 * ONE)]
-#[test_case(100 * ONE)]
-fn buy_asset_for_hub_asset_should_pass_when_hub_asset_trade_volume_does_not_exceeds_max_limit(buy_amount: Balance) {
-	const DOT: AssetId = 100;
-	const AUSD: AssetId = 200;
-	const TRADER: u64 = 11u64;
-
-	let initial_dot_amount = 100000 * ONE;
+#[test]
+fn buy_asset_for_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
+	// Arrange
+	let initial_liquidity = 100_000 * ONE;
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), DAI, 1_000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, DOT, 2000000 * ONE),
-			(LP1, AUSD, 2000000 * ONE),
-			(TRADER, LRNA, 2000000 * ONE),
+			(LP1, DOT, 2_000_000 * ONE),
+			(LP1, ACA, 2_000_000 * ONE),
+			(TRADER, LRNA, 2_000_000 * ONE),
 		])
 		.with_registered_asset(DOT)
-		.with_registered_asset(AUSD)
+		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_dot_amount)
-		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 10000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, FixedU128::from_float(0.65), LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let lrna_balance_in_omnipool = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-			assert_eq!(lrna_balance_in_omnipool, 82000 * ONE);
+			let buy_amount = FIVE_PERCENT.mul_floor(initial_liquidity) + ONE;
 
-			//Act and assert
+			// Act & assert
 			assert_ok!(Omnipool::buy(
 				Origin::signed(TRADER),
 				DOT,
 				LRNA,
 				buy_amount,
 				Balance::MAX
-			),);
+			));
+
+			assert_noop!(
+				Omnipool::buy(Origin::signed(TRADER), DOT, LRNA, buy_amount, Balance::MAX),
+				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
+			);
 		});
 }

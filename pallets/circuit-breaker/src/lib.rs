@@ -1,6 +1,6 @@
 // This file is part of HydraDX.
 
-// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
 // limitations under the License.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#[cfg(feature = "std")]
+
 pub use primitives::Balance;
 
 use frame_support::{ensure, traits::Get};
@@ -77,6 +77,7 @@ pub mod pallet {
 			+ CheckedSub
 			+ AtLeast32BitUnsigned;
 
+		/// The maximum percentage of a pool's liquidity that can be traded in a block
 		type MaxNetTradeVolumeLimitPerBlock: Get<Percent>;
 	}
 
@@ -100,8 +101,6 @@ pub mod pallet {
 		/// Maximum pool trade volume per block has been reached
 		MaxTradeVolumePerBlockReached,
 	}
-	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
 }
 
 impl<T: Config> Pallet<T> {

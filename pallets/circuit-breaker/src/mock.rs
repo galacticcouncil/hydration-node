@@ -1,6 +1,6 @@
 // This file is part of HydraDX.
 
-// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +30,9 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AssetId = u32;
+
+pub const HDX: AssetId = 100;
+pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -75,7 +78,7 @@ impl system::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxVolumeLimit: Percent = Percent::from_percent(50);
+	pub const MaxVolumeLimit: Percent = Percent::from_percent(20);
 }
 
 impl Config for Test {
