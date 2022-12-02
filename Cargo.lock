@@ -8774,6 +8774,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",

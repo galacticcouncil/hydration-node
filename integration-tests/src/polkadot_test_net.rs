@@ -1,6 +1,7 @@
 #![cfg(test)]
 pub use hydradx_runtime::{AccountId, VestingPalletId};
 
+use frame_support::PalletId;
 use pallet_transaction_multi_payment::Price;
 use primitives::Balance;
 
@@ -16,6 +17,7 @@ pub const HYDRA_PARA_ID: u32 = 2_034;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_ASSET_1_BALANCE: Balance = 500 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 
 use cumulus_primitives_core::ParaId;
@@ -157,6 +159,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(CHARLIE), 1_000 * UNITS),
 			(AccountId::from(DAVE), 1_000 * UNITS),
 			(vesting_account(), 10_000 * UNITS),
+			(omnipool_protocol_account(), 1_000 * UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -179,11 +182,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
-			(AccountId::from(ALICE), 1, 200 * UNITS),
+			(AccountId::from(ALICE), 1, ALICE_INITIAL_ASSET_1_BALANCE),
 			(AccountId::from(ALICE), 2, 200 * UNITS),
 			(AccountId::from(BOB), 1, 1_000 * UNITS),
 			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), 1, 1_000 * UNITS),
+			(omnipool_protocol_account(), 2, 1_000 * UNITS), //TODO: use constant AUSD for 2
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -249,6 +253,10 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 
 pub fn vesting_account() -> AccountId {
 	VestingPalletId::get().into_account_truncating()
+}
+
+pub fn omnipool_protocol_account() -> AccountId {
+	PalletId(*b"omnipool").into_account_truncating()
 }
 
 fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {

@@ -11,6 +11,7 @@ repository = "https://github.com/galacticcouncil/Basilisk-node"
 [dependencies]
 primitives = { default-features = false, path = "../primitives" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
+pallet-circuit-breaker = { path = "../pallets/circuit-breaker",default-features = false}
 
 # HydraDX dependencies
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "2064dd9ee1d64da251721f895e61aae18f39e03a", default-features = false }
