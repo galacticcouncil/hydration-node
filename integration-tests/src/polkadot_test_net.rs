@@ -3,7 +3,7 @@ pub use hydradx_runtime::{AccountId, VestingPalletId};
 
 use frame_support::PalletId;
 use pallet_transaction_multi_payment::Price;
-use primitives::Balance;
+use primitives::{AssetId, Balance};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -11,6 +11,8 @@ pub const CHARLIE: [u8; 32] = [6u8; 32];
 pub const DAVE: [u8; 32] = [7u8; 32];
 
 pub const UNITS: Balance = 1_000_000_000_000;
+pub const LRNA: AssetId = 1;
+pub const ASSET_2: AssetId = 2;
 
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
@@ -182,12 +184,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
-			(AccountId::from(ALICE), 1, ALICE_INITIAL_ASSET_1_BALANCE),
-			(AccountId::from(ALICE), 2, 200 * UNITS),
-			(AccountId::from(BOB), 1, 1_000 * UNITS),
-			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
-			(AccountId::from(DAVE), 1, 1_000 * UNITS),
-			(omnipool_protocol_account(), 2, 1_000 * UNITS), //TODO: use constant AUSD for 2
+			(AccountId::from(ALICE), LRNA, ALICE_INITIAL_ASSET_1_BALANCE),
+			(AccountId::from(ALICE), ASSET_2, 200 * UNITS),
+			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
+			(AccountId::from(CHARLIE), LRNA, 1_000 * UNITS),
+			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
+			(omnipool_protocol_account(), ASSET_2, 1_000 * UNITS),
 		],
 	}
 	.assimilate_storage(&mut t)
