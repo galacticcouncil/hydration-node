@@ -529,7 +529,7 @@ pub mod pallet {
 				asset_id: asset,
 				amount,
 				shares: amount,
-				price: initial_price.into_inner(),
+				price: (initial_price.into_inner(), FixedU128::DIV),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&position_owner)?;
@@ -654,8 +654,6 @@ pub mod pallet {
 				Error::<T>::AssetWeightCapExceeded
 			);
 
-			let updated_asset_price = new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?;
-
 			//
 			// Post - update states
 			//
@@ -666,7 +664,7 @@ pub mod pallet {
 				amount,
 				shares: *state_changes.asset.delta_shares,
 				// Note: position needs price after asset state is updated.
-				price: updated_asset_price.into_inner(),
+				price: (new_asset_state.hub_reserve, new_asset_state.reserve),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
@@ -679,7 +677,7 @@ pub mod pallet {
 				asset,
 				amount,
 				shares: *state_changes.asset.delta_shares,
-				price: updated_asset_price,
+				price: new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
 			});
 
 			T::Currency::transfer(
@@ -833,7 +831,9 @@ pub mod pallet {
 					asset: asset_id,
 					amount: updated_position.amount,
 					shares: updated_position.shares,
-					price: FixedU128::from_inner(updated_position.price),
+					price: updated_position
+						.price_from_rational()
+						.ok_or(ArithmeticError::DivisionByZero)?,
 				});
 
 				<Positions<T>>::insert(position_id, updated_position);

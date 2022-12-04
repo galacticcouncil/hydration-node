@@ -74,11 +74,8 @@ pub struct Position<Balance, AssetId> {
 	pub(super) amount: Balance,
 	/// Quantity of LP shares owned by LP
 	pub(super) shares: Balance,
-	/// Price at which liquidity was provided
-	// TODO: Due to missing MaxEncodedLen impl for FixedU128, it is not possible to use that type in storage
-	// This can change in 0.9.17 where the missing trait is implemented
-	// And FixedU128 can be use instead.
-	pub(super) price: Balance,
+	/// Price at which liquidity was provided - ( hub reserve, asset reserve ) at the time of creation
+	pub(super) price: (Balance, Balance),
 }
 
 impl<Balance, AssetId> From<&Position<Balance, AssetId>> for hydra_dx_math::omnipool::types::Position<Balance>
@@ -89,7 +86,7 @@ where
 		Self {
 			amount: position.amount,
 			shares: position.shares,
-			price: FixedU128::from_inner(position.price.into()),
+			price: position.price,
 		}
 	}
 }
@@ -98,6 +95,10 @@ impl<Balance, AssetId> Position<Balance, AssetId>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
+	pub(super) fn price_from_rational(&self) -> Option<FixedU128> {
+		FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
+	}
+
 	/// Update current position state with given delta changes.
 	pub(super) fn delta_update(
 		self,

@@ -11,7 +11,6 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(0.65);
 			let liq_added = 400 * ONE;
 
 			// ACT
@@ -37,7 +36,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 				asset_id: 1_000,
 				amount: liq_added,
 				shares: liq_added,
-				price: token_price.into_inner(),
+				price: (1560 * ONE, token_amount + liq_added),
 			};
 
 			assert_eq!(position, expected);
@@ -82,7 +81,7 @@ fn add_stable_asset_liquidity_works() {
 				asset_id: DAI,
 				amount: liq_added,
 				shares: liq_added,
-				price: FixedU128::from_float(0.5).into_inner(),
+				price: (700 * ONE, 1400 * ONE),
 			};
 
 			assert_eq!(position, expected);
