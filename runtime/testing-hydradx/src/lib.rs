@@ -849,7 +849,9 @@ impl pallet_transaction_pause::Config for Runtime {
 impl pallet_circuit_breaker::Config for Runtime {
 	type AssetId = AssetId;
 	type Balance = Balance;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type MaxNetTradeVolumeLimitPerBlock = MaxNetTradeVolumeLimitPerBlock;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

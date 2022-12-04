@@ -19,7 +19,7 @@ use super::*;
 pub use crate as pallet_circuit_breaker;
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
-use frame_system as system;
+use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -50,7 +50,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 }
 
-impl system::Config for Test {
+impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
@@ -84,7 +84,9 @@ parameter_types! {
 impl Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type MaxNetTradeVolumeLimitPerBlock = MaxVolumeLimit;
+	type WeightInfo = ();
 }
 
 #[derive(Default)]

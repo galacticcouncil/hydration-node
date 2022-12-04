@@ -26,7 +26,7 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 		));
 
 		let lrna_balance_in_omnipool = hydradx_runtime::Tokens::free_balance(LRNA, &omnipool_protocol_account());
-		let sell_amount = MAX_TRADE_LIMIT_PER_BLOCK_IN_HYDRA.mul_floor(lrna_balance_in_omnipool) + 1 * UNITS;
+		let sell_amount = MAX_TRADE_LIMIT_PER_BLOCK_IN_HYDRA.mul_floor(lrna_balance_in_omnipool) + UNITS;
 		let min_limit = 0;
 
 		//Act and assert

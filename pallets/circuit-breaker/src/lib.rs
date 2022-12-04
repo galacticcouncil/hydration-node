@@ -19,11 +19,11 @@
 
 pub use primitives::Balance;
 
-use frame_support::{ensure, traits::Get};
+use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get, transactional};
 use hydradx_traits::OnPoolStateChangeHandler;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
-use sp_runtime::{ArithmeticError, DispatchResult, Percent};
+use sp_runtime::{ArithmeticError, Percent};
 
 #[cfg(test)]
 mod mock;
@@ -31,14 +31,18 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
@@ -66,7 +70,7 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Balance type
+		/// Balance type.
 		type Balance: Parameter
 			+ Member
 			+ Copy
@@ -77,8 +81,14 @@ pub mod pallet {
 			+ CheckedSub
 			+ AtLeast32BitUnsigned;
 
-		/// The maximum percentage of a pool's liquidity that can be traded in a block
+		/// Origin to be able to change the trade volume limit of an asset.
+		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
+
+		/// The maximum percentage of a pool's liquidity that can be traded in a block.
 		type MaxNetTradeVolumeLimitPerBlock: Get<Percent>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -86,10 +96,23 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
+	/// Default maximum net trade volume limit per block
+	#[pallet::type_value]
+	pub fn DefaultTradeVolumeLimit<T: Config>() -> Percent {
+		T::MaxNetTradeVolumeLimitPerBlock::get()
+	}
+
 	#[pallet::storage]
+	/// Minimum and maximum trade volume limits of assets
 	#[pallet::getter(fn allowed_liqudity_range_per_asset)]
 	pub type AllowedLiquidityRangePerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
+
+	#[pallet::storage]
+	/// Trade volume limits of assets that don't use the default value
+	#[pallet::getter(fn trade_volume_limit_per_asset)]
+	pub type TradeVolumeLimitPerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, Percent, ValueQuery, DefaultTradeVolumeLimit<T>>;
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
@@ -100,13 +123,31 @@ pub mod pallet {
 		MinTradeVolumePerBlockReached,
 		/// Maximum pool trade volume per block has been reached
 		MaxTradeVolumePerBlockReached,
+		/// Invalid trade volume limit. Limit must be non-zero.
+		InvalidTradeVolumeLimit,
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
+		#[transactional]
+		pub fn set_trade_volume_limit(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			trade_volume_limit: Percent,
+		) -> DispatchResult {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+			ensure!(!trade_volume_limit.is_zero(), Error::<T>::InvalidTradeVolumeLimit);
+			<TradeVolumeLimitPerAsset<T>>::insert(asset_id, trade_volume_limit);
+			Ok(())
+		}
 	}
 }
 
 impl<T: Config> Pallet<T> {
 	fn calculate_and_store_liquidity_limits(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
 		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_id) {
-			let liquidity_diff = T::MaxNetTradeVolumeLimitPerBlock::get().mul_floor(initial_liquidity);
+			let liquidity_diff = Pallet::<T>::trade_volume_limit_per_asset(asset_id).mul_floor(initial_liquidity);
 			let min_limit = initial_liquidity
 				.checked_sub(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;

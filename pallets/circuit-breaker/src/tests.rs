@@ -166,3 +166,20 @@ fn test_liquidity_limits_should_fail_when_liqudity_limit_not_stored() {
 		);
 	});
 }
+
+#[test]
+fn set_trade_volume_limit_should_store_new_trade_volume_limit() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange & Act
+		let default_limit = <Test as Config>::MaxNetTradeVolumeLimitPerBlock::get();
+		assert_eq!(default_limit, DefaultTradeVolumeLimit::<Test>::get());
+
+		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), default_limit);
+		let new_limit = Percent::from_percent(7);
+
+		assert_ok!(CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, new_limit,));
+
+		// Assert
+		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), new_limit);
+	});
+}
