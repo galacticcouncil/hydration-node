@@ -1,5 +1,6 @@
 use super::*;
 use frame_support::assert_noop;
+use test_case::test_case;
 
 #[test]
 fn add_liquidity_should_work_when_asset_exists_in_pool() {
@@ -178,6 +179,72 @@ fn add_liquidity_should_fail_when_asset_state_does_not_include_add_liquidity() {
 			assert_noop!(
 				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2 * ONE),
 				Error::<Test>::NotAllowed
+			);
+		});
+}
+
+#[test_case(0)]
+#[test_case(ONE)]
+#[test_case(100 * ONE)]
+fn add_liquidity_should_work_when_trade_volume_limit_not_exceeded(diff_from_max_limit: Balance) {
+	// Arrange
+	let initial_liquidity = 1_000_000 * ONE;
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, 1_000, 2_000_000 * ONE))
+		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let liq_added = TEN_PERCENT.mul_floor(initial_liquidity) - diff_from_max_limit;
+
+			// Act & Assert
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+		});
+}
+
+#[test]
+fn add_liquidity_should_fail_when_trade_volume_limit_exceeded() {
+	// Arrange
+	let initial_liquidity = 1_000_000 * ONE;
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, 1_000, 2_000_000 * ONE))
+		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let liq_added = TEN_PERCENT.mul_floor(initial_liquidity) + ONE;
+
+			// Act & Assert
+			assert_noop!(
+				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added),
+				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
+			);
+		});
+}
+
+#[test]
+fn add_liquidity_should_fail_when_consequent_calls_exceed_trade_volume_limit() {
+	// Arrange
+	let initial_liquidity = 1_000_000 * ONE;
+	ExtBuilder::default()
+		.add_endowed_accounts((LP1, 1_000, 2_000_000 * ONE))
+		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
+		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
+		.build()
+		.execute_with(|| {
+			let liq_added = FIVE_PERCENT.mul_floor(initial_liquidity) + ONE;
+
+			// Act & Assert
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_noop!(
+				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added),
+				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
 			);
 		});
 }

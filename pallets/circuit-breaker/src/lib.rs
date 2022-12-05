@@ -177,24 +177,12 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn before_pool_state_change(
-		asset_a: T::AssetId,
-		asset_b: T::AssetId,
-		initial_liquidity_a: T::Balance,
-		initial_liquidity_b: T::Balance,
-	) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_liquidity_limits(asset_a, initial_liquidity_a)?;
-		Pallet::<T>::calculate_and_store_liquidity_limits(asset_b, initial_liquidity_b)?;
+	fn before_pool_state_change(asset_in: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_liquidity_limits(asset_in, initial_liquidity)?;
 		Ok(())
 	}
-	fn after_pool_state_change(
-		asset_a: T::AssetId,
-		asset_b: T::AssetId,
-		updated_liquidity_a: T::Balance,
-		updated_liquidity_b: T::Balance,
-	) -> DispatchResult {
-		Pallet::<T>::test_liquidity_limits(asset_a, updated_liquidity_a)?;
-		Pallet::<T>::test_liquidity_limits(asset_b, updated_liquidity_b)?;
+	fn after_pool_state_change(asset_in: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
+		Pallet::<T>::test_liquidity_limits(asset_in, updated_liquidity)?;
 		Ok(())
 	}
 }

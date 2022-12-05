@@ -617,6 +617,8 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset)?;
 
+			T::PoolStateChangeHandler::before_pool_state_change(asset, asset_state.reserve)?;
+
 			ensure!(
 				asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
 				Error::<T>::NotAllowed
@@ -696,7 +698,9 @@ pub mod pallet {
 
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
-			Self::set_asset_state(asset, new_asset_state);
+			Self::set_asset_state(asset, new_asset_state.clone());
+
+			T::PoolStateChangeHandler::after_pool_state_change(asset, new_asset_state.reserve)?;
 
 			Self::ensure_tvl_cap()?;
 
@@ -749,6 +753,8 @@ pub mod pallet {
 			let asset_id = position.asset_id;
 
 			let asset_state = Self::load_asset_state(asset_id)?;
+
+			T::PoolStateChangeHandler::before_pool_state_change(asset_id, asset_state.reserve)?;
 
 			ensure!(
 				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
@@ -842,7 +848,9 @@ pub mod pallet {
 				<Positions<T>>::insert(position_id, updated_position);
 			}
 
-			Self::set_asset_state(asset_id, new_asset_state);
+			Self::set_asset_state(asset_id, new_asset_state.clone());
+
+			T::PoolStateChangeHandler::after_pool_state_change(asset_id, new_asset_state.reserve)?;
 
 			Self::ensure_tvl_cap()?;
 
@@ -950,12 +958,8 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			T::PoolStateChangeHandler::before_pool_state_change(
-				asset_in,
-				asset_out,
-				asset_in_state.reserve,
-				asset_out_state.reserve,
-			)?;
+			T::PoolStateChangeHandler::before_pool_state_change(asset_in, asset_in_state.reserve)?;
+			T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_out_state.reserve)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -1049,12 +1053,8 @@ pub mod pallet {
 			Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 			//TODO: use reference instead of cloning before
-			T::PoolStateChangeHandler::after_pool_state_change(
-				asset_in,
-				asset_out,
-				new_asset_in_state.reserve,
-				new_asset_out_state.reserve,
-			)?;
+			T::PoolStateChangeHandler::after_pool_state_change(asset_in, new_asset_in_state.reserve)?;
+			T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1115,12 +1115,8 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			T::PoolStateChangeHandler::before_pool_state_change(
-				asset_in,
-				asset_out,
-				asset_in_state.reserve,
-				asset_out_state.reserve,
-			)?;
+			T::PoolStateChangeHandler::before_pool_state_change(asset_in, asset_in_state.reserve)?;
+			T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_out_state.reserve)?;
 
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
@@ -1220,12 +1216,8 @@ pub mod pallet {
 			Self::set_asset_state(asset_in, new_asset_in_state.clone());
 			Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
-			T::PoolStateChangeHandler::after_pool_state_change(
-				asset_in,
-				asset_out,
-				new_asset_in_state.reserve,
-				new_asset_out_state.reserve,
-			)?;
+			T::PoolStateChangeHandler::after_pool_state_change(asset_in, new_asset_in_state.reserve)?;
+			T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1496,12 +1488,8 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		T::PoolStateChangeHandler::before_pool_state_change(
-			T::HubAssetId::get(),
-			asset_out,
-			current_hub_asset_liquidity,
-			asset_state.reserve,
-		)?;
+		T::PoolStateChangeHandler::before_pool_state_change(T::HubAssetId::get(), current_hub_asset_liquidity)?;
+		T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_state.reserve)?;
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
@@ -1553,12 +1541,8 @@ impl<T: Config> Pallet<T> {
 
 		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		T::PoolStateChangeHandler::after_pool_state_change(
-			T::HubAssetId::get(),
-			asset_out,
-			new_hub_asset_liquidity,
-			new_asset_out_state.reserve,
-		)?;
+		T::PoolStateChangeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
+		T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1601,12 +1585,8 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		T::PoolStateChangeHandler::before_pool_state_change(
-			T::HubAssetId::get(),
-			asset_out,
-			current_hub_asset_liquidity,
-			asset_state.reserve,
-		)?;
+		T::PoolStateChangeHandler::before_pool_state_change(T::HubAssetId::get(), current_hub_asset_liquidity)?;
+		T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_state.reserve)?;
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
@@ -1656,12 +1636,8 @@ impl<T: Config> Pallet<T> {
 		Self::set_asset_state(asset_out, new_asset_out_state.clone());
 
 		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
-		T::PoolStateChangeHandler::after_pool_state_change(
-			T::HubAssetId::get(),
-			asset_out,
-			new_hub_asset_liquidity,
-			new_asset_out_state.reserve,
-		)?;
+		T::PoolStateChangeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
+		T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
