@@ -17,8 +17,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use primitives::Balance;
-
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get, transactional};
 use hydradx_traits::OnPoolStateChangeHandler;
 use scale_info::TypeInfo;

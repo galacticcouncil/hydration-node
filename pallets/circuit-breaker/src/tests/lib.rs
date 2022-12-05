@@ -90,7 +90,7 @@ fn liquidity_storage_should_be_cleared_in_the_next_block() {
 fn max_limit_calculation_throws_error_when_overflow_happens() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			CircuitBreaker::calculate_and_store_liquidity_limits(HDX, Balance::MAX),
+			CircuitBreaker::calculate_and_store_liquidity_limits(HDX, <Test as Config>::Balance::MAX),
 			ArithmeticError::Overflow
 		);
 	});
