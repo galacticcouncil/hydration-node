@@ -17,16 +17,36 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{Decode, Encode};
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get, transactional};
 use hydradx_traits::OnPoolStateChangeHandler;
 use scale_info::TypeInfo;
+use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
-use sp_runtime::{ArithmeticError, Percent};
+use sp_runtime::{ArithmeticError, Percent, RuntimeDebug};
 
 pub mod weights;
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
+pub struct LiquidityRange<Balance> {
+	pub min_limit: Balance,
+	pub max_limit: Balance,
+}
+
+impl<Balance> LiquidityRange<Balance>
+where
+	Balance: PartialOrd,
+{
+	pub fn ensure_min_limit(&self, liquidity: Balance) -> bool {
+		self.min_limit <= liquidity
+	}
+	pub fn ensure_max_limit(&self, liquidity: Balance) -> bool {
+		self.max_limit >= liquidity
+	}
+}
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -101,7 +121,7 @@ pub mod pallet {
 	/// Allowed liquidity range per block, calculated based on the initial liquidity and trade volume limit percentage
 	#[pallet::getter(fn allowed_liqudity_range_per_asset)]
 	pub type AllowedLiquidityRangePerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
+		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityRange<T::Balance>>;
 
 	#[pallet::storage]
 	/// Trade volume limits of assets that don't use the default value
@@ -149,22 +169,21 @@ impl<T: Config> Pallet<T> {
 			let max_limit = initial_liquidity
 				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
-			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, (min_limit, max_limit));
+			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, LiquidityRange::<T::Balance> { min_limit, max_limit });
 		}
 		Ok(())
 	}
 
 	fn ensure_liquidity_limits(asset_id: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
-		let (min_limit, max_limit) = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
+		let liquidity_range = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
 			.ok_or(Error::<T>::LiquidityLimitNotStoredForAsset)?;
 
-		//TODO: tell don't ask, add this in some LimitRange object or so
 		ensure!(
-			min_limit <= updated_liquidity,
+			liquidity_range.ensure_min_limit(updated_liquidity),
 			Error::<T>::MinTradeVolumePerBlockReached
 		);
 		ensure!(
-			max_limit >= updated_liquidity,
+			liquidity_range.ensure_max_limit(updated_liquidity),
 			Error::<T>::MaxTradeVolumePerBlockReached
 		);
 		Ok(())
