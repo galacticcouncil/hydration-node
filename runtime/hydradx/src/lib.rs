@@ -805,8 +805,8 @@ impl pallet_uniques::Config for Runtime {
 parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
-	pub ProtofolFee: Permill = Permill::from_rational(5u32,10000u32);
-	pub AssetFee: Permill = Permill::from_rational(15u32,10000u32);
+	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
+	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
 	pub const TVLCap : Balance = 222_222_000_000_000_000u128;
 	pub const MinTradingLimit : Balance = 1_000_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
@@ -825,7 +825,7 @@ impl pallet_omnipool::Config for Runtime {
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type StableCoinAssetId = StableAssetId;
-	type ProtocolFee = ProtofolFee;
+	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
 	type TVLCap = TVLCap;
 	type MinimumTradingLimit = MinTradingLimit;
