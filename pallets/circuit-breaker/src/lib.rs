@@ -154,7 +154,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn test_liquidity_limits(asset_id: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
+	fn ensure_liquidity_limits(asset_id: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
 		let (min_limit, max_limit) = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
 			.ok_or(Error::<T>::LiquidityLimitNotStoredForAsset)?;
 
@@ -177,7 +177,7 @@ impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
 		Ok(())
 	}
 	fn after_pool_state_change(asset_in: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
-		Pallet::<T>::test_liquidity_limits(asset_in, updated_liquidity)?;
+		Pallet::<T>::ensure_liquidity_limits(asset_in, updated_liquidity)?;
 		Ok(())
 	}
 }
