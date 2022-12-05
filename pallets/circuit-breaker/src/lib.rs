@@ -25,13 +25,10 @@ use scale_info::TypeInfo;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
 use sp_runtime::{ArithmeticError, Percent};
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
-
 pub mod weights;
+
+#[cfg(test)]
+mod test;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;

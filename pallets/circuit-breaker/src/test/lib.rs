@@ -15,8 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
-use crate::mock::*;
+use crate::test::mock::*;
+use crate::*;
+use sp_runtime::Percent;
 
 #[test]
 fn on_trade_should_store_liquidity_when_called_first_time() {

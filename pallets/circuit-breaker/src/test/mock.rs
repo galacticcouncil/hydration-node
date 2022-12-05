@@ -15,17 +15,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::*;
 pub use crate as pallet_circuit_breaker;
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_system::EnsureRoot;
+use primitives::Balance;
 use sp_core::H256;
+use sp_runtime::Percent;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -81,7 +81,7 @@ parameter_types! {
 	pub const MaxVolumeLimit: Percent = Percent::from_percent(20);
 }
 
-impl Config for Test {
+impl pallet_circuit_breaker::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
