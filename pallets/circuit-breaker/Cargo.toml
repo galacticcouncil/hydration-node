@@ -1,12 +1,12 @@
 [package]
 name = "pallet-circuit-breaker"
 version = "1.0.0"
-description = "Circuit breakers for AMMs"
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
 license = "Apache-2.0"
-homepage = "https://substrate.dev"
-repository = "https://github.com/paritytech/substrate/"
+homepage = 'https://github.com/galacticcouncil/hydradx-node'
+repository = 'https://github.com/galacticcouncil/hydradx-node'
+description = "Circuit breakers for AMMs"
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
