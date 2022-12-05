@@ -100,7 +100,7 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	/// Minimum and maximum trade volume limits of assets
+	/// Allowed liquidity range per block, calculated based on the initial liquidity and trade volume limit percentage
 	#[pallet::getter(fn allowed_liqudity_range_per_asset)]
 	pub type AllowedLiquidityRangePerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, (T::Balance, T::Balance)>;
