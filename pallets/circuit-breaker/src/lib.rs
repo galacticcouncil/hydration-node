@@ -28,7 +28,7 @@ use sp_runtime::{ArithmeticError, Percent};
 pub mod weights;
 
 #[cfg(test)]
-mod test;
+mod tests;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
