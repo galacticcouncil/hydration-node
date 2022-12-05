@@ -49,7 +49,7 @@ pub mod pallet {
 
 		fn integrity_test() {
 			assert!(
-				!T::MaxNetTradeVolumeLimitPerBlock::get().is_zero(),
+				!T::DefaultMaxNetTradeVolumeLimitPerBlock::get().is_zero(),
 				"Circuit Breaker: Max Net Trade Volume Limit Per Block is set to 0."
 			);
 		}
@@ -82,7 +82,7 @@ pub mod pallet {
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
-		type MaxNetTradeVolumeLimitPerBlock: Get<Percent>;
+		type DefaultMaxNetTradeVolumeLimitPerBlock: Get<Percent>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -96,7 +96,7 @@ pub mod pallet {
 	/// Default maximum net trade volume limit per block
 	#[pallet::type_value]
 	pub fn DefaultTradeVolumeLimit<T: Config>() -> Percent {
-		T::MaxNetTradeVolumeLimitPerBlock::get()
+		T::DefaultMaxNetTradeVolumeLimitPerBlock::get()
 	}
 
 	#[pallet::storage]

@@ -850,7 +850,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
-	type MaxNetTradeVolumeLimitPerBlock = MaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type WeightInfo = ();
 }
 

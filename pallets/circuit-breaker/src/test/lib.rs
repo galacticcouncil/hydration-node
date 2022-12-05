@@ -172,7 +172,7 @@ fn test_liquidity_limits_should_fail_when_liqudity_limit_not_stored() {
 fn set_trade_volume_limit_should_store_new_trade_volume_limit() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange & Act
-		let default_limit = <Test as Config>::MaxNetTradeVolumeLimitPerBlock::get();
+		let default_limit = <Test as Config>::DefaultMaxNetTradeVolumeLimitPerBlock::get();
 		assert_eq!(default_limit, DefaultTradeVolumeLimit::<Test>::get());
 
 		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), default_limit);

@@ -199,7 +199,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type MaxNetTradeVolumeLimitPerBlock = MaxTradeVolumeLimit;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = MaxTradeVolumeLimit;
 	type WeightInfo = ();
 }
 
