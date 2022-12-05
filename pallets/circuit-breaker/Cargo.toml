@@ -15,7 +15,6 @@ targets = ['x86_64-unknown-linux-gnu']
 serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.1.5" }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-derive_more = "0.99.17"
 
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -23,9 +22,6 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
-
-# Local dependencies
-primitives = {path = '../../primitives', default-features = false}
 
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8708e0cd3b2cdce12979d5679d9852d25cbecc59", default-features = false }

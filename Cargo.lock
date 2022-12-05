@@ -5723,12 +5723,10 @@ dependencies = [
 name = "pallet-circuit-breaker"
 version = "1.0.0"
 dependencies = [
- "derive_more",
  "frame-support",
  "frame-system",
  "hydradx-traits",
  "parity-scale-codec",
- "primitives",
  "scale-info",
  "serde",
  "sp-core",

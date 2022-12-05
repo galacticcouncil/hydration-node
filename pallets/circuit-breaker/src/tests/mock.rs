@@ -19,7 +19,6 @@ pub use crate as pallet_circuit_breaker;
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_system::EnsureRoot;
-use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::Percent;
 use sp_runtime::{
@@ -30,6 +29,7 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AssetId = u32;
+pub type Balance = u128;
 
 pub const HDX: AssetId = 100;
 pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
