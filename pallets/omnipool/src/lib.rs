@@ -79,11 +79,11 @@ use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
-use hydradx_traits::{AggregatedOracle, Registry, oracle::OraclePeriod};
+use hydradx_traits::{oracle::OraclePeriod, AggregatedOracle, Registry};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 use sp_runtime::traits::{CheckedDiv, CheckedMul};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
@@ -94,7 +94,7 @@ mod tests;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability,AssetCoefficient};
+use crate::types::{AssetCoefficient, AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
@@ -202,7 +202,7 @@ pub mod pallet {
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 
-		type PriceOracle: AggregatedOracle<Self::AssetId, Balance, Self::BlockNumber, Price, Error=DispatchError>;
+		type PriceOracle: AggregatedOracle<Self::AssetId, Balance, Self::BlockNumber, Price, Error = DispatchError>;
 	}
 
 	#[pallet::storage]
@@ -230,7 +230,7 @@ pub mod pallet {
 	#[pallet::getter(fn asset_coefficients_and_offline_amounts)]
 	/// Coefficients and asset quantity to take offline for security purposes
 	pub(super) type AssetCoefficientsAndAmountsTakenOffline<T: Config> =
-	StorageMap<_, Blake2_128Concat, T::AssetId, AssetCoefficient>;
+		StorageMap<_, Blake2_128Concat, T::AssetId, AssetCoefficient>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -365,7 +365,8 @@ pub mod pallet {
 		MaxInRatioExceeded,
 		/// The trade volume in the current block exceeded the limit
 		TradeVolumeLimitExceeded,
-		PriceOracleError,}
+		PriceOracleError,
+	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -975,25 +976,62 @@ pub mod pallet {
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 
-			let offline_amount_for_asset_a = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_in).unwrap_or(AssetCoefficient::default()).amount_taken_offline;
-			let offline_amount_for_asset_b = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_out).unwrap_or(AssetCoefficient::default()).amount_taken_offline;
+			let offline_amount_for_asset_a = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_in)
+				.unwrap_or(AssetCoefficient::default())
+				.amount_taken_offline;
+			let offline_amount_for_asset_b = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_out)
+				.unwrap_or(AssetCoefficient::default())
+				.amount_taken_offline;
 
 			let (asset_in_coef, asset_out_coef) = Self::calculate_liquidity_coefficient(asset_in, asset_out)?;
 
-			let lerna_amount_nominator_asset_a = asset_in_coef.coeff.checked_mul(&FixedU128::from_inner(asset_in_state.reserve)).ok_or(ArithmeticError::Overflow)?.checked_mul(&FixedU128::from_inner(asset_in_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
-			//let lerna_amount_asset_a_updated = lerna_amount_nominator_asset_a.checked_div(&FixedU128::from_inner(asset_in_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_a)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
-			//let delta_lerna_amount_asset_a = lerna_amount_asset_a_updated.checked_sub(&FixedU128::from_inner(asset_in_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+			//Calculating this -> https://www.notion.so/Circuit-Breakers-cf4123c9131f4b98867cfd45ff4937c2#e69d2785ceeb442b8f1ed8096ea1e524
+			let lerna_amount_nominator_asset_a = asset_in_coef
+				.coeff
+				.checked_mul(&FixedU128::from_inner(asset_in_state.reserve))
+				.ok_or(ArithmeticError::Overflow)?
+				.checked_mul(&FixedU128::from_inner(asset_in_state.hub_reserve))
+				.ok_or(ArithmeticError::Overflow)?;
+			let lerna_amount_asset_a_updated = lerna_amount_nominator_asset_a
+				.checked_div(
+					&FixedU128::from_inner(asset_in_state.reserve)
+						.checked_sub(&FixedU128::from_inner(offline_amount_for_asset_a))
+						.ok_or(ArithmeticError::Overflow)?,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
+			let hub_reserve_asset_a_as_fixed = FixedU128::from_inner(asset_in_state.hub_reserve);
+			let delta_lerna_amount_asset_a =
+				Self::get_delta(lerna_amount_asset_a_updated, hub_reserve_asset_a_as_fixed);
 
-			let lerna_amount_nominator_asset_b = asset_out_coef.coeff.checked_mul(&FixedU128::from_inner(asset_out_state.reserve)).ok_or(ArithmeticError::Overflow)?.checked_mul(&FixedU128::from_inner(asset_out_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
-			//let lerna_amount_asset_b_updated = lerna_amount_nominator_asset_b.checked_div(&FixedU128::from_inner(asset_out_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_b)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
-			//let delta_lerna_amount_asset_b = lerna_amount_asset_b_updated.checked_sub(&FixedU128::from_inner(asset_out_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+			let lerna_amount_nominator_asset_b = asset_out_coef
+				.coeff
+				.checked_mul(&FixedU128::from_inner(asset_out_state.reserve))
+				.ok_or(ArithmeticError::Overflow)?
+				.checked_mul(&FixedU128::from_inner(asset_out_state.hub_reserve))
+				.ok_or(ArithmeticError::Overflow)?;
+			let lerna_amount_asset_b_updated = lerna_amount_nominator_asset_b
+				.checked_div(
+					&FixedU128::from_inner(asset_out_state.reserve)
+						.checked_sub(&FixedU128::from_inner(offline_amount_for_asset_b))
+						.ok_or(ArithmeticError::Overflow)?,
+				)
+				.ok_or(ArithmeticError::Overflow)?;
+			let hub_reserve_asset_b_as_fixed = FixedU128::from_inner(asset_out_state.hub_reserve);
+			let delta_lerna_amount_asset_b =
+				Self::get_delta(lerna_amount_asset_b_updated, hub_reserve_asset_b_as_fixed);
 
 			let mut asset_in_state_with_coef = asset_in_state.clone();
 			let mut asset_out_state_with_coef = asset_out_state.clone();
 
-			asset_in_state_with_coef.reserve = asset_in_coef.coeff.checked_mul_int(asset_in_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
-			asset_out_state_with_coef.reserve = asset_out_coef.coeff.checked_mul_int(asset_out_state_with_coef.reserve).ok_or(ArithmeticError::Overflow)?;
-			
+			asset_in_state_with_coef.reserve = asset_in_coef
+				.coeff
+				.checked_mul_int(asset_in_state_with_coef.reserve)
+				.ok_or(ArithmeticError::Overflow)?;
+			asset_out_state_with_coef.reserve = asset_out_coef
+				.coeff
+				.checked_mul_int(asset_out_state_with_coef.reserve)
+				.ok_or(ArithmeticError::Overflow)?;
+
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state_with_coef).into(),
 				&(&asset_out_state_with_coef).into(),
@@ -1370,8 +1408,6 @@ pub mod pallet {
 	}
 }
 
-
-
 impl<T: Config> Pallet<T> {
 	/// Protocol account address
 	pub fn protocol_account() -> T::AccountId {
@@ -1675,30 +1711,49 @@ impl<T: Config> Pallet<T> {
 		Err(Error::<T>::NotAllowed.into())
 	}
 
+	//TODO: create macro for it or so
+	fn get_delta(balance_a: FixedU128, balance_b: FixedU128) -> Result<FixedU128, DispatchError> {
+		if balance_a > balance_b {
+			return Ok(balance_a.checked_sub(&balance_b).ok_or(ArithmeticError::Overflow)?);
+		}
+
+		return Ok(balance_b.checked_sub(&balance_a).ok_or(ArithmeticError::Overflow)?);
+	}
+
 	fn get_normalized_volume(asset: T::AssetId, volume: Balance) -> Result<FixedU128, DispatchError> {
 		let asset_a_state = Self::load_asset_state(asset)?;
 		let asset_a_total_liq = asset_a_state.reserve;
 
-		Ok(FixedU128::from_rational(volume,asset_a_total_liq))
+		Ok(FixedU128::from_rational(volume, asset_a_total_liq))
 	}
 
 	fn get_ampunt_taken_offline(asset: T::AssetId, coeff: FixedU128) -> Result<Balance, DispatchError> {
 		let asset_a_state = Self::load_asset_state(asset)?;
 		let asset_a_total_liq = asset_a_state.reserve;
 
-		let coeff_complement = FixedU128::from(1).checked_sub(&coeff).ok_or(ArithmeticError::Overflow)?;
+		let coeff_complement = FixedU128::from(1)
+			.checked_sub(&coeff)
+			.ok_or(ArithmeticError::Overflow)?;
 
-		let amount = coeff_complement.checked_mul_int(asset_a_total_liq).ok_or(ArithmeticError::Overflow)?;
+		let amount = coeff_complement
+			.checked_mul_int(asset_a_total_liq)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(amount)
 	}
 
-	fn calculate_liquidity_coefficient(asset_a: T::AssetId, asset_b: T::AssetId) -> Result<(AssetCoefficient, AssetCoefficient), DispatchError> {
+	fn calculate_liquidity_coefficient(
+		asset_a: T::AssetId,
+		asset_b: T::AssetId,
+	) -> Result<(AssetCoefficient, AssetCoefficient), DispatchError> {
 		let coeffs_and_offline_amounts_for_asset_a = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_a);
 		let coeffs_and_offline_amounts_for_asset_b = <AssetCoefficientsAndAmountsTakenOffline<T>>::get(asset_b);
 
-		match (coeffs_and_offline_amounts_for_asset_a,coeffs_and_offline_amounts_for_asset_b){
-			(Some(coeff_a),Some(coeff_b)) => Ok((coeff_a, coeff_b)),
+		match (
+			coeffs_and_offline_amounts_for_asset_a,
+			coeffs_and_offline_amounts_for_asset_b,
+		) {
+			(Some(coeff_a), Some(coeff_b)) => Ok((coeff_a, coeff_b)),
 			//TODO: handle none-some and some-none arms
 			_ => {
 				let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::TenMinutes, [1; 8])
@@ -1706,8 +1761,10 @@ impl<T: Config> Pallet<T> {
 				let asset_a_vol_in_per_10_mins = oracle_entry.volume.a_in;
 				let asset_b_vol_in_per_10_mins = oracle_entry.volume.b_in;
 
-				let normalized_volume_asset_a_per_10_mins = Self::get_normalized_volume(asset_a, asset_a_vol_in_per_10_mins)?;
-				let normalized_volume_asset_b_per_10_mins = Self::get_normalized_volume(asset_b, asset_b_vol_in_per_10_mins)?;
+				let normalized_volume_asset_a_per_10_mins =
+					Self::get_normalized_volume(asset_a, asset_a_vol_in_per_10_mins)?;
+				let normalized_volume_asset_b_per_10_mins =
+					Self::get_normalized_volume(asset_b, asset_b_vol_in_per_10_mins)?;
 
 				let oracle_entry = T::PriceOracle::get_entry(asset_a, asset_b, OraclePeriod::Day, [1; 8])
 					.map_err(|_| Error::<T>::PriceOracleError)?;
@@ -1722,26 +1779,40 @@ impl<T: Config> Pallet<T> {
 
 				//TODO: add check that we only apply coeff if the volume ration is bigger than F
 
-				let asset_a_coef = normalized_volume_asset_a_per_day.checked_div(&normalized_volume_asset_a_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-				let asset_a_coef = asset_a_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
+				let asset_a_coef = normalized_volume_asset_a_per_day
+					.checked_div(&normalized_volume_asset_a_per_10_mins)
+					.ok_or(ArithmeticError::Overflow)?;
+				let asset_a_coef = asset_a_coef
+					.checked_mul(&min_ratio_to_apply_coeff)
+					.ok_or(ArithmeticError::Overflow)?;
 				let asset_a_coef = asset_a_coef.min(min);
 
-				let asset_b_coef = normalized_volume_asset_b_per_day.checked_div(&normalized_volume_asset_b_per_10_mins).ok_or(ArithmeticError::Overflow)?;
-				let asset_b_coef = asset_b_coef.checked_mul(&min_ratio_to_apply_coeff).ok_or(ArithmeticError::Overflow)?;
+				let asset_b_coef = normalized_volume_asset_b_per_day
+					.checked_div(&normalized_volume_asset_b_per_10_mins)
+					.ok_or(ArithmeticError::Overflow)?;
+				let asset_b_coef = asset_b_coef
+					.checked_mul(&min_ratio_to_apply_coeff)
+					.ok_or(ArithmeticError::Overflow)?;
 				let asset_b_coef = asset_b_coef.min(min);
 
-				let amount_taken_offline_asset_a = Self::get_ampunt_taken_offline(asset_a,asset_a_coef)?;
-				let amount_taken_offline_asset_b = Self::get_ampunt_taken_offline(asset_b,asset_b_coef)?;
+				let amount_taken_offline_asset_a = Self::get_ampunt_taken_offline(asset_a, asset_a_coef)?;
+				let amount_taken_offline_asset_b = Self::get_ampunt_taken_offline(asset_b, asset_b_coef)?;
 
-				let asset_coeff_and_amount_a = AssetCoefficient {coeff: asset_a_coef, amount_taken_offline: amount_taken_offline_asset_a};
-				let asset_coeff_and_amount_b = AssetCoefficient {coeff: asset_b_coef, amount_taken_offline: amount_taken_offline_asset_b};
+				let asset_coeff_and_amount_a = AssetCoefficient {
+					coeff: asset_a_coef,
+					amount_taken_offline: amount_taken_offline_asset_a,
+				};
+				let asset_coeff_and_amount_b = AssetCoefficient {
+					coeff: asset_b_coef,
+					amount_taken_offline: amount_taken_offline_asset_b,
+				};
 
 				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_a, asset_coeff_and_amount_a.clone());
 				<AssetCoefficientsAndAmountsTakenOffline<T>>::insert(asset_b, asset_coeff_and_amount_b.clone());
 
 				//TODO: consider adding limit for coeff, because for example with a 0.05 we would take offline 95% of the liquidty, which we don' want usually
 				Ok((asset_coeff_and_amount_a, asset_coeff_and_amount_b))
-			} }
-
+			}
+		}
 	}
 }
