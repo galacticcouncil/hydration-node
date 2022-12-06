@@ -981,12 +981,12 @@ pub mod pallet {
 			let (asset_in_coef, asset_out_coef) = Self::calculate_liquidity_coefficient(asset_in, asset_out)?;
 
 			let lerna_amount_nominator_asset_a = asset_in_coef.coeff.checked_mul(&FixedU128::from_inner(asset_in_state.reserve)).ok_or(ArithmeticError::Overflow)?.checked_mul(&FixedU128::from_inner(asset_in_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
-			let lerna_amount_asset_a_updated = lerna_amount_nominator_asset_a.checked_div(&FixedU128::from_inner(asset_in_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_a)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
-			let delta_lerna_amount_asset_a = lerna_amount_asset_a_updated.checked_sub(&FixedU128::from_inner(asset_in_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+			//let lerna_amount_asset_a_updated = lerna_amount_nominator_asset_a.checked_div(&FixedU128::from_inner(asset_in_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_a)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
+			//let delta_lerna_amount_asset_a = lerna_amount_asset_a_updated.checked_sub(&FixedU128::from_inner(asset_in_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
 
 			let lerna_amount_nominator_asset_b = asset_out_coef.coeff.checked_mul(&FixedU128::from_inner(asset_out_state.reserve)).ok_or(ArithmeticError::Overflow)?.checked_mul(&FixedU128::from_inner(asset_out_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
-			let lerna_amount_asset_b_updated = lerna_amount_nominator_asset_b.checked_div(&FixedU128::from_inner(asset_out_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_b)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
-			let delta_lerna_amount_asset_b = lerna_amount_asset_b_updated.checked_sub(&FixedU128::from_inner(asset_out_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
+			//let lerna_amount_asset_b_updated = lerna_amount_nominator_asset_b.checked_div(&FixedU128::from_inner(asset_out_state.reserve).checked_sub(&FixedU128::from_inner(offline_amount_for_asset_b)).ok_or(ArithmeticError::Overflow)?).ok_or(ArithmeticError::Overflow)?;
+			//let delta_lerna_amount_asset_b = lerna_amount_asset_b_updated.checked_sub(&FixedU128::from_inner(asset_out_state.hub_reserve)).ok_or(ArithmeticError::Overflow)?;
 
 			let mut asset_in_state_with_coef = asset_in_state.clone();
 			let mut asset_out_state_with_coef = asset_out_state.clone();
