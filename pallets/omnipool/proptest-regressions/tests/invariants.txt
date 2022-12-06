@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc adb45286125d363a059754eb2cc18842ed0c194480dc684cd7918e93c3a4077c # shrinks to amount = 4086317930054852, stable_price = FixedU128(0.100000000000000000), stable_reserve = 100000000000000000, native_reserve = 100000000000000000, token_1 = PoolToken { asset_id: 100, amount: 100000000000000000, price: FixedU128(0.100000000000000000) }, token_2 = PoolToken { asset_id: 200, amount: 100000000000000000, price: FixedU128(0.100000000000000000) }, token_3 = PoolToken { asset_id: 300, amount: 100000000000000000, price: FixedU128(1.772917969993966848) }, token_4 = PoolToken { asset_id: 400, amount: 100000000025196238, price: FixedU128(1.578201884012612352) }
