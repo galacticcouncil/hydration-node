@@ -109,7 +109,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 118,
+	spec_version: 119,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -807,7 +807,7 @@ parameter_types! {
 	pub const StableAssetId: AssetId = 2;
 	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
 	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
-	pub const TVLCap : Balance = 222_222_000_000_000_000u128;
+	pub const TVLCap : Balance = 222_222_000_000_000_000_000_000u128;
 	pub const MinTradingLimit : Balance = 1_000_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
