@@ -31,20 +31,30 @@ pub mod weights;
 mod tests;
 
 #[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
-pub struct LiquidityRange<Balance> {
-	pub min_limit: Balance,
-	pub max_limit: Balance,
+#[scale_info(skip_type_params(T))]
+pub struct LiquidityRange<T: Config> {
+	pub min_limit: T::Balance,
+	pub max_limit: T::Balance,
 }
 
-impl<Balance> LiquidityRange<Balance>
+impl<T: Config> LiquidityRange<T>
 where
-	Balance: PartialOrd,
+	T::Balance: PartialOrd,
 {
-	pub fn check_min_limit(&self, liquidity: Balance) -> bool {
-		self.min_limit <= liquidity
+	pub fn check_min_limit(&self, liquidity: T::Balance) -> DispatchResult {
+		ensure!(self.min_limit <= liquidity, Error::<T>::MinTradeVolumePerBlockReached);
+		Ok(())
 	}
-	pub fn check_max_limit(&self, liquidity: Balance) -> bool {
-		self.max_limit >= liquidity
+
+	pub fn check_max_limit(&self, liquidity: T::Balance) -> DispatchResult {
+		ensure!(self.max_limit >= liquidity, Error::<T>::MaxTradeVolumePerBlockReached);
+		Ok(())
+	}
+
+	pub fn check_limits(&self, liquidity: T::Balance) -> DispatchResult {
+		self.check_min_limit(liquidity)?;
+		self.check_max_limit(liquidity)?;
+		Ok(())
 	}
 }
 
@@ -120,8 +130,7 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Allowed liquidity range per block, calculated based on the initial liquidity and trade volume limit percentage
 	#[pallet::getter(fn allowed_liqudity_range_per_asset)]
-	pub type AllowedLiquidityRangePerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityRange<T::Balance>>;
+	pub type AllowedLiquidityRangePerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityRange<T>>;
 
 	#[pallet::storage]
 	/// Trade volume limits of assets that don't use the default value
@@ -169,7 +178,7 @@ impl<T: Config> Pallet<T> {
 			let max_limit = initial_liquidity
 				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
-			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, LiquidityRange::<T::Balance> { min_limit, max_limit });
+			<AllowedLiquidityRangePerAsset<T>>::insert(asset_id, LiquidityRange::<T> { min_limit, max_limit });
 		}
 		Ok(())
 	}
@@ -178,14 +187,8 @@ impl<T: Config> Pallet<T> {
 		let allowed_liquidity_range = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
 			.ok_or(Error::<T>::LiquidityLimitNotStoredForAsset)?;
 
-		ensure!(
-			allowed_liquidity_range.check_min_limit(updated_liquidity),
-			Error::<T>::MinTradeVolumePerBlockReached
-		);
-		ensure!(
-			allowed_liquidity_range.check_max_limit(updated_liquidity),
-			Error::<T>::MaxTradeVolumePerBlockReached
-		);
+		allowed_liquidity_range.check_limits(updated_liquidity)?;
+
 		Ok(())
 	}
 }
