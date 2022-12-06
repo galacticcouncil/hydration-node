@@ -40,10 +40,10 @@ impl<Balance> LiquidityRange<Balance>
 where
 	Balance: PartialOrd,
 {
-	pub fn ensure_min_limit(&self, liquidity: Balance) -> bool {
+	pub fn check_min_limit(&self, liquidity: Balance) -> bool {
 		self.min_limit <= liquidity
 	}
-	pub fn ensure_max_limit(&self, liquidity: Balance) -> bool {
+	pub fn check_max_limit(&self, liquidity: Balance) -> bool {
 		self.max_limit >= liquidity
 	}
 }
@@ -175,15 +175,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn ensure_liquidity_limits(asset_id: T::AssetId, updated_liquidity: T::Balance) -> DispatchResult {
-		let liquidity_range = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
+		let allowed_liquidity_range = Pallet::<T>::allowed_liqudity_range_per_asset(asset_id)
 			.ok_or(Error::<T>::LiquidityLimitNotStoredForAsset)?;
 
 		ensure!(
-			liquidity_range.ensure_min_limit(updated_liquidity),
+			allowed_liquidity_range.check_min_limit(updated_liquidity),
 			Error::<T>::MinTradeVolumePerBlockReached
 		);
 		ensure!(
-			liquidity_range.ensure_max_limit(updated_liquidity),
+			allowed_liquidity_range.check_max_limit(updated_liquidity),
 			Error::<T>::MaxTradeVolumePerBlockReached
 		);
 		Ok(())
