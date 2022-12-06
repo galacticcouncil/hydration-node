@@ -70,6 +70,7 @@ thread_local! {
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_TRADE_VOLUME_LIMIT: RefCell<Balance> = RefCell::new(u128::MAX);
+	pub static TEN_MINS_DAILY_VOLUME_RATIO: RefCell<Balance> = RefCell::new(1);
 }
 
 construct_runtime!(
@@ -168,16 +169,28 @@ impl AggregatedOracle<AssetId, Balance, u64, Price> for PriceOracleMock {
 	type Error = DispatchError;
 
 	fn get_entry(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod, source: Source) -> Result<AggregatedEntry<Balance, u64, Price>, Self::Error> {
+		let ten_mins_daily_ratio = TEN_MINS_DAILY_VOLUME_RATIO.with(|v| *v.borrow());
+		let daily_oracle_data = AggregatedEntry {
+			price: FixedU128::from_float(0.6),
+			liquidity: Balance::zero(),
+			volume: Volume {
+				a_in: 1_000_000,
+				a_out: 2_000_000,
+				b_in: 5_000_000,
+				b_out: 10_000_000
+			},
+			oracle_age: 10
+		};
 		match period {
 			OraclePeriod::TenMinutes => {
 				Ok(AggregatedEntry {
 					price: FixedU128::from_float(0.6),
 					liquidity: Balance::zero(),
 					volume: Volume {
-						a_in: 10_000_000,
-						a_out: 20_000_000,
-						b_in: 50_000_000,
-						b_out: 1_00_000_000
+						a_in: daily_oracle_data.volume.a_in * ten_mins_daily_ratio,
+						a_out: daily_oracle_data.volume.a_out * ten_mins_daily_ratio,
+						b_in: daily_oracle_data.volume.b_in * ten_mins_daily_ratio,
+						b_out: daily_oracle_data.volume.b_out * ten_mins_daily_ratio
 					},
 					oracle_age: 10
 				})
@@ -241,6 +254,7 @@ pub struct ExtBuilder {
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	max_trade_volume_limit: Balance,
+	ten_mins_daily_volume_ratio: u128,
 }
 
 impl Default for ExtBuilder {
@@ -293,6 +307,7 @@ impl Default for ExtBuilder {
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
 			max_trade_volume_limit: u128::MAX,
+			ten_mins_daily_volume_ratio: 10
 		}
 	}
 }
@@ -357,6 +372,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_10_mins_daily_volume_ratio(mut self, value: u128) -> Self {
+		self.ten_mins_daily_volume_ratio = value;
+		self
+	}
+
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -409,6 +429,10 @@ impl ExtBuilder {
 		});
 		MAX_TRADE_VOLUME_LIMIT.with(|v| {
 			*v.borrow_mut() = self.max_trade_volume_limit;
+		});
+
+		TEN_MINS_DAILY_VOLUME_RATIO.with(|v| {
+			*v.borrow_mut() = self.ten_mins_daily_volume_ratio;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {

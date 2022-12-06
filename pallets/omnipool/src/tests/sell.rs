@@ -743,69 +743,38 @@ fn sell_should_fail_when_trade_volume_limit_exceeded() {
 }
 
 #[test]
-fn sell_should_work_price_is_dumping() {
+fn liquidity_should_be_taken_off_when_asset_is_dumping() {
+	//Arrange
+	const DOT : AssetId = 100;
+	const TKN1 : AssetId = 200;
+
+	const TRADER : u64 = LP1;
+	const TRADER_INITIAL_DOT_BALANCE: Balance = 1000 * ONE;
+
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 100, 2000 * ONE),
-			(LP3, 200, 2000 * ONE),
-			(LP1, 100, 1000 * ONE),
+			(LP2, DOT, 2000 * ONE),
+			(LP3, TKN1, 2000 * ONE),
+			(TRADER, DOT, 1000 * ONE),
 		])
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(TKN1, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_10_mins_daily_volume_ratio(1)
 		.build()
 		.execute_with(|| {
-			let liq_added = 400 * ONE;
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 100, liq_added));
-
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, sell_amount, min_limit));
+			//Act
+			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, TKN1, sell_amount, min_limit));
 
-			assert_eq!(Tokens::free_balance(100, &LP1), 550000000000000);
-			assert_eq!(Tokens::free_balance(200, &LP1), 47808764940238);
-			assert_eq!(Tokens::free_balance(LRNA, &Omnipool::protocol_account()), 13360 * ONE);
-			assert_eq!(Tokens::free_balance(100, &Omnipool::protocol_account()), 2450 * ONE);
-			assert_eq!(
-				Tokens::free_balance(200, &Omnipool::protocol_account()),
-				1952191235059762
-			);
-
-			assert_pool_state!(
-				13_360 * ONE,
-				26_720 * ONE,
-				SimpleImbalance {
-					value: 0u128,
-					negative: true
-				}
-			);
-
-			assert_asset_state!(
-				100,
-				AssetReserveState {
-					reserve: 2450 * ONE,
-					hub_reserve: 1_528_163_265_306_123,
-					shares: 2400 * ONE,
-					protocol_shares: Balance::zero(),
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
-			assert_asset_state!(
-				200,
-				AssetReserveState {
-					reserve: 1952191235059762,
-					hub_reserve: 1331836734693877,
-					shares: 2000 * ONE,
-					protocol_shares: Balance::zero(),
-					cap: DEFAULT_WEIGHT_CAP,
-					tradable: Tradability::default(),
-				}
-			);
+			//Assert
+			assert_eq!(Tokens::free_balance(100, &LP1), TRADER_INITIAL_DOT_BALANCE - sell_amount);
+			assert_eq!(Tokens::free_balance(TKN1, &TRADER), 47_619_047_619_046);
 		});
 }
