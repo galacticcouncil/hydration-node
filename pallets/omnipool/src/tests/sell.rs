@@ -712,37 +712,6 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded() {
 }
 
 #[test]
-fn sell_should_fail_when_trade_volume_limit_exceeded() {
-	const DOT: AssetId = 100;
-	const AUSD: AssetId = 200;
-	const TRADER: u64 = 11u64;
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP1, DOT, 2000000 * ONE),
-			(LP1, AUSD, 2000000 * ONE),
-			(TRADER, DOT, 2000000 * ONE),
-		])
-		.with_registered_asset(DOT)
-		.with_registered_asset(AUSD)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
-		.with_token(AUSD, FixedU128::from_float(0.65), LP1, 2000000 * ONE)
-		.with_max_trade_volume_limit(1_000 * ONE)
-		.build()
-		.execute_with(|| {
-			let min_limit = 10 * ONE;
-			let sell_amount = 1002 * ONE; //this results in amount_out 1000.99 which checked against max_trade_volume_limit
-
-			assert_noop!(
-				Omnipool::sell(Origin::signed(TRADER), DOT, AUSD, sell_amount, min_limit),
-				Error::<Test>::TradeVolumeLimitExceeded
-			);
-		});
-}
-
-#[test]
 fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 	//Arrange
 	const DOT : AssetId = 100;
