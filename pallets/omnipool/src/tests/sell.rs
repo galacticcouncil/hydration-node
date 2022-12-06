@@ -714,10 +714,10 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded() {
 #[test]
 fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 	//Arrange
-	const DOT : AssetId = 100;
-	const TKN1 : AssetId = 200;
+	const DOT: AssetId = 100;
+	const TKN1: AssetId = 200;
 
-	const TRADER : u64 = LP1;
+	const TRADER: u64 = LP1;
 	const TRADER_INITIAL_DOT_BALANCE: Balance = 1000 * ONE;
 
 	ExtBuilder::default()
@@ -740,13 +740,44 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 			let min_limit = 10 * ONE;
 
 			//Act
-			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, TKN1, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				Origin::signed(TRADER),
+				DOT,
+				TKN1,
+				sell_amount,
+				min_limit
+			));
 
 			//Assert
 			let TKN1_balance_of_trader_if_no_liq_taken_out = 47_619_047_619_046u128;
 			let TKN1_balance_diff_due_to_taken_out_liquidity = 2_164_502_164_502u128;
 
-			assert_eq!(Tokens::free_balance(100, &LP1), TRADER_INITIAL_DOT_BALANCE - sell_amount);
-			assert_eq!(Tokens::free_balance(TKN1, &TRADER), TKN1_balance_of_trader_if_no_liq_taken_out - TKN1_balance_diff_due_to_taken_out_liquidity);
+			assert_eq!(
+				Tokens::free_balance(100, &LP1),
+				TRADER_INITIAL_DOT_BALANCE - sell_amount
+			);
+			assert_eq!(
+				Tokens::free_balance(TKN1, &TRADER),
+				TKN1_balance_of_trader_if_no_liq_taken_out - TKN1_balance_diff_due_to_taken_out_liquidity
+			);
+
+			//TODO: add helper for asserting coeff
+			let asset_in_coeff = AssetCoefficientsAndAmountsTakenOffline::<Test>::get(DOT).unwrap();
+			assert_eq!(
+				asset_in_coeff,
+				AssetCoefficient {
+					coeff: FixedU128::from_float(0.5),
+					amount_taken_offline: 1000000000000000
+				}
+			);
+
+			let asset_out_coeff = AssetCoefficientsAndAmountsTakenOffline::<Test>::get(TKN1).unwrap();
+			assert_eq!(
+				asset_out_coeff,
+				AssetCoefficient {
+					coeff: FixedU128::from_float(0.5),
+					amount_taken_offline: 1000000000000000
+				}
+			)
 		});
 }
