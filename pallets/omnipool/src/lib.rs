@@ -985,7 +985,7 @@ pub mod pallet {
 
 			let (asset_in_coef, asset_out_coef) = Self::calculate_liquidity_coefficient(asset_in, asset_out)?;
 
-			//Calculating this -> https://www.notion.so/Circuit-Breakers-cf4123c9131f4b98867cfd45ff4937c2#e69d2785ceeb442b8f1ed8096ea1e524
+			//Calculating this for asset in -> https://www.notion.so/Circuit-Breakers-cf4123c9131f4b98867cfd45ff4937c2#e69d2785ceeb442b8f1ed8096ea1e524
 			let lerna_amount_nominator_asset_a = asset_in_coef
 				.coeff
 				.checked_mul(&FixedU128::from_inner(asset_in_state.reserve))
@@ -1003,6 +1003,7 @@ pub mod pallet {
 			let delta_lerna_amount_asset_a =
 				Self::get_delta(lerna_amount_asset_a_updated, hub_reserve_asset_a_as_fixed);
 
+			//Calculating this for asset out -> https://www.notion.so/Circuit-Breakers-cf4123c9131f4b98867cfd45ff4937c2#e69d2785ceeb442b8f1ed8096ea1e524
 			let lerna_amount_nominator_asset_b = asset_out_coef
 				.coeff
 				.checked_mul(&FixedU128::from_inner(asset_out_state.reserve))
