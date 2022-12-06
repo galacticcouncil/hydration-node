@@ -307,7 +307,7 @@ impl Default for ExtBuilder {
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
 			max_trade_volume_limit: u128::MAX,
-			ten_mins_daily_volume_ratio: 10
+			ten_mins_daily_volume_ratio: 1
 		}
 	}
 }
