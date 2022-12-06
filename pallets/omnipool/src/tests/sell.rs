@@ -764,7 +764,7 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_token(TKN1, FixedU128::from_float(0.65), LP3, 2000 * ONE)
-		.with_10_mins_daily_volume_ratio(1)
+		.with_10_mins_daily_volume_ratio(10)
 		.build()
 		.execute_with(|| {
 			let sell_amount = 50 * ONE;
@@ -774,7 +774,10 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, TKN1, sell_amount, min_limit));
 
 			//Assert
+			let TKN1_balance_of_trader_if_no_liq_taken_out = 47_619_047_619_046u128;
+			let TKN1_balance_diff_due_to_taken_out_liquidity = 2_164_502_164_502u128;
+
 			assert_eq!(Tokens::free_balance(100, &LP1), TRADER_INITIAL_DOT_BALANCE - sell_amount);
-			assert_eq!(Tokens::free_balance(TKN1, &TRADER), 47_619_047_619_046);
+			assert_eq!(Tokens::free_balance(TKN1, &TRADER), TKN1_balance_of_trader_if_no_liq_taken_out - TKN1_balance_diff_due_to_taken_out_liquidity);
 		});
 }
