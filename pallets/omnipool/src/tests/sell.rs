@@ -720,6 +720,9 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 	const TRADER: u64 = LP1;
 	const TRADER_INITIAL_DOT_BALANCE: Balance = 1000 * ONE;
 
+	const INITIAL_DOT_LIQUIDITY: Balance = 2000 * ONE;
+	const INITIAL_TKN1_LIQUIDITY: Balance = 2000 * ONE;
+
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -731,8 +734,8 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 		.with_registered_asset(100)
 		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(DOT, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_token(TKN1, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.with_token(DOT, FixedU128::from_float(0.65), LP2, INITIAL_DOT_LIQUIDITY)
+		.with_token(TKN1, FixedU128::from_float(0.65), LP3, INITIAL_TKN1_LIQUIDITY)
 		.with_10_mins_daily_volume_ratio(10)
 		.build()
 		.execute_with(|| {
@@ -767,7 +770,7 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 				asset_in_coeff,
 				AssetCoefficient {
 					coeff: FixedU128::from_float(0.5),
-					amount_taken_offline: 1000 * ONE
+					amount_taken_offline: INITIAL_DOT_LIQUIDITY / 2
 				}
 			);
 
@@ -776,7 +779,7 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 				asset_out_coeff,
 				AssetCoefficient {
 					coeff: FixedU128::from_float(0.5),
-					amount_taken_offline: 1000 * ONE
+					amount_taken_offline: INITIAL_TKN1_LIQUIDITY / 2
 				}
 			)
 		});
