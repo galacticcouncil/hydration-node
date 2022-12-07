@@ -18,7 +18,6 @@
 //! Test environment for Assets pallet.
 
 use crate::*;
-use sp_runtime::Percent;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -62,8 +61,8 @@ pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
-pub const FIVE_PERCENT: Percent = Percent::from_percent(5);
-pub const TEN_PERCENT: Percent = Percent::from_percent(10);
+pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
+pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
@@ -75,7 +74,7 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<Percent> = RefCell::new(Percent::from_percent(100));
+	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = RefCell::new((10_000, 1));
 }
 
 construct_runtime!(
@@ -93,7 +92,7 @@ construct_runtime!(
 );
 
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
@@ -153,6 +152,14 @@ impl orml_tokens::Config for Test {
 	type ReserveIdentifier = ();
 }
 
+impl pallet_circuit_breaker::Config for Test {
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = MaxTradeVolumeLimit;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
@@ -167,7 +174,7 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
-	pub MaxTradeVolumeLimit: Percent = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub MaxTradeVolumeLimit: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -195,14 +202,6 @@ impl Config for Test {
 	type PoolStateChangeHandler = CircuitBreaker;
 }
 
-impl pallet_circuit_breaker::Config for Test {
-	type AssetId = AssetId;
-	type Balance = Balance;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type DefaultMaxNetTradeVolumeLimitPerBlock = MaxTradeVolumeLimit;
-	type WeightInfo = ();
-}
-
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
@@ -216,7 +215,7 @@ pub struct ExtBuilder {
 	max_out_ratio: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
-	max_net_trade_volume_limit_per_block: Percent,
+	max_net_trade_volume_limit_per_block: (u32, u32),
 }
 
 impl Default for ExtBuilder {
@@ -268,7 +267,7 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
-			max_net_trade_volume_limit_per_block: Percent::from_percent(100),
+			max_net_trade_volume_limit_per_block: (10_000, 1),
 		}
 	}
 }
@@ -329,7 +328,7 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_max_trade_volume_limit_per_block(mut self, value: Percent) -> Self {
+	pub fn with_max_trade_volume_limit_per_block(mut self, value: (u32, u32)) -> Self {
 		self.max_net_trade_volume_limit_per_block = value;
 		self
 	}

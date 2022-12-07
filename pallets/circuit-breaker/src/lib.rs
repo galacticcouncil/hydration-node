@@ -22,13 +22,16 @@ use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get, transac
 use hydradx_traits::OnPoolStateChangeHandler;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub};
-use sp_runtime::{ArithmeticError, Percent, RuntimeDebug};
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Saturating, Zero};
+use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
 
 pub mod weights;
 
 #[cfg(test)]
 mod tests;
+
+/// Max trade volume limit multiplier of liquidity that can be traded in a block
+pub const MAX_TRADE_VOLUME_LIMIT: u32 = 10_000;
 
 #[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 #[scale_info(skip_type_params(T))]
@@ -77,8 +80,8 @@ pub mod pallet {
 
 		fn integrity_test() {
 			assert!(
-				!T::DefaultMaxNetTradeVolumeLimitPerBlock::get().is_zero(),
-				"Circuit Breaker: Max Net Trade Volume Limit Per Block is set to 0."
+				Self::validate_trade_volume_limit(T::DefaultMaxNetTradeVolumeLimitPerBlock::get()).is_ok(),
+				"Circuit Breaker: Max Net Trade Volume Limit Per Block is set to invalid value."
 			);
 		}
 	}
@@ -110,7 +113,8 @@ pub mod pallet {
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
-		type DefaultMaxNetTradeVolumeLimitPerBlock: Get<Percent>;
+		/// Represented as a non-zero fraction (nominator, denominator) with the max value being 10_000.
+		type DefaultMaxNetTradeVolumeLimitPerBlock: Get<(u32, u32)>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -123,7 +127,7 @@ pub mod pallet {
 
 	/// Default maximum net trade volume limit per block
 	#[pallet::type_value]
-	pub fn DefaultTradeVolumeLimit<T: Config>() -> Percent {
+	pub fn DefaultTradeVolumeLimit<T: Config>() -> (u32, u32) {
 		T::DefaultMaxNetTradeVolumeLimitPerBlock::get()
 	}
 
@@ -136,7 +140,7 @@ pub mod pallet {
 	/// Trade volume limits of assets that don't use the default value
 	#[pallet::getter(fn trade_volume_limit_per_asset)]
 	pub type TradeVolumeLimitPerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, Percent, ValueQuery, DefaultTradeVolumeLimit<T>>;
+		StorageMap<_, Blake2_128Concat, T::AssetId, (u32, u32), ValueQuery, DefaultTradeVolumeLimit<T>>;
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
@@ -153,15 +157,23 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Set trade volume limit for an asset.
+		///
+		/// Parameters:
+		/// - `asset_id`: The identifier of an asset
+		/// - `trade_volume_limit`: Trade volume limit represented as a percentage
+		///
+		/// Doesn't emit any event.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
 		#[transactional]
 		pub fn set_trade_volume_limit(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
-			trade_volume_limit: Percent,
+			trade_volume_limit: (u32, u32),
 		) -> DispatchResult {
 			T::TechnicalOrigin::ensure_origin(origin)?;
-			ensure!(!trade_volume_limit.is_zero(), Error::<T>::InvalidTradeVolumeLimit);
+			Self::validate_trade_volume_limit(trade_volume_limit)?;
 			<TradeVolumeLimitPerAsset<T>>::insert(asset_id, trade_volume_limit);
 			Ok(())
 		}
@@ -171,10 +183,11 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	fn calculate_and_store_liquidity_limits(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
 		if !<AllowedLiquidityRangePerAsset<T>>::contains_key(asset_id) {
-			let liquidity_diff = Pallet::<T>::trade_volume_limit_per_asset(asset_id).mul_floor(initial_liquidity);
-			let min_limit = initial_liquidity
-				.checked_sub(&liquidity_diff)
-				.ok_or(ArithmeticError::Underflow)?;
+			let liquidity_diff = Self::calculate_liquidity_difference(
+				initial_liquidity,
+				Pallet::<T>::trade_volume_limit_per_asset(asset_id),
+			)?;
+			let min_limit = initial_liquidity.saturating_sub(liquidity_diff);
 			let max_limit = initial_liquidity
 				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
@@ -190,6 +203,33 @@ impl<T: Config> Pallet<T> {
 		allowed_liquidity_range.check_limits(updated_liquidity)?;
 
 		Ok(())
+	}
+
+	pub fn validate_trade_volume_limit(limit: (u32, u32)) -> DispatchResult {
+		ensure!(
+			limit.0 <= MAX_TRADE_VOLUME_LIMIT && limit.1 <= MAX_TRADE_VOLUME_LIMIT,
+			Error::<T>::InvalidTradeVolumeLimit
+		);
+		ensure!(
+			!limit.0.is_zero() && !limit.1.is_zero(),
+			Error::<T>::InvalidTradeVolumeLimit
+		);
+
+		Ok(())
+	}
+
+	pub fn calculate_liquidity_difference(
+		liquidity: T::Balance,
+		limit: (u32, u32),
+	) -> Result<T::Balance, DispatchError> {
+		let numerator = limit.0;
+		let denominator = limit.1;
+
+		liquidity
+			.checked_mul(&T::Balance::from(numerator))
+			.ok_or(ArithmeticError::Overflow)?
+			.checked_div(&T::Balance::from(denominator))
+			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
 	}
 }
 

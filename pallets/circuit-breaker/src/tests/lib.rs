@@ -17,7 +17,6 @@
 
 use crate::tests::mock::*;
 use crate::*;
-use sp_runtime::Percent;
 
 #[test]
 fn on_trade_should_store_liquidity_when_called_first_time() {
@@ -197,7 +196,7 @@ fn set_trade_volume_limit_should_store_new_trade_volume_limit() {
 		assert_eq!(default_limit, DefaultTradeVolumeLimit::<Test>::get());
 
 		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), default_limit);
-		let new_limit = Percent::from_percent(7);
+		let new_limit = (7, 100);
 
 		assert_ok!(CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, new_limit,));
 

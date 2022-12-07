@@ -317,5 +317,5 @@ parameter_types! {
 
 // pallet circuit breaker registry
 parameter_types! {
-	pub const DefaultMaxNetTradeVolumeLimitPerBlock: Percent = Percent::from_percent(20);
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (2_000, 10_000);
 }

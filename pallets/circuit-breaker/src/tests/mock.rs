@@ -20,7 +20,6 @@ pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_system::EnsureRoot;
 use sp_core::H256;
-use sp_runtime::Percent;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
@@ -78,7 +77,7 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxVolumeLimit: Percent = Percent::from_percent(20);
+	pub const MaxVolumeLimit: (u32, u32) = (2_000, 10_000);
 }
 
 impl pallet_circuit_breaker::Config for Test {

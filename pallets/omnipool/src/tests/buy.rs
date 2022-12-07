@@ -684,7 +684,8 @@ fn buy_should_work_when_trade_volume_limit_not_exceeded(diff_from_min_limit: Bal
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity) - diff_from_min_limit;
+			let buy_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap()
+				- diff_from_min_limit;
 
 			// Act & Assert
 			assert_ok!(Omnipool::buy(
@@ -723,7 +724,7 @@ fn buy_should_fail_when_trade_volume_max_limit_exceeded() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity);
+			let buy_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap();
 
 			// Act & assert
 			//Asset_in amount would be 1250_000_000_000_002 in a successful trade, but it fails due to limit
@@ -756,7 +757,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = FIVE_PERCENT.mul_floor(initial_liquidity);
+			let buy_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap();
 
 			// Act & assert
 			assert_ok!(Omnipool::buy(
@@ -804,7 +805,8 @@ fn buy_should_fail_when_trade_volume_min_limit_exceeded() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity) + ONE;
+			let buy_amount =
+				CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap() + ONE;
 
 			// Act & assert
 			assert_noop!(
@@ -836,7 +838,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = FIVE_PERCENT.mul_floor(initial_liquidity);
+			let buy_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap();
 
 			// Act & assert
 			assert_ok!(Omnipool::buy(
@@ -950,7 +952,8 @@ fn buy_asset_for_hub_asset_should_fail_when_consequent_trades_exceed_trade_volum
 		.build()
 		.execute_with(|| {
 			let lrna_balance_in_omnipool = Omnipool::get_hub_asset_balance_of_protocol_account();
-			let buy_amount = FIVE_PERCENT.mul_floor(lrna_balance_in_omnipool);
+			let buy_amount =
+				CircuitBreaker::calculate_liquidity_difference(lrna_balance_in_omnipool, FIVE_PERCENT).unwrap();
 
 			// Act & assert
 			assert_ok!(Omnipool::buy(
@@ -989,7 +992,8 @@ fn buy_asset_for_hub_asset_should_fail_when_trade_volume_min_limit_exceeded() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = TEN_PERCENT.mul_floor(initial_liquidity) + ONE;
+			let buy_amount =
+				CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap() + ONE;
 
 			// Act & assert
 			assert_noop!(
@@ -1020,7 +1024,8 @@ fn buy_asset_for_hub_asset_should_fail_when_consequent_trades_exceed_trade_volum
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let buy_amount = FIVE_PERCENT.mul_floor(initial_liquidity) + ONE;
+			let buy_amount =
+				CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
 
 			// Act & assert
 			assert_ok!(Omnipool::buy(

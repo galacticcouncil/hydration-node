@@ -439,7 +439,7 @@ fn remove_liquidity_should_work_when_trade_volume_exceeded() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let liq_added = TEN_PERCENT.mul_floor(initial_liquidity);
+			let liq_added = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap();
 			let first_position_id = <NextPositionId<Test>>::get();
 
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
@@ -454,7 +454,7 @@ fn remove_liquidity_should_work_when_trade_volume_exceeded() {
 			// reset the trade limit
 			CircuitBreaker::on_finalize(2);
 
-			let liq_removed = TEN_PERCENT.mul_floor(initial_liquidity);
+			let liq_removed = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap();
 
 			// Act & Assert
 			assert_ok!(Omnipool::remove_liquidity(
@@ -463,7 +463,7 @@ fn remove_liquidity_should_work_when_trade_volume_exceeded() {
 				liq_removed
 			));
 
-			let liq_removed = FIVE_PERCENT.mul_floor(initial_liquidity);
+			let liq_removed = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap();
 
 			// Act & Assert
 			assert_ok!(Omnipool::remove_liquidity(

@@ -196,7 +196,8 @@ fn add_liquidity_should_work_when_trade_volume_limit_not_exceeded(diff_from_max_
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let liq_added = TEN_PERCENT.mul_floor(initial_liquidity) - diff_from_max_limit;
+			let liq_added = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap()
+				- diff_from_max_limit;
 
 			// Act & Assert
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
@@ -215,7 +216,8 @@ fn add_liquidity_should_fail_when_trade_volume_limit_exceeded() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let liq_added = TEN_PERCENT.mul_floor(initial_liquidity) + ONE;
+			let liq_added =
+				CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
 			assert_noop!(
@@ -237,7 +239,8 @@ fn add_liquidity_should_fail_when_consequent_calls_exceed_trade_volume_limit() {
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
-			let liq_added = FIVE_PERCENT.mul_floor(initial_liquidity) + ONE;
+			let liq_added =
+				CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
