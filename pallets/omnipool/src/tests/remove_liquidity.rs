@@ -2,7 +2,6 @@ use super::*;
 use crate::types::Tradability;
 use frame_support::assert_noop;
 use sp_runtime::traits::One;
-use test_case::test_case;
 
 #[test]
 fn remove_liquidity_works() {
@@ -423,43 +422,9 @@ fn remove_liquidity_should_fail_when_shares_amount_is_zero() {
 		});
 }
 
-#[test_case(0)]
-#[test_case(ONE)]
-#[test_case(100 * ONE)]
-fn remove_liquidity_should_work_when_trade_volume_not_exceeded(diff_from_max_limit: Balance) {
-	// Arrange
-	let initial_liquidity = 1_000_000 * ONE;
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 1_000, 2_000_000 * ONE),
-			(LP1, 1_000, 2_000_000 * ONE),
-		])
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, 1_000_000 * ONE)
-		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
-		.build()
-		.execute_with(|| {
-			let liq_added = TEN_PERCENT.mul_floor(initial_liquidity);
-			let current_position_id = <NextPositionId<Test>>::get();
-
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
-
-			let liq_removed = TEN_PERCENT.mul_floor(initial_liquidity) - diff_from_max_limit;
-
-			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
-				current_position_id,
-				liq_removed
-			));
-		});
-}
-
 use frame_support::traits::OnFinalize;
 #[test]
-fn remove_liquidity_should_fail_when_trade_volume_exceeded() {
+fn remove_liquidity_should_work_when_trade_volume_exceeded() {
 	// Arrange
 	let initial_liquidity = 1_000_000 * ONE;
 	ExtBuilder::default()
@@ -501,9 +466,10 @@ fn remove_liquidity_should_fail_when_trade_volume_exceeded() {
 			let liq_removed = FIVE_PERCENT.mul_floor(initial_liquidity);
 
 			// Act & Assert
-			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), second_position_id, liq_removed),
-				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
-			);
+			assert_ok!(Omnipool::remove_liquidity(
+				Origin::signed(LP1),
+				second_position_id,
+				liq_removed
+			));
 		});
 }

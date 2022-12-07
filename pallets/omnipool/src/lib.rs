@@ -752,8 +752,6 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset_id)?;
 
-			T::PoolStateChangeHandler::before_pool_state_change(asset_id, asset_state.reserve)?;
-
 			ensure!(
 				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
@@ -848,9 +846,7 @@ pub mod pallet {
 				<Positions<T>>::insert(position_id, updated_position);
 			}
 
-			Self::set_asset_state(asset_id, new_asset_state.clone());
-
-			T::PoolStateChangeHandler::after_pool_state_change(asset_id, new_asset_state.reserve)?;
+			Self::set_asset_state(asset_id, new_asset_state);
 
 			Self::ensure_tvl_cap()?;
 
