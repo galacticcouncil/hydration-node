@@ -116,3 +116,14 @@ macro_rules! assert_asset_state {
 		assert_eq!(actual, $y.into());
 	}};
 }
+
+#[macro_export]
+macro_rules! assert_asset_coeff {
+	( $asset_id:expr, $coeff:expr) => {{
+		let asset_out_coeff = AssetCoefficientsAndAmountsTakenOffline::<Test>::get($asset_id).unwrap();
+		assert_eq!(
+			asset_out_coeff, $coeff,
+			"Asset coefficient data is not equal to expected one"
+		)
+	}};
+}

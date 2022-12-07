@@ -764,23 +764,20 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 				TKN1_balance_of_trader_if_no_liq_taken_out - TKN1_balance_diff_due_to_taken_out_liquidity
 			);
 
-			//TODO: add helper for asserting coeff
-			let asset_in_coeff = AssetCoefficientsAndAmountsTakenOffline::<Test>::get(DOT).unwrap();
-			assert_eq!(
-				asset_in_coeff,
+			assert_asset_coeff!(
+				DOT,
 				AssetCoefficient {
 					coeff: FixedU128::from_float(0.5),
 					amount_taken_offline: INITIAL_DOT_LIQUIDITY / 2
 				}
 			);
 
-			let asset_out_coeff = AssetCoefficientsAndAmountsTakenOffline::<Test>::get(TKN1).unwrap();
-			assert_eq!(
-				asset_out_coeff,
+			assert_asset_coeff!(
+				TKN1,
 				AssetCoefficient {
 					coeff: FixedU128::from_float(0.5),
 					amount_taken_offline: INITIAL_TKN1_LIQUIDITY / 2
 				}
-			)
+			);
 		});
 }
