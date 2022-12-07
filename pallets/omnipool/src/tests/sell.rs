@@ -767,7 +767,7 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 				asset_in_coeff,
 				AssetCoefficient {
 					coeff: FixedU128::from_float(0.5),
-					amount_taken_offline: 1000000000000000
+					amount_taken_offline: 1000 * ONE
 				}
 			);
 
@@ -776,7 +776,7 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 				asset_out_coeff,
 				AssetCoefficient {
 					coeff: FixedU128::from_float(0.5),
-					amount_taken_offline: 1000000000000000
+					amount_taken_offline: 1000 * ONE
 				}
 			)
 		});
