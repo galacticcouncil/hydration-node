@@ -174,7 +174,7 @@ impl<T: Config> Pallet<T> {
 			let liquidity_diff = Pallet::<T>::trade_volume_limit_per_asset(asset_id).mul_floor(initial_liquidity);
 			let min_limit = initial_liquidity
 				.checked_sub(&liquidity_diff)
-				.ok_or(ArithmeticError::Overflow)?;
+				.ok_or(ArithmeticError::Underflow)?;
 			let max_limit = initial_liquidity
 				.checked_add(&liquidity_diff)
 				.ok_or(ArithmeticError::Overflow)?;
