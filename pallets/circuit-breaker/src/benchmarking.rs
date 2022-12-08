@@ -34,7 +34,7 @@ benchmarks! {
 
 	}: _(RawOrigin::Root, asset_id, trade_limit)
 	verify {
-		// assert_eq!(T::Currency::free_balance(asset_a, &caller), 999990000000000);
+		assert_eq!(TradeVolumeLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
 }
 
