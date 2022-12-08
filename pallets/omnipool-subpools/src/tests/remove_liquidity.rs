@@ -167,7 +167,7 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 					asset_id: SHARE_ASSET_AS_POOL_ID,
 					amount: share_left_as_deposit,
 					shares: share_left_as_deposit,
-					price: (share_state.hub_reserve, share_state.reserve), // TODO: incorrect calc in math
+					price: (6246500000000000000000000000000, 6246500000000000000000000000000),
 				}
 			);
 		});

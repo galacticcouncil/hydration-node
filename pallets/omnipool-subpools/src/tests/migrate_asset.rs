@@ -78,7 +78,7 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 				ASSET_5,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: (asset_state_5.hub_reserve, asset_state_5.reserve), // this is due to incorrect price calc atm, but would not equal to hub and reserve
+					price: (14787500000000000000000000000000, 22750000000000000000000000000000),
 					shares: 5000 * ONE,
 					hub_reserve: 3250 * ONE,
 					share_tokens: 3250 * ONE,
@@ -383,7 +383,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 				ASSET_5,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: (asset_state_5.hub_reserve, asset_state_5.reserve),
+					price: (14787500000000000000000000000000, 22750000000000000000000000000000),
 					shares: 5000 * ONE,
 					hub_reserve: 3250 * ONE,
 					share_tokens: 3250 * ONE,
@@ -394,7 +394,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 				ASSET_6,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: (asset_state_6.hub_reserve, asset_state_6.reserve),
+					price: (30420000000000000000000000000000, 46800000000000000000000000000000),
 					shares: 6000 * ONE,
 					hub_reserve: 3900 * ONE,
 					share_tokens: 3900 * ONE,
@@ -405,7 +405,7 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 				ASSET_7,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: (asset_state_7.hub_reserve, asset_state_7.reserve),
+					price: (53235000000000000000000000000000, 81900000000000000000000000000000),
 					shares: 7000 * ONE,
 					hub_reserve: 4550 * ONE,
 					share_tokens: 4550 * ONE,

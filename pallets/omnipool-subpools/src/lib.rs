@@ -9,6 +9,7 @@ use crate::types::{AssetDetail, Balance};
 use frame_support::pallet_prelude::*;
 use frame_support::require_transactional;
 use hydra_dx_math::omnipool_subpools::{MigrationDetails, SubpoolState};
+use hydra_dx_math::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto, Convert};
 use orml_traits::currency::MultiCurrency;
 use sp_runtime::traits::CheckedMul;
 use sp_runtime::FixedU128;
@@ -29,7 +30,6 @@ pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
-	use hydra_dx_math::omnipool_subpools::types::{CheckedMathInner, HpCheckedMath};
 	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
 	use sp_runtime::{ArithmeticError, FixedPointNumber, Permill};
@@ -140,11 +140,11 @@ pub mod pallet {
 			)?;
 
 			let recalculate_protocol_shares = |q: Balance, b: Balance, s: Balance| -> Result<Balance, DispatchError> {
-				q.hp_checked_mul(&b)
+				q.checked_mul_into(&b)
 					.ok_or(ArithmeticError::Overflow)?
 					.checked_div_inner(&s)
 					.ok_or(ArithmeticError::DivisionByZero)?
-					.to_inner()
+					.try_to_inner()
 					.ok_or(ArithmeticError::Overflow.into())
 			};
 
@@ -243,60 +243,47 @@ pub mod pallet {
 			let delta_ps = (|| -> Option<Balance> {
 				let p1 = subpool_state
 					.shares
-					.hp_checked_mul(&asset_state.hub_reserve)?
+					.checked_mul_into(&asset_state.hub_reserve)?
 					.checked_div_inner(&subpool_state.hub_reserve)?;
 				let p2 = p1
 					.checked_mul_inner(&asset_state.protocol_shares)?
 					.checked_div_inner(&asset_state.shares)?;
-				p2.to_inner()
+				p2.try_to_inner()
 			})()
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let delta_s = (|| -> Option<Balance> {
 				asset_state
 					.hub_reserve
-					.hp_checked_mul(&subpool_state.shares)?
+					.checked_mul_into(&subpool_state.shares)?
 					.checked_div_inner(&subpool_state.hub_reserve)?
-					.to_inner()
+					.try_to_inner()
 			})()
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let delta_u = (|| -> Option<Balance> {
 				asset_state
 					.hub_reserve
-					.hp_checked_mul(&share_issuance)?
+					.checked_mul_into(&share_issuance)?
 					.checked_div_inner(&subpool_state.hub_reserve)?
-					.to_inner()
+					.try_to_inner()
 			})()
 			.ok_or(ArithmeticError::Overflow)?;
 
 			// price = asset price * share_issuance / pool shares
 			// price = (hub reserve / reserve ) * share issuance / pool shares
 			// price = hub*issuance / reserve * pool shares
-			// TODO: make sure it first to u128  bitshift
-			let price_num = asset_state
-				.reserve
-				.hp_checked_mul(&subpool_state.shares)
-				.ok_or(ArithmeticError::Overflow)?
-				.to_inner()
-				.ok_or(ArithmeticError::Overflow)?;
-
 			let price_denom = asset_state
-				.hub_reserve
-				.hp_checked_mul(&share_issuance)
+				.reserve
+				.checked_mul_into(&subpool_state.shares)
 				.ok_or(ArithmeticError::Overflow)?
-				.to_inner()
-				.ok_or(ArithmeticError::Overflow)?;
-			/*
-			let price = asset_state
-				.price()
-				.ok_or(ArithmeticError::DivisionByZero)?
-				.checked_mul(
-					&FixedU128::checked_from_rational(share_issuance, subpool_state.shares)
-						.ok_or(ArithmeticError::DivisionByZero)?,
-				)
-				.ok_or(ArithmeticError::Overflow)?;
-			 */
+				.fit_to_inner();
+
+			let price_num = asset_state
+				.hub_reserve
+				.checked_mul_into(&share_issuance)
+				.ok_or(ArithmeticError::Overflow)?
+				.fit_to_inner();
 
 			OmnipoolPallet::<T>::update_asset_state(
 				pool_id.into(),
