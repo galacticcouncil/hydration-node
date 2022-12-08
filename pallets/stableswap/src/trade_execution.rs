@@ -45,10 +45,11 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_in: Balance,
+		min_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
-				Self::sell(who, pool_id, asset_in, asset_out, amount_in, Balance::zero()).map_err(ExecutorError::Error)
+				Self::sell(who, pool_id, asset_in, asset_out, amount_in, min_limit).map_err(ExecutorError::Error)
 			}
 			_ => Err(ExecutorError::NotSupported),
 		}
@@ -60,10 +61,11 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		amount_out: Balance,
+		max_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>> {
 		match pool_type {
 			PoolType::Stableswap(pool_id) => {
-				Self::buy(who, pool_id, asset_out, asset_in, amount_out, Balance::MAX).map_err(ExecutorError::Error)
+				Self::buy(who, pool_id, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
 			}
 			_ => Err(ExecutorError::NotSupported),
 		}

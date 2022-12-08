@@ -186,13 +186,13 @@ pub mod pallet {
 
 			// Remember some stuff to be able to update LP positions later on
 			let asset_a_details = AssetDetail {
-				price: asset_state_a.price().ok_or(ArithmeticError::DivisionByZero)?,
+				price: asset_state_a.price_as_rational(),
 				shares: asset_state_a.shares,
 				hub_reserve: asset_state_a.hub_reserve,
 				share_tokens: asset_state_a.hub_reserve,
 			};
 			let asset_b_details = AssetDetail {
-				price: asset_state_b.price().ok_or(ArithmeticError::DivisionByZero)?,
+				price: asset_state_b.price_as_rational(),
 				shares: asset_state_b.shares,
 				hub_reserve: asset_state_b.hub_reserve,
 				share_tokens: asset_state_b.hub_reserve,
@@ -270,6 +270,24 @@ pub mod pallet {
 			})()
 			.ok_or(ArithmeticError::Overflow)?;
 
+			// price = asset price * share_issuance / pool shares
+			// price = (hub reserve / reserve ) * share issuance / pool shares
+			// price = hub*issuance / reserve * pool shares
+			// TODO: make sure it first to u128  bitshift
+			let price_num = asset_state
+				.reserve
+				.hp_checked_mul(&subpool_state.shares)
+				.ok_or(ArithmeticError::Overflow)?
+				.to_inner()
+				.ok_or(ArithmeticError::Overflow)?;
+
+			let price_denom = asset_state
+				.hub_reserve
+				.hp_checked_mul(&share_issuance)
+				.ok_or(ArithmeticError::Overflow)?
+				.to_inner()
+				.ok_or(ArithmeticError::Overflow)?;
+			/*
 			let price = asset_state
 				.price()
 				.ok_or(ArithmeticError::DivisionByZero)?
@@ -278,6 +296,7 @@ pub mod pallet {
 						.ok_or(ArithmeticError::DivisionByZero)?,
 				)
 				.ok_or(ArithmeticError::Overflow)?;
+			 */
 
 			OmnipoolPallet::<T>::update_asset_state(
 				pool_id.into(),
@@ -291,7 +310,7 @@ pub mod pallet {
 			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, delta_u)?;
 
 			let asset_details = AssetDetail {
-				price,
+				price: (price_num, price_denom),
 				shares: asset_state.shares,
 				hub_reserve: delta_q,
 				share_tokens: delta_u,
@@ -354,7 +373,7 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
-			position_id: T::PositionInstanceId,
+			position_id: T::PositionItemId,
 			share_amount: Balance,
 			asset: Option<AssetIdOf<T>>,
 		) -> DispatchResult {
@@ -548,7 +567,7 @@ where
 			asset_id: pool_id,
 			amount: converted.amount,
 			shares: converted.shares,
-			price: converted.price.into_inner(),
+			price: converted.price,
 		})
 	}
 

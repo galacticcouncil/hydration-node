@@ -11,7 +11,7 @@ pub type Balance = u128;
 #[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct AssetDetail {
 	/// Price at the time of migration.
-	pub(crate) price: FixedU128,
+	pub(crate) price: (Balance, Balance),
 	/// Amount of asset shares distributed at the time of migration.
 	pub(crate) shares: Balance,
 	/// Hub asset reserve at the time of migration.

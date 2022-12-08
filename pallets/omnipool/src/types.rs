@@ -73,9 +73,9 @@ pub struct Position<Balance, AssetId> {
 	/// Amount of asset added to omnipool
 	pub amount: Balance,
 	/// Quantity of LP shares owned by LP
-	pub(super) shares: Balance,
+	pub shares: Balance,
 	/// Price at which liquidity was provided - ( hub reserve, asset reserve ) at the time of creation
-	pub(super) price: (Balance, Balance),
+	pub price: (Balance, Balance),
 }
 
 impl<Balance, AssetId> From<&Position<Balance, AssetId>> for hydra_dx_math::omnipool::types::Position<Balance>
@@ -257,6 +257,10 @@ impl<Balance> AssetReserveState<Balance>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
+	pub fn price_as_rational(&self) -> (Balance, Balance) {
+		(self.hub_reserve, self.reserve)
+	}
+
 	/// Calculate price for actual state
 	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())

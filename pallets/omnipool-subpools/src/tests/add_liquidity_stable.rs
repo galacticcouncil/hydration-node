@@ -68,6 +68,8 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 
 			assert_that_nft_position_is_present!(position_id);
 
+			let share_asset_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+
 			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_present_in_omnipool!(
 				ALICE,
@@ -76,7 +78,7 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 					asset_id: SHARE_ASSET_AS_POOL_ID,
 					amount: deposited_share_of_alice,
 					shares: deposited_share_of_alice,
-					price: token_price.into_inner()
+					price: (share_asset_state.hub_reserve, share_asset_state.reserve),
 				}
 			);
 		});

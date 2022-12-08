@@ -216,7 +216,6 @@ where
 impl pallet_omnipool::Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
-	type PositionInstanceId = u32;
 	type Currency = Tokens;
 	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
@@ -225,7 +224,6 @@ impl pallet_omnipool::Config for Test {
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
-	type NFTClassId = PosiitionClassId;
 	type NFTHandler = DummyNFT;
 	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<AssetId>;
@@ -234,6 +232,9 @@ impl pallet_omnipool::Config for Test {
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
+	type PositionItemId = u32;
+	type CollectionId = u32;
+	type NFTCollectionId = PosiitionClassId;
 }
 
 impl pallet_stableswap::Config for Test {

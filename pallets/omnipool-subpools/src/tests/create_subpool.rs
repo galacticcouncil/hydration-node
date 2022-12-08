@@ -29,6 +29,8 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
+			let asset_state_3 = Omnipool::load_asset_state(ASSET_3).unwrap();
+			let asset_state_4 = Omnipool::load_asset_state(ASSET_4).unwrap();
 			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
@@ -81,7 +83,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				ASSET_3,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: FixedU128::from_float(0.65),
+					price: (asset_state_3.hub_reserve, asset_state_3.reserve),
 					shares: 3000 * ONE,
 					hub_reserve: 1950 * ONE,
 					share_tokens: 1950 * ONE,
@@ -92,7 +94,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				ASSET_4,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: FixedU128::from_float(0.65),
+					price: (asset_state_4.hub_reserve, asset_state_4.reserve),
 					shares: 4000 * ONE,
 					hub_reserve: 2600 * ONE,
 					share_tokens: 2600 * ONE,
@@ -187,6 +189,9 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			add_omnipool_token!(ASSET_5);
 			add_omnipool_token!(ASSET_6);
 
+			let asset_state_3 = Omnipool::load_asset_state(ASSET_3).unwrap();
+			let asset_state_4 = Omnipool::load_asset_state(ASSET_4).unwrap();
+
 			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
@@ -199,6 +204,8 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				Permill::from_percent(0),
 			));
 
+			let asset_state_5 = Omnipool::load_asset_state(ASSET_5).unwrap();
+			let asset_state_6 = Omnipool::load_asset_state(ASSET_6).unwrap();
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
 				SHARE_ASSET_AS_POOL_ID_2,
@@ -276,7 +283,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				ASSET_3,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: FixedU128::from_float(0.65),
+					price: (asset_state_3.hub_reserve, asset_state_3.reserve),
 					shares: 3000 * ONE,
 					hub_reserve: 1950 * ONE,
 					share_tokens: 1950 * ONE,
@@ -287,7 +294,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				ASSET_4,
 				SHARE_ASSET_AS_POOL_ID,
 				AssetDetail {
-					price: FixedU128::from_float(0.65),
+					price: (asset_state_4.hub_reserve, asset_state_4.reserve),
 					shares: 4000 * ONE,
 					hub_reserve: 2600 * ONE,
 					share_tokens: 2600 * ONE,
@@ -298,7 +305,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				ASSET_5,
 				SHARE_ASSET_AS_POOL_ID_2,
 				AssetDetail {
-					price: FixedU128::from_float(0.65),
+					price: (asset_state_5.hub_reserve, asset_state_5.reserve),
 					shares: 5000 * ONE,
 					hub_reserve: 3250 * ONE,
 					share_tokens: 3250 * ONE,
@@ -309,7 +316,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 				ASSET_6,
 				SHARE_ASSET_AS_POOL_ID_2,
 				AssetDetail {
-					price: FixedU128::from_float(0.65),
+					price: (asset_state_6.hub_reserve, asset_state_6.reserve),
 					shares: 6000 * ONE,
 					hub_reserve: 3900 * ONE,
 					share_tokens: 3900 * ONE,

@@ -1664,7 +1664,7 @@ impl<T: Config> Pallet<T> {
 
 	/// Insert or update position with given position data.
 	pub fn set_position(
-		position_id: T::PositionInstanceId,
+		position_id: T::PositionItemId,
 		position: &Position<Balance, T::AssetId>,
 	) -> DispatchResult {
 		<Positions<T>>::insert(position_id, position);
@@ -1756,11 +1756,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn load_position(
-		position_id: T::PositionInstanceId,
+		position_id: T::PositionItemId,
 		owner: T::AccountId,
 	) -> Result<Position<Balance, T::AssetId>, DispatchError> {
 		ensure!(
-			T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(owner),
+			T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id) == Some(owner),
 			Error::<T>::Forbidden
 		);
 

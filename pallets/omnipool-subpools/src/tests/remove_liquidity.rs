@@ -108,6 +108,8 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 				new_liquidity
 			));
 
+			let asset_state_3 = Omnipool::load_asset_state(ASSET_3).unwrap();
+
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
@@ -134,10 +136,11 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 					asset_id: ASSET_3,
 					amount: 100 * ONE,
 					shares: 100 * ONE,
-					price: token_price_before_removing_liquidity.into_inner()
+					price: (asset_state_3.hub_reserve, asset_state_3.reserve)
 				}
 			);
 
+			let share_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 			//Act
 			let fraction_of_share = deposited_share_of_alice / 3;
 			assert_ok!(OmnipoolSubpools::remove_liquidity(
@@ -164,7 +167,7 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 					asset_id: SHARE_ASSET_AS_POOL_ID,
 					amount: share_left_as_deposit,
 					shares: share_left_as_deposit,
-					price: token_price.into_inner()
+					price: (share_state.hub_reserve, share_state.reserve), // TODO: incorrect calc in math
 				}
 			);
 		});
