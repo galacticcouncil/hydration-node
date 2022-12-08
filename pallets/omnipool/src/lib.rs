@@ -81,6 +81,7 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
+use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
@@ -97,7 +98,8 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 /// NFT class id type of provided nft implementation
-type NFTClassIdOf<T> = <<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
+type NFTCollectionIdOf<T> =
+	<<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -181,15 +183,19 @@ pub mod pallet {
 		type MaxOutRatio: Get<u128>;
 
 		/// Position identifier type
-		type PositionInstanceId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
+		type PositionItemId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
+
+		/// Collection id type
+		type CollectionId: TypeInfo + MaxEncodedLen;
 
 		/// Non fungible class id
-		type NFTClassId: Get<NFTClassIdOf<Self>>;
+		#[pallet::constant]
+		type NFTCollectionId: Get<NFTCollectionIdOf<Self>>;
 
 		/// Non fungible handling - mint,burn, check owner
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
-			+ Inspect<Self::AccountId, ItemId = Self::PositionInstanceId>;
+			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -211,12 +217,12 @@ pub mod pallet {
 	#[pallet::storage]
 	/// LP positions. Maps NFT instance id to corresponding position
 	pub(super) type Positions<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::PositionInstanceId, Position<Balance, T::AssetId>>;
+		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<Balance, T::AssetId>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
-	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionInstanceId, ValueQuery>;
+	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -232,12 +238,12 @@ pub mod pallet {
 			who: T::AccountId,
 			asset_id: T::AssetId,
 			amount: Balance,
-			position_id: T::PositionInstanceId,
+			position_id: T::PositionItemId,
 		},
 		/// Liquidity of an asset was removed to Omnipool.
 		LiquidityRemoved {
 			who: T::AccountId,
-			position_id: T::PositionInstanceId,
+			position_id: T::PositionItemId,
 			asset_id: T::AssetId,
 			shares_removed: Balance,
 		},
@@ -259,7 +265,7 @@ pub mod pallet {
 		},
 		/// LP Position was created and NFT instance minted.
 		PositionCreated {
-			position_id: T::PositionInstanceId,
+			position_id: T::PositionItemId,
 			owner: T::AccountId,
 			asset: T::AssetId,
 			amount: Balance,
@@ -268,12 +274,12 @@ pub mod pallet {
 		},
 		/// LP Position was destroyed and NFT instance burned.
 		PositionDestroyed {
-			position_id: T::PositionInstanceId,
+			position_id: T::PositionItemId,
 			owner: T::AccountId,
 		},
 		/// LP Position was created and NFT instance minted.
 		PositionUpdated {
-			position_id: T::PositionInstanceId,
+			position_id: T::PositionItemId,
 			owner: T::AccountId,
 			asset: T::AssetId,
 			amount: Balance,
@@ -421,7 +427,7 @@ pub mod pallet {
 
 			// Create NFT class
 			T::NFTHandler::create_collection(
-				&T::NFTClassId::get(),
+				&T::NFTCollectionId::get(),
 				&Self::protocol_account(),
 				&Self::protocol_account(),
 			)?;
@@ -525,7 +531,7 @@ pub mod pallet {
 				asset_id: asset,
 				amount,
 				shares: amount,
-				price: initial_price.into_inner(),
+				price: (initial_price.into_inner(), FixedU128::DIV),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&position_owner)?;
@@ -650,8 +656,6 @@ pub mod pallet {
 				Error::<T>::AssetWeightCapExceeded
 			);
 
-			let updated_asset_price = new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?;
-
 			//
 			// Post - update states
 			//
@@ -662,7 +666,7 @@ pub mod pallet {
 				amount,
 				shares: *state_changes.asset.delta_shares,
 				// Note: position needs price after asset state is updated.
-				price: updated_asset_price.into_inner(),
+				price: (new_asset_state.hub_reserve, new_asset_state.reserve),
 			};
 
 			let instance_id = Self::create_and_mint_position_instance(&who)?;
@@ -675,7 +679,7 @@ pub mod pallet {
 				asset,
 				amount,
 				shares: *state_changes.asset.delta_shares,
-				price: updated_asset_price,
+				price: new_asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
 			});
 
 			T::Currency::transfer(
@@ -722,7 +726,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
-			position_id: T::PositionInstanceId,
+			position_id: T::PositionItemId,
 			amount: Balance,
 		) -> DispatchResult {
 			//
@@ -733,7 +737,7 @@ pub mod pallet {
 			ensure!(amount > Balance::zero(), Error::<T>::InvalidSharesAmount);
 
 			ensure!(
-				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(who.clone()),
+				T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id) == Some(who.clone()),
 				Error::<T>::Forbidden
 			);
 
@@ -818,7 +822,7 @@ pub mod pallet {
 				// All liquidity removed, remove position and burn NFT instance
 
 				<Positions<T>>::remove(position_id);
-				T::NFTHandler::burn(&T::NFTClassId::get(), &position_id, Some(&who))?;
+				T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 
 				Self::deposit_event(Event::PositionDestroyed {
 					position_id,
@@ -831,7 +835,9 @@ pub mod pallet {
 					asset: asset_id,
 					amount: updated_position.amount,
 					shares: updated_position.shares,
-					price: FixedU128::from_inner(updated_position.price),
+					price: updated_position
+						.price_from_rational()
+						.ok_or(ArithmeticError::DivisionByZero)?,
 				});
 
 				<Positions<T>>::insert(position_id, updated_position);
@@ -860,13 +866,13 @@ pub mod pallet {
 		/// Emits `PositionDestroyed`.
 		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
 		#[transactional]
-		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionInstanceId) -> DispatchResult {
+		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let position = Positions::<T>::get(position_id).ok_or(Error::<T>::PositionNotFound)?;
 
 			ensure!(
-				T::NFTHandler::owner(&T::NFTClassId::get(), &position_id) == Some(who.clone()),
+				T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id) == Some(who.clone()),
 				Error::<T>::Forbidden
 			);
 
@@ -883,7 +889,7 @@ pub mod pallet {
 
 			// Desotry position and burn NFT
 			<Positions<T>>::remove(position_id);
-			T::NFTHandler::burn(&T::NFTClassId::get(), &position_id, Some(&who))?;
+			T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 
 			Self::deposit_event(Event::PositionDestroyed {
 				position_id,
@@ -1267,7 +1273,7 @@ pub mod pallet {
 		/// Only `AddTokenOrigin` can perform this operition -same as `add_token`o
 		///
 		/// Emits `AssetRefunded`
-		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_token())]
+		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_asset())]
 		#[transactional]
 		pub fn refund_refused_asset(
 			origin: OriginFor<T>,
@@ -1376,14 +1382,14 @@ impl<T: Config> Pallet<T> {
 
 	/// Generate an nft instance id and mint NFT into the class and instance.
 	#[require_transactional]
-	fn create_and_mint_position_instance(owner: &T::AccountId) -> Result<T::PositionInstanceId, DispatchError> {
-		<NextPositionId<T>>::try_mutate(|current_value| -> Result<T::PositionInstanceId, DispatchError> {
+	fn create_and_mint_position_instance(owner: &T::AccountId) -> Result<T::PositionItemId, DispatchError> {
+		<NextPositionId<T>>::try_mutate(|current_value| -> Result<T::PositionItemId, DispatchError> {
 			let next_position_id = *current_value;
 
-			T::NFTHandler::mint_into(&T::NFTClassId::get(), &next_position_id, owner)?;
+			T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &next_position_id, owner)?;
 
 			*current_value = current_value
-				.checked_add(&T::PositionInstanceId::one())
+				.checked_add(&T::PositionItemId::one())
 				.ok_or(ArithmeticError::Overflow)?;
 
 			Ok(next_position_id)

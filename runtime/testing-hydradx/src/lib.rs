@@ -43,12 +43,11 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 // A few exports that help ease life for downstream crates.
-use frame_support::traits::AsEnsureOriginWithArg;
+use frame_support::traits::{AsEnsureOriginWithArg, Contains};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		EnsureOrigin, EqualPrivilegeOnly, Everything, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp,
-		U128CurrencyToVote,
+		EnsureOrigin, EqualPrivilegeOnly, Get, InstanceFilter, NeverEnsureOrigin, PrivilegeCmp, U128CurrencyToVote,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
@@ -110,7 +109,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 111,
+	spec_version: 119,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -145,7 +144,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
 		let p = CENTS; // 1_000_000_000_000
-		let q = 10 * Balance::from(ExtrinsicBaseWeight::get()); // 7_919_840_000
+		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
@@ -209,11 +208,29 @@ parameter_types! {
 	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
 }
 
+pub struct BaseFilter;
+impl Contains<Call> for BaseFilter {
+	fn contains(call: &Call) -> bool {
+		if matches!(call, Call::System(_) | Call::Timestamp(_) | Call::ParachainSystem(_)) {
+			// always allow
+			// Note: this is done to avoid unnecessary check of paused storage.
+			return true;
+		}
+
+		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
+			// if paused, dont allow!
+			return false;
+		}
+
+		true
+	}
+}
+
 // Configure FRAME pallets to include in runtime.
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = BaseFilter;
 	/// The ubiquitous origin type.
 	type Origin = Origin;
 	/// The aggregated dispatch type that is available for extrinsics.
@@ -786,53 +803,45 @@ impl pallet_uniques::Config for Runtime {
 }
 
 parameter_types! {
-	pub ReserveCollectionIdUpTo: u128 = 999_999;
-}
-
-impl pallet_nft::Config for Runtime {
-	type Event = Event;
-	type WeightInfo = pallet_nft::weights::BasiliskWeight<Runtime>;
-	type NftCollectionId = CollectionId;
-	type NftItemId = ItemId;
-	type ProtocolOrigin = EnsureRoot<AccountId>;
-	type CollectionType = pallet_nft::CollectionType;
-	type Permissions = pallet_nft::NftPermissions;
-	type ReserveCollectionIdUpTo = ReserveCollectionIdUpTo;
-}
-
-parameter_types! {
 	pub const LRNA: AssetId = 1;
 	pub const StableAssetId: AssetId = 2;
-	pub ProtofolFee: Permill = Permill::from_rational(3u32,1000u32);
-	pub AssetFee: Permill = Permill::from_rational(3u32,1000u32);
-	pub const TVLCap : Balance= u128::MAX;
+	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
+	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
+	pub const TVLCap : Balance = 222_222_000_000_000_000_000_000u128;
 	pub const MinTradingLimit : Balance = 1_000_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
-	pub const OmnipoolCollectionId: CollectionId = 3u128;
+	pub const OmnipoolCollectionId: CollectionId = 1337u128;
 }
 
 impl pallet_omnipool::Config for Runtime {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Currency = Currencies;
-	type AddTokenOrigin = MajorityOfCouncil;
+	type AddTokenOrigin = EnsureRoot<AccountId>;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type StableCoinAssetId = StableAssetId;
-	type ProtocolFee = ProtofolFee;
+	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
 	type TVLCap = TVLCap;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
-	type PositionInstanceId = ItemId;
-	type NFTClassId = OmnipoolCollectionId;
-	type NFTHandler = NFT;
+	type PositionItemId = ItemId;
+	type CollectionId = CollectionId;
+	type NFTCollectionId = OmnipoolCollectionId;
+	type NFTHandler = Uniques;
+	type WeightInfo = ();
+}
+
+impl pallet_transaction_pause::Config for Runtime {
+	type Event = Event;
+	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = ();
 }
 
@@ -866,8 +875,8 @@ construct_runtime!(
 		Claims: pallet_claims = 53,
 		GenesisHistory: pallet_genesis_history = 55,
 		CollatorRewards: pallet_collator_rewards = 57,
-		NFT: pallet_nft = 58,
 		Omnipool: pallet_omnipool = 59,
+		TransactionPause: pallet_transaction_pause = 60,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1021,20 +1030,6 @@ impl_runtime_apis! {
 			ParachainSystem::collect_collation_info(header)
 		}
 	}
-
-	#[cfg(feature = "try-runtime")]
-	impl frame_try_runtime::TryRuntime<Block> for Runtime {
-		fn on_runtime_upgrade() -> (Weight, Weight) {
-			//log::info!("try-runtime::on_runtime_upgrade.");
-			let weight = Executive::try_runtime_upgrade().unwrap();
-			(weight, BlockWeights::get().max_block)
-		}
-
-		fn execute_block_no_check(block: Block) -> Weight {
-			Executive::execute_block_no_check(block)
-		}
-	}
-
 
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
 		fn account_nonce(account: AccountId) -> Index {

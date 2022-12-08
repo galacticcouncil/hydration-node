@@ -17,7 +17,6 @@ fn remove_liquidity_works() {
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(0.65);
 
 			let liq_added = 400 * ONE;
 
@@ -56,7 +55,7 @@ fn remove_liquidity_works() {
 				asset_id: 1_000,
 				amount: liq_added - liq_removed,
 				shares: liq_added - liq_removed,
-				price: token_price.into_inner(),
+				price: (1560 * ONE, 2400 * ONE),
 			};
 
 			assert_eq!(position, expected);
@@ -138,7 +137,6 @@ fn partial_liquidity_removal_works() {
 		.build()
 		.execute_with(|| {
 			let token_amount = 2000 * ONE;
-			let token_price = FixedU128::from_float(0.65);
 			let liq_added = 400 * ONE;
 			let current_position_id = <NextPositionId<Test>>::get();
 
@@ -188,7 +186,7 @@ fn partial_liquidity_removal_works() {
 				asset_id: 1_000,
 				amount: liq_added - liq_removed,
 				shares: liq_added - liq_removed,
-				price: token_price.into_inner(),
+				price: (1560 * ONE, 2400 * ONE),
 			};
 
 			assert_eq!(position, expected);

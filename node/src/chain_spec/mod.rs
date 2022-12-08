@@ -29,7 +29,7 @@ use hex_literal::hex;
 use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
 	CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
-	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
+	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SystemConfig,
 	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
 use primitives::{constants::currency::NATIVE_EXISTENTIAL_DEPOSIT, AssetId, BlockNumber, Price};
@@ -86,7 +86,7 @@ where
 
 pub fn parachain_genesis(
 	wasm_binary: &[u8],
-	root_key: AccountId,
+	_root_key: AccountId,
 	initial_authorities: (Vec<(AccountId, AuraId)>, Balance), // (initial auths, candidacy bond)
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	council_members: Vec<AccountId>,
@@ -103,10 +103,6 @@ pub fn parachain_genesis(
 		system: SystemConfig {
 			// Add Wasm runtime to storage.
 			code: wasm_binary.to_vec(),
-		},
-		sudo: SudoConfig {
-			// Assign network admin rights.
-			key: Some(root_key),
 		},
 		session: SessionConfig {
 			keys: initial_authorities

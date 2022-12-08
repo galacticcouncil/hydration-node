@@ -2,8 +2,6 @@ use super::*;
 use codec::MaxEncodedLen;
 use frame_support::pallet_prelude::*;
 use hydra_dx_math::omnipool::types::{AssetReserveState as MathReserveState, AssetStateChange, BalanceUpdate};
-use scale_info::build::Fields;
-use scale_info::{meta_type, Path, Type, TypeParameter};
 use sp_runtime::{FixedPointNumber, FixedU128};
 use sp_std::ops::{Add, Sub};
 
@@ -15,7 +13,7 @@ pub type Price = FixedU128;
 
 bitflags::bitflags! {
 	/// Indicates whether asset can be bought or sold to/from Omnipool and/or liquidity added/removed.
-	#[derive(Encode,Decode)]
+	#[derive(Encode,Decode, MaxEncodedLen, TypeInfo)]
 	pub struct Tradability: u8 {
 		/// Asset is frozen. No operations are allowed.
 		const FROZEN = 0b0000_0000;
@@ -33,23 +31,6 @@ bitflags::bitflags! {
 impl Default for Tradability {
 	fn default() -> Self {
 		Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY | Tradability::REMOVE_LIQUIDITY
-	}
-}
-
-impl MaxEncodedLen for Tradability {
-	fn max_encoded_len() -> usize {
-		u8::max_encoded_len()
-	}
-}
-
-impl TypeInfo for Tradability {
-	type Identity = Self;
-
-	fn type_info() -> Type {
-		Type::builder()
-			.path(Path::new("BitFlags", module_path!()))
-			.type_params(vec![TypeParameter::new("T", Some(meta_type::<Tradability>()))])
-			.composite(Fields::unnamed().field(|f| f.ty::<u64>().type_name("Tradability")))
 	}
 }
 
@@ -92,12 +73,9 @@ pub struct Position<Balance, AssetId> {
 	/// Amount of asset added to omnipool
 	pub amount: Balance,
 	/// Quantity of LP shares owned by LP
-	pub shares: Balance,
-	/// Price at which liquidity was provided
-	// TODO: Due to missing MaxEncodedLen impl for FixedU128, it is not possible to use that type in storage
-	// This can change in 0.9.17 where the missing trait is implemented
-	// And FixedU128 can be use instead.
-	pub price: Balance,
+	pub(super) shares: Balance,
+	/// Price at which liquidity was provided - ( hub reserve, asset reserve ) at the time of creation
+	pub(super) price: (Balance, Balance),
 }
 
 impl<Balance, AssetId> From<&Position<Balance, AssetId>> for hydra_dx_math::omnipool::types::Position<Balance>
@@ -108,7 +86,7 @@ where
 		Self {
 			amount: position.amount,
 			shares: position.shares,
-			price: FixedU128::from_inner(position.price.into()),
+			price: position.price,
 		}
 	}
 }
@@ -117,6 +95,10 @@ impl<Balance, AssetId> Position<Balance, AssetId>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
+	pub(super) fn price_from_rational(&self) -> Option<FixedU128> {
+		FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
+	}
+
 	/// Update current position state with given delta changes.
 	pub(super) fn delta_update(
 		self,

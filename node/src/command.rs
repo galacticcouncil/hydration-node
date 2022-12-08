@@ -39,6 +39,7 @@ fn load_spec(id: &str, is_testing: bool) -> std::result::Result<Box<dyn sc_servi
 	if is_testing {
 		Ok(match id {
 			"local" => Box::new(testing_chain_spec::local_parachain_config()?),
+			"devnet" => Box::new(testing_chain_spec::devnet_parachain_config()?),
 			path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
 			)?),
@@ -46,7 +47,7 @@ fn load_spec(id: &str, is_testing: bool) -> std::result::Result<Box<dyn sc_servi
 	} else {
 		Ok(match id {
 			"" => Box::new(chain_spec::hydradx::parachain_config()?),
-			"local" => Box::new(chain_spec::local::parachain_config()?),
+			"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 			"staging" => Box::new(chain_spec::staging::parachain_config()?),
 			"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
@@ -98,6 +99,7 @@ impl SubstrateCli for Cli {
 		if is_testing_runtime {
 			Ok(match id {
 				"local" => Box::new(testing_chain_spec::local_parachain_config()?),
+				"devnet" => Box::new(testing_chain_spec::devnet_parachain_config()?),
 				path => Box::new(testing_chain_spec::ChainSpec::from_json_file(
 					std::path::PathBuf::from(path),
 				)?),
@@ -105,7 +107,7 @@ impl SubstrateCli for Cli {
 		} else {
 			Ok(match id {
 				"hydradx" => Box::new(chain_spec::hydradx::parachain_config()?),
-				"local" => Box::new(chain_spec::local::parachain_config()?),
+				"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 				"staging" => Box::new(chain_spec::staging::parachain_config()?),
 				"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
 				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
@@ -429,7 +431,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 	fn base_path(&self) -> Result<Option<BasePath>> {
 		Ok(self
 			.shared_params()
-			.base_path()
+			.base_path()?
 			.or_else(|| self.base_path.clone().map(Into::into)))
 	}
 
@@ -482,10 +484,6 @@ impl CliConfiguration<Self> for RelayChainCli {
 
 	fn transaction_pool(&self, is_dev: bool) -> Result<sc_service::config::TransactionPoolOptions> {
 		self.base.base.transaction_pool(is_dev)
-	}
-
-	fn state_cache_child_ratio(&self) -> Result<Option<usize>> {
-		self.base.base.state_cache_child_ratio()
 	}
 
 	fn rpc_methods(&self) -> Result<sc_service::config::RpcMethods> {

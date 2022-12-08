@@ -1,0 +1,52 @@
+{
+  "settings": {
+    "provider": "native"
+  },
+  "relaychain": {
+    "default_command": "../../polkadot/target/release/polkadot",
+    "chain": "rococo-local",
+    "nodes": [
+      {
+        "name": "alice",
+        "ws_port": 9944,
+        "invulnerable": true
+      },
+      {
+        "name": "bob",
+        "ws_port": 9955,
+        "invulnerable": true
+      },
+      {
+        "name": "charlie",
+        "ws_port": 9966,
+        "invulnerable": true
+      },
+      {
+        "name": "dave",
+        "ws_port": 9977,
+        "invulnerable": true
+      }
+    ]
+  },
+  "types": {},
+  "hrmp_channels": [],
+  "parachains": [
+    {
+      "id": 2032,
+      "cumulus_based": true,
+      "chain": "local",
+      "collators": [
+        {
+          "name": "alice",
+          "command": "../target/release/hydradx",
+          "ws_port": 9988
+        },
+        {
+          "name": "bob",
+          "command": "../target/release/hydradx",
+          "ws_port": 9989
+        }
+      ]
+    }
+  ]
+}

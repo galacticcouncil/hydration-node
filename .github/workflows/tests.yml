@@ -94,6 +94,33 @@ jobs:
         run: time cargo build --release --quiet --locked
       - name: Version info
         run: ./target/release/hydradx --version
+      - name: Get hydradx chainspec json
+        run: |
+          cp target/release/hydradx target/release/testing-hydradx
+          chmod +x ./target/release/testing-hydradx
+          ./target/release/testing-hydradx build-spec --chain devnet --raw > hydradx-testnet-chainspec.json
+      - name: Upload config file
+        uses: actions/upload-artifact@v2
+        with:
+          name: hydradx-testnet-chainspec.json
+          path: ./hydradx-testnet-chainspec.json
+      - name: Generate wasm binary for testnet
+        run: ./target/release/testing-hydradx export-genesis-wasm --chain hydradx-testnet-chainspec.json > para-wasm
+
+      - name: Generate genesis binary for testnet
+        run: ./target/release/testing-hydradx export-genesis-state --chain hydradx-testnet-chainspec.json > para-genesis
+
+      - name: Upload wasm binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: para-wasm
+          path: ./para-wasm
+
+      - name: Upload genesis binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: para-genesis
+          path: ./para-genesis
       - name: Upload release binary
         uses: actions/upload-artifact@v2
         with:
@@ -104,6 +131,11 @@ jobs:
         with:
           name: hydradx_runtime.compact.compressed.wasm
           path: target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm
+      - name: Upload testing-runtime wasm
+        uses: actions/upload-artifact@v2
+        with:
+          name: testing_hydradx_runtime.compact.compressed.wasm
+          path: target/release/wbuild/testing-hydradx-runtime/testing_hydradx_runtime.compact.compressed.wasm
 
   docker:
     needs: [pop-runner-instance, build]
@@ -240,9 +272,9 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/download-artifact@v2
-        name: Download runtime wasm from pipeline
+        name: Download testing runtime wasm from pipeline
         with:
-          name: hydradx_runtime.compact.compressed.wasm
+          name: testing_hydradx_runtime.compact.compressed.wasm
           path: scripts/upgrade-runtime
       - uses: dawidd6/action-download-artifact@v2
         name: Download node binary from base
@@ -258,7 +290,7 @@ jobs:
           latest: true
           fileName: polkadot
           out-file-path: ../polkadot/target/release
-      - run: chmod +x ./hydradx && ./hydradx --version
+      - run: chmod +x ./hydradx && mv ./hydradx ./testing-hydradx && ./testing-hydradx --version
         name: HydraDX version
         working-directory: target/release
       - run: chmod +x ./polkadot && ./polkadot --version

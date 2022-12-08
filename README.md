@@ -59,6 +59,18 @@ Observe HydraDX logs
 multitail 99*.log
 ```
 
+### Local Testnet with Zombienet
+
+Relay chain repository (polkadot) has to be built in `../polkadot`
+Grab `zombienet` utility used to start network from [releases](https://github.com/paritytech/zombienet/releases)
+
+Start local testnet with 4 relay chain validators and HydraDX as a parachain with 2 collators.
+
+```
+cd ./rococo-local
+zombienet --provider native config-zombienet.json
+```
+
 ### Use testing runtime
 
 In the case of starting a testnet using the `polkadot-launch` tool, 
@@ -70,6 +82,12 @@ Start local testnet with testing runtime
 ```
 cd ./rococo-local
 polkadot-launch testing-config.json
+```
+
+Start local testnet with testing runtime using Zombienet
+```
+cd ./rococo-local
+zombienet --provider native testing-config-zombienet.json
 ```
 
 ### Interaction with the node
@@ -174,10 +192,16 @@ The most interesting information would be the difference between the HydraDx ben
 If the difference is >= 0, performance is similar or better.
 However, if the difference < 0 - your machine might not suitable to run HydraDX node. Contact HydraDX devs to discuss the results.
 
-### Running a stakenet node
+### Testing of storage migrations and runtime upgrades
 
+The `try-runtime` tool can be used to test storage migrations and runtime upgrades against state from a real chain.
+Run the following command to test against the state on HydraDX
 ```bash
-./target/release/hydra-dx --chain lerna
+cargo run --release --features=try-runtime try-runtime --no-spec-name-check on-runtime-upgrade live --uri wss://rpc.hydradx.cloud:443
+```
+or against HydraDX testnet on Rococo
+```bash
+cargo run --release --features=try-runtime try-runtime --no-spec-name-check on-runtime-upgrade live --uri wss://rococo-hydradx-rpc.hydration.dev:443
 ```
 
 ### Honorable contributions

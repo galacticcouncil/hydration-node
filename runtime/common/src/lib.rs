@@ -145,7 +145,7 @@ parameter_types! {
 
 // pallet aura
 parameter_types! {
-	pub const MaxAuthorities: u32 = 32;
+	pub const MaxAuthorities: u32 = 50;
 }
 
 // pallet transaction payment

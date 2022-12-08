@@ -16,25 +16,26 @@ members = [
 ]
 
 [patch."https://github.com/paritytech/polkadot"]
-kusama-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-client = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-node-core-pvf = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-node-network-protocol = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-node-primitives = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-node-subsystem = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-overseer = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-parachain = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-primitives = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-runtime-common = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-runtime-parachains = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-service = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-polkadot-statement-table = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-rococo-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-westend-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-xcm = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-xcm-builder = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
-xcm-executor = { git = "https://github.com/galacticcouncil/polkadot", branch = "patch/fix-xcm-executor-atomicity-9-28-1" }
+kusama-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-cli = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-client = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-core-primitives = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-node-core-pvf = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-node-network-protocol = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-node-primitives = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-node-subsystem = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-overseer = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-parachain = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-primitives = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-runtime-common = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-runtime-parachains = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-service = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+polkadot-statement-table = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+rococo-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+westend-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+xcm = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+xcm-builder = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+xcm-executor = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
+
