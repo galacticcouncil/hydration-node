@@ -742,6 +742,18 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
+			assert_asset_state!(
+				DOT,
+				AssetReserveState {
+					reserve: 2000 * ONE,
+					hub_reserve: 1300 * ONE,
+					shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
+				}
+			);
+
 			//Act
 			assert_ok!(Omnipool::sell(
 				Origin::signed(TRADER),
@@ -777,6 +789,20 @@ fn liquidity_should_be_taken_off_when_asset_is_dumping() {
 				AssetCoefficient {
 					coeff: FixedU128::from_float(0.5),
 					amount_taken_offline: INITIAL_TKN1_LIQUIDITY / 2
+				}
+			);
+
+			//TODO: hub reserve should be even less as we need to burn
+			//TODO: the taken off amount is not reflected in the reserve state
+			assert_asset_state!(
+				DOT,
+				AssetReserveState {
+					reserve: 2050 * ONE,
+					hub_reserve: 1238095238095239,
+					shares: 2000 * ONE,
+					protocol_shares: Balance::zero(),
+					cap: DEFAULT_WEIGHT_CAP,
+					tradable: Tradability::default(),
 				}
 			);
 		});

@@ -23,12 +23,12 @@ use std::collections::HashMap;
 
 use crate as pallet_omnipool;
 
+use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use frame_support::dispatch::Weight;
 use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
@@ -168,7 +168,12 @@ pub struct PriceOracleMock {}
 impl AggregatedOracle<AssetId, Balance, u64, Price> for PriceOracleMock {
 	type Error = DispatchError;
 
-	fn get_entry(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod, source: Source) -> Result<AggregatedEntry<Balance, u64, Price>, Self::Error> {
+	fn get_entry(
+		asset_a: AssetId,
+		asset_b: AssetId,
+		period: OraclePeriod,
+		source: Source,
+	) -> Result<AggregatedEntry<Balance, u64, Price>, Self::Error> {
 		let ten_mins_daily_ratio = TEN_MINS_DAILY_VOLUME_RATIO.with(|v| *v.borrow());
 		let daily_oracle_data = AggregatedEntry {
 			price: FixedU128::from_float(0.6),
@@ -177,37 +182,34 @@ impl AggregatedOracle<AssetId, Balance, u64, Price> for PriceOracleMock {
 				a_in: 1_000_000,
 				a_out: 2_000_000,
 				b_in: 5_000_000,
-				b_out: 10_000_000
+				b_out: 10_000_000,
 			},
-			oracle_age: 10
+			oracle_age: 10,
 		};
 		match period {
-			OraclePeriod::TenMinutes => {
-				Ok(AggregatedEntry {
-					price: FixedU128::from_float(0.6),
-					liquidity: Balance::zero(),
-					volume: Volume {
-						a_in: daily_oracle_data.volume.a_in * ten_mins_daily_ratio,
-						a_out: daily_oracle_data.volume.a_out * ten_mins_daily_ratio,
-						b_in: daily_oracle_data.volume.b_in * ten_mins_daily_ratio,
-						b_out: daily_oracle_data.volume.b_out * ten_mins_daily_ratio
-					},
-					oracle_age: 10
-				})
-			},
-			_ => {
-				Ok(AggregatedEntry {
-					price: FixedU128::from_float(0.6),
-					liquidity: Balance::zero(),
-					volume: Volume {
-						a_in: 1_000_000,
-						a_out: 2_000_000,
-						b_in: 5_000_000,
-						b_out: 10_000_000
-					},
-					oracle_age: 10
-				})
-			} }
+			OraclePeriod::TenMinutes => Ok(AggregatedEntry {
+				price: FixedU128::from_float(0.6),
+				liquidity: Balance::zero(),
+				volume: Volume {
+					a_in: daily_oracle_data.volume.a_in * ten_mins_daily_ratio,
+					a_out: daily_oracle_data.volume.a_out * ten_mins_daily_ratio,
+					b_in: daily_oracle_data.volume.b_in * ten_mins_daily_ratio,
+					b_out: daily_oracle_data.volume.b_out * ten_mins_daily_ratio,
+				},
+				oracle_age: 10,
+			}),
+			_ => Ok(AggregatedEntry {
+				price: FixedU128::from_float(0.6),
+				liquidity: Balance::zero(),
+				volume: Volume {
+					a_in: 1_000_000,
+					a_out: 2_000_000,
+					b_in: 5_000_000,
+					b_out: 10_000_000,
+				},
+				oracle_age: 10,
+			}),
+		}
 	}
 
 	fn get_entry_weight() -> Weight {
@@ -307,7 +309,7 @@ impl Default for ExtBuilder {
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
 			max_trade_volume_limit: u128::MAX,
-			ten_mins_daily_volume_ratio: 1
+			ten_mins_daily_volume_ratio: 1,
 		}
 	}
 }
@@ -538,8 +540,8 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 	}
 }
 
-use hydradx_traits::{AggregatedEntry, Registry, Source, Volume};
 use crate::types::Price;
+use hydradx_traits::{AggregatedEntry, Registry, Source, Volume};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
