@@ -1103,6 +1103,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, council, Council);
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool, Omnipool);
+			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1160,6 +1161,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, council, Council);
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool, Omnipool);
+			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);

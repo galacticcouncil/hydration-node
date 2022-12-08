@@ -148,6 +148,7 @@ runtime-benchmarks = [
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
+    "pallet-circuit-breaker/runtime-benchmarks",
 ]
 std = [
     "codec/std",

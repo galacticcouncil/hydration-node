@@ -1,6 +1,6 @@
 use super::*;
 use crate::types::Tradability;
-use frame_support::assert_noop;
+use frame_support::{assert_noop, traits::OnFinalize};
 use sp_runtime::traits::One;
 
 #[test]
@@ -422,7 +422,6 @@ fn remove_liquidity_should_fail_when_shares_amount_is_zero() {
 		});
 }
 
-use frame_support::traits::OnFinalize;
 #[test]
 fn remove_liquidity_should_work_when_trade_volume_exceeded() {
 	// Arrange
