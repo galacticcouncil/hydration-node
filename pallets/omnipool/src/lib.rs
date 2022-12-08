@@ -1000,8 +1000,10 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 			let hub_reserve_asset_a_as_fixed = FixedU128::from_inner(asset_in_state.hub_reserve);
+
+			//TODO: delate is not the best, we have to keep in mind that it can be negative so the lrna should be burned"
 			let delta_lerna_amount_asset_a =
-				Self::get_delta(lerna_amount_asset_a_updated, hub_reserve_asset_a_as_fixed);
+				Self::get_delta(lerna_amount_asset_a_updated, hub_reserve_asset_a_as_fixed)?;
 
 			//Calculating this for asset out -> https://www.notion.so/Circuit-Breakers-cf4123c9131f4b98867cfd45ff4937c2#e69d2785ceeb442b8f1ed8096ea1e524
 			let lerna_amount_nominator_asset_b = asset_out_coef
@@ -1019,7 +1021,7 @@ pub mod pallet {
 				.ok_or(ArithmeticError::Overflow)?;
 			let hub_reserve_asset_b_as_fixed = FixedU128::from_inner(asset_out_state.hub_reserve);
 			let delta_lerna_amount_asset_b =
-				Self::get_delta(lerna_amount_asset_b_updated, hub_reserve_asset_b_as_fixed);
+				Self::get_delta(lerna_amount_asset_b_updated, hub_reserve_asset_b_as_fixed)?;
 
 			let mut asset_in_state_with_coef = asset_in_state.clone();
 			let mut asset_out_state_with_coef = asset_out_state.clone();
@@ -1032,6 +1034,16 @@ pub mod pallet {
 				.coeff
 				.checked_mul_int(asset_out_state_with_coef.reserve)
 				.ok_or(ArithmeticError::Overflow)?;
+
+			/*asset_in_state_with_coef.hub_reserve = asset_in_state_with_coef
+				.hub_reserve
+				.checked_add(delta_lerna_amount_asset_a.into_inner()) //TODO is into inner fine?
+				.ok_or(ArithmeticError::Overflow)?;
+
+			asset_out_state_with_coef.hub_reserve = asset_out_state_with_coef
+				.hub_reserve
+				.checked_add(delta_lerna_amount_asset_b.into_inner()) //TODO is into inner fine?
+				.ok_or(ArithmeticError::Overflow)?;*/
 
 			let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
 				&(&asset_in_state_with_coef).into(),
