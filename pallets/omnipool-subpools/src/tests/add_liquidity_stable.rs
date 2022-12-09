@@ -1,20 +1,11 @@
 use super::*;
+use crate::*;
 
-use crate::{
-	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance, assert_stableswap_pool_assets,
-	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_nft_position_is_not_present, assert_that_nft_position_is_present,
-	assert_that_position_is_not_present_in_omnipool, assert_that_position_is_present_in_omnipool, create_subpool,
-	AssetDetail, Error,
-};
 use frame_support::error::BadOrigin;
-use pallet_omnipool::types::{AssetReserveState, Position, Tradability};
+use pallet_omnipool::types::Position;
 use pretty_assertions::assert_eq;
 
 const ALICE_INITIAL_ASSET_3_BALANCE: u128 = 1000 * ONE;
-const ALICE_INITIAL_ASSET_4_BALANCE: u128 = 2000 * ONE;
-const ALICE_INITIAL_ASSET_5_BALANCE: u128 = 5000 * ONE;
-
 const MINTING_DEPOSIT_NFT: bool = true;
 const NOT_MINTING_DEPOSIT_NFT: bool = false;
 
@@ -70,7 +61,6 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 
 			let share_asset_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
-			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id,

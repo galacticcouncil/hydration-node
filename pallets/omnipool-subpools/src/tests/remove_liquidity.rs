@@ -1,20 +1,12 @@
 use super::*;
+use crate::*;
 
-use crate::{
-	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance, assert_balance_approx,
-	assert_stableswap_pool_assets, assert_that_asset_is_migrated_to_omnipool_subpool,
-	assert_that_asset_is_not_present_in_omnipool, assert_that_nft_position_is_not_present,
-	assert_that_nft_position_is_present, assert_that_position_is_not_present_in_omnipool,
-	assert_that_position_is_present_in_omnipool, create_subpool, AssetDetail, Error,
-};
 use frame_support::error::BadOrigin;
-use pallet_omnipool::types::{AssetReserveState, Position, Tradability};
+use pallet_omnipool::types::{Position, Tradability};
 use pretty_assertions::assert_eq;
 use test_case::test_case;
 
 const ALICE_INITIAL_ASSET_3_BALANCE: u128 = 1000 * ONE;
-const ALICE_INITIAL_ASSET_4_BALANCE: u128 = 2000 * ONE;
-const ALICE_INITIAL_ASSET_5_BALANCE: u128 = 5000 * ONE;
 
 #[test]
 fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
@@ -115,7 +107,6 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 4550000000000000;
-			let token_price = FixedU128::from_float(1.0);
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
 			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
@@ -140,7 +131,6 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 				}
 			);
 
-			let share_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 			//Act
 			let fraction_of_share = deposited_share_of_alice / 3;
 			assert_ok!(OmnipoolSubpools::remove_liquidity(
@@ -150,7 +140,7 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 				Option::Some(ASSET_3),
 			));
 
-			let share_left_as_deposit = (deposited_share_of_alice - fraction_of_share);
+			let share_left_as_deposit = deposited_share_of_alice - fraction_of_share;
 
 			//Assert
 			assert_balance!(

@@ -1,13 +1,7 @@
 use super::*;
-
-use crate::{
-	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance, assert_stableswap_pool_assets,
-	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_nft_position_is_present, assert_that_position_is_present_in_omnipool, create_subpool, AssetDetail,
-	Error,
-};
+use crate::*;
 use frame_support::error::BadOrigin;
-use pallet_omnipool::types::{AssetReserveState, Position, Tradability};
+use pallet_omnipool::types::{Position, Tradability};
 use pretty_assertions::assert_eq;
 use test_case::test_case;
 
@@ -54,7 +48,6 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 
 			let share_asset_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
-			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id,
@@ -249,7 +242,6 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 
 			let share_asset_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
-			let token_price = FixedU128::from_float(1.0);
 			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id_for_asset_5_liq,
@@ -305,7 +297,6 @@ fn add_liqudity_should_add_liqudity_to_only_omnipool_when_asset_is_not_migrated_
 
 			let pool_asset = Omnipool::load_asset_state(ASSET_3).unwrap();
 
-			let token_price = FixedU128::from_float(0.65);
 			assert_that_position_is_present_in_omnipool!(
 				ALICE,
 				position_id,

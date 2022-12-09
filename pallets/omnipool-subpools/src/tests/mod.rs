@@ -10,7 +10,7 @@ use mock::*;
 mod verification;
 
 use frame_support::{assert_err, assert_noop, assert_ok};
-use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
+use sp_runtime::{FixedU128, Permill};
 
 use hydradx_traits::AccountIdFor;
 use orml_traits::MultiCurrency;

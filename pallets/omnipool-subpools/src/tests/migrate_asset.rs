@@ -30,8 +30,6 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
-			let asset_state_5 = Omnipool::load_asset_state(ASSET_5).unwrap();
-
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
@@ -235,6 +233,7 @@ fn migrate_asset_to_subpool_should_fail_when_called_from_non_origin() {
 		});
 }
 
+#[test]
 fn migrate_asset_to_subpool_should_fail_when_called_by_normal_user() {
 	//Arrange
 	ExtBuilder::default()
@@ -295,8 +294,6 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
-			let asset_state_5 = Omnipool::load_asset_state(ASSET_5).unwrap();
-
 			//Act
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
@@ -309,8 +306,6 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 			}
 			.into()]);
 
-			let asset_state_6 = Omnipool::load_asset_state(ASSET_6).unwrap();
-
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),
 				SHARE_ASSET_AS_POOL_ID,
@@ -321,8 +316,6 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 				pool_id: SHARE_ASSET_AS_POOL_ID,
 			}
 			.into()]);
-
-			let asset_state_7 = Omnipool::load_asset_state(ASSET_7).unwrap();
 
 			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
 				Origin::root(),

@@ -2,11 +2,6 @@ use super::super::*;
 use crate::{add_omnipool_token, create_subpool};
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 
-//const ONE: u128 = 1;
-const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
-const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
-const ALICE_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
-
 const USDA: u32 = 3;
 const USDB: u32 = 4;
 const USDC: u32 = 5;

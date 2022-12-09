@@ -1,17 +1,10 @@
 use super::*;
+use crate::types::Balance;
+use crate::*;
 
-use crate::AssetDetail;
-use crate::{
-	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance,
-	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_stableswap_subpool_is_created_with_poolinfo, create_subpool, Error,
-};
 use frame_support::error::BadOrigin;
-use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
-use pallet_stableswap::types::PoolInfo;
 use pretty_assertions::assert_eq;
-use sp_runtime::BoundedVec;
 
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
@@ -296,7 +289,6 @@ fn buy_should_work_when_buying_omnipool_asset_with_stablepool_asset() {
 
 #[test]
 fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
-	let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -388,8 +380,8 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 }
 
 #[test]
-fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
-	let initial_omnipool_LRNA_balance = 15050000000000000;
+fn buy_should_work_when_buying_stableswap_asset_with_lrna() {
+	let initial_omnipool_lrna_balance = 15050000000000000;
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -410,7 +402,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
-			assert_balance!(omnipool_account, LRNA, initial_omnipool_LRNA_balance);
+			assert_balance!(omnipool_account, LRNA, initial_omnipool_lrna_balance);
 
 			//Act
 			let amount_to_buy = 100 * ONE;
@@ -435,7 +427,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_LRNA() {
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
-			assert_balance!(omnipool_account, LRNA, initial_omnipool_LRNA_balance + amount_to_spend);
+			assert_balance!(omnipool_account, LRNA, initial_omnipool_lrna_balance + amount_to_spend);
 
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,

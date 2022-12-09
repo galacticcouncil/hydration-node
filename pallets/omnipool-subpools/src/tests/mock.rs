@@ -30,9 +30,8 @@ use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
-use frame_system::{EnsureRoot, EnsureSigned};
+use frame_system::EnsureRoot;
 use orml_traits::parameter_type_with_key;
-use orml_traits::MultiCurrency;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -42,8 +41,6 @@ use sp_runtime::{
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
-
-use pretty_assertions::*;
 
 pub type AccountId = u64;
 pub type Balance = u128;
@@ -65,14 +62,10 @@ pub const SHARE_ASSET_AS_POOL_ID: AssetId = 500;
 pub const SHARE_ASSET_AS_POOL_ID_2: AssetId = 501;
 
 pub const LP1: u64 = 1;
-pub const LP2: u64 = 2;
-pub const LP3: u64 = 3;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
-
-pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
 thread_local! {
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
@@ -184,8 +177,7 @@ parameter_types! {
 	pub const AmplificationRange: RangeInclusive<u16> = RangeInclusive::new(2, 10_000);
 }
 
-use hydradx_traits::{Registry, ShareTokenRegistry};
-use sp_runtime::traits::Zero;
+use hydradx_traits::Registry;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
@@ -198,11 +190,11 @@ where
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(name: &Vec<u8>) -> Result<TAssetId, DispatchError> {
+	fn retrieve_asset(_name: &Vec<u8>) -> Result<TAssetId, DispatchError> {
 		Ok(TAssetId::default())
 	}
 
-	fn create_asset(name: &Vec<u8>, _existential_deposit: Balance) -> Result<TAssetId, DispatchError> {
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<TAssetId, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);
@@ -263,7 +255,6 @@ pub struct ExtBuilder {
 	asset_weight_cap: Permill,
 	min_liquidity: u128,
 	min_trade_limit: u128,
-	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
@@ -316,7 +307,6 @@ impl Default for ExtBuilder {
 			min_liquidity: 0,
 			min_trade_limit: 0,
 			init_pool: None,
-			register_stable_asset: true,
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
@@ -339,48 +329,12 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
-		self.asset_weight_cap = cap;
-		self
-	}
-
-	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
-		self.asset_fee = fee;
-		self
-	}
-
-	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
-		self.protocol_fee = fee;
-		self
-	}
-	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
-		self.min_liquidity = limit;
-		self
-	}
-
-	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
-		self.min_trade_limit = limit;
-		self
-	}
-
 	pub fn with_initial_pool(mut self, stable_price: FixedU128, native_price: FixedU128) -> Self {
 		self.init_pool = Some((stable_price, native_price));
 		self
 	}
 
-	pub fn without_stable_asset_in_registry(mut self) -> Self {
-		self.register_stable_asset = false;
-		self
-	}
-	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
-		self.max_in_ratio = value;
-		self
-	}
-	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
-		self.max_out_ratio = value;
-		self
-	}
-
+	/*
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -391,6 +345,7 @@ impl ExtBuilder {
 		self.pool_tokens.push((asset_id, price, position_owner, amount));
 		self
 	}
+	 */
 
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
@@ -442,9 +397,6 @@ impl ExtBuilder {
 						v.borrow_mut().insert(asset, asset);
 					});
 				}
-
-				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
-				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
 
 				assert_ok!(Omnipool::initialize_pool(
 					Origin::root(),

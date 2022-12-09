@@ -1,7 +1,5 @@
 use frame_support::pallet_prelude::*;
 
-use sp_runtime::FixedU128;
-
 /// Balance representation in current pallet.
 pub type Balance = u128;
 

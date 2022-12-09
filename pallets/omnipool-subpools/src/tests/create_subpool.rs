@@ -1,18 +1,11 @@
-pub use super::mock::*;
 use super::*;
-use crate::AssetDetail;
-use crate::{
-	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance,
-	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_stableswap_subpool_is_created_with_poolinfo, Error, Event,
-};
+use crate::types::Balance;
+use crate::*;
 use frame_support::error::BadOrigin;
 use mock::expect_events;
-use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pallet_stableswap::types::PoolInfo;
 use pretty_assertions::assert_eq;
-use sp_runtime::BoundedVec;
 
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {

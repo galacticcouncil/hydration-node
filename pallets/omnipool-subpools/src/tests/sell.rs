@@ -1,17 +1,9 @@
 use super::*;
-
-use crate::AssetDetail;
-use crate::{
-	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance,
-	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool,
-	assert_that_stableswap_subpool_is_created_with_poolinfo, create_subpool, Error,
-};
+use crate::types::Balance;
+use crate::*;
 use frame_support::error::BadOrigin;
-use pallet_omnipool::types::AssetState;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
-use pallet_stableswap::types::PoolInfo;
 use pretty_assertions::assert_eq;
-use sp_runtime::BoundedVec;
 
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
@@ -354,7 +346,7 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 }
 
 #[test]
-fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
+fn sell_should_work_when_selling_lrna_for_stableswap_asset() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -374,8 +366,8 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
-			let initial_LRNA_balance_in_omnipool = 15050000000000000;
-			assert_balance!(omnipool_account, LRNA, initial_LRNA_balance_in_omnipool);
+			let initial_lrna_balance_in_omnipool = 15050000000000000;
+			assert_balance!(omnipool_account, LRNA, initial_lrna_balance_in_omnipool);
 
 			//Act
 			let amount_to_sell = 100 * ONE;
@@ -401,7 +393,7 @@ fn sell_should_work_when_selling_LRNA_for_stableswap_asset() {
 			assert_balance!(
 				omnipool_account,
 				LRNA,
-				initial_LRNA_balance_in_omnipool + amount_to_sell
+				initial_lrna_balance_in_omnipool + amount_to_sell
 			);
 
 			assert_asset_state_in_omnipool!(

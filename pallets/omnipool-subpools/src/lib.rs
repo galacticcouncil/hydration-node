@@ -11,8 +11,6 @@ use frame_support::require_transactional;
 use hydra_dx_math::omnipool_subpools::{MigrationDetails, SubpoolState};
 use hydra_dx_math::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto, Convert};
 use orml_traits::currency::MultiCurrency;
-use sp_runtime::traits::CheckedMul;
-use sp_runtime::FixedU128;
 use sp_std::prelude::*;
 
 pub use pallet::*;
@@ -32,8 +30,7 @@ pub mod pallet {
 	use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
 	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
-	use sp_runtime::{ArithmeticError, FixedPointNumber, Permill};
-	use std::cmp::min;
+	use sp_runtime::{ArithmeticError, Permill};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (crate) trait Store)]
@@ -145,7 +142,7 @@ pub mod pallet {
 					.checked_div_inner(&s)
 					.ok_or(ArithmeticError::DivisionByZero)?
 					.try_to_inner()
-					.ok_or(ArithmeticError::Overflow.into())
+					.ok_or_else(|| ArithmeticError::Overflow.into())
 			};
 
 			// Deposit pool shares to omnipool account
