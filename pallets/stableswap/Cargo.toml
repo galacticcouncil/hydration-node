@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-stableswap'
-version = '1.0.0'
+version = '2.0.0'
 description = 'AMM for correlated assets'
 authors = ['GalacticCouncil']
 edition = '2021'
@@ -63,4 +63,5 @@ std = [
     "scale-info/std",
     "orml-tokens/std",
     "frame-benchmarking/std",
+    "hydra-dx-math/std",
 ]
