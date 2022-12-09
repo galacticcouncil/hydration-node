@@ -1748,7 +1748,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn update_asset_state(asset_id: T::AssetId, delta: AssetStateChange<Balance>) -> DispatchResult {
-		let mut state = Self::load_asset_state(asset_id)?;
+		let state = Self::load_asset_state(asset_id)?;
 		let updated_state = state.delta_update(&delta).ok_or(ArithmeticError::Overflow)?;
 		Self::set_asset_state(asset_id, updated_state);
 
