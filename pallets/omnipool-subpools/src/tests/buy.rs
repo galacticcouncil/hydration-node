@@ -115,7 +115,7 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 			let pool_account2 = AccountIdConstructor::from_assets(&vec![ASSET_5, ASSET_6], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_spend = 3015093247346625;
+			let amount_to_spend = 15005692740828;
 			assert_balance!(ALICE, ASSET_3, alice_initial_asset_3_balance - amount_to_spend);
 			assert_balance!(ALICE, ASSET_4, 0);
 			assert_balance!(ALICE, ASSET_5, amount_to_buy);
@@ -138,8 +138,8 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4559818835687771,
-					hub_reserve: 4540202307593956,
+					reserve: 4559831807614855,
+					hub_reserve: 4540189391509379,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
@@ -150,8 +150,8 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID_2,
 				AssetReserveState::<Balance> {
-					reserve: 7140215715064476,
-					hub_reserve: 7159797692406044,
+					reserve: 7140202834328501,
+					hub_reserve: 7159810608490621,
 					shares: 7150 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,

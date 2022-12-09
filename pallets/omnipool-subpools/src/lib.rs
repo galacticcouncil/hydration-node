@@ -888,7 +888,6 @@ where
 			*result.isopool.asset_in.delta_reserve,
 		)?;
 
-		dbg!(*result.subpool.amount);
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
 			&subpool_state_out.pool_account::<T>(),
@@ -1036,8 +1035,6 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		dbg!(*result.subpool.amount);
-
 		ensure!(*result.subpool.amount <= max_limit, Error::<T>::Limit);
 
 		debug_assert_eq!(
@@ -1125,8 +1122,6 @@ where
 		.ok_or(Error::<T>::Math)?;
 
 		ensure!(*result.isopool.asset_in.delta_reserve <= max_limit, Error::<T>::Limit);
-
-		dbg!(*result.subpool.amount);
 
 		debug_assert_eq!(
 			*result.subpool.amount, amount_out,
