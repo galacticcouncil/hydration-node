@@ -3,9 +3,9 @@ use crate::types::Balance;
 use crate::*;
 
 use frame_support::error::BadOrigin;
+use pallet_omnipool::types::SimpleImbalance;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
-
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
 const ALICE_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
@@ -62,6 +62,8 @@ fn buy_should_work_when_both_asset_in_same_subpool() {
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -151,6 +153,8 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -202,6 +206,8 @@ fn buy_should_work_when_both_asset_in_omnipool() {
 				ASSET_4,
 				OMNIPOOL_INITIAL_ASSET_4_BALANCE - amount_to_buy
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -284,6 +290,8 @@ fn buy_should_work_when_buying_omnipool_asset_with_stablepool_asset() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -376,6 +384,8 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -440,6 +450,11 @@ fn buy_should_work_when_buying_stableswap_asset_with_lrna() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_imbalance!(SimpleImbalance {
+				value: 432_473_009_453_161,
+				negative: true
+			});
 		});
 }
 
