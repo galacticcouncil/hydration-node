@@ -30,7 +30,7 @@ pub fn hydra_run_to_block(to: BlockNumber) {
 }
 
 #[test]
-fn non_native_fee_payment_works_with_xyk_spot_price() {
+fn non_native_fee_payment_works_with_omnipool_spot_price() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
