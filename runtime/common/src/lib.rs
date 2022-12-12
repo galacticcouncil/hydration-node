@@ -307,7 +307,7 @@ parameter_types! {
 
 // pallet transaction multi payment
 parameter_types! {
-	pub const MultiPaymentCurrencySetFee: Pays = Pays::No;
+	pub const MultiPaymentCurrencySetFee: Pays = Pays::Yes;
 }
 
 // pallet asset registry

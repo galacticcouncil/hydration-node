@@ -2,7 +2,7 @@
 pub use hydradx_runtime::{AccountId, VestingPalletId};
 
 use pallet_transaction_multi_payment::Price;
-use primitives::Balance;
+use primitives::{AssetId, Balance};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -17,6 +17,11 @@ pub const HYDRA_PARA_ID: u32 = 2_034;
 pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+
+//pub const HDX: AssetId = 0;
+pub const LRNA: AssetId = 1;
+pub const DAI: AssetId = 2;
+pub const DOT: AssetId = 3;
 
 use cumulus_primitives_core::ParaId;
 //use cumulus_primitives_core::relay_chain::AccountId;
@@ -144,6 +149,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	use frame_support::traits::OnInitialize;
 	use hydradx_runtime::{MultiTransactionPayment, Runtime, System};
 
+	let stable_amount = 50_000 * UNITS * 1_000_000;
+	let native_amount = 936_329_588_000_000_000;
+	let dot_amount = 8771_929_825_0000u128;
+	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+
 	let existential_deposit = NativeExistentialDeposit::get();
 
 	let mut t = frame_system::GenesisConfig::default()
@@ -156,6 +166,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(BOB), BOB_INITIAL_NATIVE_BALANCE),
 			(AccountId::from(CHARLIE), 1_000 * UNITS),
 			(AccountId::from(DAVE), 1_000 * UNITS),
+			(omnipool_account.clone(), native_amount),
 			(vesting_account(), 10_000 * UNITS),
 		],
 	}
@@ -163,7 +174,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_asset_registry::GenesisConfig::<Runtime> {
-		asset_names: vec![(b"BSX".to_vec(), 1_000_000u128), (b"aUSD".to_vec(), 1_000u128)],
+		asset_names: vec![
+			(b"LRNA".to_vec(), 1_000u128),
+			(b"DAI".to_vec(), 1_000u128),
+			(b"USDC".to_vec(), 1_000u128),
+		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
 	}
@@ -182,8 +197,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), 1, 200 * UNITS),
 			(AccountId::from(ALICE), 2, 200 * UNITS),
 			(AccountId::from(BOB), 1, 1_000 * UNITS),
+			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), 1, 1_000 * UNITS),
+			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
+			(omnipool_account.clone(), DAI, stable_amount),
+			(omnipool_account, DOT, dot_amount),
 		],
 	}
 	.assimilate_storage(&mut t)
@@ -198,7 +217,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
-		currencies: vec![(1, Price::from(1))],
+		currencies: vec![(1, Price::from(1)), (DAI, Price::from(1))],
 		account_currencies: vec![],
 	}
 	.assimilate_storage(&mut t)
