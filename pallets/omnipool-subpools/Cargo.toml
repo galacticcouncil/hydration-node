@@ -59,7 +59,7 @@ proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 mutagen = {git = "https://github.com/llogiq/mutagen"}
 test-case = "2.2.2"
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "d2d0952369836dbd736ff92cc2128298a34d7f3b", default-features = false }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "715fd8c42183339a48e932df1526fbf0001f11c2", default-features = false }
 
 [features]
 default = ["std"]
