@@ -728,20 +728,9 @@ macro_rules! assert_that_position_is_not_present_in_omnipool {
 	}};
 }
 
-fn last_events(n: usize) -> Vec<Event> {
-	frame_system::Pallet::<Test>::events()
-		.into_iter()
-		.rev()
-		.take(n)
-		.rev()
-		.map(|e| e.event)
-		.collect()
-}
-
 //TODO: use test utils for this once upgraded to polkadot 0.9.29
 pub fn expect_events(e: Vec<Event>) {
-	let last_events = last_events(e.len());
-	pretty_assertions::assert_eq!(last_events, e);
+	test_utils::expect_events::<Event, Test>(e);
 }
 
 /*pub fn expect_events(e: Vec<Event>) {
