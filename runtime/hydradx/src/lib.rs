@@ -52,10 +52,9 @@ use frame_support::{
 		ConstantMultiplier, DispatchClass, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
-use hydradx_traits::pools::SpotPriceProvider;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
-use primitives::{CollectionId, ItemId, Price};
+use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
@@ -98,7 +97,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 119,
+	spec_version: 120,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -673,20 +672,6 @@ impl pallet_claims::Config for Runtime {
 
 impl pallet_genesis_history::Config for Runtime {}
 
-pub struct NoSpotPriceProvider;
-
-impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
-	type Price = Price;
-
-	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		false
-	}
-
-	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
-		None
-	}
-}
-
 parameter_types! {
 	pub TreasuryAccount: AccountId = Treasury::account_id();
 }
@@ -695,7 +680,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
 	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
-	type SpotPriceProvider = NoSpotPriceProvider;
+	type SpotPriceProvider = Omnipool;
 	type WeightInfo = weights::transaction_multi_payment::HydraWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;

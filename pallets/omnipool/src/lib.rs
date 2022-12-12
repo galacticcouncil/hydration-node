@@ -90,6 +90,7 @@ mod benchmarks;
 #[cfg(test)]
 mod tests;
 
+pub mod provider;
 mod types;
 pub mod weights;
 
