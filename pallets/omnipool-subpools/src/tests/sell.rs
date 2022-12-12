@@ -2,7 +2,7 @@ use super::*;
 use crate::types::Balance;
 use crate::*;
 use frame_support::error::BadOrigin;
-use pallet_omnipool::types::{AssetReserveState, Tradability};
+use pallet_omnipool::types::{AssetReserveState, SimpleImbalance, Tradability};
 use pretty_assertions::assert_eq;
 
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
@@ -55,6 +55,8 @@ fn sell_should_work_when_both_asset_in_same_subpool() {
 
 			assert_balance!(omnipool_account, ASSET_3, 0);
 			assert_balance!(omnipool_account, ASSET_4, 0);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -139,6 +141,8 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -190,6 +194,8 @@ fn sell_should_work_when_both_asset_in_omnipool() {
 				ASSET_4,
 				OMNIPOOL_INITIAL_ASSET_4_BALANCE - amount_to_get
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -266,6 +272,8 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -342,6 +350,8 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_that_imbalance_is_zero!();
 		});
 }
 
@@ -407,6 +417,11 @@ fn sell_should_work_when_selling_lrna_for_stableswap_asset() {
 					tradable: Tradability::default(),
 				}
 			);
+
+			assert_imbalance!(SimpleImbalance {
+				value: 644_606_312_868_540,
+				negative: true
+			});
 		});
 }
 
