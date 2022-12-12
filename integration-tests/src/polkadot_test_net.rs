@@ -151,7 +151,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	let stable_amount = 50_000 * UNITS * 1_000_000;
 	let native_amount = 936_329_588_000_000_000;
-	let dot_amount = 8771_929_825_0000u128;
+	let dot_amount = 87_719_298_250_000_u128;
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
 	let existential_deposit = NativeExistentialDeposit::get();

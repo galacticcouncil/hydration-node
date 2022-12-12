@@ -17,7 +17,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 		let stable_amount = 50_000 * UNITS * 1_000_000;
 		let native_amount = 936_329_588_000_000_000;
-		let dot_amount = 8771_929_825_0000u128;
+		let dot_amount = 87_719_298_250_000_u128;
 
 		let native_price = FixedU128::from_inner(1201500000000000);
 		let stable_price = FixedU128::from_inner(45_000_000_000);
