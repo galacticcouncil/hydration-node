@@ -504,26 +504,6 @@ impl AccountIdFor<Vec<u32>> for AccountIdConstructor {
 	}
 }
 
-//TODO: add this to test utils package once HydraDX is moved to 9.29
-#[macro_export]
-macro_rules! assert_balance_approx {
-	( $who:expr, $asset:expr, $expected_balance:expr, $delta:expr) => {{
-		let balance = Tokens::free_balance($asset, &$who);
-
-		let diff = if balance >= $expected_balance {
-			balance - $expected_balance
-		} else {
-			$expected_balance - balance
-		};
-		if diff > $delta {
-			panic!(
-				"\n{} not equal\nleft: {:?}\nright: {:?}\n",
-				"The balances are not equal", balance, $expected_balance
-			);
-		}
-	}};
-}
-
 //TODO: use this from test utils package once HydraDX is moved to 9.29
 #[macro_export]
 macro_rules! assert_eq_approx {

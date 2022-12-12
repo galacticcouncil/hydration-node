@@ -6,6 +6,7 @@ use pallet_omnipool::types::{Position, Tradability};
 use pretty_assertions::assert_eq;
 use test_case::test_case;
 use test_utils::assert_balance;
+use test_utils::assert_balance_approx;
 
 const ALICE_INITIAL_ASSET_3_BALANCE: u128 = 1000 * ONE;
 
