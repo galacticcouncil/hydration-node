@@ -504,17 +504,6 @@ impl AccountIdFor<Vec<u32>> for AccountIdConstructor {
 	}
 }
 
-//TODO: use this from test utils package once HydraDX is moved to 9.29
-#[macro_export]
-macro_rules! assert_eq_approx {
-	( $x:tt, $y:tt, $z:tt, $r:tt) => {{
-		let diff = if $x >= $y { $x - $y } else { $y - $x };
-		if diff > $z {
-			panic!("\n{} not equal\nleft: {:?}\nright: {:?}\n", $r, $x, $y);
-		}
-	}};
-}
-
 #[macro_export]
 macro_rules! add_omnipool_token {
 	($asset_id:expr) => {
@@ -700,11 +689,6 @@ macro_rules! assert_that_position_is_not_present_in_omnipool {
 	}};
 }
 
-//TODO: use test utils for this once upgraded to polkadot 0.9.29
 pub fn expect_events(e: Vec<Event>) {
 	test_utils::expect_events::<Event, Test>(e);
 }
-
-/*pub fn expect_events(e: Vec<Event>) {
-	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
-}*/
