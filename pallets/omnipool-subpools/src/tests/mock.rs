@@ -667,6 +667,29 @@ macro_rules! assert_stableswap_pool_assets {
 }
 
 #[macro_export]
+macro_rules! assert_that_imbalance_is_zero {
+	() => {
+		let imbalance = Omnipool::current_imbalance();
+		assert_eq!(
+			imbalance,
+			SimpleImbalance {
+				value: 0,
+				negative: true
+			},
+			"The imbalance is different than zero"
+		);
+	};
+}
+
+#[macro_export]
+macro_rules! assert_imbalance {
+	($expected_imbalance:expr) => {
+		let imbalance = Omnipool::current_imbalance();
+		assert_eq!(imbalance, $expected_imbalance);
+	};
+}
+
+#[macro_export]
 macro_rules! assert_that_nft_position_is_present {
 	( $position_id:expr) => {{
 		assert!(
