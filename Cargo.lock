@@ -11595,7 +11595,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "1.0.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=ae219e94ad1662d59105c7319ea320e3a9e42eef#ae219e94ad1662d59105c7319ea320e3a9e42eef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=74c8d727eec6658693ce2dba0904adc6616354d3#74c8d727eec6658693ce2dba0904adc6616354d3"
 dependencies = [
  "frame-system",
  "pretty_assertions",
