@@ -1,6 +1,7 @@
 use super::*;
 use crate::types::Balance;
 use crate::*;
+use test_utils::assert_balance;
 
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::SimpleImbalance;

@@ -4,6 +4,7 @@ use crate::*;
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, SimpleImbalance, Tradability};
 use pretty_assertions::assert_eq;
+use test_utils::assert_balance;
 
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;

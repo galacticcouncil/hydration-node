@@ -6,6 +6,7 @@ use mock::expect_events;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pallet_stableswap::types::PoolInfo;
 use pretty_assertions::assert_eq;
+use test_utils::assert_balance;
 
 #[test]
 fn create_subpool_should_work_when_single_pool_is_created() {
@@ -44,11 +45,11 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
 			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
 
-			assert_balance!(&omnipool_account, ASSET_3, 0);
-			assert_balance!(&omnipool_account, ASSET_4, 0);
+			assert_balance!(omnipool_account, ASSET_3, 0);
+			assert_balance!(omnipool_account, ASSET_4, 0);
 
 			//Assert that share has been deposited to omnipool
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 4550 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, 4550 * ONE);
 
 			assert_that_stableswap_subpool_is_created_with_poolinfo!(
 				SHARE_ASSET_AS_POOL_ID,
@@ -218,15 +219,15 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 			//Assert that liquidity is moved from omnipool account to subpool
 			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
 			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
-			assert_balance!(&omnipool_account, ASSET_3, 0);
-			assert_balance!(&omnipool_account, ASSET_4, 0);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 4550 * ONE);
+			assert_balance!(omnipool_account, ASSET_3, 0);
+			assert_balance!(omnipool_account, ASSET_4, 0);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, 4550 * ONE);
 
 			assert_balance!(pool_account2, ASSET_5, 5000 * ONE);
 			assert_balance!(pool_account2, ASSET_6, 6000 * ONE);
-			assert_balance!(&omnipool_account, ASSET_5, 0);
-			assert_balance!(&omnipool_account, ASSET_6, 0);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID_2, 7150 * ONE);
+			assert_balance!(omnipool_account, ASSET_5, 0);
+			assert_balance!(omnipool_account, ASSET_6, 0);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID_2, 7150 * ONE);
 
 			assert_that_stableswap_subpool_is_created_with_poolinfo!(
 				SHARE_ASSET_AS_POOL_ID,

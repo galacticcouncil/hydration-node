@@ -4,7 +4,7 @@ use crate::*;
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::Position;
 use pretty_assertions::assert_eq;
-
+use test_utils::assert_balance;
 const ALICE_INITIAL_ASSET_3_BALANCE: u128 = 1000 * ONE;
 const MINTING_DEPOSIT_NFT: bool = true;
 const NOT_MINTING_DEPOSIT_NFT: bool = false;
@@ -31,8 +31,8 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 4550000000000000;
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
 			//Act
 			let position_id: u32 = Omnipool::next_position_id();
@@ -46,13 +46,13 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 
 			//Assert
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
 			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + deposited_share_of_alice
 			);
@@ -120,8 +120,8 @@ fn add_liqudity_stable_should_add_liqudity_to_subpool_but_not_to_omnipool_when_m
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 4550000000000000;
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
 			//Act
 			let position_id: u32 = Omnipool::next_position_id();
@@ -135,12 +135,12 @@ fn add_liqudity_stable_should_add_liqudity_to_subpool_but_not_to_omnipool_when_m
 
 			//Assert liquidity added to subpool
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited to stableswap
 			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, deposited_share_of_alice);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
 			assert_that_nft_position_is_not_present!(position_id);
 			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);

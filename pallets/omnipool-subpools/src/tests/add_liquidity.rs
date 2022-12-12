@@ -4,7 +4,7 @@ use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{Position, Tradability};
 use pretty_assertions::assert_eq;
 use test_case::test_case;
-
+use test_utils::assert_balance;
 const ALICE_INITIAL_ASSET_3_BALANCE: u128 = 1000 * ONE;
 const ALICE_INITIAL_ASSET_4_BALANCE: u128 = 2000 * ONE;
 const ALICE_INITIAL_ASSET_5_BALANCE: u128 = 5000 * ONE;
@@ -31,8 +31,8 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 4550000000000000;
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
 			//Act
 			let position_id: u32 = Omnipool::next_position_id();
@@ -60,12 +60,12 @@ fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_a
 			);
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + deposited_share_of_alice
 			);
@@ -98,9 +98,9 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 			let all_subpool_shares = 4550000000000000;
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
 			assert_balance!(ALICE, ASSET_4, ALICE_INITIAL_ASSET_4_BALANCE);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE);
-			assert_balance!(&pool_account, ASSET_4, 4000 * ONE);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
 			//Act
 			let position_id_for_asset_3_liq: u32 = Omnipool::next_position_id();
@@ -158,19 +158,19 @@ fn add_liqudity_should_work_when_added_for_both_subpool_asset() {
 				ASSET_3,
 				ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity_for_asset_3
 			);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity_for_asset_3);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE + new_liquidity_for_asset_3);
 
 			assert_balance!(
 				ALICE,
 				ASSET_4,
 				ALICE_INITIAL_ASSET_4_BALANCE - new_liquidity_for_asset_4
 			);
-			assert_balance!(&pool_account, ASSET_4, 4000 * ONE + new_liquidity_for_asset_4);
+			assert_balance!(pool_account, ASSET_4, 4000 * ONE + new_liquidity_for_asset_4);
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + all_share_of_alice_to_be_deposited
 			);
@@ -213,8 +213,8 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 			let omnipool_account = Omnipool::protocol_account();
 			let all_subpool_shares = 7800000000000000;
 			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE);
-			assert_balance!(&pool_account, ASSET_5, 5000 * ONE);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+			assert_balance!(pool_account, ASSET_5, 5000 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
 			//Act
 			let position_id_for_asset_5_liq = Omnipool::next_position_id();
@@ -229,11 +229,11 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 			//Assert that liquidity is added to subpool
 			let deposited_asset_5_share_of_alice = 64843346424590;
 			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_5, 5000 * ONE + new_liquidity);
+			assert_balance!(pool_account, ASSET_5, 5000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + deposited_asset_5_share_of_alice
 			);
@@ -284,10 +284,10 @@ fn add_liqudity_should_add_liqudity_to_only_omnipool_when_asset_is_not_migrated_
 			//Assert that liquidity is added only to omnipool
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
-			assert_balance!(&pool_account, ASSET_3, 0);
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 0);
+			assert_balance!(pool_account, ASSET_3, 0);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, 0);
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				ASSET_3,
 				omnipool_account_asset_3_balance + new_liquidity
 			);

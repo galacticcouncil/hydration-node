@@ -6274,6 +6274,7 @@ dependencies = [
  "sp-std",
  "sp-tracing",
  "test-case",
+ "test-utils",
 ]
 
 [[package]]
@@ -11589,6 +11590,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "test-utils"
+version = "1.0.2"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ae219e94ad1662d59105c7319ea320e3a9e42eef#ae219e94ad1662d59105c7319ea320e3a9e42eef"
+dependencies = [
+ "frame-system",
+ "pretty_assertions",
 ]
 
 [[package]]

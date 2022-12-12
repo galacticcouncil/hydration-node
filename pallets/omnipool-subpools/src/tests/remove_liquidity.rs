@@ -5,6 +5,7 @@ use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{Position, Tradability};
 use pretty_assertions::assert_eq;
 use test_case::test_case;
+use test_utils::assert_balance;
 
 const ALICE_INITIAL_ASSET_3_BALANCE: u128 = 1000 * ONE;
 
@@ -39,13 +40,13 @@ fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
 			));
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
 			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + deposited_share_of_alice
 			);
@@ -67,7 +68,7 @@ fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
 				delta_due_to_rounding_error
 			);
 
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, all_subpool_shares);
 
 			assert_that_nft_position_is_not_present!(position_id);
 			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
@@ -109,13 +110,13 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 			let all_subpool_shares = 4550000000000000;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
 			let deposited_share_of_alice = 65000000000000;
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + deposited_share_of_alice
 			);
@@ -144,7 +145,7 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 
 			//Assert
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + share_left_as_deposit
 			);
@@ -192,9 +193,9 @@ fn remove_liqudity_should_work_when_asset_is_not_migrated_to_subpool(asset_id: O
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 0);
+			assert_balance!(pool_account, ASSET_3, 0);
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				ASSET_3,
 				omnipool_account_asset_3_balance + new_liquidity
 			);
@@ -211,7 +212,7 @@ fn remove_liqudity_should_work_when_asset_is_not_migrated_to_subpool(asset_id: O
 
 			//Assert
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE);
-			assert_balance!(&omnipool_account, ASSET_3, omnipool_account_asset_3_balance);
+			assert_balance!(omnipool_account, ASSET_3, omnipool_account_asset_3_balance);
 
 			assert_that_nft_position_is_not_present!(position_id);
 			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
@@ -251,7 +252,7 @@ fn remove_liqudity_should_fail_when_asset_has_tradable_state_disallowing_removin
 			let all_subpool_shares = 4550000000000000;
 			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + deposited_share_of_alice
 			);
@@ -306,13 +307,13 @@ fn remove_liqudity_should_fail_when_asset_is_migrated_but_withdraw_asset_is_not_
 			));
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
-			assert_balance!(&pool_account, ASSET_3, 3000 * ONE + new_liquidity);
+			assert_balance!(pool_account, ASSET_3, 3000 * ONE + new_liquidity);
 
 			//Assert that share of ALICE is deposited and added to omnipool
 			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0);
 			let deposited_share_of_alice = 65493725412861;
 			assert_balance!(
-				&omnipool_account,
+				omnipool_account,
 				SHARE_ASSET_AS_POOL_ID,
 				all_subpool_shares + deposited_share_of_alice
 			);

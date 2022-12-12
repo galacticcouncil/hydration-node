@@ -1,10 +1,12 @@
 use super::*;
 
 use crate::{
-	add_omnipool_token, assert_asset_state_in_omnipool, assert_balance, assert_stableswap_pool_assets,
+	add_omnipool_token, assert_asset_state_in_omnipool, assert_stableswap_pool_assets,
 	assert_that_asset_is_migrated_to_omnipool_subpool, assert_that_asset_is_not_present_in_omnipool, create_subpool,
 	AssetDetail, Error,
 };
+use test_utils::assert_balance;
+
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pretty_assertions::assert_eq;
@@ -53,12 +55,12 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 			assert_balance!(pool_account, ASSET_4, 4000 * ONE);
 			assert_balance!(pool_account, ASSET_5, 5000 * ONE);
 
-			assert_balance!(&omnipool_account, ASSET_3, 0);
-			assert_balance!(&omnipool_account, ASSET_4, 0);
-			assert_balance!(&omnipool_account, ASSET_5, 0);
+			assert_balance!(omnipool_account, ASSET_3, 0);
+			assert_balance!(omnipool_account, ASSET_4, 0);
+			assert_balance!(omnipool_account, ASSET_5, 0);
 
 			//Assert that share has been deposited to omnipool
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 7800 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, 7800 * ONE);
 
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
@@ -351,14 +353,14 @@ fn migrate_asset_to_subpool_should_work_when_migrating_multiple_assets() {
 			assert_balance!(pool_account, ASSET_6, 6000 * ONE);
 			assert_balance!(pool_account, ASSET_7, 7000 * ONE);
 
-			assert_balance!(&omnipool_account, ASSET_3, 0);
-			assert_balance!(&omnipool_account, ASSET_4, 0);
-			assert_balance!(&omnipool_account, ASSET_5, 0);
-			assert_balance!(&omnipool_account, ASSET_6, 0);
-			assert_balance!(&omnipool_account, ASSET_7, 0);
+			assert_balance!(omnipool_account, ASSET_3, 0);
+			assert_balance!(omnipool_account, ASSET_4, 0);
+			assert_balance!(omnipool_account, ASSET_5, 0);
+			assert_balance!(omnipool_account, ASSET_6, 0);
+			assert_balance!(omnipool_account, ASSET_7, 0);
 
 			//Assert that share has been deposited to omnipool
-			assert_balance!(&omnipool_account, SHARE_ASSET_AS_POOL_ID, 16250 * ONE);
+			assert_balance!(omnipool_account, SHARE_ASSET_AS_POOL_ID, 16250 * ONE);
 
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
