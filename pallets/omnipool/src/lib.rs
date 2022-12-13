@@ -79,7 +79,7 @@ use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
-use hydradx_traits::{OnPoolStateChangeHandler, Registry};
+use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler, Registry};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -198,7 +198,8 @@ pub mod pallet {
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
 		/// Handler for state changes
-		type PoolStateChangeHandler: OnPoolStateChangeHandler<Self::AssetId, Balance>;
+		type PoolStateChangeHandler: OnPoolStateChangeHandler<Self::AssetId, Balance>
+			+ OnLiquidityChangeHandler<Self::AssetId, Balance>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -617,7 +618,7 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset)?;
 
-			T::PoolStateChangeHandler::before_pool_state_change(asset, asset_state.reserve)?;
+			T::PoolStateChangeHandler::before_add_liquidity(asset, asset_state.reserve)?;
 
 			ensure!(
 				asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
@@ -696,11 +697,11 @@ pub mod pallet {
 
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
 
-			Self::set_asset_state(asset, new_asset_state.clone());
-
-			T::PoolStateChangeHandler::after_pool_state_change(asset, new_asset_state.reserve)?;
+			Self::set_asset_state(asset, new_asset_state);
 
 			Self::ensure_tvl_cap()?;
+
+			T::PoolStateChangeHandler::after_add_liquidity(asset, amount)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -1045,12 +1046,16 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::set_asset_state(asset_in, new_asset_in_state.clone());
-			Self::set_asset_state(asset_out, new_asset_out_state.clone());
+			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_out, new_asset_out_state);
 
 			//TODO: use reference instead of cloning before
-			T::PoolStateChangeHandler::after_pool_state_change(asset_in, new_asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
+			T::PoolStateChangeHandler::after_pool_state_change(
+				asset_in,
+				amount,
+				asset_out,
+				*state_changes.asset_out.delta_reserve,
+			)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1209,11 +1214,15 @@ pub mod pallet {
 
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
-			Self::set_asset_state(asset_in, new_asset_in_state.clone());
-			Self::set_asset_state(asset_out, new_asset_out_state.clone());
+			Self::set_asset_state(asset_in, new_asset_in_state);
+			Self::set_asset_state(asset_out, new_asset_out_state);
 
-			T::PoolStateChangeHandler::after_pool_state_change(asset_in, new_asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
+			T::PoolStateChangeHandler::after_pool_state_change(
+				asset_in,
+				*state_changes.asset_in.delta_reserve,
+				asset_out,
+				*state_changes.asset_out.delta_reserve,
+			)?;
 
 			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
 
@@ -1533,12 +1542,14 @@ impl<T: Config> Pallet<T> {
 
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
-		Self::set_asset_state(asset_out, new_asset_out_state.clone());
+		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
-
-		T::PoolStateChangeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
-		T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
+		T::PoolStateChangeHandler::after_pool_state_change(
+			T::HubAssetId::get(),
+			*state_changes.asset.delta_hub_reserve,
+			asset_out,
+			*state_changes.asset.delta_reserve,
+		)?;
 
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
@@ -1629,11 +1640,14 @@ impl<T: Config> Pallet<T> {
 
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
-		Self::set_asset_state(asset_out, new_asset_out_state.clone());
+		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		let new_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
-		T::PoolStateChangeHandler::after_pool_state_change(T::HubAssetId::get(), new_hub_asset_liquidity)?;
-		T::PoolStateChangeHandler::after_pool_state_change(asset_out, new_asset_out_state.reserve)?;
+		T::PoolStateChangeHandler::after_pool_state_change(
+			T::HubAssetId::get(),
+			*state_changes.asset.delta_hub_reserve,
+			asset_out,
+			*state_changes.asset.delta_reserve,
+		)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),

@@ -26,7 +26,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8708e0cd3b2cdce12979d5679d9852d25cbecc59", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "dc7457853729788d4b882c33308dfcd5e3434b6b", default-features = false }
 
 [features]
 default = ['std']

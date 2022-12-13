@@ -75,6 +75,7 @@ thread_local! {
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = RefCell::new((10_000, 1));
+	pub static MAX_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(None);
 }
 
 construct_runtime!(
@@ -156,7 +157,8 @@ impl pallet_circuit_breaker::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type DefaultMaxNetTradeVolumeLimitPerBlock = MaxTradeVolumeLimit;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type WeightInfo = ();
 }
 
@@ -174,7 +176,8 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
-	pub MaxTradeVolumeLimit: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -216,6 +219,7 @@ pub struct ExtBuilder {
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	max_net_trade_volume_limit_per_block: (u32, u32),
+	max_liquidity_limit_per_block: Option<(u32, u32)>,
 }
 
 impl Default for ExtBuilder {
@@ -268,6 +272,7 @@ impl Default for ExtBuilder {
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
 			max_net_trade_volume_limit_per_block: (10_000, 1),
+			max_liquidity_limit_per_block: None,
 		}
 	}
 }
@@ -333,6 +338,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_max_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_liquidity_limit_per_block = value;
+		self
+	}
+
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -385,6 +395,9 @@ impl ExtBuilder {
 		});
 		MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| {
 			*v.borrow_mut() = self.max_net_trade_volume_limit_per_block;
+		});
+		MAX_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_liquidity_limit_per_block;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {

@@ -50,11 +50,15 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_omnipool.
 pub trait WeightInfo {
 	fn set_trade_volume_limit() -> Weight;
+	fn set_liquidity_limit() -> Weight;
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn set_trade_volume_limit() -> Weight {
+		Weight::zero()
+	}
+	fn set_liquidity_limit() -> Weight {
 		Weight::zero()
 	}
 }

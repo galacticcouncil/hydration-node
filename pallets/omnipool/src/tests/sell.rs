@@ -701,8 +701,8 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded(diff_from_max_limit: Ba
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap()
-				- diff_from_max_limit;
+			let sell_amount =
+				CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() - diff_from_max_limit;
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
@@ -731,8 +731,7 @@ fn sell_should_fail_when_trade_volume_max_limit_exceeded() {
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount =
-				CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap() + ONE;
+			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
 			assert_noop!(
@@ -764,7 +763,7 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap();
+			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap();
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
@@ -800,7 +799,7 @@ fn sell_should_fail_when_trade_volume_min_limit_exceeded() {
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap();
+			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap();
 
 			// Act & Assert
 			//Asset_out amount would be 1056_910_569_105_689 in a successful trade, but it fails due to limit
@@ -833,7 +832,7 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap();
+			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap();
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
@@ -871,8 +870,8 @@ fn sell_hub_asset_should_work_when_trade_volume_limit_not_exceeded(diff_from_net
 			let min_limit = 10 * ONE;
 
 			let lrna_balance_in_omnipool = Omnipool::get_hub_asset_balance_of_protocol_account();
-			let sell_amount = CircuitBreaker::calculate_liquidity_difference(lrna_balance_in_omnipool, TEN_PERCENT)
-				.unwrap() - diff_from_net_limit;
+			let sell_amount =
+				CircuitBreaker::calculate_limit(lrna_balance_in_omnipool, TEN_PERCENT).unwrap() - diff_from_net_limit;
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(
@@ -909,8 +908,7 @@ fn sell_hub_asset_should_fail_when_trade_volume_max_limit_exceeded() {
 			let min_limit = 10 * ONE;
 
 			let lrna_balance_in_omnipool = Omnipool::get_hub_asset_balance_of_protocol_account();
-			let sell_amount =
-				CircuitBreaker::calculate_liquidity_difference(lrna_balance_in_omnipool, TEN_PERCENT).unwrap() + ONE;
+			let sell_amount = CircuitBreaker::calculate_limit(lrna_balance_in_omnipool, TEN_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
 			assert_noop!(
@@ -944,8 +942,7 @@ fn sell_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_max_lim
 			let min_limit = 10 * ONE;
 
 			let lrna_balance_in_omnipool = Omnipool::get_hub_asset_balance_of_protocol_account();
-			let sell_amount =
-				CircuitBreaker::calculate_liquidity_difference(lrna_balance_in_omnipool, FIVE_PERCENT).unwrap();
+			let sell_amount = CircuitBreaker::calculate_limit(lrna_balance_in_omnipool, FIVE_PERCENT).unwrap();
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(

@@ -14,10 +14,10 @@ hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 pallet-circuit-breaker = { path = "../pallets/circuit-breaker",default-features = false}
 
 # HydraDX dependencies
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "8708e0cd3b2cdce12979d5679d9852d25cbecc59", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8708e0cd3b2cdce12979d5679d9852d25cbecc59", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "8708e0cd3b2cdce12979d5679d9852d25cbecc59", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "8708e0cd3b2cdce12979d5679d9852d25cbecc59", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "dc7457853729788d4b882c33308dfcd5e3434b6b", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "dc7457853729788d4b882c33308dfcd5e3434b6b", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "dc7457853729788d4b882c33308dfcd5e3434b6b", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "dc7457853729788d4b882c33308dfcd5e3434b6b", default-features = false}
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -97,7 +97,7 @@ polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "r
 [dev-dependencies]
 hex-literal = "0.3.1"
 pretty_assertions = "1.2.1"
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "8708e0cd3b2cdce12979d5679d9852d25cbecc59" }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "dc7457853729788d4b882c33308dfcd5e3434b6b" }
 xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", rev = "0460d04c798028e7bef82c907082e11753ed173b" }
 
 [features]

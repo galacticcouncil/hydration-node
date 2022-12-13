@@ -31,6 +31,7 @@ pub type AssetId = u32;
 pub type Balance = u128;
 
 pub const HDX: AssetId = 100;
+pub const DOT: AssetId = 200;
 pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
 
 frame_support::construct_runtime!(
@@ -77,14 +78,16 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxVolumeLimit: (u32, u32) = (2_000, 10_000);
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (2_000, 10_000);	// 20%
+	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((4_000, 10_000));	// 40%
 }
 
 impl pallet_circuit_breaker::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type DefaultMaxNetTradeVolumeLimitPerBlock = MaxVolumeLimit;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type WeightInfo = ();
 }
 

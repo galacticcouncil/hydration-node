@@ -1,6 +1,6 @@
 use super::*;
 use crate::types::Tradability;
-use frame_support::{assert_noop, traits::OnFinalize};
+use frame_support::assert_noop;
 use sp_runtime::traits::One;
 
 #[test]
@@ -419,56 +419,5 @@ fn remove_liquidity_should_fail_when_shares_amount_is_zero() {
 				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 0u128),
 				Error::<Test>::InvalidSharesAmount
 			);
-		});
-}
-
-#[test]
-fn remove_liquidity_should_work_when_trade_volume_exceeded() {
-	// Arrange
-	let initial_liquidity = 1_000_000 * ONE;
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(LP2, 1_000, 2_000_000 * ONE),
-			(LP1, 1_000, 2_000_000 * ONE),
-		])
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
-		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
-		.build()
-		.execute_with(|| {
-			let liq_added = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap();
-			let first_position_id = <NextPositionId<Test>>::get();
-
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
-
-			// reset the trade limit
-			CircuitBreaker::on_finalize(1);
-
-			let second_position_id = <NextPositionId<Test>>::get();
-
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
-
-			// reset the trade limit
-			CircuitBreaker::on_finalize(2);
-
-			let liq_removed = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, TEN_PERCENT).unwrap();
-
-			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
-				first_position_id,
-				liq_removed
-			));
-
-			let liq_removed = CircuitBreaker::calculate_liquidity_difference(initial_liquidity, FIVE_PERCENT).unwrap();
-
-			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
-				second_position_id,
-				liq_removed
-			));
 		});
 }
