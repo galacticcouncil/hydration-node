@@ -7,6 +7,7 @@ pub(crate) mod mock;
 mod remove_liquidity;
 mod sell;
 use mock::*;
+mod buy_invariants;
 mod sell_invariants;
 mod verification;
 
