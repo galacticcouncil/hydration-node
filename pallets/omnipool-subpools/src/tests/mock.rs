@@ -62,6 +62,7 @@ pub const SHARE_ASSET_AS_POOL_ID: AssetId = 500;
 pub const SHARE_ASSET_AS_POOL_ID_2: AssetId = 501;
 
 pub const LP1: u64 = 1;
+pub const LP2: u64 = 2;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
