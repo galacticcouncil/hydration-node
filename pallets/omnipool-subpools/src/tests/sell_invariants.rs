@@ -145,7 +145,7 @@ proptest! {
 }
 
 proptest! {
-	//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#363a38037c2d42d8977107df2439d274
+	//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#7a2f7db50bf54b41a96c02b633f24b94
 	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn sell_lrna_for_stableswap_asset(sell_amount in trade_amount(),
