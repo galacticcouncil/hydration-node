@@ -8,6 +8,7 @@ mod remove_liquidity;
 mod sell;
 use mock::*;
 mod buy_invariants;
+mod create_subpool_invariants;
 mod sell_invariants;
 mod verification;
 
@@ -74,3 +75,5 @@ use orml_traits::MultiCurrency;
 //tradeable asset state - change in omnipool only? In stableswap there is no such thing
 
 // Trades with subpool - ensure withdraw fee is applied
+
+//Prop tests
