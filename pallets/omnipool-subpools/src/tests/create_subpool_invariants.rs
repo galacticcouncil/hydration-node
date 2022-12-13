@@ -43,72 +43,77 @@ proptest! {
 	//Spec: https://www.notion.so/Create-new-stableswap-subpool-from-two-assets-in-the-Omnipool-permissioned-20028c583ac64c55aee8443a23a096b9#5a361cb3ed434788a035fe3cfc48e170
 	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
-	fn sell_lrna_for_stableswap_asset(sell_amount in trade_amount(),
+	fn sell_lrna_for_stableswap_asset(
 		token_1 in pool_token(ASSET_3),
 		token_2 in pool_token(ASSET_4),
-		native_reserve in asset_reserve(),
 	) {
 		ExtBuilder::default()
-		.with_registered_asset(ASSET_3)
-		.with_registered_asset(ASSET_4)
-		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
-		.add_endowed_accounts((LP1, token_1.asset_id, token_1.amount))
-		.add_endowed_accounts((LP1, token_2.asset_id, token_2.amount))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
-		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.build()
-		.execute_with(|| {
-			assert_ok!(Omnipool::add_token(Origin::root(), token_1.asset_id, token_1.price,Permill::from_percent(100),LP1));
-			assert_ok!(Omnipool::add_token(Origin::root(), token_2.asset_id, token_2.price,Permill::from_percent(100),LP1));
+			.with_registered_asset(ASSET_3)
+			.with_registered_asset(ASSET_4)
+			.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+			.add_endowed_accounts((LP1, token_1.asset_id, token_1.amount))
+			.add_endowed_accounts((LP1, token_2.asset_id, token_2.amount))
+			.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, token_1.amount))
+			.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, token_2.amount))
+			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+			.build()
+			.execute_with(|| {
+				assert_ok!(Omnipool::add_token(Origin::root(), token_1.asset_id, token_1.price,Permill::from_percent(100),LP1));
+				assert_ok!(Omnipool::add_token(Origin::root(), token_2.asset_id, token_2.price,Permill::from_percent(100),LP1));
 
-			let asset_state_3 = Omnipool::load_asset_state(ASSET_3).unwrap();
-			let asset_state_4 = Omnipool::load_asset_state(ASSET_4).unwrap();
+				let asset_state_3 = Omnipool::load_asset_state(ASSET_3).unwrap();
+				let asset_state_4 = Omnipool::load_asset_state(ASSET_4).unwrap();
 
-			let asset_3_lrna = asset_state_3.hub_reserve;
-			let asset_4_lrna = asset_state_4.hub_reserve;
-			// assert_eq!(asset_state_4.hub_reserve, 400 * ONE);
+				let asset_3_lrna = asset_state_3.hub_reserve;
+				let asset_4_lrna = asset_state_4.hub_reserve;
 
-			//Act
-			assert_ok!(OmnipoolSubpools::create_subpool(
-				Origin::root(),
-				SHARE_ASSET_AS_POOL_ID,
-				ASSET_3,
-				ASSET_4,
-				Permill::from_percent(10),
-				100u16,
-				Permill::from_percent(0),
-				Permill::from_percent(0),
-			));
+				let asset_3_reserve = asset_state_3.reserve;
+				let asset_4_reserve = asset_state_4.reserve;
 
-			//Assert
-			let stableswap_pool_share_asset = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
-			let share_asset_lrna = stableswap_pool_share_asset.hub_reserve;
 
-			assert_eq!(asset_3_lrna + asset_4_lrna, share_asset_lrna)
+				let omnipool_lrna_balance_before = get_lrna_of_omnipool_protocol_account();
 
-			//let migrate_asset = OmnipoolSubpools::migrated_assets(token_1.asset_id);
+				//Act
+				assert_ok!(OmnipoolSubpools::create_subpool(
+					Origin::root(),
+					SHARE_ASSET_AS_POOL_ID,
+					ASSET_3,
+					ASSET_4,
+					Permill::from_percent(10),
+					100u16,
+					Permill::from_percent(0),
+					Permill::from_percent(0),
+				));
 
-		});
+				//Assert
+				let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+
+				//Check that the lrna has been migrated
+				let stableswap_pool_share_asset = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+				let share_asset_lrna = stableswap_pool_share_asset.hub_reserve;
+				assert_eq!(asset_3_lrna + asset_4_lrna, share_asset_lrna);
+
+				//Check that the full amount of lrna has not been changed
+				let omnipool_lrna_balance_after = get_lrna_of_omnipool_protocol_account();
+				assert_eq!(omnipool_lrna_balance_before, omnipool_lrna_balance_after);
+
+				//Check that we transfer the right reserve from omnipool to subpool
+				assert_balance!(pool_account, ASSET_3, asset_3_reserve);
+				assert_balance!(pool_account, ASSET_4, asset_4_reserve);
+
+				//Spec: https://www.notion.so/Create-new-stableswap-subpool-from-two-assets-in-the-Omnipool-permissioned-20028c583ac64c55aee8443a23a096b9#f1da37ba2acb4c8a8f40cdbae5751cc0
+				assert_eq!(stableswap_pool_share_asset.shares, stableswap_pool_share_asset.reserve);
+				assert_eq!(stableswap_pool_share_asset.shares, asset_3_lrna + asset_4_lrna);
+
+				//Spec: https://www.notion.so/Create-new-stableswap-subpool-from-two-assets-in-the-Omnipool-permissioned-20028c583ac64c55aee8443a23a096b9#9e1438cd504040e38e25269ea9fca1b4
+				let left_expression = stableswap_pool_share_asset.hub_reserve * stableswap_pool_share_asset.protocol_shares / stableswap_pool_share_asset.shares;
+				let right_expression_for_asset3 = asset_state_3.hub_reserve * asset_state_3.protocol_shares / asset_state_3.shares;
+				let right_expression_for_asset4 = asset_state_3.hub_reserve * asset_state_3.protocol_shares / asset_state_3.shares;
+				assert_eq!(left_expression, right_expression_for_asset3 + right_expression_for_asset4);
+			});
 	}
 }
 
-//Create subpools
-//1
-//- after the pool is crete,d all the lrna is correctly migrated. the two assets is migrated and we get share assets. the share asset lrna
-//asset a has 100lrna, asset b has 200lrna, Checking the sum for separate
-
-//2
-// the amount of lrna in omnipool should not change
-
-//3
-// Migrating means we transfer reerver from omnipool to stableswap account
-
-//4
-//the share asset amount should have lrna and shares. THe reserve is equal to the shares is equal to share asset. It should be equal to amount of LRNA
-//make sure that we mint  the correct amount of the share asset. it must be in the omnipool account.
-
-//5
-//STATE OF SHARE ASSET -
-
-//LRNA * protocol shares / shares = SUMMA same for each asset migrated
+fn get_lrna_of_omnipool_protocol_account() -> Balance {
+	Tokens::free_balance(LRNA, &Omnipool::protocol_account())
+}
