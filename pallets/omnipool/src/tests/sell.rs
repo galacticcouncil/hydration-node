@@ -763,15 +763,13 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap();
+			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
 
-			let sell_amount_to_exceed_limit = sell_amount + ONE;
-
 			assert_noop!(
-				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount_to_exceed_limit, min_limit),
+				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
 				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
 			);
 		});
@@ -850,6 +848,7 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 fn sell_hub_asset_should_work_when_trade_volume_limit_not_exceeded(diff_from_net_limit: Balance) {
 	// Arrange
 	let initial_liquidity = 10_000 * ONE;
+	let aca_price = FixedU128::from_float(0.65);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -863,15 +862,15 @@ fn sell_hub_asset_should_work_when_trade_volume_limit_not_exceeded(diff_from_net
 		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
-		.with_token(ACA, FixedU128::from_float(0.65), LP1, 200 * initial_liquidity)
+		.with_token(ACA, aca_price, LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
 
-			let lrna_balance_in_omnipool = Omnipool::get_hub_asset_balance_of_protocol_account();
 			let sell_amount =
-				CircuitBreaker::calculate_limit(lrna_balance_in_omnipool, TEN_PERCENT).unwrap() - diff_from_net_limit;
+				CircuitBreaker::calculate_limit(aca_price.checked_mul_int(initial_liquidity).unwrap(), TEN_PERCENT)
+					.unwrap() - diff_from_net_limit;
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(
@@ -922,6 +921,7 @@ fn sell_hub_asset_should_fail_when_trade_volume_max_limit_exceeded() {
 fn sell_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 	// Arrange
 	let initial_liquidity = 10_000 * ONE;
+	let aca_price = FixedU128::from_float(0.65);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -935,14 +935,15 @@ fn sell_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_max_lim
 		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
-		.with_token(ACA, FixedU128::from_float(1.65), LP1, initial_liquidity)
+		.with_token(ACA, aca_price, LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
 
-			let lrna_balance_in_omnipool = Omnipool::get_hub_asset_balance_of_protocol_account();
-			let sell_amount = CircuitBreaker::calculate_limit(lrna_balance_in_omnipool, FIVE_PERCENT).unwrap();
+			let sell_amount =
+				CircuitBreaker::calculate_limit(aca_price.checked_mul_int(initial_liquidity).unwrap(), FIVE_PERCENT)
+					.unwrap() + ONE;
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(
@@ -953,16 +954,8 @@ fn sell_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_max_lim
 				min_limit
 			));
 
-			let sell_amount_to_exceed_limit = sell_amount + ONE;
-
 			assert_noop!(
-				Omnipool::sell(
-					Origin::signed(TRADER),
-					LRNA,
-					ACA,
-					sell_amount_to_exceed_limit,
-					min_limit
-				),
+				Omnipool::sell(Origin::signed(TRADER), LRNA, ACA, sell_amount, min_limit),
 				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
 			);
 		});
@@ -972,6 +965,7 @@ fn sell_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_max_lim
 fn sell_hub_asset_should_fail_when_trade_volume_min_limit_exceeded() {
 	// Arrange
 	let initial_liquidity = 10_000 * ONE;
+	let aca_price = FixedU128::from_float(0.5);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -980,17 +974,23 @@ fn sell_hub_asset_should_fail_when_trade_volume_min_limit_exceeded() {
 			(LP1, DOT, 2_000_000 * ONE),
 			(LP1, ACA, 2_000_000 * ONE),
 			(TRADER, LRNA, 2_000_000 * ONE),
+			(TRADER, DOT, 2_000_000 * ONE),
 		])
 		.with_registered_asset(DOT)
 		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
-		.with_token(ACA, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, aca_price, LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = 1_000 * ONE;
+			let sell_amount =
+				CircuitBreaker::calculate_limit(aca_price.checked_mul_int(initial_liquidity).unwrap(), TEN_PERCENT)
+					.unwrap();
+
+			// we can't reach MinTradeVolumePerBlockReached from swapping LRNA<->ACA because their ratio is 1:1. We need to get some ACA from the pool first.
+			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
 
 			// Act & Assert
 			//Amount out would be 1333_333_333_333_333 in case of successful trade, but it fails as more than 10% of initial_aca_amount
@@ -1005,6 +1005,7 @@ fn sell_hub_asset_should_fail_when_trade_volume_min_limit_exceeded() {
 fn sell_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 	// Arrange
 	let initial_liquidity = 10_000 * ONE;
+	let aca_price = FixedU128::from_float(0.65);
 
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -1013,17 +1014,23 @@ fn sell_hub_asset_should_fail_when_consequent_trades_exceed_trade_volume_min_lim
 			(LP1, DOT, 2_000_000 * ONE),
 			(LP1, ACA, 2_000_000 * ONE),
 			(TRADER, LRNA, 2_000_000 * ONE),
+			(TRADER, DOT, 2_000_000 * ONE),
 		])
 		.with_registered_asset(DOT)
 		.with_registered_asset(ACA)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(DOT, FixedU128::from_float(0.65), LP1, initial_liquidity)
-		.with_token(ACA, FixedU128::from_float(0.65), LP1, initial_liquidity)
+		.with_token(ACA, aca_price, LP1, initial_liquidity)
 		.with_max_trade_volume_limit_per_block(TEN_PERCENT)
 		.build()
 		.execute_with(|| {
 			let min_limit = 10 * ONE;
-			let sell_amount = 500 * ONE;
+			let sell_amount =
+				CircuitBreaker::calculate_limit(aca_price.checked_mul_int(initial_liquidity).unwrap(), FIVE_PERCENT)
+					.unwrap();
+
+			// we can't reach MinTradeVolumePerBlockReached from swapping LRNA<->ACA because their ratio is 1:1. We need to get some ACA from the pool first.
+			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(
