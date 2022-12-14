@@ -13,38 +13,6 @@ const OMNIPOOL_INITIAL_ASSET_3_BALANCE: Balance = 3000 * ONE;
 const OMNIPOOL_INITIAL_ASSET_4_BALANCE: Balance = 4000 * ONE;
 const OMNIPOOL_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
 
-pub const ONE: Balance = 1_000_000_000_000;
-pub const TOLERANCE: Balance = 1_000; // * 1_000 * 1_000;
-
-const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
-
-fn asset_reserve() -> impl Strategy<Value = Balance> {
-	BALANCE_RANGE.0..BALANCE_RANGE.1
-}
-
-fn trade_amount() -> impl Strategy<Value = Balance> {
-	1000..5000 * ONE
-}
-
-fn price() -> impl Strategy<Value = FixedU128> {
-	(0.1f64..2f64).prop_map(FixedU128::from_float)
-}
-
-fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
-	(asset_reserve(), price()).prop_map(move |(reserve, price)| PoolToken {
-		asset_id,
-		amount: reserve,
-		price,
-	})
-}
-
-#[derive(Debug)]
-struct PoolToken {
-	asset_id: AssetId,
-	amount: Balance,
-	price: FixedU128,
-}
-
 proptest! {
 	//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#697fb7cb7bb8464cafcab36089cf18e1
 	#![proptest_config(ProptestConfig::with_cases(100))]
