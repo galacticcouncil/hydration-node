@@ -8,11 +8,11 @@ mod remove_liquidity;
 mod sell;
 use mock::*;
 mod buy_invariants;
+mod convert_omnipool_positions_invariants;
 mod create_subpool_invariants;
 mod migrate_asset_invariants;
 mod sell_invariants;
 mod verification;
-
 use frame_support::{assert_err, assert_noop, assert_ok};
 use sp_runtime::{FixedU128, Permill};
 
@@ -119,3 +119,58 @@ struct PoolToken {
 // Trades with subpool - ensure withdraw fee is applied
 
 //Prop tests
+/*
+Convert omnipool asset
+
+create subpool with 2 assets, then create random positions (the amount of this position should be less than the pool) of one of this asset (generate with strategy), then convert the position (migration details is done when created the pool)
+2), beta new position, alpha previous
+take shares new position * shares in the migration details of the migrated asset  = old position share * share_tokens in the details
+1)
+pAlpha is the old price
+
+Use FixedU128::fromrational (as iti s a tuple), Take the new price, and the price in the position details
+
+((dont do this It should be approx equal
+
+take the rational numbers, conver them to u256
+
+each price is represented as (x,y)
+
+x/y *x1/y1 = x2/y2
+so (x * x1 /) (y * y1) = x2/y2
+
+x*x1 = x2
+y*y2 = y2 )))
+
+TRADE BETWEEN STABLESWAP - HAVE STRATEGY WITH FEE INCLUDING ZERO - ENSURE IF THE BOUNDARIES ARE ALSO INCLUDED SO WE DONT NEED SPECIAL CASE FOR FEELESS
+======
+1,2 is fine
+3, Us is the share asset reserve | D is parameter of the stableswap, for this I need to call for calculating d (in stableswap math), the subbool details is needed, check omnipool subpools how it is used
+DeltaUs is diff between which was removed from the pool, the amount of burn in the share - take the share asset of omnipool before and after and the diff is DeltaUS
+fw - asset fee
+fp - protocol fee
+DeltaD - calculate D before the buy and after the buy
+L - imbalance
+
+
+PART DQG + DL + DQs = DQi
+TO make sure that we remove the correct LRNA
+ - delta LRNA of share asset (DeltaQH) + delta imbalance +  DeltaAssetWeAreBuying
+
+the delta of the asset we are sharing is equal to share asset delta which is put to the pool
+
+DQi - hub reserve beofre and after of the asset I am selling, and that will be DQi
+
+SPOT PRICE - ASK COLIN - TODO
+
+stablesawp equation - we need to use prop tests for stable swap - stablesawp invariants tests line 90 - calculate D
+look at omnipool stableswap pallet buy sell - invariants  line 162, calculated d and check the difference
+
+
+TRADE BETWEEN 2 DIFFERENT SUBPOOL
+====
+SAME
+
+ADD LIQUIDTY
+===
+*/
