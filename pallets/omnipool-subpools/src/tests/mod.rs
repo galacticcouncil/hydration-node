@@ -9,6 +9,7 @@ mod sell;
 use mock::*;
 mod buy_invariants;
 mod create_subpool_invariants;
+mod migrate_asset_invariants;
 mod sell_invariants;
 mod verification;
 
