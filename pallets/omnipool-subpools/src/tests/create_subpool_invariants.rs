@@ -98,6 +98,8 @@ proptest! {
 				assert_eq!(omnipool_lrna_balance_before, omnipool_lrna_balance_after);
 
 				//Check that we transfer the right reserve from omnipool to subpool
+				assert_balance!(Omnipool::protocol_account(), ASSET_3, 0);
+				assert_balance!(Omnipool::protocol_account(), ASSET_4, 0);
 				assert_balance!(pool_account, ASSET_3, asset_3_reserve);
 				assert_balance!(pool_account, ASSET_4, asset_4_reserve);
 
