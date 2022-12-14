@@ -24,6 +24,14 @@ fn price() -> impl Strategy<Value = FixedU128> {
 	(0.1f64..2f64).prop_map(FixedU128::from_float)
 }
 
+fn percent() -> impl Strategy<Value = Permill> {
+	(1..100u32).prop_map(Permill::from_percent)
+}
+
+fn amplification() -> impl Strategy<Value = u16> {
+	(2..10_000u16)
+}
+
 fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
 	(asset_reserve(), price()).prop_map(move |(reserve, price)| PoolToken {
 		asset_id,
@@ -46,6 +54,10 @@ proptest! {
 	fn sell_lrna_for_stableswap_asset(
 		token_1 in pool_token(ASSET_3),
 		token_2 in pool_token(ASSET_4),
+		amplification in amplification(),
+		share_asset_weight_cap in percent(),
+		trade_fee in percent(),
+		withdraw_fee in percent()
 	) {
 		ExtBuilder::default()
 			.with_registered_asset(ASSET_3)
@@ -70,7 +82,6 @@ proptest! {
 				let asset_3_reserve = asset_state_3.reserve;
 				let asset_4_reserve = asset_state_4.reserve;
 
-
 				let omnipool_lrna_balance_before = get_lrna_of_omnipool_protocol_account();
 
 				//Act
@@ -79,10 +90,10 @@ proptest! {
 					SHARE_ASSET_AS_POOL_ID,
 					ASSET_3,
 					ASSET_4,
-					Permill::from_percent(10),
-					100u16,
-					Permill::from_percent(0),
-					Permill::from_percent(0),
+					share_asset_weight_cap,
+					amplification,
+					trade_fee,
+					withdraw_fee,
 				));
 
 				//Assert
