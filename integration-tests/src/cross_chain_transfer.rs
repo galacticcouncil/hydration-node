@@ -107,7 +107,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 		//Assert
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(ALICE)),
-			ALICE_INITIAL_ASSET_1_BALANCE - 3 * UNITS
+			200 * UNITS - 3 * UNITS
 		);
 	});
 

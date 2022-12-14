@@ -352,11 +352,7 @@ fn ensure_liquidity_limit_should_work_when_liquidity_is_within_limit() {
 fn ensure_liquidity_limit_should_not_throw_error_when_turned_off() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::set_liquidity_limit(
-			Origin::root(),
-			HDX,
-			None,
-		));
+		assert_ok!(CircuitBreaker::set_liquidity_limit(Origin::root(), HDX, None,));
 
 		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limit(
 			HDX,
@@ -388,15 +384,12 @@ fn ensure_liquidity_limit_should_not_throw_error_when_turned_off_after_storing_l
 			INITIAL_LIQUIDITY
 		));
 
-		assert_noop!(CircuitBreaker::ensure_liquidity_limit(HDX, 1_000_000),
+		assert_noop!(
+			CircuitBreaker::ensure_liquidity_limit(HDX, 1_000_000),
 			Error::<Test>::MaxLiquidityLimitPerBlockReached
 		);
 
-		assert_ok!(CircuitBreaker::set_liquidity_limit(
-			Origin::root(),
-			HDX,
-			None,
-		));
+		assert_ok!(CircuitBreaker::set_liquidity_limit(Origin::root(), HDX, None,));
 
 		// the struct is in the storage, but is ignored
 		assert!(CircuitBreaker::allowed_liquidity_limit_per_asset(HDX).is_some());
