@@ -52,29 +52,29 @@ proptest! {
 	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
 	fn sell_lrna_for_stableswap_asset(
-		token_1 in pool_token(ASSET_3),
-		token_2 in pool_token(ASSET_4),
+		asset_3 in pool_token(ASSET_3),
+		asset_4 in pool_token(ASSET_4),
 		amplification in amplification(),
 		share_asset_weight_cap in percent(),
 		trade_fee in percent(),
 		withdraw_fee in percent()
 	) {
 		ExtBuilder::default()
-			.with_registered_asset(ASSET_3)
-			.with_registered_asset(ASSET_4)
+			.with_registered_asset(asset_3.asset_id)
+			.with_registered_asset(asset_4.asset_id)
 			.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
-			.add_endowed_accounts((LP1, token_1.asset_id, token_1.amount))
-			.add_endowed_accounts((LP1, token_2.asset_id, token_2.amount))
-			.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, token_1.amount))
-			.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, token_2.amount))
+			.add_endowed_accounts((LP1, asset_3.asset_id, asset_3.amount))
+			.add_endowed_accounts((LP1, asset_4.asset_id, asset_4.amount))
+			.add_endowed_accounts((Omnipool::protocol_account(), asset_3.asset_id, asset_3.amount))
+			.add_endowed_accounts((Omnipool::protocol_account(), asset_4.asset_id, asset_4.amount))
 			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::root(), token_1.asset_id, token_1.price,Permill::from_percent(100),LP1));
-				assert_ok!(Omnipool::add_token(Origin::root(), token_2.asset_id, token_2.price,Permill::from_percent(100),LP1));
+				assert_ok!(Omnipool::add_token(Origin::root(), asset_3.asset_id, asset_3.price,Permill::from_percent(100),LP1));
+				assert_ok!(Omnipool::add_token(Origin::root(), asset_4.asset_id, asset_4.price,Permill::from_percent(100),LP1));
 
-				let asset_state_3 = Omnipool::load_asset_state(ASSET_3).unwrap();
-				let asset_state_4 = Omnipool::load_asset_state(ASSET_4).unwrap();
+				let asset_state_3 = Omnipool::load_asset_state(asset_3.asset_id).unwrap();
+				let asset_state_4 = Omnipool::load_asset_state(asset_4.asset_id).unwrap();
 
 				let asset_3_lrna = asset_state_3.hub_reserve;
 				let asset_4_lrna = asset_state_4.hub_reserve;
@@ -88,8 +88,8 @@ proptest! {
 				assert_ok!(OmnipoolSubpools::create_subpool(
 					Origin::root(),
 					SHARE_ASSET_AS_POOL_ID,
-					ASSET_3,
-					ASSET_4,
+					asset_3.asset_id,
+					asset_4.asset_id,
 					share_asset_weight_cap,
 					amplification,
 					trade_fee,
@@ -97,7 +97,7 @@ proptest! {
 				));
 
 				//Assert
-				let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
+				let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
 
 				//Check that the lrna has been migrated
 				let stableswap_pool_share_asset = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
@@ -109,10 +109,10 @@ proptest! {
 				assert_eq!(omnipool_lrna_balance_before, omnipool_lrna_balance_after);
 
 				//Check that we transfer the right reserve from omnipool to subpool
-				assert_balance!(Omnipool::protocol_account(), ASSET_3, 0);
-				assert_balance!(Omnipool::protocol_account(), ASSET_4, 0);
-				assert_balance!(pool_account, ASSET_3, asset_3_reserve);
-				assert_balance!(pool_account, ASSET_4, asset_4_reserve);
+				assert_balance!(Omnipool::protocol_account(), asset_3.asset_id, 0);
+				assert_balance!(Omnipool::protocol_account(), asset_4.asset_id, 0);
+				assert_balance!(pool_account, asset_3.asset_id, asset_3_reserve);
+				assert_balance!(pool_account, asset_4.asset_id, asset_4_reserve);
 
 				//Spec: https://www.notion.so/Create-new-stableswap-subpool-from-two-assets-in-the-Omnipool-permissioned-20028c583ac64c55aee8443a23a096b9#f1da37ba2acb4c8a8f40cdbae5751cc0
 				assert_eq!(stableswap_pool_share_asset.shares, stableswap_pool_share_asset.reserve);
