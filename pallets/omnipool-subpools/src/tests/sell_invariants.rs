@@ -111,7 +111,7 @@ proptest! {
 
 			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#7206aa9e6b2944fe91f5eb79534149f1
 			let delta_lrna_of_share_asset = share_asset_state_before_sell.hub_reserve -share_asset_state_after_sell.hub_reserve;
-			let deltaQH =  protocol_fee.mul(delta_lrna_of_share_asset);
+			let deltaQH =  protocol_fee.mul_floor(delta_lrna_of_share_asset);
 			let delta_lrna_of_omnipool_asset = asset_5_state_after_sell.hub_reserve - asset_5_state_before_sell.hub_reserve;
 
 			//TODO: ask Martin
