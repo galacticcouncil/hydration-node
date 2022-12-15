@@ -340,6 +340,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
+		self.asset_fee = fee;
+		self
+	}
+
 	/*
 	pub fn with_token(
 		mut self,
