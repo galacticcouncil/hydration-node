@@ -38,7 +38,7 @@ fn price() -> impl Strategy<Value = FixedU128> {
 }
 
 fn percent() -> impl Strategy<Value = Permill> {
-	(1..100u32).prop_map(Permill::from_percent)
+	(0..10u32).prop_map(Permill::from_percent)
 }
 
 fn amplification() -> impl Strategy<Value = u16> {

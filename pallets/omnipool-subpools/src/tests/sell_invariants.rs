@@ -137,8 +137,8 @@ proptest! {
 		amplification in amplification(),
 		trade_fee in percent(),
 		withdraw_fee in percent(),
+		protocol_fee in percent(),
 	) {
-		let protocol_fee = Permill::from_percent(0);
 		ExtBuilder::default()
 			.with_registered_asset(asset_3.asset_id)
 			.with_registered_asset(asset_4.asset_id)
