@@ -18,7 +18,7 @@ proptest! {
 		balance in asset_reserve(),
 
 	) {
-		ExtBuilder::default()
+			ExtBuilder::default()
 			.with_registered_asset(asset_3.asset_id)
 			.with_registered_asset(asset_4.asset_id)
 			.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
@@ -29,41 +29,63 @@ proptest! {
 			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 			.build()
 			.execute_with(|| {
-				assert_ok!(Omnipool::add_token(Origin::root(), asset_3.asset_id, asset_3.price,Permill::from_percent(100),LP1));
-				assert_ok!(Omnipool::add_token(Origin::root(), asset_4.asset_id, asset_4.price,Permill::from_percent(100),LP1));
+				assert_ok!(Omnipool::add_token(
+					Origin::root(),
+					asset_3.asset_id,
+					asset_3.price,
+					Permill::from_percent(100),
+					LP1
+				));
+				assert_ok!(Omnipool::add_token(
+					Origin::root(),
+					asset_4.asset_id,
+					asset_4.price,
+					Permill::from_percent(100),
+					LP1
+				));
+				let asset_3_state = Omnipool::load_asset_state(ASSET_3).unwrap();
 				create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
-			   let share_asset_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+				let share_asset_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
-			   let position = Position {
+				let position = Position {
 					asset_id: asset_3.asset_id,
-					amount: asset_3.amount - 50_000 * ONE,
-					price: (share_asset_state.hub_reserve, share_asset_state.reserve),
-					shares: asset_3.amount - 50_000 * ONE,
+					amount: asset_3_state.reserve,
+					price: (asset_3_state.hub_reserve, asset_3_state.reserve),
+					shares: asset_3_state.shares,
 				};
 
-			   let migration_details_for_asset_3 = OmnipoolSubpools::migrated_assets(asset_3.asset_id).unwrap().1;
+				let migration_details_for_asset_3 = OmnipoolSubpools::migrated_assets(asset_3.asset_id).unwrap().1;
 
 				//Act
-			   let converted_position = OmnipoolSubpools::convert_position(SHARE_ASSET_AS_POOL_ID, migration_details_for_asset_3, position.clone()).unwrap();
+				let converted_position = OmnipoolSubpools::convert_position(
+					SHARE_ASSET_AS_POOL_ID,
+					migration_details_for_asset_3.clone(),
+					position.clone(),
+				)
+				.unwrap();
 
-			   //Assert
-			   //spec https://www.notion.so/Convert-Omnipool-position-to-Stableswap-Subpool-position-b18dabaa55bf433fa96f4ebf67cecec4#0430800adf0044db903372135a9ee6ba
-			   let migration_details_for_asset_3 = OmnipoolSubpools::migrated_assets(asset_3.asset_id).unwrap().1;
+				assert_eq!(
+					converted_position.shares * migration_details_for_asset_3.shares,
+					position.shares * migration_details_for_asset_3.hub_reserve
+				);
 
-				//TODO: uncomment it and check with Martin
-				//assert_eq!(converted_position.shares * migration_details_for_asset_3.shares, position.shares * migration_details_for_asset_3.share_tokens);
+				let new_price = FixedU128::from_rational(converted_position.price.0, converted_position.price.1);
+				let price_from_migration_details = FixedU128::from_rational(
+					migration_details_for_asset_3.price.0,
+					migration_details_for_asset_3.price.1,
+				);
+				let old_price = FixedU128::from_rational(position.price.0, position.price.1);
 
-				let new_price = FixedU128::from_rational(converted_position.price.0,converted_position.price.1);
-				let price_from_migration_details = FixedU128::from_rational(migration_details_for_asset_3.price.0,migration_details_for_asset_3.price.1);
-				let old_price = FixedU128::from_rational(position.price.0,position.price.1);
-
-				//TODO: uncomment it and check with Martin because we used Fixed which might be not precies enough
-				//assert_eq!(new_price * price_from_migration_details, old_price);
+				assert_eq!(new_price * price_from_migration_details, old_price);
 			});
 	}
 }
 
 fn get_lrna_of_omnipool_protocol_account() -> Balance {
 	Tokens::free_balance(LRNA, &Omnipool::protocol_account())
+}
+
+fn f() {
+
 }
