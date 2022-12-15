@@ -137,8 +137,8 @@ proptest! {
 		amplification in amplification(),
 		trade_fee in percent(),
 		withdraw_fee in percent(),
-		protocol_fee in percent()
 	) {
+		let protocol_fee = Permill::from_percent(0);
 		ExtBuilder::default()
 			.with_registered_asset(asset_3.asset_id)
 			.with_registered_asset(asset_4.asset_id)
@@ -150,6 +150,7 @@ proptest! {
 			.add_endowed_accounts((Omnipool::protocol_account(), asset_5.asset_id, asset_5.amount))
 			.add_endowed_accounts((ALICE, ASSET_5, sell_amount))
 			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+			.with_protocol_fee(protocol_fee)
 			.build()
 			.execute_with(|| {
 				add_omnipool_token!(asset_3.asset_id);
@@ -220,7 +221,8 @@ proptest! {
 				let delta_lrna_of_share_asset = share_asset_state_after_sell.hub_reserve - share_asset_state_before_sell.hub_reserve;
 				let delta_q_h =  protocol_fee.mul_floor(delta_lrna_of_share_asset);
 				let delta_lrna_of_omnipool_asset = asset_5_state_before_sell.hub_reserve - asset_5_state_after_sell.hub_reserve;
-				assert_eq!(delta_q_h + delta_lrna_of_omnipool_asset, delta_lrna_of_share_asset);
+
+				assert_eq!(delta_lrna_of_omnipool_asset - delta_q_h, delta_lrna_of_share_asset);
 
 				});
 	}
