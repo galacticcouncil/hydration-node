@@ -11,7 +11,7 @@ proptest! {
 	//Spec: https://www.notion.so/Create-new-stableswap-subpool-from-two-assets-in-the-Omnipool-permissioned-20028c583ac64c55aee8443a23a096b9#5a361cb3ed434788a035fe3cfc48e170
 	#![proptest_config(ProptestConfig::with_cases(100))]
 	#[test]
-	fn sell_lrna_for_stableswap_asset(
+	fn create_subpool_invariants(
 		asset_3 in pool_token(ASSET_3),
 		asset_4 in pool_token(ASSET_4),
 		amplification in amplification(),
