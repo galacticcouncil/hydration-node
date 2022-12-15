@@ -118,6 +118,10 @@ pub mod pallet {
 				trade_fee,
 				withdraw_fee,
 			)?;
+
+			StableswapPallet::<T>::set_asset_tradability_state(pool_id, asset_a, asset_state_a.tradable);
+			StableswapPallet::<T>::set_asset_tradability_state(pool_id, asset_b, asset_state_b.tradable);
+
 			let omnipool_account = OmnipoolPallet::<T>::protocol_account();
 
 			// Move liquidity from omnipool account to subpool
@@ -231,6 +235,7 @@ pub mod pallet {
 					amount: asset_state.reserve,
 				}],
 			)?;
+			StableswapPallet::<T>::set_asset_tradability_state(pool_id, asset_id, asset_state.tradable);
 			OmnipoolPallet::<T>::remove_asset(asset_id)?;
 
 			let share_issuance = CurrencyOf::<T>::total_issuance(pool_id.into());

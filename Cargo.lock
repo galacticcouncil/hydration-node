@@ -6424,6 +6424,7 @@ dependencies = [
 name = "pallet-stableswap"
 version = "2.0.0"
 dependencies = [
+ "bitflags",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

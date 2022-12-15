@@ -27,7 +27,7 @@
 //!
 //! Maximum number of assets in pool is 5.
 //!
-//! A pool can be created only by allowed `PoolMasterOrigin`.
+//! A pool can be created only by allowed `AuthorityOrigin`.
 //!
 //! First LP to provided liquidity must add initial liquidity of all pool assets. Subsequent calls to add_liquidity, LP can provide only 1 asset.
 //!
@@ -57,7 +57,7 @@ pub mod weights;
 
 pub use trade_execution::*;
 
-use crate::types::{AssetLiquidity, Balance, PoolInfo};
+use crate::types::{AssetLiquidity, Balance, PoolInfo, Tradability};
 use orml_traits::MultiCurrency;
 use sp_std::collections::btree_map::BTreeMap;
 use weights::WeightInfo;
@@ -118,7 +118,7 @@ pub mod pallet {
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
 		/// The origin which can create a new pool
-		type PoolMasterOrigin: EnsureOrigin<Self::Origin>;
+		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Minimum pool liquidity
 		#[pallet::constant]
@@ -140,6 +140,12 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn pools)]
 	pub type Pools<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, PoolInfo<T::AssetId>>;
+
+	/// Tradability state of pool assets.
+	#[pallet::storage]
+	#[pallet::getter(fn asset_tradability)]
+	pub type AssetTradability<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, T::AssetId, Blake2_128Concat, T::AssetId, Tradability, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -194,6 +200,13 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 			fee: Balance,
+		},
+
+		/// Aseet's tradable state has been updated.
+		TradableStateUpdated {
+			pool_id: T::AssetId,
+			asset_id: T::AssetId,
+			state: Tradability,
 		},
 	}
 
@@ -265,6 +278,9 @@ pub mod pallet {
 
 		/// No pool parameters to update are provided.
 		NothingToUpdate,
+
+		/// Not allowed to perform an operation on given asset.
+		NotAllowed,
 	}
 
 	#[pallet::call]
@@ -276,7 +292,7 @@ pub mod pallet {
 		/// initial liquidity.
 		///
 		/// Parameters:
-		/// - `origin`: Must be T::PoolMasterOrigin
+		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `assets`: List of Asset ids
 		/// - `amplification`: Pool amplification
 		/// - `trade_fee`: trade fee to be applied in sell/buy trades
@@ -293,7 +309,7 @@ pub mod pallet {
 			trade_fee: Permill,
 			withdraw_fee: Permill,
 		) -> DispatchResult {
-			T::PoolMasterOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			let pool_id = Self::do_create_pool(share_asset, &assets, amplification, trade_fee, withdraw_fee)?;
 
@@ -317,7 +333,7 @@ pub mod pallet {
 		/// if pool does not exist, `PoolNotFound` is returned.
 		///
 		/// Parameters:
-		/// - `origin`: Must be T::PoolMasterOrigin
+		/// - `origin`: Must be T::AuthorityOrigin
 		/// - `pool_id`: pool to update
 		/// - `amplification`: new pool amplification or None
 		/// - `trade_fee`: new trade fee or None
@@ -333,7 +349,7 @@ pub mod pallet {
 			trade_fee: Option<Permill>,
 			withdraw_fee: Option<Permill>,
 		) -> DispatchResult {
-			T::PoolMasterOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(
 				amplification.is_some() || trade_fee.is_some() || withdraw_fee.is_some(),
@@ -422,6 +438,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(
+				Self::is_asset_allowed(pool_id, asset_id, Tradability::REMOVE_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+
 			ensure!(share_amount > Balance::zero(), Error::<T>::InvalidAssetAmount);
 
 			let current_share_balance = T::Currency::free_balance(pool_id, &who);
@@ -496,6 +517,12 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
+				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
+					&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
+				Error::<T>::NotAllowed
+			);
+
+			ensure!(
 				amount_in >= T::MinTradingLimit::get(),
 				Error::<T>::InsufficientTradingAmount
 			);
@@ -553,6 +580,12 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(
+				Self::is_asset_allowed(pool_id, asset_in, Tradability::SELL)
+					&& Self::is_asset_allowed(pool_id, asset_out, Tradability::BUY),
+				Error::<T>::NotAllowed
+			);
+
+			ensure!(
 				amount_out >= T::MinTradingLimit::get(),
 				Error::<T>::InsufficientTradingAmount
 			);
@@ -580,6 +613,27 @@ pub mod pallet {
 				amount_in,
 				amount_out,
 				fee: fee_amount,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
+		#[transactional]
+		pub fn set_asset_tradable_state(
+			origin: OriginFor<T>,
+			pool_id: T::AssetId,
+			asset_id: T::AssetId,
+			state: Tradability,
+		) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+
+			Self::set_asset_tradability_state(pool_id, asset_id, state);
+
+			Self::deposit_event(Event::TradableStateUpdated {
+				pool_id,
+				asset_id,
+				state,
 			});
 
 			Ok(())
@@ -760,6 +814,10 @@ impl<T: Config> Pallet<T> {
 		let mut added_assets = BTreeMap::<T::AssetId, Balance>::new();
 		for asset in assets.iter() {
 			ensure!(
+				Self::is_asset_allowed(pool_id, asset.asset_id, Tradability::ADD_LIQUIDITY),
+				Error::<T>::NotAllowed
+			);
+			ensure!(
 				asset.amount >= T::MinTradingLimit::get(),
 				Error::<T>::InsufficientTradingAmount
 			);
@@ -799,5 +857,15 @@ impl<T: Config> Pallet<T> {
 		Self::move_liquidity_to_pool(who, pool_id, assets)?;
 
 		Ok(share_amount)
+	}
+
+	pub fn set_asset_tradability_state(pool_id: T::AssetId, asset_id: T::AssetId, state: Tradability) {
+		AssetTradability::<T>::mutate(&pool_id, &asset_id, |current_state| {
+			*current_state = state;
+		});
+	}
+
+	pub fn is_asset_allowed(pool_id: T::AssetId, asset_id: T::AssetId, operation: Tradability) -> bool {
+		AssetTradability::<T>::get(pool_id, asset_id).contains(operation)
 	}
 }
