@@ -85,7 +85,3 @@ proptest! {
 fn get_lrna_of_omnipool_protocol_account() -> Balance {
 	Tokens::free_balance(LRNA, &Omnipool::protocol_account())
 }
-
-fn f() {
-
-}
