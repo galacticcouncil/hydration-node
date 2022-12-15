@@ -209,15 +209,15 @@ proptest! {
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#f8f0ccafd36541878551e538a44e2725
 				let delta_share_asset_reserve = share_asset_state_before_sell.reserve - share_asset_state_after_sell.reserve;
-				let protocol_fee_complement = Permill::from_percent(100) - protocol_fee;
-				let left = protocol_fee_complement.mul(delta_share_asset_reserve * d_before_sell);
+				let asset_fee_complement = Permill::from_float(1.0) - trade_fee;
+				let left = asset_fee_complement.mul(delta_share_asset_reserve * d_before_sell);
 				let right = share_asset_state_before_sell.reserve * (d_before_sell - d_after_sell);
-				assert!(left < right);
+				assert!(left < right || left == right);
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#e02e09c412634e58b29990c0a8eaf80b
 				assert_that_imbalance_is_zero!();
 
-			   //Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#a9af611bb17e4036b36208d5cf8cbe18
+				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#a9af611bb17e4036b36208d5cf8cbe18
 				let delta_lrna_of_share_asset = share_asset_state_after_sell.hub_reserve - share_asset_state_before_sell.hub_reserve;
 				let delta_q_h =  protocol_fee.mul_floor(delta_lrna_of_share_asset);
 				let delta_lrna_of_omnipool_asset = asset_5_state_before_sell.hub_reserve - asset_5_state_after_sell.hub_reserve;
