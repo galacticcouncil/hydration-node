@@ -31,7 +31,7 @@ proptest! {
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
-		.add_endowed_accounts((ALICE, ASSET_3, sell_amount))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
@@ -41,19 +41,35 @@ proptest! {
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
+			let asset_5_state_before_sell = Omnipool::load_asset_state(ASSET_5).unwrap();
+			let share_asset_state_before_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+
 			//Act
 			let amount_to_sell = 100 * ONE;
 			assert_ok!(OmnipoolSubpools::sell(
 				Origin::signed(ALICE),
 				ASSET_3,
-				ASSET_4,
-				sell_amount,
+				ASSET_5,
+				amount_to_sell,
 				0
 			));
 
 			//Assert
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
+
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#22db4d7d9fbc4d6fbb718221c16e1af0
+			let asset_5_state_after_sell = Omnipool::load_asset_state(ASSET_5).unwrap();
+			let asset_5_reserve_with_hub_before = asset_5_state_before_sell.hub_reserve * asset_5_state_before_sell.reserve;
+			let asset_5_reserve_with_hub_after = asset_5_state_after_sell.hub_reserve * asset_5_state_after_sell.reserve;
+			assert!(asset_5_reserve_with_hub_after > asset_5_reserve_with_hub_before);
+
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#ed334c898a19431caafcba1f395b2d38
+			let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+			let share_reserve_with_hub_before = share_asset_state_before_sell.hub_reserve * share_asset_state_before_sell.reserve;
+			let share_reserve_with_hub_after = share_asset_state_after_sell.hub_reserve * share_asset_state_after_sell.reserve;
+			assert!(share_reserve_with_hub_after > share_reserve_with_hub_before);
+
 
 			//AssetOutLrnaAfter * AssetOutReserveAfter >= same before
 			//AssetInLrnaAfter * AssetInReservAfter >= same before
