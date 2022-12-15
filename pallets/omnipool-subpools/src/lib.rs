@@ -14,7 +14,7 @@ use orml_traits::currency::MultiCurrency;
 use sp_std::prelude::*;
 
 pub use pallet::*;
-use pallet_omnipool::types::Position;
+use pallet_omnipool::types::{Position, Tradability};
 
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type StableswapPallet<T> = pallet_stableswap::Pallet<T>;
@@ -79,6 +79,8 @@ pub mod pallet {
 		NotStableAsset,
 		Math,
 		Limit,
+		/// Not allowed to perform an operation on given asset.
+		NotAllowed,
 	}
 
 	#[pallet::call]
@@ -119,8 +121,16 @@ pub mod pallet {
 				withdraw_fee,
 			)?;
 
-			StableswapPallet::<T>::set_asset_tradability_state(pool_id, asset_a, asset_state_a.tradable);
-			StableswapPallet::<T>::set_asset_tradability_state(pool_id, asset_b, asset_state_b.tradable);
+			StableswapPallet::<T>::set_asset_tradability_state(
+				pool_id,
+				asset_a.into(),
+				Self::to_stableswap_tradable(asset_state_a.tradable),
+			);
+			StableswapPallet::<T>::set_asset_tradability_state(
+				pool_id,
+				asset_b.into(),
+				Self::to_stableswap_tradable(asset_state_b.tradable),
+			);
 
 			let omnipool_account = OmnipoolPallet::<T>::protocol_account();
 
@@ -235,7 +245,11 @@ pub mod pallet {
 					amount: asset_state.reserve,
 				}],
 			)?;
-			StableswapPallet::<T>::set_asset_tradability_state(pool_id, asset_id, asset_state.tradable);
+			StableswapPallet::<T>::set_asset_tradability_state(
+				pool_id,
+				asset_id.into(),
+				Self::to_stableswap_tradable(asset_state.tradable),
+			);
 			OmnipoolPallet::<T>::remove_asset(asset_id)?;
 
 			let share_issuance = CurrencyOf::<T>::total_issuance(pool_id.into());
@@ -664,6 +678,19 @@ where
 		amount_in: Balance,
 		min_limit: Balance,
 	) -> DispatchResult {
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_in,
+				asset_in.into(),
+				pallet_stableswap::types::Tradability::SELL
+			) && StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_out,
+				asset_out.into(),
+				pallet_stableswap::types::Tradability::BUY
+			),
+			Error::<T>::NotAllowed
+		);
+
 		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
 		let subpool_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
 
@@ -761,6 +788,16 @@ where
 
 		let asset_state_out = OmnipoolPallet::<T>::load_asset_state(asset_out)?;
 		let share_state_in = OmnipoolPallet::<T>::load_asset_state(subpool_id_in.into())?;
+
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_in,
+				asset_in.into(),
+				pallet_stableswap::types::Tradability::SELL
+			) && asset_state_out.tradable.contains(Tradability::BUY),
+			Error::<T>::NotAllowed
+		);
+
 		let subpool_state_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
 
 		let share_issuance_in = CurrencyOf::<T>::total_issuance(subpool_id_in.into());
@@ -846,6 +883,16 @@ where
 
 		let asset_state_in = OmnipoolPallet::<T>::load_asset_state(asset_in)?;
 		let share_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
+
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_out,
+				asset_out.into(),
+				pallet_stableswap::types::Tradability::BUY
+			) && asset_state_in.tradable.contains(Tradability::SELL),
+			Error::<T>::NotAllowed
+		);
+
 		let subpool_state_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
 
 		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
@@ -1237,5 +1284,9 @@ where
 		OmnipoolPallet::<T>::update_omnipool_state_given_hub_asset_trade(subpool_id_out.into(), result.isopool)?;
 
 		Ok(())
+	}
+
+	fn to_stableswap_tradable(omnipool_state: Tradability) -> pallet_stableswap::types::Tradability {
+		pallet_stableswap::types::Tradability::from_bits_truncate(omnipool_state.bits())
 	}
 }

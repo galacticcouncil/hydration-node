@@ -236,7 +236,7 @@ impl pallet_stableswap::Config for Test {
 	type Currency = Tokens;
 	type ShareAccountId = AccountIdConstructor;
 	type AssetRegistry = DummyRegistry<AssetId>;
-	type PoolMasterOrigin = EnsureRoot<Self::AccountId>;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type MinPoolLiquidity = MinTradeAmount;
 	type MinTradingLimit = MinTradeAmount;
 	type AmplificationRange = AmplificationRange;
