@@ -5,8 +5,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 
 use orml_traits::currency::MultiCurrency;
-use sp_runtime::FixedU128;
-use sp_runtime::Permill;
+use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
 #[test]
