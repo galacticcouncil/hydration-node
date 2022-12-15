@@ -36,6 +36,15 @@ benchmarks! {
 	verify {
 		assert_eq!(TradeVolumeLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
+
+	set_liquidity_limit {
+		let asset_id = T::AssetId::from(1u32);
+		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
+
+	}: _(RawOrigin::Root, asset_id, trade_limit)
+	verify {
+		assert_eq!(LiquidityLimitPerAsset::<T>::get(asset_id), trade_limit);
+	}
 }
 
 #[cfg(test)]
@@ -49,6 +58,7 @@ mod tests {
 		ExtBuilder::default().build().execute_with(|| {
 			System::set_block_number(1);
 			assert_ok!(Pallet::<Test>::test_benchmark_set_trade_volume_limit());
+			assert_ok!(Pallet::<Test>::test_benchmark_set_liquidity_limit());
 		});
 	}
 }
