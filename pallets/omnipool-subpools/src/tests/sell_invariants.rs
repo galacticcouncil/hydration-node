@@ -39,7 +39,7 @@ proptest! {
 		.add_endowed_accounts((Omnipool::protocol_account(), asset_3.asset_id, asset_3.amount))
 		.add_endowed_accounts((Omnipool::protocol_account(), asset_4.asset_id, asset_4.amount))
 		.add_endowed_accounts((Omnipool::protocol_account(), asset_5.asset_id, asset_5.amount))
-		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, sell_amount))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_protocol_fee(protocol_fee)
 		.build()
@@ -71,12 +71,11 @@ proptest! {
 			assert_that_imbalance_is_zero!();
 
 			//Act
-			let amount_to_sell = 100 * ONE;
 			assert_ok!(OmnipoolSubpools::sell(
 				Origin::signed(ALICE),
 				asset_3.asset_id,
 				asset_5.asset_id,
-				amount_to_sell,
+				sell_amount,
 				0
 			));
 
