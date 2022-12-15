@@ -5,6 +5,7 @@ use frame_benchmarking::Zero;
 use frame_support::assert_noop;
 use primitive_types::U256;
 use proptest::prelude::*;
+use std::ops::Mul;
 use test_utils::assert_balance;
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
@@ -12,6 +13,8 @@ const ALICE_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
 const OMNIPOOL_INITIAL_ASSET_3_BALANCE: Balance = 3000 * ONE;
 const OMNIPOOL_INITIAL_ASSET_4_BALANCE: Balance = 4000 * ONE;
 const OMNIPOOL_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
+use hydra_dx_math::stableswap::calculate_d;
+use pallet_omnipool::types::SimpleImbalance;
 
 proptest! {
 	//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#697fb7cb7bb8464cafcab36089cf18e1
@@ -22,6 +25,8 @@ proptest! {
 		stable_reserve in asset_reserve(),
 		native_reserve in asset_reserve(),
 	) {
+		let protocol_fee = Permill::from_percent(20);
+
 		ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -33,16 +38,35 @@ proptest! {
 		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
 		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_protocol_fee(protocol_fee)
 		.build()
 		.execute_with(|| {
+			let amplicifcation = 10u16;
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 			add_omnipool_token!(ASSET_5);
 
-			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+				assert_ok!(OmnipoolSubpools::create_subpool(
+					Origin::root(),
+					SHARE_ASSET_AS_POOL_ID,
+					ASSET_3,
+					ASSET_4,
+					Permill::from_percent(50),
+					10u16,
+					Permill::from_float(0.0),
+					Permill::from_float(0.0),
+				));
+
+			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 
 			let asset_5_state_before_sell = Omnipool::load_asset_state(ASSET_5).unwrap();
 			let share_asset_state_before_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+
+			let asset_a_reserve = Tokens::free_balance(ASSET_3, &pool_account);
+			let asset_b_reserve = Tokens::free_balance(ASSET_4, &pool_account);
+			let d_before_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplicifcation.into()).unwrap();
+
+			assert_that_imbalance_is_zero!();
 
 			//Act
 			let amount_to_sell = 100 * ONE;
@@ -70,13 +94,33 @@ proptest! {
 			let share_reserve_with_hub_after = share_asset_state_after_sell.hub_reserve * share_asset_state_after_sell.reserve;
 			assert!(share_reserve_with_hub_after > share_reserve_with_hub_before);
 
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#4eaedf4ad7184c90a7dd1ac3f2470cfb
+			let asset_a_reserve = Tokens::free_balance(ASSET_3, &pool_account);
+			let asset_b_reserve = Tokens::free_balance(ASSET_4, &pool_account);
+			let d_after_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplicifcation.into()).unwrap();
+			assert!(share_asset_state_after_sell.reserve * d_before_sell < share_asset_state_before_sell.reserve * d_after_sell);
 
-			//AssetOutLrnaAfter * AssetOutReserveAfter >= same before
-			//AssetInLrnaAfter * AssetInReservAfter >= same before
-			//?
-			//?
-			//AssetInReserveAfter + ? = ?+ + assetInReserveBefore
-			//?
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#40c55e720b8e4f9081ff344f3b7cc5c7
+			let asset_a_reserve = Tokens::free_balance(ASSET_3, &pool_account);
+			let asset_b_reserve = Tokens::free_balance(ASSET_4, &pool_account);
+			let d_after_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplicifcation.into()).unwrap();
+			assert!(share_asset_state_after_sell.reserve * d_before_sell < share_asset_state_before_sell.reserve * d_after_sell);
+
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#5381ad0b29464bd8bd7c8596a6d98861
+			assert_that_imbalance_is_zero!();
+
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#7206aa9e6b2944fe91f5eb79534149f1
+			let delta_lrna_of_share_asset = share_asset_state_before_sell.hub_reserve -share_asset_state_after_sell.hub_reserve;
+			let deltaQH =  protocol_fee.mul(delta_lrna_of_share_asset);
+			let delta_lrna_of_omnipool_asset = asset_5_state_after_sell.hub_reserve - asset_5_state_before_sell.hub_reserve;
+
+			//TODO: ask Martin
+			assert_eq!(deltaQH + delta_lrna_of_omnipool_asset, delta_lrna_of_share_asset);
+
+			//TODO: missing prop assertions, can be added after we get answer from Colin
+			// https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#40c55e720b8e4f9081ff344f3b7cc5c7
+			// https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#feb5cf8ec4ac4e50a7e219620653f3c7
+
 
 			});
 	}

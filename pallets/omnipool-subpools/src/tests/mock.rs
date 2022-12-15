@@ -335,6 +335,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
+		self.protocol_fee = fee;
+		self
+	}
+
 	/*
 	pub fn with_token(
 		mut self,
