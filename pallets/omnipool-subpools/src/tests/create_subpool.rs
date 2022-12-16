@@ -2,6 +2,7 @@ use super::*;
 use crate::types::Balance;
 use crate::*;
 use frame_support::error::BadOrigin;
+use frame_support::log::debug;
 use mock::expect_events;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pallet_stableswap::types::PoolInfo;
@@ -25,6 +26,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 
 			let asset_state_3 = Omnipool::load_asset_state(ASSET_3).unwrap();
 			let asset_state_4 = Omnipool::load_asset_state(ASSET_4).unwrap();
+
 			//Act
 			assert_ok!(OmnipoolSubpools::create_subpool(
 				Origin::root(),
@@ -105,6 +107,59 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 				assets: (ASSET_3, ASSET_4),
 			}
 			.into()]);
+		});
+}
+
+#[test]
+fn create_subpool_should_preserve_tradable_state() {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				ASSET_3,
+				Tradability::SELL | Tradability::BUY
+			));
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				ASSET_4,
+				Tradability::ADD_LIQUIDITY
+			));
+
+			//Act
+			assert_ok!(OmnipoolSubpools::create_subpool(
+				Origin::root(),
+				SHARE_ASSET_AS_POOL_ID,
+				ASSET_3,
+				ASSET_4,
+				Permill::from_percent(10),
+				100u16,
+				Permill::from_percent(0),
+				Permill::from_percent(0),
+			));
+
+			let asset_3_tradable_state = Stableswap::asset_tradability(SHARE_ASSET_AS_POOL_ID, ASSET_3);
+			assert_eq!(
+				asset_3_tradable_state,
+				pallet_stableswap::types::Tradability::SELL | pallet_stableswap::types::Tradability::BUY
+			);
+
+			let asset_3_tradable_state = Stableswap::asset_tradability(SHARE_ASSET_AS_POOL_ID, ASSET_4);
+			assert_eq!(
+				asset_3_tradable_state,
+				pallet_stableswap::types::Tradability::ADD_LIQUIDITY
+			);
 		});
 }
 
