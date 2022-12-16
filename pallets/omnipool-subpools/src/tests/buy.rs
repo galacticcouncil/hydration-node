@@ -160,6 +160,104 @@ fn buy_should_work_when_assets_are_in_different_subpool() {
 }
 
 #[test]
+fn buy_should_fail_within_different_pools_when_asset_out_has_no_buyable_state() {
+	let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(ASSET_6)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID_2)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_6, OMNIPOOL_INITIAL_ASSET_6_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, alice_initial_asset_3_balance))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+			add_omnipool_token!(ASSET_6);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				ASSET_5,
+				Tradability::FROZEN
+			));
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+			create_subpool!(SHARE_ASSET_AS_POOL_ID_2, ASSET_5, ASSET_6);
+
+			//Act and Assert
+			let amount_to_buy = 15 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::buy(
+					Origin::signed(ALICE),
+					ASSET_5,
+					ASSET_3,
+					amount_to_buy,
+					MAX_SELL_AMOUNT * 100
+				),
+				Error::<Test>::NotAllowed
+			);
+		});
+}
+
+#[test]
+fn buy_should_fail_within_different_pools_when_asset_in_has_no_sellable_state() {
+	let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
+
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(ASSET_6)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID_2)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_6, OMNIPOOL_INITIAL_ASSET_6_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_3, alice_initial_asset_3_balance))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+			add_omnipool_token!(ASSET_6);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				ASSET_3,
+				Tradability::FROZEN
+			));
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+			create_subpool!(SHARE_ASSET_AS_POOL_ID_2, ASSET_5, ASSET_6);
+
+			//Act and Assert
+			let amount_to_buy = 15 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::buy(
+					Origin::signed(ALICE),
+					ASSET_5,
+					ASSET_3,
+					amount_to_buy,
+					MAX_SELL_AMOUNT * 100
+				),
+				Error::<Test>::NotAllowed
+			);
+		});
+}
+
+#[test]
 fn buy_should_work_when_both_asset_in_omnipool() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
