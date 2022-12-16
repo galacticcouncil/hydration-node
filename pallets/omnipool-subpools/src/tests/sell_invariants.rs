@@ -212,7 +212,9 @@ proptest! {
 				let withdraw_fee_complement = Permill::from_float(1.0) - withdraw_fee;
 				let left = withdraw_fee_complement.mul(delta_share_asset_reserve * d_before_sell);
 				let right = share_asset_state_before_sell.reserve * (d_before_sell - d_after_sell);
-				//assert!(left < right || left == right);
+
+				#[cfg(feature = "all-invariants")]
+				assert!(left < right || left == right);
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#e02e09c412634e58b29990c0a8eaf80b
 				assert_that_imbalance_is_zero!();
@@ -222,7 +224,8 @@ proptest! {
 				let delta_q_h =  protocol_fee.mul_floor(delta_lrna_of_share_asset);
 				let delta_lrna_of_omnipool_asset = asset_5_state_before_sell.hub_reserve - asset_5_state_after_sell.hub_reserve;
 
-				//assert_eq!(delta_lrna_of_omnipool_asset - delta_q_h, delta_lrna_of_share_asset);
+				#[cfg(feature = "all-invariants")]
+				assert_eq!(delta_lrna_of_omnipool_asset - delta_q_h, delta_lrna_of_share_asset);
 
 				});
 	}
@@ -319,8 +322,10 @@ proptest! {
 			let omnipool_lrna_balance_after_sell = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 			let left = (share_asset_state_after_sell.hub_reserve + (imbalance_after_sell.value * share_asset_state_after_sell.hub_reserve/omnipool_lrna_balance_after_sell)) * share_asset_state_before_sell.reserve;
 			let right = (share_asset_state_before_sell.hub_reserve + (imbalance_before_sell.value * share_asset_state_before_sell.hub_reserve/omnipool_lrna_balance_before_sell)) * share_asset_state_after_sell.reserve;
+
 			//TODO: check with Martin
-			//assert!(left < right || left == right, "The invariant does not hold, left side: {}, right side: {}",left, right);
+			#[cfg(feature = "all-invariants")]
+			assert!(left < right || left == right, "The invariant does not hold, left side: {}, right side: {}",left, right);
 
 		});
 	}
