@@ -1766,4 +1766,8 @@ impl<T: Config> Pallet<T> {
 
 		Positions::<T>::get(position_id).ok_or_else(|| Error::<T>::PositionNotFound.into())
 	}
+
+	pub fn is_hub_asset_allowed(operation: Tradability) -> bool {
+		HubAssetTradability::<T>::get().contains(operation)
+	}
 }

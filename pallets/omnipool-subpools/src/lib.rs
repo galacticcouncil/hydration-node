@@ -585,6 +585,19 @@ where
 		amount_out: Balance,
 		max_limit: Balance,
 	) -> DispatchResult {
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_in,
+				asset_in.into(),
+				pallet_stableswap::types::Tradability::SELL
+			) && StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_out,
+				asset_out.into(),
+				pallet_stableswap::types::Tradability::BUY
+			),
+			Error::<T>::NotAllowed
+		);
+
 		let subpool_in = StableswapPallet::<T>::get_pool(subpool_id_in)?;
 		let subpool_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
 
@@ -974,6 +987,15 @@ where
 
 		let share_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 		let subpool_state_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_out,
+				asset_out.into(),
+				pallet_stableswap::types::Tradability::BUY
+			) && OmnipoolPallet::<T>::is_hub_asset_allowed(Tradability::SELL),
+			Error::<T>::NotAllowed
+		);
+
 		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
 
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
@@ -1054,6 +1076,16 @@ where
 
 		let asset_state = OmnipoolPallet::<T>::load_asset_state(asset_out)?;
 		let share_state = OmnipoolPallet::<T>::load_asset_state(subpool_id_in.into())?;
+
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_in,
+				asset_in.into(),
+				pallet_stableswap::types::Tradability::SELL
+			) && asset_state.tradable.contains(Tradability::BUY),
+			Error::<T>::NotAllowed
+		);
+
 		let subpool_state = StableswapPallet::<T>::get_pool(subpool_id_in)?;
 
 		let share_issuance_in = CurrencyOf::<T>::total_issuance(subpool_id_in.into());
@@ -1140,6 +1172,16 @@ where
 
 		let asset_state_in = OmnipoolPallet::<T>::load_asset_state(asset_in)?;
 		let share_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
+
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_out,
+				asset_out.into(),
+				pallet_stableswap::types::Tradability::BUY
+			) && asset_state_in.tradable.contains(Tradability::SELL),
+			Error::<T>::NotAllowed
+		);
+
 		let subpool_state_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
 
 		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
@@ -1220,6 +1262,15 @@ where
 
 		let share_state_out = OmnipoolPallet::<T>::load_asset_state(subpool_id_out.into())?;
 		let subpool_state_out = StableswapPallet::<T>::get_pool(subpool_id_out)?;
+
+		ensure!(
+			StableswapPallet::<T>::is_asset_allowed(
+				subpool_id_out,
+				asset_out.into(),
+				pallet_stableswap::types::Tradability::BUY
+			) && OmnipoolPallet::<T>::is_hub_asset_allowed(Tradability::SELL),
+			Error::<T>::NotAllowed
+		);
 
 		let share_issuance_out = CurrencyOf::<T>::total_issuance(subpool_id_out.into());
 
