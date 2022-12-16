@@ -485,7 +485,6 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			//TODO: ask Martin - it feels too much, comparing to other tests
 			let amount_to_spend = 104471838625069;
 
 			assert_balance!(ALICE, ASSET_3, amount_to_buy);
@@ -529,6 +528,49 @@ fn buy_should_work_when_buying_stableswap_asset_with_omnipool_asset() {
 			);
 
 			assert_that_imbalance_is_zero!();
+		});
+}
+
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::SELL)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+#[test_case(Tradability::REMOVE_LIQUIDITY)]
+fn buy_should_fail_when_buying_stableswap_asset_with_omnipool_asset_but_stableswap_is_not_buyable(
+	tradability: Tradability,
+) {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, OMNIPOOL_INITIAL_ASSET_5_BALANCE))
+		.add_endowed_accounts((ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(Origin::root(), ASSET_3, tradability));
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			//Act and assert
+			let amount_to_buy = 100 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::buy(
+					Origin::signed(ALICE),
+					ASSET_3,
+					ASSET_5,
+					amount_to_buy,
+					ALICE_INITIAL_ASSET_5_BALANCE
+				),
+				Error::<Test>::NotAllowed
+			);
 		});
 }
 
@@ -598,6 +640,50 @@ fn buy_should_work_when_buying_stableswap_asset_with_lrna() {
 				value: 432_473_009_453_161,
 				negative: true
 			});
+		});
+}
+
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::SELL)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+#[test_case(Tradability::REMOVE_LIQUIDITY)]
+fn buy_should_fail_when_buying_stableswap_asset_with_lrna_but_stableasset_is_not_buyable(tradability: Tradability) {
+	let initial_omnipool_lrna_balance = 15050000000000000;
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((ALICE, LRNA, ALICE_INITIAL_LRNA_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			let omnipool_account = Omnipool::protocol_account();
+
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(Origin::root(), ASSET_3, tradability));
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			assert_balance!(omnipool_account, LRNA, initial_omnipool_lrna_balance);
+
+			//Act and assert
+			let amount_to_buy = 100 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::buy(
+					Origin::signed(ALICE),
+					ASSET_3,
+					LRNA,
+					amount_to_buy,
+					ALICE_INITIAL_ASSET_5_BALANCE
+				),
+				Error::<Test>::NotAllowed
+			);
 		});
 }
 
