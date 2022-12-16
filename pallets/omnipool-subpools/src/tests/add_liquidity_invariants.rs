@@ -34,11 +34,10 @@ proptest! {
 
 					//Act
 					let position_id: u32 = Omnipool::next_position_id();
-					let new_liquidity = 100 * ONE;
 					assert_ok!(OmnipoolSubpools::add_liquidity(
 						Origin::signed(ALICE),
 						ASSET_3,
-						new_liquidity
+						new_liquidity_amount
 					));
 
 /*
