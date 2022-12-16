@@ -582,6 +582,39 @@ fn sell_should_work_when_selling_lrna_for_stableswap_asset() {
 }
 
 #[test]
+fn sell_should_work_when_selling_lrna_for_stableswap_asset_but_stableswap_has_no_buyable_state() {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, OMNIPOOL_INITIAL_ASSET_3_BALANCE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, OMNIPOOL_INITIAL_ASSET_4_BALANCE))
+		.add_endowed_accounts((ALICE, LRNA, ALICE_INITIAL_LRNA_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				ASSET_3,
+				Tradability::FROZEN
+			));
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			//Act and assert
+			let amount_to_sell = 100 * ONE;
+			assert_noop!(
+				OmnipoolSubpools::sell(Origin::signed(ALICE), LRNA, ASSET_3, amount_to_sell, 0),
+				Error::<Test>::NotAllowed
+			);
+		});
+}
+
+#[test]
 fn sell_should_fail_when_called_by_non_signed_user() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
