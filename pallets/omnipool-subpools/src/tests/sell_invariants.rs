@@ -311,7 +311,8 @@ proptest! {
 			let left = withdraw_fee_complement.mul(delta_share_asset_reserve * d_before_sell);
 			let right = share_asset_state_before_sell.reserve * (d_before_sell - d_after_sell);
 			//TODO: check with Martin
-			//assert!(left < right || left == right, "The invariant does not hold, left side: {}, right side: {}",left, right);
+			#[cfg(feature = "all-invariants")]
+			assert!(left < right || left == right, "The invariant does not hold, left side: {}, right side: {}",left, right);
 
 			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#a81a8fc8747e444e826c92bf697ad813
 			let imbalance_after_sell = Omnipool::current_imbalance();

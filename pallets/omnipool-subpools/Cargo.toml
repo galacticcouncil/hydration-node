@@ -86,3 +86,4 @@ runtime-benchmarks = [
 	"pallet-balances",
 ]
 try-runtime = [ "frame-support/try-runtime" ]
+all-invariants= []
