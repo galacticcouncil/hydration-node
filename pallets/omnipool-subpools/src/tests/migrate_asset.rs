@@ -96,6 +96,51 @@ fn migrate_asset_to_subpool_should_work_when_subpool_exists() {
 }
 
 #[test]
+fn migrate_asset_to_subpool_should_preserve_tradable_state() {
+	//Arrange
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(ASSET_5)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 3000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 4000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_5, 5000 * ONE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+			add_omnipool_token!(ASSET_5);
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			assert_ok!(Omnipool::set_asset_tradable_state(
+				Origin::root(),
+				ASSET_5,
+				Tradability::SELL | Tradability::BUY | Tradability::ADD_LIQUIDITY
+			));
+
+			//Act
+			assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
+				Origin::root(),
+				SHARE_ASSET_AS_POOL_ID,
+				ASSET_5,
+			));
+
+			//Assert
+			let asset_5_tradable_state = Stableswap::asset_tradability(SHARE_ASSET_AS_POOL_ID, ASSET_5);
+			assert_eq!(
+				asset_5_tradable_state,
+				pallet_stableswap::types::Tradability::SELL
+					| pallet_stableswap::types::Tradability::BUY
+					| pallet_stableswap::types::Tradability::ADD_LIQUIDITY
+			);
+		});
+}
+
+#[test]
 fn migrate_asset_should_recalculate_protocol_shares_when_protocol_has_some_shares() {
 	//Arrange
 	ExtBuilder::default()

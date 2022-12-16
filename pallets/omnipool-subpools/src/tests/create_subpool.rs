@@ -155,9 +155,9 @@ fn create_subpool_should_preserve_tradable_state() {
 				pallet_stableswap::types::Tradability::SELL | pallet_stableswap::types::Tradability::BUY
 			);
 
-			let asset_3_tradable_state = Stableswap::asset_tradability(SHARE_ASSET_AS_POOL_ID, ASSET_4);
+			let asset_4_tradable_state = Stableswap::asset_tradability(SHARE_ASSET_AS_POOL_ID, ASSET_4);
 			assert_eq!(
-				asset_3_tradable_state,
+				asset_4_tradable_state,
 				pallet_stableswap::types::Tradability::ADD_LIQUIDITY
 			);
 		});
