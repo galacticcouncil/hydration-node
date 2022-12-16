@@ -10,6 +10,34 @@ const ALICE_INITIAL_ASSET_4_BALANCE: u128 = 2000 * ONE;
 const ALICE_INITIAL_ASSET_5_BALANCE: u128 = 5000 * ONE;
 
 #[test]
+fn add_liqudity_should_TEMP() {
+	ExtBuilder::default()
+		.with_registered_asset(ASSET_3)
+		.with_registered_asset(ASSET_4)
+		.with_registered_asset(SHARE_ASSET_AS_POOL_ID)
+		.add_endowed_accounts((LP1, 1_000, 5000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_3, 30000 * ONE))
+		.add_endowed_accounts((Omnipool::protocol_account(), ASSET_4, 40000 * ONE))
+		.add_endowed_accounts((ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			add_omnipool_token!(ASSET_3);
+			add_omnipool_token!(ASSET_4);
+
+			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
+
+			//Act
+			let position_id: u32 = Omnipool::next_position_id();
+			let new_liquidity = 100 * ONE;
+			assert_ok!(OmnipoolSubpools::add_liquidity(
+				Origin::signed(ALICE),
+				ASSET_3,
+				new_liquidity
+			));
+		});
+}
+#[test]
 fn add_liqudity_should_add_liqudity_to_both_omnipool_and_subpool_when_asset_is_already_migrated_to_subpool() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
