@@ -5,8 +5,8 @@ use crate::*;
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, SimpleImbalance, Tradability};
 use pretty_assertions::assert_eq;
+use test_case::test_case;
 use test_utils::assert_balance;
-
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
 const ALICE_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
@@ -62,8 +62,11 @@ fn sell_should_work_when_both_asset_in_same_subpool() {
 		});
 }
 
-#[test]
-fn sell_should_fail_when_assets_in_is_not_sellable_in_one_pool() {
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::BUY)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+#[test_case(Tradability::REMOVE_LIQUIDITY)]
+fn sell_should_fail_when_assets_in_is_not_sellable_in_one_pool(tradability: Tradability) {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -85,11 +88,7 @@ fn sell_should_fail_when_assets_in_is_not_sellable_in_one_pool() {
 			add_omnipool_token!(ASSET_5);
 			add_omnipool_token!(ASSET_6);
 
-			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
-				ASSET_3,
-				Tradability::FROZEN
-			));
+			assert_ok!(Omnipool::set_asset_tradable_state(Origin::root(), ASSET_3, tradability));
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 			create_subpool!(SHARE_ASSET_AS_POOL_ID_2, ASSET_5, ASSET_6);
@@ -103,8 +102,11 @@ fn sell_should_fail_when_assets_in_is_not_sellable_in_one_pool() {
 		});
 }
 
-#[test]
-fn sell_should_fail_when_assets_out_is_not_buyable_in_one_pool() {
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::SELL)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+#[test_case(Tradability::REMOVE_LIQUIDITY)]
+fn sell_should_fail_when_assets_out_is_not_buyable_in_one_pool(tradability: Tradability) {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -126,11 +128,7 @@ fn sell_should_fail_when_assets_out_is_not_buyable_in_one_pool() {
 			add_omnipool_token!(ASSET_5);
 			add_omnipool_token!(ASSET_6);
 
-			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
-				ASSET_5,
-				Tradability::FROZEN
-			));
+			assert_ok!(Omnipool::set_asset_tradable_state(Origin::root(), ASSET_5, tradability));
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 			create_subpool!(SHARE_ASSET_AS_POOL_ID_2, ASSET_5, ASSET_6);
@@ -361,8 +359,13 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 		});
 }
 
-#[test]
-fn sell_should_fail_when_selling_stable_asset_for_omnipool_asset_but_stable_asset_is_not_sellable() {
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::BUY)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+#[test_case(Tradability::REMOVE_LIQUIDITY)]
+fn sell_should_fail_when_selling_stable_asset_for_omnipool_asset_but_stable_asset_is_not_sellable(
+	tradability: Tradability,
+) {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -380,11 +383,7 @@ fn sell_should_fail_when_selling_stable_asset_for_omnipool_asset_but_stable_asse
 			add_omnipool_token!(ASSET_4);
 			add_omnipool_token!(ASSET_5);
 
-			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
-				ASSET_3,
-				Tradability::FROZEN
-			));
+			assert_ok!(Omnipool::set_asset_tradable_state(Origin::root(), ASSET_3, tradability));
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
@@ -475,8 +474,13 @@ fn sell_should_work_when_selling_omnipool_asset_for_stableswap_asset() {
 		});
 }
 
-#[test]
-fn sell_should_fail_when_selling_omnipool_asset_for_stableswap_asset_but_stable_asset_is_not_buyable() {
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::SELL)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+#[test_case(Tradability::REMOVE_LIQUIDITY)]
+fn sell_should_fail_when_selling_omnipool_asset_for_stableswap_asset_but_stable_asset_is_not_buyable(
+	tradability: Tradability,
+) {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -494,11 +498,7 @@ fn sell_should_fail_when_selling_omnipool_asset_for_stableswap_asset_but_stable_
 			add_omnipool_token!(ASSET_4);
 			add_omnipool_token!(ASSET_5);
 
-			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
-				ASSET_3,
-				Tradability::FROZEN
-			));
+			assert_ok!(Omnipool::set_asset_tradable_state(Origin::root(), ASSET_3, tradability));
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
@@ -581,8 +581,13 @@ fn sell_should_work_when_selling_lrna_for_stableswap_asset() {
 		});
 }
 
-#[test]
-fn sell_should_work_when_selling_lrna_for_stableswap_asset_but_stableswap_has_no_buyable_state() {
+#[test_case(Tradability::FROZEN)]
+#[test_case(Tradability::SELL)]
+#[test_case(Tradability::ADD_LIQUIDITY)]
+#[test_case(Tradability::REMOVE_LIQUIDITY)]
+fn sell_should_work_when_selling_lrna_for_stableswap_asset_but_stableswap_has_no_buyable_state(
+	tradability: Tradability,
+) {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -597,11 +602,7 @@ fn sell_should_work_when_selling_lrna_for_stableswap_asset_but_stableswap_has_no
 			add_omnipool_token!(ASSET_3);
 			add_omnipool_token!(ASSET_4);
 
-			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
-				ASSET_3,
-				Tradability::FROZEN
-			));
+			assert_ok!(Omnipool::set_asset_tradable_state(Origin::root(), ASSET_3, tradability));
 
 			create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
 
