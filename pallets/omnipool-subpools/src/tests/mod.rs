@@ -7,12 +7,14 @@ pub(crate) mod mock;
 mod remove_liquidity;
 mod sell;
 use mock::*;
+mod add_liquidity_invariants;
 mod buy_invariants;
 mod convert_omnipool_positions_invariants;
 mod create_subpool_invariants;
 mod migrate_asset_invariants;
 mod sell_invariants;
 mod verification;
+
 use frame_support::{assert_err, assert_noop, assert_ok};
 use sp_runtime::{FixedU128, Permill};
 
@@ -21,7 +23,6 @@ use orml_traits::MultiCurrency;
 use proptest::prelude::Strategy;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const TOLERANCE: Balance = 1_000; // * 1_000 * 1_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
 

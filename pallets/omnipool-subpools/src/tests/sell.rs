@@ -1,6 +1,5 @@
 use super::*;
 use crate::types::Balance;
-use crate::Error::NotAllowed;
 use crate::*;
 use frame_support::error::BadOrigin;
 use pallet_omnipool::types::{AssetReserveState, SimpleImbalance, Tradability};

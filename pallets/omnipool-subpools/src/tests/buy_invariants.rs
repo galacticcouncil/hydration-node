@@ -1,3 +1,4 @@
+#![allow(warnings)] //TODO: remove this once the prop tests has been implemented
 use super::*;
 use crate::types::Balance;
 use crate::*;
@@ -8,7 +9,6 @@ use pallet_omnipool::types::Tradability;
 use primitive_types::U256;
 use proptest::prelude::*;
 use test_utils::assert_balance;
-
 const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
 const ALICE_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;

@@ -2,7 +2,6 @@ use super::*;
 use crate::types::Balance;
 use crate::*;
 use frame_support::error::BadOrigin;
-use frame_support::log::debug;
 use mock::expect_events;
 use pallet_omnipool::types::{AssetReserveState, Tradability};
 use pallet_stableswap::types::PoolInfo;

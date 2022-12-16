@@ -1,18 +1,8 @@
 use super::*;
-use crate::types::Balance;
 use crate::*;
-use frame_benchmarking::Zero;
-use frame_support::assert_noop;
-use primitive_types::U256;
 use proptest::prelude::*;
 use std::ops::Mul;
-use test_utils::assert_balance;
-const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
-const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
-const ALICE_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
-const OMNIPOOL_INITIAL_ASSET_3_BALANCE: Balance = 3000 * ONE;
-const OMNIPOOL_INITIAL_ASSET_4_BALANCE: Balance = 4000 * ONE;
-const OMNIPOOL_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
+
 use hydra_dx_math::stableswap::calculate_d;
 use pallet_omnipool::types::SimpleImbalance;
 
@@ -81,7 +71,6 @@ proptest! {
 
 			//Assert
 			let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
-			let omnipool_account = Omnipool::protocol_account();
 
 			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#22db4d7d9fbc4d6fbb718221c16e1af0
 			let asset_5_state_after_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
@@ -112,9 +101,9 @@ proptest! {
 
 			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#7206aa9e6b2944fe91f5eb79534149f1
 			let delta_lrna_of_share_asset = share_asset_state_before_sell.hub_reserve -share_asset_state_after_sell.hub_reserve;
-			let delta_Q_H =  protocol_fee.mul_floor(delta_lrna_of_share_asset);
+			let delta_q_h =  protocol_fee.mul_floor(delta_lrna_of_share_asset);
 			let delta_lrna_of_omnipool_asset = asset_5_state_after_sell.hub_reserve - asset_5_state_before_sell.hub_reserve;
-			assert_eq!(delta_Q_H + delta_lrna_of_omnipool_asset, delta_lrna_of_share_asset);
+			assert_eq!(delta_q_h + delta_lrna_of_omnipool_asset, delta_lrna_of_share_asset);
 
 			//TODO: missing prop assertions, can be added after we get answer from Colin
 			// https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#40c55e720b8e4f9081ff344f3b7cc5c7
@@ -169,7 +158,6 @@ proptest! {
 				));
 
 				let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
-				let omnipool_account = Omnipool::protocol_account();
 				let asset_5_state_before_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
 				let share_asset_state_before_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
@@ -241,8 +229,7 @@ proptest! {
 		asset_4 in pool_token(ASSET_4),
 		amplification in amplification(),
 		trade_fee in percent(),
-		withdraw_fee in percent(),
-		protocol_fee in percent(),
+		withdraw_fee in percent()
 	) {
 
 		ExtBuilder::default()

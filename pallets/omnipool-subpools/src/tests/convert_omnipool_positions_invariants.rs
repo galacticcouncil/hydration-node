@@ -1,11 +1,6 @@
 use super::*;
-use crate::types::Balance;
 use crate::*;
-use frame_benchmarking::Zero;
-use frame_support::assert_noop;
-use primitive_types::U256;
 use proptest::prelude::*;
-use test_utils::assert_balance;
 
 proptest! {
 	//Spec: https://www.notion.so/Convert-Omnipool-position-to-Stableswap-Subpool-position-b18dabaa55bf433fa96f4ebf67cecec4
@@ -13,10 +8,7 @@ proptest! {
 	#[test]
 	fn sell_lrna_for_stableswap_asset(
 		asset_3 in pool_token(ASSET_3),
-		asset_4 in pool_token(ASSET_4),
-		amount in asset_reserve(),
-		balance in asset_reserve(),
-
+		asset_4 in pool_token(ASSET_4)
 	) {
 			ExtBuilder::default()
 			.with_registered_asset(asset_3.asset_id)
@@ -45,8 +37,6 @@ proptest! {
 				));
 				let asset_3_state = Omnipool::load_asset_state(ASSET_3).unwrap();
 				create_subpool!(SHARE_ASSET_AS_POOL_ID, ASSET_3, ASSET_4);
-
-				let share_asset_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
 				let position = Position {
 					asset_id: asset_3.asset_id,
@@ -80,8 +70,4 @@ proptest! {
 				assert_eq!(new_price * price_from_migration_details, old_price);
 			});
 	}
-}
-
-fn get_lrna_of_omnipool_protocol_account() -> Balance {
-	Tokens::free_balance(LRNA, &Omnipool::protocol_account())
 }
