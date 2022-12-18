@@ -32,6 +32,7 @@ pub type Balance = u128;
 
 pub const HDX: AssetId = 100;
 pub const DOT: AssetId = 200;
+pub const LRNA: AssetId = 300;
 pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
 
 frame_support::construct_runtime!(
@@ -80,14 +81,17 @@ impl frame_system::Config for Test {
 parameter_types! {
 	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (2_000, 10_000);	// 20%
 	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((4_000, 10_000));	// 40%
+	pub const OmnipoolHubAsset: AssetId = LRNA;
 }
 
 impl pallet_circuit_breaker::Config for Test {
+	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
 }
 
@@ -103,4 +107,8 @@ impl ExtBuilder {
 		ext.execute_with(|| System::set_block_number(1));
 		ext
 	}
+}
+
+pub fn expect_events(e: Vec<Event>) {
+	e.into_iter().for_each(frame_system::Pallet::<Test>::assert_has_event);
 }

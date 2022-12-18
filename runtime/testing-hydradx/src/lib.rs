@@ -833,11 +833,13 @@ impl pallet_transaction_pause::Config for Runtime {
 }
 
 impl pallet_circuit_breaker::Config for Runtime {
+	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = LRNA;
 	type WeightInfo = ();
 }
 

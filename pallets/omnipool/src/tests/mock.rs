@@ -154,11 +154,13 @@ impl orml_tokens::Config for Test {
 }
 
 impl pallet_circuit_breaker::Config for Test {
+	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = LRNAAssetId;
 	type WeightInfo = ();
 }
 
