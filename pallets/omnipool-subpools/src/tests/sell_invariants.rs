@@ -105,8 +105,12 @@ proptest! {
 			let delta_lrna_of_omnipool_asset = asset_5_state_after_sell.hub_reserve - asset_5_state_before_sell.hub_reserve;
 			assert_eq!(delta_q_h + delta_lrna_of_omnipool_asset, delta_lrna_of_share_asset);
 
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#feb5cf8ec4ac4e50a7e219620653f3c7
+			assert!(d_after_sell >= d_before_sell);
+			#[cfg(feature = "all-invariants")]
+			assert!(d_after_sell - d_before_sell <= 10u128); //TODO: once this has been checked, we need to add it to other sell tests
+
 			//TODO: missing prop assertions, can be added after we get answer from Colin
-			// https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#40c55e720b8e4f9081ff344f3b7cc5c7
 			// https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#feb5cf8ec4ac4e50a7e219620653f3c7
 
 
