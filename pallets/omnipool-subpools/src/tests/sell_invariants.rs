@@ -60,6 +60,8 @@ proptest! {
 
 			assert_that_imbalance_is_zero!();
 
+			let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
+
 			//Act
 			assert_ok!(OmnipoolSubpools::sell(
 				Origin::signed(ALICE),
@@ -91,10 +93,8 @@ proptest! {
 			assert!(share_asset_state_after_sell.reserve * d_before_sell < share_asset_state_before_sell.reserve * d_after_sell);
 
 			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#40c55e720b8e4f9081ff344f3b7cc5c7
-			let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
-			let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-			let d_after_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-			assert!(share_asset_state_after_sell.reserve * d_before_sell < share_asset_state_before_sell.reserve * d_after_sell);
+			let share_asset_balance_after = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
+			assert_eq!(share_asset_state_after_sell.reserve + share_asset_balance_before, share_asset_state_before_sell.reserve + share_asset_balance_after);
 
 			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#5381ad0b29464bd8bd7c8596a6d98861
 			assert_that_imbalance_is_zero!();
@@ -165,6 +165,8 @@ proptest! {
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d_before_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
+				let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
+
 				assert_that_imbalance_is_zero!();
 
 				//Act
@@ -194,6 +196,10 @@ proptest! {
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d_after_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 				assert!(share_asset_state_after_sell.reserve * d_before_sell < share_asset_state_before_sell.reserve * d_after_sell);
+
+				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#2381224c37554c0ab4285e42b81243d4
+				let share_asset_balance_after = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
+				assert_eq!(share_asset_state_after_sell.reserve + share_asset_balance_before, share_asset_state_before_sell.reserve + share_asset_balance_after);
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#f8f0ccafd36541878551e538a44e2725
 				let delta_share_asset_reserve = share_asset_state_before_sell.reserve - share_asset_state_after_sell.reserve;
@@ -272,6 +278,7 @@ proptest! {
 
 			let omnipool_lrna_balance_before_sell = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
+			let omnipool_share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
 
 			//Act
 			assert_ok!(OmnipoolSubpools::sell(
@@ -303,6 +310,10 @@ proptest! {
 			//TODO: check with Martin
 			#[cfg(feature = "all-invariants")]
 			assert!(left < right || left == right, "The invariant does not hold, left side: {}, right side: {}",left, right);
+
+			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#71b58394ef364ba19b075f97350e6a69
+			let omnipool_share_asset_balance_after = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
+			assert_eq!(share_asset_state_after_sell.reserve + omnipool_share_asset_balance_before, share_asset_state_before_sell.reserve + omnipool_share_asset_balance_after);
 
 			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#a81a8fc8747e444e826c92bf697ad813
 			let imbalance_after_sell = Omnipool::current_imbalance();
