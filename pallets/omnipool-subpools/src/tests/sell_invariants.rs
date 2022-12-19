@@ -212,7 +212,7 @@ proptest! {
 				let right = share_asset_state_before_sell.reserve * (d_before_sell - d_after_sell);
 
 				#[cfg(feature = "all-invariants")]
-				assert!(left < right || left == right);
+				assert!(left <= right);
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#e02e09c412634e58b29990c0a8eaf80b
 				assert_that_imbalance_is_zero!();
