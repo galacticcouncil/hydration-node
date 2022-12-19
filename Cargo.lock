@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.2.2"
+version = "100.2.3"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -3359,7 +3359,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "121.0.0"
+version = "122.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -8766,7 +8766,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11442,7 +11442,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "121.0.0"
+version = "122.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
