@@ -97,7 +97,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 120,
+	spec_version: 121,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -185,6 +185,20 @@ impl Contains<Call> for CallFilter {
 		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
 			// if paused, dont allow!
 			return false;
+		}
+
+		// filter transfers of LRNA to the omnipool account
+		if let Call::Tokens(orml_tokens::Call::transfer { dest, currency_id, .. })
+		| Call::Tokens(orml_tokens::Call::transfer_keep_alive { dest, currency_id, .. })
+		| Call::Tokens(orml_tokens::Call::transfer_all { dest, currency_id, .. })
+		| Call::Currencies(pallet_currencies::Call::transfer { dest, currency_id, .. }) = call
+		{
+			// Lookup::lookup() is not necessary thanks to IdentityLookup
+			if dest == &Omnipool::protocol_account()
+				&& *currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
+			{
+				return false;
+			}
 		}
 
 		match call {
