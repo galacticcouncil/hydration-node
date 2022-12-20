@@ -116,6 +116,38 @@ pub mod pallet {
 	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(b: T::BlockNumber) -> Weight {
+			let mut weight: u64 = 0;
+
+			//TODO: increment the weight once an action happens
+			//weight += T::WeightInfo::get_spot_price().ref_time();
+
+			Weight::from_ref_time(weight)
+		}
+
+		fn integrity_test() {
+			assert_ne!(
+				T::MinimumPoolLiquidity::get(),
+				Balance::zero(),
+				"Minimum pool liquidity is 0."
+			);
+			assert_ne!(
+				T::MinimumTradingLimit::get(),
+				Balance::zero(),
+				"Minimum trading limit is 0."
+			);
+			assert_ne!(
+				T::HdxAssetId::get(),
+				T::StableCoinAssetId::get(),
+				"Same Hdx asset id and stable asset id."
+			);
+			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
+			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
+		}
+	}
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
@@ -1313,29 +1345,6 @@ pub mod pallet {
 
 				Ok(())
 			})
-		}
-	}
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn integrity_test() {
-			assert_ne!(
-				T::MinimumPoolLiquidity::get(),
-				Balance::zero(),
-				"Minimum pool liquidity is 0."
-			);
-			assert_ne!(
-				T::MinimumTradingLimit::get(),
-				Balance::zero(),
-				"Minimum trading limit is 0."
-			);
-			assert_ne!(
-				T::HdxAssetId::get(),
-				T::StableCoinAssetId::get(),
-				"Same Hdx asset id and stable asset id."
-			);
-			assert_ne!(T::MaxInRatio::get(), Balance::zero(), "MaxInRatio is 0.");
-			assert_ne!(T::MaxOutRatio::get(), Balance::zero(), "MaxOutRatio is 0.");
 		}
 	}
 }

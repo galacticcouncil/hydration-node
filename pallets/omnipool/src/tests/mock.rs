@@ -76,10 +76,11 @@ construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Omnipool: pallet_omnipool::{Pallet, Call, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Event<T>},
+		System: frame_system,
+		Balances: pallet_balances,
+		DCA: pallet_dca,
+		Omnipool: pallet_omnipool,
+		Tokens: orml_tokens,
 	}
 );
 
@@ -182,6 +183,11 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
+}
+
+impl pallet_dca::Config for Test {
+	type Event = Event;
+	type WeightInfo = ();
 }
 
 pub struct ExtBuilder {

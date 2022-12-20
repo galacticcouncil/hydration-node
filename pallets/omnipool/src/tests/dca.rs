@@ -15,16 +15,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use frame_support::traits::OnInitialize;
+
 use crate::tests::mock::*;
 use crate::*;
-use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
+use pallet_dca::types::ScheduleId;
+use pallet_dca::{Order, PoolType, Recurrence, Schedule, Trade};
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+const ALICE: AccountId = 1000;
 
 #[test]
 fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified() {
@@ -33,10 +37,10 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 		set_block_number(500);
 
 		let schedule = schedule_fake(Recurrence::Fixed(5));
-		assert_ok!(Dca::schedule(Origin::signed(ALICE), schedule, Option::None));
+		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 		//Act
-		Dca::on_initialize(501);
+		let s = Omnipool::on_initialize(501);
 
 		//Assert
 	});
