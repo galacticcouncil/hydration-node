@@ -3249,6 +3249,19 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
+version = "4.9.0"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=54fe636a19f283de9afbd5b5015a951b25e11a6b#54fe636a19f283de9afbd5b5015a951b25e11a6b"
+dependencies = [
+ "fixed",
+ "num-traits",
+ "parity-scale-codec",
+ "primitive-types 0.12.1",
+ "sp-arithmetic",
+ "sp-std",
+]
+
+[[package]]
+name = "hydra-dx-math"
 version = "4.9.1"
 source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a#3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a"
 dependencies = [
@@ -5817,6 +5830,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dca"
+version = "1.0.2"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math 4.9.0",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "proptest",
+ "scale-info",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-tracing",
+]
+
+[[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.29#cc370aa61e15c18d23a2f686b812fd576a630afe"
@@ -6153,7 +6189,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math",
+ "hydra-dx-math 4.9.1",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
