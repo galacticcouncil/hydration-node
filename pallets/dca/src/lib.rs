@@ -29,6 +29,7 @@ use frame_system::Origin;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Saturating;
+use sp_runtime::traits::Zero;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 use sp_runtime::ArithmeticError;
 use sp_runtime::{BoundedVec, DispatchError};
@@ -130,16 +131,16 @@ pub mod pallet {
 
 					match buy_result {
 						Ok(res) => {
-							if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
-								Self::decrement_recurrences(schedule_id).unwrap();
-							}
-
 							let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
-							if !ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
-								let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
-								ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
+
+							if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
+								let remaining_reccurences = Self::decrement_recurrences(schedule_id).unwrap();
+
+								if !remaining_reccurences.is_zero() {
+									Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id, &schedule);
+								}
 							} else {
-								Self::add_schedule_id_to_existing_ids_per_block(schedule_id, blocknumber_for_schedule);
+								Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id, &schedule);
 							}
 						}
 						_ => {
@@ -258,6 +259,15 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId, schedule: &Schedule<<T as Config>::Asset>) {
+		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
+			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
+			ScheduleIdsPerBlock::<T>::insert(b, vec_with_first_schedule_id);
+		} else {
+			Self::add_schedule_id_to_existing_ids_per_block(schedule_id, b);
+		}
+	}
+
 	fn get_next_schedule_id() -> Result<ScheduleId, ArithmeticError> {
 		ScheduleIdSequencer::<T>::try_mutate(|current_id| {
 			*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
@@ -301,7 +311,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn decrement_recurrences(schedule_id: ScheduleId) -> DispatchResult {
+	fn decrement_recurrences(schedule_id: ScheduleId) -> Result<u128, DispatchResult> {
 		let remaining_recurrences =
 			RemainingRecurrences::<T>::try_mutate_exists(schedule_id, |maybe_remaining_occurrances| {
 				let mut remaining_ocurrences = maybe_remaining_occurrances
@@ -309,14 +319,15 @@ impl<T: Config> Pallet<T> {
 					.ok_or(Error::<T>::UnexpectedError)?; //TODO: add RaminingReccurenceNotExist error
 
 				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(Error::<T>::UnexpectedError)?; //TODO: add arithmetic error
+				let remainings = remaining_ocurrences.clone(); //TODO: do this in a smarter way?
 
 				if *remaining_ocurrences == 0 {
 					*maybe_remaining_occurrances = None;
 				}
 
-				Ok::<(), DispatchError>(())
+				Ok::<u128, DispatchError>(remainings)
 			})?;
 
-		Ok(())
+		Ok(remaining_recurrences)
 	}
 }

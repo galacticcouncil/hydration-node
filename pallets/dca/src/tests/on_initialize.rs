@@ -258,10 +258,10 @@ fn schedule_is_not_planned_again_when_there_is_no_more_recurrences() {
 			let schedule_id = 1;
 			assert!(DCA::remaining_recurrences(schedule_id).is_none());
 
-			/*assert!(
+			assert!(
 				DCA::schedule_ids_per_block(601).is_none(),
 				"There should be no schedule for the block, but there is"
-			);*/
+			);
 		});
 }
 
