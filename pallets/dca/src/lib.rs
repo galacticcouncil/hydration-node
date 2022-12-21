@@ -143,20 +143,10 @@ pub mod pallet {
 							let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
 
 							if !ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
-								let schedule_id = vec![schedule_id];
-								let vec_with_first_schedule_id: BoundedVec<ScheduleId, ConstU32<20>> =
-									schedule_id.try_into().unwrap();
+								let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
 								ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
 							} else {
-								ScheduleIdsPerBlock::<T>::try_mutate_exists(
-									blocknumber_for_schedule,
-									|schedule_ids| -> DispatchResult {
-										let mut schedule_ids = schedule_ids.as_mut().unwrap(); //TODO: add different error handling
-
-										schedule_ids.try_push(schedule_id).unwrap();
-										Ok(())
-									},
-								);
+								Self::add_schedule_id_to_existing_ids_per_block(schedule_id, blocknumber_for_schedule);
 							}
 						}
 						_ => {}
