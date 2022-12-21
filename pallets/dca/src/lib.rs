@@ -306,9 +306,9 @@ impl<T: Config> Pallet<T> {
 			RemainingRecurrences::<T>::try_mutate_exists(schedule_id, |maybe_remaining_occurrances| {
 				let mut remaining_ocurrences = maybe_remaining_occurrances
 					.as_mut()
-					.ok_or(Error::<T>::UnexpectedError)?; //TODO: add different error handling
+					.ok_or(Error::<T>::UnexpectedError)?; //TODO: add RaminingReccurenceNotExist error
 
-				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(Error::<T>::UnexpectedError)?;
+				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(Error::<T>::UnexpectedError)?; //TODO: add arithmetic error
 
 				if *remaining_ocurrences == 0 {
 					*maybe_remaining_occurrances = None;
