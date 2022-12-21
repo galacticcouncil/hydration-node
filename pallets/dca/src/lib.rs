@@ -57,6 +57,7 @@ pub enum Recurrence {
 	Perpetual,
 }
 
+//TODO: this should be an enum
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Order<AssetId> {
 	pub asset_in: AssetId,
@@ -120,6 +121,7 @@ pub mod pallet {
 
 				match maybe_schedules {
 					Some(schedules) => {
+						//TODO: order schedules randomly
 						for schedule_id in schedules {
 							let schedule = Schedules::<T>::get(schedule_id).unwrap();
 							let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();

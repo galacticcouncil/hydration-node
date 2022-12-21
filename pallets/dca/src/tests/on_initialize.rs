@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use frame_support::traits::OnInitialize;
+use std::ops::RangeInclusive;
 
 use crate::tests::mock::*;
 use crate::tests::*;
@@ -30,6 +31,43 @@ use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
 const ALICE: AccountId = 1000;
 const BOB: AccountId = 1001;
+
+#[test]
+fn schedule_execution_showcase() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_registered_asset(DAI)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+			assert_balance!(ALICE, BTC, 0);
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			proceed_to_blocknumber(501, 901);
+
+			//Assert
+			assert_balance!(ALICE, BTC, 5 * ONE);
+		});
+}
 
 #[test]
 fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
@@ -47,11 +85,8 @@ fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			//Arrange
-			set_block_number(500);
-
 			//Act
-			DCA::on_initialize(500);
+			proceed_to_blocknumber(1, 500);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 0);
@@ -77,7 +112,7 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			set_block_number(500);
+			proceed_to_blocknumber(1, 500);
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -89,8 +124,7 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			let current_block = 501;
-			DCA::on_initialize(current_block);
+			proceed_to_blocknumber(501, 502);
 
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
@@ -133,7 +167,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(601)));
 
-			set_block_number(500);
+			proceed_to_blocknumber(1, 500);
 			let schedule_2 = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -145,8 +179,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
 
 			//Act
-			let current_block = 501;
-			DCA::on_initialize(current_block);
+			proceed_to_blocknumber(500, 501);
 
 			//Assert
 			let scheduled_ids_for_next_planned_block = DCA::schedule_ids_per_block(601).unwrap();
@@ -174,7 +207,7 @@ fn schedule_is_suspended_in_block_when_error_happens() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			set_block_number(500);
+			proceed_to_blocknumber(1, 500);
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -186,7 +219,7 @@ fn schedule_is_suspended_in_block_when_error_happens() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			DCA::on_initialize(501);
+			proceed_to_blocknumber(500, 501);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 0);
@@ -213,7 +246,7 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			set_block_number(500);
+			proceed_to_blocknumber(1, 500);
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -225,8 +258,7 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			let current_block = 501;
-			DCA::on_initialize(current_block);
+			proceed_to_blocknumber(500, 501);
 
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
@@ -260,7 +292,7 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			set_block_number(500);
+			proceed_to_blocknumber(1, 500);
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(1))
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -272,8 +304,7 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			let current_block = 501;
-			DCA::on_initialize(current_block);
+			proceed_to_blocknumber(500, 501);
 
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
@@ -299,6 +330,14 @@ fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> Bounde
 	bounded_vec
 }
 
-pub fn set_block_number(n: u64) {
-	System::set_block_number(n);
+pub fn proceed_to_blocknumber(from: u64, to: u64) {
+	for block_number in RangeInclusive::new(from, to) {
+		System::set_block_number(block_number);
+		DCA::on_initialize(block_number);
+	}
+}
+
+pub fn set_to_blocknumber(to: u64) {
+	System::set_block_number(to);
+	DCA::on_initialize(to);
 }
