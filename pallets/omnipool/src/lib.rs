@@ -107,10 +107,8 @@ pub mod pallet {
 	use super::*;
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
-	use frame_support::dispatch::RawOrigin;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use frame_system::Origin;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 	use sp_runtime::ArithmeticError;
 

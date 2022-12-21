@@ -46,14 +46,11 @@ pub type AssetId = u32;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
-pub const BTC: AssetId = 3;
 pub const REGISTERED_ASSET: AssetId = 1000;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
-
-pub const ALICE: u64 = 4;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
