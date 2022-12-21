@@ -149,7 +149,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ownership)]
-	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ScheduleId, OptionQuery>;
+	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, T::AccountId, OptionQuery>;
 
 	//TODO: the number of recurrences can not be 0, so remove item once there - https://www.notion.so/DCA-061a93f912fd43b3a8e3e413abb8afdf#24dc5396cce542f681862ec7b1e54c15
 	#[pallet::storage]
@@ -201,7 +201,7 @@ impl<T: Config> Pallet<T> {
 		let recurrence = schedule.recurrence.clone();
 		Schedules::<T>::insert(next_schedule_id, schedule);
 		Self::store_recurrence_in_case_of_fixed_schedule(next_schedule_id, recurrence);
-		ScheduleOwnership::<T>::insert(who, next_schedule_id);
+		ScheduleOwnership::<T>::insert(next_schedule_id, who);
 
 		Ok(())
 	}
