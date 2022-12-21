@@ -113,7 +113,7 @@ pub mod pallet {
 	use frame_system::Origin;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 	use pallet_dca::types::ScheduleId;
-	use pallet_dca::Schedule;
+	use pallet_dca::{Recurrence, Schedule};
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -151,6 +151,39 @@ pub mod pallet {
 
 							Ok::<u128, ArithmeticError>(*remaining_ocurrences)
 						});
+
+						//TODO: add logic for If there is recurrence, then plan the bext
+						let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
+
+						if !pallet_dca::ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
+							let schedule_id = vec![schedule_id];
+							let vec_with_first_schedule_id: BoundedVec<ScheduleId, ConstU32<20>> =
+								schedule_id.try_into().unwrap();
+							pallet_dca::ScheduleIdsPerBlock::<T>::insert(
+								blocknumber_for_schedule,
+								vec_with_first_schedule_id,
+							);
+						} else {
+							pallet_dca::ScheduleIdsPerBlock::<T>::try_mutate_exists(
+								blocknumber_for_schedule,
+								|schedule_ids| -> DispatchResult {
+									let mut schedule_ids = schedule_ids.as_mut().unwrap(); //TODO: add different error handling
+
+									schedule_ids.try_push(schedule_id).unwrap();
+									Ok(())
+								},
+							);
+						}
+
+						/*pallet_dca::ScheduleIdsPerBlock::<T>::try_mutate_exists(
+							next_block_id,
+							|schedule_ids| -> DispatchResult {
+								let mut schedule_ids = schedule_ids.as_mut().unwrap(); //TODO: add different error handling
+
+								schedule_ids.try_push(schedule_id).unwrap();
+								Ok(())
+							},
+						);*/
 					}
 					_ => {}
 				}
