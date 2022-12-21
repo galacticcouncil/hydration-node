@@ -111,11 +111,12 @@ pub mod pallet {
 	where
 		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
 	{
-		fn on_initialize(b: T::BlockNumber) -> Weight {
+		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			{
 				let mut weight: u64 = 0;
 
-				let schedules: BoundedVec<ScheduleId, ConstU32<20>> = ScheduleIdsPerBlock::<T>::get(b).unwrap(); //TODO: better error handling for all the unwrap
+				let schedules: BoundedVec<ScheduleId, ConstU32<20>> =
+					ScheduleIdsPerBlock::<T>::get(current_blocknumber).unwrap(); //TODO: better error handling for all the unwrap
 
 				for schedule_id in schedules {
 					let schedule = Schedules::<T>::get(schedule_id).unwrap();
@@ -126,7 +127,8 @@ pub mod pallet {
 
 					match buy_result {
 						Ok(res) => {
-							let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
+							let blocknumber_for_schedule =
+								current_blocknumber.checked_add(&schedule.period.into()).unwrap();
 
 							match schedule.recurrence {
 								Recurrence::Fixed(_) => {
