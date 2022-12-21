@@ -173,6 +173,54 @@ fn schedule_is_suspended_in_block_when_error_happens() {
 		});
 }
 
+#[test]
+fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+			(LP2, DAI, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_registered_asset(DAI)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = schedule_fake(
+				ONE_HUNDRED_BLOCKS,
+				AssetPair {
+					asset_out: BTC,
+					asset_in: DAI,
+				},
+				ONE,
+				Recurrence::Perpetual,
+			);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			let current_block = 501;
+			Omnipool::on_initialize(current_block);
+
+			//Assert
+			assert_balance!(ALICE, BTC, ONE);
+			let schedule_id = 1;
+			let s = DCA::remaining_recurrences(schedule_id);
+			assert!(DCA::remaining_recurrences(schedule_id).is_none());
+
+			let scheduled_ids_for_next_planned_block = DCA::schedule_ids_per_block(601).unwrap();
+			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
+			assert_eq!(
+				scheduled_ids_for_next_planned_block,
+				expected_scheduled_ids_for_next_block
+			);
+		});
+}
+
 //TODO: add negative case for validating block numbers
 
 fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {

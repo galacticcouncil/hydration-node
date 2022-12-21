@@ -144,15 +144,16 @@ pub mod pallet {
 
 				match buy_result {
 					Ok(res) => {
-						pallet_dca::RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
-							let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
+						if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
+							pallet_dca::RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
+								let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
 
-							*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
+								*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
 
-							Ok::<u128, ArithmeticError>(*remaining_ocurrences)
-						});
+								Ok::<u128, ArithmeticError>(*remaining_ocurrences)
+							});
+						}
 
-						//TODO: add logic for If there is recurrence, then plan the bext
 						let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
 
 						if !pallet_dca::ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
@@ -174,16 +175,6 @@ pub mod pallet {
 								},
 							);
 						}
-
-						/*pallet_dca::ScheduleIdsPerBlock::<T>::try_mutate_exists(
-							next_block_id,
-							|schedule_ids| -> DispatchResult {
-								let mut schedule_ids = schedule_ids.as_mut().unwrap(); //TODO: add different error handling
-
-								schedule_ids.try_push(schedule_id).unwrap();
-								Ok(())
-							},
-						);*/
 					}
 					_ => {}
 				}
