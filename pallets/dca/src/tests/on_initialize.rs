@@ -124,7 +124,7 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			proceed_to_blocknumber(501, 502);
+			set_to_blocknumber(501);
 
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
@@ -179,7 +179,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
 
 			//Act
-			proceed_to_blocknumber(500, 501);
+			set_to_blocknumber(501);
 
 			//Assert
 			let scheduled_ids_for_next_planned_block = DCA::schedule_ids_per_block(601).unwrap();
@@ -219,7 +219,7 @@ fn schedule_is_suspended_in_block_when_error_happens() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			proceed_to_blocknumber(500, 501);
+			set_to_blocknumber(501);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 0);
@@ -258,7 +258,7 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			proceed_to_blocknumber(500, 501);
+			set_to_blocknumber(501);
 
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
@@ -304,7 +304,7 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
-			proceed_to_blocknumber(500, 501);
+			set_to_blocknumber(501);
 
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
