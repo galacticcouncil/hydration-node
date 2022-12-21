@@ -263,6 +263,7 @@ impl<T: Config> Pallet<T> {
 			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
 			ScheduleIdsPerBlock::<T>::insert(b, vec_with_first_schedule_id);
 		} else {
+			//TODO: if the block is full, then we should plan it the next one or so
 			Self::add_schedule_id_to_existing_ids_per_block(schedule_id, b);
 		}
 	}
