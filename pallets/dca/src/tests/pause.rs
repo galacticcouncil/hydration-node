@@ -18,6 +18,8 @@
 use crate::tests::mock::*;
 use crate::tests::*;
 use crate::AssetId;
+use frame_support::traits::OnInitialize;
+
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -29,6 +31,7 @@ use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
 fn pause_should_remove_planned_schedule_from_next_execution_when_already_planned() {
+	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let schedule = schedule_fake(
@@ -38,21 +41,21 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_already_planned
 				asset_in: DAI,
 			},
 			ONE,
-			Recurrence::Fixed(1),
+			Recurrence::Fixed(5),
 		);
 
 		set_block_number(500);
 		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
-		//assert_ok!(DCA::pause(Origin::signed(ALICE), schedule, Option::None));
-
-		//Act and Assert
+		//Act
 		let schedule_id = 1;
-		let stored_schedule = DCA::schedules(schedule_id).unwrap();
+		assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+		//Assert
+		assert!(DCA::schedule_ids_per_block(501).is_none());
 	});
 }
-
-//TODO: add negative case for validating block numbers
+//TODO: add test when there is multiple schedules, and we just then remove with pause, and not completely getting rid of the scheduleperblock
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();

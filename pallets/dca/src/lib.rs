@@ -238,6 +238,21 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		///Pause
+		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
+		#[transactional]
+		pub fn pause(
+			origin: OriginFor<T>,
+			schedule_id: ScheduleId,
+			next_execution_block: BlockNumberFor<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
+
+			Ok(())
+		}
 	}
 }
 
@@ -327,5 +342,24 @@ impl<T: Config> Pallet<T> {
 			schedule.order.limit,
 		);
 		buy_result
+	}
+
+	fn remove_schedule_id_from_next_execution_block(
+		schedule_id: ScheduleId,
+		next_execution_block: T::BlockNumber,
+	) -> DispatchResult {
+		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
+			let mut schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::UnexpectedError)?; //TODO: add different error handling
+
+			let index = schedule_ids.iter().position(|x| *x == schedule_id).unwrap();
+			schedule_ids.remove(index);
+
+			if schedule_ids.is_empty() {
+				*maybe_schedule_ids = None;
+			}
+			Ok(())
+		})?;
+
+		Ok(())
 	}
 }
