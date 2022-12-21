@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
+use crate::tests::ScheduleBuilder;
 use crate::AssetId;
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
@@ -30,7 +31,7 @@ use sp_runtime::DispatchError::BadOrigin;
 fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(Recurrence::Fixed(5));
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		//Act
 		set_block_number(500);
@@ -39,7 +40,10 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 		//Assert
 		let schedule_id = 1;
 		let stored_schedule = DCA::schedules(schedule_id).unwrap();
-		assert_eq!(stored_schedule, schedule_fake(Recurrence::Fixed(5)));
+		assert_eq!(
+			stored_schedule,
+			ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build()
+		);
 
 		//Check if schedule ids are stored
 		let schedule_ids = DCA::schedule_ids_per_block(501);
@@ -60,7 +64,7 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 fn schedule_should_work_when_multiple_schedules_stored() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(Recurrence::Fixed(5));
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		//Act
 		set_block_number(500);
@@ -83,7 +87,7 @@ fn schedule_should_work_when_multiple_schedules_stored() {
 fn schedule_should_work_when_block_is_specified_by_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(Recurrence::Fixed(5));
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		//Act
 		set_block_number(500);
@@ -114,7 +118,7 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 fn schedule_should_work_when_perpetual_schedule_is_specified() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(Recurrence::Perpetual);
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build();
 
 		//Act
 		set_block_number(500);
@@ -123,7 +127,10 @@ fn schedule_should_work_when_perpetual_schedule_is_specified() {
 		//Assert
 		let schedule_id = 1;
 		let stored_schedule = DCA::schedules(schedule_id).unwrap();
-		assert_eq!(stored_schedule, schedule_fake(Recurrence::Perpetual));
+		assert_eq!(
+			stored_schedule,
+			ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build()
+		);
 
 		//Check if schedule ids are stored
 		let schedule_ids = DCA::schedule_ids_per_block(501);
@@ -144,7 +151,7 @@ fn schedule_should_work_when_perpetual_schedule_is_specified() {
 fn schedule_should_fail_when_not_called_by_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(Recurrence::Fixed(5));
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		//Act and assert
 		assert_noop!(DCA::schedule(Origin::none(), schedule, Option::None), BadOrigin);

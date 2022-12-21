@@ -34,15 +34,7 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(
-			ONE_HUNDRED_BLOCKS,
-			AssetPair {
-				asset_out: BTC,
-				asset_in: DAI,
-			},
-			ONE,
-			Recurrence::Fixed(5),
-		);
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		set_block_number(500);
 		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -60,15 +52,7 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multiple_entries_planned() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(
-			ONE_HUNDRED_BLOCKS,
-			AssetPair {
-				asset_out: BTC,
-				asset_in: DAI,
-			},
-			ONE,
-			Recurrence::Fixed(5),
-		);
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		let schedule2 = schedule_fake(
 			ONE_HUNDRED_BLOCKS,
@@ -99,15 +83,7 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 fn pause_should_mark_schedule_suspended() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(
-			ONE_HUNDRED_BLOCKS,
-			AssetPair {
-				asset_out: BTC,
-				asset_in: DAI,
-			},
-			ONE,
-			Recurrence::Fixed(5),
-		);
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		set_block_number(500);
 		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -125,15 +101,7 @@ fn pause_should_mark_schedule_suspended() {
 fn pause_should_when_when_called_with_nonsigned_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = schedule_fake(
-			ONE_HUNDRED_BLOCKS,
-			AssetPair {
-				asset_out: BTC,
-				asset_in: DAI,
-			},
-			ONE,
-			Recurrence::Fixed(5),
-		);
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		set_block_number(500);
 		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -145,6 +113,8 @@ fn pause_should_when_when_called_with_nonsigned_user() {
 }
 
 //TODO: add test when there is multiple schedules, and we just then remove with pause, and not completely getting rid of the scheduleperblock
+
+//TODO: Add test for pausing perpetual
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();

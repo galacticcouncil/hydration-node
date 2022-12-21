@@ -49,15 +49,14 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = schedule_fake(
-				ONE_HUNDRED_BLOCKS,
-				AssetPair {
-					asset_out: BTC,
-					asset_in: DAI,
-				},
-				ONE,
-				Recurrence::Fixed(5),
-			);
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
+
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
@@ -95,29 +94,26 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 		.build()
 		.execute_with(|| {
 			//Arrange
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
 
-			let schedule = schedule_fake(
-				ONE_HUNDRED_BLOCKS,
-				AssetPair {
-					asset_out: BTC,
-					asset_in: DAI,
-				},
-				ONE,
-				Recurrence::Fixed(5),
-			);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(601)));
 
 			set_block_number(500);
-			let schedule = schedule_fake(
-				ONE_HUNDRED_BLOCKS,
-				AssetPair {
-					asset_out: BTC,
-					asset_in: DAI,
-				},
-				ONE,
-				Recurrence::Fixed(5),
-			);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			let schedule_2 = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Perpetual)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
 
 			//Act
 			let current_block = 501;
@@ -150,15 +146,14 @@ fn schedule_is_suspended_in_block_when_error_happens() {
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = schedule_fake(
-				ONE_HUNDRED_BLOCKS,
-				AssetPair {
-					asset_out: BTC,
-					asset_in: DAI,
-				},
-				ONE,
-				Recurrence::Fixed(5),
-			);
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
+
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
@@ -190,15 +185,14 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = schedule_fake(
-				ONE_HUNDRED_BLOCKS,
-				AssetPair {
-					asset_out: BTC,
-					asset_in: DAI,
-				},
-				ONE,
-				Recurrence::Perpetual,
-			);
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Perpetual)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
+
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
@@ -238,15 +232,14 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = schedule_fake(
-				ONE_HUNDRED_BLOCKS,
-				AssetPair {
-					asset_out: BTC,
-					asset_in: DAI,
-				},
-				ONE,
-				Recurrence::Fixed(1),
-			);
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(1))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
+
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
