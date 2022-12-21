@@ -25,6 +25,7 @@ use frame_support::traits::Get;
 use frame_support::transactional;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
+use frame_system::Origin;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Saturating;
@@ -32,7 +33,6 @@ use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 use sp_runtime::ArithmeticError;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
-
 #[cfg(test)]
 mod tests;
 
@@ -106,19 +106,73 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(_p: T::BlockNumber) -> Weight {
-			let mut weight: u64 = 0;
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T>
+	where
+		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+	{
+		fn on_initialize(b: T::BlockNumber) -> Weight {
+			{
+				let mut weight: u64 = 0;
 
-			//TODO: increment the weight once an action happens
-			//weight += T::WeightInfo::get_spot_price().ref_time();
+				let schedules: BoundedVec<ScheduleId, ConstU32<20>> = ScheduleIdsPerBlock::<T>::get(b).unwrap(); //TODO: better error handling for all the unwrap
 
-			Weight::from_ref_time(weight)
+				for schedule_id in schedules {
+					let schedule = Schedules::<T>::get(schedule_id).unwrap();
+					let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
+					let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
+					let buy_result = pallet_omnipool::Pallet::<T>::buy(
+						origin,
+						schedule.order.asset_out.into(),
+						schedule.order.asset_in.into(),
+						schedule.order.amount_out,
+						schedule.order.limit,
+					);
+
+					match buy_result {
+						Ok(res) => {
+							if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
+								RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
+									let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
+
+									*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
+
+									Ok::<u128, ArithmeticError>(*remaining_ocurrences)
+								});
+							}
+
+							let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
+
+							if !ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
+								let schedule_id = vec![schedule_id];
+								let vec_with_first_schedule_id: BoundedVec<ScheduleId, ConstU32<20>> =
+									schedule_id.try_into().unwrap();
+								ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
+							} else {
+								ScheduleIdsPerBlock::<T>::try_mutate_exists(
+									blocknumber_for_schedule,
+									|schedule_ids| -> DispatchResult {
+										let mut schedule_ids = schedule_ids.as_mut().unwrap(); //TODO: add different error handling
+
+										schedule_ids.try_push(schedule_id).unwrap();
+										Ok(())
+									},
+								);
+							}
+						}
+						_ => {}
+					}
+				}
+
+				//TODO: increment the weight once an action happens
+				//weight += T::WeightInfo::get_spot_price().ref_time();
+
+				Weight::from_ref_time(weight)
+			}
 		}
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_omnipool::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Identifier for the class of asset.
@@ -172,7 +226,10 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, ConstU32<20>>, OptionQuery>;
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+	{
 		///Schedule
 		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
 		#[transactional]

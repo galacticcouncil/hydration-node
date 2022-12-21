@@ -112,8 +112,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use frame_system::Origin;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
-	use pallet_dca::types::ScheduleId;
-	use pallet_dca::{Recurrence, Schedule};
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -121,71 +119,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
-	where
-		<T as Config>::AssetId: Into<<T as pallet_dca::Config>::Asset> + From<<T as pallet_dca::Config>::Asset>,
-	{
-		fn on_initialize(b: T::BlockNumber) -> Weight {
-			let mut weight: u64 = 0;
-
-			let schedules: BoundedVec<ScheduleId, ConstU32<20>> = pallet_dca::ScheduleIdsPerBlock::<T>::get(b).unwrap(); //TODO: better error handling for all the unwrap
-
-			for schedule_id in schedules {
-				let schedule = pallet_dca::Schedules::<T>::get(schedule_id).unwrap();
-				let owner = pallet_dca::ScheduleOwnership::<T>::get(schedule_id).unwrap();
-				let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
-				let buy_result = Self::buy(
-					origin,
-					schedule.order.asset_out.into(),
-					schedule.order.asset_in.into(),
-					schedule.order.amount_out,
-					schedule.order.limit,
-				);
-
-				match buy_result {
-					Ok(res) => {
-						if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
-							pallet_dca::RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
-								let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
-
-								*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
-
-								Ok::<u128, ArithmeticError>(*remaining_ocurrences)
-							});
-						}
-
-						let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
-
-						if !pallet_dca::ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
-							let schedule_id = vec![schedule_id];
-							let vec_with_first_schedule_id: BoundedVec<ScheduleId, ConstU32<20>> =
-								schedule_id.try_into().unwrap();
-							pallet_dca::ScheduleIdsPerBlock::<T>::insert(
-								blocknumber_for_schedule,
-								vec_with_first_schedule_id,
-							);
-						} else {
-							pallet_dca::ScheduleIdsPerBlock::<T>::try_mutate_exists(
-								blocknumber_for_schedule,
-								|schedule_ids| -> DispatchResult {
-									let mut schedule_ids = schedule_ids.as_mut().unwrap(); //TODO: add different error handling
-
-									schedule_ids.try_push(schedule_id).unwrap();
-									Ok(())
-								},
-							);
-						}
-					}
-					_ => {}
-				}
-			}
-
-			//TODO: increment the weight once an action happens
-			//weight += T::WeightInfo::get_spot_price().ref_time();
-
-			Weight::from_ref_time(weight)
-		}
-
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn integrity_test() {
 			assert_ne!(
 				T::MinimumPoolLiquidity::get(),
@@ -208,7 +142,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_dca::Config {
+	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
