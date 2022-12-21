@@ -30,7 +30,7 @@ use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
-fn pause_should_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
+fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
 	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -92,6 +92,33 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 		let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501).unwrap();
 		let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![2]);
 		assert_eq!(scheduled_ids_for_next_block, expected_scheduled_ids_for_next_block);
+	});
+}
+
+#[test]
+fn pause_should_mark_schedule_suspended() {
+	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let schedule = schedule_fake(
+			ONE_HUNDRED_BLOCKS,
+			AssetPair {
+				asset_out: BTC,
+				asset_in: DAI,
+			},
+			ONE,
+			Recurrence::Fixed(5),
+		);
+
+		set_block_number(500);
+		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+		//Act
+		let schedule_id = 1;
+		assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+		//Assert
+		assert!(DCA::suspended(1).is_some());
 	});
 }
 

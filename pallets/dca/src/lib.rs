@@ -197,6 +197,10 @@ pub mod pallet {
 	pub type Schedules<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset>, OptionQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn suspended)]
+	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn schedule_ownership)]
 	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, T::AccountId, OptionQuery>;
 
@@ -247,9 +251,10 @@ pub mod pallet {
 			schedule_id: ScheduleId,
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin.clone())?;
+			//let who = ensure_signed(origin.clone())?;
 
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
+			Suspended::<T>::insert(schedule_id, ());
 
 			Ok(())
 		}
