@@ -131,7 +131,7 @@ pub mod pallet {
 					match buy_result {
 						Ok(res) => {
 							if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
-								Self::decrement_recurrences(schedule_id);
+								Self::decrement_recurrences(schedule_id).unwrap();
 							}
 
 							let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
@@ -302,13 +302,20 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn decrement_recurrences(schedule_id: ScheduleId) -> DispatchResult {
-		RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
-			let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
+		let remaining_recurrences =
+			RemainingRecurrences::<T>::try_mutate_exists(schedule_id, |maybe_remaining_occurrances| {
+				let mut remaining_ocurrences = maybe_remaining_occurrances
+					.as_mut()
+					.ok_or(Error::<T>::UnexpectedError)?; //TODO: add different error handling
 
-			*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
+				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(Error::<T>::UnexpectedError)?;
 
-			Ok::<u128, ArithmeticError>(*remaining_ocurrences)
-		})?;
+				if *remaining_ocurrences == 0 {
+					*maybe_remaining_occurrances = None;
+				}
+
+				Ok::<(), DispatchError>(())
+			})?;
 
 		Ok(())
 	}
