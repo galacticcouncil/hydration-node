@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AssetId, Config};
+use crate::{AssetId, BlockNumber, Config};
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
@@ -48,6 +48,7 @@ pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
 pub const REGISTERED_ASSET: AssetId = 1000;
+pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;

@@ -18,6 +18,7 @@
 use frame_support::traits::OnInitialize;
 
 use crate::tests::mock::*;
+use crate::tests::*;
 use crate::{assert_balance, AssetId, BlockNumber, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -29,9 +30,6 @@ use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
 const ALICE: AccountId = 1000;
 const BOB: AccountId = 1001;
-
-const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
-
 #[test]
 fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 	ExtBuilder::default()
@@ -279,32 +277,4 @@ fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> Bounde
 
 pub fn set_block_number(n: u64) {
 	System::set_block_number(n);
-}
-
-struct AssetPair {
-	asset_in: AssetId,
-	asset_out: AssetId,
-}
-
-fn schedule_fake(
-	period: BlockNumber,
-	asset_pair: AssetPair,
-	amount: crate::types::Balance,
-	recurrence: Recurrence,
-) -> Schedule<AssetId> {
-	let trades = create_bounded_vec(vec![]);
-
-	let schedule = Schedule {
-		period: period,
-		order: Order {
-			asset_in: asset_pair.asset_in,
-			asset_out: asset_pair.asset_out,
-			amount_in: amount,
-			amount_out: amount,
-			limit: crate::types::Balance::MAX,
-			route: trades,
-		},
-		recurrence: recurrence,
-	};
-	schedule
 }
