@@ -97,7 +97,6 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 
 #[test]
 fn pause_should_mark_schedule_suspended() {
-	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let schedule = schedule_fake(
@@ -119,6 +118,29 @@ fn pause_should_mark_schedule_suspended() {
 
 		//Assert
 		assert!(DCA::suspended(1).is_some());
+	});
+}
+
+#[test]
+fn pause_should_when_when_called_with_nonsigned_user() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let schedule = schedule_fake(
+			ONE_HUNDRED_BLOCKS,
+			AssetPair {
+				asset_out: BTC,
+				asset_in: DAI,
+			},
+			ONE,
+			Recurrence::Fixed(5),
+		);
+
+		set_block_number(500);
+		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+		//Act and assert
+		let schedule_id = 1;
+		assert_noop!(DCA::pause(Origin::none(), schedule_id, 501), BadOrigin);
 	});
 }
 

@@ -251,7 +251,7 @@ pub mod pallet {
 			schedule_id: ScheduleId,
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
-			//let who = ensure_signed(origin.clone())?;
+			ensure_signed(origin.clone())?;
 
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
