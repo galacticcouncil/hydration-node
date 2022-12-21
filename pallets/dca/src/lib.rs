@@ -128,14 +128,16 @@ pub mod pallet {
 						Ok(res) => {
 							let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
 
-							if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
-								let remaining_reccurences = Self::decrement_recurrences(schedule_id).unwrap();
-
-								if !remaining_reccurences.is_zero() {
+							match schedule.recurrence {
+								Recurrence::Fixed(_) => {
+									let remaining_reccurences = Self::decrement_recurrences(schedule_id).unwrap();
+									if !remaining_reccurences.is_zero() {
+										Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id, &schedule);
+									}
+								}
+								Recurrence::Perpetual => {
 									Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id, &schedule);
 								}
-							} else {
-								Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id, &schedule);
 							}
 						}
 						_ => {
