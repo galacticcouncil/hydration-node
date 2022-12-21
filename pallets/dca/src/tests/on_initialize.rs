@@ -58,7 +58,7 @@ pub fn set_block_number(n: u64) {
 	System::set_block_number(n);
 }
 
-fn schedule_fake(recurrence: Recurrence) -> Schedule {
+fn schedule_fake(recurrence: Recurrence) -> Schedule<AssetId> {
 	let trades = create_bounded_vec(vec![Trade {
 		asset_in: 3,
 		asset_out: 4,

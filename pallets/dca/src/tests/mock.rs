@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
+use crate::AssetId;
 use crate::Config;
 use frame_support::parameter_types;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
@@ -33,11 +34,9 @@ use sp_runtime::{
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::ops::Deref;
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
-pub type AssetId = u32;
 pub type Balance = u128;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
@@ -141,6 +140,7 @@ parameter_types! {
 
 impl Config for Test {
 	type Event = Event;
+	type Asset = AssetId;
 	type WeightInfo = ();
 }
 

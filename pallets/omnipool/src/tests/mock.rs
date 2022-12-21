@@ -190,6 +190,7 @@ impl Config for Test {
 
 impl pallet_dca::Config for Test {
 	type Event = Event;
+	type Asset = AssetId;
 	type WeightInfo = ();
 }
 

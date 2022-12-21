@@ -57,9 +57,9 @@ pub enum Recurrence {
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Order {
-	pub asset_in: Balance,
-	pub asset_out: Balance,
+pub struct Order<AssetId> {
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
 	pub amount_in: Balance,
 	pub amount_out: Balance,
 	pub limit: Balance,
@@ -67,10 +67,10 @@ pub struct Order {
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Schedule {
+pub struct Schedule<AssetId> {
 	pub period: BlockNumber, //TODO: use proper block number
 	pub recurrence: Recurrence,
-	pub order: Order,
+	pub order: Order<AssetId>,
 }
 
 ///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
@@ -95,7 +95,7 @@ pub struct Bond {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use codec::EncodeLike;
+	use codec::{EncodeLike, HasCompact};
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
@@ -121,6 +121,16 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		/// Identifier for the class of asset.
+		type Asset: Member
+			+ Parameter
+			+ Default
+			+ Copy
+			+ HasCompact
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 	}
@@ -145,7 +155,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedules)]
-	pub type Schedules<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Schedule, OptionQuery>;
+	pub type Schedules<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ownership)]
@@ -168,7 +178,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
-			schedule: Schedule,
+			schedule: Schedule<T::Asset>,
 			next_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
@@ -195,7 +205,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	fn store_schedule(
 		who: <T as frame_system::Config>::AccountId,
-		schedule: Schedule,
+		schedule: Schedule<T::Asset>,
 		next_schedule_id: ScheduleId,
 	) -> DispatchResult {
 		let recurrence = schedule.recurrence.clone();

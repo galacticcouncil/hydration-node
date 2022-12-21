@@ -107,6 +107,7 @@ pub mod pallet {
 	use super::*;
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
+	use frame_support::dispatch::RawOrigin;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use frame_system::Origin;
@@ -120,7 +121,10 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T>
+	where
+		<T as Config>::AssetId: Into<<T as pallet_dca::Config>::Asset> + From<<T as pallet_dca::Config>::Asset>,
+	{
 		fn on_initialize(b: T::BlockNumber) -> Weight {
 			let mut weight: u64 = 0;
 
@@ -129,13 +133,14 @@ pub mod pallet {
 			for schedule_id in schedules {
 				let schedule = pallet_dca::Schedules::<T>::get(schedule_id).unwrap();
 				let owner = pallet_dca::ScheduleOwnership::<T>::get(schedule_id).unwrap();
-				/*Self::buy(
-					Origin::Signed(owner).into(),
-					schedule.order.asset_out,
-					schedule.order.asset_in,
+				let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
+				Self::buy(
+					origin,
+					schedule.order.asset_out.into(),
+					schedule.order.asset_in.into(),
 					schedule.order.amount_out,
 					schedule.order.limit,
-				);*/
+				);
 			}
 
 			//TODO: increment the weight once an action happens
