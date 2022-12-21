@@ -131,17 +131,10 @@ pub mod pallet {
 					match buy_result {
 						Ok(res) => {
 							if matches!(schedule.recurrence, Recurrence::Fixed(x)) {
-								RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
-									let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
-
-									*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
-
-									Ok::<u128, ArithmeticError>(*remaining_ocurrences)
-								});
+								Self::decrement_recurrences(schedule_id);
 							}
 
 							let blocknumber_for_schedule = b.checked_add(&schedule.period.into()).unwrap();
-
 							if !ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
 								let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
 								ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
@@ -149,7 +142,9 @@ pub mod pallet {
 								Self::add_schedule_id_to_existing_ids_per_block(schedule_id, blocknumber_for_schedule);
 							}
 						}
-						_ => {}
+						_ => {
+							//Suspend
+						}
 					}
 				}
 
@@ -301,6 +296,18 @@ impl<T: Config> Pallet<T> {
 				.try_push(next_schedule_id)
 				.map_err(|_| Error::<T>::UnexpectedError)?;
 			Ok(())
+		})?;
+
+		Ok(())
+	}
+
+	fn decrement_recurrences(schedule_id: ScheduleId) -> DispatchResult {
+		RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
+			let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
+
+			*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
+
+			Ok::<u128, ArithmeticError>(*remaining_ocurrences)
 		})?;
 
 		Ok(())
