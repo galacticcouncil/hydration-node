@@ -121,13 +121,8 @@ pub mod pallet {
 					let schedule = Schedules::<T>::get(schedule_id).unwrap();
 					let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
 					let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
-					let buy_result = pallet_omnipool::Pallet::<T>::buy(
-						origin,
-						schedule.order.asset_out.into(),
-						schedule.order.asset_in.into(),
-						schedule.order.amount_out,
-						schedule.order.limit,
-					);
+
+					let buy_result = Self::execute_buy(origin, &schedule);
 
 					match buy_result {
 						Ok(res) => {
@@ -329,5 +324,19 @@ impl<T: Config> Pallet<T> {
 			})?;
 
 		Ok(remaining_recurrences)
+	}
+
+	fn execute_buy(origin: T::Origin, schedule: &Schedule<<T as Config>::Asset>) -> DispatchResult
+	where
+		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+	{
+		let buy_result = pallet_omnipool::Pallet::<T>::buy(
+			origin,
+			schedule.order.asset_out.into(),
+			schedule.order.asset_in.into(),
+			schedule.order.amount_out,
+			schedule.order.limit,
+		);
+		buy_result
 	}
 }
