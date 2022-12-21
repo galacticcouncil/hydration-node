@@ -115,39 +115,53 @@ pub mod pallet {
 			{
 				let mut weight: u64 = 0;
 
-				let schedules: BoundedVec<ScheduleId, ConstU32<20>> =
-					ScheduleIdsPerBlock::<T>::get(current_blocknumber).unwrap(); //TODO: better error handling for all the unwrap
+				let maybe_schedules: Option<BoundedVec<ScheduleId, ConstU32<20>>> =
+					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
 
-				for schedule_id in schedules {
-					let schedule = Schedules::<T>::get(schedule_id).unwrap();
-					let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
-					let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
+				match maybe_schedules {
+					Some(schedules) => {
+						for schedule_id in schedules {
+							let schedule = Schedules::<T>::get(schedule_id).unwrap();
+							let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
+							let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
 
-					let buy_result = Self::execute_buy(origin, &schedule);
+							let buy_result = Self::execute_buy(origin, &schedule);
 
-					match buy_result {
-						Ok(res) => {
-							let blocknumber_for_schedule =
-								current_blocknumber.checked_add(&schedule.period.into()).unwrap();
+							match buy_result {
+								Ok(res) => {
+									let blocknumber_for_schedule =
+										current_blocknumber.checked_add(&schedule.period.into()).unwrap();
 
-							match schedule.recurrence {
-								Recurrence::Fixed(_) => {
-									let remaining_reccurences = Self::decrement_recurrences(schedule_id).unwrap();
-									if !remaining_reccurences.is_zero() {
-										Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id, &schedule);
+									match schedule.recurrence {
+										Recurrence::Fixed(_) => {
+											let remaining_reccurences =
+												Self::decrement_recurrences(schedule_id).unwrap();
+											if !remaining_reccurences.is_zero() {
+												Self::plan_schedule_for_block(
+													blocknumber_for_schedule,
+													schedule_id,
+													&schedule,
+												);
+											}
+										}
+										Recurrence::Perpetual => {
+											Self::plan_schedule_for_block(
+												blocknumber_for_schedule,
+												schedule_id,
+												&schedule,
+											);
+										}
 									}
 								}
-								Recurrence::Perpetual => {
-									Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id, &schedule);
+								_ => {
+									Suspended::<T>::insert(schedule_id, ());
+									//TODO: slash execution bond
+									//TODO: emit suspended
 								}
 							}
 						}
-						_ => {
-							Suspended::<T>::insert(schedule_id, ());
-							//TODO: slash execution bond
-							//TODO: emit suspended
-						}
 					}
+					None => (),
 				}
 
 				//TODO: increment the weight once an action happens
