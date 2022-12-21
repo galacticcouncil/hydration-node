@@ -227,15 +227,12 @@ pub mod pallet {
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
-			Self::store_schedule(who, schedule, next_schedule_id)?;
+			Schedules::<T>::insert(next_schedule_id, &schedule);
+			Self::store_recurrence_in_case_of_fixed_schedule(next_schedule_id, &schedule.recurrence);
+			ScheduleOwnership::<T>::insert(next_schedule_id, who);
 
 			let blocknumber_for_schedule = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
-			if !ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
-				let vec_with_first_schedule_id = Self::create_bounded_vec(next_schedule_id);
-				ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
-			} else {
-				Self::add_schedule_id_to_existing_ids_per_block(next_schedule_id, blocknumber_for_schedule)?;
-			}
+			Self::plan_schedule_for_block(blocknumber_for_schedule, next_schedule_id, &schedule);
 
 			//TODO: emit events
 
@@ -245,19 +242,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn store_schedule(
-		who: <T as frame_system::Config>::AccountId,
-		schedule: Schedule<T::Asset>,
-		next_schedule_id: ScheduleId,
-	) -> DispatchResult {
-		let recurrence = schedule.recurrence.clone();
-		Schedules::<T>::insert(next_schedule_id, schedule);
-		Self::store_recurrence_in_case_of_fixed_schedule(next_schedule_id, recurrence);
-		ScheduleOwnership::<T>::insert(next_schedule_id, who);
-
-		Ok(())
-	}
-
 	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId, schedule: &Schedule<<T as Config>::Asset>) {
 		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
 			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
@@ -289,8 +273,8 @@ impl<T: Config> Pallet<T> {
 		bounded_vec
 	}
 
-	fn store_recurrence_in_case_of_fixed_schedule(next_schedule_id: ScheduleId, recurrence: Recurrence) {
-		if let Recurrence::Fixed(number_of_recurrence) = recurrence {
+	fn store_recurrence_in_case_of_fixed_schedule(next_schedule_id: ScheduleId, recurrence: &Recurrence) {
+		if let Recurrence::Fixed(number_of_recurrence) = *recurrence {
 			RemainingRecurrences::<T>::insert(next_schedule_id, number_of_recurrence);
 		};
 	}
