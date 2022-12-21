@@ -31,7 +31,7 @@ use sp_runtime::DispatchError::BadOrigin;
 const ALICE: AccountId = 1000;
 
 #[test]
-fn dca_btc() {
+fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -65,6 +65,43 @@ fn dca_btc() {
 			assert_balance!(ALICE, BTC, ONE);
 			let schedule_id = 1;
 			assert_eq!(DCA::remaining_recurrences(schedule_id,).unwrap(), 4);
+		});
+}
+
+#[test]
+fn schedule_is_suspended_in_block_when_error_happens() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, BTC, 5000 * ONE),
+			(LP2, DAI, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_registered_asset(DAI)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = schedule_fake(
+				AssetPair {
+					asset_out: BTC,
+					asset_in: DAI,
+				},
+				ONE,
+				Recurrence::Fixed(5),
+			);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			Omnipool::on_initialize(501);
+
+			//Assert
+			assert_balance!(ALICE, BTC, 0);
+			let schedule_id = 1;
+			assert_eq!(DCA::remaining_recurrences(schedule_id,).unwrap(), 5);
 		});
 }
 

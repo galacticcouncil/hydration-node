@@ -142,13 +142,18 @@ pub mod pallet {
 					schedule.order.limit,
 				);
 
-				pallet_dca::RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
-					let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
+				match buy_result {
+					Ok(res) => {
+						pallet_dca::RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
+							let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
 
-					*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
+							*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
 
-					Ok::<u128, ArithmeticError>(*remaining_ocurrences)
-				});
+							Ok::<u128, ArithmeticError>(*remaining_ocurrences)
+						});
+					}
+					_ => {}
+				}
 			}
 
 			//TODO: increment the weight once an action happens
