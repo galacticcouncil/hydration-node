@@ -30,7 +30,7 @@ use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 
 #[test]
-fn pause_should_remove_planned_schedule_from_next_execution_when_already_planned() {
+fn pause_should_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
 	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -55,6 +55,46 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_already_planned
 		assert!(DCA::schedule_ids_per_block(501).is_none());
 	});
 }
+
+#[test]
+fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multiple_entries_planned() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let schedule = schedule_fake(
+			ONE_HUNDRED_BLOCKS,
+			AssetPair {
+				asset_out: BTC,
+				asset_in: DAI,
+			},
+			ONE,
+			Recurrence::Fixed(5),
+		);
+
+		let schedule2 = schedule_fake(
+			ONE_HUNDRED_BLOCKS,
+			AssetPair {
+				asset_out: BTC,
+				asset_in: DAI,
+			},
+			ONE,
+			Recurrence::Fixed(5),
+		);
+
+		set_block_number(500);
+		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::None));
+
+		//Act
+		let schedule_id = 1;
+		assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+		//Assert
+		let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501).unwrap();
+		let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![2]);
+		assert_eq!(scheduled_ids_for_next_block, expected_scheduled_ids_for_next_block);
+	});
+}
+
 //TODO: add test when there is multiple schedules, and we just then remove with pause, and not completely getting rid of the scheduleperblock
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
