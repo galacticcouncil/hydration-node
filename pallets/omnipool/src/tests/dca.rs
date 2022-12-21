@@ -63,6 +63,8 @@ fn dca_btc() {
 
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
+			let schedule_id = 1;
+			assert_eq!(DCA::remaining_recurrences(schedule_id,).unwrap(), 4);
 		});
 }
 

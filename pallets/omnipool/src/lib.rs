@@ -128,19 +128,27 @@ pub mod pallet {
 		fn on_initialize(b: T::BlockNumber) -> Weight {
 			let mut weight: u64 = 0;
 
-			let schedules: BoundedVec<ScheduleId, ConstU32<20>> = pallet_dca::ScheduleIdsPerBlock::<T>::get(b).unwrap(); //TODO: better error handling
+			let schedules: BoundedVec<ScheduleId, ConstU32<20>> = pallet_dca::ScheduleIdsPerBlock::<T>::get(b).unwrap(); //TODO: better error handling for all the unwrap
 
 			for schedule_id in schedules {
 				let schedule = pallet_dca::Schedules::<T>::get(schedule_id).unwrap();
 				let owner = pallet_dca::ScheduleOwnership::<T>::get(schedule_id).unwrap();
 				let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
-				Self::buy(
+				let buy_result = Self::buy(
 					origin,
 					schedule.order.asset_out.into(),
 					schedule.order.asset_in.into(),
 					schedule.order.amount_out,
 					schedule.order.limit,
 				);
+
+				pallet_dca::RemainingRecurrences::<T>::try_mutate(schedule_id, |remaining_occurrances| {
+					let mut remaining_ocurrences = remaining_occurrances.as_mut().unwrap(); //TODO: add different error handling
+
+					*remaining_ocurrences = remaining_ocurrences.checked_sub(1).unwrap();
+
+					Ok::<u128, ArithmeticError>(*remaining_ocurrences)
+				});
 			}
 
 			//TODO: increment the weight once an action happens
