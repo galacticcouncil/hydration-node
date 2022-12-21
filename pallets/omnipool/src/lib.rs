@@ -109,7 +109,10 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use frame_system::Origin;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+	use pallet_dca::types::ScheduleId;
+	use pallet_dca::Schedule;
 	use sp_runtime::ArithmeticError;
 
 	#[pallet::pallet]
@@ -120,6 +123,20 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(b: T::BlockNumber) -> Weight {
 			let mut weight: u64 = 0;
+
+			let schedules: BoundedVec<ScheduleId, ConstU32<20>> = pallet_dca::ScheduleIdsPerBlock::<T>::get(b).unwrap(); //TODO: better error handling
+
+			for schedule_id in schedules {
+				let schedule = pallet_dca::Schedules::<T>::get(schedule_id).unwrap();
+				let owner = pallet_dca::ScheduleOwnership::<T>::get(schedule_id).unwrap();
+				/*Self::buy(
+					Origin::Signed(owner).into(),
+					schedule.order.asset_out,
+					schedule.order.asset_in,
+					schedule.order.amount_out,
+					schedule.order.limit,
+				);*/
+			}
 
 			//TODO: increment the weight once an action happens
 			//weight += T::WeightInfo::get_spot_price().ref_time();
@@ -149,7 +166,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_dca::Config {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
