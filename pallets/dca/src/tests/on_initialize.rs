@@ -33,7 +33,7 @@ const ALICE: AccountId = 1000;
 const BOB: AccountId = 1001;
 
 #[test]
-fn schedule_execution_showcase() {
+fn full_dca_schedule_should_be_executed_with_fixed_recurrence() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
