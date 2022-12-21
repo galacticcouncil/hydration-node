@@ -30,6 +30,7 @@ use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
 const ALICE: AccountId = 1000;
 const BOB: AccountId = 1001;
+
 #[test]
 fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 	ExtBuilder::default()
@@ -166,7 +167,8 @@ fn schedule_is_suspended_in_block_when_error_happens() {
 			//Assert
 			assert_balance!(ALICE, BTC, 0);
 			let schedule_id = 1;
-			assert_eq!(DCA::remaining_recurrences(schedule_id,).unwrap(), 5);
+			assert_eq!(DCA::remaining_recurrences(schedule_id).unwrap(), 5);
+			assert!(DCA::suspended(schedule_id).is_some());
 		});
 }
 
@@ -219,7 +221,7 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 }
 
 #[test]
-fn schedule_is_not_planned_again_when_there_is_no_more_recurrences() {
+fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),

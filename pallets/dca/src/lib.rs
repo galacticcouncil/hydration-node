@@ -143,7 +143,9 @@ pub mod pallet {
 							}
 						}
 						_ => {
-							//TODO: Suspend
+							Suspended::<T>::insert(schedule_id, ());
+							//TODO: slash execution bond
+							//TODO: emit suspended
 						}
 					}
 				}
