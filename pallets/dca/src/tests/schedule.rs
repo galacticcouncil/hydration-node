@@ -17,15 +17,16 @@
 
 use crate::tests::mock::*;
 use crate::tests::ScheduleBuilder;
-use crate::AssetId;
+use crate::{AssetId, Bond};
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::{BoundedVec, FixedU128};
+pub type Price = FixedU128;
 
 #[test]
 fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified() {
@@ -145,6 +146,44 @@ fn schedule_should_work_when_perpetual_schedule_is_specified() {
 		//Check if the recurrances have been stored
 		assert!(DCA::remaining_recurrences(schedule_id).is_none());
 	});
+}
+
+#[test]
+fn schedule_creation_should_store_bond_taken_from_user() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+			(LP2, DAI, 5000 * ONE),
+		])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			assert_ok!(MultiTransactionPayment::add_currency(
+				Origin::root(),
+				DAI,
+				Price::from_float(1.1)
+			));
+			assert_ok!(MultiTransactionPayment::set_currency(Origin::signed(ALICE.into()), DAI));
+
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			let schedule_id = 1;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: 1,
+					amount: 3_000_000
+				}
+			)
+		});
 }
 
 #[test]

@@ -188,6 +188,12 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		#[pallet::constant]
+		type ExecutionBondInNativeCurrency: Get<Balance>;
+
+		#[pallet::constant]
+		type StorageBondInNativeCurrency: Get<Balance>;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 	}
@@ -232,6 +238,10 @@ pub mod pallet {
 	pub type ScheduleIdsPerBlock<T: Config> =
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, ConstU32<20>>, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn bond)]
+	pub type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Bond, OptionQuery>;
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
 	where
@@ -255,6 +265,16 @@ pub mod pallet {
 
 			let blocknumber_for_schedule = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
 			Self::plan_schedule_for_block(blocknumber_for_schedule, next_schedule_id, &schedule);
+
+			let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
+				.checked_add(T::StorageBondInNativeCurrency::get())
+				.ok_or(Error::<T>::UnexpectedError)?;
+			let bond = Bond {
+				asset: 1,
+				amount: total_bond_in_native_currency,
+			};
+
+			Bonds::<T>::insert(next_schedule_id, bond);
 
 			//TODO: emit events
 
