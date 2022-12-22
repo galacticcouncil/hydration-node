@@ -70,6 +70,43 @@ fn full_dca_schedule_should_be_executed_with_fixed_recurrence() {
 }
 
 #[test]
+fn full_dca_schedule_should_be_executed_with_perpetual_recurrence() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_registered_asset(DAI)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+			assert_balance!(ALICE, BTC, 0);
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Perpetual)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_asset_out(BTC)
+				.with_asset_in(DAI)
+				.with_amount_out(ONE)
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			proceed_to_blocknumber(501, 901);
+
+			//Assert
+			assert_balance!(ALICE, BTC, 5 * ONE);
+		});
+}
+
+#[test]
 fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
