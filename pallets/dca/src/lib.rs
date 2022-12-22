@@ -134,9 +134,9 @@ pub mod pallet {
 							let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
 							let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
 
-							let buy_result = Self::execute_trade(origin, &schedule.order);
+							let trade_result = Self::execute_trade(origin, &schedule.order);
 
-							match buy_result {
+							match trade_result {
 								Ok(res) => {
 									let blocknumber_for_schedule =
 										current_blocknumber.checked_add(&schedule.period.into()).unwrap();
@@ -216,6 +216,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		///First error
 		UnexpectedError,
+		///Schedule not exist
+		ScheduleNotExist,
 	}
 
 	/// Id sequencer for schedules
@@ -419,7 +421,7 @@ where
 		next_execution_block: T::BlockNumber,
 	) -> DispatchResult {
 		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
-			let mut schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::UnexpectedError)?; //TODO: add different error handling
+			let mut schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotExist)?;
 
 			let index = schedule_ids.iter().position(|x| *x == schedule_id).unwrap();
 			schedule_ids.remove(index);

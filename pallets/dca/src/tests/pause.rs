@@ -90,7 +90,7 @@ fn pause_should_mark_schedule_suspended() {
 }
 
 #[test]
-fn pause_should_when_when_called_with_nonsigned_user() {
+fn pause_should_fail_when_when_called_with_nonsigned_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
 		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
@@ -101,6 +101,24 @@ fn pause_should_when_when_called_with_nonsigned_user() {
 		//Act and assert
 		let schedule_id = 1;
 		assert_noop!(DCA::pause(Origin::none(), schedule_id, 501), BadOrigin);
+	});
+}
+
+#[test]
+fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+		set_block_number(500);
+		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+		//Act and assert
+		let schedule_id = 1;
+		assert_noop!(
+			DCA::pause(Origin::signed(ALICE), schedule_id, 502),
+			Error::<Test>::ScheduleNotExist
+		);
 	});
 }
 
