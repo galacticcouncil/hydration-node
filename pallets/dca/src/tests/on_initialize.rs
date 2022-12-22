@@ -120,6 +120,7 @@ fn full_buy_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
 			assert_eq!(1950000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
+			assert!(DCA::bond(1).is_some());
 		});
 }
 
