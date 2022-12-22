@@ -180,7 +180,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
 					asset: 1,
-					amount: 3_000_000
+					amount: 1_950_000
 				}
 			)
 		});

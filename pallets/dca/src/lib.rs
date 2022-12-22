@@ -27,11 +27,13 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use scale_info::TypeInfo;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 use sp_runtime::ArithmeticError;
+use sp_runtime::FixedPointNumber;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
 #[cfg(test)]
@@ -107,7 +109,9 @@ pub mod pallet {
 	use codec::{EncodeLike, HasCompact};
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
+	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
+	use sp_runtime::{FixedPointNumber, FixedU128};
 	use std::fmt::Debug;
 
 	#[pallet::pallet]
@@ -195,6 +199,12 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		type AccountCurrencyAndPriceProvider: TransactionMultiPaymentDataProvider<
+			Self::AccountId,
+			Self::Asset,
+			FixedU128,
+		>;
+
 		#[pallet::constant]
 		type ExecutionBondInNativeCurrency: Get<Balance>;
 
@@ -270,20 +280,12 @@ pub mod pallet {
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			Self::store_recurrence_in_case_of_fixed_schedule(next_schedule_id, &schedule.recurrence);
-			ScheduleOwnership::<T>::insert(next_schedule_id, who);
+			ScheduleOwnership::<T>::insert(next_schedule_id, who.clone());
 
 			let blocknumber_for_schedule = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
 			Self::plan_schedule_for_block(blocknumber_for_schedule, next_schedule_id, &schedule);
 
-			let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
-				.checked_add(T::StorageBondInNativeCurrency::get())
-				.ok_or(Error::<T>::UnexpectedError)?;
-			let bond = Bond {
-				asset: 1,
-				amount: total_bond_in_native_currency,
-			};
-
-			Bonds::<T>::insert(next_schedule_id, bond);
+			Self::calculate_and_store_bond(who, next_schedule_id)?;
 
 			//TODO: emit events
 
@@ -431,6 +433,26 @@ where
 			}
 			Ok(())
 		})?;
+
+		Ok(())
+	}
+
+	fn calculate_and_store_bond(who: T::AccountId, next_schedule_id: ScheduleId) -> DispatchResult {
+		let user_currency_and_spot_price = T::AccountCurrencyAndPriceProvider::get_currency_and_price(&who)?;
+		let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
+			.checked_add(T::StorageBondInNativeCurrency::get())
+			.ok_or(Error::<T>::UnexpectedError)?;
+
+		let spot_price_for_user_asset = user_currency_and_spot_price.1.ok_or(Error::<T>::UnexpectedError)?;
+		let total_bond_in_user_currency = spot_price_for_user_asset
+			.checked_mul_int(total_bond_in_native_currency)
+			.ok_or(ArithmeticError::Overflow)?;
+		let bond = Bond {
+			asset: 1,
+			amount: total_bond_in_user_currency,
+		};
+
+		Bonds::<T>::insert(next_schedule_id, bond);
 
 		Ok(())
 	}

@@ -295,9 +295,22 @@ parameter_types! {
 	pub StorageBondInNativeCurrency: Balance= 2_000_000;
 }
 
+pub struct AccountIdAndCurrencyProviderStub {}
+
+impl TransactionMultiPaymentDataProvider<AccountId, AssetId, FixedU128> for AccountIdAndCurrencyProviderStub {
+	fn get_currency_and_price(who: &AccountId) -> Result<(AssetId, Option<FixedU128>), DispatchError> {
+		Ok((DAI, Some(FixedU128::from_float(0.65))))
+	}
+
+	fn get_fee_receiver() -> AccountId {
+		todo!()
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
+	type AccountCurrencyAndPriceProvider = AccountIdAndCurrencyProviderStub;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type WeightInfo = ();
@@ -305,7 +318,7 @@ impl Config for Test {
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
 use hydradx_traits::pools::SpotPriceProvider;
-use pallet_transaction_multi_payment::{DepositAll, TransferFees};
+use pallet_transaction_multi_payment::{DepositAll, TransactionMultiPaymentDataProvider, TransferFees};
 use smallvec::smallvec;
 
 pub struct DummyNFT;
