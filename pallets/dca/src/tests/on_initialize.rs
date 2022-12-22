@@ -16,9 +16,9 @@
 // limitations under the License.
 
 use frame_support::traits::OnInitialize;
+use std::io::empty;
 use std::ops::RangeInclusive;
 
-use crate::tests::mock::*;
 use crate::tests::*;
 use crate::{assert_balance, AssetId, BlockNumber, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
@@ -54,9 +54,13 @@ fn full_dca_schedule_should_be_executed_with_fixed_recurrence() {
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -91,9 +95,13 @@ fn full_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -150,12 +158,17 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
+
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -197,9 +210,13 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(601)));
@@ -208,9 +225,13 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 			let schedule_2 = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
@@ -245,12 +266,17 @@ fn schedule_is_suspended_in_block_when_error_happens() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
+
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -287,9 +313,13 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -333,9 +363,13 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(1))
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_asset_out(BTC)
-				.with_asset_in(DAI)
-				.with_amount_out(ONE)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));

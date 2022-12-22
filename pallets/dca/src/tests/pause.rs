@@ -54,15 +54,7 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 		//Arrange
 		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
-		let schedule2 = schedule_fake(
-			ONE_HUNDRED_BLOCKS,
-			AssetPair {
-				asset_out: BTC,
-				asset_in: DAI,
-			},
-			ONE,
-			Recurrence::Fixed(5),
-		);
+		let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 		set_block_number(500);
 		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));

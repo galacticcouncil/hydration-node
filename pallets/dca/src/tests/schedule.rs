@@ -212,25 +212,3 @@ fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> Bounde
 pub fn set_block_number(n: u64) {
 	System::set_block_number(n);
 }
-
-fn schedule_fake(recurrence: Recurrence) -> Schedule<AssetId> {
-	let trades = create_bounded_vec(vec![Trade {
-		asset_in: 3,
-		asset_out: 4,
-		pool: PoolType::XYK,
-	}]);
-
-	let schedule = Schedule {
-		period: 10,
-		order: Order {
-			asset_in: 3,
-			asset_out: 4,
-			amount_in: 1000,
-			amount_out: 2000,
-			limit: 0,
-			route: trades,
-		},
-		recurrence: recurrence,
-	};
-	schedule
-}

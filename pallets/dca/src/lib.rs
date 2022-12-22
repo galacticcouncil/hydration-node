@@ -57,15 +57,22 @@ pub enum Recurrence {
 	Perpetual,
 }
 
-//TODO: this should be an enum
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Order<AssetId> {
-	pub asset_in: AssetId,
-	pub asset_out: AssetId,
-	pub amount_in: Balance,
-	pub amount_out: Balance,
-	pub limit: Balance,
-	pub route: BoundedVec<Trade, sp_runtime::traits::ConstU32<MAX_NUMBER_OF_TRADES>>,
+pub enum Order<AssetId> {
+	Sell {
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
+	},
+	Buy {
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_limit: Balance,
+		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
+	},
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
@@ -127,7 +134,7 @@ pub mod pallet {
 							let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
 							let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
 
-							let buy_result = Self::execute_buy(origin, &schedule);
+							let buy_result = Self::execute_buy(origin, &schedule.order);
 
 							match buy_result {
 								Ok(res) => {
@@ -299,7 +306,10 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+where
+	<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+{
 	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId, schedule: &Schedule<<T as Config>::Asset>) {
 		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
 			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
@@ -373,18 +383,34 @@ impl<T: Config> Pallet<T> {
 		Ok(remaining_recurrences)
 	}
 
-	fn execute_buy(origin: T::Origin, schedule: &Schedule<<T as Config>::Asset>) -> DispatchResult
-	where
-		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
-	{
-		let buy_result = pallet_omnipool::Pallet::<T>::buy(
-			origin,
-			schedule.order.asset_out.into(),
-			schedule.order.asset_in.into(),
-			schedule.order.amount_out,
-			schedule.order.limit,
-		);
-		buy_result
+	fn execute_buy(origin: T::Origin, order: &Order<<T as Config>::Asset>) -> DispatchResult {
+		match order {
+			Order::Sell {
+				asset_in,
+				asset_out,
+				amount_in,
+				route,
+				min_limit,
+			} => {
+				todo!()
+			}
+			Order::Buy {
+				asset_in,
+				asset_out,
+				amount_out,
+				max_limit,
+				route,
+			} => {
+				let buy_result = pallet_omnipool::Pallet::<T>::buy(
+					origin,
+					(*asset_out).into(),
+					(*asset_in).into(),
+					*amount_out,
+					*max_limit,
+				);
+				buy_result
+			}
+		}
 	}
 
 	fn remove_schedule_id_from_next_execution_block(
