@@ -161,7 +161,7 @@ fn full_sell_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, DAI, 100000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
 		.with_registered_asset(BTC)
@@ -192,7 +192,7 @@ fn full_sell_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 			proceed_to_blocknumber(501, 1501);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 518134715025898);
+			assert_balance!(ALICE, BTC, 521_327_014_218_000);
 		});
 }
 
