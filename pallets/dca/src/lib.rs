@@ -139,7 +139,7 @@ pub mod pallet {
 						for schedule_id in schedules {
 							let schedule = Schedules::<T>::get(schedule_id).unwrap();
 							let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
-							let origin: OriginFor<T> = Origin::<T>::Signed(owner).into();
+							let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
 
 							let trade_result = Self::execute_trade(origin, &schedule.order);
 
@@ -158,6 +158,10 @@ pub mod pallet {
 													schedule_id,
 													&schedule,
 												);
+											} else {
+												let bond = Self::bond(schedule_id).unwrap();
+												T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
+												//TODO: also remove from bond
 											}
 										}
 										Recurrence::Perpetual => {

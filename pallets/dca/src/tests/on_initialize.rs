@@ -24,11 +24,13 @@ use crate::{assert_balance, AssetId, BlockNumber, Order, Recurrence, Schedule, S
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiCurrency;
+use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
+
 const ALICE: AccountId = 1000;
 const BOB: AccountId = 1001;
 
@@ -50,7 +52,6 @@ fn full_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(5))
@@ -65,12 +66,15 @@ fn full_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_balance!(ALICE, BTC, 0);
+			assert_eq!(1950000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
 
 			//Act
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
+			assert_eq!(0, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
 		});
 }
 
@@ -92,7 +96,6 @@ fn full_buy_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Perpetual)
@@ -107,12 +110,15 @@ fn full_buy_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_balance!(ALICE, BTC, 0);
+			assert_eq!(1950000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
 
 			//Act
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
+			assert_eq!(1950000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
 		});
 }
 
