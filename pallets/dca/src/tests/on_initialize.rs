@@ -35,7 +35,7 @@ const ALICE: AccountId = 1000;
 const BOB: AccountId = 1001;
 
 #[test]
-fn full_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
+fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -80,7 +80,7 @@ fn full_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 }
 
 #[test]
-fn full_buy_dca_schedule_should_be_executed_with_perpetual_recurrence() {
+fn buy_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -125,7 +125,7 @@ fn full_buy_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 }
 
 #[test]
-fn full_sell_dca_schedule_should_be_executed_with_fixed_recurrence() {
+fn complete_sell_dca_schedule_should_be_executed_with_fixed_recurrence() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -167,7 +167,7 @@ fn full_sell_dca_schedule_should_be_executed_with_fixed_recurrence() {
 }
 
 #[test]
-fn full_sell_dca_schedule_should_be_executed_with_perpetual_recurrence() {
+fn full_sell_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
