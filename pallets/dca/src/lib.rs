@@ -439,14 +439,13 @@ where
 
 	fn calculate_and_store_bond(who: T::AccountId, next_schedule_id: ScheduleId) -> DispatchResult {
 		let user_currency_and_spot_price = T::AccountCurrencyAndPriceProvider::get_currency_and_price(&who)?;
-		let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
-			.checked_add(T::StorageBondInNativeCurrency::get())
-			.ok_or(Error::<T>::UnexpectedError)?;
-
 		let spot_price_for_user_asset = user_currency_and_spot_price.1.ok_or(Error::<T>::UnexpectedError)?;
+
+		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
 		let total_bond_in_user_currency = spot_price_for_user_asset
 			.checked_mul_int(total_bond_in_native_currency)
 			.ok_or(ArithmeticError::Overflow)?;
+
 		let bond = Bond {
 			asset: user_currency_and_spot_price.0,
 			amount: total_bond_in_user_currency,
@@ -455,5 +454,13 @@ where
 		Bonds::<T>::insert(next_schedule_id, bond);
 
 		Ok(())
+	}
+
+	fn get_total_bond_from_config_in_native_currency() -> Result<u128, DispatchError> {
+		let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
+			.checked_add(T::StorageBondInNativeCurrency::get())
+			.ok_or(Error::<T>::UnexpectedError)?;
+
+		Ok(total_bond_in_native_currency)
 	}
 }
