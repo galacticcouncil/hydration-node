@@ -179,7 +179,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
-					asset: 1,
+					asset: DAI,
 					amount: 1_950_000
 				}
 			)

@@ -98,7 +98,7 @@ pub enum PoolType {
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Bond {
+pub struct Bond<AssetId> {
 	pub asset: AssetId,
 	pub amount: Balance,
 }
@@ -259,7 +259,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn bond)]
-	pub type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Bond, OptionQuery>;
+	pub type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Bond<T::Asset>, OptionQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
@@ -448,7 +448,7 @@ where
 			.checked_mul_int(total_bond_in_native_currency)
 			.ok_or(ArithmeticError::Overflow)?;
 		let bond = Bond {
-			asset: 1,
+			asset: user_currency_and_spot_price.0,
 			amount: total_bond_in_user_currency,
 		};
 
