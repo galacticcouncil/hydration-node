@@ -159,9 +159,7 @@ pub mod pallet {
 													&schedule,
 												);
 											} else {
-												let bond = Self::bond(schedule_id).unwrap();
-												T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
-												Bonds::<T>::remove(schedule_id);
+												Self::erase_bond(schedule_id, &owner);
 											}
 										}
 										Recurrence::Perpetual => {
@@ -478,5 +476,11 @@ where
 			.ok_or(Error::<T>::UnexpectedError)?;
 
 		Ok(total_bond_in_native_currency)
+	}
+
+	fn erase_bond(schedule_id: ScheduleId, owner: &T::AccountId) {
+		let bond = Self::bond(schedule_id).unwrap();
+		T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
+		Bonds::<T>::remove(schedule_id);
 	}
 }
