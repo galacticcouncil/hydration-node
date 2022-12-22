@@ -310,6 +310,7 @@ impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = AccountIdAndCurrencyProviderStub;
+	type MultiReservableCurrency = pallet_currencies::Pallet<Test>;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type WeightInfo = ();

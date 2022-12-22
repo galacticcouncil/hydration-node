@@ -27,6 +27,7 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use orml_traits::MultiReservableCurrency;
 use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use scale_info::TypeInfo;
 use sp_runtime::traits::Saturating;
@@ -36,6 +37,7 @@ use sp_runtime::ArithmeticError;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
+
 #[cfg(test)]
 mod tests;
 
@@ -109,6 +111,7 @@ pub mod pallet {
 	use codec::{EncodeLike, HasCompact};
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::router::ExecutorError;
+	use orml_traits::MultiReservableCurrency;
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
 	use sp_runtime::{FixedPointNumber, FixedU128};
@@ -203,6 +206,12 @@ pub mod pallet {
 			Self::AccountId,
 			Self::Asset,
 			FixedU128,
+		>;
+
+		type MultiReservableCurrency: MultiReservableCurrency<
+			Self::AccountId,
+			CurrencyId = Self::Asset,
+			Balance = Balance,
 		>;
 
 		#[pallet::constant]
@@ -444,12 +453,15 @@ where
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
 		let total_bond_in_user_currency = spot_price_for_user_asset
 			.checked_mul_int(total_bond_in_native_currency)
-			.ok_or(ArithmeticError::Overflow)?;
+			.ok_or(ArithmeticError::Overflow)?; //TODO: verify if this is the right way to do the conversion
 
 		let bond = Bond {
 			asset: user_currency_and_spot_price.0,
 			amount: total_bond_in_user_currency,
 		};
+
+		//TODO: throw error if can not reserve due to invalid balance - use can_reserve()
+		T::MultiReservableCurrency::reserve(bond.asset, &who, bond.amount)?;
 
 		Bonds::<T>::insert(next_schedule_id, bond);
 

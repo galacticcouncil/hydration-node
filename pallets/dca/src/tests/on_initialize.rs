@@ -41,6 +41,7 @@ fn full_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 			(ALICE, DAI, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -82,6 +83,7 @@ fn full_buy_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 			(ALICE, DAI, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -125,6 +127,7 @@ fn full_sell_dca_schedule_should_be_executed_with_fixed_recurrence() {
 		])
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
+		.with_fee_asset_for_all_users(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -164,6 +167,7 @@ fn full_sell_dca_schedule_should_be_executed_with_perpetual_recurrence() {
 			(ALICE, DAI, 100000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -206,6 +210,7 @@ fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -232,6 +237,7 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -282,6 +288,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -323,6 +330,7 @@ fn fixed_schedule_is_suspended_in_block_when_error_happens() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
@@ -366,9 +374,11 @@ fn perpetual_schedule_is_suspended_in_block_when_error_happens() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(HDX)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -412,6 +422,7 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -462,6 +473,7 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)

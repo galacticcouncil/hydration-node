@@ -32,94 +32,114 @@ use sp_runtime::DispatchError::BadOrigin;
 #[test]
 fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
 	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
-	ExtBuilder::default().build().execute_with(|| {
-		//Arrange
-		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
-		set_block_number(500);
-		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
-		//Act
-		let schedule_id = 1;
-		assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
-		//Assert
-		assert!(DCA::schedule_ids_per_block(501).is_none());
-	});
+			//Assert
+			assert!(DCA::schedule_ids_per_block(501).is_none());
+		});
 }
 
 #[test]
 fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multiple_entries_planned() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Arrange
-		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
-		let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
-		set_block_number(500);
-		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::None));
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::None));
 
-		//Act
-		let schedule_id = 1;
-		assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
-		//Assert
-		let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501).unwrap();
-		let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![2]);
-		assert_eq!(scheduled_ids_for_next_block, expected_scheduled_ids_for_next_block);
-	});
+			//Assert
+			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501).unwrap();
+			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![2]);
+			assert_eq!(scheduled_ids_for_next_block, expected_scheduled_ids_for_next_block);
+		});
 }
 
 #[test]
 fn pause_should_mark_schedule_suspended() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Arrange
-		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
-		set_block_number(500);
-		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
-		//Act
-		let schedule_id = 1;
-		assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
-		//Assert
-		assert!(DCA::suspended(1).is_some());
-	});
+			//Assert
+			assert!(DCA::suspended(1).is_some());
+		});
 }
 
 #[test]
 fn pause_should_fail_when_when_called_with_nonsigned_user() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Arrange
-		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
-		set_block_number(500);
-		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
-		//Act and assert
-		let schedule_id = 1;
-		assert_noop!(DCA::pause(Origin::none(), schedule_id, 501), BadOrigin);
-	});
+			//Act and assert
+			let schedule_id = 1;
+			assert_noop!(DCA::pause(Origin::none(), schedule_id, 501), BadOrigin);
+		});
 }
 
 #[test]
 fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Arrange
-		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
-		set_block_number(500);
-		assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
-		//Act and assert
-		let schedule_id = 1;
-		assert_noop!(
-			DCA::pause(Origin::signed(ALICE), schedule_id, 502),
-			Error::<Test>::ScheduleNotExist
-		);
-	});
+			//Act and assert
+			let schedule_id = 1;
+			assert_noop!(
+				DCA::pause(Origin::signed(ALICE), schedule_id, 502),
+				Error::<Test>::ScheduleNotExist
+			);
+		});
 }
 
 //TODO: add test when there is multiple schedules, and we just then remove with pause, and not completely getting rid of the scheduleperblock
