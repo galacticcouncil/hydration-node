@@ -161,7 +161,7 @@ pub mod pallet {
 											} else {
 												let bond = Self::bond(schedule_id).unwrap();
 												T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
-												//TODO: also remove from bond
+												Bonds::<T>::remove(schedule_id);
 											}
 										}
 										Recurrence::Perpetual => {
