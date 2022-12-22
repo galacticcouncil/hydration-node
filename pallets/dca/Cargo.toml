@@ -8,6 +8,8 @@ license = 'Apache 2.0'
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-executor"
 
 [dependencies]
+smallvec = "1.9.0"
+
 # parity
 codec = { package = "parity-scale-codec", version = "3.1.5", features = ["derive", "max-encoded-len"], default-features = false }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
@@ -21,12 +23,16 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 # FRAME
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 
 # Math
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev="54fe636a19f283de9afbd5b5015a951b25e11a6b", default-features = false }
 
 # HydraDX dependencies
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
+pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 pallet-omnipool = { path = "../omnipool"}
 
@@ -62,5 +68,9 @@ std = [
   "scale-info/std",
   "orml-tokens/std",
   "frame-benchmarking/std",
+  "pallet-transaction-payment/std",
+  "pallet-transaction-multi-payment/std",
+  "pallet-balances/std",
+
 ]
 

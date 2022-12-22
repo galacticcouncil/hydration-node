@@ -17,7 +17,11 @@
 
 use crate as dca;
 use crate::{AssetId, BlockNumber, Config};
+use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
+use frame_support::weights::constants::ExtrinsicBaseWeight;
+use frame_support::weights::WeightToFeeCoefficient;
+use frame_support::PalletId;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::pallet_prelude::OriginFor;
@@ -26,14 +30,19 @@ use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::Registry;
 use orml_traits::parameter_type_with_key;
 use orml_traits::MultiCurrency;
+use pallet_currencies::BasicCurrencyAdapter;
 use pretty_assertions::assert_eq;
 use sp_core::H256;
+use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::traits::Get;
+use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
+
 use sp_runtime::{DispatchResult, FixedU128};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -71,7 +80,11 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 DCA: dca,
 		 Tokens: orml_tokens,
-		 Omnipool: pallet_omnipool
+		 Omnipool: pallet_omnipool,
+		 MultiTransactionPayment: pallet_transaction_multi_payment,
+		 TransasctionPayment: pallet_transaction_payment,
+		 Balances: pallet_balances,
+		 Currencies: pallet_currencies
 	 }
 );
 
@@ -110,7 +123,7 @@ impl system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u128>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -160,6 +173,13 @@ parameter_types! {
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
 
+	pub const TransactionByteFee: Balance = 10 * ONE / 100_000;
+
+	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
+
+
+
 }
 
 impl pallet_omnipool::Config for Test {
@@ -186,7 +206,70 @@ impl pallet_omnipool::Config for Test {
 	type CollectionId = u32;
 }
 
-/*impl pallet_balances::Config for Test {
+pub struct SpotPriceProviderStub;
+
+impl hydradx_traits::pools::SpotPriceProvider<AssetId> for SpotPriceProviderStub {
+	type Price = FixedU128;
+
+	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
+		true
+	}
+
+	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
+		Some(FixedU128::from_inner(462_962_963_000_u128))
+	}
+}
+
+pub struct WeightToFee;
+
+impl WeightToFeePolynomial for WeightToFee {
+	type Balance = Balance;
+
+	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
+	/// node's balance type.
+	///
+	/// This should typically create a mapping between the following ranges:
+	///   - [0, MAXIMUM_BLOCK_WEIGHT]
+	///   - [Balance::min, Balance::max]
+	///
+	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+	///   - Setting it to `0` will essentially disable the weight fee.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
+	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+		// extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT
+		let p = ONE; // 1_000_000_000_000
+		let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time()); // 7_919_840_000
+		smallvec![WeightToFeeCoefficient {
+			degree: 1,
+			negative: false,
+			coeff_frac: Perbill::from_rational(p % q, q),
+			coeff_integer: p / q, // 124
+		}]
+	}
+}
+
+impl pallet_transaction_multi_payment::Config for Test {
+	type Event = Event;
+	type AcceptedCurrencyOrigin = EnsureRoot<AccountId>;
+	type Currencies = Currencies;
+	type SpotPriceProvider = SpotPriceProviderStub;
+	type WeightInfo = ();
+	type WithdrawFeeForSetCurrency = ();
+	type WeightToFee = WeightToFee;
+	type NativeAssetId = NativeCurrencyId;
+	type FeeReceiver = TreasuryAccount;
+}
+
+impl pallet_transaction_payment::Config for Test {
+	type Event = Event;
+	type OnChargeTransaction = TransferFees<Currencies, MultiTransactionPayment, DepositAll<Test>>;
+	type OperationalFeeMultiplier = ();
+	type WeightToFee = WeightToFee;
+	type FeeMultiplierUpdate = ();
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
+}
+
+impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
 	type Event = Event;
@@ -204,18 +287,27 @@ impl pallet_currencies::Config for Test {
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type GetNativeCurrencyId = NativeCurrencyId;
 	type WeightInfo = ();
-}*/
+}
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = 1000;
+	pub ExecutionBondInNativeCurrency: Balance= 1_000_000;
+	pub StorageBondInNativeCurrency: Balance= 2_000_000;
 }
 
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
+	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
+	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
+use hydradx_traits::pools::SpotPriceProvider;
+use pallet_transaction_multi_payment::{DepositAll, TransferFees};
+use smallvec::smallvec;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
