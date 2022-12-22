@@ -158,6 +158,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 			(LP2, BTC, 5000 * ONE),
 			(LP2, DAI, 5000 * ONE),
 		])
+		.with_fee_asset_for_all_users(DAI)
 		.build()
 		.execute_with(|| {
 			//Arrange

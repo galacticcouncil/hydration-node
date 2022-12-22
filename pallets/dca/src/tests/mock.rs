@@ -98,6 +98,7 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static FEE_ASSET: RefCell<AssetId> = RefCell::new(HDX);
 }
 
 parameter_types! {
@@ -177,9 +178,6 @@ parameter_types! {
 
 	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
-
-
-
 }
 
 impl pallet_omnipool::Config for Test {
@@ -299,7 +297,8 @@ pub struct AccountIdAndCurrencyProviderStub {}
 
 impl TransactionMultiPaymentDataProvider<AccountId, AssetId, FixedU128> for AccountIdAndCurrencyProviderStub {
 	fn get_currency_and_price(who: &AccountId) -> Result<(AssetId, Option<FixedU128>), DispatchError> {
-		Ok((DAI, Some(FixedU128::from_float(0.65))))
+		let fee_asset = FEE_ASSET.with(|v| *v.borrow());
+		Ok((fee_asset, Some(FixedU128::from_float(0.65))))
 	}
 
 	fn get_fee_receiver() -> AccountId {
@@ -415,6 +414,7 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
+	fee_asset_for_all_users: AssetId,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -466,6 +466,7 @@ impl Default for ExtBuilder {
 			init_pool: None,
 			register_stable_asset: true,
 			pool_tokens: vec![],
+			fee_asset_for_all_users: HDX,
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
 		}
@@ -528,6 +529,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_fee_asset_for_all_users(mut self, asset_id: AssetId) -> Self {
+		self.fee_asset_for_all_users = asset_id;
+		self
+	}
+
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -577,6 +583,10 @@ impl ExtBuilder {
 		});
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = self.max_out_ratio;
+		});
+
+		FEE_ASSET.with(|v| {
+			*v.borrow_mut() = self.fee_asset_for_all_users;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {
