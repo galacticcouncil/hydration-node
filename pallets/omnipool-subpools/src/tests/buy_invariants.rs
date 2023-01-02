@@ -79,17 +79,30 @@ proptest! {
 				//Assert
 				let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
 
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#1eae9bed22df41ba9cc7dc5f7971214a
+				// Qi+ * Ri+ >= Qi * Ri
 				let asset_5_state_after_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
-				let asset_5_reserve_with_hub_before = asset_5_state_before_sell.hub_reserve * asset_5_state_before_sell.reserve;
-				let asset_5_reserve_with_hub_after = asset_5_state_after_sell.hub_reserve * asset_5_state_after_sell.reserve;
-				assert!(asset_5_reserve_with_hub_after > asset_5_reserve_with_hub_before);
+
+				let q_i_plus = asset_5_state_after_sell.hub_reserve;
+				let r_i_plus = asset_5_state_after_sell.reserve;
+				let q_i = asset_5_state_before_sell.hub_reserve;
+				let r_i = asset_5_state_before_sell.reserve;
+				let left = q_i_plus.checked_mul(r_i_plus).unwrap();
+				let right = q_i.checked_mul(r_i).unwrap();
+				assert_invariant_ge!(left, right);
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#79f6a3c7e9544978a6c5922f33b7bf52
 				let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 				let share_reserve_with_hub_before = share_asset_state_before_sell.hub_reserve * share_asset_state_before_sell.reserve;
 				let share_reserve_with_hub_after = share_asset_state_after_sell.hub_reserve * share_asset_state_after_sell.reserve;
 				assert!(share_reserve_with_hub_after > share_reserve_with_hub_before);
+				let q_s_plus = share_asset_state_after_sell.hub_reserve;
+				let r_s_plus = share_asset_state_after_sell.reserve;
+				let q_s = share_asset_state_before_sell.hub_reserve;
+				let r_s = share_asset_state_before_sell.reserve;
+				let left = q_s_plus.checked_mul(r_s_plus).unwrap();
+				let right = q_s.checked_mul(r_s).unwrap();
+				assert_invariant_ge!(left, right);
+			   continue here, remove duplications
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#81917d2af66549ea80c047c1f1d547f2
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
