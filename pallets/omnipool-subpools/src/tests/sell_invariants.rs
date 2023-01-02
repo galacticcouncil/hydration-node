@@ -247,7 +247,6 @@ proptest! {
 		trade_fee in percent(),
 		withdraw_fee in percent()
 	) {
-
 		ExtBuilder::default()
 		.with_registered_asset(asset_3.asset_id)
 		.with_registered_asset(asset_4.asset_id)
@@ -282,13 +281,11 @@ proptest! {
 
 			let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 			let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-			let d_before_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+			let d_before_sell = calculate_d::<64u8>(&[asset_a_reserve, asset_b_reserve], amplification.into()).unwrap();
+
+			let q = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 			let imbalance_before_sell = Omnipool::current_imbalance();
-
-			let omnipool_lrna_balance_before_sell = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
-			let omnipool_share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
 
 			//Act
 			assert_ok!(OmnipoolSubpools::sell(
@@ -299,42 +296,76 @@ proptest! {
 				0
 			));
 
-			//Assert
-			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#4710011de55441a08a34230b20e207e3
+			let asset_a_reserve_after_sell = Tokens::free_balance(asset_3.asset_id, &pool_account);
+			let asset_b_reserve_after_sell = Tokens::free_balance(asset_4.asset_id, &pool_account);
+
 			let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
-			let share_reserve_with_hub_before = share_asset_state_before_sell.hub_reserve * share_asset_state_before_sell.reserve;
-			let share_reserve_with_hub_after = share_asset_state_after_sell.hub_reserve * share_asset_state_after_sell.reserve;
-			assert!(share_reserve_with_hub_after > share_reserve_with_hub_before);
 
-			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#68e7ac361700476fb20bd00251c61a6e
-			let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
-			let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-			let d_after_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-			assert!(share_asset_state_after_sell.reserve * d_before_sell < share_asset_state_before_sell.reserve * d_after_sell);
+			let u_s = share_asset_state_before_sell.reserve;
+			let u_s_plus = share_asset_state_after_sell.reserve;
+			let r_s = share_asset_state_before_sell.reserve;
+			let r_s_plus = share_asset_state_after_sell.reserve;
+			let q_s = share_asset_state_before_sell.hub_reserve;
+			let q_s_plus = share_asset_state_after_sell.hub_reserve;
 
-			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#f8f0ccafd36541878551e538a44e2725
-			let delta_share_asset_reserve = share_asset_state_before_sell.reserve - share_asset_state_after_sell.reserve;
-			let withdraw_fee_complement = Permill::from_float(1.0) - withdraw_fee;
-			let left = withdraw_fee_complement.mul(delta_share_asset_reserve * d_before_sell);
-			let right = share_asset_state_before_sell.reserve * (d_before_sell - d_after_sell);
-			//TODO: check with Martin
-			#[cfg(feature = "all-invariants")]
-			assert!(left < right || left == right, "The invariant does not hold, left side: {}, right side: {}",left, right);
+			let q_plus = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#71b58394ef364ba19b075f97350e6a69
-			let omnipool_share_asset_balance_after = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
-			assert_eq!(share_asset_state_after_sell.reserve + omnipool_share_asset_balance_before, share_asset_state_before_sell.reserve + omnipool_share_asset_balance_after);
+			let delta_u_s = u_s.checked_sub(u_s_plus).unwrap();
 
-			//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#a81a8fc8747e444e826c92bf697ad813
+			let d_after_sell = calculate_d::<64u8>(
+				&[asset_a_reserve_after_sell, asset_b_reserve_after_sell],
+				amplification.into(),
+			)
+			.unwrap();
+
+			let delta_d = d_before_sell.checked_sub(d_after_sell).unwrap();
+
 			let imbalance_after_sell = Omnipool::current_imbalance();
-			let omnipool_lrna_balance_after_sell = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-			let left = (share_asset_state_after_sell.hub_reserve + (imbalance_after_sell.value * share_asset_state_after_sell.hub_reserve/omnipool_lrna_balance_after_sell)) * share_asset_state_before_sell.reserve;
-			let right = (share_asset_state_before_sell.hub_reserve + (imbalance_before_sell.value * share_asset_state_before_sell.hub_reserve/omnipool_lrna_balance_before_sell)) * share_asset_state_after_sell.reserve;
 
-			//TODO: check with Martin
+			//Assert
+
+			// Qs+ * Rs+ < Qs * Rs
+			let left = q_s_plus.checked_mul_into(&r_s_plus).unwrap();
+			let right = q_s.checked_mul_into(&r_s).unwrap();
 			#[cfg(feature = "all-invariants")]
-			assert!(left < right || left == right, "The invariant does not hold, left side: {}, right side: {}",left, right);
+			assert_invariant_le!(left, right);
 
+			// Rs+ + Us = Us+ + Rs
+			let left = r_s_plus.checked_add(u_s).unwrap();
+			let right = u_s_plus.checked_add(r_s).unwrap();
+			#[cfg(feature = "all-invariants")]
+			assert_invariant_eq!(left, right);
+
+			// Us+ * D <= Us * D+
+			let left = u_s_plus.checked_mul_into(&d_before_sell).unwrap();
+			let right = u_s.checked_mul_into(&d_after_sell).unwrap();
+			#[cfg(feature = "all-invariants")]
+			assert_invariant_le!(left, right);
+
+			// delta_Us * D * ( 1 - Fw ) <= Us * delta_D
+			let left = delta_u_s.checked_mul_into(&d_before_sell).unwrap();
+			let right = delta_u_s.checked_mul_into(&delta_d).unwrap();
+			#[cfg(feature = "all-invariants")]
+			assert_invariant_le!(left, right);
+
+			//(Qs+ + L+ Qs+ / Q+ ) * Rs <= (Qs + L Qs/Q) * Rs+
+			let left_one = q_s_plus.checked_mul_into(&r_s).unwrap();
+			let left_two = left_one
+				.checked_mul_inner(&imbalance_after_sell.value)
+				.unwrap()
+				.checked_div_inner(&q_plus)
+				.unwrap();
+			let left = left_one.checked_sub(left_two).unwrap();
+
+			let right_one = q_s.checked_mul_into(&r_s_plus).unwrap();
+			let right_two = right_one
+				.checked_mul_inner(&imbalance_before_sell.value)
+				.unwrap()
+				.checked_div_inner(&q)
+				.unwrap();
+			let right = right_one.checked_sub(right_two).unwrap();
+
+			assert_invariant_le!(left, right);
 		});
 	}
 }

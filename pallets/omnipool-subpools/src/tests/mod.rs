@@ -61,6 +61,18 @@ struct PoolToken {
 	price: FixedU128,
 }
 
+#[macro_export]
+macro_rules! assert_invariant_le {
+	( $left:expr, $right:expr) => {{
+		assert!($left <= $right, "\nleft : {}\nright: {}", $left, $right);
+	}};
+}
+#[macro_export]
+macro_rules! assert_invariant_eq {
+	( $left:expr, $right:expr) => {{
+		assert!($left == $right, "\nleft : {}\nright: {}", $left, $right);
+	}};
+}
 // Tests:
 // create subpool:
 // X ensure only origin can create
