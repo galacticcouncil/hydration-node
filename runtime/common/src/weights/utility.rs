@@ -51,21 +51,21 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn batch(c: u32) -> Weight {
-		(21_063_000 as Weight) // Standard Error: 8_000
-			.saturating_add((6_560_000 as Weight).saturating_mul(c as Weight))
+		Weight::from_ref_time(21_063_000 as u64) // Standard Error: 8_000
+			.saturating_add(Weight::from_ref_time(6_560_000 as u64).saturating_mul(c as u64))
 	}
 	fn as_derivative() -> Weight {
-		(11_806_000 as Weight)
+		Weight::from_ref_time(11_806_000 as u64)
 	}
 	fn batch_all(c: u32) -> Weight {
-		(26_439_000 as Weight) // Standard Error: 6_000
-			.saturating_add((6_925_000 as Weight).saturating_mul(c as Weight))
+		Weight::from_ref_time(26_439_000 as u64) // Standard Error: 6_000
+			.saturating_add(Weight::from_ref_time(6_925_000 as u64).saturating_mul(c as u64))
 	}
 	fn dispatch_as() -> Weight {
-		(23_361_000 as Weight)
+		Weight::from_ref_time(23_361_000 as u64)
 	}
 	fn force_batch(c: u32) -> Weight {
-		(24_128_000 as Weight) // Standard Error: 6_000
-			.saturating_add((6_611_000 as Weight).saturating_mul(c as Weight))
+		Weight::from_ref_time(24_128_000 as u64) // Standard Error: 6_000
+			.saturating_add(Weight::from_ref_time(6_611_000 as u64).saturating_mul(c as u64))
 	}
 }

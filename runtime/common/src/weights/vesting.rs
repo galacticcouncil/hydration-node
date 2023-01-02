@@ -45,26 +45,26 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-use orml_vesting::weights::WeightInfo;
+use orml_vesting::WeightInfo;
 
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn vested_transfer() -> Weight {
-		(83_142_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(83_142_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	fn claim(i: u32) -> Weight {
-		(53_775_000 as Weight) // Standard Error: 2_000
-			.saturating_add((81_000 as Weight).saturating_mul(i as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(53_775_000 as u64) // Standard Error: 2_000
+			.saturating_add(Weight::from_ref_time(81_000 as u64).saturating_mul(i as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn update_vesting_schedules(i: u32) -> Weight {
-		(45_676_000 as Weight) // Standard Error: 1_000
-			.saturating_add((104_000 as Weight).saturating_mul(i as Weight))
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(45_676_000 as u64) // Standard Error: 1_000
+			.saturating_add(Weight::from_ref_time(104_000 as u64).saturating_mul(i as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 }

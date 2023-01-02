@@ -1043,11 +1043,13 @@ dependencies = [
  "pallet-currencies",
  "pallet-democracy",
  "pallet-identity",
+ "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
+ "pallet-transaction-pause",
  "pallet-transaction-payment",
  "pallet-treasury",
  "pallet-utility",
@@ -3359,7 +3361,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "122.0.0"
+version = "123.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -8746,7 +8748,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11399,7 +11401,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "122.0.0"
+version = "123.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
