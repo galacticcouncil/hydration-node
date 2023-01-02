@@ -67,3 +67,19 @@ pub fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> 
 	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
 }
+
+//TODO:
+/*
+## How to handle error in on_initialize:
+-using default schedule
+(- surely wrap it transactional block - execue_schedules - should be transactional)
+
+- Frido Martin had IncosistentState, might be fuine here too
+
+- Use defensive_ok_or - THIS ONE LOOKS PROMISING
+
+
+## how extrinsics are executed in the blocks
+
+on_initialize - add ordering - we need to make sure in the runtime config that we put pallets before and after it
+*/
