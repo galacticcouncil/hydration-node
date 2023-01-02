@@ -215,7 +215,6 @@ proptest! {
 
 				let l = get_imbalance_value!();
 
-
 				let asset_5_state_after_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
 				let q_i_plus = asset_5_state_after_sell.hub_reserve;
 				let r_i_plus = asset_5_state_after_sell.reserve;
