@@ -49,10 +49,7 @@ fn trade_volume_limit_should_not_be_stored_for_omnipool_hub_asset() {
 		assert_eq!(CircuitBreaker::allowed_trade_volume_limit_per_asset(LRNA), None);
 
 		// Act
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(
-			LRNA,
-			INITIAL_LIQUIDITY
-		));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(LRNA, INITIAL_LIQUIDITY));
 
 		// Assert
 		assert_eq!(CircuitBreaker::allowed_trade_volume_limit_per_asset(LRNA), None);
@@ -253,10 +250,7 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_liquidity_limit_not_sto
 #[test]
 fn ensure_and_update_trade_volume_limit_should_ingore_omnipool_hub_asset() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(
-			LRNA,
-			INITIAL_LIQUIDITY
-		));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(LRNA, INITIAL_LIQUIDITY));
 		assert_storage_noop!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			LRNA,
 			INITIAL_LIQUIDITY,
