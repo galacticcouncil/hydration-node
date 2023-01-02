@@ -18,7 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get, transactional};
+use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
@@ -278,7 +278,6 @@ pub mod pallet {
 		/// Doesn't emit any event.
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
-		#[transactional]
 		pub fn set_trade_volume_limit(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
@@ -309,7 +308,6 @@ pub mod pallet {
 		/// Doesn't emit any event.
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::set_liquidity_limit())]
-		#[transactional]
 		pub fn set_liquidity_limit(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
