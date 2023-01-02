@@ -648,6 +648,13 @@ macro_rules! assert_that_imbalance_is_zero {
 }
 
 #[macro_export]
+macro_rules! get_imbalance_value {
+	() => {
+		Omnipool::current_imbalance().value
+	};
+}
+
+#[macro_export]
 macro_rules! assert_imbalance {
 	($expected_imbalance:expr) => {
 		let imbalance = Omnipool::current_imbalance();

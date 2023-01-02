@@ -67,6 +67,14 @@ macro_rules! assert_invariant_le {
 		assert!($left <= $right, "\nleft : {}\nright: {}", $left, $right);
 	}};
 }
+
+#[macro_export]
+macro_rules! assert_invariant_ge {
+	( $left:expr, $right:expr) => {{
+		assert!($left >= $right, "\nleft : {}\nright: {}", $left, $right);
+	}};
+}
+
 #[macro_export]
 macro_rules! assert_invariant_eq {
 	( $left:expr, $right:expr) => {{
