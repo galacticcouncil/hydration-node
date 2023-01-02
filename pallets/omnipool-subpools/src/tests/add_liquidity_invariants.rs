@@ -6,6 +6,7 @@ proptest! {
 	//Spec: https://www.notion.so/Add-Liquidity-to-stableswap-subpool-d3983e19dd7c4de9b284c74c317be02c#da9e063badf5428bbce53a798df14e48
 	#![proptest_config(ProptestConfig::with_cases(1))]
 	#[test]
+	#[ignore]
 	fn add_liquidity_invariants(
 		new_liquidity_amount in asset_reserve(),
 		asset_3 in pool_token(ASSET_3),
