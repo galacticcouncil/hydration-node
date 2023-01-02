@@ -96,7 +96,7 @@ proptest! {
 			let r_s_plus = share_asset_state_after_sell.reserve;
 			let u_s_plus = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
 
-			let L = get_imbalance_value!();
+			let l = get_imbalance_value!();
 
 			let delta_q_s = share_asset_state_before_sell.hub_reserve - share_asset_state_after_sell.hub_reserve;
 			let f_p = protocol_fee;
@@ -127,7 +127,7 @@ proptest! {
 			assert_invariant_eq!(left, right);
 
 			// L <= 0
-			let left = L;
+			let left = l;
 			let right = 0;
 			assert_invariant_le!(left, right);
 
@@ -213,70 +213,76 @@ proptest! {
 					0
 				));
 
-				//Assert
+				let l = get_imbalance_value!();
 
-				// Qj+ * Rj+ >= Qj * Rj
+
 				let asset_5_state_after_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
 				let q_i_plus = asset_5_state_after_sell.hub_reserve;
 				let r_i_plus = asset_5_state_after_sell.reserve;
 				let q_i = asset_5_state_before_sell.hub_reserve;
 				let r_i = asset_5_state_before_sell.reserve;
-				let left = q_i_plus.checked_mul(r_i_plus).unwrap();
-				let right = q_i.checked_mul(r_i).unwrap();
-				assert_invariant_ge!(left, right);
 
-				// Qs+ * Rs+ >= Qs * Rs
 				let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 				let q_s_plus = share_asset_state_after_sell.hub_reserve;
 				let r_s_plus = share_asset_state_after_sell.reserve;
 				let q_s = share_asset_state_before_sell.hub_reserve;
 				let r_s = share_asset_state_before_sell.reserve;
-				let left = q_s_plus.checked_mul(r_s_plus).unwrap();
-				let right = q_s.checked_mul(r_s).unwrap();
-				assert_invariant_ge!(left, right);
 
-				// Us+ * D <= Us * D+
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let u_s_plus = share_asset_state_after_sell.reserve;
 				let u_s = share_asset_state_before_sell.reserve;
 				let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+
+				let delta_u_s = share_asset_state_before_sell.shares.checked_sub(share_asset_state_after_sell.shares).unwrap();
+				let f_w = withdraw_fee;
+				let one_minus_fw = Permill::from_float(1.0) - f_w;
+				let u_s = share_asset_state_before_sell.shares;
+				let delta_d = d.checked_sub(d_plus).unwrap();
+
+				let delta_q_s = share_asset_state_after_sell.hub_reserve.checked_sub(share_asset_state_before_sell.hub_reserve).unwrap();
+				let delta_q_h =  protocol_fee.mul_floor(delta_q_s) - l;
+				let delta_q_i = asset_5_state_before_sell.hub_reserve.checked_sub(asset_5_state_after_sell.hub_reserve).unwrap();
+				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
+				let hub_hdx_diff = hdx_state_after.hub_reserve.checked_sub(hdx_state_before.hub_reserve).unwrap();
+
+				//Assert
+
+				// Qj+ * Rj+ >= Qj * Rj
+				let left = q_i_plus.checked_mul(r_i_plus).unwrap();
+				let right = q_i.checked_mul(r_i).unwrap();
+				assert_invariant_ge!(left, right);
+
+				// Qs+ * Rs+ >= Qs * Rs
+				let left = q_s_plus.checked_mul(r_s_plus).unwrap();
+				let right = q_s.checked_mul(r_s).unwrap();
+				assert_invariant_ge!(left, right);
+
+				// Us+ * D <= Us * D+
 				let left = u_s_plus.checked_mul(d).unwrap();
 				let right = u_s.checked_mul(d_plus).unwrap();
 				assert_invariant_le!(left, right);
 
-				//Rs+ + Us = Us+ + Rs
+				// Rs+ + Us = Us+ + Rs
 				let left = r_s_plus.checked_add(u_s).unwrap();
 				let right = u_s_plus.checked_add(r_s).unwrap();
 				assert_invariant_eq!(left, right);
 
 
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#f8f0ccafd36541878551e538a44e2725
-				let delta_u_s = share_asset_state_before_sell.shares - share_asset_state_after_sell.shares;
-				let f_w = withdraw_fee;
-				let one_minus_fw = Permill::from_float(1.0) - f_w;
-				let u_s = share_asset_state_before_sell.shares;
-				let delta_d = d - d_plus;
+				// delta_Us * D * (1 - fw) <= Us * delta_D
 				let left = one_minus_fw.mul(delta_u_s.checked_mul(d).unwrap());
-				let right = share_asset_state_before_sell.shares * (d - d_plus);
-				continue from here
-				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
+				let right = share_asset_state_before_sell.shares.checked_mul(delta_d).unwrap();
+				assert_invariant_le!(left,right);
 
-				let hub_hdx_diff = hdx_state_after.hub_reserve - hdx_state_before.hub_reserve;
+				// L <= 0
+				let left = l;
+				let right = 0;
+				assert_invariant_le!(left, right);
 
-				#[cfg(feature = "all-invariants")]
-				assert!(left <= right);
-
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#e02e09c412634e58b29990c0a8eaf80b
-				assert_that_imbalance_is_zero!();
-
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#a9af611bb17e4036b36208d5cf8cbe18
-				let delta_lrna_of_share_asset = share_asset_state_after_sell.hub_reserve - share_asset_state_before_sell.hub_reserve;
-				let delta_q_h =  protocol_fee.mul_floor(delta_lrna_of_share_asset);
-				let delta_lrna_of_omnipool_asset = asset_5_state_before_sell.hub_reserve - asset_5_state_after_sell.hub_reserve;
-
-				#[cfg(feature = "all-invariants")]
-				assert_eq!(delta_lrna_of_omnipool_asset - hub_hdx_diff, delta_lrna_of_share_asset);
+				//delta_QH + delta_L + delta_Qi = -delta_Qs
+				let left = delta_q_i.checked_sub(hub_hdx_diff).unwrap();
+				let right = delta_q_s;
+				assert_invariant_eq!(left, right);
 
 				});
 	}
