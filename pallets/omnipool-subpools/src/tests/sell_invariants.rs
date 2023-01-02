@@ -196,7 +196,7 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-				let d_before_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
 				let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
 
@@ -214,34 +214,52 @@ proptest! {
 				));
 
 				//Assert
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#ea5bf14fc72c4681a946039d3f81a21b
+
+				// Qj+ * Rj+ >= Qj * Rj
 				let asset_5_state_after_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
-				let asset_5_reserve_with_hub_before = asset_5_state_before_sell.hub_reserve * asset_5_state_before_sell.reserve;
-				let asset_5_reserve_with_hub_after = asset_5_state_after_sell.hub_reserve * asset_5_state_after_sell.reserve;
-				assert!(asset_5_reserve_with_hub_after > asset_5_reserve_with_hub_before);
+				let q_i_plus = asset_5_state_after_sell.hub_reserve;
+				let r_i_plus = asset_5_state_after_sell.reserve;
+				let q_i = asset_5_state_before_sell.hub_reserve;
+				let r_i = asset_5_state_before_sell.reserve;
+				let left = q_i_plus.checked_mul(r_i_plus).unwrap();
+				let right = q_i.checked_mul(r_i).unwrap();
+				assert_invariant_ge!(left, right);
 
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#bd060472cd4a42a980ced9b96dbab6e7
+				// Qs+ * Rs+ >= Qs * Rs
 				let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
-				let share_reserve_with_hub_before = share_asset_state_before_sell.hub_reserve * share_asset_state_before_sell.reserve;
-				let share_reserve_with_hub_after = share_asset_state_after_sell.hub_reserve * share_asset_state_after_sell.reserve;
-				assert!(share_reserve_with_hub_after > share_reserve_with_hub_before);
+				let q_s_plus = share_asset_state_after_sell.hub_reserve;
+				let r_s_plus = share_asset_state_after_sell.reserve;
+				let q_s = share_asset_state_before_sell.hub_reserve;
+				let r_s = share_asset_state_before_sell.reserve;
+				let left = q_s_plus.checked_mul(r_s_plus).unwrap();
+				let right = q_s.checked_mul(r_s).unwrap();
+				assert_invariant_ge!(left, right);
 
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#dcc487221d2545fab842b140039edd6f
+				// Us+ * D <= Us * D+
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-				let d_after_sell = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-				assert!(share_asset_state_after_sell.reserve * d_before_sell < share_asset_state_before_sell.reserve * d_after_sell);
+				let u_s_plus = share_asset_state_after_sell.reserve;
+				let u_s = share_asset_state_before_sell.reserve;
+				let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let left = u_s_plus.checked_mul(d).unwrap();
+				let right = u_s.checked_mul(d_plus).unwrap();
+				assert_invariant_le!(left, right);
 
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#2381224c37554c0ab4285e42b81243d4
-				let share_asset_balance_after = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
-				assert_eq!(share_asset_state_after_sell.reserve + share_asset_balance_before, share_asset_state_before_sell.reserve + share_asset_balance_after);
+				//Rs+ + Us = Us+ + Rs
+				let left = r_s_plus.checked_add(u_s).unwrap();
+				let right = u_s_plus.checked_add(r_s).unwrap();
+				assert_invariant_eq!(left, right);
+
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#f8f0ccafd36541878551e538a44e2725
-				let delta_share_asset_reserve = share_asset_state_before_sell.shares - share_asset_state_after_sell.shares;
-				let withdraw_fee_complement = Permill::from_float(1.0) - withdraw_fee;
-				let left = withdraw_fee_complement.mul(delta_share_asset_reserve * d_before_sell);
-				let right = share_asset_state_before_sell.shares * (d_before_sell - d_after_sell);
-
+				let delta_u_s = share_asset_state_before_sell.shares - share_asset_state_after_sell.shares;
+				let f_w = withdraw_fee;
+				let one_minus_fw = Permill::from_float(1.0) - f_w;
+				let u_s = share_asset_state_before_sell.shares;
+				let delta_d = d - d_plus;
+				let left = one_minus_fw.mul(delta_u_s.checked_mul(d).unwrap());
+				let right = share_asset_state_before_sell.shares * (d - d_plus);
+				continue from here
 				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
 
 				let hub_hdx_diff = hdx_state_after.hub_reserve - hdx_state_before.hub_reserve;
