@@ -38,13 +38,13 @@ pub const MAX_LIMIT_VALUE: u32 = 10_000;
 
 #[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 #[scale_info(skip_type_params(T))]
-pub struct TradeVolumeLimits<T: Config> {
+pub struct TradeVolumeLimit<T: Config> {
 	pub amount_in: T::Balance,
 	pub amount_out: T::Balance,
 	pub limit: T::Balance,
 }
 
-impl<T: Config> TradeVolumeLimits<T>
+impl<T: Config> TradeVolumeLimit<T>
 where
 	T::Balance: PartialOrd,
 {
@@ -138,13 +138,13 @@ pub mod pallet {
 		fn integrity_test() {
 			assert!(
 				Self::validate_limit(T::DefaultMaxNetTradeVolumeLimitPerBlock::get()).is_ok(),
-				"Circuit Breaker: Max Net Trade Volume Limit Per Block is set to invalid value."
+				"Circuit Breaker: Max net trade volume limit per block is set to invalid value."
 			);
 
 			if let Some(liquidity_limit) = T::DefaultMaxLiquidityLimitPerBlock::get() {
 				assert!(
 					Self::validate_limit(liquidity_limit).is_ok(),
-					"Circuit Breaker: Max Liquidity Limit Per Block is set to invalid value."
+					"Circuit Breaker: Max liquidity limit per block is set to invalid value."
 				);
 			}
 		}
@@ -176,7 +176,7 @@ pub mod pallet {
 			+ CheckedSub
 			+ AtLeast32BitUnsigned;
 
-		/// Origin to be able to change the trade volume limit of an asset.
+		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
@@ -188,7 +188,7 @@ pub mod pallet {
 		/// If set to None, the limits are not enforced.
 		type DefaultMaxLiquidityLimitPerBlock: Get<Option<(u32, u32)>>;
 
-		/// Omnipool's hub asset id
+		/// Omnipool's hub asset id. The limits are not tracked for this asses.
 		type OmnipoolHubAsset: Get<Self::AssetId>;
 
 		/// Weight information for extrinsics in this pallet.
@@ -213,10 +213,10 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::AssetId, (u32, u32), ValueQuery, DefaultTradeVolumeLimit<T>>;
 
 	#[pallet::storage]
-	/// Allowed liquidity range per block, calculated based on the initial liquidity and trade volume limit percentage
+	/// Trade volumes per asset
 	#[pallet::getter(fn allowed_trade_volume_limit_per_asset)]
 	pub type AllowedTradeVolumeLimitPerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, TradeVolumeLimits<T>>;
+		StorageMap<_, Blake2_128Concat, T::AssetId, TradeVolumeLimit<T>>;
 
 	/// Default maximum liquidity limit per block
 	#[pallet::type_value]
@@ -225,13 +225,13 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	/// Trade volume limits of assets that don't use the default value
+	/// Liquidity limits of assets that don't use the default value
 	#[pallet::getter(fn liquidity_limit_per_asset)]
 	pub type LiquidityLimitPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, Option<(u32, u32)>, ValueQuery, DefaultLiquidityLimit<T>>;
 
 	#[pallet::storage]
-	/// Allowed liquidity amount that per block, calculated based on the initial liquidity and trade volume limit percentage
+	/// Liquidity volumes per asset
 	#[pallet::getter(fn allowed_liquidity_limit_per_asset)]
 	pub type AllowedLiquidityAmountPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
@@ -270,12 +270,13 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Set trade volume limit for an asset.
+		/// The dispatch origin for this call must be `TechnicalOrigin`.
 		///
 		/// Parameters:
 		/// - `asset_id`: The identifier of an asset
-		/// - `trade_volume_limit`: Trade volume limit represented as a percentage
+		/// - `trade_volume_limit`: New trade volume limit represented as a percentage
 		///
-		/// Doesn't emit any event.
+		/// Emits `TradeVolumeLimitChanged` event when successful.
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
 		pub fn set_trade_volume_limit(
@@ -300,12 +301,13 @@ pub mod pallet {
 		}
 
 		/// Set liquidity limit for an asset.
+		/// The dispatch origin for this call must be `TechnicalOrigin`.
 		///
 		/// Parameters:
 		/// - `asset_id`: The identifier of an asset
 		/// - `liquidity_limit`: Optional liquidity limit represented as a percentage
 		///
-		/// Doesn't emit any event.
+		/// Emits `LiquidityLimitChanged` event when successful.
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::set_liquidity_limit())]
 		pub fn set_liquidity_limit(
@@ -334,7 +336,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn calculate_and_store_trade_limits(asset_id: T::AssetId, current_asset_reserve: T::Balance) -> DispatchResult {
+	fn calculate_and_store_trade_limit(asset_id: T::AssetId, current_asset_reserve: T::Balance) -> DispatchResult {
 		if asset_id != T::OmnipoolHubAsset::get() && !<AllowedTradeVolumeLimitPerAsset<T>>::contains_key(asset_id) {
 			let limit = Self::calculate_limit(
 				current_asset_reserve,
@@ -342,7 +344,7 @@ impl<T: Config> Pallet<T> {
 			)?;
 			<AllowedTradeVolumeLimitPerAsset<T>>::insert(
 				asset_id,
-				TradeVolumeLimits::<T> {
+				TradeVolumeLimit::<T> {
 					limit,
 					amount_in: Zero::zero(),
 					amount_out: Zero::zero(),
@@ -369,7 +371,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn ensure_and_update_trade_volume_limits(
+	fn ensure_and_update_trade_volume_limit(
 		asset_in: T::AssetId,
 		amount_in: T::Balance,
 		asset_out: T::AssetId,
@@ -441,7 +443,7 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
 	fn before_pool_state_change(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_trade_limits(asset_id, initial_liquidity)?;
+		Pallet::<T>::calculate_and_store_trade_limit(asset_id, initial_liquidity)?;
 		Ok(())
 	}
 	fn after_pool_state_change(
@@ -450,7 +452,7 @@ impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
 		asset_out: T::AssetId,
 		amount_out: T::Balance,
 	) -> DispatchResult {
-		Pallet::<T>::ensure_and_update_trade_volume_limits(asset_in, amount_in, asset_out, amount_out)?;
+		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
 		Ok(())
 	}
 }

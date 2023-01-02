@@ -27,12 +27,12 @@ fn trade_volume_limit_should_be_stored_when_called_first_time() {
 		assert_eq!(CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX), None);
 
 		// Act
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, INITIAL_LIQUIDITY));
 
 		// Assert
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
@@ -49,7 +49,7 @@ fn trade_volume_limit_should_not_be_stored_for_omnipool_hub_asset() {
 		assert_eq!(CircuitBreaker::allowed_trade_volume_limit_per_asset(LRNA), None);
 
 		// Act
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(
 			LRNA,
 			INITIAL_LIQUIDITY
 		));
@@ -63,10 +63,10 @@ fn trade_volume_limit_should_not_be_stored_for_omnipool_hub_asset() {
 fn trade_volume_limit_should_not_be_overwritten_when_called_consequently() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, INITIAL_LIQUIDITY));
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
@@ -75,12 +75,12 @@ fn trade_volume_limit_should_not_be_overwritten_when_called_consequently() {
 
 		// Act
 		let new_liquidity = 2_000_000;
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, new_liquidity));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, new_liquidity));
 
 		// Assert
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
@@ -93,10 +93,10 @@ fn trade_volume_limit_should_not_be_overwritten_when_called_consequently() {
 fn trade_volume_storage_should_be_cleared_at_the_end_of_block() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, INITIAL_LIQUIDITY));
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
@@ -115,21 +115,21 @@ fn trade_volume_storage_should_be_cleared_at_the_end_of_block() {
 fn trade_volume_limit_calculation_throws_error_when_overflow_happens() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			CircuitBreaker::calculate_and_store_trade_limits(HDX, <Test as Config>::Balance::MAX),
+			CircuitBreaker::calculate_and_store_trade_limit(HDX, <Test as Config>::Balance::MAX),
 			ArithmeticError::Overflow
 		);
 	});
 }
 
 #[test]
-fn ensure_and_update_trade_volume_limits_should_work_when_liquidity_is_between_allowed_limits() {
+fn ensure_and_update_trade_volume_limit_should_work_when_liquidity_is_between_allowed_limits() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, INITIAL_LIQUIDITY));
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(DOT, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(DOT, INITIAL_LIQUIDITY));
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
@@ -137,24 +137,24 @@ fn ensure_and_update_trade_volume_limits_should_work_when_liquidity_is_between_a
 		);
 
 		// Act & Assert
-		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			HDX, 200_000, DOT, 0
 		));
-		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			DOT, 0, HDX, 200_000
 		));
 	});
 }
 
 #[test]
-fn ensure_and_update_trade_volume_limits_should_fail_when_min_limit_is_reached() {
+fn ensure_and_update_trade_volume_limit_should_fail_when_min_limit_is_reached() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, INITIAL_LIQUIDITY));
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(DOT, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(DOT, INITIAL_LIQUIDITY));
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
@@ -163,21 +163,21 @@ fn ensure_and_update_trade_volume_limits_should_fail_when_min_limit_is_reached()
 
 		// Act & Assert
 		assert_noop!(
-			CircuitBreaker::ensure_and_update_trade_volume_limits(DOT, 0, HDX, 200_001),
+			CircuitBreaker::ensure_and_update_trade_volume_limit(DOT, 0, HDX, 200_001),
 			Error::<Test>::MinTradeVolumePerBlockReached
 		);
 	});
 }
 
 #[test]
-fn ensure_and_update_trade_volume_limits_should_fail_when_max_limit_is_reached() {
+fn ensure_and_update_trade_volume_limit_should_fail_when_max_limit_is_reached() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, INITIAL_LIQUIDITY));
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(DOT, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(DOT, INITIAL_LIQUIDITY));
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
@@ -186,46 +186,46 @@ fn ensure_and_update_trade_volume_limits_should_fail_when_max_limit_is_reached()
 
 		// Act & Assert
 		assert_noop!(
-			CircuitBreaker::ensure_and_update_trade_volume_limits(HDX, 200_001, DOT, 0),
+			CircuitBreaker::ensure_and_update_trade_volume_limit(HDX, 200_001, DOT, 0),
 			Error::<Test>::MaxTradeVolumePerBlockReached
 		);
 	});
 }
 
 #[test]
-fn ensure_and_update_trade_volume_limits_should_fail_when_max_limit_is_reached_from_combined_trades() {
+fn ensure_and_update_trade_volume_limit_should_fail_when_max_limit_is_reached_from_combined_trades() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(HDX, INITIAL_LIQUIDITY));
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(DOT, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(HDX, INITIAL_LIQUIDITY));
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(DOT, INITIAL_LIQUIDITY));
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 0,
 				amount_out: 0,
 				limit: 200_000,
 			}
 		);
 
-		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			HDX, 150_000, DOT, 0
 		));
-		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			DOT, 0, HDX, 150_000
 		));
-		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			HDX, 150_000, DOT, 0
 		));
-		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			DOT, 0, HDX, 150_000
 		));
-		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_ok!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			HDX, 150_000, DOT, 0
 		));
 
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
-			TradeVolumeLimits {
+			TradeVolumeLimit {
 				amount_in: 450_000,
 				amount_out: 300_000,
 				limit: 200_000,
@@ -234,30 +234,30 @@ fn ensure_and_update_trade_volume_limits_should_fail_when_max_limit_is_reached_f
 
 		// Act & Assert
 		assert_noop!(
-			CircuitBreaker::ensure_and_update_trade_volume_limits(HDX, 150_000, DOT, 0),
+			CircuitBreaker::ensure_and_update_trade_volume_limit(HDX, 150_000, DOT, 0),
 			Error::<Test>::MaxTradeVolumePerBlockReached
 		);
 	});
 }
 
 #[test]
-fn ensure_and_update_trade_volume_limits_should_fail_when_liquidity_limit_not_stored() {
+fn ensure_and_update_trade_volume_limit_should_fail_when_liquidity_limit_not_stored() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			CircuitBreaker::ensure_and_update_trade_volume_limits(HDX, INITIAL_LIQUIDITY, DOT, 0),
+			CircuitBreaker::ensure_and_update_trade_volume_limit(HDX, INITIAL_LIQUIDITY, DOT, 0),
 			Error::<Test>::LiquidityLimitNotStoredForAsset
 		);
 	});
 }
 
 #[test]
-fn ensure_and_update_trade_volume_limits_should_ingore_omnipool_hub_asset() {
+fn ensure_and_update_trade_volume_limit_should_ingore_omnipool_hub_asset() {
 	ExtBuilder::default().build().execute_with(|| {
-		assert_ok!(CircuitBreaker::calculate_and_store_trade_limits(
+		assert_ok!(CircuitBreaker::calculate_and_store_trade_limit(
 			LRNA,
 			INITIAL_LIQUIDITY
 		));
-		assert_storage_noop!(CircuitBreaker::ensure_and_update_trade_volume_limits(
+		assert_storage_noop!(CircuitBreaker::ensure_and_update_trade_volume_limit(
 			LRNA,
 			INITIAL_LIQUIDITY,
 			LRNA,
