@@ -2,6 +2,9 @@ use super::*;
 use crate::types::Balance;
 use crate::*;
 use proptest::prelude::*;
+use sp_runtime::traits::CheckedAdd;
+use sp_runtime::traits::CheckedDiv;
+use sp_runtime::traits::CheckedMul;
 use test_utils::assert_balance;
 
 proptest! {
@@ -24,11 +27,31 @@ proptest! {
 			.add_endowed_accounts((LP1, asset_4.asset_id, asset_4.amount))
 			.add_endowed_accounts((Omnipool::protocol_account(), asset_3.asset_id, asset_3.amount))
 			.add_endowed_accounts((Omnipool::protocol_account(), asset_4.asset_id, asset_4.amount))
+			.add_endowed_accounts((ALICE, asset_3.asset_id, 100 * ONE))
+			.add_endowed_accounts((ALICE, asset_4.asset_id, 100 * ONE))
 			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 			.build()
 			.execute_with(|| {
 				assert_ok!(Omnipool::add_token(Origin::root(), asset_3.asset_id, asset_3.price,Permill::from_percent(100),LP1));
 				assert_ok!(Omnipool::add_token(Origin::root(), asset_4.asset_id, asset_4.price,Permill::from_percent(100),LP1));
+
+				//We need to add then sacrifice liquidity for asset3 to have protocol shares
+				let position_id: u32 = Omnipool::next_position_id();
+				assert_ok!(OmnipoolSubpools::add_liquidity(
+					Origin::signed(ALICE),
+					asset_3.asset_id,
+					100 * ONE
+				));
+				assert_ok!(Omnipool::sacrifice_position(Origin::signed(ALICE), position_id));
+
+				//We need to add then sacrifice liquidity for asset3 to have protocol shares
+				let position_id: u32 = Omnipool::next_position_id();
+				assert_ok!(OmnipoolSubpools::add_liquidity(
+					Origin::signed(ALICE),
+					asset_4.asset_id,
+					100 * ONE
+				));
+				assert_ok!(Omnipool::sacrifice_position(Origin::signed(ALICE), position_id));
 
 				let asset_state_3 = Omnipool::load_asset_state(asset_3.asset_id).unwrap();
 				let asset_state_4 = Omnipool::load_asset_state(asset_4.asset_id).unwrap();
@@ -53,33 +76,66 @@ proptest! {
 					withdraw_fee,
 				));
 
+				let stableswap_pool_share_asset = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+				let q3 = asset_3_lrna;
+				let q4 = asset_4_lrna;
+				let q_s = stableswap_pool_share_asset.hub_reserve;
+
+				let omnipool_lrna_balance_after = get_lrna_of_omnipool_protocol_account();
+				let sum_q_k = omnipool_lrna_balance_before;
+				let sum_q_k_plus = omnipool_lrna_balance_after;
+
+				let s_s_plus = stableswap_pool_share_asset.shares;
+				let u_s_plus = stableswap_pool_share_asset.reserve;
+
+				let q_s_plus = FixedU128::from(stableswap_pool_share_asset.hub_reserve);
+				let b_s_plus = FixedU128::from(stableswap_pool_share_asset.protocol_shares);
+				let q_3 = FixedU128::from(asset_state_3.hub_reserve);
+				let b_3 = FixedU128::from(asset_state_3.protocol_shares);
+				let s_3 = FixedU128::from(asset_state_3.shares);
+				let q_4 = FixedU128::from(asset_state_4.hub_reserve);
+				let b_4 = FixedU128::from(asset_state_4.protocol_shares);
+				let s_4 = FixedU128::from(asset_state_4.shares);
+
 				//Assert
 				let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
 
-				//Check that the lrna has been migrated
-				let stableswap_pool_share_asset = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
-				let share_asset_lrna = stableswap_pool_share_asset.hub_reserve;
-				assert_eq!(asset_3_lrna + asset_4_lrna, share_asset_lrna);
+				//Sum(Qk) = Qs
+				let left = q3.checked_add(q4).unwrap();
+				let right = q_s;
+				assert_invariant_eq!(left, right);
 
 				//Check that the full amount of lrna has not been changed
-				let omnipool_lrna_balance_after = get_lrna_of_omnipool_protocol_account();
-				assert_eq!(omnipool_lrna_balance_before, omnipool_lrna_balance_after);
+				let left = sum_q_k;
+				let right = sum_q_k_plus;
+				assert_invariant_eq!(left, right);
 
-				//Check that we transfer the right reserve from omnipool to subpool
+				//No risk assets are accounted for: Rk = Rsk
 				assert_balance!(Omnipool::protocol_account(), asset_3.asset_id, 0);
 				assert_balance!(Omnipool::protocol_account(), asset_4.asset_id, 0);
 				assert_balance!(pool_account, asset_3.asset_id, asset_3_reserve);
 				assert_balance!(pool_account, asset_4.asset_id, asset_4_reserve);
 
-				//Spec: https://www.notion.so/Create-new-stableswap-subpool-from-two-assets-in-the-Omnipool-permissioned-20028c583ac64c55aee8443a23a096b9#f1da37ba2acb4c8a8f40cdbae5751cc0
-				assert_eq!(stableswap_pool_share_asset.shares, stableswap_pool_share_asset.reserve);
-				assert_eq!(stableswap_pool_share_asset.shares, asset_3_lrna + asset_4_lrna);
+				// Us+ = Ss+
+				let left = u_s_plus;
+				let right = s_s_plus;
+				assert_invariant_eq!(left, right);
 
-				//Spec: https://www.notion.so/Create-new-stableswap-subpool-from-two-assets-in-the-Omnipool-permissioned-20028c583ac64c55aee8443a23a096b9#9e1438cd504040e38e25269ea9fca1b4
-				let left_expression = stableswap_pool_share_asset.hub_reserve * stableswap_pool_share_asset.protocol_shares / stableswap_pool_share_asset.shares;
-				let right_expression_for_asset3 = asset_state_3.hub_reserve * asset_state_3.protocol_shares / asset_state_3.shares;
-				let right_expression_for_asset4 = asset_state_3.hub_reserve * asset_state_3.protocol_shares / asset_state_3.shares;
-				assert_eq!(left_expression, right_expression_for_asset3 + right_expression_for_asset4);
+				// Ss+ = sum_Qk
+				let sum_q_k = asset_3_lrna + asset_4_lrna;
+				let left = s_s_plus;
+				let right = sum_q_k;
+				 assert_invariant_eq!(left, right);
+
+				// Qs+ * Bs+ / Ss+ = Sum(Qk * Bk/Sk)
+				let s_s_plus = FixedU128::from(s_s_plus);
+				let left = q_s_plus.checked_mul(&b_s_plus.checked_div(&s_s_plus).unwrap()).unwrap();
+				let right_3 = q_3.checked_mul(&b_3.checked_div(&s_3).unwrap()).unwrap();
+				let right_4 = q_4.checked_mul(&b_4.checked_div(&s_4).unwrap()).unwrap();
+				let right = right_3.checked_add(&right_4).unwrap();
+
+				#[cfg(feature = "all-invariants")]
+				assert_invariant_eq!(left, right);
 			});
 	}
 }

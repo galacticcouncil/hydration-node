@@ -361,6 +361,7 @@ proptest! {
 
 				let l_plus = Omnipool::current_imbalance();
 				let q_plus = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
 				//Assert
 
 				//Qs+ * Rs+ >= Qs * Rs
