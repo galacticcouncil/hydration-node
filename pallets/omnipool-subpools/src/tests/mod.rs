@@ -1,18 +1,14 @@
+#[macro_use]
+pub(crate) mod mock;
+
 mod add_liquidity;
 mod add_liquidity_stable;
 mod buy;
 mod create_subpool;
+mod invariants;
 mod migrate_asset;
-pub(crate) mod mock;
 mod remove_liquidity;
 mod sell;
-use mock::*;
-mod add_liquidity_invariants;
-mod buy_invariants;
-mod convert_omnipool_positions_invariants;
-mod create_subpool_invariants;
-mod migrate_asset_invariants;
-mod sell_invariants;
 mod verification;
 
 use frame_support::{assert_err, assert_noop, assert_ok};
@@ -21,6 +17,8 @@ use sp_runtime::{FixedU128, Permill};
 use hydradx_traits::AccountIdFor;
 use orml_traits::MultiCurrency;
 use proptest::prelude::Strategy;
+
+pub(crate) use mock::*;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -46,7 +44,7 @@ fn amplification() -> impl Strategy<Value = u16> {
 	2..10_000u16
 }
 
-fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
+pub(crate) fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
 	(asset_reserve(), price()).prop_map(move |(reserve, price)| PoolToken {
 		asset_id,
 		amount: reserve,
@@ -55,7 +53,7 @@ fn pool_token(asset_id: AssetId) -> impl Strategy<Value = PoolToken> {
 }
 
 #[derive(Debug)]
-struct PoolToken {
+pub(crate) struct PoolToken {
 	asset_id: AssetId,
 	amount: Balance,
 	price: FixedU128,

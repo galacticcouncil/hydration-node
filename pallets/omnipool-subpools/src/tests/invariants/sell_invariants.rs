@@ -1,7 +1,7 @@
 use super::*;
 use crate::*;
 use proptest::prelude::*;
-use std::ops::Mul;
+use sp_std::ops::Mul;
 
 use hydra_dx_math::stableswap::calculate_d;
 use pallet_omnipool::types::SimpleImbalance;

@@ -1,26 +1,13 @@
 use super::*;
-use crate::types::Balance;
 use crate::*;
-use frame_benchmarking::Zero;
-use frame_support::assert_noop;
-use hydra_dx_math::stableswap::calculate_d;
-use pallet_omnipool::types::AssetReserveState;
-use pallet_omnipool::types::SimpleImbalance;
-use pallet_omnipool::types::Tradability;
-use primitive_types::U256;
 use proptest::prelude::*;
-use std::ops::Mul;
-use test_utils::assert_balance;
 
-const ALICE_INITIAL_LRNA_BALANCE: Balance = 500 * ONE;
+use crate::types::Balance;
+use hydra_dx_math::stableswap::calculate_d;
+use pallet_omnipool::types::SimpleImbalance;
+use sp_std::ops::Mul;
+
 const ALICE_INITIAL_ASSET_3_BALANCE: Balance = 1000 * ONE;
-const ALICE_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
-const OMNIPOOL_INITIAL_ASSET_3_BALANCE: Balance = 3000 * ONE;
-const OMNIPOOL_INITIAL_ASSET_4_BALANCE: Balance = 4000 * ONE;
-const OMNIPOOL_INITIAL_ASSET_5_BALANCE: Balance = 5000 * ONE;
-const OMNIPOOL_INITIAL_ASSET_6_BALANCE: Balance = 6000 * ONE;
-
-const MAX_SELL_AMOUNT: Balance = 1000 * ONE;
 
 proptest! {
 	//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#0f4caec4aac240daaec1c611732cec05
