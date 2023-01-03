@@ -1,6 +1,6 @@
 [package]
 name = "common-runtime"
-version = "100.2.2"
+version = "100.2.3"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -16,6 +16,7 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 codec = { package = "parity-scale-codec", version = "3.1.5", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 primitives = {path = '../../primitives', default-features = false}
+pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -40,6 +41,7 @@ pallet-claims = { path = '../../pallets/claims', default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }

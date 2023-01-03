@@ -108,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 122,
+	spec_version: 123,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -729,7 +729,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
 	type NativeAssetId = NativeAssetId;
-	type WeightInfo = weights::asset_registry::HydraWeight<Runtime>;
+	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -836,7 +836,7 @@ impl pallet_omnipool::Config for Runtime {
 	type CollectionId = CollectionId;
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
-	type WeightInfo = ();
+	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
