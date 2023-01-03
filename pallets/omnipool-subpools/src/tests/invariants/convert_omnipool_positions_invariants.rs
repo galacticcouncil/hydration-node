@@ -1,7 +1,7 @@
 use super::*;
 use crate::*;
 use proptest::prelude::*;
-
+use sp_runtime::traits::CheckedMul;
 proptest! {
 	//Spec: https://www.notion.so/Convert-Omnipool-position-to-Stableswap-Subpool-position-b18dabaa55bf433fa96f4ebf67cecec4
 	#![proptest_config(ProptestConfig::with_cases(100))]
@@ -55,19 +55,30 @@ proptest! {
 				)
 				.unwrap();
 
-				assert_eq!(
-					converted_position.shares * migration_details_for_asset_3.shares,
-					position.shares * migration_details_for_asset_3.hub_reserve
-				);
 
-				let new_price = FixedU128::from_rational(converted_position.price.0, converted_position.price.1);
-				let price_from_migration_details = FixedU128::from_rational(
+				let s_alpha = position.shares;
+				let s_beta = converted_position.shares;
+				let s_i = migration_details_for_asset_3.shares;
+				let delta_s_s = migration_details_for_asset_3.hub_reserve;
+
+				let p_beta = FixedU128::from_rational(converted_position.price.0, converted_position.price.1);
+				let p_i_mu = FixedU128::from_rational(
 					migration_details_for_asset_3.price.0,
 					migration_details_for_asset_3.price.1,
 				);
-				let old_price = FixedU128::from_rational(position.price.0, position.price.1);
+				let p_alpha = FixedU128::from_rational(position.price.0, position.price.1);
 
-				assert_eq!(new_price * price_from_migration_details, old_price);
+				//Assert
+
+				// s_beta * Si = s_alpha * delta_Ss
+				let left = s_beta.checked_mul(s_i).unwrap();
+				let right = s_alpha.checked_mul(delta_s_s).unwrap();
+				assert_invariant_eq!(left, right);
+
+				// p_beta * pi_mu = p_alpha
+				let left = p_beta.checked_mul(&p_beta.checked_mul(&p_i_mu).unwrap()).unwrap();
+				let right = p_alpha;
+				assert_invariant_eq!(left, right);
 			});
 	}
 }
