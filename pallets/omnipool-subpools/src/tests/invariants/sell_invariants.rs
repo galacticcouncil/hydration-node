@@ -310,9 +310,6 @@ proptest! {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
-			let omnipool_account = Omnipool::protocol_account();
-
 			add_omnipool_token!(asset_3.asset_id);
 			add_omnipool_token!(asset_4.asset_id);
 
@@ -328,7 +325,6 @@ proptest! {
 			));
 
 			let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
-			let omnipool_account = Omnipool::protocol_account();
 			let share_asset_state_before_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
 			let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);

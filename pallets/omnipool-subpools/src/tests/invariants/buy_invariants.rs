@@ -19,7 +19,6 @@ proptest! {
 		asset_4 in pool_token(ASSET_4),
 		asset_5 in pool_token(ASSET_5),
 		amplification in amplification(),
-		trade_fee in percent(),
 		withdraw_fee in percent(),
 		protocol_fee in percent()
 	) {
@@ -49,8 +48,6 @@ proptest! {
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-
-				let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
 
 				let l_before = get_imbalance_value!();
 
@@ -97,7 +94,6 @@ proptest! {
 				let delta_q_s = asset_5_state_before_sell.hub_reserve.checked_sub(asset_5_state_after_sell.hub_reserve).unwrap();
 
 				//Assert
-				let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
 
 				// Qi+ * Ri+ >= Qi * Ri
 				let left = q_i_plus.checked_mul(r_i_plus).unwrap();
@@ -153,8 +149,6 @@ proptest! {
 		asset_4 in pool_token(ASSET_4),
 		asset_5 in pool_token(ASSET_5),
 		amplification in amplification(),
-		trade_fee in percent(),
-		withdraw_fee in percent(),
 		protocol_fee in percent()
 	) {
 		let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
@@ -186,11 +180,8 @@ proptest! {
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
-				let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
-
 				assert_that_imbalance_is_zero!();
 				let l_before = get_imbalance_value!();
-
 
 				//Act
 				//let amount_to_buy = 100 * ONE;
@@ -229,7 +220,6 @@ proptest! {
 				let delta_q_j = asset_5_state_after_sell.hub_reserve.checked_sub(asset_5_state_before_sell.hub_reserve).unwrap();
 
 				//Assert
-				let omnipool_account = Omnipool::protocol_account();
 
 				// Qj+ * Rj+ >= Qj * Rj
 				let left = q_j_plus.checked_mul(r_j_plus).unwrap();
@@ -282,9 +272,7 @@ proptest! {
 		asset_3 in pool_token(ASSET_3),
 		asset_4 in pool_token(ASSET_4),
 		amplification in amplification(),
-		trade_fee in percent(),
-		withdraw_fee in percent(),
-		protocol_fee in percent()
+		withdraw_fee in percent()
 	) {
 		ExtBuilder::default()
 			.with_registered_asset(asset_3.asset_id)
@@ -297,9 +285,6 @@ proptest! {
 			.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 			.build()
 			.execute_with(|| {
-				let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
-				let omnipool_account = Omnipool::protocol_account();
-
 				add_omnipool_token!(ASSET_3);
 				add_omnipool_token!(ASSET_4);
 
@@ -313,11 +298,8 @@ proptest! {
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
-				let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
-
 				let l = Omnipool::current_imbalance();
 				let q = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-
 
 				//Act
 				assert_ok!(OmnipoolSubpools::buy(
@@ -342,7 +324,7 @@ proptest! {
 
 				let delta_u_s_plus = share_asset_state_before_sell.reserve - share_asset_state_after_sell.reserve;
 				let f_w = withdraw_fee;
-				let one_minus_fw = Permill::from_float(1.0) - withdraw_fee;
+				let one_minus_fw = Permill::from_float(1.0) - f_w;
 				let u_s =share_asset_state_before_sell.reserve;
 				let delta_d = d - d_plus;
 
