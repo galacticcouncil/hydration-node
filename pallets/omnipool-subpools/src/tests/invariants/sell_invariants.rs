@@ -222,20 +222,20 @@ proptest! {
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 
-				let u_s_plus  = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 				let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
+				let u_s_plus  = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 				let delta_u_s = u_s.checked_sub(u_s_plus).unwrap();
+
 				let f_w = withdraw_fee;
 				let one_minus_fw = Permill::from_float(1.0) - f_w;
-				let u_s = share_asset_state_before_sell.shares;
 				let delta_d = d.checked_sub(d_plus).unwrap();
 
 				let delta_q_s = share_asset_state_after_sell.hub_reserve.checked_sub(share_asset_state_before_sell.hub_reserve).unwrap();
-				let delta_q_h =  protocol_fee.mul_floor(delta_q_s) - l;
 				let delta_q_i = asset_5_state_before_sell.hub_reserve.checked_sub(asset_5_state_after_sell.hub_reserve).unwrap();
+
 				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
-				let hub_hdx_diff = hdx_state_after.hub_reserve.checked_sub(hdx_state_before.hub_reserve).unwrap();
+				let delta_q_h= hdx_state_after.hub_reserve.checked_sub(hdx_state_before.hub_reserve).unwrap();
 
 				//Assert
 
@@ -271,7 +271,7 @@ proptest! {
 				assert_invariant_le!(left, right);
 
 				//delta_QH + delta_L + delta_Qi = -delta_Qs
-				let left = delta_q_i.checked_sub(hub_hdx_diff).unwrap();
+				let left = delta_q_i.checked_sub(delta_q_h).unwrap();
 				let right = delta_q_s;
 				assert_invariant_eq!(left, right);
 

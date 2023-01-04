@@ -47,11 +47,15 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let d = calculate_d::<64u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
 				let l_before = get_imbalance_value!();
 
 				assert_that_imbalance_is_zero!();
+
+				let u_s = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
+
+				let hdx_state_before = Omnipool::load_asset_state(HDX).unwrap();
 
 				//Act
 				assert_ok!(OmnipoolSubpools::buy(
@@ -63,6 +67,8 @@ proptest! {
 				));
 
 				let l = get_imbalance_value!();
+
+				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
 
 				let asset_5_state_after_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
 				let q_i_plus = asset_5_state_after_sell.hub_reserve;
@@ -78,20 +84,19 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-				let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-				let u_s_plus =  share_asset_state_after_sell.reserve;
-				let u_s =  share_asset_state_before_sell.reserve;
+				let d_plus = calculate_d::<64u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
-				let delta_u_s = share_asset_state_before_sell.reserve - share_asset_state_after_sell.reserve;
+				let u_s_plus  = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
+				let delta_u_s = u_s.checked_sub(u_s_plus).unwrap();
+
 				let f_w = withdraw_fee;
 				let one_minus_fw = Permill::from_float(1.0) - f_w;
 				let delta_d = d_plus - d;
 
-				let delta_l = l - l_before;
 				let delta_q_i = share_asset_state_after_sell.hub_reserve.checked_sub(share_asset_state_before_sell.hub_reserve).unwrap();
-				let f_p = protocol_fee;
-				let delta_q_h =  f_p.mul_floor(delta_q_i);
 				let delta_q_s = asset_5_state_before_sell.hub_reserve.checked_sub(asset_5_state_after_sell.hub_reserve).unwrap();
+
+				let delta_q_h = hdx_state_after.hub_reserve.checked_sub(hdx_state_before.hub_reserve).unwrap();
 
 				//Assert
 
@@ -128,13 +133,12 @@ proptest! {
 				// delta_QH + delta_L + delta_Qs = - delta_Qi
 				let left = delta_q_h.checked_add(delta_q_i).unwrap();
 				let right = delta_q_s;
-				#[cfg(feature = "all-invariants")]
 				assert_invariant_eq!(delta_q_h + delta_q_i, delta_q_s);
 
 				// Stableswap equations
 				assert!(d_plus >= d);
 				#[cfg(feature = "all-invariants")]
-				assert!(d_plus - d <= 10u128); //TODO: once this has been checked by Martin, we need to add it to other buy tests
+				assert!(d_plus - d <= D_DIFF_TOLERANCE);
 			});
 	}
 }

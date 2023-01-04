@@ -7,4 +7,6 @@ mod sell_invariants;
 
 pub(crate) use super::*;
 
-pub(crate) const D_DIFF_TOLERANCE: u128 = 2_000;
+// TODO: ask COling - is this a thing in context of omnipool?
+// Does not hold for all invariants
+pub(crate) const D_DIFF_TOLERANCE: u128 = 1_000;
