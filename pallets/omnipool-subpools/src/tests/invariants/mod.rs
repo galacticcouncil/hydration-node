@@ -6,3 +6,5 @@ mod migrate_asset_invariants;
 mod sell_invariants;
 
 pub(crate) use super::*;
+
+pub(crate) const D_DIFF_TOLERANCE: u128 = 2_000;

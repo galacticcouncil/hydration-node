@@ -49,18 +49,20 @@ proptest! {
 				withdraw_fee,
 			));
 
-			let pool_account = AccountIdConstructor::from_assets(&vec![asset_4.asset_id, asset_4.asset_id], None);
+			let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
 
 			let asset_5_state_before_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
 			let share_asset_state_before_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
 			let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 			let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-			let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+			let d = calculate_d::<64u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
 			assert_that_imbalance_is_zero!();
 
 			let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
+
+			let u_s = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 
 			//Act
 			assert_ok!(OmnipoolSubpools::sell(
@@ -85,16 +87,13 @@ proptest! {
 			let q_s_plus = share_asset_state_after_sell.hub_reserve;
 			let r_s_plus = share_asset_state_after_sell.reserve;
 
-			let u_s = share_asset_state_before_sell.reserve;
-			let u_s_plus = share_asset_state_after_sell.reserve;
 			let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 			let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-			let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+			let d_plus = calculate_d::<64u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
 			let r_s = share_asset_state_before_sell.reserve;
-			let u_s = share_asset_balance_before;
 			let r_s_plus = share_asset_state_after_sell.reserve;
-			let u_s_plus = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
+			let u_s_plus  = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 
 			let l = get_imbalance_value!();
 
@@ -139,11 +138,8 @@ proptest! {
 			//Stableswap equation holds
 			assert!(d_plus >= d);
 			#[cfg(feature = "all-invariants")]
-			assert!(d_plus - d <= 10u128); //TODO: once this has been checked, we need to add it to other sell tests
-
-			//TODO: missing prop assertions, can be added after we get answer from Colin
-			// https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#feb5cf8ec4ac4e50a7e219620653f3c7
-			});
+			assert!(d_plus - d <= D_DIFF_TOLERANCE);
+		});
 	}
 }
 
@@ -204,6 +200,8 @@ proptest! {
 
 				let hdx_state_before= Omnipool::load_asset_state(HDX).unwrap();
 
+				let u_s = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
+
 				//Act
 				assert_ok!(OmnipoolSubpools::sell(
 					Origin::signed(ALICE),
@@ -229,11 +227,11 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-				let u_s_plus = share_asset_state_after_sell.reserve;
-				let u_s = share_asset_state_before_sell.reserve;
+
+				let u_s_plus  = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 				let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
-				let delta_u_s = share_asset_state_before_sell.shares.checked_sub(share_asset_state_after_sell.shares).unwrap();
+				let delta_u_s = u_s.checked_sub(u_s_plus).unwrap();
 				let f_w = withdraw_fee;
 				let one_minus_fw = Permill::from_float(1.0) - f_w;
 				let u_s = share_asset_state_before_sell.shares;
@@ -267,11 +265,11 @@ proptest! {
 				let right = u_s_plus.checked_add(r_s).unwrap();
 				assert_invariant_eq!(left, right);
 
-
 				// delta_Us * D * (1 - fw) <= Us * delta_D
+				// TODO: should be flipped ?
 				let left = one_minus_fw.mul(delta_u_s.checked_mul(d).unwrap());
 				let right = share_asset_state_before_sell.shares.checked_mul(delta_d).unwrap();
-				assert_invariant_le!(left,right);
+				assert_invariant_le!(right, left);
 
 				// L <= 0
 				let left = l;
@@ -376,29 +374,25 @@ proptest! {
 
 			//Assert
 
-			// Qs+ * Rs+ < Qs * Rs
+			// Qs+ * Rs+ > Qs * Rs
 			let left = q_s_plus.checked_mul_into(&r_s_plus).unwrap();
 			let right = q_s.checked_mul_into(&r_s).unwrap();
-			#[cfg(feature = "all-invariants")]
 			assert_invariant_le!(right, left);
 
 			// Rs+ + Us = Us+ + Rs
 			let left = r_s_plus.checked_add(u_s).unwrap();
 			let right = u_s_plus.checked_add(r_s).unwrap();
-			#[cfg(feature = "all-invariants")]
 			assert_invariant_eq!(left, right);
 
 			// Us+ * D <= Us * D+
 			let left = u_s_plus.checked_mul_into(&d_before_sell).unwrap();
 			let right = u_s.checked_mul_into(&d_after_sell).unwrap();
-			#[cfg(feature = "all-invariants")]
 			assert_invariant_le!(left, right);
 
-			// delta_Us * D * ( 1 - Fw ) <= Us * delta_D
-			// R_s_i instead fof Us TODO:
+			// delta_Us * D * ( 1 - Fw ) >= Us * delta_D
+			// TODO: should be flipped or not ?
 			let left = delta_u_s.checked_mul_into(&d_before_sell).unwrap();
 			let right = u_s.checked_mul_into(&delta_d).unwrap();
-			#[cfg(feature = "all-invariants")]
 			assert_invariant_le!(right, left);
 
 			//(Qs+ + L+ Qs+ / Q+ ) * Rs <= (Qs + L Qs/Q) * Rs+
