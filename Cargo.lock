@@ -5728,6 +5728,7 @@ dependencies = [
  "frame-system",
  "hydradx-traits",
  "parity-scale-codec",
+ "pretty_assertions",
  "scale-info",
  "serde",
  "sp-core",

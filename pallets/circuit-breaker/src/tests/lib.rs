@@ -18,6 +18,7 @@
 use crate::tests::mock::*;
 use crate::*;
 use frame_support::assert_storage_noop;
+pub use pretty_assertions::{assert_eq, assert_ne};
 
 #[test]
 fn trade_volume_limit_should_be_stored_when_called_first_time() {
