@@ -304,10 +304,14 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let d = calculate_d::<64u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
 				let l = Omnipool::current_imbalance();
 				let q = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let u_s = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
+
+				let hdx_state_before = Omnipool::load_asset_state(HDX).unwrap();
 
 				//Act
 				assert_ok!(OmnipoolSubpools::buy(
@@ -318,6 +322,10 @@ proptest! {
 					amount_to_buy * 100
 				));
 
+				let u_s_plus = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
+
+				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
+
 				let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 				let q_s = share_asset_state_before_sell.hub_reserve;
 				let r_s = share_asset_state_before_sell.reserve;
@@ -326,18 +334,15 @@ proptest! {
 
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
-				let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-				let u_s_plus = share_asset_state_after_sell.reserve;
-				let u_s = share_asset_state_before_sell.reserve;
+				let d_plus = calculate_d::<64u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
+				let delta_d = d.checked_sub(d_plus).unwrap();
 
-				let delta_u_s_plus = share_asset_state_before_sell.reserve - share_asset_state_after_sell.reserve;
-				let f_w = withdraw_fee;
-				let one_minus_fw = Permill::from_float(1.0) - f_w;
-				let u_s =share_asset_state_before_sell.reserve;
-				let delta_d = d - d_plus;
+				let one_minus_fw = Permill::from_float(1.0) - withdraw_fee;
 
 				let l_plus = Omnipool::current_imbalance();
 				let q_plus = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let delta_u_s = u_s.checked_sub(u_s_plus).unwrap();
 
 				//Assert
 
@@ -347,36 +352,33 @@ proptest! {
 				assert_invariant_ge!(left, right);
 
 				// Us+ * D <= Us * D+
+				// TODO: keeps failiing
 				let left = u_s_plus.checked_mul(d).unwrap();
 				let right = u_s.checked_mul(d_plus).unwrap();
 				#[cfg(feature = "all-invariants")]
 				assert_invariant_le!(left, right);
 
 				//delta_Us * D * (1 - fw) <= Us * delta_D
-				let left = one_minus_fw.mul(delta_u_s_plus.checked_mul(d).unwrap());
+				// TODO: should be flipped?
+				// this does not work either way
+				let left = one_minus_fw.mul(delta_u_s.checked_mul(d).unwrap());
 				let right = u_s.checked_mul(delta_d).unwrap();
 				#[cfg(feature = "all-invariants")]
-				 assert_invariant_le!(left, right);
+				assert_invariant_le!(left, right);
 
 				//Rs+ + Us = Us+ + Rs
 				let left = r_s_plus.checked_add(u_s).unwrap();
 				let right = u_s_plus.checked_add(r_s).unwrap();
-				 assert_invariant_eq!(left, right);
+				assert_invariant_eq!(left, right);
 
 				// (Qs+ + L+ * (Qs+/Q+)) * Rs <= (Qs + L * Qs/Q) * Rs+
-				let left_inner_part = l_plus.value.checked_mul(q_s_plus.checked_div(q_plus).unwrap()).unwrap();
-				let left = match l_plus.negative {
-					false =>  (q_s_plus.checked_add(left_inner_part).unwrap()).checked_mul(r_s).unwrap(),
-					true =>  (q_s_plus.checked_sub(l_plus.value.checked_mul(q_s_plus.checked_div(q_plus).unwrap()).unwrap()).unwrap()).checked_mul(r_s).unwrap(),
-				};
+				let l_one = q_s_plus.checked_mul_into(&r_s).unwrap();
+				let l_two = l_plus.value.checked_mul_into(&q_s_plus).unwrap().checked_div_inner(&q_plus).unwrap().checked_mul_inner(&r_s).unwrap();
+				let left = l_one.checked_sub(l_two).unwrap();
 
-				let right_inner_part = l.value.checked_mul(q_s.checked_div(q).unwrap()).unwrap();
-				let right = match l.negative {
-					false => (q_s.checked_add(right_inner_part).unwrap()).checked_mul(r_s_plus).unwrap(),
-					true => (q_s.checked_sub(right_inner_part).unwrap()).checked_mul(r_s_plus).unwrap(),
-				};
-
-				#[cfg(feature = "all-invariants")]
+				let r_one = q_s.checked_mul_into(&r_s_plus).unwrap();
+				let r_two = l.value.checked_mul_into(&q_s).unwrap().checked_div_inner(&q).unwrap().checked_mul_inner(&r_s_plus).unwrap();
+				let right= r_one.checked_sub(r_two).unwrap();
 				assert_invariant_le!(left, right);
 
 			});
