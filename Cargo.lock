@@ -8748,7 +8748,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -8772,6 +8772,7 @@ dependencies = [
  "orml-traits",
  "orml-unknown-tokens",
  "orml-vesting",
+ "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
  "pallet-asset-registry",
@@ -8793,6 +8794,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-uniques",
  "pallet-utility",
  "pallet-xcm",
  "parachain-info",
