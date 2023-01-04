@@ -1050,7 +1050,6 @@ pub mod pallet {
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
 
-			//TODO: use reference instead of cloning before
 			T::PoolStateChangeHandler::after_pool_state_change(
 				asset_in,
 				amount,
