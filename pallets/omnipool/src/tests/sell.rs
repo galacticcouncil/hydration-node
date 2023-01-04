@@ -880,5 +880,3 @@ fn trade_volume_limit_should_be_ignored_for_hub_asset() {
 			),);
 		});
 }
-
-//TODO Dani: add integration tests for complex cases
