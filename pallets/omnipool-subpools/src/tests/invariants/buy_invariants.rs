@@ -311,8 +311,6 @@ proptest! {
 
 				let u_s = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 
-				let hdx_state_before = Omnipool::load_asset_state(HDX).unwrap();
-
 				//Act
 				assert_ok!(OmnipoolSubpools::buy(
 					Origin::signed(ALICE),
@@ -321,12 +319,9 @@ proptest! {
 					amount_to_buy,
 					amount_to_buy * 100
 				));
-
 				let u_s_plus = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
-
-				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
-
 				let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
+
 				let q_s = share_asset_state_before_sell.hub_reserve;
 				let r_s = share_asset_state_before_sell.reserve;
 				let q_s_plus = share_asset_state_after_sell.hub_reserve;
@@ -352,9 +347,9 @@ proptest! {
 				assert_invariant_ge!(left, right);
 
 				// Us+ * D <= Us * D+
-				// TODO: keeps failiing
-				let left = u_s_plus.checked_mul(d).unwrap();
-				let right = u_s.checked_mul(d_plus).unwrap();
+				// TODO: keeps failiing . rounding ?
+				let left = u_s_plus.checked_mul_into(&d).unwrap();
+				let right = u_s.checked_mul_into(&d_plus).unwrap();
 				#[cfg(feature = "all-invariants")]
 				assert_invariant_le!(left, right);
 
@@ -364,7 +359,7 @@ proptest! {
 				let left = one_minus_fw.mul(delta_u_s.checked_mul(d).unwrap());
 				let right = u_s.checked_mul(delta_d).unwrap();
 				#[cfg(feature = "all-invariants")]
-				assert_invariant_le!(left, right);
+				assert_invariant_le!(right, left);
 
 				//Rs+ + Us = Us+ + Rs
 				let left = r_s_plus.checked_add(u_s).unwrap();
@@ -380,7 +375,6 @@ proptest! {
 				let r_two = l.value.checked_mul_into(&q_s).unwrap().checked_div_inner(&q).unwrap().checked_mul_inner(&r_s_plus).unwrap();
 				let right= r_one.checked_sub(r_two).unwrap();
 				assert_invariant_le!(left, right);
-
 			});
 	}
 }
