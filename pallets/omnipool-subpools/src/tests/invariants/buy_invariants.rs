@@ -187,6 +187,10 @@ proptest! {
 				assert_that_imbalance_is_zero!();
 				let l_before = get_imbalance_value!();
 
+				let u_s = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
+
+				let hdx_state_before = Omnipool::load_asset_state(HDX).unwrap();
+
 				//Act
 				//let amount_to_buy = 100 * ONE;
 				assert_ok!(OmnipoolSubpools::buy(
@@ -198,6 +202,10 @@ proptest! {
 				));
 
 				let l = get_imbalance_value!();
+
+				let hdx_state_after = Omnipool::load_asset_state(HDX).unwrap();
+
+				let u_s_plus = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 
 				let asset_5_state_after_sell = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
 				let q_j_plus = asset_5_state_after_sell.hub_reserve;
@@ -214,14 +222,13 @@ proptest! {
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d_plus = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-				let u_s = share_asset_state_before_sell.reserve;
-				let u_s_plus = share_asset_state_after_sell.reserve;
 
 				let delta_l = l - l_before;
 				let delta_q_s = share_asset_state_before_sell.hub_reserve.checked_sub(share_asset_state_after_sell.hub_reserve).unwrap();
 				let f_p = protocol_fee;
-				let delta_q_h =  f_p.mul_floor(delta_q_s);
 				let delta_q_j = asset_5_state_after_sell.hub_reserve.checked_sub(asset_5_state_before_sell.hub_reserve).unwrap();
+
+				let delta_q_h = hdx_state_after.hub_reserve.checked_sub(hdx_state_before.hub_reserve).unwrap();
 
 				//Assert
 
@@ -235,11 +242,9 @@ proptest! {
 				let right = q_s.checked_mul(r_s).unwrap();
 				assert_invariant_ge!(left, right);
 
-
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#7f2635b3a67b44eaa4cb95315ae1a83b
 				let left = u_s_plus.checked_mul(d).unwrap();
 				let right = u_s.checked_mul(d_plus).unwrap();
-				#[cfg(feature = "all-invariants")]
 				assert_invariant_le!(left, right);
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#847cd7908760415b9748f7fa0b1c2234
@@ -255,13 +260,12 @@ proptest! {
 				//delta_QH + delta_L + delta_Qj = - delta_Qs
 				let left = delta_q_h  + delta_l + delta_q_j;
 				let right = delta_q_s;
-				#[cfg(feature = "all-invariants")]
 				assert_invariant_eq!(left, right);
 
 				//Stableswap equations
 				assert!(d_plus >= d);
 				#[cfg(feature = "all-invariants")]
-				assert!(d - d_plus <= 10u128);
+				assert!(d - d_plus <= D_DIFF_TOLERANCE);
 
 		});
 	}
