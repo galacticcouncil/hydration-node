@@ -339,6 +339,16 @@ fn set_trade_volume_limit_should_fail_if_limit_is_not_valid() {
 			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, new_limit),
 			Error::<Test>::InvalidLimitValue
 		);
+
+		assert_noop!(
+			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (0, 100)),
+			Error::<Test>::InvalidLimitValue
+		);
+
+		assert_noop!(
+			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (100, 0)),
+			Error::<Test>::InvalidLimitValue
+		);
 	});
 }
 
@@ -679,6 +689,16 @@ fn set_liquidity_limit_should_fail_if_limit_is_not_valid() {
 		// Assert
 		assert_noop!(
 			CircuitBreaker::set_liquidity_limit(Origin::root(), HDX, Some(new_limit)),
+			Error::<Test>::InvalidLimitValue
+		);
+
+		assert_noop!(
+			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (0, 100)),
+			Error::<Test>::InvalidLimitValue
+		);
+
+		assert_noop!(
+			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (100, 0)),
 			Error::<Test>::InvalidLimitValue
 		);
 	});
