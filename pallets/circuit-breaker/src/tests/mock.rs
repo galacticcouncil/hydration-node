@@ -30,6 +30,8 @@ type Block = frame_system::mocking::MockBlock<Test>;
 pub type AssetId = u32;
 pub type Balance = u128;
 
+pub const ALICE: u64 = 1;
+
 pub const HDX: AssetId = 100;
 pub const DOT: AssetId = 200;
 pub const LRNA: AssetId = 300;

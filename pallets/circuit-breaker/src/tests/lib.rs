@@ -262,6 +262,35 @@ fn ensure_and_update_trade_volume_limit_should_ingore_omnipool_hub_asset() {
 }
 
 #[test]
+fn set_trade_volume_limit_should_work_when_signed_by_technical_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange & Act
+		let new_limit = (7, 100);
+
+		assert_ok!(CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, new_limit));
+
+		expect_events(vec![crate::Event::TradeVolumeLimitChanged {
+			asset_id: HDX,
+			trade_volume_limit: new_limit,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn set_trade_volume_limit_should_fail_when_not_signed_by_technical_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange & Act
+		let new_limit = (7, 100);
+
+		assert_noop!(
+			CircuitBreaker::set_trade_volume_limit(Origin::signed(ALICE), HDX, new_limit),
+			sp_runtime::DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
 fn set_trade_volume_limit_should_store_new_trade_volume_limit() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Arrange & Act
@@ -571,6 +600,35 @@ fn ensure_and_update_liquidity_limit_should_ingore_omnipool_hub_asset() {
 			INITIAL_LIQUIDITY
 		));
 		assert_storage_noop!(CircuitBreaker::ensure_and_update_liquidity_limit(LRNA, INITIAL_LIQUIDITY).unwrap());
+	});
+}
+
+#[test]
+fn set_liquidity_limit_should_work_when_signed_by_technical_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange & Act
+		let new_limit = Some((7, 100));
+
+		assert_ok!(CircuitBreaker::set_liquidity_limit(Origin::root(), HDX, new_limit));
+
+		expect_events(vec![crate::Event::LiquidityLimitChanged {
+			asset_id: HDX,
+			liquidity_limit: new_limit,
+		}
+		.into()]);
+	});
+}
+
+#[test]
+fn set_liquidity_limit_should_fail_when_not_signed_by_technical_origin() {
+	ExtBuilder::default().build().execute_with(|| {
+		// Arrange & Act
+		let new_limit = Some((7, 100));
+
+		assert_noop!(
+			CircuitBreaker::set_liquidity_limit(Origin::signed(ALICE), HDX, new_limit),
+			sp_runtime::DispatchError::BadOrigin
+		);
 	});
 }
 
