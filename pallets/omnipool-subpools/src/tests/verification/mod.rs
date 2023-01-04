@@ -4,3 +4,4 @@ mod scenario_03;
 mod scenario_04;
 mod scenario_05;
 mod scenario_06;
+mod scenario_07;
