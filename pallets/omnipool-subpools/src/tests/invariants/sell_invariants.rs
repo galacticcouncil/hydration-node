@@ -60,8 +60,6 @@ proptest! {
 
 			assert_that_imbalance_is_zero!();
 
-			let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
-
 			let u_s = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 
 			//Act
@@ -83,9 +81,7 @@ proptest! {
 
 			let share_asset_state_after_sell = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 			let q_s = share_asset_state_before_sell.hub_reserve;
-			let r_s = share_asset_state_before_sell.reserve;
 			let q_s_plus = share_asset_state_after_sell.hub_reserve;
-			let r_s_plus = share_asset_state_after_sell.reserve;
 
 			let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 			let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
@@ -193,8 +189,6 @@ proptest! {
 				let asset_a_reserve = Tokens::free_balance(asset_3.asset_id, &pool_account);
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d = calculate_d::<128u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
-
-				let share_asset_balance_before = Tokens::free_balance(SHARE_ASSET_AS_POOL_ID, &Omnipool::protocol_account());
 
 				assert_that_imbalance_is_zero!();
 
