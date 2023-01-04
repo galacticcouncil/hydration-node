@@ -34,8 +34,6 @@ use sp_runtime::{BoundedVec, FixedU128};
 const ALICE: AccountId = 1000;
 const BOB: AccountId = 1001;
 
-Since we know most of the details, go through the spec again and implement the missing pieces.
-
 #[test]
 fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 	ExtBuilder::default()

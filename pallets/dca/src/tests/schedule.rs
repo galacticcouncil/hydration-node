@@ -205,6 +205,71 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 }
 
 #[test]
+fn schedule_should_emit_necessary_events() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			expect_events(vec![
+				Event::Scheduled { id: 1, who: ALICE }.into(),
+				Event::ExecutionPlanned {
+					id: 1,
+					who: ALICE,
+					block: 501,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
+fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build();
+
+			//Act and assert
+			set_block_number(500);
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			expect_events(vec![
+				Event::Scheduled { id: 1, who: ALICE }.into(),
+				Event::ExecutionPlanned {
+					id: 1,
+					who: ALICE,
+					block: 501,
+				}
+				.into(),
+			]);
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(1000)));
+			expect_events(vec![
+				Event::Scheduled { id: 2, who: ALICE }.into(),
+				Event::ExecutionPlanned {
+					id: 2,
+					who: ALICE,
+					block: 1000,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
 fn schedule_should_fail_when_not_called_by_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange

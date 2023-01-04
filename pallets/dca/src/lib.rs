@@ -230,7 +230,12 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///First event
-		DummyEvent {},
+		Scheduled { id: ScheduleId, who: T::AccountId },
+		ExecutionPlanned {
+			id: ScheduleId,
+			who: T::AccountId,
+			block: BlockNumberFor<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -296,9 +301,17 @@ pub mod pallet {
 			let blocknumber_for_schedule = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
 			Self::plan_schedule_for_block(blocknumber_for_schedule, next_schedule_id, &schedule);
 
-			Self::calculate_and_store_bond(who, next_schedule_id)?;
+			Self::calculate_and_store_bond(who.clone(), next_schedule_id)?;
 
-			//TODO: emit events
+			Self::deposit_event(Event::Scheduled {
+				id: next_schedule_id,
+				who: who.clone(),
+			});
+			Self::deposit_event(Event::ExecutionPlanned {
+				id: next_schedule_id,
+				who,
+				block: blocknumber_for_schedule,
+			});
 
 			Ok(())
 		}

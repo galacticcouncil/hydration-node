@@ -640,3 +640,7 @@ impl ExtBuilder {
 thread_local! {
 	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
 }
+
+pub fn expect_events(e: Vec<Event>) {
+	test_utils::expect_events::<Event, Test>(e);
+}
