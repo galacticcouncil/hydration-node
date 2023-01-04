@@ -270,9 +270,9 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Set trade volume limit for an asset.
-		/// The dispatch origin for this call must be `TechnicalOrigin`.
 		///
 		/// Parameters:
+		/// - `origin`: The dispatch origin for this call. Must be `TechnicalOrigin`
 		/// - `asset_id`: The identifier of an asset
 		/// - `trade_volume_limit`: New trade volume limit represented as a percentage
 		///
@@ -301,9 +301,9 @@ pub mod pallet {
 		}
 
 		/// Set liquidity limit for an asset.
-		/// The dispatch origin for this call must be `TechnicalOrigin`.
 		///
 		/// Parameters:
+		/// - `origin`: The dispatch origin for this call. Must be `TechnicalOrigin`
 		/// - `asset_id`: The identifier of an asset
 		/// - `liquidity_limit`: Optional liquidity limit represented as a percentage
 		///
