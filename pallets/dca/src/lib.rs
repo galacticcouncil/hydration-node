@@ -379,6 +379,8 @@ pub mod pallet {
 
 			Suspended::<T>::remove(schedule_id);
 
+			Self::reserve_excecution_bond(schedule_id, &who)?;
+
 			Ok(())
 		}
 	}
@@ -582,6 +584,35 @@ where
 			//TODO: the only case when the storage bond won't be reserved after this is if the total bond before this is less than the current storage bond
 
 			T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
+
+			Ok(())
+		})?;
+
+		Ok(())
+	}
+
+	fn reserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+		Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
+			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
+			let user_asset_and_spot_price = Self::get_user_currency_and_spot_price(&who)?;
+
+			let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
+
+			let execution_bond_in_user_currency = match user_asset_and_spot_price.spot_price {
+				Some(spot_price) => spot_price
+					.checked_mul_int(execution_bond_in_native_currency)
+					.ok_or(ArithmeticError::Overflow)?,
+				None => execution_bond_in_native_currency,
+			};
+
+			//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
+
+			bond.amount = bond
+				.amount
+				.checked_add(execution_bond_in_user_currency)
+				.ok_or(ArithmeticError::Underflow)?;
+
+			T::MultiReservableCurrency::reserve(bond.asset, &who, execution_bond_in_user_currency)?;
 
 			Ok(())
 		})?;

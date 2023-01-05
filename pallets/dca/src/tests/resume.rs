@@ -178,6 +178,50 @@ fn resume_should_schedule_remove_schedule_from_suspended() {
 		});
 }
 
+#[test]
+fn resume_should_reserve_execution_bond() {
+	let total_bond = 3000000;
+	let execution_bond = 1000000;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond - execution_bond
+				}
+			);
+
+			assert_eq!(
+				total_bond - execution_bond,
+				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+			);
+
+			//Act
+			assert_ok!(DCA::resume(Origin::signed(ALICE), schedule_id, Option::None));
+
+			//Assert
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond
+				}
+			);
+
+			assert_eq!(total_bond, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+		});
+}
+
 //TODO: add test to check if the schedule is indeed suspendeed. if not then error
 
 fn assert_scheduled_ids(block: BlockNumberFor<Test>, expected_schedule_ids: Vec<ScheduleId>) {
