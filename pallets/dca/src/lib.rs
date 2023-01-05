@@ -371,6 +371,8 @@ pub mod pallet {
 
 				bond.amount = bond.amount - execution_bond_in_user_currency;
 
+				T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
+
 				Ok(())
 			})?;
 

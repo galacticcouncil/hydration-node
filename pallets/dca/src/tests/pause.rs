@@ -224,10 +224,10 @@ fn pause_should_unreserve_execution_bond() {
 				}
 			);
 
-			/*assert_eq!(
+			assert_eq!(
 				only_storage_bond,
 				Currencies::reserved_balance(DAI.into(), &ALICE.into())
-			);*/
+			);
 		});
 }
 
