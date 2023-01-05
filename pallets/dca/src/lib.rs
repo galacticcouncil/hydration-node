@@ -288,7 +288,7 @@ pub mod pallet {
 		pub fn schedule(
 			origin: OriginFor<T>,
 			schedule: Schedule<T::Asset>,
-			next_execution_block: Option<BlockNumberFor<T>>,
+			next_execution_block: Option<BlockNumberFor<T>>, //TODO: consider renaming - start executing block so
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
@@ -475,7 +475,7 @@ where
 			amount: total_bond_in_user_currency,
 		};
 
-		//TODO: throw error if can not reserve due to invalid balance - use can_reserve()
+		throw error if can not reserve due to invalid balance - use can_reserve()
 		T::MultiReservableCurrency::reserve(bond.asset, &who, bond.amount)?;
 
 		Bonds::<T>::insert(next_schedule_id, bond);
