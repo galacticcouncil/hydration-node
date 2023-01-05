@@ -399,7 +399,7 @@ pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
 pub type AccountId = u64;
 
 pub const ALICE: AccountId = 1;
-pub const ASSET_PAIR_ACCOUNT: AccountId = 2;
+pub const BOB: AccountId = 2;
 
 pub const BSX: AssetId = 1000;
 pub const AUSD: AssetId = 1001;

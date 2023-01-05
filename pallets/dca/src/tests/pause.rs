@@ -144,6 +144,44 @@ fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block(
 		});
 }
 
+#[test]
+fn pause_should_fail_when_paused_by_not_schedule_owner() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			let schedule_id = 1;
+			assert_noop!(
+				DCA::pause(Origin::signed(BOB), schedule_id, 501),
+				Error::<Test>::NotScheduleOwner
+			);
+		});
+}
+
+#[test]
+fn pause_should_fail_when_schedule_not_exist() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Act and assert
+			let non_existing_schedule_id = 9999;
+			assert_noop!(
+				DCA::pause(Origin::signed(BOB), non_existing_schedule_id, 501),
+				Error::<Test>::ScheduleNotExist
+			);
+		});
+}
+
 //TODO: add test when there is multiple schedules, and we just then remove with pause, and not completely getting rid of the scheduleperblock
 
 //TODO: Add test for pausing perpetual

@@ -247,12 +247,14 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		///First error
+		///Unexpected error
 		UnexpectedError,
 		///Schedule not exist
 		ScheduleNotExist,
 		///Balance is too low to reserve for bond
 		BalanceTooLowForReservingBond,
+		///The user is not the owner of the schedule
+		NotScheduleOwner,
 	}
 
 	/// Id sequencer for schedules
@@ -335,6 +337,9 @@ pub mod pallet {
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+
+			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
 
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());

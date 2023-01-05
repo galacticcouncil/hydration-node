@@ -231,8 +231,6 @@ fn schedule_should_emit_necessary_events() {
 		});
 }
 
-//TODO: WRITE TEST FOR PAUSING WHEN PAUSED WITH NOT OWNER
-
 #[test]
 fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 	ExtBuilder::default()
