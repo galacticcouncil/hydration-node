@@ -373,7 +373,10 @@ pub mod pallet {
 
 				//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
 
-				bond.amount = bond.amount - execution_bond_in_user_currency;
+				bond.amount = bond
+					.amount
+					.checked_sub(execution_bond_in_user_currency)
+					.ok_or(ArithmeticError::Underflow)?;
 
 				T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
 
