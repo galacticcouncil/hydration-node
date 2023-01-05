@@ -73,6 +73,16 @@ fn resume_should_schedule_to_next_block_when_next_execution_block_is_not_defined
 			assert!(DCA::schedule_ids_per_block(501).is_some());
 			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
 			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+
+			expect_events(vec![
+				Event::Resumed { id: 1, who: ALICE }.into(),
+				Event::ExecutionPlanned {
+					id: 1,
+					who: ALICE,
+					block: 501,
+				}
+				.into(),
+			]);
 		});
 }
 
@@ -106,7 +116,7 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 #[test_case(1)]
 #[test_case(499)]
 #[test_case(500)]
-fn resume_should_fail_when_specified_next_block_is_equal_to_current_block(block: BlockNumberFor<Test>) {
+fn resume_should_fail_when_specified_next_block_is_not_greater_than_current_block(block: BlockNumberFor<Test>) {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -126,6 +136,42 @@ fn resume_should_fail_when_specified_next_block_is_equal_to_current_block(block:
 				DCA::resume(Origin::signed(ALICE), schedule_id, Option::Some(block)),
 				Error::<Test>::BlockNumberIsNotInFuture
 			);
+		});
+}
+
+#[test]
+fn resume_should_schedule_to_next_block_when_next_execution_block_is_defined() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::resume(Origin::signed(ALICE), schedule_id, Option::Some(1000)));
+
+			//Assert
+			let schedule_ids = DCA::schedule_ids_per_block(1000);
+			assert!(DCA::schedule_ids_per_block(1000).is_some());
+			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
+			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+
+			expect_events(vec![
+				Event::Resumed { id: 1, who: ALICE }.into(),
+				Event::ExecutionPlanned {
+					id: 1,
+					who: ALICE,
+					block: 1000,
+				}
+				.into(),
+			]);
 		});
 }
 

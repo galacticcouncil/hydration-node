@@ -246,6 +246,10 @@ pub mod pallet {
 			id: ScheduleId,
 			who: T::AccountId,
 		},
+		Resumed {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
@@ -373,13 +377,22 @@ pub mod pallet {
 
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(next_execution_block)?;
 
-			let blocknumber_for_first_schedule_execution =
-				next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
-			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, schedule_id);
+			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
+			Self::plan_schedule_for_block(next_execution_block, schedule_id);
 
 			Suspended::<T>::remove(schedule_id);
 
 			Self::reserve_excecution_bond(schedule_id, &who)?;
+
+			Self::deposit_event(Event::Resumed {
+				id: schedule_id,
+				who: who.clone(),
+			});
+			Self::deposit_event(Event::ExecutionPlanned {
+				id: schedule_id,
+				who,
+				block: next_execution_block,
+			});
 
 			Ok(())
 		}
