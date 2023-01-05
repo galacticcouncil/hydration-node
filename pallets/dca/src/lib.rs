@@ -107,11 +107,11 @@ pub struct Bond<AssetId> {
 
 pub struct UserAssetIdAndSpotPrice<AssetId> {
 	pub asset_id: AssetId,
-	pub spot_price: FixedU128,
+	pub spot_price: Option<FixedU128>,
 }
 
 impl<AssetId> UserAssetIdAndSpotPrice<AssetId> {
-	pub fn new(asset_id: AssetId, spot_price: FixedU128) -> UserAssetIdAndSpotPrice<AssetId> {
+	pub fn new(asset_id: AssetId, spot_price: Option<FixedU128>) -> UserAssetIdAndSpotPrice<AssetId> {
 		UserAssetIdAndSpotPrice { asset_id, spot_price }
 	}
 }
@@ -362,10 +362,14 @@ pub mod pallet {
 				let user_asset_and_spot_price = Self::get_user_currency_and_spot_price(&who)?;
 
 				let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
-				let execution_bond_in_user_currency = user_asset_and_spot_price
-					.spot_price
-					.checked_mul_int(execution_bond_in_native_currency)
-					.ok_or(ArithmeticError::Overflow)?;
+
+				//TODO: refactor - find some common logic to extract as similar things happen
+				let execution_bond_in_user_currency = match user_asset_and_spot_price.spot_price {
+					Some(spot_price) => spot_price
+						.checked_mul_int(execution_bond_in_native_currency)
+						.ok_or(ArithmeticError::Overflow)?,
+					None => execution_bond_in_native_currency,
+				};
 
 				//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
 
@@ -514,10 +518,16 @@ where
 		let user_asset_and_price = Self::get_user_currency_and_spot_price(&who)?;
 
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
-		let total_bond_in_user_currency = user_asset_and_price
-			.spot_price
-			.checked_mul_int(total_bond_in_native_currency)
-			.ok_or(ArithmeticError::Overflow)?; //TODO: verify with Lumir or so if this is the right way to do the conversion
+
+		let total_bond_in_user_currency = match { user_asset_and_price.spot_price } {
+			//TODO: rather check if the asset id is equal to native
+			Some(spot_price) => {
+				spot_price
+					.checked_mul_int(total_bond_in_native_currency)
+					.ok_or(ArithmeticError::Overflow)? //TODO: verify with Lumir or so if this is the right way to do the conversion
+			}
+			None => total_bond_in_native_currency,
+		};
 
 		let bond = Bond {
 			asset: user_asset_and_price.asset_id,
@@ -553,11 +563,11 @@ where
 	fn get_user_currency_and_spot_price(
 		who: &T::AccountId,
 	) -> Result<UserAssetIdAndSpotPrice<T::Asset>, DispatchError> {
-		//TODO: add error for case when spot price has not been found, so an option::none is returned from `get_currency_and_price`
 		let user_currency_and_spot_price = T::AccountCurrencyAndPriceProvider::get_currency_and_price(&who)?;
-		let asset = user_currency_and_spot_price.0;
-		let spot_price_for_user_asset = user_currency_and_spot_price.1.ok_or(Error::<T>::UnexpectedError)?;
-		Ok(UserAssetIdAndSpotPrice::new(asset, spot_price_for_user_asset))
+		Ok(UserAssetIdAndSpotPrice::new(
+			user_currency_and_spot_price.0,
+			user_currency_and_spot_price.1,
+		))
 	}
 
 	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) {

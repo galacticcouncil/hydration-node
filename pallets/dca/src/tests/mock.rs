@@ -98,7 +98,7 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static FEE_ASSET: RefCell<AssetId> = RefCell::new(HDX);
+	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
 }
 
 parameter_types! {
@@ -214,7 +214,7 @@ impl hydradx_traits::pools::SpotPriceProvider<AssetId> for SpotPriceProviderStub
 	}
 
 	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
-		Some(FixedU128::from_inner(462_962_963_000_u128))
+		Some(FixedU128::from_float(0.6))
 	}
 }
 
@@ -249,7 +249,7 @@ impl WeightToFeePolynomial for WeightToFee {
 impl pallet_transaction_multi_payment::Config for Test {
 	type Event = Event;
 	type AcceptedCurrencyOrigin = EnsureRoot<AccountId>;
-	type Currencies = Currencies;
+	type Currencies = Tokens;
 	type SpotPriceProvider = SpotPriceProviderStub;
 	type WeightInfo = ();
 	type WithdrawFeeForSetCurrency = ();
@@ -288,29 +288,16 @@ impl pallet_currencies::Config for Test {
 }
 
 parameter_types! {
-	pub NativeCurrencyId: AssetId = 1000;
+	pub NativeCurrencyId: AssetId = HDX;
 	pub ExecutionBondInNativeCurrency: Balance= 1_000_000;
 	pub StorageBondInNativeCurrency: Balance= 2_000_000;
-}
-
-pub struct AccountIdAndCurrencyProviderStub {}
-
-impl TransactionMultiPaymentDataProvider<AccountId, AssetId, FixedU128> for AccountIdAndCurrencyProviderStub {
-	fn get_currency_and_price(who: &AccountId) -> Result<(AssetId, Option<FixedU128>), DispatchError> {
-		let fee_asset = FEE_ASSET.with(|v| *v.borrow());
-		Ok((fee_asset, Some(FixedU128::from_float(0.65))))
-	}
-
-	fn get_fee_receiver() -> AccountId {
-		todo!()
-	}
 }
 
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
-	type AccountCurrencyAndPriceProvider = AccountIdAndCurrencyProviderStub;
-	type MultiReservableCurrency = pallet_currencies::Pallet<Test>;
+	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
+	type MultiReservableCurrency = Tokens;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type WeightInfo = ();
@@ -401,9 +388,6 @@ pub type AccountId = u64;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 
-pub const BSX: AssetId = 1000;
-pub const AUSD: AssetId = 1001;
-
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
@@ -415,7 +399,7 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
-	fee_asset_for_all_users: AssetId,
+	fee_asset_for_all_users: Vec<(u64, AssetId)>,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -453,11 +437,12 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = 1u128;
 		});
 
+		FEE_ASSET.with(|v| {
+			v.borrow_mut().clear();
+		});
+
 		Self {
-			endowed_accounts: vec![
-				(Omnipool::protocol_account(), DAI, 1000 * ONE),
-				(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			],
+			endowed_accounts: vec![(Omnipool::protocol_account(), DAI, 1000 * ONE)],
 			asset_fee: Permill::from_percent(0),
 			protocol_fee: Permill::from_percent(0),
 			asset_weight_cap: Permill::from_percent(100),
@@ -467,7 +452,7 @@ impl Default for ExtBuilder {
 			init_pool: None,
 			register_stable_asset: true,
 			pool_tokens: vec![],
-			fee_asset_for_all_users: HDX,
+			fee_asset_for_all_users: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
 		}
@@ -479,6 +464,7 @@ impl ExtBuilder {
 		self.endowed_accounts = accounts;
 		self
 	}
+
 	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
 		self.endowed_accounts.push(account);
 		self
@@ -530,8 +516,8 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_fee_asset_for_all_users(mut self, asset_id: AssetId) -> Self {
-		self.fee_asset_for_all_users = asset_id;
+	pub fn with_fee_asset_for_all_users(mut self, user_and_asset: Vec<(u64, AssetId)>) -> Self {
+		self.fee_asset_for_all_users = user_and_asset;
 		self
 	}
 
@@ -632,6 +618,16 @@ impl ExtBuilder {
 				}
 			});
 		}
+
+		r.execute_with(|| {
+			FEE_ASSET.borrow().with(|v| {
+				let user_and_fee_assets = v.borrow().deref().clone();
+				for fee_asset in user_and_fee_assets {
+					MultiTransactionPayment::add_currency(Origin::root(), fee_asset.1, FixedU128::from_inner(1000000));
+					MultiTransactionPayment::set_currency(Origin::signed(fee_asset.0), fee_asset.1);
+				}
+			});
+		});
 
 		r
 	}

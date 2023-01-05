@@ -32,8 +32,7 @@ use orml_traits::MultiReservableCurrency;
 #[test]
 fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -69,8 +68,7 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 #[test]
 fn schedule_should_work_when_multiple_schedules_stored() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -96,8 +94,7 @@ fn schedule_should_work_when_multiple_schedules_stored() {
 #[test]
 fn schedule_should_work_when_block_is_specified_by_user() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -131,8 +128,7 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 #[test]
 fn schedule_should_work_when_perpetual_schedule_is_specified() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -168,18 +164,10 @@ fn schedule_should_work_when_perpetual_schedule_is_specified() {
 #[test]
 fn schedule_creation_should_store_bond_taken_from_user() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
-			assert_ok!(MultiTransactionPayment::add_currency(
-				Origin::root(),
-				DAI,
-				Price::from_float(1.1)
-			));
-			assert_ok!(MultiTransactionPayment::set_currency(Origin::signed(ALICE.into()), DAI));
-
 			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 			//Act
@@ -188,7 +176,39 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 
 			//Assert
 			let schedule_id = 1;
-			let amount_to_reserve_as_bond = 1_950_000;
+			let amount_to_reserve_as_bond = 3_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: amount_to_reserve_as_bond
+				}
+			);
+
+			assert_eq!(
+				amount_to_reserve_as_bond,
+				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+			);
+		});
+}
+
+#[test]
+fn schedule_creation_should_store_bond_when_user_has_set_currency_with_nonnative_token() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(vec![(ALICE, DAI)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			let schedule_id = 1;
+			let amount_to_reserve_as_bond = 1_800_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
@@ -199,7 +219,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 
 			assert_eq!(
 				amount_to_reserve_as_bond,
-				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+				Tokens::reserved_balance(DAI.into(), &ALICE.into())
 			);
 		});
 }
@@ -207,8 +227,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 #[test]
 fn schedule_should_emit_necessary_events() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -234,8 +253,7 @@ fn schedule_should_emit_necessary_events() {
 #[test]
 fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -271,8 +289,9 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 
 #[test]
 fn schedule_should_throw_error_when_user_has_not_enough_balance_for_bond() {
+	let total_bond_amount_to_be_taken = 3_000_000;
 	ExtBuilder::default()
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, total_bond_amount_to_be_taken - 1)])
 		.build()
 		.execute_with(|| {
 			//Arrange

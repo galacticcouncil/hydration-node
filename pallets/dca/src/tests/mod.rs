@@ -27,7 +27,7 @@ impl ScheduleBuilder {
 			period: Some(ONE_HUNDRED_BLOCKS),
 			recurrence: Some(Recurrence::Fixed(5)),
 			order: Some(Order::Buy {
-				asset_in: DAI,
+				asset_in: HDX,
 				asset_out: BTC,
 				amount_out: ONE,
 				max_limit: Balance::MAX,

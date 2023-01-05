@@ -31,11 +31,51 @@ use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
 
-const ALICE: AccountId = 1000;
-const BOB: AccountId = 1001;
-
 #[test]
 fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_balance!(ALICE, BTC, 0);
+			assert_eq!(3000000, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+
+			//Act
+			proceed_to_blocknumber(501, 901);
+
+			//Assert
+			assert_balance!(ALICE, BTC, 5 * ONE);
+			assert_eq!(0, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+			assert!(DCA::bond(1).is_none());
+		});
+}
+
+#[test]
+fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence_when_nonnative_currency_set_for_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -43,7 +83,7 @@ fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 			(ALICE, DAI, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
+		.with_fee_asset_for_all_users(vec![(ALICE, DAI)])
 		.with_registered_asset(BTC)
 		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
@@ -67,14 +107,14 @@ fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_balance!(ALICE, BTC, 0);
-			assert_eq!(1950000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
+			assert_eq!(1800000, Tokens::reserved_balance(DAI.into(), &ALICE.into()));
 
 			//Act
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
-			assert_eq!(0, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
+			assert_eq!(0, Tokens::reserved_balance(DAI.into(), &ALICE.into()));
 			assert!(DCA::bond(1).is_none());
 		});
 }
@@ -85,12 +125,10 @@ fn buy_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, HDX, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -102,7 +140,7 @@ fn buy_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
-					asset_in: DAI,
+					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: Balance::MAX,
@@ -112,14 +150,14 @@ fn buy_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_balance!(ALICE, BTC, 0);
-			assert_eq!(1950000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
+			assert_eq!(3000000, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
 
 			//Act
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
-			assert_eq!(1950000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
+			assert_eq!(3000000, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
 			assert!(DCA::bond(1).is_some());
 		});
 }
@@ -130,12 +168,10 @@ fn complete_sell_dca_schedule_should_be_executed_with_fixed_recurrence() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, HDX, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
-		.with_fee_asset_for_all_users(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -148,7 +184,7 @@ fn complete_sell_dca_schedule_should_be_executed_with_fixed_recurrence() {
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
-					asset_in: DAI,
+					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: 1000 * ONE,
 					min_limit: Balance::MIN,
@@ -162,7 +198,7 @@ fn complete_sell_dca_schedule_should_be_executed_with_fixed_recurrence() {
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 485_436_893_203_879);
+			assert_balance!(ALICE, BTC, 1_438_848_920_863_307);
 		});
 }
 
@@ -172,12 +208,10 @@ fn full_sell_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 100000 * ONE),
+			(ALICE, HDX, 100000 * ONE),
 			(LP2, BTC, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -190,7 +224,7 @@ fn full_sell_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
-					asset_in: DAI,
+					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: 1000 * ONE,
 					min_limit: Balance::MIN,
@@ -204,7 +238,7 @@ fn full_sell_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 			proceed_to_blocknumber(501, 1501);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 521_327_014_218_000);
+			assert_balance!(ALICE, BTC, 1_602_330_662_782_224);
 		});
 }
 
@@ -214,13 +248,10 @@ fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, HDX, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
-			(LP2, DAI, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -241,13 +272,10 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, HDX, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
-			(LP2, DAI, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -259,7 +287,7 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
-					asset_in: DAI,
+					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: Balance::MAX,
@@ -292,13 +320,10 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, HDX, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
-			(LP2, DAI, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -333,17 +358,15 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 }
 
 #[test]
-fn fixed_schedule_is_suspended_in_block_when_error_happens() {
+fn fixed_schedule_is_suspended_in_block_when_user_has_not_enough_balance() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			(ALICE, HDX, 5000 * ONE),
 			(LP2, BTC, 5000 * ONE),
-			(LP2, DAI, 5000 * ONE),
 		])
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -377,18 +400,15 @@ fn fixed_schedule_is_suspended_in_block_when_error_happens() {
 }
 
 #[test]
-fn perpetual_schedule_is_suspended_in_block_when_error_happens() {
+fn perpetual_schedule_is_suspended_in_block_when_user_has_not_enough_balance() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			(ALICE, HDX, 5000 * ONE),
 			(LP2, BTC, 5000 * ONE),
-			(LP2, DAI, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(HDX)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -426,13 +446,10 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, HDX, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
-			(LP2, DAI, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -443,7 +460,7 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 				.with_recurrence(Recurrence::Perpetual)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
-					asset_in: DAI,
+					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: Balance::MAX,
@@ -477,13 +494,10 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
+			(ALICE, HDX, 10000 * ONE),
 			(LP2, BTC, 5000 * ONE),
-			(LP2, DAI, 5000 * ONE),
 		])
-		.with_fee_asset_for_all_users(DAI)
 		.with_registered_asset(BTC)
-		.with_registered_asset(DAI)
 		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -494,7 +508,7 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 				.with_recurrence(Recurrence::Fixed(1))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
-					asset_in: DAI,
+					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: Balance::MAX,

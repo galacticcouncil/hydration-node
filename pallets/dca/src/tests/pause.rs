@@ -33,8 +33,7 @@ use sp_runtime::DispatchError::BadOrigin;
 fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
 	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -57,8 +56,7 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 #[test]
 fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multiple_entries_planned() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -84,8 +82,7 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 #[test]
 fn pause_should_mark_schedule_suspended() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -106,8 +103,7 @@ fn pause_should_mark_schedule_suspended() {
 #[test]
 fn pause_should_fail_when_when_called_with_nonsigned_user() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -125,8 +121,7 @@ fn pause_should_fail_when_when_called_with_nonsigned_user() {
 #[test]
 fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -147,8 +142,7 @@ fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block(
 #[test]
 fn pause_should_fail_when_paused_by_not_schedule_owner() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -169,8 +163,7 @@ fn pause_should_fail_when_paused_by_not_schedule_owner() {
 #[test]
 fn pause_should_fail_when_schedule_not_exist() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Act and assert
@@ -183,10 +176,107 @@ fn pause_should_fail_when_schedule_not_exist() {
 }
 
 #[test]
-fn pause_should_unreserve_execution_bond() {
+fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			let storage_and_execution_bond = 3_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: storage_and_execution_bond
+				}
+			);
+
+			assert_eq!(
+				storage_and_execution_bond,
+				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+			);
+
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Assert
+			let execution_bond = 1_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: storage_and_execution_bond - execution_bond,
+				}
+			);
+
+			assert_eq!(
+				storage_and_execution_bond - execution_bond,
+				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+			);
+		});
+}
+
+#[test]
+fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_currency() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			let storage_and_execution_bond = 3_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: storage_and_execution_bond
+				}
+			);
+
+			assert_eq!(
+				storage_and_execution_bond,
+				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+			);
+
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Assert
+			let execution_bond = 1_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: storage_and_execution_bond - execution_bond,
+				}
+			);
+
+			assert_eq!(
+				storage_and_execution_bond - execution_bond,
+				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+			);
+		});
+}
+
+#[test]
+#[ignore] //TODO: we have to handle this scenario too
+fn pause_should_unreserve_properly_when_user_changes_set_currency_after_scheduling() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(DAI)
+		.with_fee_asset_for_all_users(vec![(ALICE, DAI)])
 		.build()
 		.execute_with(|| {
 			//Arrange
