@@ -196,17 +196,17 @@ fn pause_should_unreserve_execution_bond() {
 
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			let amount_to_reserve_as_bond = 1_950_000;
+			let storage_and_execution_bond = 1_950_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
 					asset: DAI,
-					amount: 1950000
+					amount: storage_and_execution_bond
 				}
 			);
 
 			assert_eq!(
-				amount_to_reserve_as_bond,
+				storage_and_execution_bond,
 				Currencies::reserved_balance(DAI.into(), &ALICE.into())
 			);
 
@@ -215,17 +215,17 @@ fn pause_should_unreserve_execution_bond() {
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
 			//Assert
-			let only_storage_bond = 1_300_000;
+			let execution_bond = 650_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
 					asset: DAI,
-					amount: only_storage_bond,
+					amount: storage_and_execution_bond - execution_bond,
 				}
 			);
 
 			assert_eq!(
-				only_storage_bond,
+				storage_and_execution_bond - execution_bond,
 				Currencies::reserved_balance(DAI.into(), &ALICE.into())
 			);
 		});
