@@ -35,9 +35,9 @@ use sp_runtime::traits::Zero;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 use sp_runtime::ArithmeticError;
 use sp_runtime::FixedPointNumber;
+use sp_runtime::FixedU128;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
-
 #[cfg(test)]
 mod tests;
 
@@ -105,6 +105,17 @@ pub struct Bond<AssetId> {
 	pub amount: Balance,
 }
 
+pub struct UserAssetIdAndSpotPrice<AssetId> {
+	pub asset_id: AssetId,
+	pub spot_price: FixedU128,
+}
+
+impl<AssetId> UserAssetIdAndSpotPrice<AssetId> {
+	pub fn new(asset_id: AssetId, spot_price: FixedU128) -> UserAssetIdAndSpotPrice<AssetId> {
+		UserAssetIdAndSpotPrice { asset_id, spot_price }
+	}
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -114,7 +125,7 @@ pub mod pallet {
 	use orml_traits::MultiReservableCurrency;
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
-	use sp_runtime::{FixedPointNumber, FixedU128};
+	use sp_runtime::FixedPointNumber;
 	use std::fmt::Debug;
 
 	#[pallet::pallet]
@@ -255,6 +266,8 @@ pub mod pallet {
 		BalanceTooLowForReservingBond,
 		///The user is not the owner of the schedule
 		NotScheduleOwner,
+		///The bond does not exist. It should not really happen, only in case of invalid state
+		BondNotExist,
 	}
 
 	/// Id sequencer for schedules
@@ -343,6 +356,23 @@ pub mod pallet {
 
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
+
+			Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
+				let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
+				let user_asset_and_spot_price = Self::get_user_currency_and_spot_price(&who)?;
+
+				let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
+				let execution_bond_in_user_currency = user_asset_and_spot_price
+					.spot_price
+					.checked_mul_int(execution_bond_in_native_currency)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
+
+				bond.amount = bond.amount - execution_bond_in_user_currency;
+
+				Ok(())
+			})?;
 
 			Self::deposit_event(Event::Paused { id: schedule_id, who });
 
@@ -479,16 +509,16 @@ where
 	}
 
 	fn calculate_and_store_bond(who: T::AccountId, next_schedule_id: ScheduleId) -> DispatchResult {
-		let user_currency_and_spot_price = T::AccountCurrencyAndPriceProvider::get_currency_and_price(&who)?;
-		let spot_price_for_user_asset = user_currency_and_spot_price.1.ok_or(Error::<T>::UnexpectedError)?;
+		let user_asset_and_price = Self::get_user_currency_and_spot_price(&who)?;
 
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
-		let total_bond_in_user_currency = spot_price_for_user_asset
+		let total_bond_in_user_currency = user_asset_and_price
+			.spot_price
 			.checked_mul_int(total_bond_in_native_currency)
 			.ok_or(ArithmeticError::Overflow)?; //TODO: verify with Lumir or so if this is the right way to do the conversion
 
 		let bond = Bond {
-			asset: user_currency_and_spot_price.0,
+			asset: user_asset_and_price.asset_id,
 			amount: total_bond_in_user_currency,
 		};
 
@@ -516,6 +546,16 @@ where
 			.ok_or(Error::<T>::UnexpectedError)?;
 
 		Ok(total_bond_in_native_currency)
+	}
+
+	fn get_user_currency_and_spot_price(
+		who: &T::AccountId,
+	) -> Result<UserAssetIdAndSpotPrice<T::Asset>, DispatchError> {
+		//TODO: add error for case when spot price has not been found, so an option::none is returned from `get_currency_and_price`
+		let user_currency_and_spot_price = T::AccountCurrencyAndPriceProvider::get_currency_and_price(&who)?;
+		let asset = user_currency_and_spot_price.0;
+		let spot_price_for_user_asset = user_currency_and_spot_price.1.ok_or(Error::<T>::UnexpectedError)?;
+		Ok(UserAssetIdAndSpotPrice::new(asset, spot_price_for_user_asset))
 	}
 
 	fn erase_bond(schedule_id: ScheduleId, owner: &T::AccountId) {

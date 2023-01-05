@@ -17,12 +17,12 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::AssetId;
-use frame_support::traits::OnInitialize;
-
+use crate::{AssetId, Bond};
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
+use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
+use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
@@ -179,6 +179,55 @@ fn pause_should_fail_when_schedule_not_exist() {
 				DCA::pause(Origin::signed(BOB), non_existing_schedule_id, 501),
 				Error::<Test>::ScheduleNotExist
 			);
+		});
+}
+
+#[test]
+fn pause_should_unreserve_execution_bond() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			let amount_to_reserve_as_bond = 1_950_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: DAI,
+					amount: 1950000
+				}
+			);
+
+			assert_eq!(
+				amount_to_reserve_as_bond,
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+			);
+
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Assert
+			let only_storage_bond = 1_300_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: DAI,
+					amount: only_storage_bond,
+				}
+			);
+
+			/*assert_eq!(
+				only_storage_bond,
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+			);*/
 		});
 }
 
