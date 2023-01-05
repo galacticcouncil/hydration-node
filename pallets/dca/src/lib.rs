@@ -244,6 +244,8 @@ pub mod pallet {
 		UnexpectedError,
 		///Schedule not exist
 		ScheduleNotExist,
+		///Balance is too low to reserve for bond
+		BalanceTooLowForReservingBond,
 	}
 
 	/// Id sequencer for schedules
@@ -475,10 +477,20 @@ where
 			amount: total_bond_in_user_currency,
 		};
 
-		throw error if can not reserve due to invalid balance - use can_reserve()
-		T::MultiReservableCurrency::reserve(bond.asset, &who, bond.amount)?;
+		Self::reserve_bond(&who, &bond)?;
 
 		Bonds::<T>::insert(next_schedule_id, bond);
+
+		Ok(())
+	}
+
+	fn reserve_bond(who: &T::AccountId, bond: &Bond<T::Asset>) -> DispatchResult {
+		ensure!(
+			T::MultiReservableCurrency::can_reserve(bond.asset, &who, bond.amount),
+			Error::<T>::BalanceTooLowForReservingBond
+		);
+
+		T::MultiReservableCurrency::reserve(bond.asset, &who, bond.amount)?;
 
 		Ok(())
 	}

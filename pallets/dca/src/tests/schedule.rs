@@ -270,6 +270,24 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 }
 
 #[test]
+fn schedule_should_throw_error_when_user_has_not_enough_balance_for_bond() {
+	ExtBuilder::default()
+		.with_fee_asset_for_all_users(DAI)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			//Act
+			set_block_number(500);
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::BalanceTooLowForReservingBond
+			);
+		});
+}
+
+#[test]
 fn schedule_should_fail_when_not_called_by_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
