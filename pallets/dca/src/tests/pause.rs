@@ -49,6 +49,8 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 
 			//Assert
 			assert!(DCA::schedule_ids_per_block(501).is_none());
+
+			expect_events(vec![Event::Paused { id: 1, who: ALICE }.into()]);
 		});
 }
 

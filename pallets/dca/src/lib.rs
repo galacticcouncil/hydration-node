@@ -230,11 +230,18 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///First event
-		Scheduled { id: ScheduleId, who: T::AccountId },
+		Scheduled {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
 		ExecutionPlanned {
 			id: ScheduleId,
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
+		},
+		Paused {
+			id: ScheduleId,
+			who: T::AccountId,
 		},
 	}
 
@@ -327,10 +334,12 @@ pub mod pallet {
 			schedule_id: ScheduleId,
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
-			ensure_signed(origin.clone())?;
+			let who = ensure_signed(origin.clone())?;
 
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
+
+			Self::deposit_event(Event::Paused { id: schedule_id, who });
 
 			Ok(())
 		}
