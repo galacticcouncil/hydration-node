@@ -170,7 +170,7 @@ pub mod pallet {
 													&schedule,
 												);
 											} else {
-												Self::erase_bond(schedule_id, &owner);
+												Self::discard_bond(schedule_id, &owner);
 											}
 										}
 										Recurrence::Perpetual => {
@@ -560,7 +560,7 @@ where
 		Ok(UserAssetIdAndSpotPrice::new(asset, spot_price_for_user_asset))
 	}
 
-	fn erase_bond(schedule_id: ScheduleId, owner: &T::AccountId) {
+	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) {
 		let bond = Self::bond(schedule_id).unwrap();
 		T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
 		Bonds::<T>::remove(schedule_id);
