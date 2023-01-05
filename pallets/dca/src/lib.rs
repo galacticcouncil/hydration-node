@@ -357,31 +357,7 @@ pub mod pallet {
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
 
-			Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
-				let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
-				let user_asset_and_spot_price = Self::get_user_currency_and_spot_price(&who)?;
-
-				let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
-
-				//TODO: refactor - find some common logic to extract as similar things happen
-				let execution_bond_in_user_currency = match user_asset_and_spot_price.spot_price {
-					Some(spot_price) => spot_price
-						.checked_mul_int(execution_bond_in_native_currency)
-						.ok_or(ArithmeticError::Overflow)?,
-					None => execution_bond_in_native_currency,
-				};
-
-				//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
-
-				bond.amount = bond
-					.amount
-					.checked_sub(execution_bond_in_user_currency)
-					.ok_or(ArithmeticError::Underflow)?;
-
-				T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
-
-				Ok(())
-			})?;
+			Self::unreserve_excecution_bond(schedule_id, &who)?;
 
 			Self::deposit_event(Event::Paused { id: schedule_id, who });
 
@@ -561,6 +537,38 @@ where
 			.ok_or(Error::<T>::UnexpectedError)?;
 
 		Ok(total_bond_in_native_currency)
+	}
+
+	fn unreserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+		Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
+			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
+			let user_asset_and_spot_price = Self::get_user_currency_and_spot_price(&who)?;
+
+			let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
+
+			//TODO: refactor - find some common logic to extract as similar things happen
+			let execution_bond_in_user_currency = match user_asset_and_spot_price.spot_price {
+				Some(spot_price) => spot_price
+					.checked_mul_int(execution_bond_in_native_currency)
+					.ok_or(ArithmeticError::Overflow)?,
+				None => execution_bond_in_native_currency,
+			};
+
+			//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
+
+			bond.amount = bond
+				.amount
+				.checked_sub(execution_bond_in_user_currency)
+				.ok_or(ArithmeticError::Underflow)?;
+
+			//TODO: the only case when the storage bond won't be reserved after this is if the total bond before this is less than the current storage bond
+
+			T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
+
+			Ok(())
+		})?;
+
+		Ok(())
 	}
 
 	fn get_user_currency_and_spot_price(
