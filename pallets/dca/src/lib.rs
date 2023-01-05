@@ -290,7 +290,7 @@ pub mod pallet {
 		pub fn schedule(
 			origin: OriginFor<T>,
 			schedule: Schedule<T::Asset>,
-			next_execution_block: Option<BlockNumberFor<T>>, //TODO: consider renaming - start executing block so
+			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
@@ -300,8 +300,9 @@ pub mod pallet {
 			Self::store_recurrence_in_case_of_fixed_schedule(next_schedule_id, &schedule.recurrence);
 			ScheduleOwnership::<T>::insert(next_schedule_id, who.clone());
 
-			let blocknumber_for_schedule = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
-			Self::plan_schedule_for_block(blocknumber_for_schedule, next_schedule_id, &schedule);
+			let blocknumber_for_first_schedule_execution =
+				start_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
+			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id, &schedule);
 
 			Self::calculate_and_store_bond(who.clone(), next_schedule_id)?;
 
@@ -312,7 +313,7 @@ pub mod pallet {
 			Self::deposit_event(Event::ExecutionPlanned {
 				id: next_schedule_id,
 				who,
-				block: blocknumber_for_schedule,
+				block: blocknumber_for_first_schedule_execution,
 			});
 
 			Ok(())
@@ -470,7 +471,7 @@ where
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
 		let total_bond_in_user_currency = spot_price_for_user_asset
 			.checked_mul_int(total_bond_in_native_currency)
-			.ok_or(ArithmeticError::Overflow)?; //TODO: verify if this is the right way to do the conversion
+			.ok_or(ArithmeticError::Overflow)?; //TODO: verify with Lumir or so if this is the right way to do the conversion
 
 		let bond = Bond {
 			asset: user_currency_and_spot_price.0,
