@@ -41,8 +41,10 @@ fn resume_should_fail_when_called_by_non_owner() {
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
-			//Act and assert
 			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Act and assert
 			assert_noop!(
 				DCA::resume(Origin::signed(BOB), schedule_id, Option::None),
 				Error::<Test>::NotScheduleOwner

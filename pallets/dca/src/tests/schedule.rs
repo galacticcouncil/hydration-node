@@ -28,6 +28,7 @@ use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
 pub type Price = FixedU128;
 use orml_traits::MultiReservableCurrency;
+use test_case::test_case;
 
 #[test]
 fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified() {
@@ -315,6 +316,26 @@ fn schedule_should_fail_when_not_called_by_user() {
 		//Act and assert
 		assert_noop!(DCA::schedule(Origin::none(), schedule, Option::None), BadOrigin);
 	});
+}
+
+#[test_case(1)]
+#[test_case(499)]
+#[test_case(500)]
+fn schedule_should_fail_when_specified_next_block_is_not_greater_than_current_block(block: BlockNumberFor<Test>) {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			set_block_number(500);
+
+			//Act and assert
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(block)),
+				Error::<Test>::BlockNumberIsNotInFuture
+			);
+		});
 }
 
 //TODO: add negative case for validating block numbers

@@ -313,6 +313,7 @@ pub mod pallet {
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+			Self::ensure_that_next_blocknumber_bigger_than_current_block(start_execution_block)?;
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
