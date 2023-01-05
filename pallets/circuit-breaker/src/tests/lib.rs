@@ -703,3 +703,99 @@ fn set_liquidity_limit_should_fail_if_limit_is_not_valid() {
 		);
 	});
 }
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max net trade volume limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_trade_volume_limit_numerator_is_zero() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_trade_volume_limit_per_block((0, 10_000))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max net trade volume limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_trade_volume_limit_denominator_is_zero() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_trade_volume_limit_per_block((2_000, 0))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max net trade volume limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_trade_volume_limit_numerator_is_too_big() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_trade_volume_limit_per_block((MAX_LIMIT_VALUE.checked_add(1).unwrap(), 10_000))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max net trade volume limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_trade_volume_limit_denominator_is_too_big() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_trade_volume_limit_per_block((2_000, MAX_LIMIT_VALUE.checked_add(1).unwrap()))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max liquidity limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_liquidity_limit_numerator_is_zero() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_liquidity_limit_per_block(Some((0, 10_000)))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max liquidity limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_liquidity_limit_denominator_is_zero() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_liquidity_limit_per_block(Some((2_000, 0)))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max liquidity limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_liquidity_limit_numerator_is_too_big() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_liquidity_limit_per_block(Some((MAX_LIMIT_VALUE.checked_add(1).unwrap(), 10_000)))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}
+
+#[test]
+#[should_panic(expected = "Circuit Breaker: Max liquidity limit per block is set to invalid value.")]
+fn integrity_test_should_fail_when_liquidity_limit_denominator_is_too_big() {
+	use frame_support::traits::Hooks;
+	ExtBuilder::default()
+		.with_max_liquidity_limit_per_block(Some((2_000, MAX_LIMIT_VALUE.checked_add(1).unwrap())))
+		.build()
+		.execute_with(|| {
+			CircuitBreaker::integrity_test();
+		});
+}

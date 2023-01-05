@@ -24,6 +24,7 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+use std::cell::RefCell;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -36,6 +37,11 @@ pub const HDX: AssetId = 100;
 pub const DOT: AssetId = 200;
 pub const LRNA: AssetId = 300;
 pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
+
+thread_local! {
+	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = RefCell::new((2_000, 10_000)); // 20%
+	pub static MAX_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(Some((4_000, 10_000))); // 40%
+}
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -81,8 +87,8 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (2_000, 10_000);	// 20%
-	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((4_000, 10_000));	// 40%
+	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
 }
 
@@ -97,13 +103,41 @@ impl pallet_circuit_breaker::Config for Test {
 	type WeightInfo = ();
 }
 
-#[derive(Default)]
-pub struct ExtBuilder {}
+pub struct ExtBuilder {
+	max_net_trade_volume_limit_per_block: (u32, u32),
+	max_liquidity_limit_per_block: Option<(u32, u32)>,
+}
+
+impl Default for ExtBuilder {
+	fn default() -> Self {
+		Self {
+			max_net_trade_volume_limit_per_block: (2_000, 10_000),
+			max_liquidity_limit_per_block: Some((4_000, 10_000)),
+		}
+	}
+}
 
 impl ExtBuilder {
+	pub fn with_max_trade_volume_limit_per_block(mut self, value: (u32, u32)) -> Self {
+		self.max_net_trade_volume_limit_per_block = value;
+		self
+	}
+
+	pub fn with_max_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_liquidity_limit_per_block = value;
+		self
+	}
+
 	// builds genesis config
 	pub fn build(self) -> sp_io::TestExternalities {
 		let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+
+		MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_net_trade_volume_limit_per_block;
+		});
+		MAX_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_liquidity_limit_per_block;
+		});
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
