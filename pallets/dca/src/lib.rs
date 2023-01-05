@@ -164,21 +164,13 @@ pub mod pallet {
 											let remaining_reccurences =
 												Self::decrement_recurrences(schedule_id).unwrap();
 											if !remaining_reccurences.is_zero() {
-												Self::plan_schedule_for_block(
-													blocknumber_for_schedule,
-													schedule_id,
-													&schedule,
-												);
+												Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id);
 											} else {
 												Self::discard_bond(schedule_id, &owner);
 											}
 										}
 										Recurrence::Perpetual => {
-											Self::plan_schedule_for_block(
-												blocknumber_for_schedule,
-												schedule_id,
-												&schedule,
-											);
+											Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id);
 										}
 									}
 								}
@@ -268,6 +260,8 @@ pub mod pallet {
 		NotScheduleOwner,
 		///The bond does not exist. It should not really happen, only in case of invalid state
 		BondNotExist,
+		///The next execution block number should be in the future
+		BlockNumberIsNotInFuture,
 	}
 
 	/// Id sequencer for schedules
@@ -324,7 +318,7 @@ pub mod pallet {
 
 			let blocknumber_for_first_schedule_execution =
 				start_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
-			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id, &schedule);
+			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id);
 
 			Self::calculate_and_store_bond(who.clone(), next_schedule_id)?;
 
@@ -363,6 +357,28 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		///Resume
+		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
+		#[transactional]
+		pub fn resume(
+			origin: OriginFor<T>,
+			schedule_id: ScheduleId,
+			next_execution_block: Option<BlockNumberFor<T>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+
+			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
+
+			Self::ensure_that_next_blocknumber_bigger_than_current_block(next_execution_block)?;
+
+			let blocknumber_for_first_schedule_execution =
+				next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
+			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, schedule_id);
+
+			Ok(())
+		}
 	}
 }
 
@@ -370,7 +386,7 @@ impl<T: Config> Pallet<T>
 where
 	<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
 {
-	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId, schedule: &Schedule<<T as Config>::Asset>) {
+	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId) {
 		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
 			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
 			ScheduleIdsPerBlock::<T>::insert(b, vec_with_first_schedule_id);
@@ -585,5 +601,19 @@ where
 		let bond = Self::bond(schedule_id).unwrap();
 		T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
 		Bonds::<T>::remove(schedule_id);
+	}
+
+	fn ensure_that_next_blocknumber_bigger_than_current_block(
+		next_execution_block: Option<T::BlockNumber>,
+	) -> DispatchResult {
+		if let Some(next_exection_block) = next_execution_block {
+			let current_block_number = frame_system::Pallet::<T>::current_block_number();
+			ensure!(
+				next_exection_block > current_block_number,
+				Error::<T>::BlockNumberIsNotInFuture
+			);
+		};
+
+		Ok(())
 	}
 }

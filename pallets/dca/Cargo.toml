@@ -49,7 +49,7 @@ orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "5329d685ee1cabc855e8c185c54cc3f798902e93", default-features = false }
-
+test-case = "2.2.2"
 [features]
 default = ['std']
 runtime-benchmarks = [

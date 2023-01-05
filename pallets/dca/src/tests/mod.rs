@@ -6,6 +6,7 @@ use sp_runtime::BoundedVec;
 pub mod mock;
 pub mod on_initialize;
 mod pause;
+pub mod resume;
 pub mod schedule;
 
 #[macro_export]
