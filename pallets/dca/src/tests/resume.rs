@@ -129,14 +129,41 @@ fn resume_should_fail_when_specified_next_block_is_equal_to_current_block(block:
 		});
 }
 
+#[test]
+fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_in_next_block_and_next_block_is_specified(
+) {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(Origin::signed(BOB), schedule2, Option::Some(1000)));
+
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::resume(Origin::signed(ALICE), schedule_id, Option::Some(1000)));
+
+			//Assert
+			assert_scheduled_ids(1000, vec![2, 1]);
+		});
+}
+
+//TODO: add test to check if the schedule is indeed suspendeed. if not then error
+
 fn assert_scheduled_ids(block: BlockNumberFor<Test>, expected_schedule_ids: Vec<ScheduleId>) {
+	//TODO: make this as a macro to better readability
 	let actual_schedule_ids = DCA::schedule_ids_per_block(block);
 	assert!(DCA::schedule_ids_per_block(block).is_some());
 	let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(expected_schedule_ids);
 	assert_eq!(actual_schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
 }
-
-//TODO: add test to check if the schedule is indeed suspendeed. if not then error
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
