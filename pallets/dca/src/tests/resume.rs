@@ -155,6 +155,29 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 		});
 }
 
+#[test]
+fn resume_should_schedule_remove_schedule_from_suspended() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+			assert!(DCA::suspended(schedule_id).is_some());
+
+			//Act
+			assert_ok!(DCA::resume(Origin::signed(ALICE), schedule_id, Option::None));
+
+			//Assert
+			assert!(DCA::suspended(schedule_id).is_none());
+		});
+}
+
 //TODO: add test to check if the schedule is indeed suspendeed. if not then error
 
 fn assert_scheduled_ids(block: BlockNumberFor<Test>, expected_schedule_ids: Vec<ScheduleId>) {

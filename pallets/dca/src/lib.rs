@@ -377,6 +377,8 @@ pub mod pallet {
 				next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
 			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, schedule_id);
 
+			Suspended::<T>::remove(schedule_id);
+
 			Ok(())
 		}
 	}
