@@ -52,6 +52,26 @@ fn resume_should_remove_schedule_from_storage() {
 }
 
 #[test]
+fn resume_should_discard_complete_bond() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(501)));
+
+			//Act
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(501)));
+
+			//Assert
+			assert!(DCA::bond(schedule_id).is_none());
+			assert_eq!(0, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+		});
+}
+
+#[test]
 fn resume_should_fail_when_called_by_non_owner() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])

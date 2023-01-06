@@ -255,7 +255,9 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		///Unexpected error
-		UnexpectedError,
+		UnexpectedError, //TODO; dont use this. User invalid state or some specific one
+		///Error that should not really happen
+		InvalidState,
 		///Schedule not exist
 		ScheduleNotExist,
 		///Balance is too low to reserve for bond
@@ -430,6 +432,8 @@ pub mod pallet {
 			Schedules::<T>::remove(schedule_id);
 			ScheduleOwnership::<T>::remove(schedule_id);
 			RemainingRecurrences::<T>::remove(schedule_id);
+
+			Self::discard_bond(schedule_id, &who)?;
 
 			Ok(())
 		}
@@ -680,10 +684,12 @@ where
 		))
 	}
 
-	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) {
-		let bond = Self::bond(schedule_id).unwrap();
+	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
+		let bond = Self::bond(schedule_id).ok_or(Error::<T>::InvalidState)?;
 		T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
 		Bonds::<T>::remove(schedule_id);
+
+		Ok(())
 	}
 
 	fn ensure_that_next_blocknumber_bigger_than_current_block(
