@@ -518,7 +518,7 @@ where
 	) -> Result<BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>, DispatchError> {
 		let schedule_id = vec![next_schedule_id];
 		let bounded_vec: BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>> =
-			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?; //TODO: here use constant instead of hardcoded value
+			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?;
 		Ok(bounded_vec)
 	}
 
@@ -534,7 +534,7 @@ where
 				let mut remaining_ocurrences = maybe_remaining_occurrances.as_mut().ok_or(Error::<T>::InvalidState)?;
 
 				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(ArithmeticError::Underflow)?;
-				let remainings = remaining_ocurrences.clone(); //TODO: do this in a smarter way?
+				let remainings = remaining_ocurrences.clone();
 
 				if *remaining_ocurrences == 0 {
 					*maybe_remaining_occurrances = None;
