@@ -258,9 +258,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		///Unexpected error
-		UnexpectedError, //TODO; dont use this. User invalid state or some specific one
-		///Error that should not really happen
+		///Error that should not really happen only in case of invalid state of the schedule storage entries.
 		InvalidState,
 		///Schedule not exist
 		ScheduleNotExist,
@@ -494,11 +492,11 @@ where
 		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
 	) -> DispatchResult {
 		ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
-			let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::UnexpectedError)?; //TODO: add different error handling
+			let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
 
 			schedule_ids
 				.try_push(next_schedule_id)
-				.map_err(|_| Error::<T>::UnexpectedError)?;
+				.map_err(|_| Error::<T>::InvalidState)?;
 			Ok(())
 		})?;
 
@@ -508,11 +506,9 @@ where
 	fn decrement_recurrences(schedule_id: ScheduleId) -> Result<u128, DispatchResult> {
 		let remaining_recurrences =
 			RemainingRecurrences::<T>::try_mutate_exists(schedule_id, |maybe_remaining_occurrances| {
-				let mut remaining_ocurrences = maybe_remaining_occurrances
-					.as_mut()
-					.ok_or(Error::<T>::UnexpectedError)?; //TODO: add RaminingReccurenceNotExist error
+				let mut remaining_ocurrences = maybe_remaining_occurrances.as_mut().ok_or(Error::<T>::InvalidState)?;
 
-				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(Error::<T>::UnexpectedError)?; //TODO: add arithmetic error
+				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(ArithmeticError::Underflow)?;
 				let remainings = remaining_ocurrences.clone(); //TODO: do this in a smarter way?
 
 				if *remaining_ocurrences == 0 {
@@ -563,7 +559,11 @@ where
 		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
 			let mut schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotExist)?;
 
-			let index = schedule_ids.iter().position(|x| *x == schedule_id).unwrap();
+			let index = schedule_ids
+				.iter()
+				.position(|x| *x == schedule_id)
+				.ok_or(Error::<T>::InvalidState)?;
+
 			schedule_ids.remove(index);
 
 			if schedule_ids.is_empty() {
@@ -616,7 +616,7 @@ where
 	fn get_total_bond_from_config_in_native_currency() -> Result<u128, DispatchError> {
 		let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
 			.checked_add(T::StorageBondInNativeCurrency::get())
-			.ok_or(Error::<T>::UnexpectedError)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(total_bond_in_native_currency)
 	}
