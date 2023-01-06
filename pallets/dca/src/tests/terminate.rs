@@ -77,6 +77,26 @@ fn terminate_should_discard_complete_bond() {
 }
 
 #[test]
+fn terminate_should_remove_planned_execution_when_there_is_only_single_execution_on_block() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+
+			//Act
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
+
+			//Assert
+			assert!(DCA::schedule_ids_per_block(600).is_none());
+		});
+}
+
+#[test]
 fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_executions_on_block() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -101,7 +121,29 @@ fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_exe
 }
 
 #[test]
-fn terminate_should_remove_planned_execution_when_there_is_only_single_execution_on_block() {
+fn terminate_should_remove_suspended_schedule_when_no_block_specified_by_user() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 600));
+
+			//Act
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::None));
+
+			//Assert
+			assert!(DCA::schedule_ids_per_block(600).is_none());
+			assert!(DCA::suspended(schedule_id).is_none());
+		});
+}
+
+#[test]
+fn terminate_should_throw_error_when_schedule_is_not_suspended_and_next_exec_block_not_specified_by_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -113,10 +155,11 @@ fn terminate_should_remove_planned_execution_when_there_is_only_single_execution
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
-
+			assert_noop!(
+				DCA::terminate(Origin::signed(ALICE), schedule_id, Option::None),
+				Error::<Test>::ScheduleMustBeSuspended
+			);
 			//Assert
-			assert!(DCA::schedule_ids_per_block(600).is_none());
 		});
 }
 
@@ -134,7 +177,7 @@ fn terminate_should_fail_when_called_by_non_owner() {
 
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(Origin::signed(BOB), schedule_id, Option::None),
+				DCA::terminate(Origin::signed(BOB), schedule_id, Option::Some(500)),
 				Error::<Test>::NotScheduleOwner
 			);
 		});

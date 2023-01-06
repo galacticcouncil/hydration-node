@@ -274,6 +274,8 @@ pub mod pallet {
 		BlockNumberIsNotInFuture,
 		///There is not planned execution on the given block
 		NoPlannedExecutionFoundOnBlock,
+		///The schedule must be suspended when there is not execution block specified by the using during termination of a shcedule
+		ScheduleMustBeSuspended,
 	}
 
 	/// Id sequencer for schedules
@@ -417,6 +419,9 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(Schedules::<T>::contains_key(&schedule_id), Error::<T>::ScheduleNotExist);
 
+			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
+
 			match next_execution_block {
 				Some(block) => {
 					let schedule_ids_on_block =
@@ -429,11 +434,14 @@ pub mod pallet {
 
 					Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
 				}
-				None => { /*This is for suspended case*/ }
+				None => {
+					ensure!(
+						Suspended::<T>::contains_key(&schedule_id),
+						Error::<T>::ScheduleMustBeSuspended
+					);
+					Suspended::<T>::remove(schedule_id);
+				}
 			};
-
-			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
 
 			Schedules::<T>::remove(schedule_id);
 			ScheduleOwnership::<T>::remove(schedule_id);
