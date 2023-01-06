@@ -8,6 +8,7 @@ pub mod on_initialize;
 mod pause;
 pub mod resume;
 pub mod schedule;
+pub mod terminate;
 
 #[macro_export]
 macro_rules! assert_balance {

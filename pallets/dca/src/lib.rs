@@ -266,6 +266,8 @@ pub mod pallet {
 		BondNotExist,
 		///The next execution block number should be in the future
 		BlockNumberIsNotInFuture,
+		///There is not planned execution on the given block
+		NoPlannedExecutionFoundOnBlock,
 	}
 
 	/// Id sequencer for schedules
@@ -394,6 +396,40 @@ pub mod pallet {
 				who,
 				block: next_execution_block,
 			});
+
+			Ok(())
+		}
+
+		///Terminate
+		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
+		#[transactional]
+		pub fn terminate(
+			origin: OriginFor<T>,
+			schedule_id: ScheduleId,
+			next_execution_block: Option<BlockNumberFor<T>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			ensure!(Schedules::<T>::contains_key(&schedule_id), Error::<T>::ScheduleNotExist);
+
+			match next_execution_block {
+				Some(block) => {
+					let schedule_ids_on_block =
+						ScheduleIdsPerBlock::<T>::get(block).ok_or(Error::<T>::NoPlannedExecutionFoundOnBlock)?;
+
+					ensure!(
+						schedule_ids_on_block.contains(&schedule_id),
+						Error::<T>::NoPlannedExecutionFoundOnBlock,
+					);
+				}
+				None => { /*This is for suspended case*/ }
+			};
+
+			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
+
+			Schedules::<T>::remove(schedule_id);
+			ScheduleOwnership::<T>::remove(schedule_id);
+			RemainingRecurrences::<T>::remove(schedule_id);
 
 			Ok(())
 		}
