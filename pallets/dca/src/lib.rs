@@ -250,6 +250,10 @@ pub mod pallet {
 			id: ScheduleId,
 			who: T::AccountId,
 		},
+		Terminated {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
@@ -434,6 +438,11 @@ pub mod pallet {
 			RemainingRecurrences::<T>::remove(schedule_id);
 
 			Self::discard_bond(schedule_id, &who)?;
+
+			Self::deposit_event(Event::Terminated {
+				id: schedule_id,
+				who: who.clone(),
+			});
 
 			Ok(())
 		}

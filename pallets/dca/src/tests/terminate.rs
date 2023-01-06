@@ -37,17 +37,20 @@ fn resume_should_remove_schedule_from_storage() {
 		.build()
 		.execute_with(|| {
 			//Arrange
+			set_block_number(500);
 			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 			let schedule_id = 1;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(501)));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(501)));
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
 			assert!(DCA::schedules(schedule_id).is_none());
 			assert!(DCA::schedule_ownership(schedule_id).is_none());
 			assert!(DCA::remaining_recurrences(schedule_id).is_none());
+
+			expect_events(vec![Event::Terminated { id: 1, who: ALICE }.into()]);
 		});
 }
 
@@ -58,12 +61,14 @@ fn resume_should_discard_complete_bond() {
 		.build()
 		.execute_with(|| {
 			//Arrange
+			set_block_number(500);
+
 			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 			let schedule_id = 1;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(501)));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(501)));
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
 			assert!(DCA::bond(schedule_id).is_none());
