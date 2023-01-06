@@ -452,7 +452,7 @@ where
 
 	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
 		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
-			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
+			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
 			ScheduleIdsPerBlock::<T>::insert(b, vec_with_first_schedule_id);
 		} else {
 			//TODO: if the block is full, then we should plan it the next one or so
@@ -476,10 +476,11 @@ where
 		current_block_number
 	}
 
-	fn create_bounded_vec(next_schedule_id: ScheduleId) -> BoundedVec<ScheduleId, ConstU32<20>> {
+	fn create_bounded_vec(next_schedule_id: ScheduleId) -> Result<BoundedVec<ScheduleId, ConstU32<20>>, DispatchError> {
 		let schedule_id = vec![next_schedule_id];
-		let bounded_vec: BoundedVec<ScheduleId, ConstU32<20>> = schedule_id.try_into().unwrap(); //TODO: here use constant instead of hardcoded value
-		bounded_vec
+		let bounded_vec: BoundedVec<ScheduleId, ConstU32<20>> =
+			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?; //TODO: here use constant instead of hardcoded value
+		Ok(bounded_vec)
 	}
 
 	fn store_recurrence_in_case_of_fixed_schedule(next_schedule_id: ScheduleId, recurrence: &Recurrence) {
