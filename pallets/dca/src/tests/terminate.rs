@@ -154,12 +154,11 @@ fn terminate_should_throw_error_when_schedule_is_not_suspended_and_next_exec_blo
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
-			//Act
+			//Act and assert
 			assert_noop!(
 				DCA::terminate(Origin::signed(ALICE), schedule_id, Option::None),
 				Error::<Test>::ScheduleMustBeSuspended
 			);
-			//Assert
 		});
 }
 
