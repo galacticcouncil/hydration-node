@@ -80,8 +80,8 @@ pub enum Order<AssetId> {
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Schedule<AssetId> {
-	pub period: BlockNumber, //TODO: use proper block number
+pub struct Schedule<AssetId, BlockNumber> {
+	pub period: BlockNumber,
 	pub recurrence: Recurrence,
 	pub order: Order<AssetId>,
 }
@@ -286,7 +286,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedules)]
-	pub type Schedules<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset>, OptionQuery>;
+	pub type Schedules<T: Config> =
+		StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset, BlockNumberFor<T>>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn suspended)]
@@ -324,7 +325,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
-			schedule: Schedule<T::Asset>,
+			schedule: Schedule<T::Asset, BlockNumberFor<T>>,
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;

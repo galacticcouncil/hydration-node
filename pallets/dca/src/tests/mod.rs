@@ -54,7 +54,7 @@ impl ScheduleBuilder {
 		return self;
 	}
 
-	fn build(self) -> Schedule<AssetId> {
+	fn build(self) -> Schedule<AssetId, BlockNumber> {
 		Schedule {
 			period: self.period.unwrap(),
 			recurrence: self.recurrence.unwrap(),
