@@ -176,8 +176,12 @@ pub mod pallet {
 								}
 								_ => {
 									Suspended::<T>::insert(schedule_id, ());
+
+									Self::deposit_event(Event::Suspended {
+										id: schedule_id,
+										who: owner.clone(),
+									});
 									//TODO: slash execution bond
-									//TODO: emit suspended
 								}
 							}
 						}
@@ -254,6 +258,10 @@ pub mod pallet {
 			who: T::AccountId,
 		},
 		Terminated {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
+		Suspended {
 			id: ScheduleId,
 			who: T::AccountId,
 		},

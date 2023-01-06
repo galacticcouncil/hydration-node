@@ -20,7 +20,7 @@ use std::io::empty;
 use std::ops::RangeInclusive;
 
 use crate::tests::*;
-use crate::{assert_balance, AssetId, BlockNumber, Order, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{assert_balance, AssetId, BlockNumber, Event, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiCurrency;
@@ -396,6 +396,12 @@ fn fixed_schedule_is_suspended_in_block_when_user_has_not_enough_balance() {
 			let schedule_id = 1;
 			assert_eq!(DCA::remaining_recurrences(schedule_id).unwrap(), 5);
 			assert!(DCA::suspended(schedule_id).is_some());
+
+			expect_events(vec![Event::Suspended {
+				id: schedule_id,
+				who: ALICE,
+			}
+			.into()]);
 		});
 }
 
@@ -531,8 +537,6 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 			);
 		});
 }
-
-//TODO: add negative case for validating block numbers
 
 fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();

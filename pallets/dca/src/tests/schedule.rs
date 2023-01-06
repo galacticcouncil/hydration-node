@@ -396,8 +396,6 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 		});
 }
 
-//TODO: add negative case for validating block numbers
-
 fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
