@@ -359,9 +359,7 @@ pub mod pallet {
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-
-			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
+			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
 
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
@@ -382,10 +380,7 @@ pub mod pallet {
 			next_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-
-			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
-
+			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(next_execution_block)?;
 
 			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
@@ -417,10 +412,8 @@ pub mod pallet {
 			next_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			ensure!(Schedules::<T>::contains_key(&schedule_id), Error::<T>::ScheduleNotExist);
-
-			let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-			ensure!(who == schedule_owner, Error::<T>::NotScheduleOwner);
+			Self::ensure_that_schedule_exists(&schedule_id)?;
+			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
 
 			match next_execution_block {
 				Some(block) => {
@@ -463,6 +456,19 @@ impl<T: Config> Pallet<T>
 where
 	<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
 {
+	fn ensure_that_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
+		ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotExist);
+
+		Ok(())
+	}
+
+	fn ensure_that_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+		let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+		ensure!(*who == schedule_owner, Error::<T>::NotScheduleOwner);
+
+		Ok(())
+	}
+
 	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId) {
 		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
 			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
