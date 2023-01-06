@@ -333,7 +333,7 @@ pub mod pallet {
 
 			let blocknumber_for_first_schedule_execution =
 				start_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
-			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id);
+			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			Self::calculate_and_store_bond(who.clone(), next_schedule_id)?;
 
@@ -384,7 +384,7 @@ pub mod pallet {
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(next_execution_block)?;
 
 			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
-			Self::plan_schedule_for_block(next_execution_block, schedule_id);
+			Self::plan_schedule_for_block(next_execution_block, schedule_id)?;
 
 			Suspended::<T>::remove(schedule_id);
 
@@ -450,14 +450,15 @@ where
 		Ok(())
 	}
 
-	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId) {
+	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
 		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
 			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id);
 			ScheduleIdsPerBlock::<T>::insert(b, vec_with_first_schedule_id);
 		} else {
 			//TODO: if the block is full, then we should plan it the next one or so
-			Self::add_schedule_id_to_existing_ids_per_block(schedule_id, b);
+			Self::add_schedule_id_to_existing_ids_per_block(schedule_id, b)?;
 		}
+		Ok(())
 	}
 
 	fn get_next_schedule_id() -> Result<ScheduleId, ArithmeticError> {
