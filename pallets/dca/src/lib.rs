@@ -415,26 +415,7 @@ pub mod pallet {
 			Self::ensure_that_schedule_exists(&schedule_id)?;
 			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
 
-			match next_execution_block {
-				Some(block) => {
-					let schedule_ids_on_block =
-						ScheduleIdsPerBlock::<T>::get(block).ok_or(Error::<T>::NoPlannedExecutionFoundOnBlock)?;
-
-					ensure!(
-						schedule_ids_on_block.contains(&schedule_id),
-						Error::<T>::NoPlannedExecutionFoundOnBlock,
-					);
-
-					Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
-				}
-				None => {
-					ensure!(
-						Suspended::<T>::contains_key(&schedule_id),
-						Error::<T>::ScheduleMustBeSuspended
-					);
-					Suspended::<T>::remove(schedule_id);
-				}
-			};
+			Self::remove_planning_or_suspension(schedule_id, next_execution_block)?;
 
 			Schedules::<T>::remove(schedule_id);
 			ScheduleOwnership::<T>::remove(schedule_id);
@@ -726,6 +707,34 @@ where
 				next_exection_block > current_block_number,
 				Error::<T>::BlockNumberIsNotInFuture
 			);
+		};
+
+		Ok(())
+	}
+
+	fn remove_planning_or_suspension(
+		schedule_id: ScheduleId,
+		next_execution_block: Option<T::BlockNumber>,
+	) -> DispatchResult {
+		match next_execution_block {
+			Some(block) => {
+				let schedule_ids_on_block =
+					ScheduleIdsPerBlock::<T>::get(block).ok_or(Error::<T>::NoPlannedExecutionFoundOnBlock)?;
+
+				ensure!(
+					schedule_ids_on_block.contains(&schedule_id),
+					Error::<T>::NoPlannedExecutionFoundOnBlock,
+				);
+
+				Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
+			}
+			None => {
+				ensure!(
+					Suspended::<T>::contains_key(&schedule_id),
+					Error::<T>::ScheduleMustBeSuspended
+				);
+				Suspended::<T>::remove(schedule_id);
+			}
 		};
 
 		Ok(())
