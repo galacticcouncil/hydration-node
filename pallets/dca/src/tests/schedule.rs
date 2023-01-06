@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::tests::ScheduleBuilder;
+use crate::tests::{assert_scheduled_ids, ScheduleBuilder};
 use crate::{AssetId, Bond};
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
@@ -26,6 +26,7 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
+use std::ops::RangeInclusive;
 pub type Price = FixedU128;
 use orml_traits::MultiReservableCurrency;
 use test_case::test_case;
@@ -335,6 +336,63 @@ fn schedule_should_fail_when_specified_next_block_is_not_greater_than_current_bl
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(block)),
 				Error::<Test>::BlockNumberIsNotInFuture
 			);
+		});
+}
+
+#[test]
+fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+
+			for _ in RangeInclusive::new(1, 20) {
+				let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			}
+
+			//Act
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule_id = 21;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			let actual_schedule_ids = DCA::schedule_ids_per_block(501).unwrap();
+			assert_eq!(20, actual_schedule_ids.len());
+
+			assert_scheduled_ids(502, vec![schedule_id]);
+		});
+}
+
+#[test]
+fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_consquent_block_is_full() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+
+			for _ in RangeInclusive::new(1, 40) {
+				let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			}
+
+			//Act
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule_id = 41;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			let actual_schedule_ids = DCA::schedule_ids_per_block(501).unwrap();
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(502).unwrap();
+			assert_eq!(20, actual_schedule_ids.len());
+
+			assert_scheduled_ids(503, vec![schedule_id]);
 		});
 }
 

@@ -291,6 +291,7 @@ parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub ExecutionBondInNativeCurrency: Balance= 1_000_000;
 	pub StorageBondInNativeCurrency: Balance= 2_000_000;
+	pub MaxSchedulePerBlock: u32 = 5;
 }
 
 impl Config for Test {
@@ -300,6 +301,7 @@ impl Config for Test {
 	type MultiReservableCurrency = Tokens;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
+	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};

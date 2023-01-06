@@ -21,7 +21,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::ensure;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::Get;
+use frame_support::traits::{Get, Len};
 use frame_support::transactional;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
@@ -141,7 +141,7 @@ pub mod pallet {
 			{
 				let mut weight: u64 = 0;
 
-				let maybe_schedules: Option<BoundedVec<ScheduleId, ConstU32<20>>> =
+				let maybe_schedules: Option<BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>> =
 					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
 
 				match maybe_schedules {
@@ -225,6 +225,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type StorageBondInNativeCurrency: Get<Balance>;
 
+		#[pallet::constant]
+		type MaxSchedulePerBlock: Get<u32>;
+
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
 	}
@@ -300,8 +303,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
-	pub type ScheduleIdsPerBlock<T: Config> =
-		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, ConstU32<20>>, OptionQuery>;
+	pub type ScheduleIdsPerBlock<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		BlockNumberFor<T>,
+		BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>,
+		OptionQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn bond)]
@@ -448,6 +456,30 @@ where
 		Ok(())
 	}
 
+	fn add_schedule_id_to_existing_ids_per_block(
+		next_schedule_id: ScheduleId,
+		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
+	) -> DispatchResult {
+		let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).ok_or(Error::<T>::InvalidState)?;
+		if schedule_ids.len() == MAX_NUMBER_OF_SCHEDULES_PER_BLOCK as usize {
+			let mut consequent_block = blocknumber_for_schedule.clone();
+			consequent_block.saturating_inc();
+			Self::plan_schedule_for_block(consequent_block, next_schedule_id)?;
+			return Ok(());
+		} else {
+			ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
+				let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
+
+				schedule_ids
+					.try_push(next_schedule_id)
+					.map_err(|_| Error::<T>::InvalidState)?;
+				Ok(())
+			})?;
+		}
+
+		Ok(())
+	}
+
 	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
 		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
 			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
@@ -474,9 +506,11 @@ where
 		current_block_number
 	}
 
-	fn create_bounded_vec(next_schedule_id: ScheduleId) -> Result<BoundedVec<ScheduleId, ConstU32<20>>, DispatchError> {
+	fn create_bounded_vec(
+		next_schedule_id: ScheduleId,
+	) -> Result<BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>, DispatchError> {
 		let schedule_id = vec![next_schedule_id];
-		let bounded_vec: BoundedVec<ScheduleId, ConstU32<20>> =
+		let bounded_vec: BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>> =
 			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?; //TODO: here use constant instead of hardcoded value
 		Ok(bounded_vec)
 	}
@@ -485,22 +519,6 @@ where
 		if let Recurrence::Fixed(number_of_recurrence) = *recurrence {
 			RemainingRecurrences::<T>::insert(next_schedule_id, number_of_recurrence);
 		};
-	}
-
-	fn add_schedule_id_to_existing_ids_per_block(
-		next_schedule_id: ScheduleId,
-		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
-	) -> DispatchResult {
-		ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
-			let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
-
-			schedule_ids
-				.try_push(next_schedule_id)
-				.map_err(|_| Error::<T>::InvalidState)?;
-			Ok(())
-		})?;
-
-		Ok(())
 	}
 
 	fn decrement_recurrences(schedule_id: ScheduleId) -> Result<u128, DispatchResult> {
