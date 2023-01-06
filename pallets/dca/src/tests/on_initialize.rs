@@ -476,7 +476,6 @@ fn schedule_is_executed_in_block_when_user_has_perpetual_schedule_planned() {
 			//Assert
 			assert_balance!(ALICE, BTC, ONE);
 			let schedule_id = 1;
-			let s = DCA::remaining_recurrences(schedule_id);
 			assert!(DCA::remaining_recurrences(schedule_id).is_none());
 
 			let scheduled_ids_for_next_planned_block = DCA::schedule_ids_per_block(601).unwrap();

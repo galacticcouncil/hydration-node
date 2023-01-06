@@ -296,7 +296,6 @@ pub mod pallet {
 	#[pallet::getter(fn schedule_ownership)]
 	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, T::AccountId, OptionQuery>;
 
-	//TODO: the number of recurrences can not be 0, so remove item once there - https://www.notion.so/DCA-061a93f912fd43b3a8e3e413abb8afdf#24dc5396cce542f681862ec7b1e54c15
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
 	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u128, OptionQuery>;
