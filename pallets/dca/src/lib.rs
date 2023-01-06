@@ -426,6 +426,8 @@ pub mod pallet {
 						schedule_ids_on_block.contains(&schedule_id),
 						Error::<T>::NoPlannedExecutionFoundOnBlock,
 					);
+
+					Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
 				}
 				None => { /*This is for suspended case*/ }
 			};

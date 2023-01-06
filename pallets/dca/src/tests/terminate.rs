@@ -31,7 +31,7 @@ use sp_runtime::DispatchError::BadOrigin;
 use test_case::test_case;
 
 #[test]
-fn resume_should_remove_schedule_from_storage() {
+fn terminate_should_remove_schedule_from_storage() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -55,7 +55,7 @@ fn resume_should_remove_schedule_from_storage() {
 }
 
 #[test]
-fn resume_should_discard_complete_bond() {
+fn terminate_should_discard_complete_bond() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -77,7 +77,51 @@ fn resume_should_discard_complete_bond() {
 }
 
 #[test]
-fn resume_should_fail_when_called_by_non_owner() {
+fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_executions_on_block() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule_id = 1;
+			let block = 600;
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(block)));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(block)));
+
+			//Act
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(block)));
+
+			//Assert
+			assert_scheduled_ids(block, vec![2]);
+		});
+}
+
+#[test]
+fn terminate_should_remove_planned_execution_when_there_is_only_single_execution_on_block() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+
+			//Act
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
+
+			//Assert
+			assert!(DCA::schedule_ids_per_block(600).is_none());
+		});
+}
+
+#[test]
+fn terminate_should_fail_when_called_by_non_owner() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -97,7 +141,7 @@ fn resume_should_fail_when_called_by_non_owner() {
 }
 
 #[test]
-fn resume_should_fail_when_called_by_non_signed() {
+fn terminate_should_fail_when_called_by_non_signed() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -114,7 +158,7 @@ fn resume_should_fail_when_called_by_non_signed() {
 }
 
 #[test]
-fn resume_should_fail_when_no_planned_execution_in_block() {
+fn terminate_should_fail_when_no_planned_execution_in_block() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -134,7 +178,7 @@ fn resume_should_fail_when_no_planned_execution_in_block() {
 }
 
 #[test]
-fn resume_should_fail_when_there_is_planned_execution_in_block_not_not_for_schedule() {
+fn terminate_should_fail_when_there_is_planned_execution_in_block_not_not_for_schedule() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -156,7 +200,7 @@ fn resume_should_fail_when_there_is_planned_execution_in_block_not_not_for_sched
 }
 
 #[test]
-fn resume_should_fail_when_with_nonexisting_schedule() {
+fn terminate_should_fail_when_with_nonexisting_schedule() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()

@@ -1,5 +1,6 @@
 use crate::tests::mock::*;
-use crate::{AssetId, Balance, BlockNumber, Order, Recurrence, Schedule, Trade};
+use crate::{AssetId, Balance, BlockNumber, Order, Recurrence, Schedule, ScheduleId, Trade};
+use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 
@@ -67,6 +68,19 @@ pub fn empty_vec() -> BoundedVec<Trade, ConstU32<5>> {
 
 pub fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
+	bounded_vec
+}
+
+fn assert_scheduled_ids(block: BlockNumberFor<Test>, expected_schedule_ids: Vec<ScheduleId>) {
+	//TODO: make this as a macro to better readability and also use it everywhere where we can
+	let actual_schedule_ids = DCA::schedule_ids_per_block(block);
+	assert!(DCA::schedule_ids_per_block(block).is_some());
+	let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(expected_schedule_ids);
+	assert_eq!(actual_schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+}
+
+fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
+	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
 	bounded_vec
 }
 
