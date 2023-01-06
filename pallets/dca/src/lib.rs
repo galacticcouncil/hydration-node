@@ -467,15 +467,24 @@ where
 			Self::plan_schedule_for_block(consequent_block, next_schedule_id)?;
 			return Ok(());
 		} else {
-			ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
-				let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
-
-				schedule_ids
-					.try_push(next_schedule_id)
-					.map_err(|_| Error::<T>::InvalidState)?;
-				Ok(())
-			})?;
+			Self::add_schedule_id_to_block(next_schedule_id, blocknumber_for_schedule)?;
 		}
+
+		Ok(())
+	}
+
+	fn add_schedule_id_to_block(
+		next_schedule_id: ScheduleId,
+		blocknumber_for_schedule: T::BlockNumber,
+	) -> DispatchResult {
+		ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
+			let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
+
+			schedule_ids
+				.try_push(next_schedule_id)
+				.map_err(|_| Error::<T>::InvalidState)?;
+			Ok(())
+		})?;
 
 		Ok(())
 	}
