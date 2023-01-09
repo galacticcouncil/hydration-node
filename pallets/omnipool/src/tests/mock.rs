@@ -68,6 +68,7 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static TVL_CAP: RefCell<Balance> = RefCell::new(u128::MAX);
 }
 
 construct_runtime!(
@@ -157,7 +158,7 @@ parameter_types! {
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
-	pub const TVLCap: Balance = Balance::MAX;
+	pub TVLCap: Balance = TVL_CAP.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -195,6 +196,7 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
+	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -231,6 +233,9 @@ impl Default for ExtBuilder {
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = 1u128;
 		});
+		TVL_CAP.with(|v| {
+			*v.borrow_mut() = u128::MAX;
+		});
 
 		Self {
 			endowed_accounts: vec![
@@ -248,6 +253,7 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
+			tvl_cap: u128::MAX,
 		}
 	}
 }
@@ -307,6 +313,10 @@ impl ExtBuilder {
 		self.max_out_ratio = value;
 		self
 	}
+	pub fn with_tvl_cap(mut self, value: Balance) -> Self {
+		self.tvl_cap = value;
+		self
+	}
 
 	pub fn with_token(
 		mut self,
@@ -358,6 +368,9 @@ impl ExtBuilder {
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = self.max_out_ratio;
 		});
+		TVL_CAP.with(|v| {
+			*v.borrow_mut() = self.tvl_cap;
+		});
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self
@@ -373,9 +386,6 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
-				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
-
 				assert_ok!(Omnipool::initialize_pool(
 					Origin::root(),
 					stable_price,
@@ -383,13 +393,6 @@ impl ExtBuilder {
 					Permill::from_percent(100),
 					Permill::from_percent(100)
 				));
-				assert_pool_state_approx!(
-					stable_price.checked_mul_int(stable_amount).unwrap() + native_amount,
-					FixedU128::from((stable_amount, stable_price.checked_mul_int(stable_amount).unwrap()))
-						.checked_mul_int(native_amount)
-						.unwrap() + stable_amount,
-					SimpleImbalance::default()
-				);
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
