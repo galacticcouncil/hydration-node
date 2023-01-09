@@ -116,7 +116,7 @@ impl<AssetId> UserAssetIdAndSpotPrice<AssetId> {
 	}
 }
 
-macro_rules! skip_fail_opt {
+macro_rules! exec_or_skip_if_none {
 	($opt:expr) => {
 		match $opt {
 			Some(val) => val,
@@ -128,7 +128,7 @@ macro_rules! skip_fail_opt {
 	};
 }
 
-macro_rules! skip_fail_res {
+macro_rules! exec_or_skip_if_err {
 	($res:expr) => {
 		match $res {
 			Ok(val) => val,
@@ -176,8 +176,8 @@ pub mod pallet {
 					Some(schedules) => {
 						//TODO: order schedules randomly
 						for schedule_id in schedules {
-							let schedule = skip_fail_opt!(Schedules::<T>::get(schedule_id));
-							let owner = skip_fail_opt!(ScheduleOwnership::<T>::get(schedule_id));
+							let schedule = exec_or_skip_if_none!(Schedules::<T>::get(schedule_id));
+							let owner = exec_or_skip_if_none!(ScheduleOwnership::<T>::get(schedule_id));
 							let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
 
 							let trade_result = Self::execute_trade(origin, &schedule.order);
@@ -185,23 +185,23 @@ pub mod pallet {
 							match trade_result {
 								Ok(res) => {
 									let blocknumber_for_schedule =
-										skip_fail_opt!(current_blocknumber.checked_add(&schedule.period.into()));
+										exec_or_skip_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
 
 									match schedule.recurrence {
 										Recurrence::Fixed(_) => {
 											let remaining_reccurences =
-												skip_fail_res!(Self::decrement_recurrences(schedule_id));
+												exec_or_skip_if_err!(Self::decrement_recurrences(schedule_id));
 											if !remaining_reccurences.is_zero() {
-												skip_fail_res!(Self::plan_schedule_for_block(
+												exec_or_skip_if_err!(Self::plan_schedule_for_block(
 													blocknumber_for_schedule,
 													schedule_id
 												));
 											} else {
-												skip_fail_res!(Self::discard_bond(schedule_id, &owner));
+												exec_or_skip_if_err!(Self::discard_bond(schedule_id, &owner));
 											}
 										}
 										Recurrence::Perpetual => {
-											skip_fail_res!(Self::plan_schedule_for_block(
+											exec_or_skip_if_err!(Self::plan_schedule_for_block(
 												blocknumber_for_schedule,
 												schedule_id
 											));
