@@ -26,7 +26,9 @@ use frame_support::transactional;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
+use hydradx_traits::pools::SpotPriceProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use scale_info::TypeInfo;
@@ -38,6 +40,7 @@ use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
+
 #[cfg(test)]
 mod tests;
 
@@ -149,6 +152,7 @@ pub mod pallet {
 	use super::*;
 	use codec::{EncodeLike, HasCompact};
 	use frame_system::pallet_prelude::OriginFor;
+	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::router::ExecutorError;
 	use orml_traits::MultiReservableCurrency;
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
@@ -257,6 +261,8 @@ pub mod pallet {
 			Balance = Balance,
 		>;
 
+		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
+
 		#[pallet::constant]
 		type ExecutionBondInNativeCurrency: Get<Balance>;
 
@@ -265,6 +271,10 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxSchedulePerBlock: Get<u32>;
+
+		/// Native Asset
+		#[pallet::constant]
+		type NativeAssetId: Get<Self::Asset>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -648,14 +658,14 @@ where
 
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
 
-		let total_bond_in_user_currency = match { user_asset_and_price.spot_price } {
-			//TODO: rather check if the asset id is equal to native
-			Some(spot_price) => {
-				spot_price
-					.checked_mul_int(total_bond_in_native_currency)
-					.ok_or(ArithmeticError::Overflow)? //TODO: verify with Lumir or so if this is the right way to do the conversion
-			}
-			None => total_bond_in_native_currency,
+		let total_bond_in_user_currency = if user_asset_and_price.asset_id == T::NativeAssetId::get() {
+			total_bond_in_native_currency
+		} else {
+			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), user_asset_and_price.asset_id)
+				.ok_or(Error::<T>::InvalidState)?; //TODO: use normal error
+			price
+				.checked_mul_int(total_bond_in_native_currency)
+				.ok_or(ArithmeticError::Overflow)?
 		};
 
 		let bond = Bond {
@@ -692,19 +702,8 @@ where
 	fn unreserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
 			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
-			let user_asset_and_spot_price = Self::get_user_currency_and_spot_price(&who)?;
 
-			let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
-
-			//TODO: refactor - find some common logic to extract as similar things happen
-			let execution_bond_in_user_currency = match user_asset_and_spot_price.spot_price {
-				Some(spot_price) => spot_price
-					.checked_mul_int(execution_bond_in_native_currency)
-					.ok_or(ArithmeticError::Overflow)?,
-				None => execution_bond_in_native_currency,
-			};
-
-			//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
+			let execution_bond_in_user_currency = Self::get_execution_bond_in_user_currency(&who, bond.asset)?;
 
 			bond.amount = bond
 				.amount
@@ -724,18 +723,8 @@ where
 	fn reserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
 			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
-			let user_asset_and_spot_price = Self::get_user_currency_and_spot_price(&who)?;
 
-			let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
-
-			let execution_bond_in_user_currency = match user_asset_and_spot_price.spot_price {
-				Some(spot_price) => spot_price
-					.checked_mul_int(execution_bond_in_native_currency)
-					.ok_or(ArithmeticError::Overflow)?,
-				None => execution_bond_in_native_currency,
-			};
-
-			//TODO: handle the case for when the set currency is different than in the bond, so the user has changed in afterwards
+			let execution_bond_in_user_currency = Self::get_execution_bond_in_user_currency(&who, bond.asset)?;
 
 			bond.amount = bond
 				.amount
@@ -748,6 +737,22 @@ where
 		})?;
 
 		Ok(())
+	}
+
+	fn get_execution_bond_in_user_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
+		let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
+
+		let execution_bond_in_user_currency = if bond_asset == T::NativeAssetId::get() {
+			execution_bond_in_native_currency
+		} else {
+			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), bond_asset)
+				.ok_or(Error::<T>::InvalidState)?; //TODO: use normal error
+			price
+				.checked_mul_int(execution_bond_in_native_currency)
+				.ok_or(ArithmeticError::Overflow)?
+		};
+
+		Ok(execution_bond_in_user_currency)
 	}
 
 	fn get_user_currency_and_spot_price(

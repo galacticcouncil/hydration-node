@@ -25,9 +25,9 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::{BoundedVec, FixedU128};
 use test_case::test_case;
 
 #[test]
@@ -123,7 +123,13 @@ fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_exe
 #[test]
 fn terminate_should_remove_suspended_schedule_when_no_block_specified_by_user() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange

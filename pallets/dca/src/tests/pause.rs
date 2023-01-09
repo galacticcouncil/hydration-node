@@ -34,7 +34,13 @@ use sp_runtime::FixedU128;
 fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
 	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -57,7 +63,13 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 #[test]
 fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multiple_entries_planned() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -83,7 +95,13 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 #[test]
 fn pause_should_mark_schedule_suspended() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -179,7 +197,13 @@ fn pause_should_fail_when_schedule_not_exist() {
 #[test]
 fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -227,7 +251,16 @@ fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency(
 #[test]
 fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_currency() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_fee_asset(vec![(ALICE, DAI)])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -237,18 +270,18 @@ fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_curren
 
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			let storage_and_execution_bond = 3_000_000;
+			let storage_and_execution_bond = 6_000_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
-					asset: HDX,
+					asset: DAI,
 					amount: storage_and_execution_bond
 				}
 			);
 
 			assert_eq!(
 				storage_and_execution_bond,
-				Currencies::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
 			);
 
 			//Act
@@ -256,27 +289,34 @@ fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_curren
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
 			//Assert
-			let execution_bond = 1_000_000;
+			let execution_bond = 2_000_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
-					asset: HDX,
+					asset: DAI,
 					amount: storage_and_execution_bond - execution_bond,
 				}
 			);
 
 			assert_eq!(
 				storage_and_execution_bond - execution_bond,
-				Currencies::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
 			);
 		});
 }
 
 #[test]
-#[ignore] //TODO: we have to handle this scenario too
-fn pause_should_unreserve_properly_when_user_changes_set_currency_after_scheduling() {
+fn pause_should_unreserve_with_original_bond_asset_when_user_changes_set_currency_after_scheduling() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -308,7 +348,7 @@ fn pause_should_unreserve_properly_when_user_changes_set_currency_after_scheduli
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
 			//Assert
-			let execution_bond = 600_000;
+			let execution_bond = 1_000_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {

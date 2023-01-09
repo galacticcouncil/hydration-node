@@ -197,8 +197,17 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 #[test]
 fn schedule_creation_should_store_bond_when_user_has_set_currency_with_nonnative_token() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(vec![(ALICE, DAI)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_fee_asset(vec![(ALICE, DAI)])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 5000 * ONE)
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -210,7 +219,7 @@ fn schedule_creation_should_store_bond_when_user_has_set_currency_with_nonnative
 
 			//Assert
 			let schedule_id = 1;
-			let amount_to_reserve_as_bond = 1_800_000;
+			let amount_to_reserve_as_bond = 6_000_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {

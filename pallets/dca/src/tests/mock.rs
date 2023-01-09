@@ -299,9 +299,11 @@ impl Config for Test {
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
 	type MultiReservableCurrency = Currencies;
+	type SpotPriceProvider = Omnipool;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
+	type NativeAssetId = NativeCurrencyId;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
@@ -518,7 +520,7 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_fee_asset_for_all_users(mut self, user_and_asset: Vec<(u64, AssetId)>) -> Self {
+	pub fn with_fee_asset(mut self, user_and_asset: Vec<(u64, AssetId)>) -> Self {
 		self.fee_asset_for_all_users = user_and_asset;
 		self
 	}

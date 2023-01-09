@@ -28,12 +28,19 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::FixedU128;
 use test_case::test_case;
 
 #[test]
 fn resume_should_fail_when_called_by_non_owner() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -55,7 +62,13 @@ fn resume_should_fail_when_called_by_non_owner() {
 #[test]
 fn resume_should_schedule_to_next_block_when_next_execution_block_is_not_defined() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -91,7 +104,14 @@ fn resume_should_schedule_to_next_block_when_next_execution_block_is_not_defined
 #[test]
 fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_in_next_block() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(BOB, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -120,7 +140,13 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 #[test_case(500)]
 fn resume_should_fail_when_specified_next_block_is_not_greater_than_current_block(block: BlockNumberFor<Test>) {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -144,7 +170,13 @@ fn resume_should_fail_when_specified_next_block_is_not_greater_than_current_bloc
 #[test]
 fn resume_should_schedule_to_next_block_when_next_execution_block_is_defined() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -181,7 +213,14 @@ fn resume_should_schedule_to_next_block_when_next_execution_block_is_defined() {
 fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_in_next_block_and_next_block_is_specified(
 ) {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(BOB, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -206,7 +245,13 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 #[test]
 fn resume_should_schedule_remove_schedule_from_suspended() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -231,7 +276,13 @@ fn resume_should_reserve_execution_bond() {
 	let total_bond = 3000000;
 	let execution_bond = 1000000;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -267,6 +318,60 @@ fn resume_should_reserve_execution_bond() {
 			);
 
 			assert_eq!(total_bond, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+		});
+}
+
+#[test]
+fn resume_should_reserve_execution_bond_when_nonnative_currency_is_used() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_fee_asset(vec![(ALICE, DAI)])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 5000 * ONE)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+			let total_bond = 6_000_000;
+			let execution_bond = 2_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: DAI,
+					amount: total_bond - execution_bond
+				}
+			);
+
+			assert_eq!(
+				total_bond - execution_bond,
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+			);
+
+			//Act
+			assert_ok!(DCA::resume(Origin::signed(ALICE), schedule_id, Option::None));
+
+			//Assert
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: DAI,
+					amount: total_bond
+				}
+			);
+
+			assert_eq!(total_bond, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
 		});
 }
 
