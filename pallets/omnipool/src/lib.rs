@@ -163,10 +163,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type AssetFee: Get<Permill>;
 
-		/// TVL cap
-		#[pallet::constant]
-		type TVLCap: Get<Balance>;
-
 		/// Minimum trading limit
 		#[pallet::constant]
 		type MinimumTradingLimit: Get<Balance>;
@@ -222,6 +218,10 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
+
+	#[pallet::storage]
+	/// TVL cap
+	pub(super) type TvlCap<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -1312,6 +1312,20 @@ pub mod pallet {
 				Ok(())
 			})
 		}
+		/// Update TVL cap
+		///
+		/// Parameters:
+		/// - `cap`: new tvl cap
+		///
+		/// Emits `AssetWeightCapUpdated` event when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
+		#[transactional]
+		pub fn set_tvl_cap(origin: OriginFor<T>, cap: Balance) -> DispatchResult {
+			T::AddTokenOrigin::ensure_origin(origin)?;
+			TvlCap::<T>::set(cap);
+			Ok(())
+		}
 	}
 
 	#[pallet::hooks]
@@ -1430,7 +1444,7 @@ impl<T: Config> Pallet<T> {
 		let updated_tvl = hydra_dx_math::omnipool::calculate_tvl(current_hub_asset_liquidity, stable_asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		ensure!(updated_tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
+		ensure!(updated_tvl <= TvlCap::<T>::get(), Error::<T>::TVLCapExceeded);
 		Ok(())
 	}
 

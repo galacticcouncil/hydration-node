@@ -68,7 +68,6 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static TVL_CAP: RefCell<Balance> = RefCell::new(u128::MAX);
 }
 
 construct_runtime!(
@@ -158,7 +157,6 @@ parameter_types! {
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
-	pub TVLCap: Balance = TVL_CAP.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -175,7 +173,6 @@ impl Config for Test {
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
 	type NFTHandler = DummyNFT;
-	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
@@ -232,9 +229,6 @@ impl Default for ExtBuilder {
 		});
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = 1u128;
-		});
-		TVL_CAP.with(|v| {
-			*v.borrow_mut() = u128::MAX;
 		});
 
 		Self {
@@ -368,9 +362,6 @@ impl ExtBuilder {
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = self.max_out_ratio;
 		});
-		TVL_CAP.with(|v| {
-			*v.borrow_mut() = self.tvl_cap;
-		});
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self
@@ -383,6 +374,10 @@ impl ExtBuilder {
 		.unwrap();
 
 		let mut r: sp_io::TestExternalities = t.into();
+
+		r.execute_with(|| {
+			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
