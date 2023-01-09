@@ -842,8 +842,6 @@ pub mod pallet {
 
 			Self::set_asset_state(asset_id, new_asset_state);
 
-			Self::ensure_tvl_cap()?;
-
 			Self::deposit_event(Event::LiquidityRemoved {
 				who,
 				position_id,
