@@ -5833,11 +5833,13 @@ dependencies = [
 name = "pallet-dca"
 version = "1.0.2"
 dependencies = [
+ "env_logger",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydra-dx-math 4.9.0",
  "hydradx-traits",
+ "log",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",

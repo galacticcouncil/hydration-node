@@ -116,6 +116,34 @@ impl<AssetId> UserAssetIdAndSpotPrice<AssetId> {
 	}
 }
 
+macro_rules! skip_fail_opt {
+	($opt:expr) => {
+		match $opt {
+			Some(val) => val,
+			None => {
+				log::error!(target: "runtime::dca", "Unexpected error happened while executing schedule.");
+				continue;
+			}
+		}
+	};
+}
+
+macro_rules! skip_fail_res {
+	($res:expr) => {
+		match $res {
+			Ok(val) => val,
+			Err(e) => {
+				log::error!(
+					target: "runtime::dca",
+					"Unexpected error happened while executing schedule, with message: {:?}.",
+					e
+				);
+				continue;
+			}
+		}
+	};
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -148,8 +176,8 @@ pub mod pallet {
 					Some(schedules) => {
 						//TODO: order schedules randomly
 						for schedule_id in schedules {
-							let schedule = Schedules::<T>::get(schedule_id).unwrap();
-							let owner = ScheduleOwnership::<T>::get(schedule_id).unwrap();
+							let schedule = skip_fail_opt!(Schedules::<T>::get(schedule_id));
+							let owner = skip_fail_opt!(ScheduleOwnership::<T>::get(schedule_id));
 							let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
 
 							let trade_result = Self::execute_trade(origin, &schedule.order);
@@ -157,20 +185,26 @@ pub mod pallet {
 							match trade_result {
 								Ok(res) => {
 									let blocknumber_for_schedule =
-										current_blocknumber.checked_add(&schedule.period.into()).unwrap();
+										skip_fail_opt!(current_blocknumber.checked_add(&schedule.period.into()));
 
 									match schedule.recurrence {
 										Recurrence::Fixed(_) => {
 											let remaining_reccurences =
-												Self::decrement_recurrences(schedule_id).unwrap();
+												skip_fail_res!(Self::decrement_recurrences(schedule_id));
 											if !remaining_reccurences.is_zero() {
-												Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id);
+												skip_fail_res!(Self::plan_schedule_for_block(
+													blocknumber_for_schedule,
+													schedule_id
+												));
 											} else {
-												Self::discard_bond(schedule_id, &owner);
+												skip_fail_res!(Self::discard_bond(schedule_id, &owner));
 											}
 										}
 										Recurrence::Perpetual => {
-											Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id);
+											skip_fail_res!(Self::plan_schedule_for_block(
+												blocknumber_for_schedule,
+												schedule_id
+											));
 										}
 									}
 								}

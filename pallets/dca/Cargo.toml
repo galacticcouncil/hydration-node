@@ -9,6 +9,7 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-exe
 
 [dependencies]
 smallvec = "1.9.0"
+log = { version = "0.4.17", default-features = false }
 
 # parity
 codec = { package = "parity-scale-codec", version = "3.1.5", features = ["derive", "max-encoded-len"], default-features = false }
@@ -50,6 +51,8 @@ proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "5329d685ee1cabc855e8c185c54cc3f798902e93", default-features = false }
 test-case = "2.2.2"
+env_logger = "*"
+
 [features]
 default = ['std']
 runtime-benchmarks = [
