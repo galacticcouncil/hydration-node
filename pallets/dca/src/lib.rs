@@ -215,6 +215,8 @@ pub mod pallet {
 								_ => {
 									Suspended::<T>::insert(schedule_id, ());
 
+									let bond = exec_or_skip_if_none!(Bonds::<T>::get(schedule_id));
+
 									Self::deposit_event(Event::Suspended {
 										id: schedule_id,
 										who: owner.clone(),
@@ -329,6 +331,8 @@ pub mod pallet {
 		NoPlannedExecutionFoundOnBlock,
 		///The schedule must be suspended when there is not execution block specified by the using during termination of a shcedule
 		ScheduleMustBeSuspended,
+		///Error that should not really happen only in case of invalid state of the schedule storage entries.
+		CalculatingSpotPriceError,
 	}
 
 	/// Id sequencer for schedules
@@ -658,15 +662,10 @@ where
 
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
 
-		let total_bond_in_user_currency = if user_asset_and_price.asset_id == T::NativeAssetId::get() {
-			total_bond_in_native_currency
-		} else {
-			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), user_asset_and_price.asset_id)
-				.ok_or(Error::<T>::InvalidState)?; //TODO: use normal error
-			price
-				.checked_mul_int(total_bond_in_native_currency)
-				.ok_or(ArithmeticError::Overflow)?
-		};
+		let total_bond_in_user_currency = Self::convert_to_user_currency_if_asset_is_not_native(
+			user_asset_and_price.asset_id,
+			total_bond_in_native_currency,
+		)?;
 
 		let bond = Bond {
 			asset: user_asset_and_price.asset_id,
@@ -742,15 +741,8 @@ where
 	fn get_execution_bond_in_user_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
 		let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
 
-		let execution_bond_in_user_currency = if bond_asset == T::NativeAssetId::get() {
-			execution_bond_in_native_currency
-		} else {
-			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), bond_asset)
-				.ok_or(Error::<T>::InvalidState)?; //TODO: use normal error
-			price
-				.checked_mul_int(execution_bond_in_native_currency)
-				.ok_or(ArithmeticError::Overflow)?
-		};
+		let execution_bond_in_user_currency =
+			Self::convert_to_user_currency_if_asset_is_not_native(bond_asset, execution_bond_in_native_currency)?;
 
 		Ok(execution_bond_in_user_currency)
 	}
@@ -763,6 +755,23 @@ where
 			user_currency_and_spot_price.0,
 			user_currency_and_spot_price.1,
 		))
+	}
+
+	fn convert_to_user_currency_if_asset_is_not_native(
+		asset_id: T::Asset,
+		total_bond_in_native_currency: u128,
+	) -> Result<u128, DispatchError> {
+		let total_bond_in_user_currency = if asset_id == T::NativeAssetId::get() {
+			total_bond_in_native_currency
+		} else {
+			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), asset_id)
+				.ok_or(Error::<T>::CalculatingSpotPriceError)?;
+			price
+				.checked_mul_int(total_bond_in_native_currency)
+				.ok_or(ArithmeticError::Overflow)?
+		};
+
+		Ok(total_bond_in_user_currency)
 	}
 
 	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
