@@ -54,6 +54,11 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		let stable_price = FixedU128::from_inner(45_000_000_000);
 		hydradx_runtime::Omnipool::protocol_account();
 
+		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+			hydradx_runtime::Origin::root(),
+			222_222_000_000_000_000_000_000,
+		));
+
 		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
 			hydradx_runtime::Origin::root(),
 			stable_price,

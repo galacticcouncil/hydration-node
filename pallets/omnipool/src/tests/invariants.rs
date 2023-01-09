@@ -934,7 +934,7 @@ proptest! {
 				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 
 				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
-				assert!( global_tvl <= <Test as Config>::TVLCap::get());
+				assert!( global_tvl <= TvlCap::<Test>::get());
 			});
 	}
 }
@@ -1031,7 +1031,7 @@ proptest! {
 				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 
 				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
-				assert!( global_tvl <= <Test as Config>::TVLCap::get());
+				assert!( global_tvl <= TvlCap::<Test>::get());
 			});
 	}
 }
