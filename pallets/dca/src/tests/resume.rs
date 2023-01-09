@@ -251,7 +251,7 @@ fn resume_should_reserve_execution_bond() {
 
 			assert_eq!(
 				total_bond - execution_bond,
-				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 
 			//Act
@@ -266,7 +266,7 @@ fn resume_should_reserve_execution_bond() {
 				}
 			);
 
-			assert_eq!(total_bond, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_bond, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 		});
 }
 

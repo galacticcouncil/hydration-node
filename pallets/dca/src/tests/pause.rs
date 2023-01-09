@@ -28,6 +28,7 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::FixedU128;
 
 #[test]
 fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
@@ -199,7 +200,7 @@ fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency(
 
 			assert_eq!(
 				storage_and_execution_bond,
-				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 
 			//Act
@@ -218,7 +219,7 @@ fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency(
 
 			assert_eq!(
 				storage_and_execution_bond - execution_bond,
-				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 		});
 }
@@ -247,7 +248,7 @@ fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_curren
 
 			assert_eq!(
 				storage_and_execution_bond,
-				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 
 			//Act
@@ -266,7 +267,7 @@ fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_curren
 
 			assert_eq!(
 				storage_and_execution_bond - execution_bond,
-				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 		});
 }
@@ -275,8 +276,7 @@ fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_curren
 #[ignore] //TODO: we have to handle this scenario too
 fn pause_should_unreserve_properly_when_user_changes_set_currency_after_scheduling() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, DAI, 10000 * ONE)])
-		.with_fee_asset_for_all_users(vec![(ALICE, DAI)])
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -286,37 +286,40 @@ fn pause_should_unreserve_properly_when_user_changes_set_currency_after_scheduli
 
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			let storage_and_execution_bond = 1_950_000;
+			let storage_and_execution_bond = 3_000_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
-					asset: DAI,
+					asset: HDX,
 					amount: storage_and_execution_bond
 				}
 			);
 
 			assert_eq!(
 				storage_and_execution_bond,
-				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 
 			//Act
+			MultiTransactionPayment::add_currency(Origin::root(), DAI, FixedU128::from_float(0.80));
+			MultiTransactionPayment::set_currency(Origin::signed(ALICE), DAI);
+
 			let schedule_id = 1;
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
 			//Assert
-			let execution_bond = 650_000;
+			let execution_bond = 600_000;
 			assert_eq!(
 				DCA::bond(schedule_id).unwrap(),
 				Bond {
-					asset: DAI,
+					asset: HDX,
 					amount: storage_and_execution_bond - execution_bond,
 				}
 			);
 
 			assert_eq!(
 				storage_and_execution_bond - execution_bond,
-				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 		});
 }

@@ -62,14 +62,14 @@ fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_balance!(ALICE, BTC, 0);
-			assert_eq!(3000000, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(3000000, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 
 			//Act
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
-			assert_eq!(0, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 			assert!(DCA::bond(1).is_none());
 		});
 }
@@ -107,14 +107,14 @@ fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence_when_nonna
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_balance!(ALICE, BTC, 0);
-			assert_eq!(1800000, Tokens::reserved_balance(DAI.into(), &ALICE.into()));
+			assert_eq!(1800000, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
 
 			//Act
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
-			assert_eq!(0, Tokens::reserved_balance(DAI.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(DAI.into(), &ALICE.into()));
 			assert!(DCA::bond(1).is_none());
 		});
 }
@@ -150,14 +150,14 @@ fn buy_dca_schedule_should_be_ongoing_with_perpetual_recurrence() {
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_balance!(ALICE, BTC, 0);
-			assert_eq!(3000000, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(3000000, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 
 			//Act
 			proceed_to_blocknumber(501, 901);
 
 			//Assert
 			assert_balance!(ALICE, BTC, 5 * ONE);
-			assert_eq!(3000000, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(3000000, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 			assert!(DCA::bond(1).is_some());
 		});
 }

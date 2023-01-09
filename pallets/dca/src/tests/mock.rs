@@ -298,7 +298,7 @@ impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
-	type MultiReservableCurrency = Tokens;
+	type MultiReservableCurrency = Currencies;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
@@ -577,6 +577,17 @@ impl ExtBuilder {
 		FEE_ASSET.with(|v| {
 			*v.borrow_mut() = self.fee_asset_for_all_users;
 		});
+
+		pallet_balances::GenesisConfig::<Test> {
+			balances: self
+				.endowed_accounts
+				.iter()
+				.filter(|a| a.1 == HDX)
+				.flat_map(|(x, asset, amount)| vec![(*x, *amount)])
+				.collect(),
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self

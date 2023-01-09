@@ -72,7 +72,7 @@ fn terminate_should_discard_complete_bond() {
 
 			//Assert
 			assert!(DCA::bond(schedule_id).is_none());
-			assert_eq!(0, Tokens::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 		});
 }
 

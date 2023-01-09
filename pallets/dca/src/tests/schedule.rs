@@ -189,7 +189,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 
 			assert_eq!(
 				amount_to_reserve_as_bond,
-				Tokens::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 		});
 }
@@ -221,7 +221,7 @@ fn schedule_creation_should_store_bond_when_user_has_set_currency_with_nonnative
 
 			assert_eq!(
 				amount_to_reserve_as_bond,
-				Tokens::reserved_balance(DAI.into(), &ALICE.into())
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
 			);
 		});
 }
