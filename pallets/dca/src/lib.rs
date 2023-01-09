@@ -108,17 +108,6 @@ pub struct Bond<AssetId> {
 	pub amount: Balance,
 }
 
-pub struct UserAssetIdAndSpotPrice<AssetId> {
-	pub asset_id: AssetId,
-	pub spot_price: Option<FixedU128>,
-}
-
-impl<AssetId> UserAssetIdAndSpotPrice<AssetId> {
-	pub fn new(asset_id: AssetId, spot_price: Option<FixedU128>) -> UserAssetIdAndSpotPrice<AssetId> {
-		UserAssetIdAndSpotPrice { asset_id, spot_price }
-	}
-}
-
 macro_rules! exec_or_skip_if_none {
 	($opt:expr) => {
 		match $opt {
@@ -658,17 +647,13 @@ where
 	}
 
 	fn calculate_and_store_bond(who: T::AccountId, next_schedule_id: ScheduleId) -> DispatchResult {
-		let user_asset_and_price = Self::get_user_currency_and_spot_price(&who)?;
-
+		let user_fee_currency = Self::get_user_fee_currency(&who)?;
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
-
-		let total_bond_in_user_currency = Self::convert_to_user_currency_if_asset_is_not_native(
-			user_asset_and_price.asset_id,
-			total_bond_in_native_currency,
-		)?;
+		let total_bond_in_user_currency =
+			Self::convert_to_user_currency_if_asset_is_not_native(user_fee_currency, total_bond_in_native_currency)?;
 
 		let bond = Bond {
-			asset: user_asset_and_price.asset_id,
+			asset: user_fee_currency,
 			amount: total_bond_in_user_currency,
 		};
 
@@ -747,14 +732,9 @@ where
 		Ok(execution_bond_in_user_currency)
 	}
 
-	fn get_user_currency_and_spot_price(
-		who: &T::AccountId,
-	) -> Result<UserAssetIdAndSpotPrice<T::Asset>, DispatchError> {
+	fn get_user_fee_currency(who: &T::AccountId) -> Result<T::Asset, DispatchError> {
 		let user_currency_and_spot_price = T::AccountCurrencyAndPriceProvider::get_currency_and_price(&who)?;
-		Ok(UserAssetIdAndSpotPrice::new(
-			user_currency_and_spot_price.0,
-			user_currency_and_spot_price.1,
-		))
+		Ok(user_currency_and_spot_price.0)
 	}
 
 	fn convert_to_user_currency_if_asset_is_not_native(
