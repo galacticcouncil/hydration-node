@@ -164,7 +164,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Tokens;
-	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
