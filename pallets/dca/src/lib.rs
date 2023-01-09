@@ -204,13 +204,12 @@ pub mod pallet {
 								_ => {
 									Suspended::<T>::insert(schedule_id, ());
 
-									let bond = exec_or_skip_if_none!(Bonds::<T>::get(schedule_id));
+									exec_or_skip_if_err!(Self::unreserve_excecution_bond(schedule_id, &owner));
 
 									Self::deposit_event(Event::Suspended {
 										id: schedule_id,
 										who: owner.clone(),
 									});
-									//TODO: slash execution bond
 								}
 							}
 						}
