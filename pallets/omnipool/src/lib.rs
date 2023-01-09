@@ -297,6 +297,9 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
+
+		/// TVL cap has been updated.
+		TVLCapUpdated { cap: Balance },
 	}
 
 	#[pallet::error]
@@ -1317,13 +1320,14 @@ pub mod pallet {
 		/// Parameters:
 		/// - `cap`: new tvl cap
 		///
-		/// Emits `AssetWeightCapUpdated` event when successful.
+		/// Emits `TVLCapUpdated` event when successful.
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
 		#[transactional]
 		pub fn set_tvl_cap(origin: OriginFor<T>, cap: Balance) -> DispatchResult {
 			T::AddTokenOrigin::ensure_origin(origin)?;
 			TvlCap::<T>::set(cap);
+			Self::deposit_event(Event::TVLCapUpdated { cap });
 			Ok(())
 		}
 	}
