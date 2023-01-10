@@ -126,7 +126,6 @@ proptest! {
 				let right_4 = q_4.checked_mul_into(&b_4).unwrap().checked_div_inner(&s_4).unwrap();
 				let right = right_3.checked_add(right_4).unwrap();
 
-				#[cfg(feature = "all-invariants")]
 				assert_invariant_eq!(left, right);
 			});
 	}

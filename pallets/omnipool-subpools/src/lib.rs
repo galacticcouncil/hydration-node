@@ -164,15 +164,16 @@ pub mod pallet {
 				.hub_reserve
 				.checked_add(asset_state_b.hub_reserve)
 				.ok_or(ArithmeticError::Overflow)?;
+
 			let protocol_shares = recalculate_protocol_shares(
 				asset_state_a.hub_reserve,
 				asset_state_a.protocol_shares,
 				asset_state_a.shares,
 			)?
 			.checked_add(recalculate_protocol_shares(
-				asset_state_a.hub_reserve,
-				asset_state_a.protocol_shares,
-				asset_state_a.shares,
+				asset_state_b.hub_reserve,
+				asset_state_b.protocol_shares,
+				asset_state_b.shares,
 			)?)
 			.ok_or(ArithmeticError::Overflow)?;
 
