@@ -304,6 +304,7 @@ impl Config for Test {
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
+	type SlashedBondReceiver = TreasuryAccount;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};

@@ -204,7 +204,7 @@ pub mod pallet {
 								_ => {
 									Suspended::<T>::insert(schedule_id, ());
 
-									exec_or_skip_if_err!(Self::unreserve_excecution_bond(schedule_id, &owner));
+									exec_or_skip_if_err!(Self::slash_execution_bond(schedule_id, &owner));
 
 									Self::deposit_event(Event::Suspended {
 										id: schedule_id,
@@ -265,6 +265,9 @@ pub mod pallet {
 		/// Native Asset
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::Asset>;
+
+		#[pallet::constant]
+		type SlashedBondReceiver: Get<Self::AccountId>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -682,25 +685,42 @@ where
 		Ok(total_bond_in_native_currency)
 	}
 
-	fn unreserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
-			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
+	fn slash_execution_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
+		let execution_bond = Self::unreserve_excecution_bond(schedule_id, &owner)?;
 
-			let execution_bond_in_user_currency = Self::get_execution_bond_in_user_currency(&who, bond.asset)?;
-
-			bond.amount = bond
-				.amount
-				.checked_sub(execution_bond_in_user_currency)
-				.ok_or(ArithmeticError::Underflow)?;
-
-			//TODO: the only case when the storage bond won't be reserved after this is if the total bond before this is less than the current storage bond
-
-			T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
-
-			Ok(())
-		})?;
+		T::Currency::transfer(
+			execution_bond.asset.into(),
+			&owner,
+			&T::SlashedBondReceiver::get(),
+			execution_bond.amount,
+		)?;
 
 		Ok(())
+	}
+
+	fn unreserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> Result<Bond<T::Asset>, DispatchError> {
+		let execution_bond =
+			Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> Result<Bond<T::Asset>, DispatchError> {
+				let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
+
+				let execution_bond_in_user_currency = Self::get_execution_bond_in_user_currency(&who, bond.asset)?;
+
+				bond.amount = bond
+					.amount
+					.checked_sub(execution_bond_in_user_currency)
+					.ok_or(ArithmeticError::Underflow)?;
+
+				//TODO: the only case when the storage bond won't be reserved after this is if the total bond before this is less than the current storage bond
+
+				T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
+
+				Ok::<Bond<T::Asset>, DispatchError>(Bond {
+					amount: execution_bond_in_user_currency,
+					asset: bond.asset,
+				})
+			})?;
+
+		Ok(execution_bond)
 	}
 
 	fn reserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {

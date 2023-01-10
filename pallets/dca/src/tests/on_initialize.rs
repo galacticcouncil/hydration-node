@@ -456,7 +456,7 @@ fn user_bond_should_be_slashed_when_not_enough_balance_for_schedule_execution() 
 				Currencies::reserved_balance(HDX.into(), &ALICE.into())
 			);
 
-			//TODO assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
+			assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
 		});
 }
 
