@@ -26,6 +26,8 @@ use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
 use orml_traits::MultiCurrencyExtended;
 
+const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
+
 benchmarks! {
 	 where_clause {  where T::AssetId: From<u32>,
 		T::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
@@ -39,6 +41,8 @@ benchmarks! {
 		let native_price: FixedU128= FixedU128::from(1);
 
 		let acc = crate::Pallet::<T>::protocol_account();
+
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
@@ -56,6 +60,8 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 		let acc = crate::Pallet::<T>::protocol_account();
+
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
@@ -88,6 +94,8 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 		let acc = crate::Pallet::<T>::protocol_account();
+
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
@@ -128,6 +136,8 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 		let acc = crate::Pallet::<T>::protocol_account();
+
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
@@ -180,6 +190,8 @@ benchmarks! {
 		let native_price: FixedU128= FixedU128::from(1);
 		let acc = crate::Pallet::<T>::protocol_account();
 
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
+
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
@@ -231,6 +243,8 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 		let acc = crate::Pallet::<T>::protocol_account();
+
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
@@ -285,6 +299,8 @@ benchmarks! {
 
 		let acc = crate::Pallet::<T>::protocol_account();
 
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
+
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
@@ -316,6 +332,8 @@ benchmarks! {
 		let stable_price: FixedU128= FixedU128::from((1,2));
 		let native_price: FixedU128= FixedU128::from(1);
 		let acc = crate::Pallet::<T>::protocol_account();
+
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
@@ -359,6 +377,8 @@ benchmarks! {
 		let native_price: FixedU128 = FixedU128::from(1);
 
 		let acc = crate::Pallet::<T>::protocol_account();
+
+		crate::Pallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
 		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;

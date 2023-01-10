@@ -15,6 +15,7 @@ pub(crate) mod mock;
 mod positions;
 mod refund;
 mod tradability;
+mod tvl;
 mod types;
 mod verification;
 

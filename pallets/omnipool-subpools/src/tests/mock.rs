@@ -209,7 +209,7 @@ impl pallet_omnipool::Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Currency = Tokens;
-	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
@@ -217,7 +217,6 @@ impl pallet_omnipool::Config for Test {
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
 	type NFTHandler = DummyNFT;
-	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<AssetId>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
@@ -257,6 +256,7 @@ pub struct ExtBuilder {
 	min_trade_limit: u128,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
+	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
@@ -307,6 +307,7 @@ impl Default for ExtBuilder {
 			min_liquidity: 0,
 			min_trade_limit: 0,
 			init_pool: None,
+			tvl_cap: u128::MAX,
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
@@ -391,6 +392,10 @@ impl ExtBuilder {
 		.unwrap();
 
 		let mut r: sp_io::TestExternalities = t.into();
+
+		r.execute_with(|| {
+			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {

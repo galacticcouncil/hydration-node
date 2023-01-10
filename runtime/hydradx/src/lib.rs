@@ -52,10 +52,9 @@ use frame_support::{
 		ConstantMultiplier, DispatchClass, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
-use hydradx_traits::pools::SpotPriceProvider;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
-use primitives::{CollectionId, ItemId, Price};
+use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
@@ -98,7 +97,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 119,
+	spec_version: 125,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -186,6 +185,20 @@ impl Contains<Call> for CallFilter {
 		if pallet_transaction_pause::PausedTransactionFilter::<Runtime>::contains(call) {
 			// if paused, dont allow!
 			return false;
+		}
+
+		// filter transfers of LRNA to the omnipool account
+		if let Call::Tokens(orml_tokens::Call::transfer { dest, currency_id, .. })
+		| Call::Tokens(orml_tokens::Call::transfer_keep_alive { dest, currency_id, .. })
+		| Call::Tokens(orml_tokens::Call::transfer_all { dest, currency_id, .. })
+		| Call::Currencies(pallet_currencies::Call::transfer { dest, currency_id, .. }) = call
+		{
+			// Lookup::lookup() is not necessary thanks to IdentityLookup
+			if dest == &Omnipool::protocol_account()
+				&& *currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
+			{
+				return false;
+			}
 		}
 
 		match call {
@@ -673,20 +686,6 @@ impl pallet_claims::Config for Runtime {
 
 impl pallet_genesis_history::Config for Runtime {}
 
-pub struct NoSpotPriceProvider;
-
-impl SpotPriceProvider<AssetId> for NoSpotPriceProvider {
-	type Price = Price;
-
-	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		false
-	}
-
-	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
-		None
-	}
-}
-
 parameter_types! {
 	pub TreasuryAccount: AccountId = Treasury::account_id();
 }
@@ -695,7 +694,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Event = Event;
 	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
-	type SpotPriceProvider = NoSpotPriceProvider;
+	type SpotPriceProvider = Omnipool;
 	type WeightInfo = weights::transaction_multi_payment::HydraWeight<Runtime>;
 	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
@@ -720,7 +719,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
 	type NativeAssetId = NativeAssetId;
-	type WeightInfo = weights::asset_registry::HydraWeight<Runtime>;
+	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -807,7 +806,6 @@ parameter_types! {
 	pub const StableAssetId: AssetId = 2;
 	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
 	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
-	pub const TVLCap : Balance = 222_222_000_000_000_000_000_000u128;
 	pub const MinTradingLimit : Balance = 1_000_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
@@ -819,7 +817,7 @@ impl pallet_omnipool::Config for Runtime {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Currency = Currencies;
-	type AddTokenOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
@@ -827,7 +825,6 @@ impl pallet_omnipool::Config for Runtime {
 	type StableCoinAssetId = StableAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
-	type TVLCap = TVLCap;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
@@ -836,13 +833,13 @@ impl pallet_omnipool::Config for Runtime {
 	type CollectionId = CollectionId;
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
-	type WeightInfo = ();
+	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
 	type Event = Event;
 	type UpdateOrigin = SuperMajorityTechCommittee;
-	type WeightInfo = ();
+	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -928,6 +925,7 @@ pub type SignedExtra = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_transaction_multi_payment::CurrencyBalanceCheck<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
