@@ -206,7 +206,7 @@ fn protocol_share_calculation_should_work_when_protocol_has_shares() {
 					reserve: 4615 * ONE,
 					hub_reserve: 4615 * ONE,
 					shares: 4615 * ONE,
-					protocol_shares: 130 * ONE,
+					protocol_shares: 65000000000000,
 					cap: 1_000_000_000_000_000_00,
 					tradable: Tradability::default(),
 				}

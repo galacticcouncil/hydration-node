@@ -550,6 +550,18 @@ macro_rules! create_subpool {
 			Permill::from_float(0.0),
 		));
 	};
+	($pool_id:expr, $asset_a:expr, $asset_b:expr, $wc:expr) => {
+		assert_ok!(OmnipoolSubpools::create_subpool(
+			Origin::root(),
+			$pool_id,
+			$asset_a,
+			$asset_b,
+			Permill::from_percent($wc),
+			10u16,
+			Permill::from_float(0.0),
+			Permill::from_float(0.0),
+		));
+	};
 	($pool_id:expr, $asset_a:expr, $asset_b:expr, $trade_fee:expr, $withdraw_fee:expr) => {
 		assert_ok!(OmnipoolSubpools::create_subpool(
 			Origin::root(),
