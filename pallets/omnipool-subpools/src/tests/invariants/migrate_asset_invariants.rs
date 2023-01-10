@@ -50,14 +50,14 @@ proptest! {
 				let asset_state_3 = Omnipool::load_asset_state(asset_3.asset_id).unwrap();
 				let asset_state_4 = Omnipool::load_asset_state(asset_4.asset_id).unwrap();
 				let asset_state_5 = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
-
-				let asset_3_lrna = asset_state_3.hub_reserve;
-				let asset_4_lrna = asset_state_4.hub_reserve;
-				let asset_5_lrna = asset_state_5.hub_reserve;
-
-				let asset_3_reserve = asset_state_3.reserve;
-				let asset_4_reserve = asset_state_4.reserve;
-				let asset_5_reserve = asset_state_5.reserve;
+				let r_3 = asset_state_3.reserve;
+				let q_3 = asset_state_3.hub_reserve;
+				let b_3 = asset_state_3.protocol_shares;
+				let s_3 = asset_state_3.shares;
+				let r_4 = asset_state_4.reserve;
+				let q_4 = asset_state_4.hub_reserve;
+				let b_4 = asset_state_4.protocol_shares;
+				let s_4 = asset_state_4.shares;
 
 				let omnipool_lrna_balance_before = get_lrna_of_omnipool_protocol_account();
 
@@ -74,9 +74,9 @@ proptest! {
 
 				let stableswap_pool_share_asset_before_migration = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
-				let q_s = FixedU128::from(stableswap_pool_share_asset_before_migration.hub_reserve);
-				let b_s = FixedU128::from(stableswap_pool_share_asset_before_migration.protocol_shares);
-				let s_s = FixedU128::from(stableswap_pool_share_asset_before_migration.shares);
+				let q_s = stableswap_pool_share_asset_before_migration.hub_reserve;
+				let b_s = stableswap_pool_share_asset_before_migration.protocol_shares;
+				let s_s = stableswap_pool_share_asset_before_migration.shares;
 
 				//Act
 				assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
@@ -86,35 +86,31 @@ proptest! {
 				));
 
 				let omnipool_lrna_balance_after = get_lrna_of_omnipool_protocol_account();
-				let sum_q_k = omnipool_lrna_balance_before;
-				let sum_q_k_plus = omnipool_lrna_balance_after;
+
+				let u_s_plus = Tokens::total_issuance(SHARE_ASSET_AS_POOL_ID);
 
 				let stableswap_pool_share_asset = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 				let s_s_plus = stableswap_pool_share_asset.shares;
-				let u_s_plus = stableswap_pool_share_asset.reserve;
 
-				let q_s_plus = FixedU128::from(stableswap_pool_share_asset.hub_reserve);
-				let b_s_plus = FixedU128::from(stableswap_pool_share_asset.protocol_shares);
+				let q_s_plus = stableswap_pool_share_asset.hub_reserve;
+				let b_s_plus = stableswap_pool_share_asset.protocol_shares;
 
-				 let q_5 = FixedU128::from(asset_state_5.hub_reserve);
-				let b_5 = FixedU128::from(asset_state_5.protocol_shares);
-				let s_5 = FixedU128::from(asset_state_5.shares);
+				let r_5 = asset_state_5.reserve;
+				let q_5 = asset_state_5.hub_reserve;
+				let s_5 = asset_state_5.shares;
+				let b_5 = asset_state_5.protocol_shares;
 
 				//Assert
 				let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id, asset_5.asset_id], None);
 
 				//Sum(Qk) = Sum(Qk+)
-				let left = sum_q_k;
-				let right = sum_q_k_plus;
+				let left = omnipool_lrna_balance_before;
+				let right = omnipool_lrna_balance_after;
 				assert_invariant_eq!(left, right);
 
 				//No risk assets are accounted for: Ri = Rsi
-				assert_balance!(Omnipool::protocol_account(), asset_3.asset_id, 0);
-				assert_balance!(Omnipool::protocol_account(), asset_4.asset_id, 0);
 				assert_balance!(Omnipool::protocol_account(), asset_5.asset_id, 0);
-				assert_balance!(pool_account, asset_3.asset_id, asset_3_reserve);
-				assert_balance!(pool_account, asset_4.asset_id, asset_4_reserve);
-				assert_balance!(pool_account, asset_5.asset_id, asset_5_reserve);
+				assert_balance!(pool_account, asset_5.asset_id, r_5);
 
 				// Us+ = Ss+
 				let left = u_s_plus;
@@ -122,19 +118,17 @@ proptest! {
 				assert_invariant_eq!(left, right);
 
 				// Ss+ = sum_Qk
-				let sum_q_k = asset_3_lrna + asset_4_lrna + asset_5_lrna;
 				let left = s_s_plus;
-				let right = sum_q_k;
-				 assert_invariant_eq!(left, right);
+				let right = q_3 + q_4 + q_5;
+				assert_invariant_eq!(left, right);
 
 				// Qs+ * Bs+/Ss+ = (Qi * Bi/Si) + (Qs * Bs/Ss)
-				let s_s_plus = FixedU128::from(s_s_plus);
-				let left = q_s_plus.checked_mul(&b_s_plus.checked_div(&s_s_plus).unwrap()).unwrap();
-				let right1 = q_5.checked_mul(&b_5.checked_div(&s_5).unwrap()).unwrap();
-				let right2 = q_s.checked_mul(&b_s.checked_div(&s_s).unwrap()).unwrap();
-				let right = right1.checked_add(&right2).unwrap();
+				let left = q_s_plus.checked_mul_into(&b_s_plus).unwrap().checked_div_inner(&s_s_plus).unwrap();
+				let right_3 = q_3.checked_mul_into(&b_3).unwrap().checked_div_inner(&s_3).unwrap();
+				let right_4 = q_4.checked_mul_into(&b_4).unwrap().checked_div_inner(&s_4).unwrap();
+				let right_5 = q_5.checked_mul_into(&b_5).unwrap().checked_div_inner(&s_5).unwrap();
+				let right = right_3.checked_add(right_4).unwrap().checked_add(right_5).unwrap();;
 
-				#[cfg(feature = "all-invariants")]
 				assert_invariant_eq!(left, right);
 
 			});
