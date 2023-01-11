@@ -28,6 +28,8 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "dc7457853729788d4b882c33308dfcd5e3434b6b", default-features = false }
 
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "e0095b4302ab7d0fef11066c88de8c70e7b4d337", default-features = false }
+
 [dev-dependencies]
 test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "dc7457853729788d4b882c33308dfcd5e3434b6b", default-features = false }
 pretty_assertions = "1.2.1"

@@ -22,7 +22,7 @@ use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
 
 pub mod weights;
@@ -174,7 +174,9 @@ pub mod pallet {
 			+ Default
 			+ CheckedAdd
 			+ CheckedSub
-			+ AtLeast32BitUnsigned;
+			+ AtLeast32BitUnsigned
+			+ Into<u128>
+			+ From<u128>;
 
 		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
@@ -428,16 +430,13 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	pub fn calculate_limit(liquidity: T::Balance, limit: (u32, u32)) -> Result<T::Balance, DispatchError> {
+	pub fn calculate_limit(amount: T::Balance, limit: (u32, u32)) -> Result<T::Balance, DispatchError> {
 		let numerator = limit.0;
 		let denominator = limit.1;
 
-		// TODO: use u256
-		liquidity
-			.checked_mul(&T::Balance::from(numerator))
-			.ok_or(ArithmeticError::Overflow)?
-			.checked_div(&T::Balance::from(denominator))
-			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
+		hydra_dx_math::fee::multiply_rational(numerator.into(), denominator.into(), amount.into())
+			.ok_or_else(|| ArithmeticError::Overflow.into())
+			.map(|v| v.into())
 	}
 }
 

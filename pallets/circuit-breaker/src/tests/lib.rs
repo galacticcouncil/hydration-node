@@ -111,12 +111,15 @@ fn trade_volume_storage_should_be_cleared_at_the_end_of_block() {
 
 #[test]
 fn trade_volume_limit_calculation_throws_error_when_overflow_happens() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_noop!(
-			CircuitBreaker::calculate_and_store_trade_limit(HDX, <Test as Config>::Balance::MAX),
-			ArithmeticError::Overflow
-		);
-	});
+	ExtBuilder::default()
+		.with_max_trade_volume_limit_per_block((2, 1))
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				CircuitBreaker::calculate_and_store_trade_limit(HDX, <Test as Config>::Balance::MAX),
+				ArithmeticError::Overflow
+			);
+		});
 }
 
 #[test]
@@ -451,12 +454,15 @@ fn liquidity_storage_should_be_cleared_at_the_end_of_block() {
 
 #[test]
 fn liquidity_limit_calculation_throws_error_when_overflow_happens() {
-	ExtBuilder::default().build().execute_with(|| {
-		assert_noop!(
-			CircuitBreaker::calculate_and_store_liquidity_limit(HDX, <Test as Config>::Balance::MAX),
-			ArithmeticError::Overflow
-		);
-	});
+	ExtBuilder::default()
+		.with_max_liquidity_limit_per_block(Some((2, 1)))
+		.build()
+		.execute_with(|| {
+			assert_noop!(
+				CircuitBreaker::calculate_and_store_liquidity_limit(HDX, <Test as Config>::Balance::MAX),
+				ArithmeticError::Overflow
+			);
+		});
 }
 
 #[test]
