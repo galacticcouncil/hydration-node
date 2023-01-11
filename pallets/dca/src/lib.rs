@@ -40,6 +40,7 @@ use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::vec::Vec;
+use std::cmp::Ordering;
 
 #[cfg(test)]
 mod tests;
@@ -699,26 +700,36 @@ where
 	}
 
 	fn unreserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> Result<Bond<T::Asset>, DispatchError> {
-		let execution_bond =
-			Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> Result<Bond<T::Asset>, DispatchError> {
-				let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
+		let execution_bond = Bonds::<T>::try_mutate(schedule_id, |maybe_bond| {
+			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
 
-				let execution_bond_in_user_currency = Self::get_execution_bond_in_user_currency(&who, bond.asset)?;
+			let storage_bond_in_user_currency = Self::get_storage_bond_in_user_currency(&who, bond.asset)?;
+
+			if bond.amount <= storage_bond_in_user_currency {
+				return Ok::<Bond<T::Asset>, DispatchError>(Bond {
+					//TODO: return an option
+					amount: 0,
+					asset: bond.asset,
+				});
+			} else {
+				let to_be_extracted_amount = bond
+					.amount
+					.checked_sub(storage_bond_in_user_currency)
+					.ok_or(ArithmeticError::Underflow)?;
 
 				bond.amount = bond
 					.amount
-					.checked_sub(execution_bond_in_user_currency)
+					.checked_sub(to_be_extracted_amount)
 					.ok_or(ArithmeticError::Underflow)?;
 
-				//TODO: the only case when the storage bond won't be reserved after this is if the total bond before this is less than the current storage bond
+				T::MultiReservableCurrency::unreserve(bond.asset, &who, to_be_extracted_amount);
 
-				T::MultiReservableCurrency::unreserve(bond.asset, &who, execution_bond_in_user_currency);
-
-				Ok::<Bond<T::Asset>, DispatchError>(Bond {
-					amount: execution_bond_in_user_currency,
+				return Ok::<Bond<T::Asset>, DispatchError>(Bond {
+					amount: to_be_extracted_amount,
 					asset: bond.asset,
-				})
-			})?;
+				});
+			};
+		})?;
 
 		Ok(execution_bond)
 	}
@@ -749,6 +760,15 @@ where
 			Self::convert_to_user_currency_if_asset_is_not_native(bond_asset, execution_bond_in_native_currency)?;
 
 		Ok(execution_bond_in_user_currency)
+	}
+
+	fn get_storage_bond_in_user_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
+		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
+
+		let storage_bond_in_user_currency =
+			Self::convert_to_user_currency_if_asset_is_not_native(bond_asset, storage_bond_in_native_currency)?;
+
+		Ok(storage_bond_in_user_currency)
 	}
 
 	fn get_user_fee_currency(who: &T::AccountId) -> Result<T::Asset, DispatchError> {
