@@ -1,3 +1,25 @@
+// Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// 	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! # Omnipool-subpools pallet
+//!
+//! Omnipool subpool support implementation
+//!
+//!
+//! TDB
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
 
@@ -985,7 +1007,6 @@ where
 			*result.isopool.asset_out.delta_reserve,
 		)?;
 
-		//TODO: VERIFY only this update subpool share state in omnipool. - might need to burn or mint some shares!
 		<T as pallet_omnipool::Config>::Currency::deposit(
 			subpool_id_in.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -1081,8 +1102,6 @@ where
 			*result.subpool.amount,
 		)?;
 
-		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
-		// TODO: part of omnipool pallet ?
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -1157,7 +1176,6 @@ where
 			"Returned amount is not equal to amount_in"
 		);
 
-		//TODO: VERIFY is this delta_hub_reserve to tansfer ??! and burn the delta_reserve?
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
@@ -1171,7 +1189,6 @@ where
 			*result.subpool.amount,
 		)?;
 
-		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -1261,7 +1278,6 @@ where
 			*result.isopool.asset_out.delta_reserve,
 		)?;
 
-		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
 		<T as pallet_omnipool::Config>::Currency::deposit(
 			subpool_id_in.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -1357,7 +1373,6 @@ where
 			*result.subpool.amount,
 		)?;
 
-		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -1447,9 +1462,6 @@ where
 			*result.subpool.amount,
 		)?;
 
-		//TODO: update subpool share state in omnipool. - might need to burn or mint some shares!
-		//TODO: VERIFY only update subpool share state in omnipool. - might need to burn or mint some shares!
-		// TODO: COLIN : here we transfer the hub reserve from WHOP and burn the delta_reserve ??!
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
