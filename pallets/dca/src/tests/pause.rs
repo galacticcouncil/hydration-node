@@ -249,6 +249,108 @@ fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency(
 }
 
 #[test]
+fn pause_should_not_unreserve_execution_bond_with_native_token_when_storage_bond_config_greatly_increased_by_admins() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			let total_bond = 3_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond
+				}
+			);
+
+			assert_eq!(total_bond, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+
+			//Act
+			set_storage_bond_config(*OriginalStorageBondInNative * 10);
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Assert
+			let execution_bond = 1_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond,
+				}
+			);
+
+			assert_eq!(total_bond, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+		});
+}
+
+#[test]
+fn pause_should_unreserve_a_part_of_execution_bond_with_native_token_when_storage_bond_config_slightly_increased_by_admins(
+) {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			let total_bond = 3_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond
+				}
+			);
+
+			assert_eq!(total_bond, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+
+			//Act
+			set_storage_bond_config(*OriginalStorageBondInNative * 11 / 10);
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Assert
+			let not_full_execution_bond = 800_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond - not_full_execution_bond,
+				}
+			);
+
+			assert_eq!(
+				total_bond - not_full_execution_bond,
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
+			);
+		});
+}
+
+#[test]
 fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_currency() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![

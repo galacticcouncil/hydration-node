@@ -88,6 +88,10 @@ frame_support::construct_runtime!(
 	 }
 );
 
+lazy_static::lazy_static! {
+	pub static ref OriginalStorageBondInNative: Balance = 2_000_000;
+}
+
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
 	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
@@ -99,6 +103,8 @@ thread_local! {
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
+	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*OriginalStorageBondInNative);
+	pub static EXECUTION_BOND: RefCell<Balance> = RefCell::new(1_000_000);
 }
 
 parameter_types! {
@@ -289,8 +295,8 @@ impl pallet_currencies::Config for Test {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
-	pub ExecutionBondInNativeCurrency: Balance= 1_000_000;
-	pub StorageBondInNativeCurrency: Balance= 2_000_000;
+	pub ExecutionBondInNativeCurrency: Balance= EXECUTION_BOND.with(|v| *v.borrow());
+	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 5;
 }
 

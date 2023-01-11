@@ -84,6 +84,12 @@ fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> Bounde
 	bounded_vec
 }
 
+pub fn set_storage_bond_config(amount: Balance) {
+	STORAGE_BOND.with(|v| {
+		*v.borrow_mut() = amount;
+	});
+}
+
 //TODO:
 /*
 ## How to handle error in on_initialize:

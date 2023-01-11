@@ -44,6 +44,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
 
 [dev-dependencies]
+lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false, features=["std"]}

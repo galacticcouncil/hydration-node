@@ -590,6 +590,122 @@ fn user_execution_bond_should_not_be_slashed_fully_when_spot_price_changes_sligh
 }
 
 #[test]
+fn user_execution_bond_should_not_be_slashed_with_native_when_storage_bond_config_is_greatly_increased() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
+			(LP2, BTC, 10000 * ONE),
+			(LP2, DAI, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(2))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_storage_bond_config(*OriginalStorageBondInNative * 10);
+
+			assert_balance!(TreasuryAccount::get(), HDX, 0);
+
+			set_to_blocknumber(501);
+
+			//Assert
+			let total_bond = 3000000;
+			assert!(DCA::bond(1).is_some());
+			assert_eq!(
+				DCA::bond(1).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond
+				}
+			);
+
+			assert_eq!(total_bond, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+
+			assert_balance!(TreasuryAccount::get(), HDX, 0);
+		});
+}
+
+#[test]
+fn user_execution_bond_should_not_be_slashed_fullly_with_native_when_storage_bond_config_is_slightly_increased() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
+			(LP2, BTC, 10000 * ONE),
+			(LP2, DAI, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(2))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_storage_bond_config(*OriginalStorageBondInNative * 11 / 10);
+
+			assert_balance!(TreasuryAccount::get(), HDX, 0);
+
+			set_to_blocknumber(501);
+
+			//Assert
+			let total_bond = 3000000;
+			let not_full_execution_bond = 800000;
+			assert!(DCA::bond(1).is_some());
+			assert_eq!(
+				DCA::bond(1).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: total_bond - not_full_execution_bond
+				}
+			);
+
+			assert_eq!(
+				total_bond - not_full_execution_bond,
+				Currencies::reserved_balance(HDX.into(), &ALICE.into())
+			);
+
+			assert_balance!(TreasuryAccount::get(), HDX, not_full_execution_bond);
+		});
+}
+
+#[test]
 fn perpetual_schedule_is_suspended_in_block_when_user_has_not_enough_balance() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![

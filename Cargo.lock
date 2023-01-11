@@ -5839,6 +5839,7 @@ dependencies = [
  "frame-system",
  "hydra-dx-math 4.9.0",
  "hydradx-traits",
+ "lazy_static",
  "log",
  "orml-tokens",
  "orml-traits",
