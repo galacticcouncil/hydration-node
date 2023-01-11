@@ -187,7 +187,7 @@ impl Config for Test {
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Tokens;
-	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
@@ -196,7 +196,6 @@ impl Config for Test {
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
 	type NFTHandler = DummyNFT;
-	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
@@ -218,6 +217,7 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	max_in_ratio: Balance,
 	max_out_ratio: Balance,
+	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	max_net_trade_volume_limit_per_block: (u32, u32),
@@ -275,6 +275,7 @@ impl Default for ExtBuilder {
 			max_out_ratio: 1u128,
 			max_net_trade_volume_limit_per_block: (10_000, 1),
 			max_liquidity_limit_per_block: None,
+			tvl_cap: u128::MAX,
 		}
 	}
 }
@@ -332,6 +333,10 @@ impl ExtBuilder {
 	}
 	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
 		self.max_out_ratio = value;
+		self
+	}
+	pub fn with_tvl_cap(mut self, value: Balance) -> Self {
+		self.tvl_cap = value;
 		self
 	}
 
@@ -414,11 +419,12 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
+		r.execute_with(|| {
+			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+		});
+
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
-				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
-
 				assert_ok!(Omnipool::initialize_pool(
 					Origin::root(),
 					stable_price,
@@ -426,13 +432,6 @@ impl ExtBuilder {
 					Permill::from_percent(100),
 					Permill::from_percent(100)
 				));
-				assert_pool_state_approx!(
-					stable_price.checked_mul_int(stable_amount).unwrap() + native_amount,
-					FixedU128::from((stable_amount, stable_price.checked_mul_int(stable_amount).unwrap()))
-						.checked_mul_int(native_amount)
-						.unwrap() + stable_amount,
-					SimpleImbalance::default()
-				);
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(

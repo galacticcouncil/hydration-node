@@ -134,8 +134,8 @@ pub mod pallet {
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
-		/// Add token origin
-		type AddTokenOrigin: EnsureOrigin<Self::Origin>;
+		/// Origin that can add token, refund refused asset and  set tvl cap.
+		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
 
 		/// Origin to be able to suspend asset trades and initialize Omnipool.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
@@ -162,10 +162,6 @@ pub mod pallet {
 		/// Asset fee
 		#[pallet::constant]
 		type AssetFee: Get<Permill>;
-
-		/// TVL cap
-		#[pallet::constant]
-		type TVLCap: Get<Balance>;
 
 		/// Minimum trading limit
 		#[pallet::constant]
@@ -226,6 +222,10 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
+
+	#[pallet::storage]
+	/// TVL cap
+	pub(super) type TvlCap<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -301,6 +301,9 @@ pub mod pallet {
 
 		/// Asset's weight cap has been updated.
 		AssetWeightCapUpdated { asset_id: T::AssetId, cap: Permill },
+
+		/// TVL cap has been updated.
+		TVLCapUpdated { cap: Balance },
 	}
 
 	#[pallet::error]
@@ -504,7 +507,7 @@ pub mod pallet {
 			weight_cap: Permill,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
-			T::AddTokenOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
@@ -849,8 +852,6 @@ pub mod pallet {
 			}
 
 			Self::set_asset_state(asset_id, new_asset_state);
-
-			Self::ensure_tvl_cap()?;
 
 			Self::deposit_event(Event::LiquidityRemoved {
 				who,
@@ -1285,7 +1286,7 @@ pub mod pallet {
 		///
 		/// Transfer is performed only when asset is not in Omnipool and pool's balance has sufficient amount.
 		///
-		/// Only `AddTokenOrigin` can perform this operition -same as `add_token`o
+		/// Only `AuthorityOrigin` can perform this operition -same as `add_token`o
 		///
 		/// Emits `AssetRefunded`
 		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_asset())]
@@ -1296,7 +1297,7 @@ pub mod pallet {
 			amount: Balance,
 			recipient: T::AccountId,
 		) -> DispatchResult {
-			T::AddTokenOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			// Hub asset cannot be refunded
 			ensure!(asset_id != T::HubAssetId::get(), Error::<T>::AssetRefundNotAllowed);
@@ -1341,6 +1342,21 @@ pub mod pallet {
 
 				Ok(())
 			})
+		}
+		/// Update TVL cap
+		///
+		/// Parameters:
+		/// - `cap`: new tvl cap
+		///
+		/// Emits `TVLCapUpdated` event when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
+		#[transactional]
+		pub fn set_tvl_cap(origin: OriginFor<T>, cap: Balance) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			TvlCap::<T>::set(cap);
+			Self::deposit_event(Event::TVLCapUpdated { cap });
+			Ok(())
 		}
 	}
 
@@ -1460,7 +1476,7 @@ impl<T: Config> Pallet<T> {
 		let updated_tvl = hydra_dx_math::omnipool::calculate_tvl(current_hub_asset_liquidity, stable_asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		ensure!(updated_tvl <= T::TVLCap::get(), Error::<T>::TVLCapExceeded);
+		ensure!(updated_tvl <= TvlCap::<T>::get(), Error::<T>::TVLCapExceeded);
 		Ok(())
 	}
 

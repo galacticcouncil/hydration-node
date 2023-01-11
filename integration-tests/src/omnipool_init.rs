@@ -21,6 +21,11 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let native_price = FixedU128::from_inner(1201500000000000);
 		let stable_price = FixedU128::from_inner(45_000_000_000);
 
+		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+			hydradx_runtime::Origin::root(),
+			222_222_000_000_000_000_000_000,
+		));
+
 		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
 			hydradx_runtime::Origin::root(),
 			stable_price,

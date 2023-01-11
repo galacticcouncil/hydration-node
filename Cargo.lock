@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.2.3"
+version = "100.2.4"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -1043,11 +1043,13 @@ dependencies = [
  "pallet-currencies",
  "pallet-democracy",
  "pallet-identity",
+ "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
+ "pallet-transaction-pause",
  "pallet-transaction-payment",
  "pallet-treasury",
  "pallet-utility",
@@ -3359,7 +3361,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "123.0.0"
+version = "126.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -8768,7 +8770,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.6"
+version = "0.1.9"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -8792,6 +8794,7 @@ dependencies = [
  "orml-traits",
  "orml-unknown-tokens",
  "orml-vesting",
+ "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
  "pallet-asset-registry",
@@ -8814,6 +8817,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-uniques",
  "pallet-utility",
  "pallet-xcm",
  "parachain-info",
@@ -11453,7 +11457,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "123.0.0"
+version = "126.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",

@@ -14,6 +14,11 @@ use xcm_emulator::TestExt;
 fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
+		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+			hydradx_runtime::Origin::root(),
+			222_222_000_000_000_000_000_000,
+		));
+
 		assert_ok!(Omnipool::initialize_pool(
 			RawOrigin::Root.into(),
 			FixedU128::from_float(0.00001), // adjust the amount of LRNA to roughly match the amount of LRNA that belongs to HDX. This way we can avoid MaxOutRatioExceeded error.
@@ -51,6 +56,11 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
+		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+			hydradx_runtime::Origin::root(),
+			222_222_000_000_000_000_000_000,
+		));
+
 		assert_ok!(Omnipool::initialize_pool(
 			RawOrigin::Root.into(),
 			FixedU128::from_float(0.00001), // adjust the amount of LRNA to roughly match the amount of LRNA that belongs to HDX. This way we can avoid MaxOutRatioExceeded error.
@@ -94,6 +104,11 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
+		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+			hydradx_runtime::Origin::root(),
+			222_222_000_000_000_000_000_000,
+		));
+
 		assert_ok!(Omnipool::initialize_pool(
 			RawOrigin::Root.into(),
 			FixedU128::from_float(0.65),
@@ -126,6 +141,11 @@ fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exce
 fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
+		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+			hydradx_runtime::Origin::root(),
+			222_222_000_000_000_000_000_000,
+		));
+
 		assert_ok!(Omnipool::initialize_pool(
 			RawOrigin::Root.into(),
 			FixedU128::from_float(0.65),
