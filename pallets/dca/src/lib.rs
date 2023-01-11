@@ -689,12 +689,14 @@ where
 	fn slash_execution_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
 		let execution_bond = Self::unreserve_excecution_bond(schedule_id, &owner)?;
 
-		T::Currency::transfer(
-			execution_bond.asset.into(),
-			&owner,
-			&T::SlashedBondReceiver::get(),
-			execution_bond.amount,
-		)?;
+		if !execution_bond.amount.is_zero() {
+			T::Currency::transfer(
+				execution_bond.asset.into(),
+				&owner,
+				&T::SlashedBondReceiver::get(),
+				execution_bond.amount,
+			)?;
+		}
 
 		Ok(())
 	}
