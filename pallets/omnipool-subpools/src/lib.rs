@@ -50,9 +50,10 @@ pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
-	use pallet_omnipool::types::Tradability;
+	use pallet_omnipool::types::{AssetState, Tradability};
 	use pallet_stableswap::types::AssetLiquidity;
-	use sp_runtime::{ArithmeticError, Permill};
+	use sp_runtime::traits::Zero;
+	use sp_runtime::{ArithmeticError, Permill, Rational128};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (crate) trait Store)]
@@ -96,11 +97,18 @@ pub mod pallet {
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
+		/// Stableswap subpool does not exist.
 		SubpoolNotFound,
+		/// Asset ID of stable asset is not specified.
 		WithdrawAssetNotSpecified,
+		/// Given asset id is not stable asset.
 		NotStableAsset,
+		/// Overflow
 		Math,
-		Limit,
+		/// Trade limit exceeded.
+		LimitExceeded,
+		/// Trade limit not reached.
+		LimitNotReached,
 		/// Not allowed to perform an operation on given asset.
 		NotAllowed,
 	}
@@ -182,66 +190,44 @@ pub mod pallet {
 				],
 			)?;
 
-			let recalculate_protocol_shares = |q: Balance, b: Balance, s: Balance| -> Result<Balance, DispatchError> {
-				q.checked_mul_into(&b)
-					.ok_or(ArithmeticError::Overflow)?
-					.checked_div_inner(&s)
-					.ok_or(ArithmeticError::DivisionByZero)?
-					.try_to_inner()
-					.ok_or_else(|| ArithmeticError::Overflow.into())
-			};
+			// Calculate stable asset states and migration details of each asset
+			let subpool_state = hydra_dx_math::omnipool_subpools::create_new_subpool(
+				&(&asset_state_a).into(),
+				&(&asset_state_b).into(),
+			)
+			.ok_or(Error::<T>::Math)?;
 
-			// Deposit pool shares to omnipool account
-			let hub_reserve = asset_state_a
-				.hub_reserve
-				.checked_add(asset_state_b.hub_reserve)
-				.ok_or(ArithmeticError::Overflow)?;
+			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, subpool_state.reserve)?;
 
-			let protocol_shares = recalculate_protocol_shares(
-				asset_state_a.hub_reserve,
-				asset_state_a.protocol_shares,
-				asset_state_a.shares,
-			)?
-			.checked_add(recalculate_protocol_shares(
-				asset_state_b.hub_reserve,
-				asset_state_b.protocol_shares,
-				asset_state_b.shares,
-			)?)
-			.ok_or(ArithmeticError::Overflow)?;
+			// Add Share token to omnipool as another asset - LRNA is Qi + Qj
+			OmnipoolPallet::<T>::add_asset(
+				pool_id.into(),
+				(subpool_state, share_asset_weight_cap, Tradability::default()).into(),
+			)?;
 
-			// Amount of share provided to omnipool
-			let shares = hub_reserve;
+			let (asset_a_details, _) = hydra_dx_math::omnipool_subpools::calculate_asset_migration_details(
+				&(asset_state_a).into(),
+				None,
+				Balance::zero(),
+			)
+			.ok_or(Error::<T>::Math)?;
 
-			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, shares)?;
+			let asset_a_details: AssetDetail = asset_a_details.into();
+
+			let (asset_b_details, _) = hydra_dx_math::omnipool_subpools::calculate_asset_migration_details(
+				&(asset_state_b).into(),
+				None,
+				Balance::zero(),
+			)
+			.ok_or(Error::<T>::Math)?;
+
+			let asset_b_details: AssetDetail = asset_b_details.into();
 
 			// Remove assets from omnipool
 			OmnipoolPallet::<T>::remove_asset(asset_a)?;
 			OmnipoolPallet::<T>::remove_asset(asset_b)?;
 
-			// Add Share token to omnipool as another asset - LRNA is Qi + Qj
-			OmnipoolPallet::<T>::add_asset(
-				pool_id.into(),
-				hub_reserve,
-				shares,
-				protocol_shares,
-				share_asset_weight_cap,
-				Tradability::default(),
-			)?;
-
-			// Remember some stuff to be able to update LP positions later on
-			let asset_a_details = AssetDetail {
-				price: asset_state_a.price_as_rational(),
-				shares: asset_state_a.shares,
-				hub_reserve: asset_state_a.hub_reserve,
-				share_tokens: asset_state_a.hub_reserve,
-			};
-			let asset_b_details = AssetDetail {
-				price: asset_state_b.price_as_rational(),
-				shares: asset_state_b.shares,
-				hub_reserve: asset_state_b.hub_reserve,
-				share_tokens: asset_state_b.hub_reserve,
-			};
-
+			// Set states
 			MigratedAssets::<T>::insert(asset_a, (pool_id, asset_a_details));
 			MigratedAssets::<T>::insert(asset_b, (pool_id, asset_b_details));
 			Subpools::<T>::insert(share_asset.into(), ());
@@ -298,71 +284,22 @@ pub mod pallet {
 			OmnipoolPallet::<T>::remove_asset(asset_id)?;
 
 			let share_issuance = CurrencyOf::<T>::total_issuance(pool_id.into());
-			let delta_q = asset_state.hub_reserve;
 
-			//TODO: ask Colin about rounding here
-			let delta_ps = (|| -> Option<Balance> {
-				let p1 = subpool_state
-					.shares
-					.checked_mul_into(&asset_state.hub_reserve)?
-					.checked_div_inner(&subpool_state.hub_reserve)?;
-				let p2 = p1
-					.checked_mul_inner(&asset_state.protocol_shares)?
-					.checked_div_inner(&asset_state.shares)?;
-				p2.try_to_inner()
-			})()
-			.ok_or(ArithmeticError::Overflow)?;
+			let (asset_details, share_state_change) =
+				hydra_dx_math::omnipool_subpools::calculate_asset_migration_details(
+					&(asset_state).into(),
+					Some(&(subpool_state).into()),
+					share_issuance,
+				)
+				.ok_or(Error::<T>::Math)?;
 
-			let delta_s = (|| -> Option<Balance> {
-				asset_state
-					.hub_reserve
-					.checked_mul_into(&subpool_state.shares)?
-					.checked_div_inner(&subpool_state.hub_reserve)?
-					.try_to_inner()
-			})()
-			.ok_or(ArithmeticError::Overflow)?;
+			let asset_details: AssetDetail = asset_details.into();
+			let state_changes = share_state_change.ok_or(Error::<T>::Math)?;
 
-			let delta_u = (|| -> Option<Balance> {
-				asset_state
-					.hub_reserve
-					.checked_mul_into(&share_issuance)?
-					.checked_div_inner(&subpool_state.hub_reserve)?
-					.try_to_inner()
-			})()
-			.ok_or(ArithmeticError::Overflow)?;
+			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, *state_changes.delta_reserve)?;
 
-			// price = asset price * share_issuance / pool shares
-			// price = (hub reserve / reserve ) * share issuance / pool shares
-			// price = hub*issuance / reserve * pool shares
-			let price_denom = asset_state
-				.reserve
-				.checked_mul_into(&subpool_state.shares)
-				.ok_or(ArithmeticError::Overflow)?
-				.fit_to_inner();
+			OmnipoolPallet::<T>::update_asset_state(pool_id.into(), state_changes)?;
 
-			let price_num = asset_state
-				.hub_reserve
-				.checked_mul_into(&share_issuance)
-				.ok_or(ArithmeticError::Overflow)?
-				.fit_to_inner();
-
-			OmnipoolPallet::<T>::update_asset_state(
-				pool_id.into(),
-				AssetStateChange {
-					delta_reserve: BalanceUpdate::Increase(0u128),
-					delta_hub_reserve: BalanceUpdate::Increase(delta_q),
-					delta_shares: BalanceUpdate::Increase(delta_s),
-					delta_protocol_shares: BalanceUpdate::Increase(delta_ps),
-				},
-			)?;
-			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, delta_u)?;
-
-			let asset_details = AssetDetail {
-				price: (price_num, price_denom),
-				shares: asset_state.shares,
-				hub_reserve: delta_q,
-				share_tokens: delta_u,
-			};
 			MigratedAssets::<T>::insert(asset_id, (pool_id, asset_details));
 
 			Self::deposit_event(Event::AssetMigrated { asset_id, pool_id });
@@ -788,7 +725,7 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.asset_in.amount <= max_limit, Error::<T>::Limit);
+		ensure!(*result.asset_in.amount <= max_limit, Error::<T>::LimitExceeded);
 
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
@@ -804,7 +741,7 @@ where
 			*result.asset_out.amount,
 		)?;
 
-		// Update ispools - mint/burn share asset
+		// Update share asset state in omnipool- mint/burn share asset
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
@@ -894,7 +831,7 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.asset_out.amount >= min_limit, Error::<T>::Limit);
+		ensure!(*result.asset_out.amount >= min_limit, Error::<T>::LimitNotReached);
 
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
@@ -987,7 +924,10 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.isopool.asset_out.delta_reserve >= min_limit, Error::<T>::Limit);
+		ensure!(
+			*result.isopool.asset_out.delta_reserve >= min_limit,
+			Error::<T>::LimitNotReached
+		);
 
 		debug_assert_eq!(
 			*result.subpool.amount, amount_in,
@@ -1081,7 +1021,7 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.subpool.amount >= min_limit, Error::<T>::Limit);
+		ensure!(*result.subpool.amount >= min_limit, Error::<T>::LimitNotReached);
 
 		debug_assert_eq!(
 			*result.isopool.asset_in.delta_reserve, amount_in,
@@ -1169,7 +1109,7 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.subpool.amount >= min_limit, Error::<T>::Limit);
+		ensure!(*result.subpool.amount >= min_limit, Error::<T>::LimitNotReached);
 
 		debug_assert_eq!(
 			*result.isopool.asset.delta_hub_reserve, amount_in,
@@ -1257,7 +1197,7 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.subpool.amount <= max_limit, Error::<T>::Limit);
+		ensure!(*result.subpool.amount <= max_limit, Error::<T>::LimitExceeded);
 
 		debug_assert_eq!(
 			*result.isopool.asset_out.delta_reserve, amount_out,
@@ -1352,7 +1292,10 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.isopool.asset_in.delta_reserve <= max_limit, Error::<T>::Limit);
+		ensure!(
+			*result.isopool.asset_in.delta_reserve <= max_limit,
+			Error::<T>::LimitExceeded
+		);
 
 		debug_assert_eq!(
 			*result.subpool.amount, amount_out,
@@ -1441,7 +1384,10 @@ where
 		)
 		.ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.isopool.asset.delta_reserve <= max_limit, Error::<T>::Limit);
+		ensure!(
+			*result.isopool.asset.delta_reserve <= max_limit,
+			Error::<T>::LimitExceeded
+		);
 
 		debug_assert_eq!(
 			*result.subpool.amount, amount_out,

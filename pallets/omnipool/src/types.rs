@@ -65,6 +65,21 @@ where
 	}
 }
 
+impl<Balance> From<(MathReserveState<Balance>, Permill, Tradability)> for AssetState<Balance>
+where
+	Balance: Copy,
+{
+	fn from((state, cap, tradable): (MathReserveState<Balance>, Permill, Tradability)) -> Self {
+		Self {
+			hub_reserve: state.hub_reserve,
+			shares: state.shares,
+			protocol_shares: state.protocol_shares,
+			cap: FixedU128::from(cap).into_inner(),
+			tradable,
+		}
+	}
+}
+
 /// Position in Omnipool represents a moment when LP provided liquidity of an asset at that moment’s price.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Position<Balance, AssetId> {
@@ -212,6 +227,20 @@ where
 	Balance: Copy,
 {
 	fn from(state: &AssetReserveState<Balance>) -> Self {
+		Self {
+			reserve: state.reserve,
+			hub_reserve: state.hub_reserve,
+			shares: state.shares,
+			protocol_shares: state.protocol_shares,
+		}
+	}
+}
+
+impl<Balance> From<AssetReserveState<Balance>> for MathReserveState<Balance>
+where
+	Balance: Copy,
+{
+	fn from(state: AssetReserveState<Balance>) -> Self {
 		Self {
 			reserve: state.reserve,
 			hub_reserve: state.hub_reserve,

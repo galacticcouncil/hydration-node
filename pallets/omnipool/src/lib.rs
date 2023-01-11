@@ -1680,33 +1680,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Insert or update position with given position data.
-	pub fn set_position(
-		position_id: T::PositionItemId,
-		position: &Position<Balance, T::AssetId>,
-	) -> DispatchResult {
+	pub fn set_position(position_id: T::PositionItemId, position: &Position<Balance, T::AssetId>) -> DispatchResult {
 		<Positions<T>>::insert(position_id, position);
 		Ok(())
 	}
 
 	/// Add new asset to list of Omnipool assets.
-	pub fn add_asset(
-		asset_id: T::AssetId,
-		hub_reserve: Balance,
-		shares: Balance,
-		protocol_shares: Balance,
-		weight_cap: Permill,
-		tradable: Tradability,
-	) -> DispatchResult {
+	pub fn add_asset(asset_id: T::AssetId, state: AssetState<Balance>) -> DispatchResult {
 		ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
 		ensure!(T::AssetRegistry::exists(asset_id), Error::<T>::AssetNotRegistered);
-
-		let state = AssetState::<Balance> {
-			hub_reserve,
-			shares,
-			protocol_shares,
-			cap: FixedU128::from(weight_cap).into_inner(),
-			tradable,
-		};
 
 		<Assets<T>>::insert(asset_id, state);
 

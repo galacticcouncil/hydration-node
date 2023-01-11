@@ -1,4 +1,6 @@
 use frame_support::pallet_prelude::*;
+use hydra_dx_math::omnipool_subpools::MigrationDetails;
+use pallet_omnipool::types::AssetState;
 
 /// Balance representation in current pallet.
 pub type Balance = u128;
@@ -16,4 +18,15 @@ pub struct AssetDetail {
 	pub(crate) hub_reserve: Balance,
 	/// Share tokens of stabelswap subpool.
 	pub(crate) share_tokens: Balance,
+}
+
+impl From<MigrationDetails> for AssetDetail {
+	fn from(details: MigrationDetails) -> Self {
+		Self {
+			price: details.price,
+			shares: details.shares,
+			hub_reserve: details.hub_reserve,
+			share_tokens: details.share_tokens,
+		}
+	}
 }
