@@ -89,12 +89,22 @@ pub mod pallet {
 		<T as pallet_omnipool::Config>::AssetId:
 			Into<<T as pallet_stableswap::Config>::AssetId> + From<<T as pallet_stableswap::Config>::AssetId>,
 	{
-		/// Create new subpool by migrating 2 assets from Omnipool to new stabelswap subpool.
+		/// Create new subpool by migrating 2 assets from Omnipool to new Stableswap subpool.
 		///
-		/// New subpools must be created from precisely 2 assets.
+		/// New subpool can only be created from precisely 2 assets.
 		///
-		/// TODO: add more desc pls
+		/// Subpool ID (share asset id) must be pre-registered.
 		///
+		/// Subpool creation steps:
+		/// - create stableswap pool
+		/// - set tradable state of each asset to preserve the same state as previously in the Omnipool
+		/// - move liquidity from Omnipool account to subpool account
+		/// - remove both assets from Omnipool
+		/// - add share asset as new asset in Omnipool
+		/// - save both asset's details in subpool storage
+		///
+		/// Emits `SubpoolCreated` event when successful
+		#[pallet::call_index(0)]
 		#[pallet::weight(0)]
 		pub fn create_subpool(
 			origin: OriginFor<T>,
@@ -222,6 +232,18 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Migrate omnipool asset to existing stableswap subpool.
+		///
+		/// Migration steps:
+		/// - add asset to existing stableswap pool
+		/// - set tradable state to preserve existing state
+		/// - move liquidity from Omnipool account to subpool account
+		/// - remove asset from Omnipool
+		/// - store details to Subpool storage - MigratedAssets
+		/// - update share aset state in Omnipool
+		///
+		/// Emits `AssetMigrated` event when successful
+		#[pallet::call_index(1)]
 		#[pallet::weight(0)]
 		pub fn migrate_asset_to_subpool(
 			origin: OriginFor<T>,
@@ -326,6 +348,26 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Add liquidity of asset with `asset_id` in quantity `amount` to Omnipool
+		///
+		/// `add_liquidity` adds specified asset amount to pool and in exchange gives the origin
+		/// corresponding shares amount in form of NFT at current price.
+		///
+		/// Asset's tradable state is checked within corresponding pallet - Omnipool or Stableswap.
+		///
+		/// There can be 2 scenarios:
+		/// 1. Adding omnipool asset
+		/// 	- handled directly by omnipool pallet
+		/// 2. Adding stable asset which has been migrated to subpool
+		/// 	- liquidity is added to corresponding subpool
+		/// 	- shares obtained are added as liquidity to Omnipool
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the new asset added to the pool. Must be already in the pool
+		/// - `amount`: Amount of asset added to omnipool
+		///
+		/// Events are emitted by Omnipool and Stableswap pallet.
+		#[pallet::call_index(2)]
 		#[pallet::weight(0)]
 		pub fn add_liquidity(origin: OriginFor<T>, asset_id: AssetIdOf<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
@@ -345,6 +387,20 @@ pub mod pallet {
 			}
 		}
 
+		/// Add liquidity of asset with `asset_id` in quantity `amount` to Omnipool
+		///
+		/// Asset must be migrated stable asset, otherwise error `NotStableAsset` is returned.
+		///
+		/// `add_liquidity_stable` adds liquidity of stable asset to subpool and liquidity provider
+		/// can decide to keep the shares of stableswapool or add the shares to Omnipool in exchange of NFT.
+		///
+		/// Parameters:
+		/// - `asset`: The identifier of the new asset added to the pool. Must be already in the pool
+		/// - `amount`: Amount of asset added to omnipool
+		/// - `mint_nft`: mint nft or keep the subpool shares
+		///
+		/// Events are emitted by Omnipool and Stableswap pallet.
+		#[pallet::call_index(3)]
 		#[pallet::weight(0)]
 		pub fn add_liquidity_stable(
 			origin: OriginFor<T>,
@@ -374,6 +430,23 @@ pub mod pallet {
 			}
 		}
 
+		/// Remove liquidity of asset with `asset_id` in quantity `amount` of shares from Omnipool or Subpool
+		///
+		/// `remove_liquidity` removes specified shares amount from given PositionId (NFT instance).
+		///
+		/// Asset's tradable state must contain REMOVE_LIQUIDITY flag, otherwise `NotAllowed` error is returned. Handled by Omnipool.
+		///
+		/// If withdrawing liquidity from subpool, it is required to specify which asset LP wants to withdraw.
+		///
+		/// In case position was created prior to asset migration, the position is converted into share asset position.
+		///
+		/// Parameters:
+		/// - `position_id`: The identifier of position which liquidity is removed from.
+		/// - `amount`: Amount of shares removed from omnipool
+		/// - `asset`: Desired asset to withdraw from subpool
+		///
+		/// Events are emitted by Omnipool and Stableswap pallet.
+		#[pallet::call_index(4)]
 		#[pallet::weight(0)]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
@@ -397,6 +470,8 @@ pub mod pallet {
 			// Asset should be in isopool, call omnipool::remove_liquidity
 			OmnipoolPallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
 
+			// TODO: should we allow just withdrawing subpool shares and keep them instead?
+
 			match (Self::subpools(&position.asset_id.into()), asset) {
 				(Some(_), Some(withdraw_asset)) => {
 					let received = CurrencyOf::<T>::free_balance(position.asset_id, &who);
@@ -412,6 +487,30 @@ pub mod pallet {
 			}
 		}
 
+		/// Execute a swap of `asset_in` for `asset_out`.
+		///
+		/// Asset's tradable states must contain SELL flag for asset_in and BUY flag for asset_out, otherwise `NotAllowed` error is returned.
+		/// Handled by Omnipool and/or Stableswap pallets.
+		///
+		/// Different possible scenarios can occur:
+		/// 1. Both asset_in and asset_out are in Omnipool
+		/// 	- Omnipool's sell is invoked and trades is handled by the Omnipool pallet
+		/// 2. Both asset_in and asset_out are in the Stableswap subpool
+		/// 	- Stableswap's sell is invoked and trades is handled by the Stableswap pallet
+		/// 3. asset_in and asset_out are in different subpools
+		/// 	- Handled by swap implementation in subpool pallet
+		/// 4. Asset_in is in Omnipool and asset_out is in Stableswap subpool
+		/// 	- Handled by swap implementation in subpool pallet
+		///
+		/// Parameters:
+		/// - `asset_in`: ID of asset sold to the pool
+		/// - `asset_out`: ID of asset bought from the pool
+		/// - `amount`: Amount of asset sold
+		/// - `min_buy_amount`: Minimum amount required to receive
+		///
+		/// Emits `SellExecuted` event when successful if swap in handled by subpool pallet, otherwise events are
+		/// emitted by Omnipool or Stableswap.
+		#[pallet::call_index(5)]
 		#[pallet::weight(0)]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -475,6 +574,30 @@ pub mod pallet {
 			}
 		}
 
+		/// Execute a swap of `asset_out` for `asset_in`.
+		///
+		/// Asset's tradable states must contain SELL flag for asset_in and BUY flag for asset_out, otherwise `NotAllowed` error is returned.
+		/// Handled by Omnipool and/or Stableswap pallets.
+		///
+		/// Different possible scenarios can occur:
+		/// 1. Both asset_in and asset_out are in Omnipool
+		/// 	- Omnipool's sell is invoked and trades is handled by the Omnipool pallet
+		/// 2. Both asset_in and asset_out are in the Stableswap subpool
+		/// 	- Stableswap's sell is invoked and trades is handled by the Stableswap pallet
+		/// 3. asset_in and asset_out are in different subpools
+		/// 	- Handled by swap implementation in subpool pallet
+		/// 4. Asset_in is in Omnipool and asset_out is in Stableswap subpool
+		/// 	- Handled by swap implementation in subpool pallet
+		///
+		/// Parameters:
+		/// - `asset_in`: ID of asset sold to the pool
+		/// - `asset_out`: ID of asset bought from the pool
+		/// - `amount`: Amount of asset sold
+		/// - `min_buy_amount`: Minimum amount required to receive
+		///
+		/// Emits `SellExecuted` event when successful if swap in handled by subpool pallet, otherwise events are
+		/// emitted by Omnipool or Stableswap.
+		#[pallet::call_index(6)]
 		#[pallet::weight(0)]
 		pub fn buy(
 			origin: OriginFor<T>,
