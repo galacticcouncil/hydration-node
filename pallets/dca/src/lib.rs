@@ -689,30 +689,29 @@ where
 	fn slash_execution_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
 		let execution_bond = Self::unreserve_excecution_bond(schedule_id, &owner)?;
 
-		if !execution_bond.amount.is_zero() {
+		if let Some(execution_bond) = execution_bond {
 			T::Currency::transfer(
 				execution_bond.asset.into(),
 				&owner,
 				&T::SlashedBondReceiver::get(),
 				execution_bond.amount,
 			)?;
-		}
+		};
 
 		Ok(())
 	}
 
-	fn unreserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> Result<Bond<T::Asset>, DispatchError> {
+	fn unreserve_excecution_bond(
+		schedule_id: ScheduleId,
+		who: &T::AccountId,
+	) -> Result<Option<Bond<T::Asset>>, DispatchError> {
 		let execution_bond = Bonds::<T>::try_mutate(schedule_id, |maybe_bond| {
 			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
 
 			let storage_bond_in_user_currency = Self::get_storage_bond_in_user_currency(&who, bond.asset)?;
 
-			if bond.amount <= storage_bond_in_user_currency {
-				return Ok::<Bond<T::Asset>, DispatchError>(Bond {
-					//TODO: return an option
-					amount: 0,
-					asset: bond.asset,
-				});
+			return if bond.amount <= storage_bond_in_user_currency {
+				Ok::<Option<Bond<T::Asset>>, DispatchError>(None)
 			} else {
 				let to_be_extracted_amount = bond
 					.amount
@@ -726,10 +725,10 @@ where
 
 				T::MultiReservableCurrency::unreserve(bond.asset, &who, to_be_extracted_amount);
 
-				return Ok::<Bond<T::Asset>, DispatchError>(Bond {
+				Ok::<Option<Bond<T::Asset>>, DispatchError>(Some(Bond {
 					amount: to_be_extracted_amount,
 					asset: bond.asset,
-				});
+				}))
 			};
 		})?;
 
