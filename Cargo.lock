@@ -3249,8 +3249,8 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "5.2.0"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=e0095b4302ab7d0fef11066c88de8c70e7b4d337#e0095b4302ab7d0fef11066c88de8c70e7b4d337"
+version = "4.9.1"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a#3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a"
 dependencies = [
  "fixed",
  "num-traits",
@@ -5726,7 +5726,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math",
  "hydradx-traits",
  "parity-scale-codec",
  "pretty_assertions",
@@ -6168,7 +6167,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.4.1"
+version = "1.4.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -11965,7 +11964,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "digest 0.10.6",
  "rand 0.8.5",
  "static_assertions",
