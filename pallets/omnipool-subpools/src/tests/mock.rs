@@ -244,6 +244,7 @@ impl pallet_stableswap::Config for Test {
 impl Config for Test {
 	type Event = Event;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type WeightInfo = ();
 }
 
 pub struct ExtBuilder {

@@ -23,9 +23,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::too_many_arguments)]
 
+mod benchmarks;
 #[cfg(test)]
 mod tests;
 mod types;
+pub mod weights;
 
 use crate::types::{AssetDetail, Balance};
 use frame_support::pallet_prelude::*;
@@ -48,6 +50,7 @@ type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::weights::WeightInfo;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
 	use pallet_omnipool::types::{AssetState, Tradability};
@@ -66,6 +69,9 @@ pub mod pallet {
 
 		/// Checks that an origin has the authority to manage a subpool.
 		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::storage]
@@ -135,7 +141,7 @@ pub mod pallet {
 		///
 		/// Emits `SubpoolCreated` event when successful
 		#[pallet::call_index(0)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_subpool())]
 		pub fn create_subpool(
 			origin: OriginFor<T>,
 			share_asset: AssetIdOf<T>,
@@ -252,7 +258,7 @@ pub mod pallet {
 		///
 		/// Emits `AssetMigrated` event when successful
 		#[pallet::call_index(1)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::migrate_asset_to_subpool())]
 		pub fn migrate_asset_to_subpool(
 			origin: OriginFor<T>,
 			pool_id: StableswapAssetIdOf<T>,
@@ -327,7 +333,7 @@ pub mod pallet {
 		///
 		/// Events are emitted by Omnipool and Stableswap pallet.
 		#[pallet::call_index(2)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
 		pub fn add_liquidity(origin: OriginFor<T>, asset_id: AssetIdOf<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
@@ -360,7 +366,7 @@ pub mod pallet {
 		///
 		/// Events are emitted by Omnipool and Stableswap pallet.
 		#[pallet::call_index(3)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity_stable())]
 		pub fn add_liquidity_stable(
 			origin: OriginFor<T>,
 			asset_id: AssetIdOf<T>,
@@ -406,7 +412,7 @@ pub mod pallet {
 		///
 		/// Events are emitted by Omnipool and Stableswap pallet.
 		#[pallet::call_index(4)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
 			position_id: T::PositionItemId,
@@ -470,7 +476,7 @@ pub mod pallet {
 		/// Emits `SellExecuted` event when successful if swap in handled by subpool pallet, otherwise events are
 		/// emitted by Omnipool or Stableswap.
 		#[pallet::call_index(5)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::sell())]
 		pub fn sell(
 			origin: OriginFor<T>,
 			asset_in: AssetIdOf<T>,
@@ -557,7 +563,7 @@ pub mod pallet {
 		/// Emits `SellExecuted` event when successful if swap in handled by subpool pallet, otherwise events are
 		/// emitted by Omnipool or Stableswap.
 		#[pallet::call_index(6)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::buy())]
 		pub fn buy(
 			origin: OriginFor<T>,
 			asset_out: AssetIdOf<T>,
