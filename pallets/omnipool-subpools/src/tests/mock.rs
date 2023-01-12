@@ -396,19 +396,18 @@ impl ExtBuilder {
 
 		r.execute_with(|| {
 			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+			let mut all_assets: Vec<AssetId> = vec![LRNA, DAI];
+			all_assets.extend(self.registered_assets.clone());
+
+			for asset in all_assets.into_iter() {
+				REGISTERED_ASSETS.with(|v| {
+					v.borrow_mut().insert(asset, asset);
+				});
+			}
 		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				let mut all_assets: Vec<AssetId> = vec![LRNA, DAI];
-				all_assets.extend(self.registered_assets);
-
-				for asset in all_assets.into_iter() {
-					REGISTERED_ASSETS.with(|v| {
-						v.borrow_mut().insert(asset, asset);
-					});
-				}
-
 				assert_ok!(Omnipool::initialize_pool(
 					Origin::root(),
 					stable_price,
