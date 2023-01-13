@@ -304,6 +304,8 @@ pub mod pallet {
 
 			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, *state_changes.delta_reserve)?;
 
+			//TODO: i wonder LRNA mint here ?
+
 			OmnipoolPallet::<T>::update_asset_state(pool_id.into(), state_changes)?;
 
 			MigratedAssets::<T>::insert(asset_id, (pool_id, asset_details));
