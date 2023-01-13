@@ -726,6 +726,8 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert_ok!(Omnipool::sell(Origin::signed(seller), LRNA, 300, amount, Balance::zero()));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -743,9 +745,37 @@ proptest! {
 				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert_eq!(old_asset_hub_liquidity + amount, new_asset_hub_liquidity, "Assets hub liquidity");
+
+				assert_imbalance_update(
+				old_imbalance.value,
+				new_imbalance.value,
+				old_hub_liquidity,
+				new_hub_liquidity,
+				"Imbalance invariant in sell LRNA is incorrect"
+			);
 			});
 	}
+}
+
+fn assert_imbalance_update(
+	old_imbalance: Balance,
+	new_imbalance: Balance,
+	old_hub_reserve: Balance,
+	new_hub_reserve: Balance,
+	desc: &str,
+) {
+	let q = U256::from(old_hub_reserve);
+	let q_plus = U256::from(new_hub_reserve);
+	let l = U256::from(old_imbalance);
+	let l_plus = U256::from(new_imbalance);
+
+	let left = q.checked_mul(q.checked_sub(l).unwrap()).unwrap();
+	let right = q_plus.checked_mul(q_plus.checked_sub(l_plus).unwrap()).unwrap();
+
+	assert!(left >= right, "{}", desc);
 }
 
 proptest! {
