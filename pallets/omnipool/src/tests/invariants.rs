@@ -750,12 +750,12 @@ proptest! {
 				assert_eq!(old_asset_hub_liquidity + amount, new_asset_hub_liquidity, "Assets hub liquidity");
 
 				assert_imbalance_update(
-				old_imbalance.value,
-				new_imbalance.value,
-				old_hub_liquidity,
-				new_hub_liquidity,
-				"Imbalance invariant in sell LRNA is incorrect"
-			);
+					old_imbalance.value,
+					new_imbalance.value,
+					old_hub_liquidity,
+					new_hub_liquidity,
+					"Imbalance invariant in sell LRNA is incorrect"
+				);
 			});
 	}
 }
@@ -832,6 +832,8 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert_ok!(Omnipool::buy(Origin::signed(seller), 300, LRNA, amount, Balance::max_value()));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -844,7 +846,17 @@ proptest! {
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
+
+				assert_imbalance_update(
+					old_imbalance.value,
+					new_imbalance.value,
+					old_hub_liquidity,
+					new_hub_liquidity,
+					"Imbalance invariant in buy for LRNA is incorrect"
+				);
 			});
 	}
 }
