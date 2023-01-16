@@ -848,18 +848,18 @@ impl pallet_transaction_pause::Config for Runtime {
 }
 
 use frame_support::BoundedVec;
-use pallet_ema_oracle::{MAX_TRADES, MAX_PERIODS};
 use hydradx_traits::OraclePeriod;
+use pallet_ema_oracle::{MAX_PERIODS, MAX_TRADES};
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::TenMinutes, OraclePeriod::Day, OraclePeriod::Week]);
 }
 impl pallet_ema_oracle::Config for Runtime {
-    type Event = Event;
-    type WeightInfo = ();
-    type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
-    type SupportedPeriods = SupportedPeriods;
-    type MaxTradesPerBlock = ConstU32<MAX_TRADES>;
+	type Event = Event;
+	type WeightInfo = ();
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type SupportedPeriods = SupportedPeriods;
+	type MaxTradesPerBlock = ConstU32<MAX_TRADES>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
