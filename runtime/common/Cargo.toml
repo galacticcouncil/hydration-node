@@ -50,3 +50,39 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Cumulus dependencies
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
 cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "primitives/std",
+    "pallet-omnipool/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-npos-elections/std",
+    "pallet-transaction-payment/std",
+    "pallet-collective/std",
+    "pallet-treasury/std",
+    "pallet-utility/std",
+    "pallet-democracy/std",
+    "pallet-identity/std",
+    "pallet-preimage/std",
+    "pallet-proxy/std",
+    "pallet-scheduler/std",
+    "pallet-timestamp/std",
+    "pallet-balances/std",
+    "pallet-claims/std",
+    "pallet-transaction-multi-payment/std",
+    "pallet-asset-registry/std",
+    "pallet-currencies/std",
+    "pallet-transaction-pause/std",
+    "orml-tokens/std",
+    "orml-vesting/std",
+    "orml-traits/std",
+    "pallet-collator-selection/std",
+    "cumulus-pallet-xcmp-queue/std",
+]
