@@ -31,7 +31,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, ConstU32, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
@@ -711,6 +711,10 @@ impl Default for AssetLocation {
 	}
 }
 
+parameter_types! {
+	pub const SequentialIdStartAt: u32 = 1_000_000;
+}
+
 impl pallet_asset_registry::Config for Runtime {
 	type Event = Event;
 	type RegistryOrigin = SuperMajorityTechCommittee;
@@ -720,6 +724,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type StringLimit = RegistryStrLimit;
 	type NativeAssetId = NativeAssetId;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
+	type SequentialIdStartAt = SequentialIdStartAt;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -842,6 +847,21 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
 
+use frame_support::BoundedVec;
+use pallet_ema_oracle::{MAX_TRADES, MAX_PERIODS};
+use hydradx_traits::OraclePeriod;
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::TenMinutes, OraclePeriod::Day, OraclePeriod::Week]);
+}
+impl pallet_ema_oracle::Config for Runtime {
+    type Event = Event;
+    type WeightInfo = ();
+    type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+    type SupportedPeriods = SupportedPeriods;
+    type MaxTradesPerBlock = ConstU32<MAX_TRADES>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -902,6 +922,7 @@ construct_runtime!(
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
+		EmaOracle: pallet_ema_oracle = 202,
 		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 	}
 );

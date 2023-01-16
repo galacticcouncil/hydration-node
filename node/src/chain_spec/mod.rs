@@ -174,6 +174,7 @@ pub fn parachain_genesis(
 		parachain_info: ParachainInfoConfig { parachain_id },
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),
+		ema_oracle: Default::default(),
 	}
 }
 
