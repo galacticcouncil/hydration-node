@@ -16,7 +16,8 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AssetId, BlockNumber, Config};
+use crate::{AssetId, BlockNumber, Config, OnValidationDataHandler, Schedule};
+use cumulus_primitives_core::relay_chain::v2::HeadData;
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
@@ -43,11 +44,14 @@ use sp_runtime::{
 	DispatchError,
 };
 
+use cumulus_pallet_parachain_system::OnSystemEvent;
+use cumulus_primitives_core::PersistedValidationData;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -84,7 +88,10 @@ frame_support::construct_runtime!(
 		 MultiTransactionPayment: pallet_transaction_multi_payment,
 		 TransasctionPayment: pallet_transaction_payment,
 		 Balances: pallet_balances,
-		 Currencies: pallet_currencies
+		 Currencies: pallet_currencies,
+		 ParachainInfo: parachain_info,
+		 ParachainSystem: cumulus_pallet_parachain_system,
+
 	 }
 );
 
@@ -135,7 +142,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
-	type OnSetCode = ();
+	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
@@ -311,6 +318,7 @@ impl Config for Test {
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
 	type SlashedBondReceiver = TreasuryAccount;
+	type ValidationDataHandler = OnValidationDataHandler<Test>;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
@@ -318,6 +326,7 @@ use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, Weight
 use hydradx_traits::pools::SpotPriceProvider;
 use pallet_transaction_multi_payment::{DepositAll, TransactionMultiPaymentDataProvider, TransferFees};
 use smallvec::smallvec;
+use test_utils::last_events;
 
 pub struct DummyNFT;
 
@@ -651,14 +660,55 @@ impl ExtBuilder {
 			});
 		});
 
+		r.execute_with(|| {
+			let hash_value = H256::from([
+				1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+				29, 30, 31, 32,
+			]);
+			DCA::add_parent_hash(hash_value);
+		});
+
 		r
 	}
+}
+
+impl cumulus_pallet_parachain_system::Config for Test {
+	type Event = Event;
+	type OnSystemEvent = OnValidationDataHandler<Test>;
+	type SelfParaId = ParachainInfo;
+	type OutboundXcmpMessageSource = ();
+	type DmpMessageHandler = ();
+	type ReservedDmpWeight = ();
+	type XcmpMessageHandler = ();
+	type ReservedXcmpWeight = ();
+	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
 }
 
 thread_local! {
 	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
 }
 
+pub fn expect_suspended_events(e: Vec<Event>) {
+	let last_events: Vec<Event> = get_last_suspended_events();
+	assert_eq!(last_events, e);
+}
+
+pub fn get_last_suspended_events() -> Vec<Event> {
+	let last_events: Vec<Event> = last_events::<Event, Test>(100);
+	let mut suspended_events = vec![];
+
+	for event in last_events {
+		let e = event.clone();
+		if let crate::tests::Event::DCA(dca::Event::Suspended { id, who }) = e {
+			suspended_events.push(event.clone());
+		}
+	}
+
+	suspended_events
+}
+
 pub fn expect_events(e: Vec<Event>) {
 	test_utils::expect_events::<Event, Test>(e);
 }
+
+impl parachain_info::Config for Test {}

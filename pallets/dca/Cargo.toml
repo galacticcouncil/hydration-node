@@ -10,6 +10,7 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-exe
 [dependencies]
 smallvec = "1.9.0"
 log = { version = "0.4.17", default-features = false }
+rand = "0.8.4"
 
 # parity
 codec = { package = "parity-scale-codec", version = "3.1.5", features = ["derive", "max-encoded-len"], default-features = false }
@@ -25,6 +26,11 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
+
+# Substrate
+cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
+cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
+parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
 
 # Math
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev="54fe636a19f283de9afbd5b5015a951b25e11a6b", default-features = false }
@@ -76,6 +82,8 @@ std = [
   "pallet-transaction-payment/std",
   "pallet-transaction-multi-payment/std",
   "pallet-balances/std",
-
+  "cumulus-primitives-core/std",
+  "cumulus-pallet-parachain-system/std",
+  "parachain-info/std",
 ]
 

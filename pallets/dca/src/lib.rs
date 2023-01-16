@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::ensure;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
@@ -31,6 +32,8 @@ use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
@@ -49,11 +52,11 @@ pub mod types;
 pub mod weights;
 
 use weights::WeightInfo;
-
 // Re-export pallet items so that they can be accessed from the crate namespace.
 use crate::types::{AssetId, Balance, BlockNumber, ScheduleId};
+use cumulus_primitives_core::{ParaId, PersistedValidationData};
 pub use pallet::*;
-
+use sp_runtime::traits::One;
 const MAX_NUMBER_OF_TRADES: u32 = 5;
 const MAX_NUMBER_OF_SCHEDULES_PER_BLOCK: u32 = 20; //TODO: use config for this
 
@@ -141,11 +144,14 @@ macro_rules! exec_or_skip_if_err {
 pub mod pallet {
 	use super::*;
 	use codec::{EncodeLike, HasCompact};
+	use cumulus_primitives_core::relay_chain::v2::HeadData;
+	use cumulus_primitives_core::relay_chain::Hash;
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::router::ExecutorError;
 	use orml_traits::MultiReservableCurrency;
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
+	use sp_core::H256;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
 	use sp_runtime::FixedPointNumber;
 	use std::fmt::Debug;
@@ -163,12 +169,14 @@ pub mod pallet {
 			{
 				let mut weight: u64 = 0;
 
+				let mut random_generator = Self::get_random_generator_basedon_on_relay_parent_hash();
+
 				let maybe_schedules: Option<BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>> =
 					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
 
 				match maybe_schedules {
-					Some(schedules) => {
-						//TODO: order schedules randomly
+					Some(mut schedules) => {
+						schedules.sort_by_key(|x| random_generator.gen::<u32>());
 						for schedule_id in schedules {
 							let schedule = exec_or_skip_if_none!(Schedules::<T>::get(schedule_id));
 							let owner = exec_or_skip_if_none!(ScheduleOwnership::<T>::get(schedule_id));
@@ -227,7 +235,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_omnipool::Config {
+	pub trait Config: frame_system::Config + pallet_omnipool::Config + cumulus_pallet_parachain_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Identifier for the class of asset.
@@ -269,6 +277,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type SlashedBondReceiver: Get<Self::AccountId>;
+
+		type ValidationDataHandler: cumulus_pallet_parachain_system::OnSystemEvent;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -348,6 +358,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
 	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u128, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn parent_hash)]
+	pub type ParentHash<T: Config> = StorageMap<_, Blake2_128Concat, u32, Hash, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
@@ -843,4 +857,45 @@ where
 
 		Ok(())
 	}
+
+	fn get_random_generator_basedon_on_relay_parent_hash() -> StdRng {
+		let hash_value = ParentHash::<T>::get(1).unwrap();
+		let mut seed_arr = [0u8; 8];
+		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);
+		let seed = u64::from_le_bytes(seed_arr);
+		let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+		rng
+	}
+
+	#[cfg(test)]
+	fn add_parent_hash(hash: Hash) -> DispatchResult {
+		ParentHash::<T>::insert(1, hash);
+
+		Ok(())
+	}
 }
+pub struct OnValidationDataHandler<T>(sp_std::marker::PhantomData<T>);
+
+//TODO: for testing use mock
+impl<T: Config> cumulus_pallet_parachain_system::OnSystemEvent for OnValidationDataHandler<T> {
+	fn on_validation_data(data: &PersistedValidationData) {
+		//Store only as a value, and not map
+		ParentHash::<T>::insert(1, data.parent_head.hash());
+	}
+
+	fn on_validation_code_applied() {}
+}
+
+//https://github.com/acuity-social/acuity-substrate-old/blob/5380d595222e1b23cf73a52af51adaa6c229407e/runtime/parachains/src/util.rs
+/*
+pub fn make_persisted_validation_data<T: paras::Trait>(
+	para_id: ParaId,
+) -> Option<PersistedValidationData<T::BlockNumber>> {
+	let relay_parent_number = <frame_system::Module<T>>::block_number() - One::one();
+
+	Some(PersistedValidationData {
+		parent_head: <paras::Module<T>>::para_head(&para_id)?,
+		block_number: relay_parent_number,
+		hrmp_mqc_heads: Vec::new(),
+	})
+}*/

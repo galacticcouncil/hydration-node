@@ -5833,6 +5833,8 @@ dependencies = [
 name = "pallet-dca"
 version = "1.0.2"
 dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
  "env_logger",
  "frame-benchmarking",
  "frame-support",
@@ -5848,9 +5850,11 @@ dependencies = [
  "pallet-omnipool",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
+ "parachain-info",
  "parity-scale-codec",
  "pretty_assertions",
  "proptest",
+ "rand 0.8.5",
  "scale-info",
  "smallvec",
  "sp-api",
