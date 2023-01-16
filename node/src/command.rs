@@ -367,7 +367,7 @@ pub fn run() -> sc_cli::Result<()> {
 				let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
 
 				let block: Block =
-					generate_genesis_block(&*config.chain_spec, state_version).map_err(|e| format!("{:?}", e))?;
+					generate_genesis_block(&*config.chain_spec, state_version).map_err(|e| format!("{e:?}"))?;
 				let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
 
 				let task_executor = config.tokio_handle.clone();

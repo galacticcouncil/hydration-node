@@ -37,7 +37,7 @@ impl Serialize for EthereumAddress {
 		S: Serializer,
 	{
 		let hex: String = rustc_hex::ToHex::to_hex(&self.0[..]);
-		serializer.serialize_str(&format!("0x{}", hex))
+		serializer.serialize_str(&format!("0x{hex}"))
 	}
 }
 
@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for EthereumAddress {
 				"Bad length of Ethereum address (should be 42 including '0x')",
 			));
 		}
-		let raw: Vec<u8> = rustc_hex::FromHex::from_hex(s).map_err(|e| serde::de::Error::custom(format!("{:?}", e)))?;
+		let raw: Vec<u8> = rustc_hex::FromHex::from_hex(s).map_err(|e| serde::de::Error::custom(format!("{e:?}")))?;
 		let mut r = Self::default();
 		r.0.copy_from_slice(&raw);
 		Ok(r)
