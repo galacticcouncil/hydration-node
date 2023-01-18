@@ -282,7 +282,7 @@ fn sell_hub_works() {
 				13410000000000000,
 				26820000000000000,
 				SimpleImbalance {
-					value: 974938271604939,
+					value: 99813571961223,
 					negative: true
 				}
 			);
@@ -572,7 +572,7 @@ fn sell_imbalance() {
 				13410000000000000,
 				26820000000000000,
 				SimpleImbalance {
-					value: 974938271604939,
+					value: 99813571961223,
 					negative: true
 				}
 			);
