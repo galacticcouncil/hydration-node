@@ -51,10 +51,12 @@ pub mod types;
 pub mod weights;
 
 use weights::WeightInfo;
+
 // Re-export pallet items so that they can be accessed from the crate namespace.
+pub use pallet::*;
+
 use crate::types::*;
 use cumulus_primitives_core::{ParaId, PersistedValidationData};
-pub use pallet::*;
 use sp_runtime::traits::One;
 
 //TODO:
@@ -64,34 +66,6 @@ use sp_runtime::traits::One;
 //-add readme
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
-
-macro_rules! exec_or_skip_if_none {
-	($opt:expr) => {
-		match $opt {
-			Some(val) => val,
-			None => {
-				log::error!(target: "runtime::dca", "Unexpected error happened while executing schedule.");
-				continue;
-			}
-		}
-	};
-}
-
-macro_rules! exec_or_skip_if_err {
-	($res:expr) => {
-		match $res {
-			Ok(val) => val,
-			Err(e) => {
-				log::error!(
-					target: "runtime::dca",
-					"Unexpected error happened while executing schedule, with message: {:?}.",
-					e
-				);
-				continue;
-			}
-		}
-	};
-}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -818,4 +792,34 @@ where
 		let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 		rng
 	}
+}
+
+#[macro_export]
+macro_rules! exec_or_skip_if_none {
+	($opt:expr) => {
+		match $opt {
+			Some(val) => val,
+			None => {
+				log::error!(target: "runtime::dca", "Unexpected error happened while executing schedule.");
+				continue;
+			}
+		}
+	};
+}
+
+#[macro_export]
+macro_rules! exec_or_skip_if_err {
+	($res:expr) => {
+		match $res {
+			Ok(val) => val,
+			Err(e) => {
+				log::error!(
+					target: "runtime::dca",
+					"Unexpected error happened while executing schedule, with message: {:?}.",
+					e
+				);
+				continue;
+			}
+		}
+	};
 }
