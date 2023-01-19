@@ -20,7 +20,7 @@ use std::io::empty;
 use std::ops::RangeInclusive;
 
 use crate::tests::*;
-use crate::{assert_balance, AssetId, BlockNumber, Bond, Event, Order, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{assert_balance, AssetId, Bond, Event, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiCurrency;

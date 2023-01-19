@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AssetId, BlockNumber, Config, Hash, Schedule};
+use crate::{AssetId, Config, Hash, Schedule};
 use cumulus_primitives_core::relay_chain::v2::HeadData;
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
@@ -56,6 +56,8 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
+pub type BlockNumber = u64;
+
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
