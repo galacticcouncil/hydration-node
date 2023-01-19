@@ -844,6 +844,26 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub ExecutionBondInNativeCurrency: Balance= UNITS; //TODO: Dani - ask the team how much these config should be. Maybe they shuld be configurable by admin?
+	pub StorageBondInNativeCurrency: Balance= UNITS;
+	pub MaxSchedulesPerBlock: u32= 20;
+}
+
+impl pallet_dca::Config for Runtime {
+	type Event = Event;
+	type Asset = AssetId;
+	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
+	type MultiReservableCurrency = Currencies;
+	type SpotPriceProvider = Omnipool;
+	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
+	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
+	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
+	type NativeAssetId = NativeAssetId;
+	type SlashedBondReceiver = TreasuryAccount;
+	type WeightInfo = (); //TODO: Dani - fix this
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -876,6 +896,7 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
+		DCA: pallet_dca= 61,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

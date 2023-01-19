@@ -270,7 +270,7 @@ pub fn vesting_account() -> AccountId {
 	VestingPalletId::get().into_account_truncating()
 }
 
-fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
+pub fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
 	frame_system::Pallet::<hydradx_runtime::Runtime>::events()
 		.into_iter()
 		.rev()

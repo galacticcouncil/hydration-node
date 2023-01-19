@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AssetId, BlockNumber, Config, OnValidationDataHandler, Schedule};
+use crate::{AssetId, BlockNumber, Config, Hash, Schedule};
 use cumulus_primitives_core::relay_chain::v2::HeadData;
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
@@ -34,8 +34,8 @@ use orml_traits::MultiCurrency;
 use pallet_currencies::BasicCurrencyAdapter;
 use pretty_assertions::assert_eq;
 use sp_core::H256;
-use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::traits::Get;
+use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
@@ -90,6 +90,7 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 ParachainInfo: parachain_info,
+		 RelaychainInfo: pallet_relaychain_info,
 		 ParachainSystem: cumulus_pallet_parachain_system,
 
 	 }
@@ -307,6 +308,21 @@ parameter_types! {
 	pub MaxSchedulePerBlock: u32 = 5;
 }
 
+pub struct BlockNumberProviderMock {}
+
+impl BlockNumberProvider for BlockNumberProviderMock {
+	type BlockNumber = BlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		todo!()
+	}
+}
+
+impl pallet_relaychain_info::Config for Test {
+	type Event = Event;
+	type RelaychainBlockNumberProvider = BlockNumberProviderMock;
+}
+
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
@@ -318,12 +334,12 @@ impl Config for Test {
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
 	type SlashedBondReceiver = TreasuryAccount;
-	type ValidationDataHandler = OnValidationDataHandler<Test>;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
 use hydradx_traits::pools::SpotPriceProvider;
+use pallet_relaychain_info::OnValidationDataHandler;
 use pallet_transaction_multi_payment::{DepositAll, TransactionMultiPaymentDataProvider, TransferFees};
 use smallvec::smallvec;
 use test_utils::last_events;
@@ -658,14 +674,6 @@ impl ExtBuilder {
 					MultiTransactionPayment::set_currency(Origin::signed(fee_asset.0), fee_asset.1);
 				}
 			});
-		});
-
-		r.execute_with(|| {
-			let hash_value = H256::from([
-				1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
-				29, 30, 31, 32,
-			]);
-			DCA::add_parent_hash(hash_value);
 		});
 
 		r

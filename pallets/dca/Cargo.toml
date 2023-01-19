@@ -10,11 +10,11 @@ repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-exe
 [dependencies]
 smallvec = "1.9.0"
 log = { version = "0.4.17", default-features = false }
-rand = "0.8.4"
+rand = { version = "0.8.4", default-features = false }
 
 # parity
 codec = { package = "parity-scale-codec", version = "3.1.5", features = ["derive", "max-encoded-len"], default-features = false }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 
 # primitives
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -25,7 +25,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 # FRAME
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false  }
 
 # Substrate
 cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
@@ -33,15 +33,15 @@ cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
 
 # Math
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev="54fe636a19f283de9afbd5b5015a951b25e11a6b", default-features = false }
 
 # HydraDX dependencies
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "e6e6ff135d133ee8b430eae5cd90e42332fe12c0", default-features = false }
 
-pallet-omnipool = { path = "../omnipool"}
+pallet-omnipool = { path = "../omnipool", default-features = false}
 
 # ORML dependencies
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
@@ -66,7 +66,6 @@ runtime-benchmarks = [
   "frame-benchmarking",
   "frame-system/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
-  "hydra-dx-math/runtime-benchmarks",
 ]
 std = [
   'codec/std',

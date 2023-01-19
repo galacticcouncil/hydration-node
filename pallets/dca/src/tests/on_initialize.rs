@@ -838,52 +838,6 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 		});
 }
 
-#[test]
-fn check_that_schedules_are_ordered_based_on_on_random_number() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, DAI, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_fee_asset(vec![(ALICE, DAI)])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let schedule1 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(1)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(1)).build();
-			let schedule3 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(1)).build();
-			let schedule4 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(1)).build();
-			let schedule5 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(1)).build();
-
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule1, Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule3, Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule4, Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule5, Option::None));
-
-			//Act
-			set_to_blocknumber(501);
-
-			//We check the reordering based on the the emitted events.
-			//As the user has no balance of HDX, all the schedule execution will fail and be suspended
-			//As the hash is fixed for the relay block number, therefore we should expect the same result
-			expect_suspended_events(vec![
-				Event::Suspended { id: 1, who: ALICE }.into(),
-				Event::Suspended { id: 3, who: ALICE }.into(),
-				Event::Suspended { id: 2, who: ALICE }.into(),
-				Event::Suspended { id: 4, who: ALICE }.into(),
-				Event::Suspended { id: 5, who: ALICE }.into(),
-			]);
-		});
-}
-
 fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec

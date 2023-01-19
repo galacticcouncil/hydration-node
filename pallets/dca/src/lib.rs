@@ -42,9 +42,8 @@ use sp_runtime::ArithmeticError;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 use sp_runtime::{BoundedVec, DispatchError};
+use sp_std::vec;
 use sp_std::vec::Vec;
-use std::cmp::Ordering;
-
 #[cfg(test)]
 mod tests;
 
@@ -154,7 +153,6 @@ pub mod pallet {
 	use sp_core::H256;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
 	use sp_runtime::FixedPointNumber;
-	use std::fmt::Debug;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -235,7 +233,12 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_omnipool::Config + cumulus_pallet_parachain_system::Config {
+	pub trait Config:
+		frame_system::Config
+		+ pallet_omnipool::Config
+		+ cumulus_pallet_parachain_system::Config
+		+ pallet_relaychain_info::Config
+	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Identifier for the class of asset.
@@ -277,8 +280,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type SlashedBondReceiver: Get<Self::AccountId>;
-
-		type ValidationDataHandler: cumulus_pallet_parachain_system::OnSystemEvent;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -358,10 +359,6 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
 	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u128, OptionQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn parent_hash)]
-	pub type ParentHash<T: Config> = StorageMap<_, Blake2_128Concat, u32, Hash, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
@@ -859,43 +856,11 @@ where
 	}
 
 	fn get_random_generator_basedon_on_relay_parent_hash() -> StdRng {
-		let hash_value = ParentHash::<T>::get(1).unwrap();
+		let hash_value = pallet_relaychain_info::Pallet::<T>::parent_hash();
 		let mut seed_arr = [0u8; 8];
 		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);
 		let seed = u64::from_le_bytes(seed_arr);
 		let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
 		rng
 	}
-
-	#[cfg(test)]
-	fn add_parent_hash(hash: Hash) -> DispatchResult {
-		ParentHash::<T>::insert(1, hash);
-
-		Ok(())
-	}
 }
-pub struct OnValidationDataHandler<T>(sp_std::marker::PhantomData<T>);
-
-//TODO: for testing use mock
-impl<T: Config> cumulus_pallet_parachain_system::OnSystemEvent for OnValidationDataHandler<T> {
-	fn on_validation_data(data: &PersistedValidationData) {
-		//Store only as a value, and not map
-		ParentHash::<T>::insert(1, data.parent_head.hash());
-	}
-
-	fn on_validation_code_applied() {}
-}
-
-//https://github.com/acuity-social/acuity-substrate-old/blob/5380d595222e1b23cf73a52af51adaa6c229407e/runtime/parachains/src/util.rs
-/*
-pub fn make_persisted_validation_data<T: paras::Trait>(
-	para_id: ParaId,
-) -> Option<PersistedValidationData<T::BlockNumber>> {
-	let relay_parent_number = <frame_system::Module<T>>::block_number() - One::one();
-
-	Some(PersistedValidationData {
-		parent_head: <paras::Module<T>>::para_head(&para_id)?,
-		block_number: relay_parent_number,
-		hrmp_mqc_heads: Vec::new(),
-	})
-}*/

@@ -3249,19 +3249,6 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "4.9.0"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=54fe636a19f283de9afbd5b5015a951b25e11a6b#54fe636a19f283de9afbd5b5015a951b25e11a6b"
-dependencies = [
- "fixed",
- "num-traits",
- "parity-scale-codec",
- "primitive-types 0.12.1",
- "sp-arithmetic",
- "sp-std",
-]
-
-[[package]]
-name = "hydra-dx-math"
 version = "4.9.1"
 source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a#3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a"
 dependencies = [
@@ -3411,6 +3398,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
@@ -3419,7 +3407,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
- "pallet-relaychain-info",
+ "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
  "pallet-scheduler",
  "pallet-session",
  "pallet-timestamp",
@@ -5839,7 +5827,6 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 4.9.0",
  "hydradx-traits",
  "lazy_static",
  "log",
@@ -5848,6 +5835,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-omnipool",
+ "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "parachain-info",
@@ -6204,7 +6192,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 4.9.1",
+ "hydra-dx-math",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -6271,6 +6259,21 @@ dependencies = [
 name = "pallet-relaychain-info"
 version = "0.3.2"
 source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5#b7cc6ff5efb641e4fd4da524459ce8111c32aef5"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-relaychain-info"
+version = "0.3.2"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0#e6e6ff135d133ee8b430eae5cd90e42332fe12c0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -8808,6 +8811,7 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
+ "env_logger",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -8830,9 +8834,10 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-elections-phragmen",
- "pallet-relaychain-info",
+ "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
@@ -11528,7 +11533,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
- "pallet-relaychain-info",
+ "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5)",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
