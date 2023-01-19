@@ -7,7 +7,7 @@ use frame_support::{
 	traits::{OnFinalize, OnInitialize},
 };
 
-use pallet_dca::{Order, Recurrence, Schedule, Trade};
+use pallet_dca::types::{Order, Recurrence, Schedule, Trade};
 use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::ConstU32;

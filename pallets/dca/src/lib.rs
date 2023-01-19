@@ -52,64 +52,18 @@ pub mod weights;
 
 use weights::WeightInfo;
 // Re-export pallet items so that they can be accessed from the crate namespace.
-use crate::types::{AssetId, Balance, BlockNumber, ScheduleId};
+use crate::types::*;
 use cumulus_primitives_core::{ParaId, PersistedValidationData};
 pub use pallet::*;
 use sp_runtime::traits::One;
-const MAX_NUMBER_OF_TRADES: u32 = 5;
-const MAX_NUMBER_OF_SCHEDULES_PER_BLOCK: u32 = 20; //TODO: use config for this
+
+//TODO:
+//-ask config for bonds
+//-calculate and generate weight
+//-add doc comments for both API, and types.rs
+//-add readme
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
-
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub enum Recurrence {
-	Fixed(u128),
-	Perpetual,
-}
-
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub enum Order<AssetId> {
-	Sell {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		min_limit: Balance,
-		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
-	},
-	Buy {
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		max_limit: Balance,
-		route: BoundedVec<Trade, ConstU32<MAX_NUMBER_OF_TRADES>>,
-	},
-}
-
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Schedule<AssetId, BlockNumber> {
-	pub period: BlockNumber,
-	pub recurrence: Recurrence,
-	pub order: Order<AssetId>,
-}
-
-///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Trade {
-	pub pool: PoolType, //TODO: consider using the same type as in route executor
-	pub asset_in: AssetId,
-	pub asset_out: AssetId,
-}
-
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum PoolType {
-	XYK,
-}
-
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Bond<AssetId> {
-	pub asset: AssetId,
-	pub amount: Balance,
-}
 
 macro_rules! exec_or_skip_if_none {
 	($opt:expr) => {
@@ -142,6 +96,7 @@ macro_rules! exec_or_skip_if_err {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::types::Recurrence;
 	use codec::{EncodeLike, HasCompact};
 	use cumulus_primitives_core::relay_chain::v2::HeadData;
 	use cumulus_primitives_core::relay_chain::Hash;
