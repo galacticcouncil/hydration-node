@@ -18,7 +18,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::ensure;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
@@ -56,7 +55,6 @@ use weights::WeightInfo;
 pub use pallet::*;
 
 use crate::types::*;
-use cumulus_primitives_core::{ParaId, PersistedValidationData};
 use sp_runtime::traits::One;
 
 //TODO:
@@ -72,8 +70,7 @@ pub mod pallet {
 	use super::*;
 	use crate::types::Recurrence;
 	use codec::{EncodeLike, HasCompact};
-	use cumulus_primitives_core::relay_chain::v2::HeadData;
-	use cumulus_primitives_core::relay_chain::Hash;
+
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::router::ExecutorError;
@@ -162,12 +159,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config
-		+ pallet_omnipool::Config
-		+ cumulus_pallet_parachain_system::Config
-		+ pallet_relaychain_info::Config
-	{
+	pub trait Config: frame_system::Config + pallet_omnipool::Config + pallet_relaychain_info::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Identifier for the class of asset.

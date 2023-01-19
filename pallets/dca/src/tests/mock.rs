@@ -16,8 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Hash, Schedule};
-use cumulus_primitives_core::relay_chain::v2::HeadData;
+use crate::{Config, Schedule};
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
@@ -44,8 +43,6 @@ use sp_runtime::{
 	DispatchError,
 };
 
-use cumulus_pallet_parachain_system::OnSystemEvent;
-use cumulus_primitives_core::PersistedValidationData;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -92,10 +89,7 @@ frame_support::construct_runtime!(
 		 TransasctionPayment: pallet_transaction_payment,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
-		 ParachainInfo: parachain_info,
 		 RelaychainInfo: pallet_relaychain_info,
-		 ParachainSystem: cumulus_pallet_parachain_system,
-
 	 }
 );
 
@@ -146,7 +140,7 @@ impl system::Config for Test {
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
-	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
+	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
@@ -683,18 +677,6 @@ impl ExtBuilder {
 	}
 }
 
-impl cumulus_pallet_parachain_system::Config for Test {
-	type Event = Event;
-	type OnSystemEvent = OnValidationDataHandler<Test>;
-	type SelfParaId = ParachainInfo;
-	type OutboundXcmpMessageSource = ();
-	type DmpMessageHandler = ();
-	type ReservedDmpWeight = ();
-	type XcmpMessageHandler = ();
-	type ReservedXcmpWeight = ();
-	type CheckAssociatedRelayNumber = cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
-}
-
 thread_local! {
 	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
 }
@@ -721,5 +703,3 @@ pub fn get_last_suspended_events() -> Vec<Event> {
 pub fn expect_events(e: Vec<Event>) {
 	test_utils::expect_events::<Event, Test>(e);
 }
-
-impl parachain_info::Config for Test {}

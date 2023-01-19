@@ -5821,8 +5821,6 @@ dependencies = [
 name = "pallet-dca"
 version = "1.0.2"
 dependencies = [
- "cumulus-pallet-parachain-system",
- "cumulus-primitives-core",
  "env_logger",
  "frame-benchmarking",
  "frame-support",
@@ -5838,7 +5836,6 @@ dependencies = [
  "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
- "parachain-info",
  "parity-scale-codec",
  "pretty_assertions",
  "proptest",
