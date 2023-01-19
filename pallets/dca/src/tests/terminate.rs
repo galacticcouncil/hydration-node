@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{AssetId, Bond};
+use crate::Bond;
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};

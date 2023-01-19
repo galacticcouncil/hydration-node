@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::{AssetId, Balance, Order, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{Balance, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
@@ -62,12 +62,12 @@ impl ScheduleBuilder {
 		}
 	}
 }
-pub fn empty_vec() -> BoundedVec<Trade, ConstU32<5>> {
+pub fn empty_vec() -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	create_bounded_vec(vec![])
 }
 
-pub fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
+pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
+	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
 }
 

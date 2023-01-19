@@ -20,7 +20,7 @@ use std::io::empty;
 use std::ops::RangeInclusive;
 
 use crate::tests::*;
-use crate::{assert_balance, AssetId, Bond, Event, Order, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{assert_balance, Bond, Event, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiCurrency;
@@ -836,11 +836,6 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 				"There should be no schedule for the block, but there is"
 			);
 		});
-}
-
-fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
-	bounded_vec
 }
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {

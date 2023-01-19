@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::{assert_scheduled_ids, ScheduleBuilder};
-use crate::{AssetId, Bond};
+use crate::Bond;
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -403,11 +403,6 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 
 			assert_scheduled_ids(503, vec![schedule_id]);
 		});
-}
-
-fn create_bounded_vec(trades: Vec<Trade>) -> BoundedVec<Trade, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
-	bounded_vec
 }
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
