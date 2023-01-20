@@ -13,8 +13,8 @@ log = { version = "0.4.17", default-features = false }
 rand = { version = "0.8.4", default-features = false }
 
 # parity
-codec = { package = "parity-scale-codec", version = "3.1.5", features = ["derive", "max-encoded-len"], default-features = false }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.1.5" }
 
 # primitives
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -26,10 +26,6 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false  }
-
-# Substrate
-
-# Math
 
 # HydraDX dependencies
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
@@ -75,8 +71,13 @@ std = [
   "scale-info/std",
   "orml-tokens/std",
   "frame-benchmarking/std",
+  "hydradx-traits/std",
   "pallet-transaction-payment/std",
   "pallet-transaction-multi-payment/std",
   "pallet-balances/std",
+  "pallet-currencies/std",
+  "pallet-relaychain-info/std",
+  "pallet-omnipool/std",
+  "orml-tokens/std",
 ]
 
