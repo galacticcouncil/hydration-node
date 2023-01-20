@@ -85,10 +85,10 @@ fn omnipool_launch_init_params_should_be_correct() {
 		assert_eq!(dot_balance, dot_amount);
 		assert_eq!(eth_balance, eth_amount);
 
-		let bob_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(BOB));
+		let charlie_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			hydradx_runtime::Origin::signed(BOB.into()),
+			hydradx_runtime::Origin::signed(CHARLIE.into()),
 			ETH,
 			DAI,
 			1_000_000_000_000_000_000,
@@ -97,9 +97,9 @@ fn omnipool_launch_init_params_should_be_correct() {
 
 		let expected = 1664733011875663575256u128;
 
-		let bob_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(BOB));
+		let charlie_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
-		let paid = bob_dai_orig - bob_dai;
+		let paid = charlie_dai_orig - charlie_dai;
 		assert_eq!(paid, expected);
 
 		let btc_price = FixedU128::from_inner(9_647_109_647_109_650_000_000_000);
@@ -116,10 +116,10 @@ fn omnipool_launch_init_params_should_be_correct() {
 
 		assert_eq!(btc_balance, btc_amount);
 
-		let bob_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(BOB));
+		let charlie_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			hydradx_runtime::Origin::signed(BOB.into()),
+			hydradx_runtime::Origin::signed(CHARLIE.into()),
 			BTC,
 			DAI,
 			100_000_000 / 10,
@@ -128,9 +128,9 @@ fn omnipool_launch_init_params_should_be_correct() {
 
 		let expected = 2_428_053_975_026_574_531_220u128;
 
-		let bob_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(BOB));
+		let charlie_dai = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
-		let paid = bob_dai_orig - bob_dai;
+		let paid = charlie_dai_orig - charlie_dai;
 		assert_eq!(paid, expected);
 	});
 }
