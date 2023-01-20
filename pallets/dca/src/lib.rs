@@ -30,6 +30,7 @@ use hydradx_traits::pools::SpotPriceProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
+use pallet_omnipool::WeightInfo as OmnipoolWeightInfo;
 use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -150,8 +151,8 @@ pub mod pallet {
 					None => (),
 				}
 
-				//TODO: increment the weight once an action happens
-				//weight += T::WeightInfo::get_spot_price().ref_time();
+				//TODO: calculate this when the trade happens, and based on buy/sell
+				weight += pallet_omnipool::weights::HydraWeight::<T>::buy().ref_time();
 
 				Weight::from_ref_time(weight)
 			}
