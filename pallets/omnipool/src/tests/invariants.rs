@@ -22,7 +22,7 @@ fn price() -> impl Strategy<Value = FixedU128> {
 }
 
 fn some_imbalance() -> impl Strategy<Value = SimpleImbalance<Balance>> {
-    (0..10000 * ONE).prop_map(|value| SimpleImbalance{ value, negative: true })
+	(0..10000 * ONE).prop_map(|value| SimpleImbalance { value, negative: true })
 }
 
 fn assert_asset_invariant(
@@ -47,7 +47,10 @@ fn assert_asset_invariant(
 }
 fn fee() -> impl Strategy<Value = Permill> {
 	// Allow values between 0.001 and 0.1
-	(0u32..=1u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)])
+	(
+		0u32..=1u32,
+		prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)],
+	)
 		.prop_map(|(n, d)| Permill::from_rational(n, d))
 }
 
@@ -197,7 +200,7 @@ proptest! {
 			.with_registered_asset(300)
 			.with_registered_asset(400)
 			.with_asset_fee(asset_fee)
-			.with_asset_fee(protocol_fee)
+			.with_protocol_fee(protocol_fee)
 			.with_initial_pool(
 				stable_price,
 				FixedU128::from(1),
@@ -228,6 +231,8 @@ proptest! {
 
 				assert!(updated_imbalance.value <= imbalance.value);
 
+				let imbalance_diff = imbalance.value - updated_imbalance.value;
+
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let new_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -242,12 +247,12 @@ proptest! {
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_eq!(old_hub_liquidity, new_hub_liquidity, "Total Hub liquidity has changed!");
+				assert_eq!(old_hub_liquidity, new_hub_liquidity + imbalance_diff, "Total Hub liquidity has changed!");
 
 				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 
-				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity + imbalance_diff, "Assets hub liquidity");
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -255,9 +260,9 @@ proptest! {
 				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
 				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
 				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-				let delta_imbalance= new_imbalance.value - old_imbalance.value; // note: in current implementation: imbalance cannot be positive, let's simply and ignore the sign for now
+				let delta_imbalance = old_imbalance.value - new_imbalance.value;
 
-				let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - delta_imbalance;
+				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx - delta_imbalance;
 				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
 			});
 	}
@@ -390,7 +395,7 @@ proptest! {
 			.with_registered_asset(300)
 			.with_registered_asset(400)
 			.with_asset_fee(asset_fee)
-			.with_asset_fee(protocol_fee)
+			.with_protocol_fee(protocol_fee)
 			.with_initial_pool(
 				stable_price,
 				FixedU128::from(1),
@@ -433,12 +438,14 @@ proptest! {
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_eq!(old_hub_liquidity, new_hub_liquidity, "Total Hub liquidity has changed!");
+				let imbalance_diff = imbalance.value - updated_imbalance.value;
+
+				assert_eq!(old_hub_liquidity, new_hub_liquidity + imbalance_diff, "Total Hub liquidity has changed!");
 
 				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 
-				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity + imbalance_diff, "Assets hub liquidity");
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -446,9 +453,9 @@ proptest! {
 				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
 				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
 				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-				let delta_imbalance= new_imbalance.value - old_imbalance.value; // note: in current implementation: imbalance cannot be positive, let's simply and ignore the sign for now
+				let delta_imbalance= old_imbalance.value - new_imbalance.value;
 
-				let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - delta_imbalance;
+				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx - delta_imbalance;
 				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
 			});
 	}
