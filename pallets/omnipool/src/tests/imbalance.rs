@@ -47,12 +47,18 @@ fn imbalance_should_update_correctly() {
 			// After lrna is sold to pool, imbalance should increase (more negative)
 			assert!(updated_imbalance.value > old_imbalance.value);
 
+			let q = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 			let old_imbalance = HubAssetImbalance::<Test>::get();
 			assert_ok!(Omnipool::sell(Origin::signed(LP3), 200, 100, 1000000000000, 1,));
 			let updated_imbalance = HubAssetImbalance::<Test>::get();
+			let q_plus = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 			// After non-lrna trade - sell, imbalance should decrease ( less negative )
 			assert!(updated_imbalance.value < old_imbalance.value);
+			assert_eq!(
+				q.checked_sub(old_imbalance.value).unwrap(),
+				q_plus.checked_sub(updated_imbalance.value).unwrap()
+			);
 
 			let position_id = <NextPositionId<Test>>::get();
 			let old_imbalance = HubAssetImbalance::<Test>::get();
@@ -74,11 +80,17 @@ fn imbalance_should_update_correctly() {
 			// After remove additional liquidity , imbalance should decrease( less negative )
 			assert!(updated_imbalance.value < old_imbalance.value);
 
+			let q = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 			let old_imbalance = HubAssetImbalance::<Test>::get();
 			assert_ok!(Omnipool::buy(Origin::signed(LP3), 200, 100, 1000000000000, u128::MAX,));
 			let updated_imbalance = HubAssetImbalance::<Test>::get();
+			let q_plus = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
 			// After non-lrna trade - buy, imbalance should decrease ( less negative )
 			assert!(updated_imbalance.value < old_imbalance.value);
+			assert_eq!(
+				q.checked_sub(old_imbalance.value).unwrap(),
+				q_plus.checked_sub(updated_imbalance.value).unwrap()
+			);
 		});
 }
