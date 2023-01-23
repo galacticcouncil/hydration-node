@@ -498,7 +498,7 @@ impl AccountIdFor<Vec<u32>> for AccountIdConstructor {
 	type AccountId = AccountId;
 
 	fn from_assets(assets: &Vec<u32>, _identifier: Option<&[u8]>) -> Self::AccountId {
-		assets.into_iter().sum::<u32>() as u64
+		assets.iter().sum::<u32>() as u64
 	}
 
 	fn name(assets: &Vec<u32>, identifier: Option<&[u8]>) -> Vec<u8> {

@@ -2,9 +2,6 @@ use super::*;
 use crate::types::Balance;
 use crate::*;
 use proptest::prelude::*;
-use sp_runtime::traits::CheckedAdd;
-use sp_runtime::traits::CheckedDiv;
-use sp_runtime::traits::CheckedMul;
 use test_utils::assert_balance;
 proptest! {
 	//Spec: https://www.notion.so/Add-Omnipool-asset-to-existing-stableswap-subpool-permissioned-d7ece293a23546a186a385a51f53212c
@@ -50,11 +47,11 @@ proptest! {
 				let asset_state_3 = Omnipool::load_asset_state(asset_3.asset_id).unwrap();
 				let asset_state_4 = Omnipool::load_asset_state(asset_4.asset_id).unwrap();
 				let asset_state_5 = Omnipool::load_asset_state(asset_5.asset_id).unwrap();
-				let r_3 = asset_state_3.reserve;
+				let _r_3 = asset_state_3.reserve;
 				let q_3 = asset_state_3.hub_reserve;
 				let b_3 = asset_state_3.protocol_shares;
 				let s_3 = asset_state_3.shares;
-				let r_4 = asset_state_4.reserve;
+				let _r_4 = asset_state_4.reserve;
 				let q_4 = asset_state_4.hub_reserve;
 				let b_4 = asset_state_4.protocol_shares;
 				let s_4 = asset_state_4.shares;
@@ -74,9 +71,9 @@ proptest! {
 
 				let stableswap_pool_share_asset_before_migration = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
-				let q_s = stableswap_pool_share_asset_before_migration.hub_reserve;
-				let b_s = stableswap_pool_share_asset_before_migration.protocol_shares;
-				let s_s = stableswap_pool_share_asset_before_migration.shares;
+				let _q_s = stableswap_pool_share_asset_before_migration.hub_reserve;
+				let _b_s = stableswap_pool_share_asset_before_migration.protocol_shares;
+				let _s_s = stableswap_pool_share_asset_before_migration.shares;
 
 				//Act
 				assert_ok!(OmnipoolSubpools::migrate_asset_to_subpool(
@@ -127,7 +124,7 @@ proptest! {
 				let right_3 = q_3.checked_mul_into(&b_3).unwrap().checked_div_inner(&s_3).unwrap();
 				let right_4 = q_4.checked_mul_into(&b_4).unwrap().checked_div_inner(&s_4).unwrap();
 				let right_5 = q_5.checked_mul_into(&b_5).unwrap().checked_div_inner(&s_5).unwrap();
-				let right = right_3.checked_add(right_4).unwrap().checked_add(right_5).unwrap();;
+				let right = right_3.checked_add(right_4).unwrap().checked_add(right_5).unwrap();
 
 				assert_invariant_eq!(left, right);
 

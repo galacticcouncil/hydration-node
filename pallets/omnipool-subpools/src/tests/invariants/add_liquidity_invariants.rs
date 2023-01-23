@@ -26,8 +26,8 @@ proptest! {
 
 					create_subpool!(SHARE_ASSET_AS_POOL_ID, asset_3.asset_id, asset_4.asset_id, 100u32);
 
-					let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
-					let omnipool_account = Omnipool::protocol_account();
+					let _pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
+					let _omnipool_account = Omnipool::protocol_account();
 
 					let share_state = Omnipool::load_asset_state(SHARE_ASSET_AS_POOL_ID).unwrap();
 
@@ -37,7 +37,7 @@ proptest! {
 					let subpool = Stableswap::get_pool(SHARE_ASSET_AS_POOL_ID).unwrap();
 					let reserve_total: Balance = subpool.balances::<Test>().into_iter().sum();
 
-					let position_id: u32 = Omnipool::next_position_id();
+					let _position_id: u32 = Omnipool::next_position_id();
 					assert_ok!(OmnipoolSubpools::add_liquidity(
 						Origin::signed(ALICE),
 						ASSET_3,

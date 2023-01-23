@@ -16,12 +16,12 @@
 // limitations under the License.
 
 #![cfg(feature = "runtime-benchmarks")]
+#![allow(clippy::type_complexity)]
 
 use super::*;
 
 use sp_runtime::FixedU128;
 
-use crate::tests::AssetId;
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_system::RawOrigin;
@@ -169,7 +169,7 @@ benchmarks! {
 			asset_c,
 			token_price,
 			Permill::from_percent(100),
-			owner.clone(),
+			owner,
 		)?;
 	}: _(RawOrigin::Root, share_asset.into(), asset_c)
 	verify{

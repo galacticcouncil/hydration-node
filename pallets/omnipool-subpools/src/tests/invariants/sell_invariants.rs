@@ -1,7 +1,6 @@
 use super::*;
 use crate::*;
 use proptest::prelude::*;
-use sp_std::ops::Mul;
 
 use hydra_dx_math::stableswap::calculate_d;
 use pallet_omnipool::types::SimpleImbalance;
@@ -237,7 +236,7 @@ proptest! {
 				let delta_u_s = u_s.checked_sub(u_s_plus).unwrap();
 
 				let f_w = withdraw_fee;
-				let one_minus_fw = Permill::from_float(1.0) - f_w;
+				let _one_minus_fw = Permill::from_float(1.0) - f_w;
 				let delta_d = d.checked_sub(d_plus).unwrap();
 
 				let delta_q_s = share_asset_state_after_sell.hub_reserve.checked_sub(share_asset_state_before_sell.hub_reserve).unwrap();
@@ -300,7 +299,6 @@ proptest! {
 		trade_fee in percent(),
 		withdraw_fee in percent()
 	) {
-		let trade_Fee = Permill::zero();
 		ExtBuilder::default()
 		.with_registered_asset(asset_3.asset_id)
 		.with_registered_asset(asset_4.asset_id)
@@ -405,7 +403,7 @@ proptest! {
 				.unwrap()
 				.checked_div_inner(&q_plus)
 				.unwrap();
-			let left = left_one.checked_sub(left_two).unwrap();
+			let _left = left_one.checked_sub(left_two).unwrap();
 
 			let right_one = q_s.checked_mul_into(&r_s_plus).unwrap();
 			let right_two = right_one
@@ -413,7 +411,7 @@ proptest! {
 				.unwrap()
 				.checked_div_inner(&q)
 				.unwrap();
-			let right = right_one.checked_sub(right_two).unwrap();
+			let _right = right_one.checked_sub(right_two).unwrap();
 
 			//assert_invariant_le!(left, right);
 		});

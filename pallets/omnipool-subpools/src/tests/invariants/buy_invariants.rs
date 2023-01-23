@@ -21,7 +21,7 @@ proptest! {
 		amplification in amplification(),
 		asset_fee in percent(),
 		withdraw_fee in percent(),
-		protocol_fee in percent(),
+		_protocol_fee in percent(),
 	) {
 		ExtBuilder::default()
 		.with_registered_asset(asset_3.asset_id)
@@ -50,7 +50,7 @@ proptest! {
 				let asset_b_reserve = Tokens::free_balance(asset_4.asset_id, &pool_account);
 				let d = calculate_d::<64u8>(&[asset_a_reserve,asset_b_reserve], amplification.into()).unwrap();
 
-				let l_before = get_imbalance_value!();
+				let _l_before = get_imbalance_value!();
 
 				assert_that_imbalance_is_zero!();
 
@@ -132,8 +132,8 @@ proptest! {
 				assert_invariant_le!(left, right);
 
 				// delta_QH + delta_L + delta_Qs = - delta_Qi
-				let left = delta_q_h.checked_add(delta_q_i).unwrap();
-				let right = delta_q_s;
+				let _left = delta_q_h.checked_add(delta_q_i).unwrap();
+				let _right = delta_q_s;
 				assert_invariant_eq!(delta_q_h + delta_q_i, delta_q_s);
 
 				// Stableswap equations
@@ -228,7 +228,7 @@ proptest! {
 
 				let delta_l = l - l_before;
 				let delta_q_s = share_asset_state_before_sell.hub_reserve.checked_sub(share_asset_state_after_sell.hub_reserve).unwrap();
-				let f_p = protocol_fee;
+				let _f_p = protocol_fee;
 				let delta_q_j = asset_5_state_after_sell.hub_reserve.checked_sub(asset_5_state_before_sell.hub_reserve).unwrap();
 
 				let delta_q_h = hdx_state_after.hub_reserve.checked_sub(hdx_state_before.hub_reserve).unwrap();

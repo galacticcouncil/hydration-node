@@ -33,7 +33,6 @@ use crate::types::{AssetDetail, Balance};
 use frame_support::pallet_prelude::*;
 use frame_support::require_transactional;
 use hydra_dx_math::omnipool_subpools::MigrationDetails;
-use hydra_dx_math::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto, Convert};
 use orml_traits::currency::MultiCurrency;
 use sp_std::prelude::*;
 
@@ -57,11 +56,11 @@ pub mod pallet {
 	use super::*;
 	use crate::weights::WeightInfo;
 	use frame_system::pallet_prelude::*;
-	use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate};
-	use pallet_omnipool::types::{AssetState, Tradability};
+
+	use pallet_omnipool::types::Tradability;
 	use pallet_stableswap::types::AssetLiquidity;
 	use sp_runtime::traits::Zero;
-	use sp_runtime::{ArithmeticError, Permill, Rational128};
+	use sp_runtime::Permill;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub (crate) trait Store)]
@@ -933,7 +932,7 @@ where
 
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
 		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
-		let withdraw_fee = subpool_in.withdraw_fee;
+		let _withdraw_fee = subpool_in.withdraw_fee;
 		let current_imbalance = OmnipoolPallet::<T>::current_imbalance();
 
 		let idx_in = subpool_in
@@ -1216,7 +1215,7 @@ where
 
 		let asset_fee = <T as pallet_omnipool::Config>::AssetFee::get();
 		let protocol_fee = <T as pallet_omnipool::Config>::ProtocolFee::get();
-		let withdraw_fee = subpool_in.withdraw_fee;
+		let _withdraw_fee = subpool_in.withdraw_fee;
 		let current_imbalance = OmnipoolPallet::<T>::current_imbalance();
 
 		let idx_in = subpool_in

@@ -18,6 +18,8 @@ use hydradx_traits::AccountIdFor;
 use orml_traits::MultiCurrency;
 use proptest::prelude::Strategy;
 
+use hydra_dx_math::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto};
+
 pub(crate) use mock::*;
 
 pub const ONE: Balance = 1_000_000_000_000;

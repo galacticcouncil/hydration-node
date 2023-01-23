@@ -2,9 +2,7 @@ use super::*;
 use crate::types::Balance;
 use crate::*;
 use proptest::prelude::*;
-use sp_runtime::traits::CheckedAdd;
-use sp_runtime::traits::CheckedDiv;
-use sp_runtime::traits::CheckedMul;
+
 use test_utils::assert_balance;
 
 proptest! {

@@ -69,7 +69,7 @@ fn create_subpool_should_work_when_single_pool_is_created() {
 					hub_reserve: 4550 * ONE,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
-					cap: 1_000_000_000_000_000_00,
+					cap: 100_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -207,7 +207,7 @@ fn protocol_share_calculation_should_work_when_protocol_has_shares() {
 					hub_reserve: 4615 * ONE,
 					shares: 4615 * ONE,
 					protocol_shares: 65000000000000,
-					cap: 1_000_000_000_000_000_00,
+					cap: 100_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -310,7 +310,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					hub_reserve: 4550 * ONE,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
-					cap: 1_000_000_000_000_000_00,
+					cap: 100_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
@@ -322,7 +322,7 @@ fn create_subpool_should_work_when_multiple_pools_are_created() {
 					hub_reserve: 7150 * ONE,
 					shares: 7150 * ONE,
 					protocol_shares: 0,
-					cap: 1_000_000_000_000_000_00,
+					cap: 100_000_000_000_000_000,
 					tradable: Tradability::default(),
 				}
 			);
