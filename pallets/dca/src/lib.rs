@@ -252,6 +252,8 @@ pub mod pallet {
 		BlockNumberIsNotInFuture,
 		///There is not planned execution on the given block
 		NoPlannedExecutionFoundOnBlock,
+		///Schedule execution is not planned on block
+		ScheduleExecutionNotPlannedOnBlock,
 		///The schedule must be suspended when there is not execution block specified by the using during termination of a shcedule
 		ScheduleMustBeSuspended,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries.
@@ -762,7 +764,7 @@ where
 
 				ensure!(
 					schedule_ids_on_block.contains(&schedule_id),
-					Error::<T>::NoPlannedExecutionFoundOnBlock,
+					Error::<T>::ScheduleExecutionNotPlannedOnBlock,
 				);
 
 				Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;

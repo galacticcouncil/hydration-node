@@ -242,7 +242,7 @@ fn terminate_should_fail_when_there_is_planned_execution_in_block_not_not_for_sc
 			//Act and assert
 			assert_noop!(
 				DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(501)),
-				Error::<Test>::NoPlannedExecutionFoundOnBlock
+				Error::<Test>::ScheduleExecutionNotPlannedOnBlock
 			);
 		});
 }
