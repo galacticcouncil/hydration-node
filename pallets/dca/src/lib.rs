@@ -593,7 +593,7 @@ where
 		let user_fee_currency = Self::get_user_fee_currency(&who)?;
 		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
 		let total_bond_in_user_currency =
-			Self::convert_to_user_currency_if_asset_is_not_native(user_fee_currency, total_bond_in_native_currency)?;
+			Self::convert_to_currency_if_asset_is_not_native(user_fee_currency, total_bond_in_native_currency)?;
 
 		let bond = Bond {
 			asset: user_fee_currency,
@@ -648,14 +648,14 @@ where
 		let execution_bond = Bonds::<T>::try_mutate(schedule_id, |maybe_bond| {
 			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
 
-			let storage_bond_in_user_currency = Self::get_storage_bond_in_user_currency(&who, bond.asset)?;
+			let storage_bond_in_bond_currency = Self::get_storage_bond_in_currency(&who, bond.asset)?;
 
-			return if bond.amount <= storage_bond_in_user_currency {
+			return if bond.amount <= storage_bond_in_bond_currency {
 				Ok::<Option<Bond<T::Asset>>, DispatchError>(None)
 			} else {
 				let to_be_extracted_amount = bond
 					.amount
-					.checked_sub(storage_bond_in_user_currency)
+					.checked_sub(storage_bond_in_bond_currency)
 					.ok_or(ArithmeticError::Underflow)?;
 
 				bond.amount = bond
@@ -679,7 +679,7 @@ where
 		Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
 			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
 
-			let execution_bond_in_user_currency = Self::get_execution_bond_in_user_currency(&who, bond.asset)?;
+			let execution_bond_in_user_currency = Self::get_execution_bond_in_currency(&who, bond.asset)?;
 
 			bond.amount = bond
 				.amount
@@ -694,20 +694,20 @@ where
 		Ok(())
 	}
 
-	fn get_execution_bond_in_user_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
+	fn get_execution_bond_in_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
 		let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
 
 		let execution_bond_in_user_currency =
-			Self::convert_to_user_currency_if_asset_is_not_native(bond_asset, execution_bond_in_native_currency)?;
+			Self::convert_to_currency_if_asset_is_not_native(bond_asset, execution_bond_in_native_currency)?;
 
 		Ok(execution_bond_in_user_currency)
 	}
 
-	fn get_storage_bond_in_user_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
+	fn get_storage_bond_in_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
 		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
 
 		let storage_bond_in_user_currency =
-			Self::convert_to_user_currency_if_asset_is_not_native(bond_asset, storage_bond_in_native_currency)?;
+			Self::convert_to_currency_if_asset_is_not_native(bond_asset, storage_bond_in_native_currency)?;
 
 		Ok(storage_bond_in_user_currency)
 	}
@@ -717,7 +717,7 @@ where
 		Ok(user_currency_and_spot_price.0)
 	}
 
-	fn convert_to_user_currency_if_asset_is_not_native(
+	fn convert_to_currency_if_asset_is_not_native(
 		asset_id: T::Asset,
 		total_bond_in_native_currency: u128,
 	) -> Result<u128, DispatchError> {
