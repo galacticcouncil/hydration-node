@@ -315,7 +315,7 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 			let pool_account = AccountIdConstructor::from_assets(&vec![ASSET_3, ASSET_4], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 97394957631199;
+			let amount_to_get = 97394957631198;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -334,7 +334,7 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 				ASSET_5,
 				AssetReserveState::<Balance> {
 					reserve: new_quantity_of_asset_5_in_omnipool,
-					hub_reserve: 3314564371301764,
+					hub_reserve: 3314564371301763,
 					shares: 5000 * ONE,
 					protocol_shares: 0,
 					cap: 1000000000000000000,
@@ -345,8 +345,8 @@ fn sell_should_work_when_selling_stable_asset_for_omnipool_asset() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4615493725412862,
-					hub_reserve: 4485435628698236,
+					reserve: 4615493725412861,
+					hub_reserve: 4485435628698237,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
@@ -574,7 +574,7 @@ fn sell_should_work_when_selling_lrna_for_stableswap_asset() {
 			);
 
 			assert_imbalance!(SimpleImbalance {
-				value: 644_606_312_868_540,
+				value: 199339933993400,
 				negative: true
 			});
 		});

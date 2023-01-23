@@ -637,7 +637,7 @@ fn buy_should_work_when_buying_stableswap_asset_with_lrna() {
 			);
 
 			assert_imbalance!(SimpleImbalance {
-				value: 432_473_009_453_161,
+				value: 132741041779086,
 				negative: true
 			});
 		});

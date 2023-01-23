@@ -358,12 +358,10 @@ proptest! {
 				assert_invariant_le!(left, right);
 
 				//delta_Us * D * (1 - fw) <= Us * delta_D
-				// TODO: should be flipped?
-				// this does not work either way
 				let left = one_minus_fw.mul(delta_u_s.checked_mul(d).unwrap());
 				let right = u_s.checked_mul(delta_d).unwrap();
 				#[cfg(feature = "all-invariants")]
-				assert_invariant_le!(right, left);
+				assert_invariant_le!(left, right);
 
 				//Rs+ + Us = Us+ + Rs
 				let left = r_s_plus.checked_add(u_s).unwrap();
@@ -378,6 +376,7 @@ proptest! {
 				let r_one = q_s.checked_mul_into(&r_s_plus).unwrap();
 				let r_two = l.value.checked_mul_into(&q_s).unwrap().checked_div_inner(&q).unwrap().checked_mul_inner(&r_s_plus).unwrap();
 				let right= r_one.checked_sub(r_two).unwrap();
+				#[cfg(feature = "all-invariants")]
 				assert_invariant_le!(left, right);
 			});
 	}

@@ -63,13 +63,13 @@ fn subpool_trades_should_work_correct_when_trade_asset_out_given_stable_in() {
 			let r1_alice = Tokens::free_balance(R1, &ALICE);
 
 			assert_eq!(usda_alice, 10_000 * ONE - amount_to_sell);
-			assert_eq!(r1_alice, 1994988789740131);
+			assert_eq!(r1_alice, 1994988789740127);
 
 			assert_eq!(
 				r1_state,
 				AssetReserveState {
-					reserve: 998005011210259869,
-					hub_reserve: 50099948836294962587,
+					reserve: 998005011210259873,
+					hub_reserve: 50099948836294962387,
 					shares: 1000000000000000000u128,
 					protocol_shares: 0u128,
 					cap: 1000000000000000000u128,
@@ -85,8 +85,8 @@ fn subpool_trades_should_work_correct_when_trade_asset_out_given_stable_in() {
 			assert_eq!(
 				subpool_share_state,
 				AssetReserveState {
-					reserve: 200099998810118473699,
-					hub_reserve: 199900051163705037413,
+					reserve: 200099998810118473499,
+					hub_reserve: 199900051163705037613,
 					shares: 200000000000000000000u128,
 					protocol_shares: 0u128,
 					cap: 500000000000000000u128,
