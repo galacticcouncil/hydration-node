@@ -38,7 +38,7 @@ proptest! {
 				add_omnipool_token!(asset_4.asset_id);
 				add_omnipool_token!(asset_5.asset_id);
 
-				create_subpool!(SHARE_ASSET_AS_POOL_ID, asset_3.asset_id, asset_4.asset_id);
+				create_subpool!(SHARE_ASSET_AS_POOL_ID, asset_3.asset_id, asset_4.asset_id, withdraw_fee, withdraw_fee);
 
 				let pool_account = AccountIdConstructor::from_assets(&vec![asset_4.asset_id, asset_4.asset_id], None);
 
