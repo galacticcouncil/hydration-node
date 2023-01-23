@@ -826,60 +826,68 @@ where
 		let withdraw_fee = subpool_out.withdraw_fee;
 		let current_imbalance = OmnipoolPallet::<T>::current_imbalance();
 
-		let result = hydra_dx_math::omnipool_subpools::calculate_sell_between_subpools(
-			SubpoolState {
-				reserves: &subpool_in.balances::<T>(),
-				amplification: subpool_in.amplification as u128,
-			},
-			SubpoolState {
-				reserves: &subpool_out.balances::<T>(),
-				amplification: subpool_out.amplification as u128,
-			},
+		// Calculate how much shares to add if we add given amount of asset
+		let delta_u = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+			&subpool_in.balances::<T>(),
 			idx_in,
-			idx_out,
 			amount_in,
+			subpool_in.amplification as u128,
+			share_issuance_in,
+		).ok_or(Error::<T>::Math)?;
+
+		// Sell the share amount to omnipool, receive shares of the second subpool
+		let sell_changes = calculate_sell_state_changes(
 			&(&share_asset_state_in).into(),
 			&(&share_asset_state_out).into(),
-			share_issuance_in,
-			share_issuance_out,
+			delta_u,
 			asset_fee,
 			protocol_fee,
-			withdraw_fee,
 			current_imbalance.value,
-		)
-		.ok_or(Error::<T>::Math)?;
+		).ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.asset_out.amount >= min_limit, Error::<T>::LimitNotReached);
+		// Calculate amount of asset to remove if we remove given amount of shares
+		let (delta_t_j, f) = calculate_withdraw_one_asset::<MAX_D_ITERATIONS, MAX_Y_ITERATIONS>(
+			&subpool_out.balances::<T>(),
+			*sell_changes.asset_out.delta_reserve,
+			idx_out,
+			share_issuance_out,
+			subpool_out.amplification as u128,
+			withdraw_fee,
+		).ok_or(Error::<T>::Math)?;
+
+		let delta_t_j = delta_t_j.checked_sub(f).ok_or(Error::<T>::Math)?;
+
+		ensure!(delta_t_j >= min_limit, Error::<T>::LimitNotReached);
 
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
 			&subpool_in.pool_account::<T>(),
-			*result.asset_in.amount,
+			amount_in,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
 			&subpool_out.pool_account::<T>(),
 			who,
-			*result.asset_out.amount,
+			delta_t_j,
 		)?;
 
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.iso_pool.asset_out.delta_reserve,
+			*sell_changes.asset_out.delta_reserve,
 		)?;
 		<T as pallet_omnipool::Config>::Currency::deposit(
 			subpool_id_in.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.iso_pool.asset_in.delta_reserve,
+			*sell_changes.asset_in.delta_reserve,
 		)?;
 
 		OmnipoolPallet::<T>::update_omnipool_state_given_trade_result(
 			subpool_id_in.into(),
 			subpool_id_out.into(),
-			result.iso_pool,
+			sell_changes,
 		)?;
 
 		Ok(())
