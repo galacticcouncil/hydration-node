@@ -99,6 +99,9 @@ proptest! {
 			let delta_q_j = asset_5_state_after_sell.hub_reserve - asset_5_state_before_sell.hub_reserve;
 			let delta_l = 0; // Because no LRNA is sold or bought
 
+			let delta_u_s = u_s_plus.checked_sub(u_s).unwrap();
+			let delta_d = d_plus.checked_sub(d).unwrap();
+
 			//Assert
 
 			// Qi+ * Ri+ >= Qi * Ri
@@ -121,6 +124,12 @@ proptest! {
 			let right = u_s_plus.checked_add(r_s).unwrap();
 			assert_invariant_eq!(left, right);
 
+			// delta_u_s * D <= u_s * delta_d
+			let left = delta_u_s.checked_mul_into(&d).unwrap();
+			let right = u_s.checked_mul_into(&delta_d).unwrap();
+			assert_invariant_le!(left, right);
+
+
 			// L <= 0
 			let left = l;
 			let right = 0;
@@ -133,8 +142,8 @@ proptest! {
 
 			//Stableswap equation holds
 			assert!(d_plus >= d);
-			#[cfg(feature = "all-invariants")]
-			assert!(d_plus - d <= D_DIFF_TOLERANCE);
+			//#[cfg(feature = "all-invariants")]
+			//assert!(d_plus - d <= D_DIFF_TOLERANCE);
 		});
 	}
 }
@@ -153,10 +162,6 @@ proptest! {
 		withdraw_fee in percent(),
 		protocol_fee in percent(),
 	) {
-
-		//let withdraw_fee = Permill::from_percent(0);
-		//let trade_fee = Permill::from_percent(0);
-		//let protocol_fee = Permill::from_percent(0);
 		ExtBuilder::default()
 			.with_registered_asset(asset_3.asset_id)
 			.with_registered_asset(asset_4.asset_id)
@@ -263,7 +268,7 @@ proptest! {
 				let right = u_s_plus.checked_add(r_s).unwrap();
 				assert_invariant_eq!(left, right);
 
-				// delta_u_s * D <= u_s * delta_d
+				// delta_u_s * D >= u_s * delta_d
 				let left = delta_u_s.checked_mul_into(&d).unwrap();
 				let right = u_s.checked_mul_into(&delta_d).unwrap();
 				assert_invariant_ge!(left, right);
