@@ -37,6 +37,10 @@ use hydra_dx_math::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMu
 use orml_traits::currency::MultiCurrency;
 use sp_std::prelude::*;
 
+use hydra_dx_math::stableswap::MAX_D_ITERATIONS;
+use hydra_dx_math::stableswap::*;
+use hydra_dx_math::omnipool::*;
+
 pub use pallet::*;
 use pallet_omnipool::types::{Position, Tradability};
 
@@ -710,62 +714,68 @@ where
 		let withdraw_fee = subpool_out.withdraw_fee;
 		let current_imbalance = OmnipoolPallet::<T>::current_imbalance();
 
-		let result = hydra_dx_math::omnipool_subpools::calculate_buy_between_subpools(
-			SubpoolState {
-				reserves: &subpool_in.balances::<T>(),
-				amplification: subpool_in.amplification as u128,
-			},
-			SubpoolState {
-				reserves: &subpool_out.balances::<T>(),
-				amplification: subpool_out.amplification as u128,
-			},
-			idx_in,
+		// Calculate how much shares to remove if amount out is remove from subpool
+		let delta_u = calculate_shares_removed::<MAX_D_ITERATIONS>(
+			&subpool_out.balances::<T>(),
 			idx_out,
 			amount_out,
+			subpool_out.amplification as u128,
+			share_issuance_out,
+			withdraw_fee,
+		).ok_or(Error::<T>::Math)?;
+
+		// Buy delta_u ( share amount) from omnipool
+		let buy_changes = calculate_buy_state_changes(
 			&(&share_asset_state_in).into(),
 			&(&share_asset_state_out).into(),
-			share_issuance_in,
-			share_issuance_out,
+			delta_u,
 			asset_fee,
 			protocol_fee,
-			withdraw_fee,
 			current_imbalance.value,
-		)
-		.ok_or(Error::<T>::Math)?;
+		).ok_or(Error::<T>::Math)?;
 
-		ensure!(*result.asset_in.amount <= max_limit, Error::<T>::LimitExceeded);
+		// calculate how much to add if we add given amount of shares
+		let delta_t_j = calculate_amount_to_add_for_shares::<MAX_D_ITERATIONS>(
+			&subpool_in.balances::<T>(),
+			idx_in,
+			*buy_changes.asset_in.delta_reserve,
+			subpool_in.amplification as u128,
+			share_issuance_in,
+		).ok_or(Error::<T>::Math)?;
+
+		ensure!(delta_t_j <= max_limit, Error::<T>::LimitExceeded);
 
 		// Update subpools - transfer between subpool and who
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_in.into(),
 			who,
 			&subpool_in.pool_account::<T>(),
-			*result.asset_in.amount,
+			delta_t_j,
 		)?;
 		<T as pallet_stableswap::Config>::Currency::transfer(
 			asset_out.into(),
 			&subpool_out.pool_account::<T>(),
 			who,
-			*result.asset_out.amount,
+			amount_out,
 		)?;
 
 		// Update share asset state in omnipool- mint/burn share asset
 		<T as pallet_omnipool::Config>::Currency::withdraw(
 			subpool_id_out.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.iso_pool.asset_out.delta_reserve,
+			*buy_changes.asset_out.delta_reserve,
 		)?;
 
 		<T as pallet_omnipool::Config>::Currency::deposit(
 			subpool_id_in.into(),
 			&OmnipoolPallet::<T>::protocol_account(),
-			*result.iso_pool.asset_in.delta_reserve,
+			*buy_changes.asset_in.delta_reserve,
 		)?;
 
 		OmnipoolPallet::<T>::update_omnipool_state_given_trade_result(
 			subpool_id_in.into(),
 			subpool_id_out.into(),
-			result.iso_pool,
+			buy_changes,
 		)?;
 
 		Ok(())
