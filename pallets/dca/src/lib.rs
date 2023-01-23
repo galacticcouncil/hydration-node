@@ -96,7 +96,7 @@ pub mod pallet {
 
 				let mut random_generator = Self::get_random_generator_basedon_on_relay_parent_hash();
 
-				let maybe_schedules: Option<BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>> =
+				let maybe_schedules: Option<BoundedVec<ScheduleId, T::MaxSchedulePerBlock>> =
 					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
 
 				match maybe_schedules {
@@ -284,13 +284,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
-	pub type ScheduleIdsPerBlock<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		BlockNumberFor<T>,
-		BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>,
-		OptionQuery,
-	>;
+	pub type ScheduleIdsPerBlock<T: Config> =
+		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn bond)]
@@ -449,7 +444,7 @@ where
 		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
 	) -> DispatchResult {
 		let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).ok_or(Error::<T>::InvalidState)?;
-		if schedule_ids.len() == MAX_NUMBER_OF_SCHEDULES_PER_BLOCK as usize {
+		if schedule_ids.len() == T::MaxSchedulePerBlock::get() as usize {
 			let mut consequent_block = blocknumber_for_schedule.clone();
 			consequent_block.saturating_inc();
 			Self::plan_schedule_for_block(consequent_block, next_schedule_id)?;
@@ -504,9 +499,9 @@ where
 
 	fn create_bounded_vec(
 		next_schedule_id: ScheduleId,
-	) -> Result<BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>>, DispatchError> {
+	) -> Result<BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, DispatchError> {
 		let schedule_id = vec![next_schedule_id];
-		let bounded_vec: BoundedVec<ScheduleId, ConstU32<MAX_NUMBER_OF_SCHEDULES_PER_BLOCK>> =
+		let bounded_vec: BoundedVec<ScheduleId, T::MaxSchedulePerBlock> =
 			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?;
 		Ok(bounded_vec)
 	}

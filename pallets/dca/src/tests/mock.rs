@@ -302,7 +302,7 @@ parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub ExecutionBondInNativeCurrency: Balance= EXECUTION_BOND.with(|v| *v.borrow());
 	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
-	pub MaxSchedulePerBlock: u32 = 5;
+	pub MaxSchedulePerBlock: u32 = 20;
 }
 
 pub struct BlockNumberProviderMock {}

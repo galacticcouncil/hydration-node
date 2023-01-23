@@ -7,7 +7,6 @@ pub type Balance = u128;
 pub type ScheduleId = u32;
 
 const MAX_NUMBER_OF_TRADES: u32 = 5;
-pub const MAX_NUMBER_OF_SCHEDULES_PER_BLOCK: u32 = 20; //TODO: use config for this
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub enum Recurrence {
