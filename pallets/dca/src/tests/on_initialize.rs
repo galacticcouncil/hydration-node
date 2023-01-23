@@ -405,8 +405,6 @@ fn fixed_schedule_is_suspended_in_block_when_user_has_not_enough_balance() {
 		});
 }
 
-//TODO: add similar case and impl for the case where bond is slashed, but we should not slash storage bond. So if there is price changes, etc in a foreign asset, then we should slash the leftover, so keeping storage bond
-//TODO: also check the smae with non native
 #[test]
 fn user_bond_should_be_slashed_when_not_enough_balance_for_schedule_execution() {
 	ExtBuilder::default()
@@ -835,6 +833,53 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 				DCA::schedule_ids_per_block(601).is_none(),
 				"There should be no schedule for the block, but there is"
 			);
+		});
+}
+
+#[test]
+fn dca_should_not_be_executed_when_schedule_is_paused_after_one_execution() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			let schedule_id: ScheduleId = 1u32;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_balance!(ALICE, BTC, 0);
+			assert_eq!(3000000, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+
+			//Act
+			set_to_blocknumber(501);
+
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 601));
+
+			proceed_to_blocknumber(502, 901);
+
+			//Assert
+			assert_balance!(ALICE, BTC, 1 * ONE);
+			assert!(DCA::bond(schedule_id).is_some());
 		});
 }
 

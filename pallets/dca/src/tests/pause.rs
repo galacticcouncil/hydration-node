@@ -32,7 +32,6 @@ use sp_runtime::FixedU128;
 
 #[test]
 fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
-	//TODO: add the same test when we execute the order with on_initialize, then we pause in later block
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -468,9 +467,7 @@ fn pause_should_unreserve_with_original_bond_asset_when_user_changes_set_currenc
 
 //TODO: we also have to make sure that simlar thigs happen when the config is changed in the meantime, so total bond will be < thant current storage bond
 #[test]
-fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_than_currenct_storage_bond()
-//not_unreserve_exec_bond_when_total_bond_before_is_less_than_current_storage_bond_with_foreign_currency
-{
+fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_than_currenct_storage_bond() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
