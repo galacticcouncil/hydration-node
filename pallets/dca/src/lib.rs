@@ -258,8 +258,6 @@ pub mod pallet {
 		ScheduleMustBeSuspended,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries.
 		CalculatingSpotPriceError,
-		///The execution block does not contain the schedule, only other ones
-		ExecutionBlockNotContainsSchedule,
 	}
 
 	/// Id sequencer for schedules
@@ -573,7 +571,7 @@ where
 			let index = schedule_ids
 				.iter()
 				.position(|x| *x == schedule_id)
-				.ok_or(Error::<T>::ExecutionBlockNotContainsSchedule)?;
+				.ok_or(Error::<T>::ScheduleExecutionNotPlannedOnBlock)?;
 
 			schedule_ids.remove(index);
 

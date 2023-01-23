@@ -176,7 +176,7 @@ fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block_
 			let schedule_id2 = 2;
 			assert_noop!(
 				DCA::pause(Origin::signed(ALICE), schedule_id2, 502),
-				Error::<Test>::ExecutionBlockNotContainsSchedule
+				Error::<Test>::ScheduleExecutionNotPlannedOnBlock
 			);
 		});
 }
