@@ -256,6 +256,8 @@ pub mod pallet {
 		ScheduleMustBeSuspended,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries.
 		CalculatingSpotPriceError,
+		///The execution block does not contain the schedule, only other ones
+		ExecutionBlockNotContainsSchedule,
 	}
 
 	/// Id sequencer for schedules
@@ -269,12 +271,12 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset, BlockNumberFor<T>>, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn suspended)]
-	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn schedule_ownership)]
 	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, T::AccountId, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn suspended)]
+	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
@@ -574,7 +576,7 @@ where
 			let index = schedule_ids
 				.iter()
 				.position(|x| *x == schedule_id)
-				.ok_or(Error::<T>::InvalidState)?;
+				.ok_or(Error::<T>::ExecutionBlockNotContainsSchedule)?;
 
 			schedule_ids.remove(index);
 

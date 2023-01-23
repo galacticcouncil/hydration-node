@@ -158,6 +158,30 @@ fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block(
 }
 
 #[test]
+fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block_but_exec_block_contains_other_schedules(
+) {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(502)));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(503)));
+
+			//Act and assert
+			let schedule_id2 = 2;
+			assert_noop!(
+				DCA::pause(Origin::signed(ALICE), schedule_id2, 502),
+				Error::<Test>::ExecutionBlockNotContainsSchedule
+			);
+		});
+}
+
+#[test]
 fn pause_should_fail_when_paused_by_not_schedule_owner() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
