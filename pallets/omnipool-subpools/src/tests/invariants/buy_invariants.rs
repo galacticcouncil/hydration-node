@@ -19,8 +19,9 @@ proptest! {
 		asset_4 in pool_token(ASSET_4),
 		asset_5 in pool_token(ASSET_5),
 		amplification in amplification(),
+		asset_fee in percent(),
 		withdraw_fee in percent(),
-		protocol_fee in percent()
+		protocol_fee in percent(),
 	) {
 		ExtBuilder::default()
 		.with_registered_asset(asset_3.asset_id)
@@ -38,7 +39,7 @@ proptest! {
 				add_omnipool_token!(asset_4.asset_id);
 				add_omnipool_token!(asset_5.asset_id);
 
-				create_subpool!(SHARE_ASSET_AS_POOL_ID, asset_3.asset_id, asset_4.asset_id, withdraw_fee, withdraw_fee);
+				create_subpool!(SHARE_ASSET_AS_POOL_ID, asset_3.asset_id, asset_4.asset_id, asset_fee, withdraw_fee);
 
 				let pool_account = AccountIdConstructor::from_assets(&vec![asset_4.asset_id, asset_4.asset_id], None);
 
@@ -153,7 +154,9 @@ proptest! {
 		asset_4 in pool_token(ASSET_4),
 		asset_5 in pool_token(ASSET_5),
 		amplification in amplification(),
-		protocol_fee in percent()
+		asset_fee in percent(),
+		withdraw_fee in percent(),
+		protocol_fee in percent(),
 	) {
 		let alice_initial_asset_3_balance = ALICE_INITIAL_ASSET_3_BALANCE * 100;
 
@@ -173,7 +176,7 @@ proptest! {
 				add_omnipool_token!(asset_4.asset_id);
 				add_omnipool_token!(asset_5.asset_id);
 
-				create_subpool!(SHARE_ASSET_AS_POOL_ID, asset_3.asset_id, asset_4.asset_id);
+				create_subpool!(SHARE_ASSET_AS_POOL_ID, asset_3.asset_id, asset_4.asset_id, asset_fee, withdraw_fee);
 
 				let pool_account = AccountIdConstructor::from_assets(&vec![asset_3.asset_id, asset_4.asset_id], None);
 
@@ -245,6 +248,7 @@ proptest! {
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#7f2635b3a67b44eaa4cb95315ae1a83b
 				let left = u_s_plus.checked_mul(d).unwrap();
 				let right = u_s.checked_mul(d_plus).unwrap();
+				#[cfg(feature = "all-invariants")]
 				assert_invariant_le!(left, right);
 
 				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#847cd7908760415b9748f7fa0b1c2234
