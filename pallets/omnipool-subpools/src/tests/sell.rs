@@ -182,7 +182,7 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			let pool_account2 = AccountIdConstructor::from_assets(&vec![ASSET_5, ASSET_6], None);
 			let omnipool_account = Omnipool::protocol_account();
 
-			let amount_to_get = 97944844908417;
+			let amount_to_get = 97944844908416;
 
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - amount_to_sell);
 			assert_balance!(ALICE, ASSET_4, 0);
@@ -202,8 +202,8 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID,
 				AssetReserveState::<Balance> {
-					reserve: 4615493725412862,
-					hub_reserve: 4485435628698236,
+					reserve: 4615493725412861,
+					hub_reserve: 4485435628698237,
 					shares: 4550 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
@@ -214,8 +214,8 @@ fn sell_should_work_when_assets_are_in_different_subpool() {
 			assert_asset_state_in_omnipool!(
 				SHARE_ASSET_AS_POOL_ID_2,
 				AssetReserveState::<Balance> {
-					reserve: 7086013426306942,
-					hub_reserve: 7214564371301764,
+					reserve: 7086013426306943,
+					hub_reserve: 7214564371301763,
 					shares: 7150 * ONE,
 					protocol_shares: 0,
 					cap: 500000000000000000,
