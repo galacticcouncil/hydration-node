@@ -59,8 +59,8 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
 
 			//Check if schedule ownership is created
-			assert!(DCA::schedule_ownership(schedule_id).is_some());
-			assert_eq!(DCA::schedule_ownership(schedule_id).unwrap(), ALICE);
+			assert!(DCA::owner_of(schedule_id).is_some());
+			assert_eq!(DCA::owner_of(schedule_id).unwrap(), ALICE);
 
 			//Check if the recurrances have been stored
 			assert_eq!(DCA::remaining_recurrences(schedule_id).unwrap(), 5);
@@ -122,8 +122,8 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
 
 			//Check if schedule ownership is created
-			assert!(DCA::schedule_ownership(schedule_id).is_some());
-			assert_eq!(DCA::schedule_ownership(schedule_id).unwrap(), ALICE);
+			assert!(DCA::owner_of(schedule_id).is_some());
+			assert_eq!(DCA::owner_of(schedule_id).unwrap(), ALICE);
 		});
 }
 
@@ -155,8 +155,8 @@ fn schedule_should_work_when_perpetual_schedule_is_specified() {
 			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
 
 			//Check if schedule ownership is created
-			assert!(DCA::schedule_ownership(schedule_id).is_some());
-			assert_eq!(DCA::schedule_ownership(schedule_id).unwrap(), ALICE);
+			assert!(DCA::owner_of(schedule_id).is_some());
+			assert_eq!(DCA::owner_of(schedule_id).unwrap(), ALICE);
 
 			//Check if the recurrances have been stored
 			assert!(DCA::remaining_recurrences(schedule_id).is_none());

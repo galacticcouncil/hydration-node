@@ -271,7 +271,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset, BlockNumberFor<T>>, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn schedule_ownership)]
+	#[pallet::getter(fn owner_of)]
 	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, T::AccountId, OptionQuery>;
 
 	#[pallet::storage]

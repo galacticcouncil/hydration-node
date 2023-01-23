@@ -47,7 +47,7 @@ fn terminate_should_remove_schedule_from_storage() {
 
 			//Assert
 			assert!(DCA::schedules(schedule_id).is_none());
-			assert!(DCA::schedule_ownership(schedule_id).is_none());
+			assert!(DCA::owner_of(schedule_id).is_none());
 			assert!(DCA::remaining_recurrences(schedule_id).is_none());
 
 			expect_events(vec![Event::Terminated { id: 1, who: ALICE }.into()]);
