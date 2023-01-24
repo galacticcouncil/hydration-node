@@ -47,6 +47,7 @@ use sp_std::vec::Vec;
 #[cfg(test)]
 mod tests;
 
+mod benchmarks;
 pub mod types;
 pub mod weights;
 
