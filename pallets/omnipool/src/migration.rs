@@ -36,7 +36,7 @@ pub fn migrate_to_v2<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 	let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
 	log::info!(
 		target: "runtime::omnipool",
-		"Running migration storage v1 for omnipool with storage version {:?}",
+		"Running migration storage v2 for omnipool with storage version {:?}",
 		on_chain_storage_version,
 	);
 
@@ -45,7 +45,7 @@ pub fn migrate_to_v2<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 		StorageVersion::new(2).put::<P>();
 		log::info!(
 			target: "runtime::omnipool",
-			"Running migration storage v1 for omnipool with storage version {:?} was complete",
+			"Running migration storage v2 for omnipool with storage version {:?} was complete",
 			on_chain_storage_version,
 		);
 		// calculate and return migration weights
@@ -53,7 +53,7 @@ pub fn migrate_to_v2<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 	} else {
 		log::warn!(
 			target: "runtime::omnipool",
-			"Attempted to apply migration to v1 but failed because storage version is {:?}",
+			"Attempted to apply migration to v2 but failed because storage version is {:?}",
 			on_chain_storage_version,
 		);
 		T::DbWeight::get().reads(1)
