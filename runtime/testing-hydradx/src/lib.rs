@@ -877,6 +877,7 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
+		DCA: pallet_dca = 61,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

@@ -195,7 +195,7 @@ impl pallet_omnipool::Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
-	type Currency = Tokens;
+	type Currency = Currencies;
 	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type ProtocolFee = ProtocolFee;

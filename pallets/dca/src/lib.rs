@@ -47,7 +47,9 @@ use sp_std::vec::Vec;
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarks;
+
 pub mod types;
 pub mod weights;
 
@@ -104,50 +106,7 @@ pub mod pallet {
 					Some(mut schedules) => {
 						schedules.sort_by_key(|x| random_generator.gen::<u32>());
 						for schedule_id in schedules {
-							let schedule = exec_or_skip_if_none!(Schedules::<T>::get(schedule_id));
-							let owner = exec_or_skip_if_none!(ScheduleOwnership::<T>::get(schedule_id));
-							let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
-
-							let trade_result = Self::execute_trade(origin, &schedule.order);
-							weight += Self::get_trade_weight(&schedule.order);
-
-							match trade_result {
-								Ok(res) => {
-									let blocknumber_for_schedule =
-										exec_or_skip_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
-
-									match schedule.recurrence {
-										Recurrence::Fixed(_) => {
-											let remaining_reccurences =
-												exec_or_skip_if_err!(Self::decrement_recurrences(schedule_id));
-											if !remaining_reccurences.is_zero() {
-												exec_or_skip_if_err!(Self::plan_schedule_for_block(
-													blocknumber_for_schedule,
-													schedule_id
-												));
-											} else {
-												exec_or_skip_if_err!(Self::discard_bond(schedule_id, &owner));
-											}
-										}
-										Recurrence::Perpetual => {
-											exec_or_skip_if_err!(Self::plan_schedule_for_block(
-												blocknumber_for_schedule,
-												schedule_id
-											));
-										}
-									}
-								}
-								_ => {
-									Suspended::<T>::insert(schedule_id, ());
-
-									exec_or_skip_if_err!(Self::slash_execution_bond(schedule_id, &owner));
-
-									Self::deposit_event(Event::Suspended {
-										id: schedule_id,
-										who: owner.clone(),
-									});
-								}
-							}
+							Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
 						}
 					}
 					None => (),
@@ -415,11 +374,62 @@ pub mod pallet {
 		}
 	}
 }
+#[derive(Debug, PartialEq)]
+pub enum DcaExecutionResult {
+	Success,
+	UnexpectedlyFailed,
+}
 
 impl<T: Config> Pallet<T>
 where
 	<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
 {
+	fn execute_schedule(
+		current_blocknumber: T::BlockNumber,
+		weight: &mut u64,
+		schedule_id: ScheduleId,
+	) -> DcaExecutionResult {
+		let schedule = exec_or_skip_if_none!(Schedules::<T>::get(schedule_id));
+		let owner = exec_or_skip_if_none!(ScheduleOwnership::<T>::get(schedule_id));
+		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
+
+		let trade_result = Self::execute_trade(origin, &schedule.order);
+		*weight += Self::get_trade_weight(&schedule.order);
+
+		match trade_result {
+			Ok(res) => {
+				let blocknumber_for_schedule =
+					exec_or_skip_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
+
+				match schedule.recurrence {
+					Recurrence::Fixed(_) => {
+						let remaining_reccurences = exec_or_skip_if_err!(Self::decrement_recurrences(schedule_id));
+						if !remaining_reccurences.is_zero() {
+							exec_or_skip_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
+						} else {
+							exec_or_skip_if_err!(Self::discard_bond(schedule_id, &owner));
+						}
+					}
+					Recurrence::Perpetual => {
+						exec_or_skip_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
+					}
+				}
+				return DcaExecutionResult::Success;
+			}
+			_ => {
+				Suspended::<T>::insert(schedule_id, ());
+
+				exec_or_skip_if_err!(Self::slash_execution_bond(schedule_id, &owner));
+
+				Self::deposit_event(Event::Suspended {
+					id: schedule_id,
+					who: owner.clone(),
+				});
+				return DcaExecutionResult::Success;
+			}
+		}
+	}
+
 	fn get_trade_weight(order: &Order<T::Asset>) -> u64 {
 		match order {
 			Order::Sell { .. } => pallet_omnipool::weights::HydraWeight::<T>::sell().ref_time(),
@@ -790,6 +800,7 @@ where
 	}
 }
 
+//TODO: rename these macro to exec_or_finish
 #[macro_export]
 macro_rules! exec_or_skip_if_none {
 	($opt:expr) => {
@@ -797,7 +808,7 @@ macro_rules! exec_or_skip_if_none {
 			Some(val) => val,
 			None => {
 				log::error!(target: "runtime::dca", "Unexpected error happened while executing schedule.");
-				continue;
+				return DcaExecutionResult::UnexpectedlyFailed;
 			}
 		}
 	};
@@ -814,7 +825,7 @@ macro_rules! exec_or_skip_if_err {
 					"Unexpected error happened while executing schedule, with message: {:?}.",
 					e
 				);
-				continue;
+				return DcaExecutionResult::UnexpectedlyFailed;
 			}
 		}
 	};

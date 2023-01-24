@@ -14,7 +14,7 @@ pub mod terminate;
 #[macro_export]
 macro_rules! assert_balance {
 	( $x:expr, $y:expr, $z:expr) => {{
-		assert_eq!(Tokens::free_balance($y, &$x), $z);
+		assert_eq!(Currencies::free_balance($y, &$x), $z);
 	}};
 }
 
