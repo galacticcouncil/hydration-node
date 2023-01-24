@@ -91,6 +91,12 @@ pub mod pallet {
 	/// Existing subpool IDs.
 	pub(super) type Subpools<T: Config> = StorageMap<_, Blake2_128Concat, StableswapAssetIdOf<T>, (), OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn position_asset)]
+	/// Existing subpool IDs.
+	pub(super) type PositionAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, <T as pallet_omnipool::Config>::PositionItemId, AssetIdOf<T>, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -352,6 +358,9 @@ pub mod pallet {
 						amount,
 					}],
 				)?;
+				let position_id = OmnipoolPallet::<T>::next_position_id();
+				<PositionAsset<T>>::insert(position_id, asset_id);
+
 				OmnipoolPallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 			} else {
 				OmnipoolPallet::<T>::add_liquidity(origin, asset_id, amount)
@@ -392,6 +401,8 @@ pub mod pallet {
 				)?;
 
 				if mint_nft {
+					let position_id = OmnipoolPallet::<T>::next_position_id();
+					<PositionAsset<T>>::insert(position_id, asset_id);
 					OmnipoolPallet::<T>::add_liquidity(origin, pool_id.into(), shares)
 				} else {
 					Ok(())
@@ -430,6 +441,8 @@ pub mod pallet {
 			let position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
 
 			let position = if let Some((pool_id, details)) = MigratedAssets::<T>::get(&position.asset_id) {
+				<PositionAsset<T>>::insert(position_id, position.asset_id);
+
 				let position = Self::convert_position(pool_id.into(), details, position)?;
 				// Store the updated position
 				OmnipoolPallet::<T>::set_position(position_id, &position)?;
@@ -440,6 +453,10 @@ pub mod pallet {
 
 			// Asset should be in isopool, call omnipool::remove_liquidity
 			OmnipoolPallet::<T>::remove_liquidity(origin.clone(), position_id, share_amount)?;
+
+			if OmnipoolPallet::<T>::load_position(position_id, who.clone()).is_err() {
+				<PositionAsset<T>>::remove(position_id);
+			}
 
 			// TODO: should we allow just withdrawing subpool shares and keep them instead?
 

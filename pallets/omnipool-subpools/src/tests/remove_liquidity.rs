@@ -73,6 +73,8 @@ fn remove_liqudity_should_work_when_asset_is_migrated_to_subpool() {
 
 			assert_that_nft_position_is_not_present!(position_id);
 			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
+
+			assert!(OmnipoolSubpools::position_asset(position_id).is_none());
 		});
 }
 
@@ -141,6 +143,9 @@ fn remove_liqudity_should_do_position_conversion_when_liqudity_added_before_pool
 				fraction_of_share,
 				Option::Some(ASSET_3),
 			));
+
+			let position_asset = OmnipoolSubpools::position_asset(position_id).unwrap();
+			assert_eq!(position_asset, ASSET_3);
 
 			let share_left_as_deposit = deposited_share_of_alice - fraction_of_share;
 
@@ -224,7 +229,7 @@ fn remove_liqudity_should_work_when_asset_is_not_migrated_to_subpool(asset_id: O
 #[test_case(Tradability::SELL)]
 #[test_case(Tradability::BUY)]
 #[test_case(Tradability::ADD_LIQUIDITY)]
-fn remove_liqudity_should_fail_when_asset_has_tradable_state_disallowing_removing_liquidty(tradability: Tradability) {
+fn remove_liqudity_should_fail_when_asset_has_tradable_state_disallowing_removing_liquidity(tradability: Tradability) {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)

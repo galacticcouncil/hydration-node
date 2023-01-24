@@ -10,7 +10,7 @@ const MINTING_DEPOSIT_NFT: bool = true;
 const NOT_MINTING_DEPOSIT_NFT: bool = false;
 
 #[test]
-fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_minting_nft_is_on() {
+fn add_liqudity_stable_should_add_liquidity_to_both_omnipool_and_subpool_when_minting_nft_is_on() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -43,6 +43,9 @@ fn add_liqudity_stable_should_add_liqudity_to_both_omnipool_and_subpool_when_min
 				new_liquidity,
 				MINTING_DEPOSIT_NFT
 			));
+
+			let position_asset = OmnipoolSubpools::position_asset(position_id).unwrap();
+			assert_eq!(position_asset, ASSET_3);
 
 			//Assert
 			assert_balance!(ALICE, ASSET_3, ALICE_INITIAL_ASSET_3_BALANCE - new_liquidity);
@@ -99,7 +102,7 @@ fn add_liqudity_stable_should_return_error_when_asset_is_not_migrated_so_stables
 }
 
 #[test]
-fn add_liqudity_stable_should_add_liqudity_to_subpool_but_not_to_omnipool_when_minting_nft_is_off() {
+fn add_liqudity_stable_should_add_liquidity_to_subpool_but_not_to_omnipool_when_minting_nft_is_off() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -144,6 +147,8 @@ fn add_liqudity_stable_should_add_liqudity_to_subpool_but_not_to_omnipool_when_m
 
 			assert_that_nft_position_is_not_present!(position_id);
 			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
+
+			assert!(OmnipoolSubpools::position_asset(position_id).is_none());
 		});
 }
 

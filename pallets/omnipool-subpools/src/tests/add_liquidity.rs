@@ -260,6 +260,9 @@ fn add_liquidity_should_work_when_liqudity_added_for_newly_migrated_asset() {
 				new_liquidity
 			));
 
+			let position_asset = OmnipoolSubpools::position_asset(position_id_for_asset_5_liq).unwrap();
+			assert_eq!(position_asset, ASSET_5);
+
 			//Assert that liquidity is added to subpool
 			let deposited_asset_5_share_of_alice = 64843346424590;
 			assert_balance!(ALICE, ASSET_5, ALICE_INITIAL_ASSET_5_BALANCE - new_liquidity);
