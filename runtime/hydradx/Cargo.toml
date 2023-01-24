@@ -147,7 +147,7 @@ runtime-benchmarks = [
     "cumulus-pallet-xcmp-queue/runtime-benchmarks",
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
-    "pallet-transaction-pause/runtime-benchmarks",
+    "pallet-dca/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -205,6 +205,7 @@ std = [
     "pallet-currencies/std",
     "pallet-omnipool/std",
     "pallet-transaction-pause/std",
+    "pallet-dca/std",
     "sp-api/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
