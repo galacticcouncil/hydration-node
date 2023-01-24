@@ -1,11 +1,10 @@
 use frame_support::{
-    traits::{
-        fungible, fungibles, Get,
-        tokens::{DepositConsequence, WithdrawConsequence}
-    },
-    sp_runtime::{
-        DispatchResult,
-    }
+	sp_runtime::DispatchResult,
+	traits::{
+		fungible, fungibles,
+		tokens::{DepositConsequence, WithdrawConsequence},
+		Get,
+	},
 };
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
 use sp_runtime::DispatchError;
@@ -13,11 +12,13 @@ use sp_runtime::DispatchError;
 pub struct CurrenciesAdapter<T>(sp_std::marker::PhantomData<T>);
 
 type BalanceOf<T> =
-<<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
-type CurrencyIdOf<T> =
-<<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
-type AmountOf<T> =
-<<T as pallet_currencies::Config>::MultiCurrency as MultiCurrencyExtended<<T as frame_system::Config>::AccountId>>::Amount;
+	<<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+type CurrencyIdOf<T> = <<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<
+	<T as frame_system::Config>::AccountId,
+>>::CurrencyId;
+type AmountOf<T> = <<T as pallet_currencies::Config>::MultiCurrency as MultiCurrencyExtended<
+	<T as frame_system::Config>::AccountId,
+>>::Amount;
 
 impl<T: pallet_currencies::Config + pallet_balances::Config + orml_tokens::Config + frame_system::Config> fungibles::Inspect<T::AccountId> for CurrenciesAdapter<T>
 where
@@ -229,61 +230,72 @@ where
     }
 }
 
-impl<T: pallet_currencies::Config + pallet_balances::Config + orml_tokens::Config + frame_system::Config> MultiCurrency<T::AccountId> for CurrenciesAdapter<T>
+impl<T: pallet_currencies::Config + pallet_balances::Config + orml_tokens::Config + frame_system::Config>
+	MultiCurrency<T::AccountId> for CurrenciesAdapter<T>
 {
-    type CurrencyId = <<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId;
-    type Balance = <<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+	type CurrencyId = <<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId;
+	type Balance = <<T as pallet_currencies::Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::Balance;
 
-    fn minimum_balance(currency_id: Self::CurrencyId) -> Self::Balance {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::minimum_balance(currency_id)
-    }
+	fn minimum_balance(currency_id: Self::CurrencyId) -> Self::Balance {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::minimum_balance(currency_id)
+	}
 
-    fn total_issuance(currency_id: Self::CurrencyId) -> Self::Balance {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::total_issuance(currency_id)
-    }
+	fn total_issuance(currency_id: Self::CurrencyId) -> Self::Balance {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::total_issuance(currency_id)
+	}
 
-    fn total_balance(currency_id: Self::CurrencyId, who: &T::AccountId) -> Self::Balance {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::total_balance(currency_id, who)
-    }
+	fn total_balance(currency_id: Self::CurrencyId, who: &T::AccountId) -> Self::Balance {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::total_balance(currency_id, who)
+	}
 
-    fn free_balance(currency_id: Self::CurrencyId, who: &T::AccountId) -> Self::Balance {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::free_balance(currency_id, who)
-    }
+	fn free_balance(currency_id: Self::CurrencyId, who: &T::AccountId) -> Self::Balance {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::free_balance(currency_id, who)
+	}
 
-    fn ensure_can_withdraw(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::ensure_can_withdraw(currency_id, who, amount)
-    }
+	fn ensure_can_withdraw(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::ensure_can_withdraw(currency_id, who, amount)
+	}
 
-    fn transfer(
-        currency_id: Self::CurrencyId,
-        from: &T::AccountId,
-        to: &T::AccountId,
-        amount: Self::Balance,
-    ) -> DispatchResult {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::transfer(currency_id, from, to, amount)
-    }
+	fn transfer(
+		currency_id: Self::CurrencyId,
+		from: &T::AccountId,
+		to: &T::AccountId,
+		amount: Self::Balance,
+	) -> DispatchResult {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::transfer(currency_id, from, to, amount)
+	}
 
-    fn deposit(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::deposit(currency_id, who, amount)
-    }
+	fn deposit(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::deposit(currency_id, who, amount)
+	}
 
-    fn withdraw(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::withdraw(currency_id, who, amount)
-    }
+	fn withdraw(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> DispatchResult {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::withdraw(currency_id, who, amount)
+	}
 
-    fn can_slash(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> bool {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::can_slash(currency_id, who, amount)
-    }
+	fn can_slash(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> bool {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::can_slash(currency_id, who, amount)
+	}
 
-    fn slash(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> Self::Balance {
-        <pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::slash(currency_id, who, amount)
-    }
+	fn slash(currency_id: Self::CurrencyId, who: &T::AccountId, amount: Self::Balance) -> Self::Balance {
+		<pallet_currencies::Pallet<T> as MultiCurrency<T::AccountId>>::slash(currency_id, who, amount)
+	}
 }
 
-impl<T: pallet_currencies::Config + pallet_balances::Config + orml_tokens::Config + frame_system::Config> MultiCurrencyExtended<T::AccountId> for CurrenciesAdapter<T> {
-    type Amount = AmountOf<T>;
+impl<T: pallet_currencies::Config + pallet_balances::Config + orml_tokens::Config + frame_system::Config>
+	MultiCurrencyExtended<T::AccountId> for CurrenciesAdapter<T>
+{
+	type Amount = AmountOf<T>;
 
-    fn update_balance(currency_id: CurrencyIdOf<T>, who: &T::AccountId, by_amount: Self::Amount) -> DispatchResult {
-        <pallet_currencies::Pallet<T> as MultiCurrencyExtended<T::AccountId>>::update_balance(currency_id, who, by_amount)
-    }
+	fn update_balance(currency_id: CurrencyIdOf<T>, who: &T::AccountId, by_amount: Self::Amount) -> DispatchResult {
+		<pallet_currencies::Pallet<T> as MultiCurrencyExtended<T::AccountId>>::update_balance(
+			currency_id,
+			who,
+			by_amount,
+		)
+	}
 }

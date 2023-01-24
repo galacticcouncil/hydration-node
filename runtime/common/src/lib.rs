@@ -17,8 +17,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod weights;
 pub mod adapter;
+pub mod weights;
 
 use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
