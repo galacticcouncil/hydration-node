@@ -816,7 +816,7 @@ parameter_types! {
 impl pallet_omnipool::Config for Runtime {
 	type Event = Event;
 	type AssetId = AssetId;
-	type Currency = Currencies;
+	type Currency = adapter::CurrenciesAdapter<Runtime>;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type AssetRegistry = AssetRegistry;
