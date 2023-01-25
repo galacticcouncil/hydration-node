@@ -1775,4 +1775,9 @@ impl<T: Config> Pallet<T> {
 	pub fn is_hub_asset_allowed(operation: Tradability) -> bool {
 		HubAssetTradability::<T>::get().contains(operation)
 	}
+
+	/// Returns `true` if `asset` exists in the omnipool or `false`
+	pub fn exists(asset: T::AssetId) -> bool {
+		Assets::<T>::contains_key(asset)
+	}
 }
