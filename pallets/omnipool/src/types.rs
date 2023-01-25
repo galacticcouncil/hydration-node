@@ -69,11 +69,11 @@ where
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Position<Balance, AssetId> {
 	/// Provided Asset
-	pub(super) asset_id: AssetId,
+	pub asset_id: AssetId,
 	/// Amount of asset added to omnipool
 	pub(super) amount: Balance,
 	/// Quantity of LP shares owned by LP
-	pub(super) shares: Balance,
+	pub shares: Balance,
 	/// Price at which liquidity was provided - ( hub reserve, asset reserve ) at the time of creation
 	pub(super) price: (Balance, Balance),
 }

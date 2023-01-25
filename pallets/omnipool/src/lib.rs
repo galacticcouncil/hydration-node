@@ -95,12 +95,12 @@ pub mod provider;
 mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
+use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
 /// NFT class id type of provided nft implementation
-type NFTCollectionIdOf<T> =
+pub type NFTCollectionIdOf<T> =
 	<<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
 
 #[frame_support::pallet]
@@ -1658,5 +1658,21 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	pub fn exists(asset: T::AssetId) -> bool {
+		Assets::<T>::contains_key(asset)
+	}
+
+	pub fn load_position(
+		position_id: T::PositionItemId,
+		owner: T::AccountId,
+	) -> Result<Position<Balance, T::AssetId>, DispatchError> {
+		ensure!(
+			T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id) == Some(owner),
+			Error::<T>::Forbidden
+		);
+
+		Positions::<T>::get(position_id).ok_or_else(|| Error::<T>::PositionNotFound.into())
 	}
 }
