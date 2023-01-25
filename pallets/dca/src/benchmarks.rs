@@ -145,7 +145,17 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>
 	}
 
-	execution_bond{
+	//TODO:
+	//Ask lumir - do we want to pay
+	//check why schedule benchmark fail.
+	//then write benchmark for all
+	//and then do the rest of the comments
+
+	//WeifhTOFee::weight_to_fee(FeeForExecution)
+
+	//use maxencodedlen and deposit function together
+
+	/*execution_bond{
 		let caller: T::AccountId = account("provider", 1, 1);
 		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
 		let token_amount = 200 * ONE;
@@ -164,17 +174,16 @@ benchmarks! {
 	}
 	verify {
 		assert_eq!(execution_result, DcaExecutionResult::Success)
-	}
+	}*/
 
 	schedule{
 		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
-
 		let caller: T::AccountId = account("provider", 1, 1);
+		let token_amount = 200 * ONE;
+		T::Currency::update_balance(0.into(), &caller, token_amount as i128)?;
 		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
 
 		T::Currency::update_balance(0.into(), &caller, ONE as i128)?;
-
-		assert!(true);
 
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::None)
 	verify {
