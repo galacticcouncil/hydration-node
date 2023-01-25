@@ -100,7 +100,7 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 /// NFT class id type of provided nft implementation
-type NFTCollectionIdOf<T> =
+pub type NFTCollectionIdOf<T> =
 	<<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
 
 #[frame_support::pallet]
