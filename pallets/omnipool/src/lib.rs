@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
@@ -92,7 +92,7 @@ mod tests;
 
 pub mod migration;
 pub mod provider;
-mod types;
+pub mod types;
 pub mod weights;
 
 use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
@@ -205,6 +205,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Imbalance of hub asset
+	#[pallet::getter(fn current_imbalance)]
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
 
 	#[pallet::storage]
@@ -217,6 +218,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<Balance, T::AssetId>>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
 
@@ -692,6 +694,8 @@ pub mod pallet {
 				*state_changes.asset.delta_reserve,
 			)?;
 
+			debug_assert_eq!(*state_changes.asset.delta_reserve, amount);
+
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
@@ -997,6 +1001,11 @@ pub mod pallet {
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_reserve, amount,
+				"delta_reserve_in is not equal to given amount in"
+			);
+
 			T::Currency::transfer(
 				asset_in,
 				&who,
@@ -1153,6 +1162,11 @@ pub mod pallet {
 			let new_asset_out_state = asset_out_state
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
+
+			debug_assert_eq!(
+				*state_changes.asset_out.delta_reserve, amount,
+				"delta_reserve_out is not equal to given amount out"
+			);
 
 			T::Currency::transfer(
 				asset_in,
@@ -1372,7 +1386,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Retrieve state of asset from the pool and its pool balance
-	fn load_asset_state(asset_id: T::AssetId) -> Result<AssetReserveState<Balance>, DispatchError> {
+	pub fn load_asset_state(asset_id: T::AssetId) -> Result<AssetReserveState<Balance>, DispatchError> {
 		let state = <Assets<T>>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 		let reserve = T::Currency::free_balance(asset_id, &Self::protocol_account());
 		Ok((state, reserve).into())
@@ -1660,10 +1674,92 @@ impl<T: Config> Pallet<T> {
 		Err(Error::<T>::NotAllowed.into())
 	}
 
-	pub fn exists(asset: T::AssetId) -> bool {
-		Assets::<T>::contains_key(asset)
+	/// Remove asset from list of Omnipool assets.
+	pub fn remove_asset(asset_id: T::AssetId) -> DispatchResult {
+		<Assets<T>>::remove(asset_id);
+		Ok(())
 	}
 
+	/// Insert or update position with given position data.
+	pub fn set_position(position_id: T::PositionItemId, position: &Position<Balance, T::AssetId>) -> DispatchResult {
+		<Positions<T>>::insert(position_id, position);
+		Ok(())
+	}
+
+	/// Add new asset to list of Omnipool assets.
+	pub fn add_asset(asset_id: T::AssetId, state: AssetState<Balance>) -> DispatchResult {
+		ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
+		ensure!(T::AssetRegistry::exists(asset_id), Error::<T>::AssetNotRegistered);
+
+		<Assets<T>>::insert(asset_id, state);
+
+		Ok(())
+	}
+
+	/// Updates states of 2 non-hub assets given calculated trade result.
+	#[require_transactional]
+	pub fn update_omnipool_state_given_trade_result(
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		trade: TradeStateChange<Balance>,
+	) -> DispatchResult {
+		let delta_hub_asset = trade
+			.asset_in
+			.delta_hub_reserve
+			.merge(
+				trade
+					.asset_out
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(trade.hdx_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		match delta_hub_asset {
+			BalanceUpdate::Increase(val) if val == Balance::zero() => {
+				// nothing to do if zero.
+			}
+			BalanceUpdate::Increase(_) => {
+				// trade can only burn some.
+				return Err(Error::<T>::HubAssetUpdateError.into());
+			}
+			BalanceUpdate::Decrease(amount) => {
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+			}
+		};
+
+		Self::update_imbalance(trade.delta_imbalance)?;
+
+		Self::update_asset_state(asset_in, trade.asset_in)?;
+		Self::update_asset_state(asset_out, trade.asset_out)?;
+
+		Self::update_hdx_subpool_hub_asset(trade.hdx_hub_amount)?;
+
+		Ok(())
+	}
+
+	/// Updates states of anasset given calculated trade result where HUb asset was traded.
+	#[require_transactional]
+	pub fn update_omnipool_state_given_hub_asset_trade(
+		asset: T::AssetId,
+		trade: HubTradeStateChange<Balance>,
+	) -> DispatchResult {
+		Self::update_imbalance(trade.delta_imbalance)?;
+		Self::update_asset_state(asset, trade.asset)?;
+		Ok(())
+	}
+
+	/// Load state of an asset and update it with given delta changes.
+	pub fn update_asset_state(asset_id: T::AssetId, delta: AssetStateChange<Balance>) -> DispatchResult {
+		let state = Self::load_asset_state(asset_id)?;
+		let updated_state = state.delta_update(&delta).ok_or(ArithmeticError::Overflow)?;
+		Self::set_asset_state(asset_id, updated_state);
+
+		Ok(())
+	}
+
+	/// Load position and check its owner
+	/// Returns Forbidden if not position owner
 	pub fn load_position(
 		position_id: T::PositionItemId,
 		owner: T::AccountId,
@@ -1674,5 +1770,14 @@ impl<T: Config> Pallet<T> {
 		);
 
 		Positions::<T>::get(position_id).ok_or_else(|| Error::<T>::PositionNotFound.into())
+	}
+
+	pub fn is_hub_asset_allowed(operation: Tradability) -> bool {
+		HubAssetTradability::<T>::get().contains(operation)
+	}
+
+	/// Returns `true` if `asset` exists in the omnipool or `false`
+	pub fn exists(asset: T::AssetId) -> bool {
+		Assets::<T>::contains_key(asset)
 	}
 }

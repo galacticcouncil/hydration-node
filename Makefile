@@ -43,3 +43,9 @@ clean:
 .PHONY: docker
 docker:
 	docker build -t hydra-dx .
+
+checksum:
+	sha256sum target/release/hydradx > target/release/hydradx.sha256
+	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
+	sha256sum target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
+

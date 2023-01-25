@@ -48,6 +48,7 @@ type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type PeriodOf<T> = <T as frame_system::Config>::BlockNumber;
 
 #[frame_support::pallet]
+#[allow(clippy::too_many_arguments)]
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
@@ -653,7 +654,7 @@ impl<T: Config> Pallet<T> {
 
 			<T as pallet::Config>::NFTHandler::transfer(
 				&<T as pallet_omnipool::Config>::NFTCollectionId::get(),
-				&lp_position_id,
+				lp_position_id,
 				who,
 			)?;
 
