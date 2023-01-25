@@ -38,10 +38,10 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 pallet-claims = { path = '../../pallets/claims', default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false}
-pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "2af6a86f96d6e86abe0c1692f0ac5e45ded5c870", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "2af6a86f96d6e86abe0c1692f0ac5e45ded5c870", default-features = false }
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "2af6a86f96d6e86abe0c1692f0ac5e45ded5c870", default-features = false}
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "2af6a86f96d6e86abe0c1692f0ac5e45ded5c870", default-features = false }
 
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
