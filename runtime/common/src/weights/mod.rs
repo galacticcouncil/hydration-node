@@ -4,6 +4,7 @@ pub mod claims;
 pub mod collator_selection;
 pub mod council;
 pub mod currencies;
+pub mod dca;
 pub mod democracy;
 pub mod identity;
 pub mod preimage;

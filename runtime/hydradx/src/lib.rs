@@ -25,7 +25,9 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
+use frame_support::weights::WeightToFee as FrameSupportWeight;
 use frame_system::{EnsureRoot, RawOrigin};
+use pallet_dca::weights::WeightInfo;
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
@@ -41,7 +43,6 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-
 // A few exports that help ease life for downstream crates.
 use frame_support::traits::AsEnsureOriginWithArg;
 use frame_support::{
@@ -845,7 +846,7 @@ impl pallet_transaction_pause::Config for Runtime {
 }
 
 parameter_types! {
-	pub ExecutionBondInNativeCurrency: Balance= UNITS; //TODO: Dani - ask the team how much these config should be. Maybe they shuld be configurable by admin?
+	pub ExecutionBondInNativeCurrency: Balance= WeightToFee::weight_to_fee(&weights::dca::HydraWeight::<Runtime>::execution_bond());
 	pub StorageBondInNativeCurrency: Balance= UNITS;
 	pub MaxSchedulesPerBlock: u32= 20;
 }

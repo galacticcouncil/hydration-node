@@ -1041,6 +1041,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-identity",
  "pallet-preimage",
