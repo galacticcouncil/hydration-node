@@ -133,6 +133,19 @@ where
 	Ok((asset_a, asset_b, share_asset))
 }
 
+fn create_account_with_native_balance<T: Config>() -> Result<T::AccountId, DispatchError>
+where
+	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T: crate::pallet::Config,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+{
+	let caller: T::AccountId = account("provider", 1, 1);
+	let token_amount = 200 * ONE;
+	T::Currency::update_balance(0.into(), &caller, token_amount as i128)?;
+
+	Ok(caller)
+}
+
 benchmarks! {
 	 where_clause {  where
 		CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
@@ -155,18 +168,14 @@ benchmarks! {
 
 	//use maxencodedlen and deposit function together
 
-	/*execution_bond{
-		let caller: T::AccountId = account("provider", 1, 1);
+	execution_bond{
 		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
-		let token_amount = 200 * ONE;
-		T::Currency::update_balance(0.into(), &caller, token_amount as i128)?;
+		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 
 		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
 		let exeuction_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
-		let s = <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(exeuction_block.into());
-		assert!(s.is_some());
 		let mut execution_result = DcaExecutionResult::UnexpectedlyFailed;
 	}: {
 		let mut weight = 0u64;
@@ -174,22 +183,19 @@ benchmarks! {
 	}
 	verify {
 		assert_eq!(execution_result, DcaExecutionResult::Success)
-	}*/
+	}
 
 	schedule{
 		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
-		let caller: T::AccountId = account("provider", 1, 1);
-		let token_amount = 200 * ONE;
-		T::Currency::update_balance(0.into(), &caller, token_amount as i128)?;
-		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 
-		T::Currency::update_balance(0.into(), &caller, ONE as i128)?;
+		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		let schedule_id : ScheduleId = 1;
 
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::None)
 	verify {
-
+		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
 	}
-
 
 }
 
