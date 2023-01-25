@@ -7,6 +7,7 @@ use frame_support::{
 	traits::{OnFinalize, OnInitialize},
 };
 
+use hydradx_runtime::Origin;
 use pallet_dca::types::{Order, Recurrence, Schedule, Trade};
 use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
@@ -14,11 +15,46 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
+#[test]
+fn crate_schedule_should_work() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		let schedule1 = schedule_fake();
+
+		//Act
+		assert_ok!(hydradx_runtime::DCA::schedule(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			schedule1,
+			None
+		));
+
+		//Assert
+		let schedule = hydradx_runtime::DCA::schedules(1);
+		assert!(schedule.is_some());
+
+		let next_block_id = 2;
+		let schedule = hydradx_runtime::DCA::schedule_ids_per_block(next_block_id);
+		assert!(schedule.is_some());
+	});
+}
+
+//TODO: Dani add test happy flow for schedule execution
 
 #[test]
 fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
+		env_logger::init();
+
+		//Add some money to the treasury account to prevent ExistentialDepositError
+		assert_ok!(hydradx_runtime::Currencies::transfer(
+			Origin::signed(ALICE.into()),
+			hydradx_runtime::Treasury::account_id().into(),
+			HDX,
+			10 * UNITS,
+		));
+
 		//Arrange
 		let native_price = FixedU128::from_inner(1201500000000000);
 		let stable_price = FixedU128::from_inner(45_000_000_000);
