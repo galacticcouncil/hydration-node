@@ -141,6 +141,7 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 				],
 				vec![],
 				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
+				vec![(b"KSM".to_vec(), 1_000u128, 1u32), (b"KUSD".to_vec(), 1_000u128, 2u32)],
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
 				vec![
 					(
@@ -246,6 +247,7 @@ pub fn devnet_parachain_config() -> Result<ChainSpec, String> {
 				vec![],
 				// registered_assets
 				vec![],
+				vec![],
 				// accepted_assets
 				vec![],
 				// token balances
@@ -299,6 +301,7 @@ fn testnet_parachain_genesis(
 	tech_committee_members: Vec<AccountId>,
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
+	registered_ids: Vec<(Vec<u8>, Balance, AssetId)>, // (Asset name, Existential deposit, Chosen asset id)
 	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
@@ -353,6 +356,7 @@ fn testnet_parachain_genesis(
 		vesting: VestingConfig { vesting: vesting_list },
 		asset_registry: AssetRegistryConfig {
 			asset_names: registered_assets.clone(),
+			asset_ids: registered_ids,
 			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
 			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
 		},
