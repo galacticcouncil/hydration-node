@@ -257,7 +257,7 @@ pub mod pallet {
 		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
 	{
 		///Schedule
-		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule())]
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
@@ -293,7 +293,7 @@ pub mod pallet {
 		}
 
 		///Pause
-		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
+		#[pallet::weight(<T as Config>::WeightInfo::pause())]
 		#[transactional]
 		pub fn pause(
 			origin: OriginFor<T>,
@@ -314,7 +314,7 @@ pub mod pallet {
 		}
 
 		///Resume
-		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
+		#[pallet::weight(<T as Config>::WeightInfo::resume())]
 		#[transactional]
 		pub fn resume(
 			origin: OriginFor<T>,
@@ -346,7 +346,7 @@ pub mod pallet {
 		}
 
 		///Terminate
-		#[pallet::weight(<T as Config>::WeightInfo::sell(5))]
+		#[pallet::weight(<T as Config>::WeightInfo::terminate())]
 		#[transactional]
 		pub fn terminate(
 			origin: OriginFor<T>,

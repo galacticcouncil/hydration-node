@@ -260,16 +260,4 @@ mod tests {
 			.build(),
 		super::Test
 	);
-
-	/*#[test]
-	fn test_benchmarks() {
-		ExtBuilder::default()
-			.with_registered_asset(0)
-			.with_registered_asset(1)
-			.with_registered_asset(2)
-			.build()
-			.execute_with(|| {
-				assert_ok!(Pallet::<Test>::test_benchmark_execution_bond());
-			});
-	}*/
 }
