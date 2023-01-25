@@ -32,8 +32,8 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "d144c798cffec3de8c46be6ed5154f8738812edc", default-features = false }
-pallet-stableswap = { git = "https://github.com/galacticcouncil/warehouse", rev = "d144c798cffec3de8c46be6ed5154f8738812edc", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "3656415c4bef780254983d3545043fae8423e460", default-features = false }
+pallet-stableswap = { git = "https://github.com/galacticcouncil/warehouse", rev = "3656415c4bef780254983d3545043fae8423e460", default-features = false }
 
 # Math
 #hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "470b54ad7723ee78870d9d08430690b20621d999", default-features = false }
@@ -55,12 +55,12 @@ sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkad
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "a99b148166ff6cb040233e7f3702979e138dcf20", default-features = false }
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "3656415c4bef780254983d3545043fae8423e460", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 mutagen = {git = "https://github.com/llogiq/mutagen"}
 test-case = "2.2.2"
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "715fd8c42183339a48e932df1526fbf0001f11c2", default-features = false }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "42f0eb08f29751908c19ce13a90e53c3b33d75e5", default-features = false }
 
 [features]
 default = ["std"]
