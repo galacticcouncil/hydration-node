@@ -197,6 +197,21 @@ benchmarks! {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
 	}
 
+
+	pause{
+		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
+		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
+
+		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		let schedule_id : ScheduleId = 1;
+		let execution_block = 100u32;
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
+
+	}: _(RawOrigin::Signed(caller.clone()), schedule_id, execution_block.into())
+	verify {
+		assert!(<Suspended<T>>::get::<ScheduleId>(schedule_id).is_some());
+	}
+
 }
 
 #[cfg(test)]
