@@ -37,9 +37,9 @@ use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId};
 use orml_traits::MultiCurrency;
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
-use pallet_omnipool::NFTCollectionIdOf;
+use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
 use primitives::{Balance, ItemId as DepositId};
-use sp_runtime::{FixedU128, Perquintill};
+use sp_runtime::{ArithmeticError, FixedPointNumber, FixedU128, Perquintill};
 
 pub use pallet::*;
 //pub use weights::WeightInfo;
@@ -112,7 +112,6 @@ pub mod pallet {
 			yield_per_period: Perquintill,
 			planned_yielding_periods: PeriodOf<T>,
 			blocks_per_period: BlockNumberFor<T>,
-			incentivized_asset: T::AssetId,
 			max_reward_per_period: Balance,
 			min_deposit: Balance,
 			price_adjustment: FixedU128,
@@ -247,7 +246,6 @@ pub mod pallet {
 			total_rewards: Balance,
 			planned_yielding_periods: PeriodOf<T>,
 			blocks_per_period: BlockNumberFor<T>,
-			incentivized_asset: T::AssetId,
 			reward_currency: T::AssetId,
 			owner: T::AccountId,
 			yield_per_period: Perquintill,
@@ -260,7 +258,7 @@ pub mod pallet {
 				total_rewards,
 				planned_yielding_periods,
 				blocks_per_period,
-				incentivized_asset,
+				<T as pallet_omnipool::Config>::HubAssetId::get(),
 				reward_currency,
 				owner.clone(),
 				yield_per_period,
@@ -276,7 +274,6 @@ pub mod pallet {
 				yield_per_period,
 				planned_yielding_periods,
 				blocks_per_period,
-				incentivized_asset,
 				max_reward_per_period,
 				min_deposit,
 				price_adjustment,
@@ -470,7 +467,7 @@ pub mod pallet {
 				yield_farm_id,
 				lp_position.asset_id,
 				lp_position.shares,
-				Self::get_token_value_of_lp_shares,
+				|_, _, _| -> Result<Balance, DispatchError> { Self::get_position_value_in_hub_asset(&lp_position) },
 			)?;
 
 			Self::lock_lp_position(position_id, deposit_id)?;
@@ -511,12 +508,9 @@ pub mod pallet {
 				Error::<T>::AssetNotFound
 			);
 
-			T::LiquidityMiningHandler::redeposit_lp_shares(
-				global_farm_id,
-				yield_farm_id,
-				deposit_id,
-				Self::get_token_value_of_lp_shares,
-			)?;
+			T::LiquidityMiningHandler::redeposit_lp_shares(global_farm_id, yield_farm_id, deposit_id, |_, _, _| {
+				Self::get_position_value_in_hub_asset(&lp_position)
+			})?;
 
 			Self::deposit_event(Event::SharesRedeposited {
 				global_farm_id,
@@ -665,13 +659,15 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// This function returns value of lp shares in the `asset` currency.
-	fn get_token_value_of_lp_shares(
-		_asset: T::AssetId,
-		_pool_id: T::AssetId,
-		_lp_shares: Balance,
-	) -> Result<Balance, DispatchError> {
-		todo!()
+	/// This function returns value of omnipool's lp postion in [`LRNA`].
+	fn get_position_value_in_hub_asset(lp_position: &OmniPosition<Balance, T::AssetId>) -> Result<Balance, DispatchError> {
+		let state = OmnipoolPallet::<T>::load_asset_state(lp_position.asset_id)?;
+
+		state
+			.price()
+			.ok_or(ArithmeticError::DivisionByZero)?
+			.checked_mul_int(lp_position.amount)
+			.ok_or(ArithmeticError::Overflow.into())
 	}
 
 	fn ensure_nft_owner(origin: OriginFor<T>, deposit_id: DepositId) -> Result<T::AccountId, DispatchError> {
