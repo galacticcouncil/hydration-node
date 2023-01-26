@@ -37,6 +37,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
+
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
 use sp_std::prelude::*;
@@ -845,10 +846,14 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = ();
 }
 
+use codec::MaxEncodedLen;
+
 parameter_types! {
 	pub ExecutionBondInNativeCurrency: Balance= WeightToFee::weight_to_fee(&weights::dca::HydraWeight::<Runtime>::execution_bond());
+	//pub ExecutionBondInNativeCurrency: Balance= UNITS;
+	//pub StorageBondInNativeCurrency: Balance= deposit(1, pallet_dca::types::Schedule::<AssetId, BlockNumber>::max_encoded_len() as u32);
 	pub StorageBondInNativeCurrency: Balance= UNITS;
-	pub MaxSchedulesPerBlock: u32= 20;
+	pub MaxSchedulesPerBlock: u32 = 20;
 }
 
 impl pallet_dca::Config for Runtime {

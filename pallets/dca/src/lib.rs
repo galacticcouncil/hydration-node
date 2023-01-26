@@ -374,21 +374,12 @@ pub mod pallet {
 		}
 	}
 }
-#[derive(Debug, PartialEq)]
-pub enum DcaExecutionResult {
-	Success,
-	UnexpectedlyFailed,
-}
 
 impl<T: Config> Pallet<T>
 where
 	<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
 {
-	fn execute_schedule(
-		current_blocknumber: T::BlockNumber,
-		weight: &mut u64,
-		schedule_id: ScheduleId,
-	) -> DcaExecutionResult {
+	fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
 		let schedule = exec_or_skip_if_none!(Schedules::<T>::get(schedule_id));
 		let owner = exec_or_skip_if_none!(ScheduleOwnership::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
@@ -414,7 +405,6 @@ where
 						exec_or_skip_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 					}
 				}
-				return DcaExecutionResult::Success;
 			}
 			_ => {
 				Suspended::<T>::insert(schedule_id, ());
@@ -425,7 +415,6 @@ where
 					id: schedule_id,
 					who: owner.clone(),
 				});
-				return DcaExecutionResult::Success;
 			}
 		}
 	}
@@ -625,6 +614,8 @@ where
 	}
 
 	fn get_total_bond_from_config_in_native_currency() -> Result<u128, DispatchError> {
+		let exb = T::ExecutionBondInNativeCurrency::get();
+		let sb = T::StorageBondInNativeCurrency::get();
 		let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
 			.checked_add(T::StorageBondInNativeCurrency::get())
 			.ok_or(ArithmeticError::Overflow)?;
@@ -808,7 +799,7 @@ macro_rules! exec_or_skip_if_none {
 			Some(val) => val,
 			None => {
 				log::error!(target: "runtime::dca", "Unexpected error happened while executing schedule.");
-				return DcaExecutionResult::UnexpectedlyFailed;
+				return;
 			}
 		}
 	};
@@ -825,7 +816,7 @@ macro_rules! exec_or_skip_if_err {
 					"Unexpected error happened while executing schedule, with message: {:?}.",
 					e
 				);
-				return DcaExecutionResult::UnexpectedlyFailed;
+				return;
 			}
 		}
 	};
