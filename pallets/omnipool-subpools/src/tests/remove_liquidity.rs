@@ -222,6 +222,7 @@ fn remove_liqudity_should_work_when_asset_is_not_migrated_to_subpool(asset_id: O
 
 			assert_that_nft_position_is_not_present!(position_id);
 			assert_that_position_is_not_present_in_omnipool!(ALICE, position_id);
+			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, 0u128);
 		});
 }
 
@@ -283,7 +284,7 @@ fn remove_liqudity_should_fail_when_asset_has_tradable_state_disallowing_removin
 }
 
 #[test]
-fn remove_liqudity_should_fail_when_asset_is_migrated_but_withdraw_asset_is_not_specified() {
+fn remove_liqudity_should_keep_shares_when_withdraw_asset_is_not_specified() {
 	ExtBuilder::default()
 		.with_registered_asset(ASSET_3)
 		.with_registered_asset(ASSET_4)
@@ -325,15 +326,14 @@ fn remove_liqudity_should_fail_when_asset_is_migrated_but_withdraw_asset_is_not_
 			);
 
 			//Act
-			assert_noop!(
-				OmnipoolSubpools::remove_liquidity(
-					Origin::signed(ALICE),
-					position_id,
-					deposited_share_of_alice,
-					Option::None,
-				),
-				Error::<Test>::WithdrawAssetNotSpecified
-			);
+			assert_ok!(OmnipoolSubpools::remove_liquidity(
+				Origin::signed(ALICE),
+				position_id,
+				deposited_share_of_alice,
+				Option::None,
+			),);
+
+			assert_balance!(ALICE, SHARE_ASSET_AS_POOL_ID, deposited_share_of_alice);
 		});
 }
 
