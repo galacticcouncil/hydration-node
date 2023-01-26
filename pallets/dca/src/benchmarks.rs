@@ -50,8 +50,8 @@ where
 		recurrence,
 		order: Order::Buy {
 			asset_in: asset_in,
-			asset_out: 3u32.into(),
-			amount_out: ONE,
+			asset_out: asset_out,
+			amount_out: amount,
 			max_limit: Balance::MAX,
 			route: create_bounded_vec::<T>(vec![]),
 		},
@@ -130,6 +130,27 @@ where
 	)
 	.unwrap();
 
+	// Create LP provider account with correct balance aand add some liquidity
+	let lp_provider: T::AccountId = account("provider", 1, 1);
+	T::Currency::update_balance(asset_a, &lp_provider, 500_000_000_000_000i128)?;
+
+	let liquidity_added = 300_000_000_000_000u128;
+
+	OmnipoolPallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), asset_a, liquidity_added)?;
+
+	let buyer: T::AccountId = account("buyer", 2, 1);
+	T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
+	OmnipoolPallet::<T>::buy(
+		RawOrigin::Signed(buyer).into(),
+		asset_a,
+		T::StableCoinAssetId::get(),
+		30_000_000_000_000u128,
+		100_000_000_000_000u128,
+	)?;
+
+	let seller: T::AccountId = account("seller", 3, 1);
+	T::Currency::update_balance(asset_a, &seller, 500_000_000_000_000i128)?;
+
 	Ok((asset_a, asset_b, share_asset))
 }
 
@@ -169,20 +190,64 @@ benchmarks! {
 	//use maxencodedlen and deposit function together
 
 	execution_bond{
-		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
-		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
+		// Initialize pool
+		let stable_amount: Balance = 1_000_000_000_000_000u128;
+		let native_amount: Balance = 1_000_000_000_000_000u128;
+		let stable_price: FixedU128= FixedU128::from((1,2));
+		let native_price: FixedU128= FixedU128::from(1);
+		let acc = OmnipoolPallet::<T>::protocol_account();
 
-		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
+		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
+
+		OmnipoolPallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
+
+		// Register new asset in asset registry
+		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
+
+		// Create account for token provider and set balance
+		let owner: T::AccountId = account("owner", 0, 1);
+
+		let token_price = FixedU128::from((1,5));
+		let token_amount = 200_000_000_000_000u128;
+
+		T::Currency::update_balance(token_id, &acc, token_amount as i128)?;
+
+		// Add the token to the pool
+		OmnipoolPallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)?;
+
+		// Create LP provider account with correct balance aand add some liquidity
+		let lp_provider: T::AccountId = account("provider", 1, 1);
+		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
+
+		let liquidity_added = 300_000_000_000_000u128;
+
+		OmnipoolPallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
+
+		let buyer: T::AccountId = account("buyer", 2, 1);
+		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
+		OmnipoolPallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128, 100_000_000_000_000u128)?;
+
+		let seller: T::AccountId = account("seller", 3, 1);
+		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
+		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+
+		let amount_buy = 10_000_000_000_000u128;
+		let sell_max_limit = 200_000_000_000_000u128;
+
+		let schedule1 = schedule_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(5));
 		let exeuction_block = 100u32;
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
-		let mut execution_result = DcaExecutionResult::UnexpectedlyFailed;
 	}: {
 		let mut weight = 0u64;
-		execution_result = crate::Pallet::<T>::execute_schedule(exeuction_block.into(), &mut weight, 1);
+		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
+
+		crate::Pallet::<T>::execute_schedule(exeuction_block.into(), &mut weight, 1);
+		//TODO: we dont need the execution result, just a balance check
 	}
 	verify {
-		assert_eq!(execution_result, DcaExecutionResult::Success)
+		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),10000000000000);
 	}
 
 	schedule{
