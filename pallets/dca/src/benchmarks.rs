@@ -179,16 +179,6 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>
 	}
 
-	//TODO:
-	//Ask lumir - do we want to pay
-	//check why schedule benchmark fail.
-	//then write benchmark for all
-	//and then do the rest of the comments
-
-	//WeifhTOFee::weight_to_fee(FeeForExecution)
-
-	//use maxencodedlen and deposit function together
-
 	execution_bond{
 		// Initialize pool
 		let stable_amount: Balance = 1_000_000_000_000_000u128;
@@ -244,7 +234,6 @@ benchmarks! {
 		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 
 		crate::Pallet::<T>::execute_schedule(exeuction_block.into(), &mut weight, 1);
-		//TODO: we dont need the execution result, just a balance check
 	}
 	verify {
 		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),10000000000000);
@@ -261,7 +250,6 @@ benchmarks! {
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
 	}
-
 
 	pause{
 		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
