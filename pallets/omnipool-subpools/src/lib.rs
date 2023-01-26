@@ -314,8 +314,6 @@ pub mod pallet {
 
 			StableswapPallet::<T>::deposit_shares(&omnipool_account, pool_id, *state_changes.delta_reserve)?;
 
-			//TODO: i wonder LRNA mint here ?
-
 			OmnipoolPallet::<T>::update_asset_state(pool_id.into(), state_changes)?;
 
 			MigratedAssets::<T>::insert(asset_id, (pool_id, asset_details));
@@ -458,8 +456,7 @@ pub mod pallet {
 				<PositionAsset<T>>::remove(position_id);
 			}
 
-			// TODO: should we allow just withdrawing subpool shares and keep them instead?
-
+			// Note: if asset == None , allow to keep shares instead
 			match (Self::subpools(&position.asset_id.into()), asset) {
 				(Some(_), Some(withdraw_asset)) => {
 					let received = CurrencyOf::<T>::free_balance(position.asset_id, &who);
@@ -470,7 +467,6 @@ pub mod pallet {
 						received,
 					)
 				}
-				(Some(_), None) => Err(Error::<T>::WithdrawAssetNotSpecified.into()),
 				_ => Ok(()),
 			}
 		}
