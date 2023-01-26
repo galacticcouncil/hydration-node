@@ -36,8 +36,7 @@ hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "
 pallet-stableswap = { git = "https://github.com/galacticcouncil/warehouse", rev = "2af6a86f96d6e86abe0c1692f0ac5e45ded5c870", default-features = false }
 
 # Math
-#hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "470b54ad7723ee78870d9d08430690b20621d999", default-features = false }
-hydra-dx-math = { path = "../../../HydraDX-math", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "346f204661e1297a806ed9e33e741d6de544cb87", default-features = false }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }

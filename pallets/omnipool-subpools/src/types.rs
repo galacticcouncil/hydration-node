@@ -1,5 +1,5 @@
 use frame_support::pallet_prelude::*;
-use hydra_dx_math::omnipool_subpools::MigrationDetails;
+use hydra_dx_math::omnipool_subpools::types::MigrationDetails;
 
 /// Balance representation in current pallet.
 pub type Balance = u128;

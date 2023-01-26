@@ -32,7 +32,7 @@ pub mod weights;
 use crate::types::{AssetDetail, Balance};
 use frame_support::pallet_prelude::*;
 use frame_support::require_transactional;
-use hydra_dx_math::omnipool_subpools::MigrationDetails;
+use hydra_dx_math::omnipool_subpools::types::MigrationDetails;
 use orml_traits::currency::MultiCurrency;
 use sp_std::prelude::*;
 
