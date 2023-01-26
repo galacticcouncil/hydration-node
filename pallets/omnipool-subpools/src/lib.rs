@@ -115,8 +115,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Stableswap subpool does not exist.
 		SubpoolNotFound,
-		/// Asset ID of stable asset is not specified.
-		WithdrawAssetNotSpecified,
 		/// Given asset id is not stable asset.
 		NotStableAsset,
 		/// Overflow
