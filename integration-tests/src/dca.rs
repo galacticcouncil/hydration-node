@@ -63,6 +63,7 @@ fn schedule_execution_should_work_when_block_is_initialized() {
 		assert_eq!(user_dai_balance, ALICE_INITIAL_DAI_BALANCE + UNITS);
 	});
 }
+
 #[test]
 fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block() {
 	//We simulate a failing scenarios so we get errros we can use for verification
@@ -81,49 +82,52 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		let schedule5 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
 		let schedule6 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
 
-		create_schedule(schedule1);
-		create_schedule(schedule2);
-		create_schedule(schedule3);
-		create_schedule(schedule4);
-		create_schedule(schedule5);
-		create_schedule(schedule6);
+		let user_dai_balance = hydradx_runtime::Tokens::free_balance(DAI, &ALICE.into());
+		assert_eq!(user_dai_balance, ALICE_INITIAL_DAI_BALANCE);
+
+		create_schedule_by_charlie(schedule1);
+		create_schedule_by_charlie(schedule2);
+		create_schedule_by_charlie(schedule3);
+		create_schedule_by_charlie(schedule4);
+		create_schedule_by_charlie(schedule5);
+		create_schedule_by_charlie(schedule6);
 
 		//Act
 		hydra_run_to_block(5);
 
 		//Assert
 		//We check the reordering based on the the emitted events.
-		//As the user has no balance of DAI, all the schedule execution will fail and be suspended
+		//As the CHARLIE has no balance of DAI, all the schedule execution will fail and be suspended
 		//As the hash is fixed for the relay block number for integration tests, therefore we should always expect the same result
 		expect_suspended_events(vec![
 			pallet_dca::Event::Suspended {
 				id: 1,
-				who: sp_runtime::AccountId32::from(ALICE),
+				who: sp_runtime::AccountId32::from(CHARLIE),
 			}
 			.into(),
 			pallet_dca::Event::Suspended {
 				id: 2,
-				who: sp_runtime::AccountId32::from(ALICE),
+				who: sp_runtime::AccountId32::from(CHARLIE),
 			}
 			.into(),
 			pallet_dca::Event::Suspended {
 				id: 6,
-				who: sp_runtime::AccountId32::from(ALICE),
+				who: sp_runtime::AccountId32::from(CHARLIE),
 			}
 			.into(),
 			pallet_dca::Event::Suspended {
 				id: 4,
-				who: sp_runtime::AccountId32::from(ALICE),
+				who: sp_runtime::AccountId32::from(CHARLIE),
 			}
 			.into(),
 			pallet_dca::Event::Suspended {
 				id: 3,
-				who: sp_runtime::AccountId32::from(ALICE),
+				who: sp_runtime::AccountId32::from(CHARLIE),
 			}
 			.into(),
 			pallet_dca::Event::Suspended {
 				id: 5,
-				who: sp_runtime::AccountId32::from(ALICE),
+				who: sp_runtime::AccountId32::from(CHARLIE),
 			}
 			.into(),
 		]);
@@ -175,6 +179,14 @@ fn create_schedule(schedule1: Schedule<AssetId, u32>) {
 	));
 }
 
+fn create_schedule_by_charlie(schedule1: Schedule<AssetId, u32>) {
+	assert_ok!(hydradx_runtime::DCA::schedule(
+		hydradx_runtime::Origin::signed(CHARLIE.into()),
+		schedule1,
+		None
+	));
+}
+
 fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
@@ -197,7 +209,7 @@ pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<Asset
 
 pub fn init_omnipol() {
 	let native_price = FixedU128::from_inner(1201500000000000);
-	let stable_price = FixedU128::from_inner(45_000_000_000);
+	let stable_price = FixedU128::from_inner(801500000000000);
 	hydradx_runtime::Omnipool::protocol_account();
 
 	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
