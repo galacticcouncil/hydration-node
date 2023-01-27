@@ -131,7 +131,8 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 }
 
 #[test]
-fn get_bond_exec_size() {
+#[ignore] //This test is ignored as only used for estimating the storage bond size
+fn calculate_storage_bond() {
 	let schedule_key_size = size_of::<ScheduleId>();
 	let schedule_value_size = Schedule::<ScheduleId, BlockNumber>::max_encoded_len();
 
