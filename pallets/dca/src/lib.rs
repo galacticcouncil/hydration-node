@@ -95,6 +95,7 @@ pub mod pallet {
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			{
+				//TODO: include all the logic - benchmark them
 				let mut weight: u64 = 0;
 
 				let mut random_generator = Self::get_random_generator_basedon_on_relay_parent_hash();
@@ -240,7 +241,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
-	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u128, OptionQuery>;
+	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
@@ -515,7 +516,7 @@ where
 		};
 	}
 
-	fn decrement_recurrences(schedule_id: ScheduleId) -> Result<u128, DispatchResult> {
+	fn decrement_recurrences(schedule_id: ScheduleId) -> Result<u32, DispatchResult> {
 		let remaining_recurrences =
 			RemainingRecurrences::<T>::try_mutate_exists(schedule_id, |maybe_remaining_occurrances| {
 				let mut remaining_ocurrences = maybe_remaining_occurrances.as_mut().ok_or(Error::<T>::InvalidState)?;
@@ -527,7 +528,7 @@ where
 					*maybe_remaining_occurrances = None;
 				}
 
-				Ok::<u128, DispatchError>(remainings)
+				Ok::<u32, DispatchError>(remainings)
 			})?;
 
 		Ok(remaining_recurrences)
@@ -784,6 +785,7 @@ where
 		Ok(())
 	}
 
+	//TODO: Dani Abstract away
 	fn get_random_generator_basedon_on_relay_parent_hash() -> StdRng {
 		let hash_value = pallet_relaychain_info::Pallet::<T>::parent_hash();
 		let mut seed_arr = [0u8; 8];
@@ -794,7 +796,6 @@ where
 	}
 }
 
-//TODO: rename these macro to exec_or_finish
 #[macro_export]
 macro_rules! exec_or_return_if_none {
 	($opt:expr) => {
