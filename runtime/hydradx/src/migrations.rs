@@ -19,6 +19,10 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		weight = weight.saturating_add(pallet_omnipool::migration::migrate_to_v1::<Runtime, Omnipool>());
 		frame_support::log::info!("Migrate Omnipool Pallet end");
 
+		frame_support::log::info!("Migrate Omnipool Pallet to v2 start");
+		weight = weight.saturating_add(pallet_omnipool::migration::migrate_to_v2::<Runtime, Omnipool>());
+		frame_support::log::info!("Migrate Omnipool Pallet to v2 end");
+
 		weight
 	}
 
