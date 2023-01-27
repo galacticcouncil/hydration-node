@@ -28,6 +28,10 @@ pub mod currency {
 	pub fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
 	}
+
+	pub fn bytes_to_balance(bytes: u32) -> Balance {
+		(bytes as Balance) * 30 * MILLICENTS
+	}
 }
 
 pub mod time {

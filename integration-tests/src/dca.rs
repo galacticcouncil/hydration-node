@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use std::mem::size_of;
 
 use frame_support::{
 	assert_ok,
@@ -8,9 +9,11 @@ use frame_support::{
 };
 
 use hydradx_runtime::Origin;
-use pallet_dca::types::{Order, Recurrence, Schedule, Trade};
+use orml_traits::MultiCurrency;
+use pallet_dca::types::{Bond, Order, Recurrence, Schedule, ScheduleId, Trade};
 use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
+use sp_core::MaxEncodedLen;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
@@ -20,7 +23,7 @@ fn crate_schedule_should_work() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
-		let schedule1 = schedule_fake();
+		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
 
 		//Act
 		assert_ok!(hydradx_runtime::DCA::schedule(
@@ -39,41 +42,44 @@ fn crate_schedule_should_work() {
 	});
 }
 
-//TODO: Dani add test happy flow for schedule execution
+#[test]
+fn schedule_execution_should_work_when_block_is_initialized() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipol();
 
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS);
+		create_schedule(schedule1);
+
+		let user_dai_balance = hydradx_runtime::Tokens::free_balance(DAI, &ALICE.into());
+		assert_eq!(user_dai_balance, ALICE_INITIAL_DAI_BALANCE);
+
+		//Act
+		hydra_run_to_block(5);
+
+		//Assert
+		let user_dai_balance = hydradx_runtime::Tokens::free_balance(DAI, &ALICE.into());
+		assert_eq!(user_dai_balance, ALICE_INITIAL_DAI_BALANCE + UNITS);
+	});
+}
 #[test]
 fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block() {
+	//We simulate a failing scenarios so we get errros we can use for verification
+	//The user don't have enough balance
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		env_logger::init();
 
-		//Add some money to the treasury account to prevent ExistentialDepositError
-		assert_ok!(hydradx_runtime::Currencies::transfer(
-			Origin::signed(ALICE.into()),
-			hydradx_runtime::Treasury::account_id().into(),
-			HDX,
-			10 * UNITS,
-		));
-
 		//Arrange
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let stable_price = FixedU128::from_inner(45_000_000_000);
-		hydradx_runtime::Omnipool::protocol_account();
+		init_omnipol();
 
-		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-			hydradx_runtime::Origin::root(),
-			stable_price,
-			native_price,
-			Permill::from_percent(100),
-			Permill::from_percent(10)
-		));
-
-		let schedule1 = schedule_fake();
-		let schedule2 = schedule_fake();
-		let schedule3 = schedule_fake();
-		let schedule4 = schedule_fake();
-		let schedule5 = schedule_fake();
-		let schedule6 = schedule_fake();
+		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
+		let schedule2 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
+		let schedule3 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
+		let schedule4 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
+		let schedule5 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
+		let schedule6 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
 
 		create_schedule(schedule1);
 		create_schedule(schedule2);
@@ -87,8 +93,8 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 
 		//Assert
 		//We check the reordering based on the the emitted events.
-		//As the user has no balance of HDX, all the schedule execution will fail and be suspended
-		//As the hash is fixed for the relay block number, therefore we should expect the same result
+		//As the user has no balance of DAI, all the schedule execution will fail and be suspended
+		//As the hash is fixed for the relay block number for integration tests, therefore we should always expect the same result
 		expect_suspended_events(vec![
 			pallet_dca::Event::Suspended {
 				id: 1,
@@ -124,6 +130,42 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 	});
 }
 
+#[test]
+fn get_bond_exec_size() {
+	let schedule_key_size = size_of::<ScheduleId>();
+	let schedule_value_size = Schedule::<ScheduleId, BlockNumber>::max_encoded_len();
+
+	let schedule_ownership_key_size = size_of::<ScheduleId>();
+	let schedule_ownership_value_size = size_of::<common_runtime::AccountId>();
+
+	let suspended_key_size = size_of::<ScheduleId>();
+
+	let remaining_reccurrencies_key_size = size_of::<ScheduleId>();
+	let remaining_reccurrencies_value_size = size_of::<u32>();
+
+	let schedule_ids_per_block_entry_size = size_of::<ScheduleId>();
+
+	let bond_key_size = size_of::<ScheduleId>();
+	let bond_value_size = Bond::<primitives::AssetId>::max_encoded_len();
+
+	let storage_bond_size: usize = vec![
+		schedule_key_size,
+		schedule_value_size,
+		schedule_ownership_key_size,
+		schedule_ownership_value_size,
+		suspended_key_size,
+		remaining_reccurrencies_key_size,
+		remaining_reccurrencies_value_size,
+		schedule_ids_per_block_entry_size,
+		bond_key_size,
+		bond_value_size,
+	]
+	.iter()
+	.sum();
+
+	let storage_bond = primitives::constants::currency::bytes_to_balance(storage_bond_size as u32);
+}
+
 fn create_schedule(schedule1: Schedule<AssetId, u32>) {
 	assert_ok!(hydradx_runtime::DCA::schedule(
 		hydradx_runtime::Origin::signed(ALICE.into()),
@@ -132,14 +174,14 @@ fn create_schedule(schedule1: Schedule<AssetId, u32>) {
 	));
 }
 
-fn schedule_fake() -> Schedule<AssetId, u32> {
+fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
 		recurrence: Recurrence::Perpetual,
 		order: Order::Buy {
-			asset_in: DAI,
-			asset_out: DOT,
-			amount_out: UNITS,
+			asset_in: asset_in,
+			asset_out: asset_out,
+			amount_out: amount,
 			max_limit: Balance::MAX,
 			route: create_bounded_vec(vec![]),
 		},
@@ -150,6 +192,20 @@ fn schedule_fake() -> Schedule<AssetId, u32> {
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
+}
+
+pub fn init_omnipol() {
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+	hydradx_runtime::Omnipool::protocol_account();
+
+	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+		hydradx_runtime::Origin::root(),
+		stable_price,
+		native_price,
+		Permill::from_percent(100),
+		Permill::from_percent(10)
+	));
 }
 
 pub fn hydra_run_to_block(to: BlockNumber) {

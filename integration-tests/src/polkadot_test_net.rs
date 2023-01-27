@@ -16,6 +16,7 @@ pub const HYDRA_PARA_ID: u32 = 2_034;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 
 pub const HDX: AssetId = 0;
@@ -195,7 +196,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
 			(AccountId::from(ALICE), 1, 200 * UNITS),
-			(AccountId::from(ALICE), 2, 200 * UNITS),
+			(AccountId::from(ALICE), 2, ALICE_INITIAL_DAI_BALANCE),
 			(AccountId::from(BOB), 1, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
