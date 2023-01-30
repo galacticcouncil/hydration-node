@@ -326,6 +326,7 @@ impl Config for Test {
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
 	type MultiReservableCurrency = Currencies;
 	type SpotPriceProvider = Omnipool;
+	type RandomnessProvider = DCA;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;

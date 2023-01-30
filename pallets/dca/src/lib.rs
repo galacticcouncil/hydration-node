@@ -146,6 +146,8 @@ pub mod pallet {
 
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
 
+		type RandomnessProvider: RandomnessProvider;
+
 		#[pallet::constant]
 		type ExecutionBondInNativeCurrency: Get<Balance>;
 
@@ -787,6 +789,21 @@ where
 
 	//TODO: Dani Abstract away
 	fn get_random_generator_basedon_on_relay_parent_hash() -> StdRng {
+		let hash_value = pallet_relaychain_info::Pallet::<T>::parent_hash();
+		let mut seed_arr = [0u8; 8];
+		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);
+		let seed = u64::from_le_bytes(seed_arr);
+		let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+		rng
+	}
+}
+
+pub trait RandomnessProvider {
+	fn generator() -> StdRng;
+}
+
+impl<T: Config> RandomnessProvider for Pallet<T> {
+	fn generator() -> StdRng {
 		let hash_value = pallet_relaychain_info::Pallet::<T>::parent_hash();
 		let mut seed_arr = [0u8; 8];
 		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);

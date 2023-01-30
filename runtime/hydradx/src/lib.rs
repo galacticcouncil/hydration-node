@@ -862,6 +862,7 @@ impl pallet_dca::Config for Runtime {
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
 	type MultiReservableCurrency = Currencies;
 	type SpotPriceProvider = Omnipool;
+	type RandomnessProvider = DCA;
 	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
