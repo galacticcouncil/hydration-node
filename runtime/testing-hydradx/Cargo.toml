@@ -1,6 +1,6 @@
 [package]
 name = "testing-hydradx-runtime"
-version = "125.0.0"
+version = "128.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -49,14 +49,14 @@ pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", b
 pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse dependencies
-hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false }
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false }
-pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false}
-pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "435b77e142a8a1f5ef847cb379f493b673668d4b", default-features = false }
+hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false }
+pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false}
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "76f57f90735432f1e38321e3bd94c531f59942a1", default-features = false }
 
 
 # ORML dependencies

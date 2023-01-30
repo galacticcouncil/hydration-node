@@ -5,7 +5,7 @@ use primitive_types::U256;
 use proptest::prelude::*;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const TOLERANCE: Balance = 1_000; // * 1_000 * 1_000;
+pub const TOLERANCE: Balance = 1_000_000_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
 
@@ -19,6 +19,10 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 
 fn price() -> impl Strategy<Value = FixedU128> {
 	(0.1f64..2f64).prop_map(FixedU128::from_float)
+}
+
+fn some_imbalance() -> impl Strategy<Value = SimpleImbalance<Balance>> {
+	(0..10000 * ONE).prop_map(|value| SimpleImbalance { value, negative: true })
 }
 
 fn assert_asset_invariant(
@@ -43,7 +47,10 @@ fn assert_asset_invariant(
 }
 fn fee() -> impl Strategy<Value = Permill> {
 	// Allow values between 0.001 and 0.1
-	(0u32..1u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)])
+	(
+		0u32..=1u32,
+		prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)],
+	)
 		.prop_map(|(n, d)| Permill::from_rational(n, d))
 }
 
@@ -169,7 +176,8 @@ proptest! {
 		token_3 in pool_token(300),
 		token_4 in pool_token(400),
 		asset_fee in fee(),
-		protocol_fee in fee()
+		protocol_fee in fee(),
+		imbalance in some_imbalance(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -192,7 +200,7 @@ proptest! {
 			.with_registered_asset(300)
 			.with_registered_asset(400)
 			.with_asset_fee(asset_fee)
-			.with_asset_fee(protocol_fee)
+			.with_protocol_fee(protocol_fee)
 			.with_initial_pool(
 				stable_price,
 				FixedU128::from(1),
@@ -203,6 +211,8 @@ proptest! {
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
+				HubAssetImbalance::<Test>::set(imbalance);
+
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -216,6 +226,12 @@ proptest! {
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
 				assert_ok!(Omnipool::sell(Origin::signed(seller), 200, 300, amount, Balance::zero()));
+
+				let updated_imbalance = HubAssetImbalance::<Test>::get();
+
+				assert!(updated_imbalance.value <= imbalance.value);
+
+				let imbalance_diff = imbalance.value - updated_imbalance.value;
 
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -231,12 +247,12 @@ proptest! {
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_eq!(old_hub_liquidity, new_hub_liquidity, "Total Hub liquidity has changed!");
+				assert_eq!(old_hub_liquidity, new_hub_liquidity + imbalance_diff, "Total Hub liquidity has changed!");
 
 				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 
-				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity + imbalance_diff, "Assets hub liquidity");
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -244,9 +260,9 @@ proptest! {
 				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
 				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
 				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-				let delta_imbalance= new_imbalance.value - old_imbalance.value; // note: in current implementation: imbalance cannot be positive, let's simply and ignore the sign for now
+				let delta_imbalance = old_imbalance.value - new_imbalance.value;
 
-				let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - delta_imbalance;
+				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx - delta_imbalance;
 				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
 			});
 	}
@@ -355,7 +371,8 @@ proptest! {
 		token_3 in pool_token(300),
 		token_4 in pool_token(400),
 		asset_fee in fee(),
-		protocol_fee in fee()
+		protocol_fee in fee(),
+		imbalance in some_imbalance(),
 	) {
 		let lp1: u64 = 100;
 		let lp2: u64 = 200;
@@ -378,7 +395,7 @@ proptest! {
 			.with_registered_asset(300)
 			.with_registered_asset(400)
 			.with_asset_fee(asset_fee)
-			.with_asset_fee(protocol_fee)
+			.with_protocol_fee(protocol_fee)
 			.with_initial_pool(
 				stable_price,
 				FixedU128::from(1),
@@ -389,6 +406,7 @@ proptest! {
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
 			.build()
 			.execute_with(|| {
+				HubAssetImbalance::<Test>::set(imbalance);
 				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let old_state_300 = Omnipool::load_asset_state(300).unwrap();
 				let old_state_hdx = Omnipool::load_asset_state(HDX).unwrap();
@@ -402,6 +420,9 @@ proptest! {
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
 				assert_ok!(Omnipool::buy(Origin::signed(buyer), 300, 200, amount, Balance::max_value()));
+
+				let updated_imbalance = HubAssetImbalance::<Test>::get();
+				assert!(updated_imbalance.value <= imbalance.value);
 
 				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -417,12 +438,14 @@ proptest! {
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
-				assert_eq!(old_hub_liquidity, new_hub_liquidity, "Total Hub liquidity has changed!");
+				let imbalance_diff = imbalance.value - updated_imbalance.value;
+
+				assert_eq!(old_hub_liquidity, new_hub_liquidity + imbalance_diff, "Total Hub liquidity has changed!");
 
 				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 
-				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity, "Assets hub liquidity");
+				assert_eq!(old_asset_hub_liquidity, new_asset_hub_liquidity + imbalance_diff, "Assets hub liquidity");
 
 				let new_imbalance = <HubAssetImbalance<Test>>::get();
 
@@ -430,9 +453,9 @@ proptest! {
 				let delta_q_200 = old_state_200.hub_reserve - new_state_200.hub_reserve;
 				let delta_q_300 = new_state_300.hub_reserve - old_state_300.hub_reserve;
 				let delta_q_hdx = new_state_hdx.hub_reserve - old_state_hdx.hub_reserve;
-				let delta_imbalance= new_imbalance.value - old_imbalance.value; // note: in current implementation: imbalance cannot be positive, let's simply and ignore the sign for now
+				let delta_imbalance= old_imbalance.value - new_imbalance.value;
 
-				let remaining = delta_q_300 - delta_q_200 - delta_q_hdx - delta_imbalance;
+				let remaining = delta_q_200 - delta_q_300 - delta_q_hdx - delta_imbalance;
 				assert_eq!(remaining, 0u128, "Some LRNA was lost along the way");
 			});
 	}
@@ -726,6 +749,8 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert_ok!(Omnipool::sell(Origin::signed(seller), LRNA, 300, amount, Balance::zero()));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -743,9 +768,37 @@ proptest! {
 				// total quantity of R_i remains unchanged
 				let new_asset_hub_liquidity = sum_asset_hub_liquidity();
 
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert_eq!(old_asset_hub_liquidity + amount, new_asset_hub_liquidity, "Assets hub liquidity");
+
+				assert_imbalance_update(
+					old_imbalance.value,
+					new_imbalance.value,
+					old_hub_liquidity,
+					new_hub_liquidity,
+					"Imbalance invariant in sell LRNA is incorrect"
+				);
 			});
 	}
+}
+
+fn assert_imbalance_update(
+	old_imbalance: Balance,
+	new_imbalance: Balance,
+	old_hub_reserve: Balance,
+	new_hub_reserve: Balance,
+	desc: &str,
+) {
+	let q = U256::from(old_hub_reserve);
+	let q_plus = U256::from(new_hub_reserve);
+	let l = U256::from(old_imbalance);
+	let l_plus = U256::from(new_imbalance);
+
+	let left = q.checked_mul(q.checked_sub(l).unwrap()).unwrap();
+	let right = q_plus.checked_mul(q_plus.checked_sub(l_plus).unwrap()).unwrap();
+
+	assert!(left >= right, "{}", desc);
 }
 
 proptest! {
@@ -802,6 +855,8 @@ proptest! {
 
 				assert_eq!(old_hub_liquidity, old_asset_hub_liquidity);
 
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert_ok!(Omnipool::buy(Origin::signed(seller), 300, LRNA, amount, Balance::max_value()));
 
 				let new_state_300 = Omnipool::load_asset_state(300).unwrap();
@@ -814,7 +869,17 @@ proptest! {
 				// Total hub asset liquidity has not changed
 				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+
 				assert!(old_hub_liquidity < new_hub_liquidity, "Total Hub liquidity increased incorrectly!");
+
+				assert_imbalance_update(
+					old_imbalance.value,
+					new_imbalance.value,
+					old_hub_liquidity,
+					new_hub_liquidity,
+					"Imbalance invariant in buy for LRNA is incorrect"
+				);
 			});
 	}
 }

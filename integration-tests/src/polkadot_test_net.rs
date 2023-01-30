@@ -179,6 +179,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"DAI".to_vec(), 1_000u128),
 			(b"USDC".to_vec(), 1_000u128),
 		],
+		asset_ids: vec![
+			(b"LRNA".to_vec(), 1_000u128, LRNA),
+			(b"DAI".to_vec(), 1_000u128, DAI),
+			(b"USDC".to_vec(), 1_000u128, DOT),
+		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
 	}
