@@ -68,22 +68,21 @@ type AssetIdOf<T> = <T as pallet_omnipool::Config>::AssetId;
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 
-fn prepare_omnipool<T: pallet_omnipool::Config>() -> Result<(AssetIdOf<T>, AssetIdOf<T>, AssetIdOf<T>), DispatchError>
+fn prepare_omnipool<T: pallet_omnipool::Config>() -> Result<(T::AssetId), DispatchError>
 where
 	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: crate::pallet::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
+	// Initialize pool
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
 	let native_price: FixedU128 = FixedU128::from(1);
 	let acc = OmnipoolPallet::<T>::protocol_account();
 
-	//OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP).unwrap();
-
-	CurrencyOf::<T>::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128).unwrap();
-	CurrencyOf::<T>::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128).unwrap();
+	T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
+	T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
 	OmnipoolPallet::<T>::initialize_pool(
 		RawOrigin::Root.into(),
@@ -91,67 +90,47 @@ where
 		native_price,
 		Permill::from_percent(100),
 		Permill::from_percent(100),
-	)
-	.unwrap();
+	)?;
 
 	// Register new asset in asset registry
-	let asset_a =
-		<T as pallet_omnipool::Config>::AssetRegistry::create_asset(&b"FCK".to_vec(), Balance::from(1_000u32)).unwrap();
-	let asset_b =
-		<T as pallet_omnipool::Config>::AssetRegistry::create_asset(&b"FCK2".to_vec(), Balance::from(1_000u32))
-			.unwrap();
-	let share_asset =
-		<T as pallet_omnipool::Config>::AssetRegistry::create_asset(&b"SHR".to_vec(), Balance::from(1_000u32)).unwrap();
+	let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
 
 	// Create account for token provider and set balance
 	let owner: T::AccountId = account("owner", 0, 1);
 
-	let token_price: FixedU128 = FixedU128::from((1, 5));
+	let token_price = FixedU128::from((1, 5));
 	let token_amount = 200_000_000_000_000u128;
 
-	CurrencyOf::<T>::update_balance(asset_a, &acc, token_amount as i128).unwrap();
-	CurrencyOf::<T>::update_balance(asset_b, &acc, token_amount as i128).unwrap();
+	T::Currency::update_balance(token_id, &acc, token_amount as i128)?;
 
 	// Add the token to the pool
 	OmnipoolPallet::<T>::add_token(
 		RawOrigin::Root.into(),
-		asset_a,
-		token_price,
-		Permill::from_percent(100),
-		owner.clone(),
-	)
-	.unwrap();
-	OmnipoolPallet::<T>::add_token(
-		RawOrigin::Root.into(),
-		asset_b,
+		token_id,
 		token_price,
 		Permill::from_percent(100),
 		owner,
-	)
-	.unwrap();
+	)?;
 
 	// Create LP provider account with correct balance aand add some liquidity
 	let lp_provider: T::AccountId = account("provider", 1, 1);
-	T::Currency::update_balance(asset_a, &lp_provider, 500_000_000_000_000i128)?;
+	T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
 	let liquidity_added = 300_000_000_000_000u128;
 
-	OmnipoolPallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), asset_a, liquidity_added)?;
+	OmnipoolPallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
 	let buyer: T::AccountId = account("buyer", 2, 1);
 	T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
 	OmnipoolPallet::<T>::buy(
 		RawOrigin::Signed(buyer).into(),
-		asset_a,
+		token_id,
 		T::StableCoinAssetId::get(),
 		30_000_000_000_000u128,
 		100_000_000_000_000u128,
 	)?;
 
-	let seller: T::AccountId = account("seller", 3, 1);
-	T::Currency::update_balance(asset_a, &seller, 500_000_000_000_000i128)?;
-
-	Ok((asset_a, asset_b, share_asset))
+	Ok((token_id))
 }
 
 fn create_account_with_native_balance<T: Config>() -> Result<T::AccountId, DispatchError>
@@ -180,43 +159,7 @@ benchmarks! {
 	}
 
 	execution_bond{
-		// Initialize pool
-		let stable_amount: Balance = 1_000_000_000_000_000u128;
-		let native_amount: Balance = 1_000_000_000_000_000u128;
-		let stable_price: FixedU128= FixedU128::from((1,2));
-		let native_price: FixedU128= FixedU128::from(1);
-		let acc = OmnipoolPallet::<T>::protocol_account();
-
-		T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
-		T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
-
-		OmnipoolPallet::<T>::initialize_pool(RawOrigin::Root.into(), stable_price,native_price,Permill::from_percent(100), Permill::from_percent(100))?;
-
-		// Register new asset in asset registry
-		let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
-
-		// Create account for token provider and set balance
-		let owner: T::AccountId = account("owner", 0, 1);
-
-		let token_price = FixedU128::from((1,5));
-		let token_amount = 200_000_000_000_000u128;
-
-		T::Currency::update_balance(token_id, &acc, token_amount as i128)?;
-
-		// Add the token to the pool
-		OmnipoolPallet::<T>::add_token(RawOrigin::Root.into(), token_id, token_price,Permill::from_percent(100), owner)?;
-
-		// Create LP provider account with correct balance aand add some liquidity
-		let lp_provider: T::AccountId = account("provider", 1, 1);
-		T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
-
-		let liquidity_added = 300_000_000_000_000u128;
-
-		OmnipoolPallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
-
-		let buyer: T::AccountId = account("buyer", 2, 1);
-		T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
-		OmnipoolPallet::<T>::buy(RawOrigin::Signed(buyer).into(), token_id, T::StableCoinAssetId::get(), 30_000_000_000_000u128, 100_000_000_000_000u128)?;
+		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
 		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
@@ -240,10 +183,11 @@ benchmarks! {
 	}
 
 	schedule{
-		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
+		let token_id = prepare_omnipool::<T>()?;
+
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 
-		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
 		let schedule_id : ScheduleId = 1;
 
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::None)
@@ -252,10 +196,10 @@ benchmarks! {
 	}
 
 	pause{
-		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
+		let token_id = prepare_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 
-		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
@@ -266,10 +210,10 @@ benchmarks! {
 	}
 
 	resume{
-		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
+		let token_id = prepare_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 
-		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
@@ -281,10 +225,10 @@ benchmarks! {
 	}
 
 	terminate {
-		let (asset_a, asset_b, share_asset) = prepare_omnipool::<T>()?;
+		let token_id = prepare_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 
-		let schedule1 = schedule_fake::<T>(asset_a.into(), asset_b.into(), ONE, Recurrence::Fixed(5));
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
