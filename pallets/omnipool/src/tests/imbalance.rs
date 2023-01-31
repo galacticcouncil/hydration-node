@@ -94,3 +94,73 @@ fn imbalance_should_update_correctly() {
 			);
 		});
 }
+
+#[test]
+fn imbalance_should_approach_zero_when_enough_trades_are_executed() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP1, 100, 5000000000000000),
+			(LP1, 200, 5000000000000000),
+			(LP2, 100, 1000000000000000),
+			(LP3, 100, 1000000000000000),
+			(LP3, 1, 100000000000000),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_protocol_fee(Permill::from_percent(10))
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+
+			assert_pool_state!(
+				13360000000000000,
+				26720000000000000,
+				SimpleImbalance {
+					value: 0,
+					negative: true
+				}
+			);
+			assert_ok!(Omnipool::sell(
+				Origin::signed(LP3),
+				1,
+				200,
+				50000000000000,
+				10000000000000
+			));
+
+			loop {
+				let old_imbalance = HubAssetImbalance::<Test>::get();
+
+				assert_ok!(Omnipool::buy(Origin::signed(LP3), 200, 100, 1000000000000, u128::MAX,));
+				assert_ok!(Omnipool::sell(Origin::signed(LP3), 200, 100, 1000000000000, 0u128,));
+
+				let updated_imbalance = HubAssetImbalance::<Test>::get();
+
+				assert!(updated_imbalance.value <= old_imbalance.value);
+
+				if updated_imbalance.value.is_zero() {
+					break;
+				}
+			}
+
+			// Operations should work correctly after that
+
+			assert_ok!(Omnipool::buy(Origin::signed(LP3), 200, 100, 1000000000000, u128::MAX,));
+			assert_ok!(Omnipool::sell(Origin::signed(LP3), 200, 100, 1000000000000, 0u128,));
+			let position_id = <NextPositionId<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+			let position = Positions::<Test>::get(position_id).unwrap();
+			assert_ok!(Omnipool::remove_liquidity(
+				Origin::signed(LP2),
+				position_id,
+				position.shares
+			));
+
+			assert_eq!(HubAssetImbalance::<Test>::get(), SimpleImbalance::default());
+		});
+}
