@@ -182,6 +182,30 @@ benchmarks! {
 		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),10000000000000);
 	}
 
+	on_initialize{
+		let token_id = prepare_omnipool::<T>()?;
+
+		let seller: T::AccountId = account("seller", 3, 1);
+		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
+		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+
+		let amount_buy = 10_000_000_000_000u128;
+		let sell_max_limit = 200_000_000_000_000u128;
+
+		let schedule1 = schedule_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(5));
+		let exeuction_block = 100u32;
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
+
+	}: {
+		let mut weight = 0u64;
+		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
+
+		crate::Pallet::<T>::on_initialize(exeuction_block.into());
+	}
+	verify {
+		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),10000000000000);
+	}
+
 	schedule{
 		let token_id = prepare_omnipool::<T>()?;
 
