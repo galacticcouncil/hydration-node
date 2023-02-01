@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -660,7 +660,9 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// This function returns value of omnipool's lp postion in [`LRNA`].
-	fn get_position_value_in_hub_asset(lp_position: &OmniPosition<Balance, T::AssetId>) -> Result<Balance, DispatchError> {
+	fn get_position_value_in_hub_asset(
+		lp_position: &OmniPosition<Balance, T::AssetId>,
+	) -> Result<Balance, DispatchError> {
 		let state = OmnipoolPallet::<T>::load_asset_state(lp_position.asset_id)?;
 
 		state

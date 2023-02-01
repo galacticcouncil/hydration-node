@@ -32,9 +32,8 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "d5b8001d90f974f165cf1bfcea0775cfe4340f6b", default-features = false }
-#hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "d5b8001d90f974f165cf1bfcea0775cfe4340f6b", default-features = false }
-hydradx-traits = { path="../../../warehouse/traits", default-features = false }
+pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "85167fcfc91dc665a6d9376d62173a1a0117178c", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "85167fcfc91dc665a6d9376d62173a1a0117178c", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "7fc0204c401e79447eaae96e58087413fc6cb59c", default-features = false }
 
@@ -54,6 +53,8 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
+#NOTE: old asset registry trait 
+registry-traits = { package="hydradx-traits", git = "https://github.com/galacticcouncil/warehouse", rev = "fcebd285141ce9ed15136f6102fa6396605d96af", default-features = false }
 
 [features]
 default = ["std"]
