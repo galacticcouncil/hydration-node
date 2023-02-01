@@ -88,7 +88,7 @@ fn redeposit_shares_should_work() {
 			assert_last_event!(crate::Event::SharesRedeposited {
 				global_farm_id: charlie_g_farm_id,
 				yield_farm_id: charlie_y_farm_id,
-				deposit_id: deposit_id,
+				deposit_id,
 				asset_id: asset_in_position,
 				who: LP1,
 				shares_amount: 2_000_000_000_000_000,

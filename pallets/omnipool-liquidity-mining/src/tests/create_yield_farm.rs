@@ -106,7 +106,7 @@ fn create_yield_farm_should_fail_with_asset_not_found_when_omnipool_doesnt_exist
 					global_farm_id,
 					not_in_omnipool_asset,
 					multiplier,
-					loyalty_curve.clone()
+					loyalty_curve
 				),
 				Error::<Test>::AssetNotFound
 			);
@@ -152,7 +152,7 @@ fn create_yield_farm_should_fail_when_origin_is_none() {
 					global_farm_id,
 					not_in_omnipool_asset,
 					multiplier,
-					loyalty_curve.clone()
+					loyalty_curve
 				),
 				BadOrigin
 			);

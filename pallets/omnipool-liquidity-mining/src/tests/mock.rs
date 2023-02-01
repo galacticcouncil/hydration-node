@@ -12,6 +12,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 use crate::*;
 use std::cell::RefCell;
@@ -60,7 +62,6 @@ pub const ACA: AssetId = 1_002;
 
 pub const LP1: AccountId = 1;
 pub const LP2: AccountId = 2;
-pub const LP3: AccountId = 3;
 
 pub const ALICE: AccountId = 4;
 pub const BOB: AccountId = 5;
@@ -73,8 +74,6 @@ pub const INITIAL_WRITE_WEIGHT: u64 = 1;
 pub const ONE: Balance = 1_000_000_000_000;
 
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
-
-pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
 
 pub const OMNIPOOL_COLLECTION_ID: u128 = 1_000;
 pub const LM_COLLECTION_ID: u128 = 1;
@@ -276,7 +275,7 @@ pub struct ExtBuilder {
 	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
-	omnipool_liquidity: Vec<(AccountId, AssetId, Balance)>, //who, asset, amount
+	omnipool_liquidity: Vec<(AccountId, AssetId, Balance)>, //who, asset, amount/
 	lm_global_farms: Vec<(
 		Balance,
 		PeriodOf<Test>,
@@ -352,36 +351,8 @@ impl ExtBuilder {
 		self.endowed_accounts = accounts;
 		self
 	}
-	pub fn add_endowed_accounts(mut self, account: (AccountId, AssetId, Balance)) -> Self {
-		self.endowed_accounts.push(account);
-		self
-	}
 	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
 		self.registered_assets.push(asset);
-		self
-	}
-
-	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
-		self.asset_weight_cap = cap;
-		self
-	}
-
-	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
-		self.asset_fee = fee;
-		self
-	}
-
-	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
-		self.protocol_fee = fee;
-		self
-	}
-	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
-		self.min_liquidity = limit;
-		self
-	}
-
-	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
-		self.min_trade_limit = limit;
 		self
 	}
 
@@ -392,23 +363,6 @@ impl ExtBuilder {
 
 	pub fn with_liquidity(mut self, who: AccountId, asset: AssetId, amount: Balance) -> Self {
 		self.omnipool_liquidity.push((who, asset, amount));
-		self
-	}
-
-	pub fn without_stable_asset_in_registry(mut self) -> Self {
-		self.register_stable_asset = false;
-		self
-	}
-	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
-		self.max_in_ratio = value;
-		self
-	}
-	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
-		self.max_out_ratio = value;
-		self
-	}
-	pub fn with_tvl_cap(mut self, value: Balance) -> Self {
-		self.tvl_cap = value;
 		self
 	}
 
@@ -672,10 +626,6 @@ impl<T: Config> GetByKey<T::AssetId, Balance> for DummyRegistry<T> {
 	fn get(_key: &T::AssetId) -> Balance {
 		1_000_u128
 	}
-}
-
-pub(crate) fn get_mock_minted_position(collection: CollectionId, position: ItemId) -> Option<u128> {
-	NFTS.with(|v| v.borrow().get(&(collection, position)).copied())
 }
 
 pub struct Whitelist;

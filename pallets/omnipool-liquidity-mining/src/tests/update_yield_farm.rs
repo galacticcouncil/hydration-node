@@ -100,7 +100,6 @@ fn update_yield_farm_should_fail_with_asset_not_found_when_omnipool_doesnt_exist
 			assert_ok!(Omnipool::remove_asset(KSM));
 
 			let global_farm_id = 1;
-			let yield_farm_id = 2;
 			let asset = KSM;
 			let new_multiplier = One::one();
 

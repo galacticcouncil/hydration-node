@@ -69,34 +69,28 @@ fn withdraw_shares_should_unlock_omnipool_position_when_last_entry_in_deposit() 
 			));
 
 			//Assert
-			assert_eq!(
-				has_event(
-					crate::Event::RewardClaimed {
-						global_farm_id,
-						yield_farm_id,
-						who: LP1,
-						claimed: 194_805_000_000_u128,
-						reward_currency: HDX,
-						deposit_id
-					}
-					.into()
-				),
-				true
-			);
+			assert!(has_event(
+				crate::Event::RewardClaimed {
+					global_farm_id,
+					yield_farm_id,
+					who: LP1,
+					claimed: 194_805_000_000_u128,
+					reward_currency: HDX,
+					deposit_id
+				}
+				.into()
+			));
 
-			assert_eq!(
-				has_event(
-					crate::Event::SharesWithdrawn {
-						global_farm_id,
-						yield_farm_id,
-						who: LP1,
-						amount: 2_000_000_000_000_000,
-						deposit_id
-					}
-					.into()
-				),
-				true
-			);
+			assert!(has_event(
+				crate::Event::SharesWithdrawn {
+					global_farm_id,
+					yield_farm_id,
+					who: LP1,
+					amount: 2_000_000_000_000_000,
+					deposit_id
+				}
+				.into()
+			));
 
 			assert_last_event!(crate::Event::DepositDestroyed { who: LP1, deposit_id }.into());
 
@@ -186,19 +180,16 @@ fn withdraw_shares_should_not_unlock_omnipool_position_when_deposit_is_not_burne
 			));
 
 			//Assert
-			assert_eq!(
-				has_event(
-					crate::Event::SharesWithdrawn {
-						global_farm_id: gc_g_farm_id,
-						yield_farm_id: gc_y_farm_id,
-						who: LP1,
-						amount: 2_000_000_000_000_000,
-						deposit_id
-					}
-					.into()
-				),
-				true
-			);
+			assert!(has_event(
+				crate::Event::SharesWithdrawn {
+					global_farm_id: gc_g_farm_id,
+					yield_farm_id: gc_y_farm_id,
+					who: LP1,
+					amount: 2_000_000_000_000_000,
+					deposit_id
+				}
+				.into()
+			));
 
 			//Storage check: storage should not change as deposit was not destroyed.
 			assert_eq!(
