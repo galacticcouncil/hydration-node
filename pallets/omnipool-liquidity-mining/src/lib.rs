@@ -335,7 +335,7 @@ pub mod pallet {
 				multiplier,
 				loyalty_curve.clone(),
 				asset_id,
-				vec![asset_id],
+				vec![asset_id, <T as pallet_omnipool::Config>::HubAssetId::get()],
 			)?;
 
 			Self::deposit_event(Event::YieldFarmCreated {
@@ -357,6 +357,8 @@ pub mod pallet {
 			multiplier: FarmMultiplier,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(OmnipoolPallet::<T>::exists(asset_id), Error::<T>::AssetNotFound);
 
 			let yield_farm_id = T::LiquidityMiningHandler::update_yield_farm_multiplier(
 				who.clone(),
@@ -437,8 +439,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			//NOTE: don't check XYK pool existance, owner must be able to stop yield farm.
-
+			//NOTE: don't check XYK existance, owner must be able to termiante yield farm.
 			T::LiquidityMiningHandler::terminate_yield_farm(who.clone(), global_farm_id, yield_farm_id, asset_id)?;
 
 			Self::deposit_event(Event::YieldFarmTerminated {
@@ -461,6 +462,11 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			let lp_position = OmnipoolPallet::<T>::load_position(position_id, who.clone())?;
+
+			ensure!(
+				OmnipoolPallet::<T>::exists(lp_position.asset_id),
+				Error::<T>::AssetNotFound
+			);
 
 			let deposit_id = T::LiquidityMiningHandler::deposit_lp_shares(
 				global_farm_id,
@@ -499,6 +505,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = Self::ensure_nft_owner(origin, deposit_id)?;
 
+			//NOTE: not tested this should never fail.
 			let position_id = OmniPositionId::<T>::get(deposit_id).ok_or(Error::<T>::MissingLpPosition)?;
 
 			//NOTE: pallet should be owner of the omnipool position at this point.
@@ -558,9 +565,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = Self::ensure_nft_owner(origin, deposit_id)?;
 
+			//NOTE: not tested -this should never fail.
 			let position_id = OmniPositionId::<T>::get(deposit_id).ok_or(Error::<T>::MissingLpPosition)?;
 			let lp_position = OmnipoolPallet::<T>::load_position(position_id, Self::account_id())?;
 
+			//NOTE: not tested -this should never fail.
 			let global_farm_id = T::LiquidityMiningHandler::get_global_farm_id(deposit_id, yield_farm_id)
 				.ok_or(Error::<T>::DepositDataNotFound)?;
 
@@ -642,7 +651,7 @@ impl<T: Config> Pallet<T> {
 	/// deposit to omnipool's position pairing from storage.
 	fn unlock_lp_postion(deposit_id: DepositId, who: &T::AccountId) -> Result<(), DispatchError> {
 		OmniPositionId::<T>::try_mutate_exists(deposit_id, |maybe_position_id| -> DispatchResult {
-			//NOTE: this basically should never fail
+			//NOTE: this should never fail
 			//TODO: move thi error to InconsistentState errors
 			let lp_position_id = maybe_position_id.as_mut().ok_or(Error::<T>::MissingLpPosition)?;
 

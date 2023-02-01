@@ -55,6 +55,7 @@ proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 #NOTE: old asset registry trait 
 registry-traits = { package="hydradx-traits", git = "https://github.com/galacticcouncil/warehouse", rev = "fcebd285141ce9ed15136f6102fa6396605d96af", default-features = false }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "85167fcfc91dc665a6d9376d62173a1a0117178c", default-features = false }
 
 [features]
 default = ["std"]

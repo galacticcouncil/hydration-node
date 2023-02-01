@@ -13,6 +13,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::*;
 use mock::*;
 
+use frame_support::{assert_noop, assert_ok};
+use sp_runtime::{traits::BadOrigin, traits::One, FixedU128};
+
+macro_rules! assert_last_event {
+	( $x:expr ) => {{
+		pretty_assertions::assert_eq!(System::events().last().expect("events expected").event, $x);
+	}};
+}
+
+pub fn has_event(event: mock::Event) -> bool {
+	System::events().iter().any(|record| record.event == event)
+}
+
+pub mod create_global_farm;
+pub mod create_yield_farm;
+pub mod deposit_shares;
 pub mod mock;
+pub mod redeposit_shares;
+pub mod resume_yield_farm;
+pub mod stop_yield_farm;
+pub mod terminate_global_farm;
+pub mod terminate_yield_farm;
+pub mod update_global_farm;
+pub mod update_yield_farm;
+pub mod withdraw_shares;

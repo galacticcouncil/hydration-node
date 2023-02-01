@@ -54,11 +54,18 @@ pub type ItemId = u128;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
-pub const REGISTERED_ASSET: AssetId = 1000;
+pub const DOT: AssetId = 1_000;
+pub const KSM: AssetId = 1_001;
+pub const ACA: AssetId = 1_002;
 
-pub const LP1: u64 = 1;
-pub const LP2: u64 = 2;
-pub const LP3: u64 = 3;
+pub const LP1: AccountId = 1;
+pub const LP2: AccountId = 2;
+pub const LP3: AccountId = 3;
+
+pub const ALICE: AccountId = 4;
+pub const BOB: AccountId = 5;
+pub const CHARLIE: AccountId = 6;
+pub const GC: AccountId = 7;
 
 pub const INITIAL_READ_WEIGHT: u64 = 1;
 pub const INITIAL_WRITE_WEIGHT: u64 = 1;
@@ -68,6 +75,9 @@ pub const ONE: Balance = 1_000_000_000_000;
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
+
+pub const OMNIPOOL_COLLECTION_ID: u128 = 1_000;
+pub const LM_COLLECTION_ID: u128 = 1;
 
 thread_local! {
 	pub static NFTS: RefCell<HashMap<(CollectionId, ItemId), AccountId>> = RefCell::new(HashMap::default());
@@ -94,7 +104,7 @@ construct_runtime!(
 		Omnipool: pallet_omnipool::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Event<T>},
 		WarehouseLM: warehouse_liquidity_mining::{Pallet, Storage, Event<T>},
-		LiquidityMining: omnipool_liquidity_mining::{Pallet, Call, Storage, Event<T>},
+		OmnipoolMining: omnipool_liquidity_mining::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -144,6 +154,7 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub const LMPalletId: PalletId = PalletId(*b"TEST_lm_");
+	pub const LMCollectionId: CollectionId = LM_COLLECTION_ID;
 }
 
 impl Config for Test {
@@ -151,7 +162,7 @@ impl Config for Test {
 	type Currency = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
 	type PalletId = LMPalletId;
-	type NFTCollectionId = PositionCollectionId;
+	type NFTCollectionId = LMCollectionId;
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = WarehouseLM;
 }
@@ -217,7 +228,7 @@ parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
 	pub const DAIAssetId: AssetId = DAI;
-	pub const PositionCollectionId: u128 = 1000;
+	pub const PositionCollectionId: CollectionId = OMNIPOOL_COLLECTION_ID;
 
 	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
 	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
@@ -265,6 +276,18 @@ pub struct ExtBuilder {
 	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
+	omnipool_liquidity: Vec<(AccountId, AssetId, Balance)>, //who, asset, amount
+	lm_global_farms: Vec<(
+		Balance,
+		PeriodOf<Test>,
+		BlockNumber,
+		AssetId,
+		AccountId,
+		Perquintill,
+		Balance,
+		FixedU128,
+	)>,
+	lm_yield_farms: Vec<(AccountId, GlobalFarmId, AssetId, FarmMultiplier, Option<LoyaltyCurve>)>,
 }
 
 impl Default for ExtBuilder {
@@ -317,6 +340,9 @@ impl Default for ExtBuilder {
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
 			tvl_cap: u128::MAX,
+			omnipool_liquidity: vec![],
+			lm_global_farms: vec![],
+			lm_yield_farms: vec![],
 		}
 	}
 }
@@ -364,6 +390,11 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_liquidity(mut self, who: AccountId, asset: AssetId, amount: Balance) -> Self {
+		self.omnipool_liquidity.push((who, asset, amount));
+		self
+	}
+
 	pub fn without_stable_asset_in_registry(mut self) -> Self {
 		self.register_stable_asset = false;
 		self
@@ -392,16 +423,52 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_global_farm(
+		mut self,
+		total_rewards: Balance,
+		planned_yielding_periods: PeriodOf<Test>,
+		blocks_per_period: BlockNumber,
+		reward_currency: AssetId,
+		owner: AccountId,
+		yield_per_period: Perquintill,
+		min_deposit: Balance,
+		price_adjustment: FixedU128,
+	) -> Self {
+		self.lm_global_farms.push((
+			total_rewards,
+			planned_yielding_periods,
+			blocks_per_period,
+			reward_currency,
+			owner,
+			yield_per_period,
+			min_deposit,
+			price_adjustment,
+		));
+		self
+	}
+
+	pub fn with_yield_farm(
+		mut self,
+		owner: AccountId,
+		id: GlobalFarmId,
+		asset: AssetId,
+		multiplier: FarmMultiplier,
+		loyalty_curve: Option<LoyaltyCurve>,
+	) -> Self {
+		self.lm_yield_farms.push((owner, id, asset, multiplier, loyalty_curve));
+		self
+	}
+
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		// Add DAi and HDX as pre-registered assets
+		// Add DAI and HDX as pre-registered assets
 		REGISTERED_ASSETS.with(|v| {
 			if self.register_stable_asset {
 				v.borrow_mut().insert(DAI, DAI);
 			}
 			v.borrow_mut().insert(HDX, HDX);
-			v.borrow_mut().insert(REGISTERED_ASSET, REGISTERED_ASSET);
+			v.borrow_mut().insert(LRNA, LRNA);
 			self.registered_assets.iter().for_each(|asset| {
 				v.borrow_mut().insert(*asset, *asset);
 			});
@@ -450,6 +517,8 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
+				set_block_number(1);
+
 				assert_ok!(Omnipool::initialize_pool(
 					Origin::root(),
 					stable_price,
@@ -471,6 +540,34 @@ impl ExtBuilder {
 						price,
 						self.asset_weight_cap,
 						owner
+					));
+				}
+
+				for p in self.omnipool_liquidity {
+					assert_ok!(Omnipool::add_liquidity(Origin::signed(p.0), p.1, p.2));
+				}
+
+				for gf in self.lm_global_farms {
+					assert_ok!(OmnipoolMining::create_global_farm(
+						Origin::root(),
+						gf.0,
+						gf.1,
+						gf.2,
+						gf.3,
+						gf.4,
+						gf.5,
+						gf.6,
+						gf.7
+					));
+				}
+
+				for yf in self.lm_yield_farms {
+					assert_ok!(OmnipoolMining::create_yield_farm(
+						Origin::signed(yf.0),
+						yf.1,
+						yf.2,
+						yf.3,
+						yf.4
 					));
 				}
 			});
@@ -612,4 +709,9 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 			Ok(())
 		})
 	}
+}
+
+pub fn set_block_number(n: u64) {
+	MockBlockNumberProvider::set(n);
+	System::set_block_number(n);
 }
