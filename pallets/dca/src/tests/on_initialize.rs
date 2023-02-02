@@ -972,7 +972,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 3510744563);
+			assert_balance!(TreasuryAccount::get(), DAI, 4551568297);
 			assert_balance!(ALICE, BTC, ONE);
 		});
 }
@@ -1017,7 +1017,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 4236957779);
+			assert_balance!(TreasuryAccount::get(), DAI, 5493080559);
 			assert_balance!(ALICE, BTC, 67567567567566);
 		});
 }
@@ -1076,8 +1076,6 @@ fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_tr
 				}
 			);
 			assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
-
-			//TODO: edge case - if it is the last scenario, then slash and remove all
 		});
 }
 

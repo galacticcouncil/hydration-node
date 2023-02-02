@@ -849,7 +849,7 @@ impl pallet_transaction_pause::Config for Runtime {
 use codec::MaxEncodedLen;
 
 parameter_types! {
-	pub ExecutionBondInNativeCurrency: Balance= WeightToFee::weight_to_fee(&weights::dca::HydraWeight::<Runtime>::execution_bond());
+	pub ExecutionBondInNativeCurrency: Balance= WeightToFee::weight_to_fee(&weights::dca::HydraWeight::<Runtime>::execute_schedule());
 	//pub ExecutionBondInNativeCurrency: Balance= UNITS;
 	//pub StorageBondInNativeCurrency: Balance= deposit(1, pallet_dca::types::Schedule::<AssetId, BlockNumber>::max_encoded_len() as u32);
 	pub StorageBondInNativeCurrency: Balance= UNITS;

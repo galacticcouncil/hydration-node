@@ -188,9 +188,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>
 	}
 
-	//TODO: rename it to execute schedule
-	//TODO: then rebenchmark and also use this in the weight incrementation in the code
-	execution_bond{
+	execute_schedule {
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
