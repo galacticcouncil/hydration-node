@@ -75,6 +75,59 @@ fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 }
 
 #[test]
+fn complete_buy_dca_schedule_should_be_remove_all_storage_entries() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_balance!(ALICE, BTC, 0);
+			assert_eq!(3000000, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+
+			//Act
+			proceed_to_blocknumber(501, 901);
+
+			//Assert
+			let schedule_id = 1;
+			assert_balance!(ALICE, BTC, 5 * ONE);
+			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert!(DCA::bond(schedule_id).is_none());
+			assert!(DCA::schedules(schedule_id).is_none());
+			assert!(DCA::owner_of(schedule_id).is_none());
+			assert!(DCA::remaining_recurrences(schedule_id).is_none());
+
+			expect_events(vec![Event::Completed {
+				id: schedule_id,
+				who: ALICE,
+			}
+			.into()]);
+		});
+}
+
+#[test]
 fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence_when_nonnative_currency_set_for_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -1035,6 +1088,61 @@ fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_tr
 			assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
 
 			//TODO: edge case - if it is the last scenario, then slash and remove all
+		});
+}
+
+#[ignore]
+#[test]
+fn execution_bond_should_be_still_slashed_when_last_DCA_trade_is_successful_but_not_enough_balance_for_transaction_fee()
+{
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
+			(ALICE, DAI, 100 * ONE),
+			(LP2, BTC, 10000 * ONE),
+			(LP2, DAI, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			env_logger::init();
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(1))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_in: 100 * ONE,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+			assert_balance!(ALICE, BTC, 0);
+
+			set_to_blocknumber(501);
+
+			//Assert
+			let scheduke_id = 1;
+			assert_balance!(ALICE, DAI, 0);
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+			assert!(DCA::schedules(scheduke_id).is_none());
+			assert!(DCA::suspended(scheduke_id).is_none());
+			assert!(DCA::bond(scheduke_id).is_none());
+
+			assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
 		});
 }
 

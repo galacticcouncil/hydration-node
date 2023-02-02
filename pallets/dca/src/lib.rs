@@ -203,6 +203,10 @@ pub mod pallet {
 			id: ScheduleId,
 			who: T::AccountId,
 		},
+		Completed {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
@@ -367,10 +371,7 @@ pub mod pallet {
 			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
 
 			Self::remove_planning_or_suspension(schedule_id, next_execution_block)?;
-
-			Schedules::<T>::remove(schedule_id);
-			ScheduleOwnership::<T>::remove(schedule_id);
-			RemainingRecurrences::<T>::remove(schedule_id);
+			Self::remove_schedule_from_storages(schedule_id);
 
 			Self::discard_bond(schedule_id, &who)?;
 
@@ -394,10 +395,16 @@ where
 		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
 
 		let trade_result = Self::execute_trade(origin, &schedule.order);
+		//TODO: count other weights to this
 		*weight += Self::get_trade_weight(&schedule.order);
 
 		match trade_result {
 			Ok(res) => {
+				let take_transaction_fee_result = Self::take_transaction_fee_from_user(&owner, schedule.order);
+				if let Err(error) = take_transaction_fee_result {
+					exec_or_return_if_err!(Self::suspend_schedule(&owner, schedule_id));
+				}
+
 				let blocknumber_for_schedule =
 					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
 
@@ -410,21 +417,21 @@ where
 								schedule_id
 							));
 						} else {
+							Self::remove_schedule_from_storages(schedule_id);
 							exec_or_return_if_err!(Self::discard_bond(schedule_id, &owner));
+							Self::deposit_event(Event::Completed {
+								id: schedule_id,
+								who: owner.clone(),
+							});
 						}
 					}
 					Recurrence::Perpetual => {
 						exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 					}
 				}
-
-				let take_transaction_fee_result = Self::take_transaction_fee_from_user(&owner, schedule.order);
-				if let Err(error) = take_transaction_fee_result {
-					exec_or_return_if_err!(Self::suspend_schedule(owner, schedule_id));
-				}
 			}
 			_ => {
-				exec_or_return_if_err!(Self::suspend_schedule(owner, schedule_id));
+				exec_or_return_if_err!(Self::suspend_schedule(&owner, schedule_id));
 			}
 		}
 	}
@@ -660,7 +667,7 @@ where
 		Ok(total_bond_in_native_currency)
 	}
 
-	fn suspend_schedule(owner: T::AccountId, schedule_id: ScheduleId) -> DispatchResult {
+	fn suspend_schedule(owner: &T::AccountId, schedule_id: ScheduleId) -> DispatchResult {
 		Suspended::<T>::insert(schedule_id, ());
 		Self::slash_execution_bond(schedule_id, &owner)?;
 		Self::deposit_event(Event::Suspended {
@@ -775,6 +782,12 @@ where
 		};
 
 		Ok(total_bond_in_user_currency)
+	}
+
+	fn remove_schedule_from_storages(schedule_id: ScheduleId) {
+		Schedules::<T>::remove(schedule_id);
+		ScheduleOwnership::<T>::remove(schedule_id);
+		RemainingRecurrences::<T>::remove(schedule_id);
 	}
 
 	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
