@@ -977,8 +977,6 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 		});
 }
 
-//TODO: finish this tet
-#[ignore]
 #[test]
 fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_transaction_fee() {
 	ExtBuilder::default()
@@ -1007,7 +1005,7 @@ fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_tr
 					asset_in: DAI,
 					asset_out: BTC,
 					amount_in: 100 * ONE,
-					min_limit: Balance::MAX,
+					min_limit: Balance::MIN,
 					route: empty_vec(),
 				})
 				.build();
@@ -1021,11 +1019,22 @@ fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_tr
 			set_to_blocknumber(501);
 
 			//Assert
+			let scheduke_id = 1;
 			assert_balance!(ALICE, DAI, 0);
-			// why? if it fails, we need to slash bond should be slashed
-			//TODO:
-			//assert_balance!(TreasuryAccount::get(), DAI, 3510744563);
-			//assert_balance!(ALICE, BTC, ONE);
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+			assert!(DCA::suspended(scheduke_id).is_some());
+
+			assert!(DCA::bond(scheduke_id).is_some());
+			assert_eq!(
+				DCA::bond(scheduke_id).unwrap(),
+				Bond {
+					asset: HDX,
+					amount: StorageBondInNativeCurrency::get()
+				}
+			);
+			assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
+
+			//TODO: edge case - if it is the last scenario, then slash and remove all
 		});
 }
 

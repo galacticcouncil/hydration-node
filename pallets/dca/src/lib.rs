@@ -398,8 +398,6 @@ where
 
 		match trade_result {
 			Ok(res) => {
-				exec_or_return_if_err!(Self::take_transaction_fee_from_user(&owner, schedule.order));
-
 				let blocknumber_for_schedule =
 					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
 
@@ -419,16 +417,14 @@ where
 						exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 					}
 				}
+
+				let take_transaction_fee_result = Self::take_transaction_fee_from_user(&owner, schedule.order);
+				if let Err(error) = take_transaction_fee_result {
+					exec_or_return_if_err!(Self::suspend_schedule(owner, schedule_id));
+				}
 			}
 			_ => {
-				Suspended::<T>::insert(schedule_id, ());
-
-				exec_or_return_if_err!(Self::slash_execution_bond(schedule_id, &owner));
-
-				Self::deposit_event(Event::Suspended {
-					id: schedule_id,
-					who: owner.clone(),
-				});
+				exec_or_return_if_err!(Self::suspend_schedule(owner, schedule_id));
 			}
 		}
 	}
@@ -453,7 +449,6 @@ where
 			Order::Buy { asset_in, .. } => asset_in,
 		};
 
-		//TODO: use base weight
 		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize());
 		let fee_amount_in_sold_asset =
 			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
@@ -665,6 +660,17 @@ where
 		Ok(total_bond_in_native_currency)
 	}
 
+	fn suspend_schedule(owner: T::AccountId, schedule_id: ScheduleId) -> DispatchResult {
+		Suspended::<T>::insert(schedule_id, ());
+		Self::slash_execution_bond(schedule_id, &owner)?;
+		Self::deposit_event(Event::Suspended {
+			id: schedule_id,
+			who: owner.clone(),
+		});
+
+		Ok(())
+	}
+
 	fn slash_execution_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
 		let execution_bond = Self::unreserve_excecution_bond(schedule_id, &owner)?;
 
@@ -821,7 +827,7 @@ where
 		Ok(())
 	}
 
-	//TODO: Dani Abstract away
+	//TODO: remove it
 	fn get_random_generator_basedon_on_relay_parent_hash() -> StdRng {
 		let hash_value = pallet_relaychain_info::Pallet::<T>::parent_hash();
 		let mut seed_arr = [0u8; 8];
