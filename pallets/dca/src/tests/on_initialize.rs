@@ -114,11 +114,7 @@ fn complete_buy_dca_schedule_should_be_remove_all_storage_entries() {
 			let schedule_id = 1;
 			assert_balance!(ALICE, BTC, 5 * ONE);
 			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
-			assert!(DCA::bond(schedule_id).is_none());
-			assert!(DCA::schedules(schedule_id).is_none());
-			assert!(DCA::owner_of(schedule_id).is_none());
-			assert!(DCA::remaining_recurrences(schedule_id).is_none());
-
+			assert_that_schedule_has_been_removed_from_storages(schedule_id);
 			expect_events(vec![Event::Completed {
 				id: schedule_id,
 				who: ALICE,
@@ -1091,10 +1087,8 @@ fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_tr
 		});
 }
 
-#[ignore]
 #[test]
-fn execution_bond_should_be_still_slashed_when_last_DCA_trade_is_successful_but_not_enough_balance_for_transaction_fee()
-{
+fn execution_bond_should_be_still_slashed_when_last_DCA_completed_but_not_enough_balance_for_transaction_fee() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -1135,12 +1129,10 @@ fn execution_bond_should_be_still_slashed_when_last_DCA_trade_is_successful_but_
 			set_to_blocknumber(501);
 
 			//Assert
-			let scheduke_id = 1;
+			let schedule_id = 1;
 			assert_balance!(ALICE, DAI, 0);
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
-			assert!(DCA::schedules(scheduke_id).is_none());
-			assert!(DCA::suspended(scheduke_id).is_none());
-			assert!(DCA::bond(scheduke_id).is_none());
+			assert_that_schedule_has_been_removed_from_storages(schedule_id);
 
 			assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
 		});
@@ -1161,4 +1153,12 @@ pub fn proceed_to_blocknumber(from: u64, to: u64) {
 pub fn set_to_blocknumber(to: u64) {
 	System::set_block_number(to);
 	DCA::on_initialize(to);
+}
+
+fn assert_that_schedule_has_been_removed_from_storages(schedule_id: ScheduleId) {
+	assert!(DCA::schedules(schedule_id).is_none());
+	assert!(DCA::suspended(schedule_id).is_none());
+	assert!(DCA::owner_of(schedule_id).is_none());
+	assert!(DCA::remaining_recurrences(schedule_id).is_none());
+	assert!(DCA::bond(schedule_id).is_none());
 }

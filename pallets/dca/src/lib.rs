@@ -786,6 +786,7 @@ where
 
 	fn remove_schedule_from_storages(schedule_id: ScheduleId) {
 		Schedules::<T>::remove(schedule_id);
+		Suspended::<T>::remove(schedule_id);
 		ScheduleOwnership::<T>::remove(schedule_id);
 		RemainingRecurrences::<T>::remove(schedule_id);
 	}
