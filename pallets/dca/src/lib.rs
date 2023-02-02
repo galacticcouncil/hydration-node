@@ -98,9 +98,9 @@ pub mod pallet {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			{
 				//TODO: include all the logic - benchmark them
-				let mut weight: u64 = 0;
+				let mut weight: u64 = Self::get_on_initialize_weight();
 
-				let mut random_generator = Self::get_random_generator_basedon_on_relay_parent_hash();
+				let mut random_generator = T::RandomnessProvider::generator();
 
 				let maybe_schedules: Option<BoundedVec<ScheduleId, T::MaxSchedulePerBlock>> =
 					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
@@ -395,8 +395,7 @@ where
 		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
 
 		let trade_result = Self::execute_trade(origin, &schedule.order);
-		//TODO: count other weights to this
-		*weight += Self::get_trade_execution_weight();
+		*weight += Self::get_execute_schedule_weight();
 
 		match trade_result {
 			Ok(res) => {
@@ -436,7 +435,11 @@ where
 		}
 	}
 
-	fn get_trade_execution_weight() -> u64 {
+	fn get_on_initialize_weight() -> u64 {
+		crate::weights::HydraWeight::<T>::on_initialize().ref_time()
+	}
+
+	fn get_execute_schedule_weight() -> u64 {
 		crate::weights::HydraWeight::<T>::execute_schedule().ref_time()
 	}
 
@@ -836,16 +839,6 @@ where
 		};
 
 		Ok(())
-	}
-
-	//TODO: remove it
-	fn get_random_generator_basedon_on_relay_parent_hash() -> StdRng {
-		let hash_value = pallet_relaychain_info::Pallet::<T>::parent_hash();
-		let mut seed_arr = [0u8; 8];
-		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);
-		let seed = u64::from_le_bytes(seed_arr);
-		let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-		rng
 	}
 }
 
