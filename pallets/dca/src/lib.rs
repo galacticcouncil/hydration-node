@@ -23,6 +23,7 @@ use frame_support::pallet_prelude::*;
 use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::{Get, Len};
 use frame_support::transactional;
+use frame_support::weights::WeightToFee as FrameSupportWeight;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
@@ -74,6 +75,7 @@ pub mod pallet {
 	use super::*;
 	use crate::types::Recurrence;
 	use codec::{EncodeLike, HasCompact};
+	use frame_support::weights::WeightToFee;
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::pools::SpotPriceProvider;
@@ -161,8 +163,12 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::Asset>;
 
+		//TODO: rename to fee receiver
 		#[pallet::constant]
 		type SlashedBondReceiver: Get<Self::AccountId>;
+
+		/// Convert a weight value into a deductible fee
+		type WeightToFee: WeightToFee<Balance = Balance>;
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
@@ -392,6 +398,8 @@ where
 
 		match trade_result {
 			Ok(res) => {
+				exec_or_return_if_err!(Self::take_transaction_fee_from_user(&owner, schedule.order));
+
 				let blocknumber_for_schedule =
 					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
 
@@ -425,11 +433,39 @@ where
 		}
 	}
 
+	fn weight_to_fee(weight: Weight) -> Balance {
+		// cap the weight to the maximum defined in runtime, otherwise it will be the
+		// `Bounded` maximum of its data type, which is not desired.
+		let capped_weight: Weight = weight.min(T::BlockWeights::get().max_block);
+		<T as pallet::Config>::WeightToFee::weight_to_fee(&capped_weight)
+	}
+
 	fn get_trade_weight(order: &Order<T::Asset>) -> u64 {
 		match order {
 			Order::Sell { .. } => pallet_omnipool::weights::HydraWeight::<T>::sell().ref_time(),
 			Order::Buy { .. } => pallet_omnipool::weights::HydraWeight::<T>::buy().ref_time(),
 		}
+	}
+
+	fn take_transaction_fee_from_user(owner: &T::AccountId, order: Order<<T as Config>::Asset>) -> DispatchResult {
+		let fee_currency = match order {
+			Order::Sell { asset_in, .. } => asset_in,
+			Order::Buy { asset_in, .. } => asset_in,
+		};
+
+		//TODO: use base weight
+		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize());
+		let fee_amount_in_sold_asset =
+			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
+
+		T::Currency::transfer(
+			fee_currency.into(),
+			&owner,
+			&T::SlashedBondReceiver::get(),
+			fee_amount_in_sold_asset,
+		)?;
+
+		Ok(())
 	}
 
 	fn ensure_that_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
@@ -722,16 +758,14 @@ where
 
 	fn convert_to_currency_if_asset_is_not_native(
 		asset_id: T::Asset,
-		total_bond_in_native_currency: u128,
+		asset_amount: u128,
 	) -> Result<u128, DispatchError> {
 		let total_bond_in_user_currency = if asset_id == T::NativeAssetId::get() {
-			total_bond_in_native_currency
+			asset_amount
 		} else {
 			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), asset_id)
 				.ok_or(Error::<T>::CalculatingSpotPriceError)?;
-			price
-				.checked_mul_int(total_bond_in_native_currency)
-				.ok_or(ArithmeticError::Overflow)?
+			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
 		};
 
 		Ok(total_bond_in_user_currency)

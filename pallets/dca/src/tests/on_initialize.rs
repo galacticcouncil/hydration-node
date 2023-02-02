@@ -883,6 +883,152 @@ fn dca_should_not_be_executed_when_schedule_is_paused_after_one_execution() {
 		});
 }
 
+#[test]
+fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successful_buy_trade() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
+			(ALICE, DAI, 5000 * ONE),
+			(LP2, BTC, 10000 * ONE),
+			(LP2, DAI, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			env_logger::init();
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(2))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+			assert_balance!(ALICE, BTC, 0);
+
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_balance!(TreasuryAccount::get(), DAI, 3510744563);
+			assert_balance!(ALICE, BTC, ONE);
+		});
+}
+
+#[test]
+fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successful_sell_trade() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
+			(ALICE, DAI, 5000 * ONE),
+			(LP2, BTC, 10000 * ONE),
+			(LP2, DAI, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			env_logger::init();
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(2))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_in: 100 * ONE,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+			assert_balance!(ALICE, BTC, 0);
+
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_balance!(TreasuryAccount::get(), DAI, 4236957779);
+			assert_balance!(ALICE, BTC, 67567567567566);
+		});
+}
+
+//TODO: finish this tet
+#[ignore]
+#[test]
+fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_transaction_fee() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 5000 * ONE),
+			(ALICE, DAI, 100 * ONE),
+			(LP2, BTC, 10000 * ONE),
+			(LP2, DAI, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			env_logger::init();
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(2))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: DAI,
+					asset_out: BTC,
+					amount_in: 100 * ONE,
+					min_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			assert_balance!(TreasuryAccount::get(), DAI, 0);
+			assert_balance!(ALICE, BTC, 0);
+
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_balance!(ALICE, DAI, 0);
+			// why? if it fails, we need to slash bond should be slashed
+			//TODO:
+			//assert_balance!(TreasuryAccount::get(), DAI, 3510744563);
+			//assert_balance!(ALICE, BTC, ONE);
+		});
+}
+
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
 	bounded_vec

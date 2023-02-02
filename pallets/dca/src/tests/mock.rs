@@ -20,8 +20,10 @@ use crate::{Config, Schedule};
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
+use frame_support::weights::IdentityFee;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::PalletId;
+
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::pallet_prelude::OriginFor;
@@ -332,6 +334,7 @@ impl Config for Test {
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
 	type SlashedBondReceiver = TreasuryAccount;
+	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
