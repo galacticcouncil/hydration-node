@@ -28,7 +28,7 @@ use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use testing_hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
-	CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
+	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
 	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SudoConfig, SystemConfig,
 	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
@@ -159,6 +159,11 @@ pub fn local_parachain_config() -> Result<ChainSpec, String> {
 					(get_account_id_from_seed::<sr25519::Public>("Eve"), STASH / 5),
 				],
 				PARA_ID.into(),
+				DusterConfig {
+					account_blacklist: vec![get_account_id_from_seed::<sr25519::Public>("Duster")],
+					reward_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
+					dust_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
+				},
 			)
 		},
 		// Bootnodes
@@ -260,6 +265,16 @@ pub fn devnet_parachain_config() -> Result<ChainSpec, String> {
 				)],
 				// parachain ID
 				PARA_ID.into(),
+				DusterConfig {
+					// treasury
+					account_blacklist: vec![
+						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()
+					],
+					reward_account: Some(
+						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					),
+					dust_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
+				},
 			)
 		},
 		// Bootnodes
@@ -304,6 +319,7 @@ fn testnet_parachain_genesis(
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
+	duster: DusterConfig,
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
@@ -385,6 +401,8 @@ fn testnet_parachain_genesis(
 		parachain_info: ParachainInfoConfig { parachain_id },
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),
+		duster,
+		omnipool_warehouse_lm: Default::default(),
 	}
 }
 

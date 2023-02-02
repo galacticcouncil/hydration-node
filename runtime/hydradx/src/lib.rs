@@ -143,6 +143,15 @@ impl WeightToFeePolynomial for WeightToFee {
 	}
 }
 
+pub struct DustRemovalWhitelist;
+
+//TODO: integration test
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		get_all_module_accounts().contains(a) || pallet_duster::DusterWhitelist::<Runtime>::contains(a)
+	}
+}
+
 // Relay chain Block number provider.
 // Reason why the implementation is different for benchmarks is that it is not possible
 // to set or change the block number in a benchmark using parachain system pallet.
@@ -842,6 +851,36 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
 
+impl pallet_duster::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type MultiCurrency = Currencies;
+	type MinCurrencyDeposits = AssetRegistry;
+	type Reward = DustingReward;
+	type NativeCurrencyId = NativeAssetId;
+	type BlacklistUpdateOrigin = SuperMajorityTechCommittee; //TODO: <- review
+														 //TODO:
+	type WeightInfo = ();
+}
+
+type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
+	type AssetId = AssetId;
+	type MultiCurrency = Currencies;
+	type PalletId = OmnipoolWarehouseLMPalletId;
+	type MinTotalFarmRewards = MinTotalFarmRewards;
+	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type AmmPoolId = AssetId;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
+	type AssetRegistry = AssetRegistry;
+	type NonDustableWhitelistHandler = Duster;
+	type Event = Event;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -874,6 +913,8 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
+		Duster: pallet_duster = 61,
+		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

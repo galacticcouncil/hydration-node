@@ -93,6 +93,16 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 				)],
 				// parachain ID
 				PARA_ID.into(),
+				DusterConfig {
+					// treasury
+					account_blacklist: vec![
+						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()
+					],
+					reward_account: Some(
+						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					),
+					dust_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
+				},
 			)
 		},
 		// Bootnodes

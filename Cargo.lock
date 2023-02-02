@@ -3427,9 +3427,11 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
  "pallet-preimage",
@@ -3492,12 +3494,13 @@ dependencies = [
 [[package]]
 name = "hydradx-traits"
 version = "2.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=85167fcfc91dc665a6d9376d62173a1a0117178c#85167fcfc91dc665a6d9376d62173a1a0117178c"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=815b3c87f8545fefc9ad8e349ff0577091883198#815b3c87f8545fefc9ad8e349ff0577091883198"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
  "parity-scale-codec",
  "scale-info",
+ "serde",
  "sp-arithmetic",
  "sp-std",
 ]
@@ -5874,6 +5877,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-duster"
+version = "3.1.11"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=815b3c87f8545fefc9ad8e349ff0577091883198#815b3c87f8545fefc9ad8e349ff0577091883198"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydradx-traits 2.0.0",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.29#cc370aa61e15c18d23a2f686b812fd576a630afe"
@@ -6038,7 +6057,7 @@ dependencies = [
 [[package]]
 name = "pallet-liquidity-mining"
 version = "3.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=85167fcfc91dc665a6d9376d62173a1a0117178c#85167fcfc91dc665a6d9376d62173a1a0117178c"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=815b3c87f8545fefc9ad8e349ff0577091883198#815b3c87f8545fefc9ad8e349ff0577091883198"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -11538,9 +11557,11 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
  "pallet-preimage",

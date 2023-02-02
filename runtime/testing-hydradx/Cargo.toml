@@ -57,6 +57,9 @@ pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", 
 pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "fcebd285141ce9ed15136f6102fa6396605d96af", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "fcebd285141ce9ed15136f6102fa6396605d96af", default-features = false}
 pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "fcebd285141ce9ed15136f6102fa6396605d96af", default-features = false }
+# tmp solution until asset-registry updated
+pallet-duster = { git = "https://github.com/galacticcouncil/warehouse", rev = "815b3c87f8545fefc9ad8e349ff0577091883198", default-features = false }
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "815b3c87f8545fefc9ad8e349ff0577091883198", default-features = false }
 
 
 # ORML dependencies
@@ -213,4 +216,6 @@ std = [
     "sp-trie/std",
     "sp-transaction-pool/std",
     "sp-version/std",
+    "pallet-duster/std",
+    "warehouse-liquidity-mining/std",
 ]

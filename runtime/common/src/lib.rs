@@ -21,7 +21,7 @@ pub mod weights;
 
 use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
+use frame_support::traits::{EitherOfDiverse, LockIdentifier};
 use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
 pub use pallet_transaction_payment::Multiplier;
@@ -111,14 +111,6 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 		TreasuryPalletId::get().into_account_truncating(),
 		VestingPalletId::get().into_account_truncating(),
 	]
-}
-
-pub struct DustRemovalWhitelist;
-
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-	}
 }
 
 // frame system
@@ -313,4 +305,18 @@ parameter_types! {
 // pallet asset registry
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
+}
+
+// pallet duster
+parameter_types! {
+	pub const DustingReward: u128 = 0;
+}
+
+// warehouse pallet liquidity mining
+parameter_types! {
+	pub const OmnipoolWarehouseLMPalletId: PalletId = PalletId(*b"OmniWhLm");
+	pub const MaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change, TODO:
+	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
+	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:
+	pub const MinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100; //TODO:
 }
