@@ -396,7 +396,7 @@ where
 
 		let trade_result = Self::execute_trade(origin, &schedule.order);
 		//TODO: count other weights to this
-		*weight += Self::get_trade_weight(&schedule.order);
+		*weight += Self::get_trade_execution_weight();
 
 		match trade_result {
 			Ok(res) => {
@@ -436,18 +436,8 @@ where
 		}
 	}
 
-	fn weight_to_fee(weight: Weight) -> Balance {
-		// cap the weight to the maximum defined in runtime, otherwise it will be the
-		// `Bounded` maximum of its data type, which is not desired.
-		let capped_weight: Weight = weight.min(T::BlockWeights::get().max_block);
-		<T as pallet::Config>::WeightToFee::weight_to_fee(&capped_weight)
-	}
-
-	fn get_trade_weight(order: &Order<T::Asset>) -> u64 {
-		match order {
-			Order::Sell { .. } => pallet_omnipool::weights::HydraWeight::<T>::sell().ref_time(),
-			Order::Buy { .. } => pallet_omnipool::weights::HydraWeight::<T>::buy().ref_time(),
-		}
+	fn get_trade_execution_weight() -> u64 {
+		crate::weights::HydraWeight::<T>::execute_schedule().ref_time()
 	}
 
 	fn take_transaction_fee_from_user(owner: &T::AccountId, order: Order<<T as Config>::Asset>) -> DispatchResult {
@@ -468,6 +458,13 @@ where
 		)?;
 
 		Ok(())
+	}
+
+	fn weight_to_fee(weight: Weight) -> Balance {
+		// cap the weight to the maximum defined in runtime, otherwise it will be the
+		// `Bounded` maximum of its data type, which is not desired.
+		let capped_weight: Weight = weight.min(T::BlockWeights::get().max_block);
+		<T as pallet::Config>::WeightToFee::weight_to_fee(&capped_weight)
 	}
 
 	fn ensure_that_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
