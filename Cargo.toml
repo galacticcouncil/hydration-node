@@ -38,3 +38,5 @@ xcm = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-e
 xcm-builder = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
 xcm-executor = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
 
+[patch."https://github.com/galacticcouncil/warehouse"]
+hydradx-traits = { path = "../second_warehouse/warehouse/traits" }

@@ -354,10 +354,10 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn calculate_and_store_liquidity_limit(asset_id: T::AssetId, current_liquidity: T::Balance) -> DispatchResult {
+	fn calculate_and_store_liquidity_limit(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
 		if let Some(limit) = Pallet::<T>::liquidity_limit_per_asset(asset_id) {
 			if asset_id != T::OmnipoolHubAsset::get() && !<AllowedLiquidityAmountPerAsset<T>>::contains_key(asset_id) {
-				let max_limit = Self::calculate_limit(current_liquidity, limit)?;
+				let max_limit = Self::calculate_limit(initial_liquidity, limit)?;
 				<AllowedLiquidityAmountPerAsset<T>>::insert(
 					asset_id,
 					LiquidityLimit::<T> {
@@ -442,28 +442,29 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn before_pool_state_change(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_trade_limit(asset_id, initial_liquidity)?;
-		Ok(())
-	}
 	fn after_pool_state_change(
 		asset_in: T::AssetId,
+		asset_in_reserve: T::Balance,
 		amount_in: T::Balance,
 		asset_out: T::AssetId,
+		asset_out_reserve: T::Balance,
 		amount_out: T::Balance,
 	) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_trade_limit(asset_in, asset_in_reserve)?;
+		Pallet::<T>::calculate_and_store_trade_limit(asset_out, asset_out_reserve)?;
 		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
 		Ok(())
 	}
 }
 
 impl<T: Config> OnLiquidityChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn before_add_liquidity(asset_id: T::AssetId, amount: T::Balance) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_liquidity_limit(asset_id, amount)?;
-		Ok(())
-	}
-	fn after_add_liquidity(asset_id: T::AssetId, amount: T::Balance) -> DispatchResult {
-		Pallet::<T>::ensure_and_update_liquidity_limit(asset_id, amount)?;
+	fn after_add_liquidity(
+		asset_id: T::AssetId,
+		initial_liquidity: T::Balance,
+		added_liquidity: T::Balance,
+	) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_liquidity_limit(asset_id, initial_liquidity)?;
+		Pallet::<T>::ensure_and_update_liquidity_limit(asset_id, added_liquidity)?;
 		Ok(())
 	}
 }

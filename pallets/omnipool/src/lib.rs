@@ -623,8 +623,6 @@ pub mod pallet {
 
 			let asset_state = Self::load_asset_state(asset)?;
 
-			T::PoolStateChangeHandler::before_add_liquidity(asset, asset_state.reserve)?;
-
 			ensure!(
 				asset_state.tradable.contains(Tradability::ADD_LIQUIDITY),
 				Error::<T>::NotAllowed
@@ -649,6 +647,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let new_asset_state = asset_state
+				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -706,7 +705,7 @@ pub mod pallet {
 
 			Self::ensure_tvl_cap()?;
 
-			T::PoolStateChangeHandler::after_add_liquidity(asset, amount)?;
+			T::PoolStateChangeHandler::after_add_liquidity(asset, asset_state.reserve, amount)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -958,9 +957,6 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			T::PoolStateChangeHandler::before_pool_state_change(asset_in, asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_out_state.reserve)?;
-
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
 				Error::<T>::NotAllowed
@@ -1002,9 +998,11 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
+				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
+				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1054,8 +1052,10 @@ pub mod pallet {
 
 			T::PoolStateChangeHandler::after_pool_state_change(
 				asset_in,
+				asset_in_state.reserve,
 				amount,
 				asset_out,
+				asset_out_state.reserve,
 				*state_changes.asset_out.delta_reserve,
 			)?;
 
@@ -1118,9 +1118,6 @@ pub mod pallet {
 			let asset_in_state = Self::load_asset_state(asset_in)?;
 			let asset_out_state = Self::load_asset_state(asset_out)?;
 
-			T::PoolStateChangeHandler::before_pool_state_change(asset_in, asset_in_state.reserve)?;
-			T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_out_state.reserve)?;
-
 			ensure!(
 				Self::allow_assets(&asset_in_state, &asset_out_state),
 				Error::<T>::NotAllowed
@@ -1169,9 +1166,11 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
+				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
+				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -1221,8 +1220,10 @@ pub mod pallet {
 
 			T::PoolStateChangeHandler::after_pool_state_change(
 				asset_in,
+				asset_in_state.reserve,
 				*state_changes.asset_in.delta_reserve,
 				asset_out,
+				asset_out_state.reserve,
 				*state_changes.asset_out.delta_reserve,
 			)?;
 
@@ -1510,9 +1511,6 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		T::PoolStateChangeHandler::before_pool_state_change(T::HubAssetId::get(), asset_state.hub_reserve)?;
-		T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_state.reserve)?;
-
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
 			amount,
@@ -1540,6 +1538,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
+			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1563,8 +1562,10 @@ impl<T: Config> Pallet<T> {
 
 		T::PoolStateChangeHandler::after_pool_state_change(
 			T::HubAssetId::get(),
+			asset_state.hub_reserve,
 			*state_changes.asset.delta_hub_reserve,
 			asset_out,
+			asset_state.reserve,
 			*state_changes.asset.delta_reserve,
 		)?;
 
@@ -1609,9 +1610,6 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		T::PoolStateChangeHandler::before_pool_state_change(T::HubAssetId::get(), asset_state.hub_reserve)?;
-		T::PoolStateChangeHandler::before_pool_state_change(asset_out, asset_state.reserve)?;
-
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
 			amount,
@@ -1639,6 +1637,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
+			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1661,8 +1660,10 @@ impl<T: Config> Pallet<T> {
 
 		T::PoolStateChangeHandler::after_pool_state_change(
 			T::HubAssetId::get(),
+			asset_state.hub_reserve,
 			*state_changes.asset.delta_hub_reserve,
 			asset_out,
+			asset_state.reserve,
 			*state_changes.asset.delta_reserve,
 		)?;
 
