@@ -867,7 +867,7 @@ impl pallet_dca::Config for Runtime {
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
-	type SlashedBondReceiver = TreasuryAccount;
+	type FeeReceiver = TreasuryAccount;
 	type WeightToFee = WeightToFee;
 	type WeightInfo = (); //TODO: Dani - fix this
 }

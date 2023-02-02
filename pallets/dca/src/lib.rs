@@ -63,8 +63,6 @@ use crate::types::*;
 use sp_runtime::traits::One;
 
 //TODO:
-//-ask config for bonds
-//-calculate and generate weight
 //-add doc comments for both API, and types.rs
 //-add readme
 
@@ -97,7 +95,6 @@ pub mod pallet {
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			{
-				//TODO: include all the logic - benchmark them
 				let mut weight: u64 = Self::get_on_initialize_weight();
 
 				let mut random_generator = T::RandomnessProvider::generator();
@@ -163,9 +160,8 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::Asset>;
 
-		//TODO: rename to fee receiver
 		#[pallet::constant]
-		type SlashedBondReceiver: Get<Self::AccountId>;
+		type FeeReceiver: Get<Self::AccountId>;
 
 		/// Convert a weight value into a deductible fee
 		type WeightToFee: WeightToFee<Balance = Balance>;
@@ -456,7 +452,7 @@ where
 		T::Currency::transfer(
 			fee_currency.into(),
 			&owner,
-			&T::SlashedBondReceiver::get(),
+			&T::FeeReceiver::get(),
 			fee_amount_in_sold_asset,
 		)?;
 
@@ -685,7 +681,7 @@ where
 			T::Currency::transfer(
 				execution_bond.asset.into(),
 				&owner,
-				&T::SlashedBondReceiver::get(),
+				&T::FeeReceiver::get(),
 				execution_bond.amount,
 			)?;
 		};

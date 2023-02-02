@@ -89,19 +89,3 @@ pub fn set_storage_bond_config(amount: Balance) {
 		*v.borrow_mut() = amount;
 	});
 }
-
-//TODO:
-/*
-## How to handle error in on_initialize:
--using default schedule
-(- surely wrap it transactional block - execue_schedules - should be transactional)
-
-- Frido Martin had IncosistentState, might be fuine here too
-
-- Use defensive_ok_or - THIS ONE LOOKS PROMISING
-
-
-## how extrinsics are executed in the blocks
-
-on_initialize - add ordering - we need to make sure in the runtime config that we put pallets before and after it
-*/

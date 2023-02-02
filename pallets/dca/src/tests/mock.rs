@@ -333,7 +333,7 @@ impl Config for Test {
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
-	type SlashedBondReceiver = TreasuryAccount;
+	type FeeReceiver = TreasuryAccount;
 	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
 }
