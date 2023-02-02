@@ -860,8 +860,8 @@ impl pallet_duster::Config for Runtime {
 	type MinCurrencyDeposits = AssetRegistry;
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
-	type BlacklistUpdateOrigin = SuperMajorityTechCommittee; //TODO: <- review
-														 //TODO:
+	type BlacklistUpdateOrigin = MoreThanHalfCouncil;
+	//TODO:
 	type WeightInfo = ();
 }
 
@@ -869,7 +869,7 @@ type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
 impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
 	type AssetId = AssetId;
 	type MultiCurrency = Currencies;
-	type PalletId = OmnipoolWarehouseLMPalletId;
+	type PalletId = OmniWarehouseLMPalletId;
 	type MinTotalFarmRewards = MinTotalFarmRewards;
 	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
@@ -879,6 +879,18 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
 	type Event = Event;
+}
+
+impl pallet_omnipool_liquidity_mining::Config for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type PalletId = OmniLMPalletId;
+	type NFTCollectionId = OmnipoolLMCollectionId;
+	type NFTHandler = Uniques;
+	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	//TODO:
+	//type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -915,6 +927,7 @@ construct_runtime!(
 		TransactionPause: pallet_transaction_pause = 60,
 		Duster: pallet_duster = 61,
 		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
+		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

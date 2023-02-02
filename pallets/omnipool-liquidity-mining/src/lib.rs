@@ -21,6 +21,7 @@
 #[cfg(test)]
 mod tests;
 
+pub mod migration;
 //pub mod weights;
 
 use frame_support::{
@@ -40,6 +41,7 @@ use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
 use primitives::{Balance, ItemId as DepositId};
 use sp_runtime::{ArithmeticError, FixedPointNumber, FixedU128, Perquintill};
+use sp_std::vec;
 
 pub use pallet::*;
 //pub use weights::WeightInfo;
