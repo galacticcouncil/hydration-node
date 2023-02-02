@@ -52,6 +52,11 @@ use pallet_dca::weights::WeightInfo;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
+	fn on_initialize() -> Weight {
+		Weight::from_ref_time(144_769_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(18 as u64))
+			.saturating_add(T::DbWeight::get().writes(11 as u64))
+	}
 	fn execution_bond() -> Weight {
 		Weight::from_ref_time(144_769_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(18 as u64))

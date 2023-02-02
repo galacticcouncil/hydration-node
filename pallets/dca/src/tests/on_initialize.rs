@@ -951,8 +951,6 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			env_logger::init();
-
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(2))
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -998,8 +996,6 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			env_logger::init();
-
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(2))
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -1044,8 +1040,6 @@ fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_tr
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-
-			env_logger::init();
 
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(2))
@@ -1105,8 +1099,6 @@ fn execution_bond_should_be_still_slashed_when_last_DCA_completed_but_not_enough
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-
-			env_logger::init();
 
 			let schedule = ScheduleBuilder::new()
 				.with_recurrence(Recurrence::Fixed(1))

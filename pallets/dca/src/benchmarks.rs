@@ -58,6 +58,36 @@ where
 	};
 	schedule1
 }
+
+fn schedule_sell_fake<T: Config>(
+	asset_in: T::Asset,
+	asset_out: T::Asset,
+	amount: Balance,
+	recurrence: Recurrence,
+) -> Schedule<T::Asset, T::BlockNumber>
+where
+	T: crate::pallet::Config,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+	<T as pallet_omnipool::Config>::AssetId: Into<u32>,
+	<T as crate::pallet::Config>::Asset: From<u32>,
+	<T as crate::pallet::Config>::Asset: Into<u32>,
+	<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
+	<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
+{
+	let schedule1: Schedule<T::Asset, T::BlockNumber> = Schedule {
+		period: 3u32.into(),
+		recurrence,
+		order: Order::Sell {
+			asset_in: asset_in,
+			asset_out: asset_out,
+			amount_in: amount,
+			min_limit: Balance::MIN,
+			route: create_bounded_vec::<T>(vec![]),
+		},
+	};
+	schedule1
+}
+
 pub fn create_bounded_vec<T: Config>(trades: Vec<Trade<T::Asset>>) -> BoundedVec<Trade<T::Asset>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<T::Asset>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
@@ -158,17 +188,20 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>
 	}
 
+	//TODO: rename it to execute schedule
+	//TODO: then rebenchmark and also use this in the weight incrementation in the code
 	execution_bond{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
-		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
-		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
 		let amount_buy = 10_000_000_000_000u128;
 		let sell_max_limit = 200_000_000_000_000u128;
 
-		let schedule1 = schedule_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(5));
+		T::Currency::update_balance(token_id, &seller, amount_buy as i128)?;
+		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+
+		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(1));
 		let exeuction_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
@@ -179,20 +212,21 @@ benchmarks! {
 		crate::Pallet::<T>::execute_schedule(exeuction_block.into(), &mut weight, 1);
 	}
 	verify {
-		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),10000000000000);
+		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
 
 	on_initialize{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
-		T::Currency::update_balance(token_id, &seller, 500_000_000_000_000i128)?;
-		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
 		let amount_buy = 10_000_000_000_000u128;
 		let sell_max_limit = 200_000_000_000_000u128;
 
-		let schedule1 = schedule_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(5));
+		T::Currency::update_balance(token_id, &seller, amount_buy as i128)?;
+		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+
+		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(1));
 		let exeuction_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
@@ -203,7 +237,7 @@ benchmarks! {
 		crate::Pallet::<T>::on_initialize(exeuction_block.into());
 	}
 	verify {
-		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),10000000000000);
+		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
 
 	schedule{

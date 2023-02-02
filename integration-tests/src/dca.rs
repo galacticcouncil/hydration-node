@@ -70,8 +70,6 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 	//The user don't have enough balance
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		env_logger::init();
-
 		//Arrange
 		init_omnipol();
 
