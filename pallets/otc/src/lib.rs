@@ -27,7 +27,7 @@ use orml_traits::{ arithmetic::{CheckedAdd, CheckedSub}, MultiReservableCurrency
 use scale_info::TypeInfo;
 use sp_runtime::traits::Saturating;
 use sp_runtime::FixedU128;
-use sp_runtime::traits::{BlockNumberProvider, ConstU32, One};
+use sp_runtime::traits::{ConstU32, One};
 use sp_runtime::ArithmeticError;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::{result, vec::Vec};
@@ -45,8 +45,6 @@ use weights::WeightInfo;
 pub use pallet::*;
 
 use crate::types::*;
-
-type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -75,9 +73,6 @@ pub mod pallet {
 
     /// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
-    
-    /// The block number provider
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
     type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -114,8 +109,6 @@ pub mod pallet {
 	pub enum Error<T> {
     /// Asset does not exist in registry
     AssetNotRegistered,
-    /// Order is expired
-    OrderExpired,
 		/// Order cannot be found
 		OrderNotFound,
     /// Size of order ID exceeds the bound
@@ -132,7 +125,7 @@ pub mod pallet {
   #[pallet::storage]
 	#[pallet::getter(fn orders)]
 	pub type Orders<T: Config> =
-		StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId, BlockNumberFor<T>>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId>, OptionQuery>;
 
   #[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -144,12 +137,11 @@ pub mod pallet {
       asset_sell: T::AssetId,
       amount_buy: Balance,
       amount_sell: Balance,
-      expires: Option<T::BlockNumber>,
       partially_fillable: bool,
     ) -> DispatchResult {
       let who = ensure_signed(origin)?;
 
-      let order = Order { who, asset_buy, asset_sell, amount_buy, amount_sell, expires, partially_fillable };
+      let order = Order { who, asset_buy, asset_sell, amount_buy, amount_sell, partially_fillable };
 
       Self::validate_order(order.clone())?;
 
@@ -173,7 +165,7 @@ pub mod pallet {
 
 
 impl<T: Config> Pallet<T> {
-  fn validate_order(order: Order<T::AccountId, T::AssetId, BlockNumberFor<T>>) -> DispatchResult {
+  fn validate_order(order: Order<T::AccountId, T::AssetId>) -> DispatchResult {
     ensure!(
       T::AssetRegistry::exists(order.asset_sell),
       Error::<T>::AssetNotRegistered
@@ -188,14 +180,6 @@ impl<T: Config> Pallet<T> {
       T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.who, order.amount_sell),
       Error::<T>::InsufficientBalance
     );
-
-    if let Some(expires_at) = order.expires {
-      let current_block_number = T::BlockNumberProvider::current_block_number();
-      ensure!(
-        expires_at > current_block_number,
-        Error::<T>::OrderExpired
-      );
-    }
 
     Ok(())
   }

@@ -7,12 +7,11 @@ pub type Balance = u128;
 pub type OrderId = u32;
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Order<AccountId, AssetId, BlockNumber> {
+pub struct Order<AccountId, AssetId> {
   pub who: AccountId,
   pub asset_buy: AssetId,
   pub asset_sell: AssetId,
   pub amount_buy: Balance,
   pub amount_sell: Balance,
-  pub expires: Option<BlockNumber>,
   pub partially_fillable: bool,
 }

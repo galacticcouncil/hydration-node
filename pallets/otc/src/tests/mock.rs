@@ -98,7 +98,6 @@ parameter_types! {
 impl Config for Test {
   type AssetId = AssetId;
   type AssetRegistry = DummyRegistry<Test>;
-  type BlockNumberProvider = System;
 	type Event = Event;
 	type MultiReservableCurrency = Currencies;
 	type NativeAssetId = NativeCurrencyId;

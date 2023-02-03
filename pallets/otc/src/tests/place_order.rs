@@ -20,7 +20,6 @@ use crate::tests::mock::*;
 // use crate::Bond;
 use crate::{Error, Event, Order, OrderId};
 use frame_support::{assert_noop, assert_ok};
-use frame_system::pallet_prelude::BlockNumberFor;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
@@ -39,7 +38,7 @@ fn create_order_should_work() {
 		.execute_with(|| {
 			// Act
 			assert_ok!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 10 * ONE, None, true)
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 10 * ONE, true)
 			);
 
 			// Assert
@@ -49,7 +48,6 @@ fn create_order_should_work() {
 			assert_eq!(order.asset_sell, HDX);
 			assert_eq!(order.amount_sell, 10 * ONE);
 			assert_eq!(order.amount_buy, ONE);
-			assert_eq!(order.expires, None);
 			assert_eq!(order.partially_fillable, true);
 
 			// TODO: fix
@@ -75,26 +73,8 @@ fn create_order_should_throw_error_when_amount_is_higher_than_balance() {
 		.execute_with(|| {
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 100_000 * ONE, None, true),
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 100_000 * ONE, true),
 				Error::<Test>::InsufficientBalance
-			);
-		}
-	);
-}
-
-#[test]
-fn create_order_should_throw_error_when_order_is_expired() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			/// Arrange
-			System::set_block_number(7);
-
-			// Act
-			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 10 * ONE, Some(5), true),
-				Error::<Test>::OrderExpired
 			);
 		}
 	);
@@ -106,12 +86,9 @@ fn create_order_should_throw_error_when_asset_sell_is_not_registered() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
-			/// Arrange
-			System::set_block_number(7);
-
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, DOGE, ONE, 10 * ONE, Some(5), true),
+				OTC::place_order(Origin::signed(ALICE), DAI, DOGE, ONE, 10 * ONE, true),
 				Error::<Test>::AssetNotRegistered
 			);
 		}
@@ -124,12 +101,9 @@ fn create_order_should_throw_error_when_asset_buy_is_not_registered() {
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
-			/// Arrange
-			System::set_block_number(7);
-
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DOGE, HDX, ONE, 10 * ONE, Some(5), true),
+				OTC::place_order(Origin::signed(ALICE), DOGE, HDX, ONE, 10 * ONE, true),
 				Error::<Test>::AssetNotRegistered
 			);
 		}
