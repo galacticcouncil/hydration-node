@@ -99,7 +99,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 121,
+	spec_version: 127,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -721,7 +721,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
 	type NativeAssetId = NativeAssetId;
-	type WeightInfo = weights::asset_registry::HydraWeight<Runtime>;
+	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
 
 impl pallet_relaychain_info::Config for Runtime {
@@ -808,7 +808,6 @@ parameter_types! {
 	pub const StableAssetId: AssetId = 2;
 	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
 	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
-	pub const TVLCap : Balance = 222_222_000_000_000_000_000_000u128;
 	pub const MinTradingLimit : Balance = 1_000_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
@@ -820,7 +819,7 @@ impl pallet_omnipool::Config for Runtime {
 	type Event = Event;
 	type AssetId = AssetId;
 	type Currency = Currencies;
-	type AddTokenOrigin = EnsureRoot<AccountId>;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type AssetRegistry = AssetRegistry;
 	type HdxAssetId = NativeAssetId;
@@ -828,7 +827,6 @@ impl pallet_omnipool::Config for Runtime {
 	type StableCoinAssetId = StableAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
-	type TVLCap = TVLCap;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
@@ -837,13 +835,13 @@ impl pallet_omnipool::Config for Runtime {
 	type CollectionId = CollectionId;
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
-	type WeightInfo = ();
+	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
 	type Event = Event;
 	type UpdateOrigin = SuperMajorityTechCommittee;
-	type WeightInfo = ();
+	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
 
 parameter_types! {
@@ -954,6 +952,7 @@ pub type SignedExtra = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_transaction_multi_payment::CurrencyBalanceCheck<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;

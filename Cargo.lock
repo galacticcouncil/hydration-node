@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.2.2"
+version = "100.2.3"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -1044,11 +1044,13 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy",
  "pallet-identity",
+ "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-scheduler",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
+ "pallet-transaction-pause",
  "pallet-transaction-payment",
  "pallet-treasury",
  "pallet-utility",
@@ -3250,8 +3252,8 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "4.9.1"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a#3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a"
+version = "5.1.4"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=2d7f86ffae242fc855bc833dd22df2d8dc5d03df#2d7f86ffae242fc855bc833dd22df2d8dc5d03df"
 dependencies = [
  "fixed",
  "num-traits",
@@ -3360,7 +3362,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "121.0.0"
+version = "127.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6184,7 +6186,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.3.1"
+version = "1.4.3"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8798,7 +8800,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.5"
+version = "0.1.9"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -8824,6 +8826,7 @@ dependencies = [
  "orml-traits",
  "orml-unknown-tokens",
  "orml-vesting",
+ "orml-xcm",
  "orml-xcm-support",
  "orml-xtokens",
  "pallet-asset-registry",
@@ -8846,6 +8849,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-uniques",
  "pallet-utility",
  "pallet-xcm",
  "parachain-info",
@@ -11485,7 +11489,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "121.0.0"
+version = "127.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",

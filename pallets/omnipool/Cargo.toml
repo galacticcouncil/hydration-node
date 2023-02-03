@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "1.3.1"
+version = "1.4.3"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -31,7 +31,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "b7cc6ff5efb641e4fd4da524459ce8111c32aef5", default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "3a2ada43bddf0ad8234d13c607e8dc0c9dbe651a", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "2d7f86ffae242fc855bc833dd22df2d8dc5d03df", default-features = false }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }
