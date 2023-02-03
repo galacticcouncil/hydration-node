@@ -63,7 +63,6 @@ use crate::types::*;
 use sp_runtime::traits::One;
 
 //TODO:
-//-add doc comments for both API, and types.rs
 //-add readme
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
@@ -222,6 +221,10 @@ pub mod pallet {
 		ScheduleMustBeSuspended,
 		///Error occurred when calculating spot price
 		CalculatingSpotPriceError,
+		///Invalid storage state: No schedule ids planned in block
+		NoScheduleIdsPlannedInBlock,
+		///No remaining occurrences found for schedule
+		NoRemainingRecurrencesFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -525,7 +528,8 @@ where
 		next_schedule_id: ScheduleId,
 		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
 	) -> DispatchResult {
-		let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).ok_or(Error::<T>::InvalidState)?;
+		let schedule_ids =
+			ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
 		if schedule_ids.len() == T::MaxSchedulePerBlock::get() as usize {
 			let mut consequent_block = blocknumber_for_schedule.clone();
 			consequent_block.saturating_inc();
@@ -543,7 +547,7 @@ where
 		blocknumber_for_schedule: T::BlockNumber,
 	) -> DispatchResult {
 		ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
-			let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
+			let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
 
 			schedule_ids
 				.try_push(next_schedule_id)
@@ -597,12 +601,14 @@ where
 	fn decrement_recurrences(schedule_id: ScheduleId) -> Result<u32, DispatchResult> {
 		let remaining_recurrences =
 			RemainingRecurrences::<T>::try_mutate_exists(schedule_id, |maybe_remaining_occurrances| {
-				let mut remaining_ocurrences = maybe_remaining_occurrances.as_mut().ok_or(Error::<T>::InvalidState)?;
+				let mut remaining_recurrences = maybe_remaining_occurrances
+					.as_mut()
+					.ok_or(Error::<T>::NoRemainingRecurrencesFound)?;
 
-				*remaining_ocurrences = remaining_ocurrences.checked_sub(1).ok_or(ArithmeticError::Underflow)?;
-				let remainings = remaining_ocurrences.clone();
+				*remaining_recurrences = remaining_recurrences.checked_sub(1).ok_or(ArithmeticError::Underflow)?;
+				let remainings = remaining_recurrences.clone();
 
-				if *remaining_ocurrences == 0 {
+				if *remaining_recurrences == 0 {
 					*maybe_remaining_occurrances = None;
 				}
 
