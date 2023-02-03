@@ -846,8 +846,6 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = ();
 }
 
-use codec::MaxEncodedLen;
-
 parameter_types! {
 	pub ExecutionBondInNativeCurrency: Balance= WeightToFee::weight_to_fee(&weights::dca::HydraWeight::<Runtime>::execute_schedule());
 	//pub ExecutionBondInNativeCurrency: Balance= UNITS;
