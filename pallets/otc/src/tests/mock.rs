@@ -44,8 +44,8 @@ use sp_runtime::{
     One,
   }
 };
-
 use std::{cell::RefCell, collections::HashMap};
+use test_utils::last_events;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -95,8 +95,9 @@ parameter_types! {
 }
 
 impl Config for Test {
+  type AssetId = AssetId;
+  type BlockNumberProvider = System;
 	type Event = Event;
-	type AssetId = AssetId;
 	type MultiReservableCurrency = Currencies;
 	type NativeAssetId = NativeCurrencyId;
 	type WeightInfo = ();

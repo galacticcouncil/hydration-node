@@ -19,21 +19,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::ensure;
 use frame_support::pallet_prelude::*;
-use frame_support::traits::fungibles::Inspect;
-use frame_support::traits::Get;
 use frame_support::transactional;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
-use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use orml_traits::{ arithmetic::{CheckedAdd, CheckedSub}, MultiReservableCurrency};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Saturating;
 use sp_runtime::FixedU128;
-use sp_runtime::traits::{BlockNumberProvider, ConstU32};
+use sp_runtime::traits::{BlockNumberProvider, ConstU32, One};
 use sp_runtime::ArithmeticError;
 use sp_runtime::{BoundedVec, DispatchError};
-use sp_std::vec::Vec;
+use sp_std::{result, vec::Vec};
 
 #[cfg(test)]
 mod tests;
@@ -63,19 +60,22 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
   #[pallet::config]
-  pub trait Config: frame_system::Config {
-    type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+  pub trait Config: frame_system::Config {    
+    /// Identifier for the class of asset.
+    type AssetId: Member
+    + Parameter
+    + Ord
+    + Default
+    + Copy
+    + HasCompact
+    + MaybeSerializeDeserialize
+    + MaxEncodedLen
+    + TypeInfo;
+    
+    /// The block number provider
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
-     /// Identifier for the class of asset.
-     type AssetId: Member
-     + Parameter
-     + Ord
-     + Default
-     + Copy
-     + HasCompact
-     + MaybeSerializeDeserialize
-     + MaxEncodedLen
-     + TypeInfo;
+    type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
     type MultiReservableCurrency: MultiReservableCurrency<
 			Self::AccountId,
@@ -96,12 +96,11 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Emitted after an Order has been placed
 		OrderPlaced {
-			id: OrderId,
-			who: T::AccountId,
+			order_id: OrderId,
 		},
     /// An Order has been (partially) filled
     OrderFill {
-      id: OrderId,
+      order_id: OrderId,
       who: T::AccountId,
       amount: Balance,
     },
@@ -109,29 +108,77 @@ pub mod pallet {
 
   #[pallet::error]
 	pub enum Error<T> {
+    /// Order cannot be created because the expires block is in the past
+    CannotCreateExpiredOrder,
 		/// Order cannot be found
 		OrderNotFound,
+    /// Size of order ID exceeds the bound
+    OrderIdOutOfBound,
+    /// Free balance is too low to place the order
+    InsufficientBalance,
   }
 
   /// ID sequencer for Orders
 	#[pallet::storage]
 	#[pallet::getter(fn next_order_id)]
-	pub type NextPositionId<T: Config> = StorageValue<_, OrderId, ValueQuery>;
+	pub type NextOrderId<T: Config> = StorageValue<_, OrderId, ValueQuery>;
 
   #[pallet::storage]
 	#[pallet::getter(fn orders)]
 	pub type Orders<T: Config> =
-		StorageMap<_, Blake2_128Concat, OrderId, Order<T::AssetId, BlockNumberFor<T>>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId, BlockNumberFor<T>>, OptionQuery>;
 
   #[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(<T as Config>::WeightInfo::create_order())]
+		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
 		#[transactional]
-		pub fn create_order(
+		pub fn place_order(
       origin: OriginFor<T>,
-      asset: T::AssetId,
+      asset_buy: T::AssetId,
+      asset_sell: T::AssetId,
+      amount_buy: Balance,
+      amount_sell: Balance,
+      expires: Option<T::BlockNumber>,
     ) -> DispatchResult {
+      let who = ensure_signed(origin)?;
+      let order = Order { who, asset_buy, asset_sell, amount_buy, amount_sell, expires };
+
+      Self::validate_order(order.clone())?;
+
+      let order_id = <NextOrderId<T>>::try_mutate(|next_id| -> result::Result<OrderId, DispatchError> {
+        let current_id = *next_id;
+        *next_id = next_id
+          .checked_add(One::one())
+          .ok_or(Error::<T>::OrderIdOutOfBound)?;
+        Ok(current_id)
+      })?;
+
+      T::MultiReservableCurrency::reserve(order.asset_sell, &order.who, order.amount_sell)?;
+
+      <Orders<T>>::insert(order_id, order);
+      Self::deposit_event(Event::OrderPlaced { order_id: order_id });
+
       Ok(())
     }
+  }
+}
+
+
+impl<T: Config> Pallet<T> {
+  fn validate_order(order: Order<T::AccountId, T::AssetId, BlockNumberFor<T>>) -> DispatchResult {
+    ensure!(
+      T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.who, order.amount_sell),
+      Error::<T>::InsufficientBalance
+    );
+
+    if let Some(block_number) = order.expires {
+      let current_block_number = T::BlockNumberProvider::current_block_number();
+      ensure!(
+        block_number > current_block_number,
+        Error::<T>::CannotCreateExpiredOrder
+      );
+    }
+
+    Ok(())
   }
 }

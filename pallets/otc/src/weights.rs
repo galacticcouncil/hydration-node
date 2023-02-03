@@ -13,14 +13,14 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_dca.
 pub trait WeightInfo {
-	fn create_order() -> Weight;
+	fn place_order() -> Weight;
 }
 
 /// Weights for pallet_dca using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	fn create_order() -> Weight {
+	fn place_order() -> Weight {
 		Weight::from_ref_time(61_359_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
@@ -29,7 +29,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn create_order() -> Weight {
+	fn place_order() -> Weight {
 		Weight::from_ref_time(61_359_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
