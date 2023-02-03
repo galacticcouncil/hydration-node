@@ -198,7 +198,6 @@ impl pallet_omnipool::Config for Test {
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
-	type AddTokenOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
@@ -207,7 +206,6 @@ impl pallet_omnipool::Config for Test {
 	type HdxAssetId = HDXAssetId;
 	type NFTCollectionId = PosiitionCollectionId;
 	type NFTHandler = DummyNFT;
-	type TVLCap = TVLCap;
 	type AssetRegistry = DummyRegistry<Test>;
 	type MinimumTradingLimit = MinTradeAmount;
 	type MinimumPoolLiquidity = MinAddedLiquidity;
@@ -215,6 +213,7 @@ impl pallet_omnipool::Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 }
 
 pub struct SpotPriceProviderStub;
@@ -638,6 +637,8 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
+				Omnipool::set_tvl_cap(Origin::root(), u128::MAX);
+
 				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
 
