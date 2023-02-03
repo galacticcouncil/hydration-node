@@ -16,8 +16,8 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::tests::{assert_scheduled_ids, ScheduleBuilder};
-use crate::Bond;
+use crate::tests::ScheduleBuilder;
+use crate::{assert_scheduled_ids, Bond};
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -371,7 +371,7 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 			let actual_schedule_ids = DCA::schedule_ids_per_block(501).unwrap();
 			assert_eq!(20, actual_schedule_ids.len());
 
-			assert_scheduled_ids(502, vec![schedule_id]);
+			assert_scheduled_ids!(502, vec![schedule_id]);
 		});
 }
 
@@ -401,7 +401,7 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			let actual_schedule_ids = DCA::schedule_ids_per_block(502).unwrap();
 			assert_eq!(20, actual_schedule_ids.len());
 
-			assert_scheduled_ids(503, vec![schedule_id]);
+			assert_scheduled_ids!(503, vec![schedule_id]);
 		});
 }
 

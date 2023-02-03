@@ -71,12 +71,14 @@ pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<Asset
 	bounded_vec
 }
 
-fn assert_scheduled_ids(block: BlockNumberFor<Test>, expected_schedule_ids: Vec<ScheduleId>) {
-	//TODO: make this as a macro to better readability and also use it everywhere where we can
-	let actual_schedule_ids = DCA::schedule_ids_per_block(block);
-	assert!(DCA::schedule_ids_per_block(block).is_some());
-	let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(expected_schedule_ids);
-	assert_eq!(actual_schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+#[macro_export]
+macro_rules! assert_scheduled_ids {
+	($block:expr, $expected_schedule_ids:expr) => {
+		let actual_schedule_ids = DCA::schedule_ids_per_block($block);
+		assert!(DCA::schedule_ids_per_block($block).is_some());
+		let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids($expected_schedule_ids);
+		assert_eq!(actual_schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+	};
 }
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {

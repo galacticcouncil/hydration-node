@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::Bond;
+use crate::{assert_scheduled_ids, Bond};
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
@@ -116,7 +116,7 @@ fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_exe
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(block)));
 
 			//Assert
-			assert_scheduled_ids(block, vec![2]);
+			assert_scheduled_ids!(block, vec![2]);
 		});
 }
 

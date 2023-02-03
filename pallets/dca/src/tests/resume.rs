@@ -19,7 +19,7 @@ use crate::tests::mock::*;
 use crate::tests::*;
 use crate::types::{Bond, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use crate::Error::ScheduleMustBeSuspended;
-use crate::{Error, Event};
+use crate::{assert_scheduled_ids, Error, Event};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -121,18 +121,18 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_ok!(DCA::schedule(Origin::signed(BOB), schedule2, Option::None));
-			assert_scheduled_ids(501, vec![1, 2]);
+			assert_scheduled_ids!(501, vec![1, 2]);
 
 			let schedule_id = 1;
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
-			assert_scheduled_ids(501, vec![2]);
+			assert_scheduled_ids!(501, vec![2]);
 
 			//Act
 			let schedule_id = 1;
 			assert_ok!(DCA::resume(Origin::signed(ALICE), schedule_id, Option::None));
 
 			//Assert
-			assert_scheduled_ids(501, vec![2, 1]);
+			assert_scheduled_ids!(501, vec![2, 1]);
 		});
 }
 
@@ -239,7 +239,7 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 			assert_ok!(DCA::resume(Origin::signed(ALICE), schedule_id, Option::Some(1000)));
 
 			//Assert
-			assert_scheduled_ids(1000, vec![2, 1]);
+			assert_scheduled_ids!(1000, vec![2, 1]);
 		});
 }
 
