@@ -60,6 +60,29 @@ pub mod pallet {
 	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		//fn integrity_test() { }
+	}
+
+	#[pallet::genesis_config]
+	#[cfg_attr(feature = "std", derive(Default))]
+	pub struct GenesisConfig {}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+		fn build(&self) {
+			let pallet_account = <Pallet<T>>::account_id();
+
+			<T as pallet::Config>::NFTHandler::create_collection(
+				&<T as pallet::Config>::NFTCollectionId::get(),
+				&pallet_account,
+				&pallet_account,
+			)
+			.unwrap()
+		}
+	}
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_omnipool::Config<PositionItemId = DepositId> {
 		/// The overarching event type.
@@ -619,11 +642,6 @@ pub mod pallet {
 
 			Ok(())
 		}
-	}
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		//fn integrity_test() { }
 	}
 }
 

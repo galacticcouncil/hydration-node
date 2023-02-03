@@ -46,7 +46,7 @@ pub fn migrate_to_v1<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 					.saturating_add(T::DbWeight::get().writes(2));
 
 				StorageVersion::new(1).put::<P>();
-				//add storage update weight
+				//add storage version update weight
 				weight = weight.saturating_add(T::DbWeight::get().writes(1));
 
 				log::info!(

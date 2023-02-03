@@ -177,6 +177,7 @@ pub fn parachain_genesis(
 		polkadot_xcm: Default::default(),
 		duster,
 		omnipool_warehouse_lm: Default::default(),
+		omnipool_liquidity_mining: Default::default(),
 	}
 }
 
