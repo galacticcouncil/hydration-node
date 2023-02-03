@@ -73,15 +73,12 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		//Arrange
 		init_omnipol();
 
-		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
-		let schedule2 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
-		let schedule3 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
-		let schedule4 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
-		let schedule5 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
-		let schedule6 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
-
-		let user_dai_balance = hydradx_runtime::Tokens::free_balance(DAI, &ALICE.into());
-		assert_eq!(user_dai_balance, ALICE_INITIAL_DAI_BALANCE);
+		let schedule1 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
+		let schedule2 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
+		let schedule3 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
+		let schedule4 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
+		let schedule5 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
+		let schedule6 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
 
 		create_schedule_by_charlie(schedule1);
 		create_schedule_by_charlie(schedule2);
@@ -200,6 +197,21 @@ fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: B
 	schedule1
 }
 
+fn schedule_fake_with_sell_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
+	let schedule1 = Schedule {
+		period: 3u32,
+		recurrence: Recurrence::Perpetual,
+		order: Order::Buy {
+			asset_in: asset_in,
+			asset_out: asset_out,
+			amount_out: amount,
+			max_limit: Balance::MAX,
+			route: create_bounded_vec(vec![]),
+		},
+	};
+	schedule1
+}
+
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
@@ -209,6 +221,8 @@ pub fn init_omnipol() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(801500000000000);
 	hydradx_runtime::Omnipool::protocol_account();
+
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
 
 	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
 		hydradx_runtime::Origin::root(),

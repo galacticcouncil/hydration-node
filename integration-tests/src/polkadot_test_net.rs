@@ -18,6 +18,7 @@ pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
 pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -206,7 +207,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(BOB), 1, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
-			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
+			(AccountId::from(CHARLIE), 1, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
 			(omnipool_account.clone(), DAI, stable_amount),
