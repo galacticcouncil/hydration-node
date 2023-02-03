@@ -869,7 +869,7 @@ impl pallet_dca::Config for Runtime {
 	type NativeAssetId = NativeAssetId;
 	type FeeReceiver = TreasuryAccount;
 	type WeightToFee = WeightToFee;
-	type WeightInfo = (); //TODO: Dani - fix this
+	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
