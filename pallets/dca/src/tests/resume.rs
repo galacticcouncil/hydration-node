@@ -18,6 +18,7 @@
 use crate::tests::mock::*;
 use crate::tests::*;
 use crate::types::{Bond, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
+use crate::Error::ScheduleMustBeSuspended;
 use crate::{Error, Event};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
@@ -375,7 +376,31 @@ fn resume_should_reserve_execution_bond_when_nonnative_currency_is_used() {
 		});
 }
 
-//TODO: add test to check if the schedule is indeed suspendeed. if not then error
+#[test]
+fn resume_should_fail_when_schedule_is_not_suspended() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			let schedule_id = 1;
+			assert_noop!(
+				DCA::resume(Origin::signed(ALICE), schedule_id, Option::None),
+				Error::<Test>::ScheduleMustBeSuspended
+			);
+		});
+}
 
 pub fn set_block_number(n: u64) {
 	System::set_block_number(n);

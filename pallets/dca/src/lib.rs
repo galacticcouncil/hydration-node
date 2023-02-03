@@ -333,6 +333,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(next_execution_block)?;
+			Self::ensure_that_schedule_is_suspended(schedule_id)?;
 
 			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
 			Self::plan_schedule_for_block(next_execution_block, schedule_id)?;
@@ -809,6 +810,15 @@ where
 		Ok(())
 	}
 
+	fn ensure_that_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
+		ensure!(
+			Suspended::<T>::contains_key(&schedule_id),
+			Error::<T>::ScheduleMustBeSuspended
+		);
+
+		Ok(())
+	}
+
 	fn remove_planning_or_suspension(
 		schedule_id: ScheduleId,
 		next_execution_block: Option<T::BlockNumber>,
@@ -826,10 +836,7 @@ where
 				Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
 			}
 			None => {
-				ensure!(
-					Suspended::<T>::contains_key(&schedule_id),
-					Error::<T>::ScheduleMustBeSuspended
-				);
+				Self::ensure_that_schedule_is_suspended(schedule_id)?;
 				Suspended::<T>::remove(schedule_id);
 			}
 		};
