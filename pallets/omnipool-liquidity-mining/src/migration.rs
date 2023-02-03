@@ -44,6 +44,16 @@ pub fn migrate_to_v1<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 				weight = weight
 					.saturating_add(T::DbWeight::get().reads(1))
 					.saturating_add(T::DbWeight::get().writes(2));
+
+				StorageVersion::new(1).put::<P>();
+				//add storage update weight
+				weight = weight.saturating_add(T::DbWeight::get().writes(1));
+
+				log::info!(
+					target: "runtime::omnipool-liquidity-mining",
+					"Running migration storage v1 for omnipool-liquidity-mining with storage version {:?} was complete",
+					on_chain_storage_version,
+				);
 			}
 			Err(e) => {
 				log::error!(
@@ -54,16 +64,6 @@ pub fn migrate_to_v1<T: Config, P: GetStorageVersion + PalletInfoAccess>() -> fr
 				weight = weight.saturating_add(T::DbWeight::get().reads(1));
 			}
 		};
-
-		StorageVersion::new(1).put::<P>();
-		//add storage update weight
-		weight = weight.saturating_add(T::DbWeight::get().writes(1));
-
-		log::info!(
-			target: "runtime::omnipool-liquidity-mining",
-			"Running migration storage v1 for omnipool-liquidity-mining with storage version {:?} was complete",
-			on_chain_storage_version,
-		);
 
 		// return migration weights
 		weight
