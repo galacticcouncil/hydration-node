@@ -31,6 +31,7 @@ use sp_runtime::traits::{BlockNumberProvider, ConstU32, One};
 use sp_runtime::ArithmeticError;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::{result, vec::Vec};
+use hydradx_traits::Registry;
 
 #[cfg(test)]
 mod tests;
@@ -71,6 +72,9 @@ pub mod pallet {
     + MaybeSerializeDeserialize
     + MaxEncodedLen
     + TypeInfo;
+
+    /// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
+		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
     
     /// The block number provider
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
@@ -108,8 +112,10 @@ pub mod pallet {
 
   #[pallet::error]
 	pub enum Error<T> {
-    /// Order cannot be created because the expires block is in the past
-    CannotCreateExpiredOrder,
+    /// Asset does not exist in registry
+    AssetNotRegistered,
+    /// Order is expired
+    OrderExpired,
 		/// Order cannot be found
 		OrderNotFound,
     /// Size of order ID exceeds the bound
@@ -141,6 +147,7 @@ pub mod pallet {
       expires: Option<T::BlockNumber>,
     ) -> DispatchResult {
       let who = ensure_signed(origin)?;
+
       let order = Order { who, asset_buy, asset_sell, amount_buy, amount_sell, expires };
 
       Self::validate_order(order.clone())?;
@@ -167,6 +174,16 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
   fn validate_order(order: Order<T::AccountId, T::AssetId, BlockNumberFor<T>>) -> DispatchResult {
     ensure!(
+      T::AssetRegistry::exists(order.asset_sell),
+      Error::<T>::AssetNotRegistered
+    );
+
+    ensure!(
+      T::AssetRegistry::exists(order.asset_buy),
+      Error::<T>::AssetNotRegistered
+    );
+
+    ensure!(
       T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.who, order.amount_sell),
       Error::<T>::InsufficientBalance
     );
@@ -175,7 +192,7 @@ impl<T: Config> Pallet<T> {
       let current_block_number = T::BlockNumberProvider::current_block_number();
       ensure!(
         block_number > current_block_number,
-        Error::<T>::CannotCreateExpiredOrder
+        Error::<T>::OrderExpired
       );
     }
 

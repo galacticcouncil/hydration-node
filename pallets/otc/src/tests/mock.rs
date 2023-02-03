@@ -60,6 +60,7 @@ pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
+pub const DOGE: AssetId = 333;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
@@ -96,6 +97,7 @@ parameter_types! {
 
 impl Config for Test {
   type AssetId = AssetId;
+  type AssetRegistry = DummyRegistry<Test>;
   type BlockNumberProvider = System;
 	type Event = Event;
 	type MultiReservableCurrency = Currencies;
@@ -218,7 +220,7 @@ impl Default for ExtBuilder {
 
 		Self {
 			endowed_accounts: vec![],
-			registered_assets: vec![],
+			registered_assets: vec![HDX, DAI],
 		}
 	}
 }
