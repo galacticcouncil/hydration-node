@@ -119,6 +119,33 @@ fn pause_should_mark_schedule_suspended() {
 }
 
 #[test]
+fn pause_should_mark_schedule_suspended_for_perpetual_order() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build();
+
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Assert
+			assert!(DCA::suspended(1).is_some());
+		});
+}
+
+#[test]
 fn pause_should_fail_when_when_called_with_nonsigned_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -489,7 +516,6 @@ fn pause_should_unreserve_with_original_bond_asset_when_user_changes_set_currenc
 		});
 }
 
-//TODO: we also have to make sure that simlar thigs happen when the config is changed in the meantime, so total bond will be < thant current storage bond
 #[test]
 fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_than_currenct_storage_bond() {
 	ExtBuilder::default()
@@ -528,13 +554,72 @@ fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_th
 			);
 
 			//Act
-			//We change the price of the currency
+			//We change the price of the currency, so making storage bond big
 			assert_ok!(Tokens::transfer(
 				Origin::signed(LP2),
 				Omnipool::protocol_account(),
 				DAI,
 				4000 * ONE
 			));
+
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Assert
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: DAI,
+					amount: total_bond_before,
+				}
+			);
+
+			assert_eq!(
+				total_bond_before,
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+			);
+		});
+}
+
+#[test]
+fn pause_should_make_sure_to_keep_storage_bond_when_execution_bond_has_been_much_increased_by_admin() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, DAI, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+			(LP2, HDX, 500000 * ONE),
+			(LP2, DAI, 500000 * ONE),
+		])
+		.with_fee_asset(vec![(ALICE, DAI)])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+
+			set_block_number(500);
+
+			let schedule_id = 1;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			let total_bond_before = 6_000_000;
+			assert_eq!(
+				DCA::bond(schedule_id).unwrap(),
+				Bond {
+					asset: DAI,
+					amount: total_bond_before
+				}
+			);
+
+			assert_eq!(
+				total_bond_before,
+				Currencies::reserved_balance(DAI.into(), &ALICE.into())
+			);
+
+			//Act
+			set_storage_bond_config(*OriginalStorageBondInNative * 10);
 
 			let schedule_id = 1;
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
@@ -621,10 +706,6 @@ fn pause_should_unreserve_less_to_keep_original_storage_bond_when_when_price_cha
 			);
 		});
 }
-
-//TODO: add test when there is multiple schedules, and we just then remove with pause, and not completely getting rid of the scheduleperblock
-
-//TODO: Add test for pausing perpetual
 
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();

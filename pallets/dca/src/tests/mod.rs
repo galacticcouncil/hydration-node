@@ -89,3 +89,9 @@ pub fn set_storage_bond_config(amount: Balance) {
 		*v.borrow_mut() = amount;
 	});
 }
+
+pub fn set_execution_bond_config(amount: Balance) {
+	EXECUTION_BOND.with(|v| {
+		*v.borrow_mut() = amount;
+	});
+}
