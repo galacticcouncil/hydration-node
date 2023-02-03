@@ -119,6 +119,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_omnipool::Config + pallet_relaychain_info::Config {
+		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Identifier for the class of asset.
@@ -131,35 +132,43 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		///Account currency provider to get the set currency of the user
 		type AccountCurrencyAndPriceProvider: TransactionMultiPaymentDataProvider<
 			Self::AccountId,
 			Self::Asset,
 			FixedU128,
 		>;
 
+		///For reserving user's assets
 		type MultiReservableCurrency: MultiReservableCurrency<
 			Self::AccountId,
 			CurrencyId = Self::Asset,
 			Balance = Balance,
 		>;
 
+		///Spot price provider to get the spot price of the native asset comparing to other assets
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
 
+		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
 
+		///Execution bond in native currency
 		#[pallet::constant]
 		type ExecutionBondInNativeCurrency: Get<Balance>;
 
+		///Storage bond in native currency
 		#[pallet::constant]
 		type StorageBondInNativeCurrency: Get<Balance>;
 
+		///The number of max schedules to be executed per block
 		#[pallet::constant]
 		type MaxSchedulePerBlock: Get<u32>;
 
-		/// Native Asset
+		/// Native Asset Id
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::Asset>;
 
+		///The fee receiver for transaction fees and slashed bonds
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
 
@@ -173,42 +182,28 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		///First event
-		Scheduled {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
+		///The DCA is scheduled
+		Scheduled { id: ScheduleId, who: T::AccountId },
+		///The DCA is planned for blocknumber
 		ExecutionPlanned {
 			id: ScheduleId,
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		Paused {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
-		Resumed {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
-		Terminated {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
-		Suspended {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
-		Completed {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
+		///The DCA is paused from execution
+		Paused { id: ScheduleId, who: T::AccountId },
+		///The DCA is resumed to be executed
+		Resumed { id: ScheduleId, who: T::AccountId },
+		///The DCA is terminated and completely removed from the chain
+		Terminated { id: ScheduleId, who: T::AccountId },
+		///The DCA is suspended
+		Suspended { id: ScheduleId, who: T::AccountId },
+		///The DCA is completed and completely removed from the chain
+		Completed { id: ScheduleId, who: T::AccountId },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		///Error that should not really happen only in case of invalid state of the schedule storage entries.
-		InvalidState,
 		///Schedule not exist
 		ScheduleNotExist,
 		///Balance is too low to reserve for bond
@@ -217,16 +212,18 @@ pub mod pallet {
 		NotScheduleOwner,
 		///The bond does not exist. It should not really happen, only in case of invalid state
 		BondNotExist,
-		///The next execution block number should be in the future
+		///The next execution block number is not in the future
 		BlockNumberIsNotInFuture,
 		///There is not planned execution on the given block
 		NoPlannedExecutionFoundOnBlock,
 		///Schedule execution is not planned on block
 		ScheduleExecutionNotPlannedOnBlock,
-		///The schedule must be suspended when there is not execution block specified by the using during termination of a shcedule
+		///The schedule must be suspended when there is not execution block specified by the using during termination of a schedule
 		ScheduleMustBeSuspended,
-		///Error that should not really happen only in case of invalid state of the schedule storage entries.
+		///Error occurred when calculating spot price
 		CalculatingSpotPriceError,
+		///Error that should not really happen only in case of invalid state of the schedule storage entries
+		InvalidState,
 	}
 
 	/// Id sequencer for schedules
@@ -234,28 +231,34 @@ pub mod pallet {
 	#[pallet::getter(fn next_schedule_id)]
 	pub type ScheduleIdSequencer<T: Config> = StorageValue<_, ScheduleId, ValueQuery>;
 
+	/// Storing schedule details
 	#[pallet::storage]
 	#[pallet::getter(fn schedules)]
 	pub type Schedules<T: Config> =
 		StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset, BlockNumberFor<T>>, OptionQuery>;
 
+	/// Storing schedule ownership
 	#[pallet::storage]
 	#[pallet::getter(fn owner_of)]
 	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, T::AccountId, OptionQuery>;
 
+	/// Storing suspended schedules
 	#[pallet::storage]
 	#[pallet::getter(fn suspended)]
 	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
 
+	/// Keep tracking the ramaining recurrences of fixed DCA schedules
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
 	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
 
+	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
 	pub type ScheduleIdsPerBlock<T: Config> =
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, OptionQuery>;
 
+	/// Storing storage and execution bond for a given schedule
 	#[pallet::storage]
 	#[pallet::getter(fn bond)]
 	pub type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Bond<T::Asset>, OptionQuery>;
@@ -265,7 +268,18 @@ pub mod pallet {
 	where
 		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
 	{
-		///Schedule
+		/// Creates a new DCA schedule and plans the execution in the specified start execution block.
+		/// If start execution block number is not specified, then the schedule is planned in the consequent block.
+		///
+		/// The order will be executed within omnipool
+		///
+		/// Parameters:
+		/// - `origin`: schedule owner
+		/// - `schedule`: schedule details
+		/// - `start_execution_block`: start execution block for the schedule
+		///
+		/// Emits `Scheduled` and `ExecutionPlanned` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::schedule())]
 		#[transactional]
 		pub fn schedule(
@@ -301,7 +315,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///Pause
+		/// Pause the DCA schedule planned in the given block number
+		///
+		/// Parameters:
+		/// - `origin`: schedule owner
+		/// - `schedule_id`: schedule id
+		/// - `next_execution_block`: block number where the DCA is planned to be executed
+		///
+		/// Emits `Paused` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::pause())]
 		#[transactional]
 		pub fn pause(
@@ -322,7 +344,16 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///Resume
+		/// Resume the suspended DCA schedule for the specified next execution block number
+		/// If next execution block number is not specified, then the schedule is planned in the consequent block
+		///
+		/// Parameters:
+		/// - `origin`: schedule owner
+		/// - `schedule_id`: schedule id
+		/// - `next_execution_block`: block number to plan the next execution of the schedule.
+		///
+		/// Emits `Resumed`and `ExecutionPlanned` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::resume())]
 		#[transactional]
 		pub fn resume(
@@ -355,7 +386,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		///Terminate
+		/// Terminate a DCA schedule with completely removing it from the chain.
+		/// The next execution block number should be specified in case of active schedule.
+		/// To terminate a suspended schedule, the next execution block number should not be specified.
+		///
+		/// Parameters:
+		/// - `origin`: schedule owner
+		/// - `schedule_id`: schedule id
+		/// - `next_execution_block`: block number where the schedule is planned. None in case of suspended schedule
+		///
+		/// Emits `Terminated` event when successful.
+		///
 		#[pallet::weight(<T as Config>::WeightInfo::terminate())]
 		#[transactional]
 		pub fn terminate(
@@ -789,7 +830,7 @@ where
 	}
 
 	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
-		let bond = Self::bond(schedule_id).ok_or(Error::<T>::InvalidState)?;
+		let bond = Self::bond(schedule_id).ok_or(Error::<T>::BondNotExist)?;
 		T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
 		Bonds::<T>::remove(schedule_id);
 
