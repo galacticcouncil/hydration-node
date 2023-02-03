@@ -39,7 +39,7 @@ fn create_order_should_work() {
 		.execute_with(|| {
 			// Act
 			assert_ok!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 10 * ONE, None)
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 10 * ONE, None, true)
 			);
 
 			// Assert
@@ -50,6 +50,7 @@ fn create_order_should_work() {
 			assert_eq!(order.amount_sell, 10 * ONE);
 			assert_eq!(order.amount_buy, ONE);
 			assert_eq!(order.expires, None);
+			assert_eq!(order.partially_fillable, true);
 
 			// TODO: fix
 			// expect_events(vec![
@@ -74,7 +75,7 @@ fn create_order_should_throw_error_when_amount_is_higher_than_balance() {
 		.execute_with(|| {
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 100_000 * ONE, None),
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 100_000 * ONE, None, true),
 				Error::<Test>::InsufficientBalance
 			);
 		}
@@ -92,7 +93,7 @@ fn create_order_should_throw_error_when_order_is_expired() {
 
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 10 * ONE, Some(5)),
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 10 * ONE, Some(5), true),
 				Error::<Test>::OrderExpired
 			);
 		}
@@ -110,7 +111,7 @@ fn create_order_should_throw_error_when_asset_sell_is_not_registered() {
 
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, DOGE, ONE, 10 * ONE, Some(5)),
+				OTC::place_order(Origin::signed(ALICE), DAI, DOGE, ONE, 10 * ONE, Some(5), true),
 				Error::<Test>::AssetNotRegistered
 			);
 		}
@@ -128,7 +129,7 @@ fn create_order_should_throw_error_when_asset_buy_is_not_registered() {
 
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DOGE, HDX, ONE, 10 * ONE, Some(5)),
+				OTC::place_order(Origin::signed(ALICE), DOGE, HDX, ONE, 10 * ONE, Some(5), true),
 				Error::<Test>::AssetNotRegistered
 			);
 		}

@@ -98,7 +98,7 @@ pub mod pallet {
   #[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Emitted after an Order has been placed
+		/// An Order has been placed
 		OrderPlaced {
 			order_id: OrderId,
 		},
@@ -145,10 +145,11 @@ pub mod pallet {
       amount_buy: Balance,
       amount_sell: Balance,
       expires: Option<T::BlockNumber>,
+      partially_fillable: bool,
     ) -> DispatchResult {
       let who = ensure_signed(origin)?;
 
-      let order = Order { who, asset_buy, asset_sell, amount_buy, amount_sell, expires };
+      let order = Order { who, asset_buy, asset_sell, amount_buy, amount_sell, expires, partially_fillable };
 
       Self::validate_order(order.clone())?;
 
@@ -188,10 +189,10 @@ impl<T: Config> Pallet<T> {
       Error::<T>::InsufficientBalance
     );
 
-    if let Some(block_number) = order.expires {
+    if let Some(expires_at) = order.expires {
       let current_block_number = T::BlockNumberProvider::current_block_number();
       ensure!(
-        block_number > current_block_number,
+        expires_at > current_block_number,
         Error::<T>::OrderExpired
       );
     }

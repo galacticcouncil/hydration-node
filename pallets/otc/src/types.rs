@@ -14,4 +14,5 @@ pub struct Order<AccountId, AssetId, BlockNumber> {
   pub amount_buy: Balance,
   pub amount_sell: Balance,
   pub expires: Option<BlockNumber>,
+  pub partially_fillable: bool,
 }
