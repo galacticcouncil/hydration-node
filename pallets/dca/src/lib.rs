@@ -62,9 +62,6 @@ pub use pallet::*;
 use crate::types::*;
 use sp_runtime::traits::One;
 
-//TODO:
-//-add readme
-
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 #[frame_support::pallet]
