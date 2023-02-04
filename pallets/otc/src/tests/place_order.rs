@@ -33,7 +33,6 @@ use test_case::test_case;
 #[test]
 fn create_order_should_work() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			// Act
@@ -43,7 +42,7 @@ fn create_order_should_work() {
 
 			// Assert
 			let order = OTC::orders(0).unwrap();
-			assert_eq!(order.who, ALICE);
+			assert_eq!(order.owner, ALICE);
 			assert_eq!(order.asset_buy, DAI);
 			assert_eq!(order.asset_sell, HDX);
 			assert_eq!(order.amount_sell, 10 * ONE);
@@ -68,7 +67,6 @@ fn create_order_should_work() {
 #[test]
 fn create_order_should_throw_error_when_amount_is_higher_than_balance() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10_000 * ONE)])
 		.build()
 		.execute_with(|| {
 			// Act
@@ -83,7 +81,6 @@ fn create_order_should_throw_error_when_amount_is_higher_than_balance() {
 #[test]
 fn create_order_should_throw_error_when_asset_sell_is_not_registered() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			// Act
@@ -98,7 +95,6 @@ fn create_order_should_throw_error_when_asset_sell_is_not_registered() {
 #[test]
 fn create_order_should_throw_error_when_asset_buy_is_not_registered() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			// Act

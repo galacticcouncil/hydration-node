@@ -5,4 +5,5 @@ use sp_runtime::BoundedVec;
 
 pub mod mock;
 
+pub mod fill_order;
 pub mod place_order;

@@ -25,6 +25,7 @@ use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use orml_traits::{ arithmetic::{CheckedAdd, CheckedSub}, MultiReservableCurrency};
 use scale_info::TypeInfo;
+use sp_core::U256;
 use sp_runtime::traits::Saturating;
 use sp_runtime::FixedU128;
 use sp_runtime::traits::{ConstU32, One};
@@ -32,6 +33,10 @@ use sp_runtime::ArithmeticError;
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::{result, vec::Vec};
 use hydradx_traits::Registry;
+use hydra_dx_math::MathError::Overflow;
+use hydra_dx_math::MathError;
+use hydra_dx_math::to_u256;
+use orml_traits::MultiCurrency;
 
 #[cfg(test)]
 mod tests;
@@ -50,9 +55,7 @@ use crate::types::*;
 pub mod pallet {
 	use super::*;
 	use codec::{EncodeLike, HasCompact};
-
-  use frame_system::pallet_prelude::OriginFor;
-  use orml_traits::MultiReservableCurrency;
+  
 
   #[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -70,6 +73,9 @@ pub mod pallet {
     + MaybeSerializeDeserialize
     + MaxEncodedLen
     + TypeInfo;
+
+    /// Multi currency mechanism
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
     /// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
@@ -109,12 +115,16 @@ pub mod pallet {
 	pub enum Error<T> {
     /// Asset does not exist in registry
     AssetNotRegistered,
+    /// The asset used to fill the order is different than asset_buy of the order
+    AssetNotInOrder,
 		/// Order cannot be found
 		OrderNotFound,
     /// Size of order ID exceeds the bound
     OrderIdOutOfBound,
     /// Free balance is too low to place the order
     InsufficientBalance,
+    /// Error with math calculations
+    MathError,
   }
 
   /// ID sequencer for Orders
@@ -139,11 +149,11 @@ pub mod pallet {
       amount_sell: Balance,
       partially_fillable: bool,
     ) -> DispatchResult {
-      let who = ensure_signed(origin)?;
+      let owner = ensure_signed(origin)?;
 
-      let order = Order { who, asset_buy, asset_sell, amount_buy, amount_sell, partially_fillable };
+      let order = Order { owner, asset_buy, asset_sell, amount_buy, amount_sell, partially_fillable };
 
-      Self::validate_order(order.clone())?;
+      Self::validate_place_order(order.clone())?;
 
       let order_id = <NextOrderId<T>>::try_mutate(|next_id| -> result::Result<OrderId, DispatchError> {
         let current_id = *next_id;
@@ -153,19 +163,45 @@ pub mod pallet {
         Ok(current_id)
       })?;
 
-      T::MultiReservableCurrency::reserve(order.asset_sell, &order.who, order.amount_sell)?;
+      T::MultiReservableCurrency::reserve(order.asset_sell, &order.owner, order.amount_sell)?;
 
       <Orders<T>>::insert(order_id, order);
       Self::deposit_event(Event::OrderPlaced { order_id: order_id });
 
       Ok(())
     }
+
+    /// TODO: update weight fn
+    #[pallet::weight(<T as Config>::WeightInfo::place_order())]
+    #[transactional]
+    pub fn fill_order(
+      origin: OriginFor<T>,
+      order_id: OrderId,
+      asset_fill: T::AssetId,
+      fill_amount: Balance
+    ) -> DispatchResult {
+      let who = ensure_signed(origin)?;
+
+      <Orders<T>>::try_mutate(order_id, |maybe_order| -> DispatchResult {
+        let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
+
+        Self::validate_fill_order(order, who.clone(), asset_fill, fill_amount)?;
+
+        let receive_amount = match Self::receive_amount(order, fill_amount) {
+          Ok(value) => value,
+          Err(err) => return Err(err)?
+        };
+
+        Self::execute_deal(order, who, fill_amount, receive_amount)?;
+
+        Ok(())
+      })
+    }
   }
 }
 
-
 impl<T: Config> Pallet<T> {
-  fn validate_order(order: Order<T::AccountId, T::AssetId>) -> DispatchResult {
+  fn validate_place_order(order: Order<T::AccountId, T::AssetId>) -> DispatchResult {
     ensure!(
       T::AssetRegistry::exists(order.asset_sell),
       Error::<T>::AssetNotRegistered
@@ -177,9 +213,82 @@ impl<T: Config> Pallet<T> {
     );
 
     ensure!(
-      T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.who, order.amount_sell),
+      T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.owner, order.amount_sell),
       Error::<T>::InsufficientBalance
     );
+
+    Ok(())
+  }
+
+  fn validate_fill_order(
+    order: &mut Order<T::AccountId, T::AssetId>,
+    who: T::AccountId,
+    asset_fill: T::AssetId,
+    fill_amount: Balance,
+  ) -> DispatchResult {
+    ensure!(
+      order.asset_buy == asset_fill,
+      Error::<T>::AssetNotInOrder
+    );
+
+    Ok(())
+  }
+
+  fn receive_amount(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> Result<Balance, Error<T>> {
+    let (amount_sell, amount_buy, amount_fill) = to_u256!(order.amount_sell, order.amount_buy, amount_fill);
+
+    let price = amount_sell
+      .checked_div(amount_buy)
+      .ok_or(Error::<T>::MathError)?;
+
+    let receive_amount = amount_fill
+      .checked_mul(price)
+      .and_then(|v| v.checked_sub(U256::one()))
+      .ok_or(Error::<T>::MathError)?;
+
+    Balance::try_from(receive_amount).map_err(|_| Error::<T>::MathError)
+  }
+
+  fn execute_deal(
+    order: &mut Order<T::AccountId, T::AssetId>,
+    who: T::AccountId,
+    fill_amount: Balance,
+    receive_amount: Balance,
+  ) -> DispatchResult {
+    T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, receive_amount);
+
+    T::Currency::transfer(
+      order.asset_buy,
+      &who,
+      &order.owner,
+      fill_amount,
+    )?;
+
+    T::Currency::transfer(
+      order.asset_sell,
+      &order.owner,
+      &who,
+      receive_amount,
+    )?;
+
+    let new_amount_buy = order.amount_buy
+      .checked_sub(fill_amount)
+      .ok_or(Error::<T>::MathError)?;
+
+    let new_amount_sell = order.amount_sell
+      .checked_sub(receive_amount)
+      .ok_or(Error::<T>::MathError)?;
+
+    let updated_order = Order {
+      owner: order.owner.clone(),
+      asset_buy: order.asset_buy,
+      asset_sell: order.asset_sell,
+      amount_buy: new_amount_buy,
+      amount_sell: new_amount_sell,
+      partially_fillable: order.partially_fillable,
+    };
+
+    *order = updated_order;
 
     Ok(())
   }

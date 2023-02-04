@@ -98,6 +98,7 @@ parameter_types! {
 impl Config for Test {
   type AssetId = AssetId;
   type AssetRegistry = DummyRegistry<Test>;
+	type Currency = Tokens; 
 	type Event = Event;
 	type MultiReservableCurrency = Currencies;
 	type NativeAssetId = NativeCurrencyId;
@@ -218,7 +219,12 @@ impl Default for ExtBuilder {
 		});
 
 		Self {
-			endowed_accounts: vec![],
+			endowed_accounts: vec![
+				(ALICE, HDX, 10_000 * ONE),
+				(BOB, HDX, 10_000 * ONE),
+				(ALICE, DAI, 100 * ONE),
+				(BOB, DAI, 100 * ONE),
+			],
 			registered_assets: vec![HDX, DAI],
 		}
 	}

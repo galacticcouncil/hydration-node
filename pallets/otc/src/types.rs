@@ -8,7 +8,7 @@ pub type OrderId = u32;
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Order<AccountId, AssetId> {
-  pub who: AccountId,
+  pub owner: AccountId,
   pub asset_buy: AssetId,
   pub asset_sell: AssetId,
   pub amount_buy: Balance,
