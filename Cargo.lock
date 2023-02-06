@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.2.3"
+version = "100.2.4"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -3264,7 +3264,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.3.0"
+version = "8.3.1"
 dependencies = [
  "clap",
  "common-runtime",
@@ -3361,7 +3361,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "127.0.0"
+version = "128.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6149,7 +6149,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8748,7 +8748,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -11403,7 +11403,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "127.0.0"
+version = "128.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
