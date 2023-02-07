@@ -18,7 +18,7 @@ pub struct Schedule<AssetId, BlockNumber> {
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub enum Recurrence {
 	Fixed(u32),
-	Perpetual,
+	Perpetual, //TODO: remove
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]

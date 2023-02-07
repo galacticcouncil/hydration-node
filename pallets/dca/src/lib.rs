@@ -432,6 +432,7 @@ where
 		let owner = exec_or_return_if_none!(ScheduleOwnership::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
 
+		//TODO: change the limit of the schedule order min(min_limit,percentage)
 		let trade_result = Self::execute_trade(origin, &schedule.order);
 		*weight += Self::get_execute_schedule_weight();
 
