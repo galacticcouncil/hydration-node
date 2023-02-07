@@ -463,9 +463,7 @@ where
 							});
 						}
 					}
-					Recurrence::Perpetual => {
-						exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
-					}
+					_ => {}
 				}
 			}
 			_ => {

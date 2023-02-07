@@ -119,33 +119,6 @@ fn pause_should_mark_schedule_suspended() {
 }
 
 #[test]
-fn pause_should_mark_schedule_suspended_for_perpetual_order() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.build()
-		.execute_with(|| {
-			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build();
-
-			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-
-			//Act
-			let schedule_id = 1;
-			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
-
-			//Assert
-			assert!(DCA::suspended(1).is_some());
-		});
-}
-
-#[test]
 fn pause_should_fail_when_when_called_with_nonsigned_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])

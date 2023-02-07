@@ -185,7 +185,7 @@ fn create_schedule_by_charlie(schedule1: Schedule<AssetId, u32>) {
 fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
-		recurrence: Recurrence::Perpetual,
+		recurrence: Recurrence::Fixed(5),
 		order: Order::Buy {
 			asset_in: asset_in,
 			asset_out: asset_out,
@@ -200,7 +200,7 @@ fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: B
 fn schedule_fake_with_sell_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
-		recurrence: Recurrence::Perpetual,
+		recurrence: Recurrence::Fixed(5),
 		order: Order::Buy {
 			asset_in: asset_in,
 			asset_out: asset_out,

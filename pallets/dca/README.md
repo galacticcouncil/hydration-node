@@ -1,6 +1,7 @@
 # DCA pallet
 
 ## Overview
+//TODO: Dani - rewrite it as the stuff has been changed a lot
 A dollar-cost averaging pallet that enables users to perform repeating orders.
 
 When an order is submitted, it will reserve the amount for data storage and for the fee for the next trade. 

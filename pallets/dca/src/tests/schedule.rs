@@ -128,42 +128,6 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 }
 
 #[test]
-fn schedule_should_work_when_perpetual_schedule_is_specified() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build();
-
-			//Act
-			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-
-			//Assert
-			let schedule_id = 1;
-			let stored_schedule = DCA::schedules(schedule_id).unwrap();
-			assert_eq!(
-				stored_schedule,
-				ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build()
-			);
-
-			//Check if schedule ids are stored
-			let schedule_ids = DCA::schedule_ids_per_block(501);
-			assert!(DCA::schedule_ids_per_block(501).is_some());
-			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
-			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
-
-			//Check if schedule ownership is created
-			assert!(DCA::owner_of(schedule_id).is_some());
-			assert_eq!(DCA::owner_of(schedule_id).unwrap(), ALICE);
-
-			//Check if the recurrances have been stored
-			assert!(DCA::remaining_recurrences(schedule_id).is_none());
-		});
-}
-
-#[test]
 fn schedule_creation_should_store_bond_taken_from_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -269,7 +233,7 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 		.execute_with(|| {
 			//Arrange
 			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Perpetual).build();
+			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
 
 			//Act and assert
 			set_block_number(500);
