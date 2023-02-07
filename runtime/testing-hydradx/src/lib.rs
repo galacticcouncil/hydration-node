@@ -602,7 +602,7 @@ impl orml_tokens::Config for Runtime {
 	type CurrencyId = AssetId;
 	type WeightInfo = weights::tokens::HydraWeight<Runtime>;
 	type ExistentialDeposits = AssetRegistry;
-	type OnDust = ();
+	type OnDust = Duster;
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type MaxReserves = MaxReserves;

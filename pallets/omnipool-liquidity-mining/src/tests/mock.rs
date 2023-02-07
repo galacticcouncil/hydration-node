@@ -40,6 +40,8 @@ use sp_runtime::{
 	Permill,
 };
 
+use warehouse_liquidity_mining::Instance1;
+
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -102,7 +104,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Omnipool: pallet_omnipool::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Event<T>},
-		WarehouseLM: warehouse_liquidity_mining::{Pallet, Storage, Event<T>},
+		WarehouseLM: warehouse_liquidity_mining::<Instance1>::{Pallet, Storage, Event<T>},
 		OmnipoolMining: omnipool_liquidity_mining::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -120,7 +122,7 @@ impl BlockNumberProvider for MockBlockNumberProvider {
 	type BlockNumber = BlockNumber;
 
 	fn current_block_number() -> Self::BlockNumber {
-		Self::get()
+		System::block_number()
 	}
 }
 
@@ -174,7 +176,7 @@ parameter_types! {
 	pub const MaxYieldFarmsPerGlobalFarm: u32 = 10;
 }
 
-impl warehouse_liquidity_mining::Config for Test {
+impl warehouse_liquidity_mining::Config<Instance1> for Test {
 	type AssetId = AssetId;
 	type MultiCurrency = Tokens;
 	type PalletId = WarehouseLMPalletId;
@@ -320,6 +322,10 @@ impl Default for ExtBuilder {
 		});
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = 1u128;
+		});
+
+		DUSTER_WHITELIST.with(|v| {
+			v.borrow_mut().clear();
 		});
 
 		Self {
@@ -662,6 +668,5 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 }
 
 pub fn set_block_number(n: u64) {
-	MockBlockNumberProvider::set(n);
 	System::set_block_number(n);
 }

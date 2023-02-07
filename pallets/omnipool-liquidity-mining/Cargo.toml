@@ -35,6 +35,9 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "815b3c87f8545fefc9ad8e349ff0577091883198", default-features = false }
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "815b3c87f8545fefc9ad8e349ff0577091883198", default-features = false }
 
+#NOTE: this can be romoved after asset registry update.
+registry-traits = { package="hydradx-traits", git = "https://github.com/galacticcouncil/warehouse", rev = "fcebd285141ce9ed15136f6102fa6396605d96af", default-features = false }
+
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "7fc0204c401e79447eaae96e58087413fc6cb59c", default-features = false }
 
 # third party
@@ -54,7 +57,6 @@ orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 #NOTE: old asset registry trait 
-registry-traits = { package="hydradx-traits", git = "https://github.com/galacticcouncil/warehouse", rev = "fcebd285141ce9ed15136f6102fa6396605d96af", default-features = false }
 test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "85167fcfc91dc665a6d9376d62173a1a0117178c", default-features = false }
 
 [features]

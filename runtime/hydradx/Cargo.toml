@@ -151,6 +151,7 @@ runtime-benchmarks = [
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
+    "pallet-omnipool-liquidity-mining/runtime-benchmarks",
 ]
 std = [
     "codec/std",
