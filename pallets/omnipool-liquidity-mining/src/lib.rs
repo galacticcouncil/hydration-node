@@ -22,7 +22,7 @@ mod benchmarks;
 mod tests;
 
 pub mod migration;
-//pub mod weights;
+pub mod weights;
 
 use frame_support::{
 	ensure,
@@ -44,7 +44,7 @@ use sp_runtime::{ArithmeticError, FixedPointNumber, FixedU128, Perquintill};
 use sp_std::vec;
 
 pub use pallet::*;
-//pub use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type PeriodOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -118,6 +118,9 @@ pub mod pallet {
 			LoyaltyCurve = LoyaltyCurve,
 			Period = PeriodOf<Self>,
 		>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::storage]
@@ -265,7 +268,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_global_farm())]
 		pub fn create_global_farm(
 			origin: OriginFor<T>,
 			total_rewards: Balance,
@@ -307,7 +310,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm())]
 		pub fn update_global_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -325,7 +328,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::terminate_global_farm())]
 		pub fn terminate_global_farm(origin: OriginFor<T>, global_farm_id: GlobalFarmId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -342,7 +345,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::create_yield_farm())]
 		pub fn create_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -374,7 +377,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::update_yield_farm())]
 		pub fn update_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -403,7 +406,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::stop_yield_farm())]
 		pub fn stop_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -424,7 +427,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::resume_yield_farm())]
 		pub fn resume_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -455,7 +458,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::terminate_yield_farm())]
 		pub fn terminate_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -464,7 +467,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			//NOTE: don't check XYK existance, owner must be able to termiante yield farm.
+			//NOTE: don't check omnipool existance, owner must be able to termiante yield farm.
 			T::LiquidityMiningHandler::terminate_yield_farm(who.clone(), global_farm_id, yield_farm_id, asset_id)?;
 
 			Self::deposit_event(Event::YieldFarmTerminated {
@@ -477,7 +480,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())]
 		pub fn deposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -521,7 +524,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares())]
 		pub fn redeposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -557,7 +560,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::claim_rewards())]
 		pub fn claim_rewards(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,
@@ -582,7 +585,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(1_000)]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]
 		pub fn withdraw_shares(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,

@@ -890,7 +890,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type NFTHandler = Uniques;
 	type LiquidityMiningHandler = OmnipoolWarehouseLM;
 	//TODO:
-	//type WeightInfo = ();
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

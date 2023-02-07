@@ -166,6 +166,7 @@ impl Config for Test {
 	type NFTCollectionId = LMCollectionId;
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = WarehouseLM;
+	type WeightInfo = ();
 }
 
 parameter_types! {
