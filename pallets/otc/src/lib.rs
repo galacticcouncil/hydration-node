@@ -2,7 +2,7 @@
 //
 // This file is part of https://github.com/galacticcouncil/HydraDX-node
 
-// Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -106,14 +106,15 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// An Order has been placed
-		OrderPlaced {
+		/// An Order has been cancelled
+		OrderCancelled {
 			order_id: OrderId,
-			asset_buy: T::AssetId,
-			asset_sell: T::AssetId,
-			amount_buy: Balance,
-			amount_sell: Balance,
-			partially_fillable: bool,
+		},
+		/// An Order has been completely filled
+		OrderFilled {
+			order_id: OrderId,
+			who: T::AccountId,
+			amount_fill: Balance,
 		},
 		/// An Order has been partially filled
 		OrderPartiallyFilled {
@@ -122,11 +123,14 @@ pub mod pallet {
 			amount_fill: Balance,
 			amount_receive: Balance,
 		},
-		/// An Order has been completely filled
-		OrderFilled {
+		/// An Order has been placed
+		OrderPlaced {
 			order_id: OrderId,
-			who: T::AccountId,
-			amount_fill: Balance,
+			asset_buy: T::AssetId,
+			asset_sell: T::AssetId,
+			amount_buy: Balance,
+			amount_sell: Balance,
+			partially_fillable: bool,
 		},
 	}
 
@@ -264,6 +268,8 @@ pub mod pallet {
 				T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, order.amount_sell);
 
 				*maybe_order = None;
+
+				Self::deposit_event(Event::OrderCancelled { order_id });	
 
 				Ok(())
 			})

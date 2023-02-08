@@ -1,6 +1,6 @@
 // This file is part of https://github.com/galacticcouncil/HydraDX-node
 
-// Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ use test_case::test_case;
 
 #[test]
 fn cancel_order_should_work() {
-  ExtBuilder::default()
+	ExtBuilder::default()
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -38,38 +38,43 @@ fn cancel_order_should_work() {
 				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 100 * ONE, true)
 			);
 
-      // Act
-      assert_ok!(
+			// Act
+			assert_ok!(
 				OTC::cancel_order(Origin::signed(ALICE), 0)
 			);
 
-      // Assert
-      let order = OTC::orders(0);
-      assert!(order.is_none());
+			// Assert
+			let order = OTC::orders(0);
+			assert!(order.is_none());
 
-      assert_eq!(
+			assert_eq!(
 				Currencies::reserved_balance(HDX.into(), &ALICE.into()),
 				0_u128,
 			);
-  });
+
+			// TODO: fix events
+			// expect_events(vec![
+			// 	Event::OrderCancelled { order_id: 0 }.into(),
+			// ]);
+	});
 }
 
 #[test]
 fn cancel_order_should_throw_error_when_order_does_not_exist() {
-  ExtBuilder::default()
+	ExtBuilder::default()
 		.build()
 		.execute_with(|| {
-      // Act
-      assert_noop!(
+			// Act
+			assert_noop!(
 				OTC::cancel_order(Origin::signed(ALICE), 0),
-        Error::<Test>::OrderNotFound
+				Error::<Test>::OrderNotFound
 			);
-  });
+	});
 }
 
 #[test]
 fn cancel_order_should_throw_error_when_called_by_non_owner() {
-  ExtBuilder::default()
+	ExtBuilder::default()
 		.build()
 		.execute_with(|| {
 			// Arrange
@@ -77,19 +82,19 @@ fn cancel_order_should_throw_error_when_called_by_non_owner() {
 				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 100 * ONE, true)
 			);
 
-      // Act
-      assert_noop!(
+			// Act
+			assert_noop!(
 				OTC::cancel_order(Origin::signed(BOB), 0),
-        Error::<Test>::NoPermission
+				Error::<Test>::NoPermission
 			);
 
-      // Assert
-      let order = OTC::orders(0);
-      assert!(order.is_some());
+			// Assert
+			let order = OTC::orders(0);
+			assert!(order.is_some());
 
-      assert_eq!(
+			assert_eq!(
 				Currencies::reserved_balance(HDX.into(), &ALICE.into()),
 				100 * ONE,
 			);
-  });
+	});
 }
