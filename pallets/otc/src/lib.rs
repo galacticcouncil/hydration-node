@@ -55,233 +55,253 @@ use crate::types::*;
 pub mod pallet {
 	use super::*;
 	use codec::{EncodeLike, HasCompact};
-  
+	
 
-  #[pallet::pallet]
+	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
-  #[pallet::config]
-  pub trait Config: frame_system::Config {    
-    /// Identifier for the class of asset.
-    type AssetId: Member
-    + Parameter
-    + Ord
-    + Default
-    + Copy
-    + HasCompact
-    + MaybeSerializeDeserialize
-    + MaxEncodedLen
-    + TypeInfo;
+	#[pallet::config]
+	pub trait Config: frame_system::Config {    
+		/// Identifier for the class of asset.
+		type AssetId: Member
+		+ Parameter
+		+ Ord
+		+ Default
+		+ Copy
+		+ HasCompact
+		+ MaybeSerializeDeserialize
+		+ MaxEncodedLen
+		+ TypeInfo;
 
-    /// Multi currency mechanism
+
+		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
-    /// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
+		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
-    type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-    type MultiReservableCurrency: MultiReservableCurrency<
+		type MultiReservableCurrency: MultiReservableCurrency<
 			Self::AccountId,
-      CurrencyId = Self::AssetId,
-      Balance = Balance,
-      >;
+			CurrencyId = Self::AssetId,
+			Balance = Balance,
+			>;
 
-    /// Native Asset
+		/// Native Asset
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::AssetId>;
 
-    /// Weight information for the extrinsics.
+		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
-  }
+	}
 
-  #[pallet::event]
+	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// An Order has been placed
 		OrderPlaced {
 			order_id: OrderId,
+			asset_buy: T::AssetId,
+			asset_sell: T::AssetId,
+			amount_buy: Balance,
+			amount_sell: Balance,
+			partially_fillable: bool,
 		},
-    /// An Order has been (partially) filled
-    OrderFill {
-      order_id: OrderId,
-      who: T::AccountId,
-      amount: Balance,
-    },
+		/// An Order has been (partially) filled
+		OrderFilled {
+			order_id: OrderId,
+			who: T::AccountId,
+			amount_fill: Balance,
+			amount_receive: Balance,
+		},
 	}
 
-  #[pallet::error]
+	#[pallet::error]
 	pub enum Error<T> {
-    /// Asset does not exist in registry
-    AssetNotRegistered,
-    /// The asset used to fill the order is different than asset_buy of the order
-    AssetNotInOrder,
+		/// Asset does not exist in registry
+		AssetNotRegistered,
+		/// The asset used to fill the order is different than asset_buy of the order
+		AssetNotInOrder,
 		/// Order cannot be found
 		OrderNotFound,
-    /// Size of order ID exceeds the bound
-    OrderIdOutOfBound,
-    /// Free balance is too low to place the order
-    InsufficientBalance,
-    /// Error with math calculations
-    MathError,
-  }
+		/// Size of order ID exceeds the bound
+		OrderIdOutOfBound,
+		/// Free balance is too low to place the order
+		InsufficientBalance,
+		/// Error with math calculations
+		MathError,
+	}
 
-  /// ID sequencer for Orders
+	/// ID sequencer for Orders
 	#[pallet::storage]
 	#[pallet::getter(fn next_order_id)]
 	pub type NextOrderId<T: Config> = StorageValue<_, OrderId, ValueQuery>;
 
-  #[pallet::storage]
+	#[pallet::storage]
 	#[pallet::getter(fn orders)]
 	pub type Orders<T: Config> =
 		StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId>, OptionQuery>;
 
-  #[pallet::call]
+	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
 		#[transactional]
 		pub fn place_order(
-      origin: OriginFor<T>,
-      asset_buy: T::AssetId,
-      asset_sell: T::AssetId,
-      amount_buy: Balance,
-      amount_sell: Balance,
-      partially_fillable: bool,
-    ) -> DispatchResult {
-      let owner = ensure_signed(origin)?;
+			origin: OriginFor<T>,
+			asset_buy: T::AssetId,
+			asset_sell: T::AssetId,
+			amount_buy: Balance,
+			amount_sell: Balance,
+			partially_fillable: bool,
+		) -> DispatchResult {
+			let owner = ensure_signed(origin)?;
 
-      let order = Order { owner, asset_buy, asset_sell, amount_buy, amount_sell, partially_fillable };
+			/// amount sell -> named reserve
+			let order = Order { owner, asset_buy, asset_sell, amount_buy, amount_sell, partially_fillable };
 
-      Self::validate_place_order(order.clone())?;
+			Self::validate_place_order(order.clone())?;
 
-      let order_id = <NextOrderId<T>>::try_mutate(|next_id| -> result::Result<OrderId, DispatchError> {
-        let current_id = *next_id;
-        *next_id = next_id
-          .checked_add(One::one())
-          .ok_or(Error::<T>::OrderIdOutOfBound)?;
-        Ok(current_id)
-      })?;
+			let order_id = <NextOrderId<T>>::try_mutate(|next_id| -> result::Result<OrderId, DispatchError> {
+				let current_id = *next_id;
+				*next_id = next_id
+					.checked_add(One::one())
+					.ok_or(Error::<T>::OrderIdOutOfBound)?;
+				Ok(current_id)
+			})?;
 
-      T::MultiReservableCurrency::reserve(order.asset_sell, &order.owner, order.amount_sell)?;
+			/// TODO: Check out named reserve
+			T::MultiReservableCurrency::reserve(order.asset_sell, &order.owner, order.amount_sell)?;
 
-      <Orders<T>>::insert(order_id, order);
-      Self::deposit_event(Event::OrderPlaced { order_id: order_id });
+			<Orders<T>>::insert(order_id, order.clone());
+			Self::deposit_event(Event::OrderPlaced {
+				order_id: order_id,
+				asset_buy: order.asset_buy,
+				asset_sell: order.asset_sell,
+				amount_buy: order.amount_buy,
+				amount_sell: order.amount_sell,
+				partially_fillable: order.partially_fillable,
+			});
 
-      Ok(())
-    }
+			Ok(())
+		}
 
-    /// TODO: update weight fn
-    #[pallet::weight(<T as Config>::WeightInfo::place_order())]
-    #[transactional]
-    pub fn fill_order(
-      origin: OriginFor<T>,
-      order_id: OrderId,
-      asset_fill: T::AssetId,
-      fill_amount: Balance
-    ) -> DispatchResult {
-      let who = ensure_signed(origin)?;
+		/// TODO: update weight fn
+		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
+		#[transactional]
+		pub fn fill_order(
+			origin: OriginFor<T>,
+			order_id: OrderId,
+			asset_fill: T::AssetId,
+			amount_fill: Balance
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			// Make sure that fill amounts > 5*ED; also that remaining order amounts > 5*ED
 
-      <Orders<T>>::try_mutate(order_id, |maybe_order| -> DispatchResult {
-        let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
+			<Orders<T>>::try_mutate(order_id, |maybe_order| -> DispatchResult {
+				let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
 
-        Self::validate_fill_order(order, who.clone(), asset_fill, fill_amount)?;
+				Self::validate_fill_order(order, who.clone(), asset_fill, amount_fill)?;
 
-        let receive_amount = match Self::receive_amount(order, fill_amount) {
-          Ok(value) => value,
-          Err(err) => return Err(err)?
-        };
+				let amount_receive = match Self::amount_receive(order, amount_fill) {
+					Ok(value) => value,
+					Err(err) => return Err(err)?
+				};
 
-        Self::execute_deal(order, who, fill_amount, receive_amount)?;
+				Self::execute_deal(order, who.clone(), amount_fill, amount_receive)?;
 
-        Ok(())
-      })
-    }
-  }
+				Self::deposit_event(Event::OrderFilled { order_id, who, amount_fill, amount_receive });
+
+				Ok(())
+			})
+		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
-  fn validate_place_order(order: Order<T::AccountId, T::AssetId>) -> DispatchResult {
-    ensure!(
-      T::AssetRegistry::exists(order.asset_sell),
-      Error::<T>::AssetNotRegistered
-    );
+	fn validate_place_order(order: Order<T::AccountId, T::AssetId>) -> DispatchResult {
+		ensure!(
+			T::AssetRegistry::exists(order.asset_sell),
+			Error::<T>::AssetNotRegistered
+		);
 
-    ensure!(
-      T::AssetRegistry::exists(order.asset_buy),
-      Error::<T>::AssetNotRegistered
-    );
+		ensure!(
+			T::AssetRegistry::exists(order.asset_buy),
+			Error::<T>::AssetNotRegistered
+		);
 
-    ensure!(
-      T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.owner, order.amount_sell),
-      Error::<T>::InsufficientBalance
-    );
+		ensure!(
+			T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.owner, order.amount_sell),
+			Error::<T>::InsufficientBalance
+		);
 
-    Ok(())
-  }
+		Ok(())
+	}
 
-  fn validate_fill_order(
-    order: &mut Order<T::AccountId, T::AssetId>,
-    who: T::AccountId,
-    asset_fill: T::AssetId,
-    fill_amount: Balance,
-  ) -> DispatchResult {
-    ensure!(
-      order.asset_buy == asset_fill,
-      Error::<T>::AssetNotInOrder
-    );
+	fn validate_fill_order(
+		order: &mut Order<T::AccountId, T::AssetId>,
+		who: T::AccountId,
+		asset_fill: T::AssetId,
+		fill_amount: Balance,
+	) -> DispatchResult {
+		ensure!(
+			order.asset_buy == asset_fill,
+			Error::<T>::AssetNotInOrder
+		);
 
-    Ok(())
-  }
+		Ok(())
+	}
 
-  fn receive_amount(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> Result<Balance, Error<T>> {
-    order.amount_sell
-      .checked_mul(amount_fill)
-      .and_then(|v| v.checked_div(order.amount_buy))
-      .ok_or(Error::<T>::MathError)
-  }
+	fn amount_receive(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> Result<Balance, Error<T>> {
+		order.amount_sell
+			.checked_mul(amount_fill)
+			.and_then(|v| v.checked_div(order.amount_buy))
+			.ok_or(Error::<T>::MathError)
+	}
 
-  fn execute_deal(
-    order: &mut Order<T::AccountId, T::AssetId>,
-    who: T::AccountId,
-    fill_amount: Balance,
-    receive_amount: Balance,
-  ) -> DispatchResult {
-    T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, receive_amount);
+	fn execute_deal(
+		order: &mut Order<T::AccountId, T::AssetId>,
+		who: T::AccountId,
+		amount_fill: Balance,
+		amount_receive: Balance,
+	) -> DispatchResult {
 
-    T::Currency::transfer(
-      order.asset_buy,
-      &who,
-      &order.owner,
-      fill_amount,
-    )?;
+		T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, amount_receive);
+		
+		T::Currency::transfer(
+			order.asset_buy,
+			&who,
+			&order.owner,
+			amount_fill,
+		)?;
 
-    T::Currency::transfer(
-      order.asset_sell,
-      &order.owner,
-      &who,
-      receive_amount,
-    )?;
+		T::Currency::transfer(
+			order.asset_sell,
+			&order.owner,
+			&who,
+			amount_receive,
+		)?;
 
-    let new_amount_buy = order.amount_buy
-      .checked_sub(fill_amount)
-      .ok_or(Error::<T>::MathError)?;
+		let new_amount_buy = order.amount_buy
+			.checked_sub(amount_fill)
+			.ok_or(Error::<T>::MathError)?;
 
-    let new_amount_sell = order.amount_sell
-      .checked_sub(receive_amount)
-      .ok_or(Error::<T>::MathError)?;
+		let new_amount_sell = order.amount_sell
+			.checked_sub(amount_receive)
+			.ok_or(Error::<T>::MathError)?;
 
-    let updated_order = Order {
-      owner: order.owner.clone(),
-      asset_buy: order.asset_buy,
-      asset_sell: order.asset_sell,
-      amount_buy: new_amount_buy,
-      amount_sell: new_amount_sell,
-      partially_fillable: order.partially_fillable,
-    };
+		let updated_order = Order {
+			owner: order.owner.clone(),
+			asset_buy: order.asset_buy,
+			asset_sell: order.asset_sell,
+			amount_buy: new_amount_buy,
+			amount_sell: new_amount_sell,
+			partially_fillable: order.partially_fillable,
+		};
 
-    *order = updated_order;
+		*order = updated_order;
 
-    Ok(())
-  }
+		Ok(())
+	}
 }

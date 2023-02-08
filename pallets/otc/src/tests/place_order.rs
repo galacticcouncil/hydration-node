@@ -49,7 +49,7 @@ fn create_order_should_work() {
 			assert_eq!(order.amount_buy, ONE);
 			assert_eq!(order.partially_fillable, true);
 
-			// TODO: fix
+			// TODO: fix events
 			// expect_events(vec![
 			// 	Event::OrderPlaced { order_id: 0 }.into(),
 			// ]);
