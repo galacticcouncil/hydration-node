@@ -706,7 +706,7 @@ where
 		};
 
 		let RID_1 = [1u8; 8];
-		T::NamedMultiReservableCurrency::reserve_named(&RID_1, bond.asset.into(), &who, bond.amount.into())?;
+		//T::NamedMultiReservableCurrency::reserve_named(&RID_1, bond.asset.into(), &who, bond.amount.into())?;
 
 		Self::reserve_bond(&who, &bond)?;
 
