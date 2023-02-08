@@ -216,20 +216,6 @@ impl pallet_omnipool::Config for Test {
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 }
 
-pub struct SpotPriceProviderStub;
-
-impl hydradx_traits::pools::SpotPriceProvider<AssetId> for SpotPriceProviderStub {
-	type Price = FixedU128;
-
-	fn pair_exists(_asset_a: AssetId, _asset_b: AssetId) -> bool {
-		true
-	}
-
-	fn spot_price(_asset_a: AssetId, _asset_b: AssetId) -> Option<Self::Price> {
-		Some(FixedU128::from_float(0.6))
-	}
-}
-
 pub struct WeightToFee;
 
 impl WeightToFeePolynomial for WeightToFee {
@@ -262,7 +248,7 @@ impl pallet_transaction_multi_payment::Config for Test {
 	type Event = Event;
 	type AcceptedCurrencyOrigin = EnsureRoot<AccountId>;
 	type Currencies = Tokens;
-	type SpotPriceProvider = SpotPriceProviderStub;
+	type SpotPriceProvider = Omnipool;
 	type WeightInfo = ();
 	type WithdrawFeeForSetCurrency = ();
 	type WeightToFee = WeightToFee;

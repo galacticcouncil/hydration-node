@@ -464,7 +464,7 @@ fn user_execution_bond_should_not_be_slashed_when_when_total_stored_bond_is_less
 				DAI,
 				4000 * ONE
 			));
-			let dai_in_treasury_before_schedule_execution = 498214558854;
+			let dai_in_treasury_before_schedule_execution = 1660715196180;
 			assert_balance!(TreasuryAccount::get(), DAI, dai_in_treasury_before_schedule_execution);
 
 			set_to_blocknumber(501);
@@ -526,7 +526,7 @@ fn user_execution_bond_should_not_be_slashed_fully_when_spot_price_changes_sligh
 				DAI,
 				200 * ONE
 			));
-			let dai_in_treasury = 498214558854;
+			let dai_in_treasury = 1660715196180;
 			assert_balance!(TreasuryAccount::get(), DAI, dai_in_treasury);
 
 			set_to_blocknumber(501);
