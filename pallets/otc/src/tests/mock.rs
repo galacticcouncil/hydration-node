@@ -93,6 +93,13 @@ thread_local! {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
+	pub ExistentialDepositMultiplier: u128 = 5 * ONE;
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+		One::one()
+	};
 }
 
 impl Config for Test {
@@ -100,6 +107,8 @@ impl Config for Test {
   type AssetRegistry = DummyRegistry<Test>;
 	type Currency = Tokens; 
 	type Event = Event;
+	type ExistentialDeposits = ExistentialDeposits;
+	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type MultiReservableCurrency = Currencies;
 	type NativeAssetId = NativeCurrencyId;
 	type WeightInfo = ();
@@ -135,12 +144,6 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-}
-
-parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		One::one()
-	};
 }
 
 impl orml_tokens::Config for Test {

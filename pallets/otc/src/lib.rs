@@ -24,6 +24,7 @@ use frame_support::transactional;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use orml_traits::{ arithmetic::{CheckedAdd, CheckedSub}, MultiReservableCurrency};
+use orml_traits::GetByKey;
 use scale_info::TypeInfo;
 use sp_core::U256;
 use sp_runtime::traits::Saturating;
@@ -82,6 +83,11 @@ pub mod pallet {
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		
+		type ExistentialDeposits: GetByKey<Self::AssetId, Balance>;
+
+		#[pallet::constant]
+		type ExistentialDepositMultiplier: Get<u128>;
 
 		type MultiReservableCurrency: MultiReservableCurrency<
 			Self::AccountId,
@@ -128,6 +134,9 @@ pub mod pallet {
 		OrderNotFound,
 		/// Size of order ID exceeds the bound
 		OrderIdOutOfBound,
+		/// Order amount_buy and amount_sell must be greater than the existential deposit
+		/// for the asset multiplied by the ExistentialDepositMultiplier
+		OrderSizeTooSmall,
 		/// Free balance is too low to place the order
 		InsufficientBalance,
 		/// Error with math calculations
@@ -158,7 +167,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = ensure_signed(origin)?;
 
-			/// amount sell -> named reserve
+			/// TODO: amount sell -> named reserve
 			let order = Order { owner, asset_buy, asset_sell, amount_buy, amount_sell, partially_fillable };
 
 			Self::validate_place_order(order.clone())?;
@@ -171,7 +180,6 @@ pub mod pallet {
 				Ok(current_id)
 			})?;
 
-			/// TODO: Check out named reserve
 			T::MultiReservableCurrency::reserve(order.asset_sell, &order.owner, order.amount_sell)?;
 
 			<Orders<T>>::insert(order_id, order.clone());
@@ -236,6 +244,26 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InsufficientBalance
 		);
 
+		let min_amount_buy = match Self::min_order_size(order.asset_buy) {
+			Ok(value) => value,
+			Err(err) => return Err(err)?
+		};
+
+		ensure!(
+			order.amount_buy > min_amount_buy,
+			Error::<T>::OrderSizeTooSmall
+		);
+
+		let min_amount_sell = match Self::min_order_size(order.asset_sell) {
+			Ok(value) => value,
+			Err(err) => return Err(err)?
+		};
+
+		ensure!(
+			order.amount_sell > min_amount_sell,
+			Error::<T>::OrderSizeTooSmall
+		);
+
 		Ok(())
 	}
 
@@ -251,6 +279,14 @@ impl<T: Config> Pallet<T> {
 		);
 
 		Ok(())
+	}
+
+	fn min_order_size(asset: T::AssetId) -> Result<Balance, Error<T>> {
+		let existential_deposit = T::ExistentialDeposits::get(&asset);
+		
+		existential_deposit
+			.checked_mul(T::ExistentialDepositMultiplier::get())
+			.ok_or(Error::<T>::MathError)
 	}
 
 	fn amount_receive(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> Result<Balance, Error<T>> {
