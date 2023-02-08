@@ -219,3 +219,41 @@ fn partial_fill_order_should_throw_error_when_order_is_not_partially_fillable() 
 		}
 	);
 }
+
+#[test]
+fn fill_order_should_throw_error_when_insufficient_balance() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+			// Arrange
+			assert_ok!(
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 200 * ONE, 100 * ONE, true)
+			);
+
+			// Act
+			let amount_fill = 110 * ONE;
+			assert_noop!(
+				OTC::fill_order(Origin::signed(BOB), 0, DAI, amount_fill),
+				Error::<Test>::InsufficientBalance
+			);
+	});
+}
+
+#[test]
+fn fill_order_should_throw_error_when_amount_fill_is_larger_than_order() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+			// Arrange
+			assert_ok!(
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 100 * ONE, true)
+			);
+
+			// Act
+			let amount_fill = 30 * ONE;
+			assert_noop!(
+				OTC::fill_order(Origin::signed(BOB), 0, DAI, amount_fill),
+				Error::<Test>::CannotFillMoreThanOrdered
+			);
+	});
+}

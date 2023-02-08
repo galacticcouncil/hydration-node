@@ -129,6 +129,8 @@ pub mod pallet {
 		AssetNotRegistered,
 		/// The asset used to fill the order is different than asset_buy of the order
 		AssetNotInOrder,
+		/// When filling and order, the fill amount cannot be greater than the remaining order amount
+		CannotFillMoreThanOrdered,
 		/// Free balance is too low to place the order
 		InsufficientBalance,
 		/// Order cannot be found
@@ -272,6 +274,16 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::AssetNotInOrder
 		);
 
+		ensure!(
+			order.amount_buy >= amount_fill,
+			Error::<T>::CannotFillMoreThanOrdered
+		);
+
+		ensure!(
+			T::Currency::ensure_can_withdraw(asset_fill, &who, amount_fill).is_ok(),
+			Error::<T>::InsufficientBalance
+		);
+
 		if(!order.partially_fillable) {
 			ensure!(
 				amount_fill == order.amount_buy,
@@ -282,18 +294,18 @@ impl<T: Config> Pallet<T> {
 
 			if(new_amount_buy > 0_u128) {
 				let min_amount_buy = Self::min_order_size(order.asset_buy)?;
-		
+
 				ensure!(
 					new_amount_buy > min_amount_buy,
 					Error::<T>::RemainingOrderSizeTooSmall
 				);
 			}
-	
+
 			let new_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
 			if(new_amount_sell > 0_u128) {
 				let min_amount_sell = Self::min_order_size(order.asset_buy)?;
-	
+
 				ensure!(
 					new_amount_sell > min_amount_sell,
 					Error::<T>::RemainingOrderSizeTooSmall
@@ -306,7 +318,7 @@ impl<T: Config> Pallet<T> {
 
 	fn min_order_size(asset: T::AssetId) -> Result<Balance, Error<T>> {
 		let existential_deposit = T::ExistentialDeposits::get(&asset);
-		
+
 		existential_deposit
 			.checked_mul(T::ExistentialDepositMultiplier::get())
 			.ok_or(Error::<T>::MathError)
@@ -333,7 +345,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 
 		T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, amount_receive);
-		
+
 		T::Currency::transfer(
 			order.asset_buy,
 			&who,
