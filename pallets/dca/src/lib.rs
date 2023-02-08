@@ -37,13 +37,17 @@ use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
+use sp_runtime::traits::CheckedMul;
 use sp_runtime::traits::Saturating;
 use sp_runtime::traits::Zero;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 use sp_runtime::ArithmeticError;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
+use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, DispatchError};
+use sp_std::cmp::max;
+use sp_std::cmp::min;
 use sp_std::vec;
 use sp_std::vec::Vec;
 #[cfg(test)]
@@ -61,6 +65,7 @@ use weights::WeightInfo;
 pub use pallet::*;
 
 use crate::types::*;
+use crate::Recurrence::Fixed;
 use sp_runtime::traits::One;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
@@ -81,7 +86,7 @@ pub mod pallet {
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 	use sp_core::H256;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
-	use sp_runtime::FixedPointNumber;
+	use sp_runtime::{FixedPointNumber, Percent};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -179,6 +184,9 @@ pub mod pallet {
 		///The fee receiver for transaction fees and slashed bonds
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
+
+		#[pallet::constant]
+		type SlippageLimitPercentage: Get<Permill>;
 
 		/// Convert a weight value into a deductible fee
 		type WeightToFee: WeightToFee<Balance = Balance>;
@@ -648,27 +656,75 @@ where
 				amount_in,
 				route,
 				min_limit,
-			} => pallet_omnipool::Pallet::<T>::sell(
-				origin,
-				(*asset_in).into(),
-				(*asset_out).into(),
-				*amount_in,
-				*min_limit,
-			),
+			} => {
+				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
+
+				pallet_omnipool::Pallet::<T>::sell(
+					origin,
+					(*asset_in).into(),
+					(*asset_out).into(),
+					*amount_in,
+					min(*min_limit, min_limit_with_slippage),
+				)
+			}
 			Order::Buy {
 				asset_in,
 				asset_out,
 				amount_out,
 				max_limit,
 				route,
-			} => pallet_omnipool::Pallet::<T>::buy(
-				origin,
-				(*asset_out).into(),
-				(*asset_in).into(),
-				*amount_out,
-				*max_limit,
-			),
+			} => {
+				let max_limit_with_slippage = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
+
+				pallet_omnipool::Pallet::<T>::buy(
+					origin,
+					(*asset_out).into(),
+					(*asset_in).into(),
+					*amount_out,
+					max(*max_limit, max_limit_with_slippage),
+				)
+			}
 		}
+	}
+
+	fn get_min_limit_with_slippage(
+		asset_in: &<T as Config>::Asset,
+		asset_out: &<T as Config>::Asset,
+		amount_in: &Balance,
+	) -> Result<u128, DispatchError> {
+		let spot_price =
+			T::SpotPriceProvider::spot_price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+
+		let estimated_amount_out = spot_price
+			.checked_mul_int(*amount_in)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		let slippage_amount = T::SlippageLimitPercentage::get().mul_floor(estimated_amount_out);
+		let min_limit_with_slippage = estimated_amount_out
+			.checked_sub(slippage_amount)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		Ok(min_limit_with_slippage)
+	}
+
+	fn get_max_limit_with_slippage(
+		asset_in: &<T as Config>::Asset,
+		asset_out: &<T as Config>::Asset,
+		amount_out: &Balance,
+	) -> Result<u128, DispatchError> {
+		let spot_price =
+			T::SpotPriceProvider::spot_price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+
+		let estimated_amount_in = spot_price
+			.checked_mul_int(*amount_out)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		let slippage_amount = T::SlippageLimitPercentage::get().mul_floor(estimated_amount_in);
+		let max_limit_with_slippage = estimated_amount_in
+			.checked_add(slippage_amount)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		Ok(max_limit_with_slippage)
 	}
 
 	fn remove_schedule_id_from_next_execution_block(

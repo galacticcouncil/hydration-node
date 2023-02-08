@@ -3,6 +3,7 @@ use crate::{Balance, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
+use sp_runtime::Permill;
 
 pub mod mock;
 pub mod on_initialize;
@@ -89,6 +90,12 @@ fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> Bounde
 pub fn set_storage_bond_config(amount: Balance) {
 	STORAGE_BOND.with(|v| {
 		*v.borrow_mut() = amount;
+	});
+}
+
+pub fn set_slippage_config(percentage: Permill) {
+	SLIPPAGE.with(|v| {
+		*v.borrow_mut() = percentage;
 	});
 }
 

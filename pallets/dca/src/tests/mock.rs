@@ -37,13 +37,13 @@ use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::traits::Get;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
-use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
+use sp_runtime::{Perbill, Percent};
 
 use sp_runtime::{DispatchResult, FixedU128};
 use std::borrow::Borrow;
@@ -112,6 +112,7 @@ thread_local! {
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
 	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*OriginalStorageBondInNative);
 	pub static EXECUTION_BOND: RefCell<Balance> = RefCell::new(1_000_000);
+	pub static SLIPPAGE: RefCell<Permill> = RefCell::new(Permill::from_percent(5));
 }
 
 parameter_types! {
@@ -290,6 +291,7 @@ parameter_types! {
 	pub ExecutionBondInNativeCurrency: Balance= EXECUTION_BOND.with(|v| *v.borrow());
 	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
+	pub SlippageLimitPercentage: Permill = SLIPPAGE.with(|v| *v.borrow());
 }
 
 pub struct BlockNumberProviderMock {}
@@ -321,6 +323,7 @@ impl Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type FeeReceiver = TreasuryAccount;
 	type WeightToFee = IdentityFee<Balance>;
+	type SlippageLimitPercentage = SlippageLimitPercentage;
 	type WeightInfo = ();
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};

@@ -19,10 +19,13 @@ use frame_support::traits::OnInitialize;
 use std::io::empty;
 use std::ops::RangeInclusive;
 
+use sp_runtime::FixedPointNumber;
+
 use crate::tests::*;
 use crate::{assert_balance, Bond, Event, Order, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
+use hydradx_traits::pools::SpotPriceProvider;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
@@ -30,7 +33,6 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
-
 #[test]
 fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 	ExtBuilder::default()
@@ -954,6 +956,98 @@ fn execution_bond_should_be_still_slashed_when_last_DCA_completed_but_not_enough
 			assert_that_schedule_has_been_removed_from_storages(schedule_id);
 
 			assert_balance!(TreasuryAccount::get(), HDX, ExecutionBondInNativeCurrency::get());
+		});
+}
+
+#[test]
+fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_trade_min_limit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, 100, 2000 * ONE),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+			assert_balance!(ALICE, BTC, 0);
+
+			let sell_amount = 10 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: 100,
+					asset_out: 200,
+					amount_in: sell_amount,
+					min_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_balance!(ALICE, 200, 9900990099009);
+		});
+}
+
+#[test]
+fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_trade_max_limit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, 100, 2000 * ONE),
+			(LP2, 100, 2000 * ONE),
+			(LP3, 200, 2000 * ONE),
+		])
+		.with_registered_asset(100)
+		.with_registered_asset(200)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+			assert_balance!(ALICE, BTC, 0);
+
+			let buy_amount = 10 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: 100,
+					asset_out: 200,
+					amount_out: buy_amount,
+					max_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_balance!(ALICE, 200, buy_amount);
 		});
 }
 
