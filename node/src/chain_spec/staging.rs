@@ -74,6 +74,8 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				vec![],
 				// registered_assets
 				vec![],
+				//registered_ids
+				vec![],
 				// accepted_assets
 				vec![],
 				// token balances
