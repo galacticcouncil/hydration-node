@@ -82,5 +82,14 @@ fn cancel_order_should_throw_error_when_called_by_non_owner() {
 				OTC::cancel_order(Origin::signed(BOB), 0),
         Error::<Test>::NoPermission
 			);
+
+      // Assert
+      let order = OTC::orders(0);
+      assert!(order.is_some());
+
+      assert_eq!(
+				Currencies::reserved_balance(HDX.into(), &ALICE.into()),
+				100 * ONE,
+			);
   });
 }
