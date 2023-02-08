@@ -113,7 +113,7 @@ fn create_order_should_throw_error_when_amount_buy_is_too_low() {
 		.execute_with(|| {
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, ONE, 100 * ONE, true),
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 5 * ONE, 100 * ONE, true),
 				Error::<Test>::OrderSizeTooSmall
 			);
 		}
@@ -127,7 +127,7 @@ fn create_order_should_throw_error_when_amount_sell_is_too_low() {
 		.execute_with(|| {
 			// Act
 			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, ONE, true),
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 5 * ONE, true),
 				Error::<Test>::OrderSizeTooSmall
 			);
 		}

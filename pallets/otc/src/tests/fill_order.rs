@@ -79,3 +79,23 @@ fn fill_order_should_work_when_fill_is_partial() {
 			// ]);
 		});
 }
+
+#[test]
+fn fill_order_should_throw_error_when_remaining_amounts_are_too_low() {
+	ExtBuilder::default()
+		.build()
+		.execute_with(|| {
+			// Arrange
+			assert_ok!(
+				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 100 * ONE, true)
+			);
+
+			// Act
+			let amount_fill = 15_000_000_000_001;
+			assert_noop!(
+				OTC::fill_order(Origin::signed(BOB), 0, DAI, amount_fill),
+				Error::<Test>::RemainingOrderSizeTooSmall
+			);
+		}
+	);
+}

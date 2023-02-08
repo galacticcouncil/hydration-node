@@ -130,6 +130,8 @@ pub mod pallet {
 		AssetNotRegistered,
 		/// The asset used to fill the order is different than asset_buy of the order
 		AssetNotInOrder,
+		/// Free balance is too low to place the order
+		InsufficientBalance,
 		/// Order cannot be found
 		OrderNotFound,
 		/// Size of order ID exceeds the bound
@@ -137,8 +139,9 @@ pub mod pallet {
 		/// Order amount_buy and amount_sell must be greater than the existential deposit
 		/// for the asset multiplied by the ExistentialDepositMultiplier
 		OrderSizeTooSmall,
-		/// Free balance is too low to place the order
-		InsufficientBalance,
+		/// A partial order fill cannot leave remaning amount_buy or amount_sell smaller
+		/// than the existential deposit for the asset multiplied by ExistentialDepositMultiplier
+		RemainingOrderSizeTooSmall,
 		/// Error with math calculations
 		MathError,
 	}
@@ -205,17 +208,12 @@ pub mod pallet {
 			amount_fill: Balance
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			// Make sure that fill amounts > 5*ED; also that remaining order amounts > 5*ED
 
 			<Orders<T>>::try_mutate(order_id, |maybe_order| -> DispatchResult {
 				let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
+				let amount_receive = Self::amount_receive(order, amount_fill)?;
 
-				Self::validate_fill_order(order, who.clone(), asset_fill, amount_fill)?;
-
-				let amount_receive = match Self::amount_receive(order, amount_fill) {
-					Ok(value) => value,
-					Err(err) => return Err(err)?
-				};
+				Self::validate_fill_order(order, who.clone(), asset_fill, amount_fill, amount_receive)?;
 
 				Self::execute_deal(order, who.clone(), amount_fill, amount_receive)?;
 
@@ -244,20 +242,14 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InsufficientBalance
 		);
 
-		let min_amount_buy = match Self::min_order_size(order.asset_buy) {
-			Ok(value) => value,
-			Err(err) => return Err(err)?
-		};
+		let min_amount_buy = Self::min_order_size(order.asset_buy)?;
 
 		ensure!(
 			order.amount_buy > min_amount_buy,
 			Error::<T>::OrderSizeTooSmall
 		);
 
-		let min_amount_sell = match Self::min_order_size(order.asset_sell) {
-			Ok(value) => value,
-			Err(err) => return Err(err)?
-		};
+		let min_amount_sell = Self::min_order_size(order.asset_sell)?;
 
 		ensure!(
 			order.amount_sell > min_amount_sell,
@@ -271,12 +263,28 @@ impl<T: Config> Pallet<T> {
 		order: &mut Order<T::AccountId, T::AssetId>,
 		who: T::AccountId,
 		asset_fill: T::AssetId,
-		fill_amount: Balance,
+		amount_fill: Balance,
+		amount_receive: Balance,
 	) -> DispatchResult {
 		ensure!(
 			order.asset_buy == asset_fill,
 			Error::<T>::AssetNotInOrder
 		);
+
+		let new_amount_buy = order.amount_buy
+			.checked_sub(amount_fill)
+			.ok_or(Error::<T>::MathError)?;
+
+		let min_amount_buy = Self::min_order_size(order.asset_buy)?;
+
+		ensure!(
+			new_amount_buy > min_amount_buy,
+			Error::<T>::RemainingOrderSizeTooSmall
+		);
+
+		let new_amount_buy = order.amount_sell
+			.checked_sub(amount_receive)
+			.ok_or(Error::<T>::MathError)?;
 
 		Ok(())
 	}
