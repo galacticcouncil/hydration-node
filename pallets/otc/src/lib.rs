@@ -20,6 +20,7 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::pallet_prelude::*;
+use frame_support::require_transactional;
 use frame_support::transactional;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
@@ -153,6 +154,8 @@ pub mod pallet {
 		RemainingOrderSizeTooSmall,
 		/// Error with math calculations
 		MathError,
+		/// The caller does not have permission to complete the action
+		NoPermission
 	}
 
 	/// ID sequencer for Orders
@@ -214,7 +217,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			order_id: OrderId,
 			asset_fill: T::AssetId,
-			amount_fill: Balance
+			amount_fill: Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -236,6 +239,31 @@ pub mod pallet {
 					*maybe_order = None;
 					Self::deposit_event(Event::OrderFilled { order_id, who, amount_fill });	
 				}
+
+				Ok(())
+			})
+		}
+
+		/// TODO: update weight fn
+		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
+		#[transactional]
+		pub fn cancel_order(
+			origin: OriginFor<T>,
+			order_id: OrderId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			<Orders<T>>::try_mutate_exists(order_id, |maybe_order| -> DispatchResult {
+				let order = maybe_order.as_ref().ok_or(Error::<T>::OrderNotFound)?;
+
+				ensure!(
+					order.owner == who,
+					Error::<T>::NoPermission
+				);
+
+				T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, order.amount_sell);
+
+				*maybe_order = None;
 
 				Ok(())
 			})
@@ -350,6 +378,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or(Error::<T>::MathError)
 	}
 
+	#[require_transactional]
 	fn execute_deal(
 		order: &mut Order<T::AccountId, T::AssetId>,
 		who: T::AccountId,
@@ -375,6 +404,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	#[require_transactional]
 	fn update_storage(
 		order: &mut Order<T::AccountId, T::AssetId>,
 		amount_fill: Balance,
