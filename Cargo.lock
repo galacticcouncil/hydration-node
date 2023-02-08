@@ -1040,7 +1040,7 @@ dependencies = [
  "pallet-claims",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-dca",
  "pallet-democracy",
  "pallet-identity",
@@ -3400,7 +3400,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-dca",
  "pallet-democracy",
  "pallet-elections-phragmen",
@@ -5821,6 +5821,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-currencies"
+version = "1.1.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=c4b24d2582c8ad187a0c38427d7d585a6031cdd8#c4b24d2582c8ad187a0c38427d7d585a6031cdd8"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "orml-utilities",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-dca"
 version = "1.0.2"
 dependencies = [
@@ -5834,7 +5851,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-currencies",
+ "pallet-currencies 1.1.0",
  "pallet-omnipool",
  "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
  "pallet-transaction-multi-payment",
@@ -8835,7 +8852,7 @@ dependencies = [
  "pallet-balances",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-dca",
  "pallet-democracy",
  "pallet-elections-phragmen",
@@ -11527,7 +11544,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
@@ -11999,7 +12016,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.6",
  "rand 0.8.5",
  "static_assertions",

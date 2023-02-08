@@ -31,6 +31,7 @@ use hydradx_traits::pools::SpotPriceProvider;
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
 use pallet_omnipool::WeightInfo as OmnipoolWeightInfo;
 use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use rand::rngs::StdRng;
@@ -64,6 +65,8 @@ use sp_runtime::traits::One;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
+type ResId = [u8; 8];
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -74,7 +77,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::router::ExecutorError;
-	use orml_traits::MultiReservableCurrency;
+	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 	use sp_core::H256;
 	use sp_runtime::traits::{MaybeDisplay, Saturating};
@@ -88,6 +91,12 @@ pub mod pallet {
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T>
 	where
 		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<T as frame_system::Config>::AccountId,
+		>>::CurrencyId: From<<T as pallet::Config>::Asset>,
+		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<T as frame_system::Config>::AccountId,
+		>>::Balance: From<u128>,
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			{
@@ -141,6 +150,9 @@ pub mod pallet {
 			CurrencyId = Self::Asset,
 			Balance = Balance,
 		>;
+
+		///For reserving user's assets
+		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<Self::AccountId>;
 
 		///Spot price provider to get the spot price of the native asset comparing to other assets
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
@@ -267,6 +279,12 @@ pub mod pallet {
 	impl<T: Config> Pallet<T>
 	where
 		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<T as frame_system::Config>::AccountId,
+		>>::CurrencyId: From<<T as pallet::Config>::Asset>,
+		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<T as frame_system::Config>::AccountId,
+		>>::Balance: From<u128>,
 	{
 		/// Creates a new DCA schedule and plans the execution in the specified start execution block.
 		/// If start execution block number is not specified, then the schedule is planned in the consequent block.
@@ -426,6 +444,14 @@ pub mod pallet {
 impl<T: Config> Pallet<T>
 where
 	<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+
+	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId: From<<T as pallet::Config>::Asset>,
+
+	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::Balance: From<u128>,
 {
 	fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
@@ -678,6 +704,9 @@ where
 			asset: user_fee_currency,
 			amount: total_bond_in_user_currency,
 		};
+
+		let RID_1 = [1u8; 8];
+		T::NamedMultiReservableCurrency::reserve_named(&RID_1, bond.asset.into(), &who, bond.amount.into())?;
 
 		Self::reserve_bond(&who, &bond)?;
 
