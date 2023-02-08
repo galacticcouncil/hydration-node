@@ -114,12 +114,18 @@ pub mod pallet {
 			amount_sell: Balance,
 			partially_fillable: bool,
 		},
-		/// An Order has been (partially) filled
-		OrderFilled {
+		/// An Order has been partially filled
+		OrderPartiallyFilled {
 			order_id: OrderId,
 			who: T::AccountId,
 			amount_fill: Balance,
 			amount_receive: Balance,
+		},
+		/// An Order has been completely filled
+		OrderFilled {
+			order_id: OrderId,
+			who: T::AccountId,
+			amount_fill: Balance,
 		},
 	}
 
@@ -212,7 +218,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			<Orders<T>>::try_mutate(order_id, |maybe_order| -> DispatchResult {
+			<Orders<T>>::try_mutate_exists(order_id, |maybe_order| -> DispatchResult {
 				let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
 				let amount_receive = Self::amount_receive(order, amount_fill)?;
 
@@ -220,7 +226,16 @@ pub mod pallet {
 
 				Self::execute_deal(order, who.clone(), amount_fill, amount_receive)?;
 
-				Self::deposit_event(Event::OrderFilled { order_id, who, amount_fill, amount_receive });
+				let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
+
+				if(remaining_amount_buy > 0_u128) {
+					Self::update_storage(order, amount_fill, amount_receive)?;
+					Self::deposit_event(Event::OrderPartiallyFilled { order_id, who, amount_fill, amount_receive });
+				} else {
+					// cleanup storage
+					*maybe_order = None;
+					Self::deposit_event(Event::OrderFilled { order_id, who, amount_fill });	
+				}
 
 				Ok(())
 			})
@@ -290,24 +305,24 @@ impl<T: Config> Pallet<T> {
 				Error::<T>::OrderNotPartiallyFillable
 			)
 		} else {
-			let new_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
+			let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-			if(new_amount_buy > 0_u128) {
+			if(remaining_amount_buy > 0_u128) {
 				let min_amount_buy = Self::min_order_size(order.asset_buy)?;
 
 				ensure!(
-					new_amount_buy > min_amount_buy,
+					remaining_amount_buy > min_amount_buy,
 					Error::<T>::RemainingOrderSizeTooSmall
 				);
 			}
 
-			let new_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
+			let remaining_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
-			if(new_amount_sell > 0_u128) {
+			if(remaining_amount_sell > 0_u128) {
 				let min_amount_sell = Self::min_order_size(order.asset_buy)?;
 
 				ensure!(
-					new_amount_sell > min_amount_sell,
+					remaining_amount_sell > min_amount_sell,
 					Error::<T>::RemainingOrderSizeTooSmall
 				);
 			}
@@ -317,9 +332,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn min_order_size(asset: T::AssetId) -> Result<Balance, Error<T>> {
-		let existential_deposit = T::ExistentialDeposits::get(&asset);
-
-		existential_deposit
+		T::ExistentialDeposits::get(&asset)
 			.checked_mul(T::ExistentialDepositMultiplier::get())
 			.ok_or(Error::<T>::MathError)
 	}
@@ -343,7 +356,6 @@ impl<T: Config> Pallet<T> {
 		amount_fill: Balance,
 		amount_receive: Balance,
 	) -> DispatchResult {
-
 		T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, amount_receive);
 
 		T::Currency::transfer(
@@ -360,6 +372,14 @@ impl<T: Config> Pallet<T> {
 			amount_receive,
 		)?;
 
+		Ok(())
+	}
+
+	fn update_storage(
+		order: &mut Order<T::AccountId, T::AssetId>,
+		amount_fill: Balance,
+		amount_receive: Balance,
+	) -> DispatchResult {
 		let new_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 		let new_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
