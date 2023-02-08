@@ -75,7 +75,6 @@ pub mod pallet {
 		+ MaxEncodedLen
 		+ TypeInfo;
 
-
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
@@ -136,6 +135,8 @@ pub mod pallet {
 		OrderNotFound,
 		/// Size of order ID exceeds the bound
 		OrderIdOutOfBound,
+		/// Cannot partially fill an order which is not partially fillable
+		OrderNotPartiallyFillable,
 		/// Order amount_buy and amount_sell must be greater than the existential deposit
 		/// for the asset multiplied by the ExistentialDepositMultiplier
 		OrderSizeTooSmall,
@@ -271,20 +272,34 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::AssetNotInOrder
 		);
 
-		let new_amount_buy = order.amount_buy
-			.checked_sub(amount_fill)
-			.ok_or(Error::<T>::MathError)?;
+		if(!order.partially_fillable) {
+			ensure!(
+				amount_fill == order.amount_buy,
+				Error::<T>::OrderNotPartiallyFillable
+			)
+		} else {
+			let new_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-		let min_amount_buy = Self::min_order_size(order.asset_buy)?;
+			if(new_amount_buy > 0_u128) {
+				let min_amount_buy = Self::min_order_size(order.asset_buy)?;
+		
+				ensure!(
+					new_amount_buy > min_amount_buy,
+					Error::<T>::RemainingOrderSizeTooSmall
+				);
+			}
+	
+			let new_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
-		ensure!(
-			new_amount_buy > min_amount_buy,
-			Error::<T>::RemainingOrderSizeTooSmall
-		);
-
-		let new_amount_buy = order.amount_sell
-			.checked_sub(amount_receive)
-			.ok_or(Error::<T>::MathError)?;
+			if(new_amount_sell > 0_u128) {
+				let min_amount_sell = Self::min_order_size(order.asset_buy)?;
+	
+				ensure!(
+					new_amount_sell > min_amount_sell,
+					Error::<T>::RemainingOrderSizeTooSmall
+				);
+			}
+		}
 
 		Ok(())
 	}
@@ -301,6 +316,12 @@ impl<T: Config> Pallet<T> {
 		order.amount_sell
 			.checked_mul(amount_fill)
 			.and_then(|v| v.checked_div(order.amount_buy))
+			.ok_or(Error::<T>::MathError)
+	}
+
+	fn amount_remaining(amount_initial: Balance, amount_change: Balance) -> Result<Balance, Error<T>> {
+		amount_initial
+			.checked_sub(amount_change)
 			.ok_or(Error::<T>::MathError)
 	}
 
@@ -327,13 +348,8 @@ impl<T: Config> Pallet<T> {
 			amount_receive,
 		)?;
 
-		let new_amount_buy = order.amount_buy
-			.checked_sub(amount_fill)
-			.ok_or(Error::<T>::MathError)?;
-
-		let new_amount_sell = order.amount_sell
-			.checked_sub(amount_receive)
-			.ok_or(Error::<T>::MathError)?;
+		let new_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
+		let new_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
 		let updated_order = Order {
 			owner: order.owner.clone(),
