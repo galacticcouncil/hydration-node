@@ -1,18 +1,18 @@
-//                    :                     $$\   $$\                 $$\                    $$$$$$$\  $$\   $$\ 
+//                    :                     $$\   $$\                 $$\                    $$$$$$$\  $$\   $$\
 //                  !YJJ^                   $$ |  $$ |                $$ |                   $$  __$$\ $$ |  $$ |
 //                7B5. ~B5^                 $$ |  $$ |$$\   $$\  $$$$$$$ | $$$$$$\  $$$$$$\  $$ |  $$ |\$$\ $$  |
-//             .?B@G    ~@@P~               $$$$$$$$ |$$ |  $$ |$$  __$$ |$$  __$$\ \____$$\ $$ |  $$ | \$$$$  / 
-//           :?#@@@Y    .&@@@P!.            $$  __$$ |$$ |  $$ |$$ /  $$ |$$ |  \__|$$$$$$$ |$$ |  $$ | $$  $$<  
-//         ^?J^7P&@@!  .5@@#Y~!J!.          $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |     $$  __$$ |$$ |  $$ |$$  /\$$\ 
+//             .?B@G    ~@@P~               $$$$$$$$ |$$ |  $$ |$$  __$$ |$$  __$$\ \____$$\ $$ |  $$ | \$$$$  /
+//           :?#@@@Y    .&@@@P!.            $$  __$$ |$$ |  $$ |$$ /  $$ |$$ |  \__|$$$$$$$ |$$ |  $$ | $$  $$<
+//         ^?J^7P&@@!  .5@@#Y~!J!.          $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |     $$  __$$ |$$ |  $$ |$$  /\$$\
 //       ^JJ!.   :!J5^ ?5?^    ^?Y7.        $$ |  $$ |\$$$$$$$ |\$$$$$$$ |$$ |     \$$$$$$$ |$$$$$$$  |$$ /  $$ |
 //     ~PP: 7#B5!.         :?P#G: 7G?.      \__|  \__| \____$$ | \_______|\__|      \_______|\_______/ \__|  \__|
-//  .!P@G    7@@@#Y^    .!P@@@#.   ~@&J:              $$\   $$ |                                                 
-//  !&@@J    :&@@@@P.   !&@@@@5     #@@P.             \$$$$$$  |                                                 
-//   :J##:   Y@@&P!      :JB@@&~   ?@G!                \______/                                                  
-//     .?P!.?GY7:   .. .    ^?PP^:JP~     
+//  .!P@G    7@@@#Y^    .!P@@@#.   ~@&J:              $$\   $$ |
+//  !&@@J    :&@@@@P.   !&@@@@5     #@@P.             \$$$$$$  |
+//   :J##:   Y@@&P!      :JB@@&~   ?@G!                \______/
+//     .?P!.?GY7:   .. .    ^?PP^:JP~
 //       .7Y7.  .!YGP^ ?BP?^   ^JJ^         This file is part of https://github.com/galacticcouncil/HydraDX-node
 //         .!Y7Y#@@#:   ?@@@G?JJ^           Built with <3 for decentralisation.
-//            !G@@@Y    .&@@&J:           
+//            !G@@@Y    .&@@&J:
 //              ^5@#.   7@#?.               Copyright (C) 2021-2023  Intergalactic, Limited (GIB).
 //                :5P^.?G7.                 SPDX-License-Identifier: Apache-2.0
 //                  :?Y!                    Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,9 +21,9 @@
 
 use crate::tests::mock::*;
 
-use crate::{Error, Event, Order, OrderId};
+use crate::Error;
 use frame_support::{assert_noop, assert_ok};
-use orml_traits::{MultiCurrency, MultiReservableCurrency};
+use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -107,6 +107,18 @@ fn complete_fill_order_should_work_when_order_is_partially_fillable() {
 		let order = OTC::orders(0);
 		assert!(order.is_none());
 
+		let alice_hdx_balance_after = Tokens::free_balance(HDX, &ALICE);
+		let bob_hdx_balance_after = Tokens::free_balance(HDX, &BOB);
+
+		let alice_dai_balance_after = Tokens::free_balance(DAI, &ALICE);
+		let bob_dai_balance_after = Tokens::free_balance(DAI, &BOB);
+
+		assert_eq!(alice_hdx_balance_after, alice_hdx_balance_before - 100 * ONE);
+		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE);
+
+		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount_fill);
+		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_fill);
+
 		// TODO: fix events
 		// expect_events(vec![
 		// 	Event::OrderFilled { order_id: 0, who: BOB, amount_fill: 5 * ONE }.into(),
@@ -140,6 +152,18 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 		// Assert
 		let order = OTC::orders(0);
 		assert!(order.is_none());
+
+		let alice_hdx_balance_after = Tokens::free_balance(HDX, &ALICE);
+		let bob_hdx_balance_after = Tokens::free_balance(HDX, &BOB);
+
+		let alice_dai_balance_after = Tokens::free_balance(DAI, &ALICE);
+		let bob_dai_balance_after = Tokens::free_balance(DAI, &BOB);
+
+		assert_eq!(alice_hdx_balance_after, alice_hdx_balance_before - 100 * ONE);
+		assert_eq!(bob_hdx_balance_after, bob_hdx_balance_before + 100 * ONE);
+
+		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount_fill);
+		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_fill);
 
 		// TODO: fix events
 		// expect_events(vec![

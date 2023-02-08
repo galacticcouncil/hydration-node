@@ -1,19 +1,18 @@
-#![allow(warnings)]
-//                    :                     $$\   $$\                 $$\                    $$$$$$$\  $$\   $$\ 
+//                    :                     $$\   $$\                 $$\                    $$$$$$$\  $$\   $$\
 //                  !YJJ^                   $$ |  $$ |                $$ |                   $$  __$$\ $$ |  $$ |
 //                7B5. ~B5^                 $$ |  $$ |$$\   $$\  $$$$$$$ | $$$$$$\  $$$$$$\  $$ |  $$ |\$$\ $$  |
-//             .?B@G    ~@@P~               $$$$$$$$ |$$ |  $$ |$$  __$$ |$$  __$$\ \____$$\ $$ |  $$ | \$$$$  / 
-//           :?#@@@Y    .&@@@P!.            $$  __$$ |$$ |  $$ |$$ /  $$ |$$ |  \__|$$$$$$$ |$$ |  $$ | $$  $$<  
-//         ^?J^7P&@@!  .5@@#Y~!J!.          $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |     $$  __$$ |$$ |  $$ |$$  /\$$\ 
+//             .?B@G    ~@@P~               $$$$$$$$ |$$ |  $$ |$$  __$$ |$$  __$$\ \____$$\ $$ |  $$ | \$$$$  /
+//           :?#@@@Y    .&@@@P!.            $$  __$$ |$$ |  $$ |$$ /  $$ |$$ |  \__|$$$$$$$ |$$ |  $$ | $$  $$<
+//         ^?J^7P&@@!  .5@@#Y~!J!.          $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |     $$  __$$ |$$ |  $$ |$$  /\$$\
 //       ^JJ!.   :!J5^ ?5?^    ^?Y7.        $$ |  $$ |\$$$$$$$ |\$$$$$$$ |$$ |     \$$$$$$$ |$$$$$$$  |$$ /  $$ |
 //     ~PP: 7#B5!.         :?P#G: 7G?.      \__|  \__| \____$$ | \_______|\__|      \_______|\_______/ \__|  \__|
-//  .!P@G    7@@@#Y^    .!P@@@#.   ~@&J:              $$\   $$ |                                                 
-//  !&@@J    :&@@@@P.   !&@@@@5     #@@P.             \$$$$$$  |                                                 
-//   :J##:   Y@@&P!      :JB@@&~   ?@G!                \______/                                                  
-//     .?P!.?GY7:   .. .    ^?PP^:JP~     
+//  .!P@G    7@@@#Y^    .!P@@@#.   ~@&J:              $$\   $$ |
+//  !&@@J    :&@@@@P.   !&@@@@5     #@@P.             \$$$$$$  |
+//   :J##:   Y@@&P!      :JB@@&~   ?@G!                \______/
+//     .?P!.?GY7:   .. .    ^?PP^:JP~
 //       .7Y7.  .!YGP^ ?BP?^   ^JJ^         This file is part of https://github.com/galacticcouncil/HydraDX-node
 //         .!Y7Y#@@#:   ?@@@G?JJ^           Built with <3 for decentralisation.
-//            !G@@@Y    .&@@&J:           
+//            !G@@@Y    .&@@&J:
 //              ^5@#.   7@#?.               Copyright (C) 2021-2023  Intergalactic, Limited (GIB).
 //                :5P^.?G7.                 SPDX-License-Identifier: Apache-2.0
 //                  :?Y!                    Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,15 +21,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Registry;
-use orml_traits::{
-	arithmetic::{CheckedAdd, CheckedSub},
-	GetByKey, MultiCurrency, MultiReservableCurrency,
-};
-use sp_runtime::{traits::One, BoundedVec, DispatchError};
+use orml_traits::{GetByKey, MultiCurrency, MultiReservableCurrency};
+use sp_runtime::{traits::One, DispatchError};
 use sp_std::{result, vec::Vec};
 
 #[cfg(test)]
@@ -49,7 +45,7 @@ use crate::types::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use codec::{EncodeLike, HasCompact};
+	use codec::HasCompact;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
@@ -175,7 +171,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = ensure_signed(origin)?;
 
-			/// TODO: amount sell -> named reserve
+			// TODO: amount sell -> named reserve
 			let order = Order {
 				owner,
 				asset_buy,
@@ -229,7 +225,7 @@ pub mod pallet {
 
 				let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-				if (remaining_amount_buy > 0_u128) {
+				if remaining_amount_buy > 0_u128 {
 					Self::update_storage(order, amount_fill, amount_receive)?;
 					Self::deposit_event(Event::OrderPartiallyFilled {
 						order_id,
@@ -318,12 +314,12 @@ impl<T: Config> Pallet<T> {
 			Error::<T>::InsufficientBalance
 		);
 
-		if (!order.partially_fillable) {
+		if !order.partially_fillable {
 			ensure!(amount_fill == order.amount_buy, Error::<T>::OrderNotPartiallyFillable)
 		} else {
 			let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-			if (remaining_amount_buy > 0_u128) {
+			if remaining_amount_buy > 0_u128 {
 				let min_amount_buy = Self::min_order_size(order.asset_buy)?;
 
 				ensure!(
@@ -334,7 +330,7 @@ impl<T: Config> Pallet<T> {
 
 			let remaining_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
-			if (remaining_amount_sell > 0_u128) {
+			if remaining_amount_sell > 0_u128 {
 				let min_amount_sell = Self::min_order_size(order.asset_buy)?;
 
 				ensure!(

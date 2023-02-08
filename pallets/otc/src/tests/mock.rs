@@ -1,18 +1,18 @@
-//                    :                     $$\   $$\                 $$\                    $$$$$$$\  $$\   $$\ 
+//                    :                     $$\   $$\                 $$\                    $$$$$$$\  $$\   $$\
 //                  !YJJ^                   $$ |  $$ |                $$ |                   $$  __$$\ $$ |  $$ |
 //                7B5. ~B5^                 $$ |  $$ |$$\   $$\  $$$$$$$ | $$$$$$\  $$$$$$\  $$ |  $$ |\$$\ $$  |
-//             .?B@G    ~@@P~               $$$$$$$$ |$$ |  $$ |$$  __$$ |$$  __$$\ \____$$\ $$ |  $$ | \$$$$  / 
-//           :?#@@@Y    .&@@@P!.            $$  __$$ |$$ |  $$ |$$ /  $$ |$$ |  \__|$$$$$$$ |$$ |  $$ | $$  $$<  
-//         ^?J^7P&@@!  .5@@#Y~!J!.          $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |     $$  __$$ |$$ |  $$ |$$  /\$$\ 
+//             .?B@G    ~@@P~               $$$$$$$$ |$$ |  $$ |$$  __$$ |$$  __$$\ \____$$\ $$ |  $$ | \$$$$  /
+//           :?#@@@Y    .&@@@P!.            $$  __$$ |$$ |  $$ |$$ /  $$ |$$ |  \__|$$$$$$$ |$$ |  $$ | $$  $$<
+//         ^?J^7P&@@!  .5@@#Y~!J!.          $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |     $$  __$$ |$$ |  $$ |$$  /\$$\
 //       ^JJ!.   :!J5^ ?5?^    ^?Y7.        $$ |  $$ |\$$$$$$$ |\$$$$$$$ |$$ |     \$$$$$$$ |$$$$$$$  |$$ /  $$ |
 //     ~PP: 7#B5!.         :?P#G: 7G?.      \__|  \__| \____$$ | \_______|\__|      \_______|\_______/ \__|  \__|
-//  .!P@G    7@@@#Y^    .!P@@@#.   ~@&J:              $$\   $$ |                                                 
-//  !&@@J    :&@@@@P.   !&@@@@5     #@@P.             \$$$$$$  |                                                 
-//   :J##:   Y@@&P!      :JB@@&~   ?@G!                \______/                                                  
-//     .?P!.?GY7:   .. .    ^?PP^:JP~     
+//  .!P@G    7@@@#Y^    .!P@@@#.   ~@&J:              $$\   $$ |
+//  !&@@J    :&@@@@P.   !&@@@@5     #@@P.             \$$$$$$  |
+//   :J##:   Y@@&P!      :JB@@&~   ?@G!                \______/
+//     .?P!.?GY7:   .. .    ^?PP^:JP~
 //       .7Y7.  .!YGP^ ?BP?^   ^JJ^         This file is part of https://github.com/galacticcouncil/HydraDX-node
 //         .!Y7Y#@@#:   ?@@@G?JJ^           Built with <3 for decentralisation.
-//            !G@@@Y    .&@@&J:           
+//            !G@@@Y    .&@@&J:
 //              ^5@#.   7@#?.               Copyright (C) 2021-2023  Intergalactic, Limited (GIB).
 //                :5P^.?G7.                 SPDX-License-Identifier: Apache-2.0
 //                  :?Y!                    Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,25 +20,22 @@
 //                                          http://www.apache.org/licenses/LICENSE-2.0
 
 use crate as otc;
-use crate::{Config, Order};
+use crate::Config;
 use frame_support::{
-	assert_ok, parameter_types,
+	parameter_types,
 	traits::{ConstU128, Everything, GenesisBuild, Nothing},
-	weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient},
 };
 use frame_system as system;
 use hydradx_traits::Registry;
-use orml_traits::{parameter_type_with_key, MultiCurrency};
+use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
-use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, BlockNumberProvider, Get, IdentityLookup, One},
-	DispatchError, Perbill, Permill,
+	traits::{BlakeTwo256, IdentityLookup, One},
+	DispatchError,
 };
 use std::{cell::RefCell, collections::HashMap};
-use test_utils::last_events;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -47,19 +44,11 @@ pub type AccountId = u64;
 pub type Amount = i128;
 pub type AssetId = u32;
 pub type Balance = u128;
-pub type BlockNumber = u64;
 
 pub const HDX: AssetId = 0;
-pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
-pub const BTC: AssetId = 3;
 pub const DOGE: AssetId = 333;
 pub const REGISTERED_ASSET: AssetId = 1000;
-pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
-
-pub const LP1: u64 = 1;
-pub const LP2: u64 = 2;
-pub const LP3: u64 = 3;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -227,20 +216,6 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn with_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
-		self.endowed_accounts = accounts;
-		self
-	}
-
-	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
-		self.endowed_accounts.push(account);
-		self
-	}
-	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
-		self.registered_assets.push(asset);
-		self
-	}
-
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
@@ -258,7 +233,7 @@ impl ExtBuilder {
 				.endowed_accounts
 				.iter()
 				.filter(|a| a.1 == HDX)
-				.flat_map(|(x, asset, amount)| vec![(*x, *amount)])
+				.flat_map(|(x, _asset, amount)| vec![(*x, *amount)])
 				.collect(),
 		}
 		.assimilate_storage(&mut t)
@@ -283,7 +258,7 @@ impl ExtBuilder {
 }
 
 thread_local! {
-	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
+	pub static DUMMYTHREADLOCAL: RefCell<u128> = RefCell::new(100);
 }
 
 pub fn expect_events(e: Vec<Event>) {
