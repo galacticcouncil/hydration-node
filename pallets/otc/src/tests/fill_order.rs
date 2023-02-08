@@ -53,9 +53,9 @@ fn fill_order_should_work_when_fill_is_partial() {
 			);
 
 			// Assert
-      let expected_receive_amount = 24_999_999_999_999_u128;
+      let expected_receive_amount = 25_000_000_000_000_u128;
       let expected_new_amount_buy = 15_000_000_000_000_u128;
-      let expected_new_amount_sell = 75_000_000_000_001_u128;
+      let expected_new_amount_sell = 75_000_000_000_000_u128;
 
       let alice_hdx_balance_after = Tokens::free_balance(HDX, &ALICE);
       let bob_hdx_balance_after = Tokens::free_balance(HDX, &BOB);

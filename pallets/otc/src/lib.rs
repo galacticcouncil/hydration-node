@@ -235,18 +235,10 @@ impl<T: Config> Pallet<T> {
   }
 
   fn receive_amount(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> Result<Balance, Error<T>> {
-    let (amount_sell, amount_buy, amount_fill) = to_u256!(order.amount_sell, order.amount_buy, amount_fill);
-
-    let price = amount_sell
-      .checked_div(amount_buy)
-      .ok_or(Error::<T>::MathError)?;
-
-    let receive_amount = amount_fill
-      .checked_mul(price)
-      .and_then(|v| v.checked_sub(U256::one()))
-      .ok_or(Error::<T>::MathError)?;
-
-    Balance::try_from(receive_amount).map_err(|_| Error::<T>::MathError)
+    order.amount_sell
+      .checked_mul(amount_fill)
+      .and_then(|v| v.checked_div(order.amount_buy))
+      .ok_or(Error::<T>::MathError)
   }
 
   fn execute_deal(
