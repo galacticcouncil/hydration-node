@@ -18,31 +18,20 @@
 use crate as otc;
 use crate::{Config, Order};
 use frame_support::{
-  assert_ok,
-  parameter_types,
-  traits::{ConstU128, Everything, GenesisBuild, Nothing},
-  weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient},
-
+	assert_ok, parameter_types,
+	traits::{ConstU128, Everything, GenesisBuild, Nothing},
+	weights::{constants::ExtrinsicBaseWeight, WeightToFeeCoefficient},
 };
 use frame_system as system;
 use hydradx_traits::Registry;
-use orml_traits::{MultiCurrency, parameter_type_with_key};
+use orml_traits::{parameter_type_with_key, MultiCurrency};
 use pallet_currencies::BasicCurrencyAdapter;
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::{
-  DispatchError,
-  Perbill,
-  Permill,
-  testing::Header,
-  traits::{
-    AccountIdConversion,
-    BlakeTwo256,
-    BlockNumberProvider,
-    Get,
-    IdentityLookup,
-    One,
-  }
+	testing::Header,
+	traits::{AccountIdConversion, BlakeTwo256, BlockNumberProvider, Get, IdentityLookup, One},
+	DispatchError, Perbill, Permill,
 };
 use std::{cell::RefCell, collections::HashMap};
 use test_utils::last_events;
@@ -103,9 +92,9 @@ parameter_type_with_key! {
 }
 
 impl Config for Test {
-  type AssetId = AssetId;
-  type AssetRegistry = DummyRegistry<Test>;
-	type Currency = Tokens; 
+	type AssetId = AssetId;
+	type AssetRegistry = DummyRegistry<Test>;
+	type Currency = Tokens;
 	type Event = Event;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
@@ -283,8 +272,7 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		r.execute_with(|| {
-		});
+		r.execute_with(|| {});
 
 		r
 	}

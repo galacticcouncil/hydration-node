@@ -19,26 +19,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::pallet_prelude::*;
-use frame_support::require_transactional;
-use frame_support::transactional;
-use frame_system::ensure_signed;
-use frame_system::pallet_prelude::OriginFor;
-use orml_traits::{ arithmetic::{CheckedAdd, CheckedSub}, MultiReservableCurrency};
-use orml_traits::GetByKey;
-use scale_info::TypeInfo;
-use sp_core::U256;
-use sp_runtime::traits::Saturating;
-use sp_runtime::FixedU128;
-use sp_runtime::traits::{ConstU32, One};
-use sp_runtime::ArithmeticError;
-use sp_runtime::{BoundedVec, DispatchError};
-use sp_std::{result, vec::Vec};
+use frame_support::{pallet_prelude::*, require_transactional, transactional};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Registry;
-use hydra_dx_math::MathError::Overflow;
-use hydra_dx_math::MathError;
-use hydra_dx_math::to_u256;
-use orml_traits::MultiCurrency;
+use orml_traits::{
+	arithmetic::{CheckedAdd, CheckedSub},
+	GetByKey, MultiCurrency, MultiReservableCurrency,
+};
+use sp_runtime::{traits::One, BoundedVec, DispatchError};
+use sp_std::{result, vec::Vec};
 
 #[cfg(test)]
 mod tests;
@@ -57,24 +46,23 @@ use crate::types::*;
 pub mod pallet {
 	use super::*;
 	use codec::{EncodeLike, HasCompact};
-	
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(crate) trait Store)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {    
+	pub trait Config: frame_system::Config {
 		/// Identifier for the class of asset.
 		type AssetId: Member
-		+ Parameter
-		+ Ord
-		+ Default
-		+ Copy
-		+ HasCompact
-		+ MaybeSerializeDeserialize
-		+ MaxEncodedLen
-		+ TypeInfo;
+			+ Parameter
+			+ Ord
+			+ Default
+			+ Copy
+			+ HasCompact
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo;
 
 		/// Multi currency mechanism
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
@@ -83,7 +71,7 @@ pub mod pallet {
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
 
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		
+
 		type ExistentialDeposits: GetByKey<Self::AssetId, Balance>;
 
 		#[pallet::constant]
@@ -93,7 +81,7 @@ pub mod pallet {
 			Self::AccountId,
 			CurrencyId = Self::AssetId,
 			Balance = Balance,
-			>;
+		>;
 
 		/// Native Asset
 		#[pallet::constant]
@@ -107,9 +95,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// An Order has been cancelled
-		OrderCancelled {
-			order_id: OrderId,
-		},
+		OrderCancelled { order_id: OrderId },
 		/// An Order has been completely filled
 		OrderFilled {
 			order_id: OrderId,
@@ -159,7 +145,7 @@ pub mod pallet {
 		/// Error with math calculations
 		MathError,
 		/// The caller does not have permission to complete the action
-		NoPermission
+		NoPermission,
 	}
 
 	/// ID sequencer for Orders
@@ -169,8 +155,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn orders)]
-	pub type Orders<T: Config> =
-		StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId>, OptionQuery>;
+	pub type Orders<T: Config> = StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId>, OptionQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -187,15 +172,20 @@ pub mod pallet {
 			let owner = ensure_signed(origin)?;
 
 			/// TODO: amount sell -> named reserve
-			let order = Order { owner, asset_buy, asset_sell, amount_buy, amount_sell, partially_fillable };
+			let order = Order {
+				owner,
+				asset_buy,
+				asset_sell,
+				amount_buy,
+				amount_sell,
+				partially_fillable,
+			};
 
 			Self::validate_place_order(order.clone())?;
 
 			let order_id = <NextOrderId<T>>::try_mutate(|next_id| -> result::Result<OrderId, DispatchError> {
 				let current_id = *next_id;
-				*next_id = next_id
-					.checked_add(One::one())
-					.ok_or(Error::<T>::OrderIdOutOfBound)?;
+				*next_id = next_id.checked_add(One::one()).ok_or(Error::<T>::OrderIdOutOfBound)?;
 				Ok(current_id)
 			})?;
 
@@ -235,13 +225,22 @@ pub mod pallet {
 
 				let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-				if(remaining_amount_buy > 0_u128) {
+				if (remaining_amount_buy > 0_u128) {
 					Self::update_storage(order, amount_fill, amount_receive)?;
-					Self::deposit_event(Event::OrderPartiallyFilled { order_id, who, amount_fill, amount_receive });
+					Self::deposit_event(Event::OrderPartiallyFilled {
+						order_id,
+						who,
+						amount_fill,
+						amount_receive,
+					});
 				} else {
 					// cleanup storage
 					*maybe_order = None;
-					Self::deposit_event(Event::OrderFilled { order_id, who, amount_fill });	
+					Self::deposit_event(Event::OrderFilled {
+						order_id,
+						who,
+						amount_fill,
+					});
 				}
 
 				Ok(())
@@ -251,25 +250,19 @@ pub mod pallet {
 		/// TODO: update weight fn
 		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
 		#[transactional]
-		pub fn cancel_order(
-			origin: OriginFor<T>,
-			order_id: OrderId,
-		) -> DispatchResult {
+		pub fn cancel_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			<Orders<T>>::try_mutate_exists(order_id, |maybe_order| -> DispatchResult {
 				let order = maybe_order.as_ref().ok_or(Error::<T>::OrderNotFound)?;
 
-				ensure!(
-					order.owner == who,
-					Error::<T>::NoPermission
-				);
+				ensure!(order.owner == who, Error::<T>::NoPermission);
 
 				T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, order.amount_sell);
 
 				*maybe_order = None;
 
-				Self::deposit_event(Event::OrderCancelled { order_id });	
+				Self::deposit_event(Event::OrderCancelled { order_id });
 
 				Ok(())
 			})
@@ -296,17 +289,11 @@ impl<T: Config> Pallet<T> {
 
 		let min_amount_buy = Self::min_order_size(order.asset_buy)?;
 
-		ensure!(
-			order.amount_buy > min_amount_buy,
-			Error::<T>::OrderSizeTooSmall
-		);
+		ensure!(order.amount_buy > min_amount_buy, Error::<T>::OrderSizeTooSmall);
 
 		let min_amount_sell = Self::min_order_size(order.asset_sell)?;
 
-		ensure!(
-			order.amount_sell > min_amount_sell,
-			Error::<T>::OrderSizeTooSmall
-		);
+		ensure!(order.amount_sell > min_amount_sell, Error::<T>::OrderSizeTooSmall);
 
 		Ok(())
 	}
@@ -318,30 +305,21 @@ impl<T: Config> Pallet<T> {
 		amount_fill: Balance,
 		amount_receive: Balance,
 	) -> DispatchResult {
-		ensure!(
-			order.asset_buy == asset_fill,
-			Error::<T>::AssetNotInOrder
-		);
+		ensure!(order.asset_buy == asset_fill, Error::<T>::AssetNotInOrder);
 
-		ensure!(
-			order.amount_buy >= amount_fill,
-			Error::<T>::CannotFillMoreThanOrdered
-		);
+		ensure!(order.amount_buy >= amount_fill, Error::<T>::CannotFillMoreThanOrdered);
 
 		ensure!(
 			T::Currency::ensure_can_withdraw(asset_fill, &who, amount_fill).is_ok(),
 			Error::<T>::InsufficientBalance
 		);
 
-		if(!order.partially_fillable) {
-			ensure!(
-				amount_fill == order.amount_buy,
-				Error::<T>::OrderNotPartiallyFillable
-			)
+		if (!order.partially_fillable) {
+			ensure!(amount_fill == order.amount_buy, Error::<T>::OrderNotPartiallyFillable)
 		} else {
 			let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-			if(remaining_amount_buy > 0_u128) {
+			if (remaining_amount_buy > 0_u128) {
 				let min_amount_buy = Self::min_order_size(order.asset_buy)?;
 
 				ensure!(
@@ -352,7 +330,7 @@ impl<T: Config> Pallet<T> {
 
 			let remaining_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
-			if(remaining_amount_sell > 0_u128) {
+			if (remaining_amount_sell > 0_u128) {
 				let min_amount_sell = Self::min_order_size(order.asset_buy)?;
 
 				ensure!(
@@ -372,16 +350,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn amount_receive(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> Result<Balance, Error<T>> {
-		order.amount_sell
+		order
+			.amount_sell
 			.checked_mul(amount_fill)
 			.and_then(|v| v.checked_div(order.amount_buy))
 			.ok_or(Error::<T>::MathError)
 	}
 
 	fn amount_remaining(amount_initial: Balance, amount_change: Balance) -> Result<Balance, Error<T>> {
-		amount_initial
-			.checked_sub(amount_change)
-			.ok_or(Error::<T>::MathError)
+		amount_initial.checked_sub(amount_change).ok_or(Error::<T>::MathError)
 	}
 
 	#[require_transactional]
@@ -393,19 +370,9 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, amount_receive);
 
-		T::Currency::transfer(
-			order.asset_buy,
-			&who,
-			&order.owner,
-			amount_fill,
-		)?;
+		T::Currency::transfer(order.asset_buy, &who, &order.owner, amount_fill)?;
 
-		T::Currency::transfer(
-			order.asset_sell,
-			&order.owner,
-			&who,
-			amount_receive,
-		)?;
+		T::Currency::transfer(order.asset_sell, &order.owner, &who, amount_receive)?;
 
 		Ok(())
 	}

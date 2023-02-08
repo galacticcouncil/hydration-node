@@ -16,120 +16,98 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-// use crate::tests::{assert_scheduled_ids, ScheduleBuilder};
-// use crate::Bond;
+
 use crate::{Error, Event, Order, OrderId};
 use frame_support::{assert_noop, assert_ok};
-use pretty_assertions::assert_eq;
-use sp_runtime::traits::ConstU32;
-use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{BoundedVec, FixedU128};
-use std::ops::RangeInclusive;
-pub type Price = FixedU128;
 use orml_traits::MultiReservableCurrency;
+use pretty_assertions::assert_eq;
 use test_case::test_case;
 
 #[test]
 fn create_order_should_work() {
-	ExtBuilder::default()
-		.build()
-		.execute_with(|| {
-			// Act
-			assert_ok!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 100 * ONE, true)
-			);
+	ExtBuilder::default().build().execute_with(|| {
+		// Act
+		assert_ok!(OTC::place_order(
+			Origin::signed(ALICE),
+			DAI,
+			HDX,
+			20 * ONE,
+			100 * ONE,
+			true
+		));
 
-			// Assert
-			let order = OTC::orders(0).unwrap();
-			assert_eq!(order.owner, ALICE);
-			assert_eq!(order.asset_buy, DAI);
-			assert_eq!(order.asset_sell, HDX);
-			assert_eq!(order.amount_sell, 100 * ONE);
-			assert_eq!(order.amount_buy, 20 * ONE);
-			assert_eq!(order.partially_fillable, true);
+		// Assert
+		let order = OTC::orders(0).unwrap();
+		assert_eq!(order.owner, ALICE);
+		assert_eq!(order.asset_buy, DAI);
+		assert_eq!(order.asset_sell, HDX);
+		assert_eq!(order.amount_sell, 100 * ONE);
+		assert_eq!(order.amount_buy, 20 * ONE);
+		assert_eq!(order.partially_fillable, true);
 
-			// TODO: fix events
-			// expect_events(vec![
-			// 	Event::OrderPlaced { order_id: 0 }.into(),
-			// ]);
+		// TODO: fix events
+		// expect_events(vec![
+		// 	Event::OrderPlaced { order_id: 0 }.into(),
+		// ]);
 
-			assert_eq!(
-				Currencies::reserved_balance(HDX.into(), &ALICE.into()),
-				100 * ONE,
-			);
+		assert_eq!(Currencies::reserved_balance(HDX.into(), &ALICE.into()), 100 * ONE,);
 
-			let next_order_id = OTC::next_order_id();
-			assert_eq!(next_order_id, 1);
-		});
+		let next_order_id = OTC::next_order_id();
+		assert_eq!(next_order_id, 1);
+	});
 }
 
 #[test]
 fn create_order_should_throw_error_when_amount_is_higher_than_balance() {
-	ExtBuilder::default()
-		.build()
-		.execute_with(|| {
-			// Act
-			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 100_000 * ONE, true),
-				Error::<Test>::InsufficientBalance
-			);
-		}
-	);
+	ExtBuilder::default().build().execute_with(|| {
+		// Act
+		assert_noop!(
+			OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 100_000 * ONE, true),
+			Error::<Test>::InsufficientBalance
+		);
+	});
 }
 
 #[test]
 fn create_order_should_throw_error_when_asset_sell_is_not_registered() {
-	ExtBuilder::default()
-		.build()
-		.execute_with(|| {
-			// Act
-			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, DOGE, 20* ONE, 100 * ONE, true),
-				Error::<Test>::AssetNotRegistered
-			);
-		}
-	);
+	ExtBuilder::default().build().execute_with(|| {
+		// Act
+		assert_noop!(
+			OTC::place_order(Origin::signed(ALICE), DAI, DOGE, 20 * ONE, 100 * ONE, true),
+			Error::<Test>::AssetNotRegistered
+		);
+	});
 }
 
 #[test]
 fn create_order_should_throw_error_when_asset_buy_is_not_registered() {
-	ExtBuilder::default()
-		.build()
-		.execute_with(|| {
-			// Act
-			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DOGE, HDX, 20 * ONE, 100 * ONE, true),
-				Error::<Test>::AssetNotRegistered
-			);
-		}
-	);
+	ExtBuilder::default().build().execute_with(|| {
+		// Act
+		assert_noop!(
+			OTC::place_order(Origin::signed(ALICE), DOGE, HDX, 20 * ONE, 100 * ONE, true),
+			Error::<Test>::AssetNotRegistered
+		);
+	});
 }
 
 #[test]
 fn create_order_should_throw_error_when_amount_buy_is_too_low() {
-	ExtBuilder::default()
-		.build()
-		.execute_with(|| {
-			// Act
-			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 5 * ONE, 100 * ONE, true),
-				Error::<Test>::OrderSizeTooSmall
-			);
-		}
-	);
+	ExtBuilder::default().build().execute_with(|| {
+		// Act
+		assert_noop!(
+			OTC::place_order(Origin::signed(ALICE), DAI, HDX, 5 * ONE, 100 * ONE, true),
+			Error::<Test>::OrderSizeTooSmall
+		);
+	});
 }
 
 #[test]
 fn create_order_should_throw_error_when_amount_sell_is_too_low() {
-	ExtBuilder::default()
-		.build()
-		.execute_with(|| {
-			// Act
-			assert_noop!(
-				OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 5 * ONE, true),
-				Error::<Test>::OrderSizeTooSmall
-			);
-		}
-	);
+	ExtBuilder::default().build().execute_with(|| {
+		// Act
+		assert_noop!(
+			OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 5 * ONE, true),
+			Error::<Test>::OrderSizeTooSmall
+		);
+	});
 }
