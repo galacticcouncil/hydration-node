@@ -21,7 +21,7 @@
 
 use crate::tests::mock::*;
 
-use crate::Error;
+use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiCurrency;
 use pretty_assertions::assert_eq;
@@ -73,10 +73,13 @@ fn partial_fill_order_should_work_when_order_is_partially_fillable() {
 		assert_eq!(order.amount_buy, expected_new_amount_buy);
 		assert_eq!(order.amount_sell, expected_new_amount_sell);
 
-		// TODO: fix events
-		// expect_events(vec![
-		// 	Event::OrderPartiallyFilled { order_id: 0, who: BOB, amount_fill: 5 * ONE, amount_receive: expected_receive_amount }.into(),
-		// ]);
+		expect_events(vec![Event::OrderPartiallyFilled {
+			order_id: 0,
+			who: BOB,
+			amount_fill: 5 * ONE,
+			amount_receive: expected_receive_amount,
+		}
+		.into()]);
 	});
 }
 
@@ -119,10 +122,12 @@ fn complete_fill_order_should_work_when_order_is_partially_fillable() {
 		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount_fill);
 		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_fill);
 
-		// TODO: fix events
-		// expect_events(vec![
-		// 	Event::OrderFilled { order_id: 0, who: BOB, amount_fill: 5 * ONE }.into(),
-		// ]);
+		expect_events(vec![Event::OrderFilled {
+			order_id: 0,
+			who: BOB,
+			amount_fill: 20 * ONE,
+		}
+		.into()]);
 	});
 }
 
@@ -165,10 +170,12 @@ fn complete_fill_order_should_work_when_order_is_not_partially_fillable() {
 		assert_eq!(alice_dai_balance_after, alice_dai_balance_before + amount_fill);
 		assert_eq!(bob_dai_balance_after, bob_dai_balance_before - amount_fill);
 
-		// TODO: fix events
-		// expect_events(vec![
-		// 	Event::OrderFilled { order_id: 0, who: BOB, amount_fill: 5 * ONE }.into(),
-		// ]);
+		expect_events(vec![Event::OrderFilled {
+			order_id: 0,
+			who: BOB,
+			amount_fill: 20 * ONE,
+		}
+		.into()]);
 	});
 }
 

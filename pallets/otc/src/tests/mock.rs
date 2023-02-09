@@ -251,7 +251,9 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
-		r.execute_with(|| {});
+		r.execute_with(|| {
+			System::set_block_number(1);
+		});
 
 		r
 	}

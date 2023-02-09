@@ -21,7 +21,7 @@
 
 use crate::tests::mock::*;
 
-use crate::Error;
+use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
@@ -46,12 +46,9 @@ fn cancel_order_should_work() {
 		let order = OTC::orders(0);
 		assert!(order.is_none());
 
-		assert_eq!(Currencies::reserved_balance(HDX.into(), &ALICE.into()), 0_u128,);
+		assert_eq!(Currencies::reserved_balance(HDX, &ALICE), 0_u128,);
 
-		// TODO: fix events
-		// expect_events(vec![
-		// 	Event::OrderCancelled { order_id: 0 }.into(),
-		// ]);
+		expect_events(vec![Event::OrderCancelled { order_id: 0 }.into()]);
 	});
 }
 
@@ -86,6 +83,6 @@ fn cancel_order_should_throw_error_when_called_by_non_owner() {
 		let order = OTC::orders(0);
 		assert!(order.is_some());
 
-		assert_eq!(Currencies::reserved_balance(HDX.into(), &ALICE.into()), 100 * ONE,);
+		assert_eq!(Currencies::reserved_balance(HDX, &ALICE), 100 * ONE,);
 	});
 }

@@ -21,7 +21,7 @@
 
 use crate::tests::mock::*;
 
-use crate::Error;
+use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
@@ -48,12 +48,17 @@ fn create_order_should_work() {
 		assert_eq!(order.amount_buy, 20 * ONE);
 		assert_eq!(order.partially_fillable, true);
 
-		// TODO: fix events
-		// expect_events(vec![
-		// 	Event::OrderPlaced { order_id: 0 }.into(),
-		// ]);
+		expect_events(vec![Event::OrderPlaced {
+			order_id: 0,
+			asset_buy: DAI,
+			asset_sell: HDX,
+			amount_buy: order.amount_buy,
+			amount_sell: order.amount_sell,
+			partially_fillable: true,
+		}
+		.into()]);
 
-		assert_eq!(Currencies::reserved_balance(HDX.into(), &ALICE.into()), 100 * ONE,);
+		assert_eq!(Currencies::reserved_balance(HDX, &ALICE), 100 * ONE,);
 
 		let next_order_id = OTC::next_order_id();
 		assert_eq!(next_order_id, 1);

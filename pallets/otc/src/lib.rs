@@ -193,7 +193,7 @@ pub mod pallet {
 
 			<Orders<T>>::insert(order_id, order.clone());
 			Self::deposit_event(Event::OrderPlaced {
-				order_id: order_id,
+				order_id,
 				asset_buy: order.asset_buy,
 				asset_sell: order.asset_sell,
 				amount_buy: order.amount_buy,
@@ -283,7 +283,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		ensure!(
-			T::MultiReservableCurrency::can_reserve(order.asset_sell.clone(), &order.owner, order.amount_sell),
+			T::MultiReservableCurrency::can_reserve(order.asset_sell, &order.owner, order.amount_sell),
 			Error::<T>::InsufficientBalance
 		);
 
