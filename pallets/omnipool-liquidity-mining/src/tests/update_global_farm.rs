@@ -54,7 +54,7 @@ fn update_glboal_farm_should_work_when_price_adjustment_is_provided() {
 
 			assert_last_event!(crate::Event::GlobalFarmUpdated {
 				id: global_farm_id,
-				price_adjustment: new_price_adjustment
+				lrna_price_adjustment: new_price_adjustment
 			}
 			.into());
 		});

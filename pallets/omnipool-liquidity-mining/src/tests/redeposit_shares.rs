@@ -230,7 +230,7 @@ fn redeposit_shares_should_fail_with_not_deposit_owner_when_account_is_not_owner
 			//Act & assert
 			assert_noop!(
 				OmnipoolMining::redeposit_shares(Origin::signed(ALICE), gc_g_farm_id, gc_y_farm_id, deposit_id),
-				crate::Error::<Test>::NotDepositOwner
+				crate::Error::<Test>::Forbidden
 			);
 		});
 }
@@ -358,7 +358,7 @@ fn redeposit_shares_should_fail_with_cant_find_deposit_owner_when_nft_is_missing
 			//Act & assert
 			assert_noop!(
 				OmnipoolMining::redeposit_shares(Origin::signed(LP1), gc_g_farm_id, gc_y_farm_id, deposit_id),
-				crate::Error::<Test>::CantFindDepositOwner
+				crate::Error::<Test>::Forbidden
 			);
 		});
 }

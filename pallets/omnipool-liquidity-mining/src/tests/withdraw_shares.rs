@@ -307,7 +307,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_account_is_not_owner(
 			//Act
 			assert_noop!(
 				OmnipoolMining::withdraw_shares(Origin::signed(ALICE), deposit_id, yield_farm_id,),
-				crate::Error::<Test>::NotDepositOwner
+				crate::Error::<Test>::Forbidden
 			);
 		});
 }
@@ -361,7 +361,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_nft_is_missing() {
 			//Act
 			assert_noop!(
 				OmnipoolMining::withdraw_shares(Origin::signed(ALICE), deposit_id, yield_farm_id,),
-				crate::Error::<Test>::CantFindDepositOwner
+				crate::Error::<Test>::Forbidden
 			);
 		});
 }
