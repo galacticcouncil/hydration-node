@@ -57,6 +57,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 pub type Balance = u128;
 pub type BlockNumber = u64;
 pub type AssetId = u32;
+type NamedReserveIdentifier = [u8; 8];
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -167,8 +168,8 @@ impl orml_tokens::Config for Test {
 	type DustRemovalWhitelist = Nothing;
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
-	type ReserveIdentifier = ();
-	type MaxReserves = ();
+	type ReserveIdentifier = NamedReserveIdentifier;
+	type MaxReserves = MaxReserves;
 }
 
 parameter_types! {
@@ -274,8 +275,8 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
 	type WeightInfo = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = NamedReserveIdentifier;
 }
 
 impl pallet_currencies::Config for Test {

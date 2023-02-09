@@ -45,11 +45,13 @@ use sp_runtime::ArithmeticError;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
+use sp_runtime::{traits::BlakeTwo256, traits::Hash};
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::cmp::max;
 use sp_std::cmp::min;
 use sp_std::vec;
 use sp_std::vec::Vec;
+
 #[cfg(test)]
 mod tests;
 
@@ -70,7 +72,7 @@ use sp_runtime::traits::One;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
-type ResId = [u8; 8];
+type NamedReserveIdentifier = [u8; 8];
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -157,7 +159,10 @@ pub mod pallet {
 		>;
 
 		///For reserving user's assets
-		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<Self::AccountId>;
+		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<
+			Self::AccountId,
+			ReserveIdentifier = NamedReserveIdentifier,
+		>;
 
 		///Spot price provider to get the spot price of the native asset comparing to other assets
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
@@ -761,10 +766,14 @@ where
 			amount: total_bond_in_user_currency,
 		};
 
-		let RID_1 = [1u8; 8];
-		//T::NamedMultiReservableCurrency::reserve_named(&RID_1, bond.asset.into(), &who, bond.amount.into())?;
-
 		Self::reserve_bond(&who, &bond)?;
+
+		/*T::NamedMultiReservableCurrency::reserve_named(
+			&create_reserve_identifier(next_schedule_id),
+			bond.asset.into(),
+			&who,
+			bond.amount.into(),
+		)?;*/
 
 		Bonds::<T>::insert(next_schedule_id, bond);
 
@@ -971,6 +980,21 @@ where
 
 		Ok(())
 	}
+}
+
+fn create_reserve_identifier(schedule: u32) -> [u8; 8] {
+	let prefix = b"dca";
+	let mut result = [0; 8];
+	result[0..3].copy_from_slice(prefix);
+	result[3..7].copy_from_slice(&schedule.to_be_bytes());
+	hash_result(result)
+}
+
+fn hash_result(result: [u8; 8]) -> [u8; 8] {
+	let hashed = BlakeTwo256::hash(&result);
+	let mut hashed_array = [0; 8];
+	hashed_array.copy_from_slice(&hashed.as_ref()[..8]);
+	hashed_array
 }
 
 pub trait RandomnessProvider {
