@@ -93,7 +93,7 @@ pub fn parachain_genesis(
 	tech_committee_members: Vec<AccountId>,
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
 	registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)>, // (Asset name, Existential deposit, Chosen asset id)
-	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+	accepted_assets: Vec<(AssetId, Price)>, // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	elections: Vec<(AccountId, Balance)>,
