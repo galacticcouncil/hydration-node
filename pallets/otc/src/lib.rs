@@ -25,10 +25,12 @@ use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Registry;
-use orml_traits::{GetByKey, MultiCurrency, MultiReservableCurrency};
-use sp_runtime::{traits::One, DispatchError};
+use orml_traits::{GetByKey, MultiCurrency, MultiReservableCurrency, NamedMultiReservableCurrency};
+use sp_runtime::{
+	traits::{BlakeTwo256, Hash, One},
+	DispatchError,
+};
 use sp_std::{result, vec::Vec};
-
 #[cfg(test)]
 mod tests;
 
@@ -44,6 +46,7 @@ use crate::types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+
 	use super::*;
 	use codec::HasCompact;
 
@@ -77,10 +80,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type ExistentialDepositMultiplier: Get<u128>;
 
-		type MultiReservableCurrency: MultiReservableCurrency<
+		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<
 			Self::AccountId,
-			CurrencyId = Self::AssetId,
-			Balance = Balance,
+			ReserveIdentifier = NamedReserveIdentifier,
 		>;
 
 		/// Native Asset
@@ -158,7 +160,16 @@ pub mod pallet {
 	pub type Orders<T: Config> = StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId>, OptionQuery>;
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<T as frame_system::Config>::AccountId,
+		>>::CurrencyId: From<<T as pallet::Config>::AssetId>,
+
+		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<T as frame_system::Config>::AccountId,
+		>>::Balance: From<u128>,
+	{
 		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
 		#[transactional]
 		pub fn place_order(
@@ -171,7 +182,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = ensure_signed(origin)?;
 
-			// TODO: amount sell -> named reserve
 			let order = Order {
 				owner,
 				asset_buy,
@@ -189,7 +199,13 @@ pub mod pallet {
 				Ok(current_id)
 			})?;
 
-			T::MultiReservableCurrency::reserve(order.asset_sell, &order.owner, order.amount_sell)?;
+			let reserve_id = Self::named_reserve_identifier(order_id);
+			T::NamedMultiReservableCurrency::reserve_named(
+				&reserve_id,
+				order.asset_sell.into(),
+				&order.owner,
+				order.amount_sell.into(),
+			)?;
 
 			<Orders<T>>::insert(order_id, order.clone());
 			Self::deposit_event(Event::OrderPlaced {
@@ -221,7 +237,7 @@ pub mod pallet {
 
 				Self::validate_fill_order(order, who.clone(), asset_fill, amount_fill, amount_receive)?;
 
-				Self::execute_deal(order, who.clone(), amount_fill, amount_receive)?;
+				Self::execute_deal(order_id, order, who.clone(), amount_fill, amount_receive)?;
 
 				let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
@@ -258,7 +274,13 @@ pub mod pallet {
 
 				ensure!(order.owner == who, Error::<T>::NoPermission);
 
-				T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, order.amount_sell);
+				let reserve_id = Self::named_reserve_identifier(order_id);
+				T::NamedMultiReservableCurrency::unreserve_named(
+					&reserve_id,
+					order.asset_sell.into(),
+					&order.owner,
+					order.amount_sell.into(),
+				);
 
 				*maybe_order = None;
 
@@ -270,7 +292,16 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+where
+	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId: From<<T as pallet::Config>::AssetId>,
+
+	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::Balance: From<u128>,
+{
 	fn validate_place_order(order: Order<T::AccountId, T::AssetId>) -> DispatchResult {
 		ensure!(
 			T::AssetRegistry::exists(order.asset_sell),
@@ -283,7 +314,11 @@ impl<T: Config> Pallet<T> {
 		);
 
 		ensure!(
-			T::MultiReservableCurrency::can_reserve(order.asset_sell, &order.owner, order.amount_sell),
+			T::NamedMultiReservableCurrency::can_reserve(
+				order.asset_sell.into(),
+				&order.owner,
+				order.amount_sell.into()
+			),
 			Error::<T>::InsufficientBalance
 		);
 
@@ -343,6 +378,18 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn named_reserve_identifier(order_id: OrderId) -> [u8; 8] {
+		let prefix = b"otc";
+		let mut result = [0; 8];
+		result[0..3].copy_from_slice(prefix);
+		result[3..7].copy_from_slice(&order_id.to_be_bytes());
+
+		let hashed = BlakeTwo256::hash(&result);
+		let mut hashed_array = [0; 8];
+		hashed_array.copy_from_slice(&hashed.as_ref()[..8]);
+		hashed_array
+	}
+
 	fn min_order_size(asset: T::AssetId) -> Result<Balance, Error<T>> {
 		T::ExistentialDeposits::get(&asset)
 			.checked_mul(T::ExistentialDepositMultiplier::get())
@@ -363,12 +410,19 @@ impl<T: Config> Pallet<T> {
 
 	#[require_transactional]
 	fn execute_deal(
+		order_id: OrderId,
 		order: &mut Order<T::AccountId, T::AssetId>,
 		who: T::AccountId,
 		amount_fill: Balance,
 		amount_receive: Balance,
 	) -> DispatchResult {
-		T::MultiReservableCurrency::unreserve(order.asset_sell, &order.owner, amount_receive);
+		let reserve_id = Self::named_reserve_identifier(order_id);
+		T::NamedMultiReservableCurrency::unreserve_named(
+			&reserve_id,
+			order.asset_sell.into(),
+			&order.owner,
+			amount_receive.into(),
+		);
 
 		T::Currency::transfer(order.asset_buy, &who, &order.owner, amount_fill)?;
 

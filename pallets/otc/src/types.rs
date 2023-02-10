@@ -23,6 +23,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 pub type Balance = u128;
+pub type NamedReserveIdentifier = [u8; 8];
 pub type OrderId = u32;
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]

@@ -32,7 +32,7 @@ use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup, One},
+	traits::{BlakeTwo256, Hash, IdentityLookup, One},
 	DispatchError,
 };
 use std::{cell::RefCell, collections::HashMap};
@@ -44,6 +44,8 @@ pub type AccountId = u64;
 pub type Amount = i128;
 pub type AssetId = u32;
 pub type Balance = u128;
+pub type NamedReserveIdentifier = [u8; 8];
+pub type OrderId = u32;
 
 pub const HDX: AssetId = 0;
 pub const DAI: AssetId = 2;
@@ -91,7 +93,7 @@ impl Config for Test {
 	type Event = Event;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
-	type MultiReservableCurrency = Currencies;
+	type NamedMultiReservableCurrency = Currencies;
 	type NativeAssetId = NativeCurrencyId;
 	type WeightInfo = ();
 }
@@ -99,6 +101,7 @@ impl Config for Test {
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 63;
+	pub const MaxReserves: u32 = 50;
 }
 
 impl system::Config for Test {
@@ -140,8 +143,8 @@ impl orml_tokens::Config for Test {
 	type DustRemovalWhitelist = Nothing;
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
-	type ReserveIdentifier = ();
-	type MaxReserves = ();
+	type ReserveIdentifier = NamedReserveIdentifier;
+	type MaxReserves = MaxReserves;
 }
 
 impl pallet_balances::Config for Test {
@@ -152,8 +155,8 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = frame_system::Pallet<Test>;
 	type WeightInfo = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = NamedReserveIdentifier;
 }
 
 impl pallet_currencies::Config for Test {
@@ -265,4 +268,16 @@ thread_local! {
 
 pub fn expect_events(e: Vec<Event>) {
 	test_utils::expect_events::<Event, Test>(e);
+}
+
+pub fn named_reserve_identifier(order_id: OrderId) -> [u8; 8] {
+	let prefix = b"otc";
+	let mut result = [0; 8];
+	result[0..3].copy_from_slice(prefix);
+	result[3..7].copy_from_slice(&order_id.to_be_bytes());
+
+	let hashed = BlakeTwo256::hash(&result);
+	let mut hashed_array = [0; 8];
+	hashed_array.copy_from_slice(&hashed.as_ref()[..8]);
+	hashed_array
 }

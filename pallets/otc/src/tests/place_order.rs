@@ -23,7 +23,7 @@ use crate::tests::mock::*;
 
 use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
-use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -58,7 +58,8 @@ fn create_order_should_work() {
 		}
 		.into()]);
 
-		assert_eq!(Currencies::reserved_balance(HDX, &ALICE), 100 * ONE,);
+		let reserve_id = named_reserve_identifier(0);
+		assert_eq!(Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE), 100 * ONE);
 
 		let next_order_id = OTC::next_order_id();
 		assert_eq!(next_order_id, 1);

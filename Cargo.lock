@@ -1040,7 +1040,7 @@ dependencies = [
  "pallet-claims",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-democracy",
  "pallet-identity",
  "pallet-omnipool",
@@ -3348,7 +3348,7 @@ version = "0.2.2"
 source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5#b7cc6ff5efb641e4fd4da524459ce8111c32aef5"
 dependencies = [
  "frame-support",
- "hydradx-traits",
+ "hydradx-traits 0.9.0",
  "log",
  "pallet-transaction-multi-payment",
  "parity-scale-codec",
@@ -3382,7 +3382,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "hydradx-adapters",
- "hydradx-traits",
+ "hydradx-traits 0.9.0",
  "orml-benchmarking",
  "orml-tokens",
  "orml-traits",
@@ -3399,7 +3399,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
@@ -3453,6 +3453,20 @@ dependencies = [
 name = "hydradx-traits"
 version = "0.9.0"
 source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5#b7cc6ff5efb641e4fd4da524459ce8111c32aef5"
+dependencies = [
+ "frame-support",
+ "impl-trait-for-tuples",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
+ "sp-std",
+]
+
+[[package]]
+name = "hydradx-traits"
+version = "2.0.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=c4b24d2582c8ad187a0c38427d7d585a6031cdd8#c4b24d2582c8ad187a0c38427d7d585a6031cdd8"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5524,7 +5538,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydradx-traits",
+ "hydradx-traits 0.9.0",
  "orml-traits",
  "parity-scale-codec",
  "primitive-types 0.12.1",
@@ -5805,6 +5819,23 @@ dependencies = [
 name = "pallet-currencies"
 version = "1.0.1"
 source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4fd4da524459ce8111c32aef5#b7cc6ff5efb641e4fd4da524459ce8111c32aef5"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "orml-utilities",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-currencies"
+version = "1.1.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=c4b24d2582c8ad187a0c38427d7d585a6031cdd8#c4b24d2582c8ad187a0c38427d7d585a6031cdd8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6156,7 +6187,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydra-dx-math",
- "hydradx-traits",
+ "hydradx-traits 0.9.0",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
@@ -6181,13 +6212,13 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydra-dx-math",
- "hydradx-traits",
+ "hydradx-traits 2.0.0",
  "lazy_static",
  "log",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-currencies",
+ "pallet-currencies 1.1.0",
  "parity-scale-codec",
  "pretty_assertions",
  "proptest",
@@ -6433,7 +6464,7 @@ source = "git+https://github.com/galacticcouncil/warehouse?rev=b7cc6ff5efb641e4f
 dependencies = [
  "frame-support",
  "frame-system",
- "hydradx-traits",
+ "hydradx-traits 0.9.0",
  "orml-traits",
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -8799,7 +8830,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal",
  "hydradx-runtime",
- "hydradx-traits",
+ "hydradx-traits 0.9.0",
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",
@@ -8813,7 +8844,7 @@ dependencies = [
  "pallet-balances",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-relaychain-info",
@@ -11458,7 +11489,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=5329d685ee1cabc855e8c185c54cc3f798902e93#5329d685ee1cabc855e8c185c54cc3f798902e93"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=c4b24d2582c8ad187a0c38427d7d585a6031cdd8#c4b24d2582c8ad187a0c38427d7d585a6031cdd8"
 dependencies = [
  "frame-system",
  "pretty_assertions",
@@ -11487,7 +11518,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "hydradx-adapters",
- "hydradx-traits",
+ "hydradx-traits 0.9.0",
  "orml-benchmarking",
  "orml-tokens",
  "orml-traits",
@@ -11504,7 +11535,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies",
+ "pallet-currencies 1.0.1",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
