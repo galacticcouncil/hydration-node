@@ -80,7 +80,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 				vec![],
 				// registered_assets
 				vec![],
-				vec![],
 				// accepted_assets
 				vec![],
 				// token balances
