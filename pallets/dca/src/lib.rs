@@ -229,6 +229,8 @@ pub mod pallet {
 		ScheduleNotExist,
 		///Balance is too low to reserve for bond
 		BalanceTooLowForReservingBond,
+		///The user has not enough balance for the reserving the total amount to spend
+		InsufficientBalanceForTotalAmount,
 		///The user is not the owner of the schedule
 		NotScheduleOwner,
 		///The bond does not exist. It should not really happen, only in case of invalid state
@@ -331,7 +333,26 @@ pub mod pallet {
 				start_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
 			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
-			Self::calculate_and_store_bond(who.clone(), next_schedule_id)?;
+			let currency_for_reserve = match schedule.order {
+				Order::Buy { asset_in, .. } => asset_in,
+				Order::Sell { asset_in, .. } => asset_in,
+			};
+
+			ensure!(
+				T::NamedMultiReservableCurrency::can_reserve(
+					currency_for_reserve.into(),
+					&who,
+					schedule.total_amount.into()
+				),
+				Error::<T>::InsufficientBalanceForTotalAmount
+			);
+
+			T::NamedMultiReservableCurrency::reserve_named(
+				&reserve_identifier(next_schedule_id),
+				currency_for_reserve.into(),
+				&who,
+				schedule.total_amount.into(),
+			)?;
 
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
@@ -368,7 +389,7 @@ pub mod pallet {
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
 
-			Self::unreserve_excecution_bond(schedule_id, &who)?;
+			//Self::unreserve_excecution_bond(schedule_id, &who)?;
 
 			Self::deposit_event(Event::Paused { id: schedule_id, who });
 
@@ -402,7 +423,7 @@ pub mod pallet {
 
 			Suspended::<T>::remove(schedule_id);
 
-			Self::reserve_excecution_bond(schedule_id, &who)?;
+			//Self::reserve_excecution_bond(schedule_id, &who)?;
 
 			Self::deposit_event(Event::Resumed {
 				id: schedule_id,
@@ -439,10 +460,12 @@ pub mod pallet {
 			Self::ensure_that_schedule_exists(&schedule_id)?;
 			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
 
+			Self::unreserve_all_named_reserved_sold_currency(schedule_id, &who)?;
+
 			Self::remove_planning_or_suspension(schedule_id, next_execution_block)?;
 			Self::remove_schedule_from_storages(schedule_id);
 
-			Self::discard_bond(schedule_id, &who)?;
+			//Self::discard_bond(schedule_id, &who)?;
 
 			Self::deposit_event(Event::Terminated {
 				id: schedule_id,
@@ -471,17 +494,34 @@ where
 		let owner = exec_or_return_if_none!(ScheduleOwnership::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
 
-		//TODO: change the limit of the schedule order min(min_limit,percentage)
+		let dca_reserve_identifier = &reserve_identifier(schedule_id);
+		let sold_currency = Self::sold_currency(&schedule.order);
+		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
+
+		let remaining_named_reserve_balance = T::NamedMultiReservableCurrency::reserved_balance_named(
+			&dca_reserve_identifier,
+			sold_currency.into(),
+			&owner,
+		);
+
+		T::NamedMultiReservableCurrency::unreserve_named(
+			&dca_reserve_identifier,
+			sold_currency.into(),
+			&owner,
+			amount_to_unreserve.into(),
+		);
+
+		if remaining_named_reserve_balance < amount_to_unreserve.into() {
+			Self::complete_dca(schedule_id, &owner);
+			return;
+		}
+
+		exec_or_return_if_err!(Self::take_transaction_fee_from_user(&owner, &schedule.order));
 		let trade_result = Self::execute_trade(origin, &schedule.order);
 		*weight += Self::get_execute_schedule_weight();
 
 		match trade_result {
 			Ok(res) => {
-				let take_transaction_fee_result = Self::take_transaction_fee_from_user(&owner, schedule.order);
-				if let Err(error) = take_transaction_fee_result {
-					exec_or_return_if_err!(Self::suspend_schedule(&owner, schedule_id));
-				}
-
 				let blocknumber_for_schedule =
 					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
 
@@ -494,12 +534,7 @@ where
 								schedule_id
 							));
 						} else {
-							Self::remove_schedule_from_storages(schedule_id);
-							exec_or_return_if_err!(Self::discard_bond(schedule_id, &owner));
-							Self::deposit_event(Event::Completed {
-								id: schedule_id,
-								who: owner.clone(),
-							});
+							Self::complete_dca(schedule_id, &owner);
 						}
 					}
 					_ => {}
@@ -511,6 +546,30 @@ where
 		}
 	}
 
+	fn amount_to_unreserve(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
+		let amount_to_sell = match order {
+			Order::Sell { amount_in, .. } => Ok(*amount_in),
+			Order::Buy {
+				asset_in,
+				asset_out,
+				amount_out,
+				max_limit,
+				..
+			} => {
+				let max_limit_from_spot_price = Self::get_max_limit_with_slippage(&asset_in, &asset_out, &amount_out)?;
+				let max_limit = max(max_limit, &max_limit_from_spot_price);
+
+				let fee_amount_in_sold_asset = Self::get_transaction_fee(*asset_in)?;
+				let amount_to_sell_plus_fee = max_limit
+					.checked_add(&fee_amount_in_sold_asset)
+					.ok_or(ArithmeticError::Overflow)?;
+				Ok(amount_to_sell_plus_fee)
+			}
+		};
+
+		amount_to_sell
+	}
+
 	fn get_on_initialize_weight() -> u64 {
 		crate::weights::HydraWeight::<T>::on_initialize().ref_time()
 	}
@@ -519,15 +578,10 @@ where
 		crate::weights::HydraWeight::<T>::execute_schedule().ref_time()
 	}
 
-	fn take_transaction_fee_from_user(owner: &T::AccountId, order: Order<<T as Config>::Asset>) -> DispatchResult {
-		let fee_currency = match order {
-			Order::Sell { asset_in, .. } => asset_in,
-			Order::Buy { asset_in, .. } => asset_in,
-		};
+	fn take_transaction_fee_from_user(owner: &T::AccountId, order: &Order<<T as Config>::Asset>) -> DispatchResult {
+		let fee_currency = Self::sold_currency(&order);
 
-		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize());
-		let fee_amount_in_sold_asset =
-			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
+		let fee_amount_in_sold_asset = Self::get_transaction_fee(fee_currency)?;
 
 		T::Currency::transfer(
 			fee_currency.into(),
@@ -537,6 +591,31 @@ where
 		)?;
 
 		Ok(())
+	}
+
+	fn unreserve_all_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+		let named_reserve_identitifer = reserve_identifier(schedule_id);
+		let sold_currency = Self::sold_currency(&schedule.order);
+		T::NamedMultiReservableCurrency::unreserve_all_named(&named_reserve_identitifer, sold_currency.into(), &who);
+
+		Ok(())
+	}
+
+	fn sold_currency(order: &Order<T::Asset>) -> <T as Config>::Asset {
+		let sold_currency = match order {
+			Order::Sell { asset_in, .. } => asset_in,
+			Order::Buy { asset_in, .. } => asset_in,
+		};
+		*sold_currency
+	}
+
+	fn get_transaction_fee(fee_currency: T::Asset) -> Result<u128, DispatchError> {
+		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize());
+		let fee_amount_in_sold_asset =
+			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
+
+		Ok(fee_amount_in_sold_asset)
 	}
 
 	fn weight_to_fee(weight: Weight) -> Balance {
@@ -659,16 +738,18 @@ where
 				asset_in,
 				asset_out,
 				amount_in,
-				route,
 				min_limit,
+				route,
 			} => {
 				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
+
+				let transaction_fee = Self::get_transaction_fee(*asset_in)?;
 
 				pallet_omnipool::Pallet::<T>::sell(
 					origin,
 					(*asset_in).into(),
 					(*asset_out).into(),
-					*amount_in,
+					*amount_in - transaction_fee,
 					min(*min_limit, min_limit_with_slippage),
 				)
 			}
@@ -766,14 +847,7 @@ where
 			amount: total_bond_in_user_currency,
 		};
 
-		Self::reserve_bond(&who, &bond)?;
-
-		/*T::NamedMultiReservableCurrency::reserve_named(
-			&create_reserve_identifier(next_schedule_id),
-			bond.asset.into(),
-			&who,
-			bond.amount.into(),
-		)?;*/
+		//Self::reserve_bond(&who, &bond)?;
 
 		Bonds::<T>::insert(next_schedule_id, bond);
 
@@ -980,9 +1054,18 @@ where
 
 		Ok(())
 	}
+
+	fn complete_dca(schedule_id: ScheduleId, owner: &T::AccountId) {
+		Self::remove_schedule_from_storages(schedule_id);
+		//exec_or_return_if_err!(Self::discard_bond(schedule_id, &owner));
+		Self::deposit_event(Event::Completed {
+			id: schedule_id,
+			who: owner.clone(),
+		});
+	}
 }
 
-fn create_reserve_identifier(schedule: u32) -> [u8; 8] {
+pub fn reserve_identifier(schedule: u32) -> [u8; 8] {
 	let prefix = b"dca";
 	let mut result = [0; 8];
 	result[0..3].copy_from_slice(prefix);

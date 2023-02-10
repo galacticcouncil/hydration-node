@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::tests::mock::*;
-use crate::tests::ScheduleBuilder;
+use crate::tests::{empty_vec, ScheduleBuilder};
 use crate::{assert_scheduled_ids, Bond};
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
@@ -28,8 +28,46 @@ use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
 use std::ops::RangeInclusive;
 pub type Price = FixedU128;
+use crate::reserve_identifier;
 use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
 use test_case::test_case;
+
+#[test]
+fn schedule_should_reserve_all_total_amount_as_named_reserve() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_recurrence(Recurrence::Fixed(5))
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			let schedule_id = 1;
+
+			let named_reserve_id = reserve_identifier(schedule_id);
+
+			assert_eq!(
+				total_amount,
+				Currencies::reserved_balance_named(&named_reserve_id, HDX.into(), &ALICE.into())
+			);
+		});
+}
 
 #[test]
 fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified() {
@@ -263,20 +301,23 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 }
 
 #[test]
-fn schedule_should_throw_error_when_user_has_not_enough_balance_for_bond() {
-	let total_bond_amount_to_be_taken = 3_000_000;
+fn schedule_should_throw_error_when_user_has_not_enough_balance() {
+	let total_bond_amount_to_be_taken = 100 * ONE;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, total_bond_amount_to_be_taken - 1)])
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(100 * ONE)
+				.with_recurrence(Recurrence::Fixed(5))
+				.build();
 
 			//Act
 			set_block_number(500);
 			assert_noop!(
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::BalanceTooLowForReservingBond
+				Error::<Test>::InsufficientBalanceForTotalAmount
 			);
 		});
 }
@@ -315,7 +356,7 @@ fn schedule_should_fail_when_specified_next_block_is_not_greater_than_current_bl
 #[test]
 fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![(ALICE, HDX, 1000000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -342,7 +383,7 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 #[test]
 fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_consquent_block_is_full() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![(ALICE, HDX, 1000000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange

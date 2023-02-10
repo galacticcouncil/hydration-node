@@ -22,6 +22,7 @@ macro_rules! assert_balance {
 struct ScheduleBuilder {
 	pub period: Option<BlockNumber>,
 	pub order: Option<Order<AssetId>>,
+	pub total_amount: Option<Balance>,
 	pub recurrence: Option<Recurrence>,
 }
 
@@ -30,6 +31,7 @@ impl ScheduleBuilder {
 		ScheduleBuilder {
 			period: Some(ONE_HUNDRED_BLOCKS),
 			recurrence: Some(Recurrence::Fixed(5)),
+			total_amount: Some(1000 * ONE),
 			order: Some(Order::Buy {
 				asset_in: HDX,
 				asset_out: BTC,
@@ -55,10 +57,16 @@ impl ScheduleBuilder {
 		return self;
 	}
 
+	fn with_total_amount(mut self, total_amount: Balance) -> ScheduleBuilder {
+		self.total_amount = Some(total_amount);
+		return self;
+	}
+
 	fn build(self) -> Schedule<AssetId, BlockNumber> {
 		Schedule {
 			period: self.period.unwrap(),
 			recurrence: self.recurrence.unwrap(),
+			total_amount: self.total_amount.unwrap(),
 			order: self.order.unwrap(),
 		}
 	}
@@ -103,4 +111,12 @@ pub fn set_execution_bond_config(amount: Balance) {
 	EXECUTION_BOND.with(|v| {
 		*v.borrow_mut() = amount;
 	});
+}
+
+pub fn assert_that_schedule_has_been_removed_from_storages(schedule_id: ScheduleId) {
+	assert!(DCA::schedules(schedule_id).is_none());
+	assert!(DCA::suspended(schedule_id).is_none());
+	assert!(DCA::owner_of(schedule_id).is_none());
+	assert!(DCA::remaining_recurrences(schedule_id).is_none());
+	assert!(DCA::bond(schedule_id).is_none());
 }
