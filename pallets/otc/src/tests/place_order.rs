@@ -44,7 +44,6 @@ fn create_order_should_work() {
 		assert_eq!(order.owner, ALICE);
 		assert_eq!(order.asset_buy, DAI);
 		assert_eq!(order.asset_sell, HDX);
-		assert_eq!(order.amount_sell, 100 * ONE);
 		assert_eq!(order.amount_buy, 20 * ONE);
 		assert_eq!(order.partially_fillable, true);
 
@@ -53,7 +52,7 @@ fn create_order_should_work() {
 			asset_buy: DAI,
 			asset_sell: HDX,
 			amount_buy: order.amount_buy,
-			amount_sell: order.amount_sell,
+			amount_sell: 100 * ONE,
 			partially_fillable: true,
 		}
 		.into()]);

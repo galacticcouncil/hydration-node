@@ -30,6 +30,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, Hash, One},
 	DispatchError,
 };
+
 use sp_std::{result, vec::Vec};
 #[cfg(test)]
 mod tests;
@@ -169,6 +170,12 @@ pub mod pallet {
 		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::Balance: From<u128>,
+
+		u128: From<
+			<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+				<T as frame_system::Config>::AccountId,
+			>>::Balance,
+		>,
 	{
 		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
 		#[transactional]
@@ -187,11 +194,10 @@ pub mod pallet {
 				asset_buy,
 				asset_sell,
 				amount_buy,
-				amount_sell,
 				partially_fillable,
 			};
 
-			Self::validate_place_order(order.clone())?;
+			Self::validate_place_order(order.clone(), amount_sell)?;
 
 			let order_id = <NextOrderId<T>>::try_mutate(|next_id| -> result::Result<OrderId, DispatchError> {
 				let current_id = *next_id;
@@ -204,7 +210,7 @@ pub mod pallet {
 				&reserve_id,
 				order.asset_sell.into(),
 				&order.owner,
-				order.amount_sell.into(),
+				amount_sell.into(),
 			)?;
 
 			<Orders<T>>::insert(order_id, order.clone());
@@ -213,7 +219,7 @@ pub mod pallet {
 				asset_buy: order.asset_buy,
 				asset_sell: order.asset_sell,
 				amount_buy: order.amount_buy,
-				amount_sell: order.amount_sell,
+				amount_sell,
 				partially_fillable: order.partially_fillable,
 			});
 
@@ -233,16 +239,19 @@ pub mod pallet {
 
 			<Orders<T>>::try_mutate_exists(order_id, |maybe_order| -> DispatchResult {
 				let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
-				let amount_receive = Self::amount_receive(order, amount_fill)?;
 
-				Self::validate_fill_order(order, who.clone(), asset_fill, amount_fill, amount_receive)?;
+				let amount_sell = Self::amount_sell(order_id, order);
+
+				let amount_receive = Self::amount_receive(order, amount_sell, amount_fill)?;
+
+				Self::validate_fill_order(order, who.clone(), asset_fill, amount_sell, amount_fill, amount_receive)?;
 
 				Self::execute_deal(order_id, order, who.clone(), amount_fill, amount_receive)?;
 
 				let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
 				if remaining_amount_buy > 0_u128 {
-					Self::update_storage(order, amount_fill, amount_receive)?;
+					Self::update_storage(order, amount_fill)?;
 					Self::deposit_event(Event::OrderPartiallyFilled {
 						order_id,
 						who,
@@ -270,16 +279,17 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			<Orders<T>>::try_mutate_exists(order_id, |maybe_order| -> DispatchResult {
-				let order = maybe_order.as_ref().ok_or(Error::<T>::OrderNotFound)?;
+				let order = maybe_order.as_mut().ok_or(Error::<T>::OrderNotFound)?;
 
 				ensure!(order.owner == who, Error::<T>::NoPermission);
 
+				let amount_sell = Self::amount_sell(order_id, order);
 				let reserve_id = Self::named_reserve_identifier(order_id);
 				T::NamedMultiReservableCurrency::unreserve_named(
 					&reserve_id,
 					order.asset_sell.into(),
 					&order.owner,
-					order.amount_sell.into(),
+					amount_sell.into(),
 				);
 
 				*maybe_order = None;
@@ -301,8 +311,14 @@ where
 	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
 		<T as frame_system::Config>::AccountId,
 	>>::Balance: From<u128>,
+
+	u128: From<
+		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<T as frame_system::Config>::AccountId,
+		>>::Balance,
+	>,
 {
-	fn validate_place_order(order: Order<T::AccountId, T::AssetId>) -> DispatchResult {
+	fn validate_place_order(order: Order<T::AccountId, T::AssetId>, amount_sell: Balance) -> DispatchResult {
 		ensure!(
 			T::AssetRegistry::exists(order.asset_sell),
 			Error::<T>::AssetNotRegistered
@@ -314,11 +330,7 @@ where
 		);
 
 		ensure!(
-			T::NamedMultiReservableCurrency::can_reserve(
-				order.asset_sell.into(),
-				&order.owner,
-				order.amount_sell.into()
-			),
+			T::NamedMultiReservableCurrency::can_reserve(order.asset_sell.into(), &order.owner, amount_sell.into()),
 			Error::<T>::InsufficientBalance
 		);
 
@@ -328,7 +340,7 @@ where
 
 		let min_amount_sell = Self::min_order_size(order.asset_sell)?;
 
-		ensure!(order.amount_sell > min_amount_sell, Error::<T>::OrderSizeTooSmall);
+		ensure!(amount_sell > min_amount_sell, Error::<T>::OrderSizeTooSmall);
 
 		Ok(())
 	}
@@ -337,6 +349,7 @@ where
 		order: &mut Order<T::AccountId, T::AssetId>,
 		who: T::AccountId,
 		asset_fill: T::AssetId,
+		amount_sell: Balance,
 		amount_fill: Balance,
 		amount_receive: Balance,
 	) -> DispatchResult {
@@ -363,7 +376,7 @@ where
 				);
 			}
 
-			let remaining_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
+			let remaining_amount_sell = Self::amount_remaining(amount_sell, amount_receive)?;
 
 			if remaining_amount_sell > 0_u128 {
 				let min_amount_sell = Self::min_order_size(order.asset_buy)?;
@@ -396,9 +409,18 @@ where
 			.ok_or(Error::<T>::MathError)
 	}
 
-	fn amount_receive(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> Result<Balance, Error<T>> {
-		order
-			.amount_sell
+	fn amount_sell(order_id: OrderId, order: &mut Order<T::AccountId, T::AssetId>) -> Balance {
+		let reserve_id = Self::named_reserve_identifier(order_id);
+		T::NamedMultiReservableCurrency::reserved_balance_named(&reserve_id, order.asset_sell.into(), &order.owner)
+			.into()
+	}
+
+	fn amount_receive(
+		order: &mut Order<T::AccountId, T::AssetId>,
+		amount_sell: Balance,
+		amount_fill: Balance,
+	) -> Result<Balance, Error<T>> {
+		amount_sell
 			.checked_mul(amount_fill)
 			.and_then(|v| v.checked_div(order.amount_buy))
 			.ok_or(Error::<T>::MathError)
@@ -432,20 +454,14 @@ where
 	}
 
 	#[require_transactional]
-	fn update_storage(
-		order: &mut Order<T::AccountId, T::AssetId>,
-		amount_fill: Balance,
-		amount_receive: Balance,
-	) -> DispatchResult {
+	fn update_storage(order: &mut Order<T::AccountId, T::AssetId>, amount_fill: Balance) -> DispatchResult {
 		let new_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
-		let new_amount_sell = Self::amount_remaining(order.amount_sell, amount_receive)?;
 
 		let updated_order = Order {
 			owner: order.owner.clone(),
 			asset_buy: order.asset_buy,
 			asset_sell: order.asset_sell,
 			amount_buy: new_amount_buy,
-			amount_sell: new_amount_sell,
 			partially_fillable: order.partially_fillable,
 		};
 

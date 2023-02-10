@@ -32,6 +32,5 @@ pub struct Order<AccountId, AssetId> {
 	pub asset_buy: AssetId,
 	pub asset_sell: AssetId,
 	pub amount_buy: Balance,
-	pub amount_sell: Balance,
 	pub partially_fillable: bool,
 }
