@@ -47,6 +47,7 @@ use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchError, DispatchResult},
 	sp_runtime::traits::{AccountIdConversion, Zero},
+	traits::DefensiveOption,
 	traits::{
 		tokens::nonfungibles::{Create, Inspect, Mutate, Transfer},
 		Get,
@@ -267,17 +268,31 @@ pub mod pallet {
 		/// Asset is not in the omnipool.
 		AssetNotFound,
 
-		/// `deposit_id` to `position_id` association was not fond in the storage.  <- move to inconsistent state
-		MissingLpPosition,
-
 		/// Signed account is not owner of the deposit.
 		Forbidden,
 
 		/// Rewards to claim are 0.
 		ZeroClaimedRewards,
 
-		/// Deposit data not found.  <- move to inconsistent state
+		/// Action cannot be completed because unexpected error has occurred. This should be reported
+		/// to protocol maintainers.
+		InconsistentState(InconsistentStateError),
+	}
+
+	//NOTE: these errors should never happen.
+	#[derive(Encode, Decode, Eq, PartialEq, TypeInfo, frame_support::PalletError, RuntimeDebug)]
+	pub enum InconsistentStateError {
+		/// Mapping of `deposit_id` to `position_id` was not fond in the storage.
+		MissingLpPosition,
+
+		/// Deposit data not found.
 		DepositDataNotFound,
+	}
+
+	impl<T> From<InconsistentStateError> for Error<T> {
+		fn from(e: InconsistentStateError) -> Error<T> {
+			Error::<T>::InconsistentState(e)
+		}
 	}
 
 	#[pallet::call]
@@ -716,7 +731,8 @@ pub mod pallet {
 			let owner = Self::ensure_nft_owner(origin, deposit_id)?;
 
 			//NOTE: not tested this should never fail.
-			let position_id = OmniPositionId::<T>::get(deposit_id).ok_or(Error::<T>::MissingLpPosition)?;
+			let position_id = OmniPositionId::<T>::get(deposit_id)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::MissingLpPosition.into())?;
 
 			//NOTE: pallet should be owner of the omnipool position at this point.
 			let lp_position = OmnipoolPallet::<T>::load_position(position_id, Self::account_id())?;
@@ -807,13 +823,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = Self::ensure_nft_owner(origin, deposit_id)?;
 
-			//NOTE: not tested -this should never fail.
-			let position_id = OmniPositionId::<T>::get(deposit_id).ok_or(Error::<T>::MissingLpPosition)?;
+			//NOTE: not tested - this should never fail.
+			let position_id = OmniPositionId::<T>::get(deposit_id)
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::MissingLpPosition.into())?;
 			let lp_position = OmnipoolPallet::<T>::load_position(position_id, Self::account_id())?;
 
-			//NOTE: not tested -this should never fail.
+			//NOTE: not tested - this should never fail.
 			let global_farm_id = T::LiquidityMiningHandler::get_global_farm_id(deposit_id, yield_farm_id)
-				.ok_or(Error::<T>::DepositDataNotFound)?;
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::DepositDataNotFound.into())?;
 
 			let (withdrawn_amount, claim_data, is_destroyed) = T::LiquidityMiningHandler::withdraw_lp_shares(
 				owner.clone(),
@@ -887,9 +904,10 @@ impl<T: Config> Pallet<T> {
 	/// deposit's id to omnipool position's id for storage.
 	fn unlock_lp_postion(deposit_id: DepositId, who: &T::AccountId) -> Result<(), DispatchError> {
 		OmniPositionId::<T>::try_mutate_exists(deposit_id, |maybe_position_id| -> DispatchResult {
-			//NOTE: this should never fail
-			//TODO: move this error to InconsistentState errors
-			let lp_position_id = maybe_position_id.as_mut().ok_or(Error::<T>::MissingLpPosition)?;
+			//NOTE: not tested, this should never fail
+			let lp_position_id = maybe_position_id
+				.as_mut()
+				.defensive_ok_or::<Error<T>>(InconsistentStateError::MissingLpPosition.into())?;
 
 			<T as pallet::Config>::NFTHandler::transfer(
 				&<T as pallet_omnipool::Config>::NFTCollectionId::get(),
