@@ -17,6 +17,7 @@ pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", 
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "ea6e89e2348ca349337bc4269a5637f4e9c3c9b1", default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "ea6e89e2348ca349337bc4269a5637f4e9c3c9b1", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "ea6e89e2348ca349337bc4269a5637f4e9c3c9b1", default-features = false}
+pallet-otc = { path = '../pallets/otc', default-features = false }
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
