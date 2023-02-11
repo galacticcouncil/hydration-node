@@ -77,7 +77,7 @@ fn fill_order_should_work() {
 
 		let reserve_id = named_reserve_identifier(0);
 		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX.into(), &ALICE.into()),
+			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
 			25 * UNITS
 		);
 	});
@@ -109,7 +109,7 @@ fn cancel_order_should_work() {
 
 		let reserve_id = named_reserve_identifier(0);
 		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX.into(), &ALICE.into()),
+			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
 			0
 		);
 	});
