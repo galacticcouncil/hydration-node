@@ -32,7 +32,7 @@ use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, Hash, IdentityLookup, One},
+	traits::{BlakeTwo256, Hash, IdentityLookup},
 	DispatchError,
 };
 use std::{cell::RefCell, collections::HashMap};
@@ -77,12 +77,12 @@ thread_local! {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
-	pub ExistentialDepositMultiplier: u128 = 5 * ONE;
+	pub ExistentialDepositMultiplier: u8 = 5;
 }
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-		One::one()
+		ONE
 	};
 }
 

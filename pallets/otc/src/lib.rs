@@ -79,7 +79,7 @@ pub mod pallet {
 		type ExistentialDeposits: GetByKey<Self::AssetId, Balance>;
 
 		#[pallet::constant]
-		type ExistentialDepositMultiplier: Get<u128>;
+		type ExistentialDepositMultiplier: Get<u8>;
 
 		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<
 			Self::AccountId,
@@ -250,7 +250,7 @@ pub mod pallet {
 
 				let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-				if remaining_amount_buy > 0_u128 {
+				if remaining_amount_buy > 0 {
 					Self::update_storage(order, amount_fill)?;
 					Self::deposit_event(Event::OrderPartiallyFilled {
 						order_id,
@@ -336,11 +336,11 @@ where
 
 		let min_amount_buy = Self::min_order_size(order.asset_buy)?;
 
-		ensure!(order.amount_buy > min_amount_buy, Error::<T>::OrderSizeTooSmall);
+		ensure!(order.amount_buy >= min_amount_buy, Error::<T>::OrderSizeTooSmall);
 
 		let min_amount_sell = Self::min_order_size(order.asset_sell)?;
 
-		ensure!(amount_sell > min_amount_sell, Error::<T>::OrderSizeTooSmall);
+		ensure!(amount_sell >= min_amount_sell, Error::<T>::OrderSizeTooSmall);
 
 		Ok(())
 	}
@@ -367,22 +367,22 @@ where
 		} else {
 			let remaining_amount_buy = Self::amount_remaining(order.amount_buy, amount_fill)?;
 
-			if remaining_amount_buy > 0_u128 {
+			if remaining_amount_buy > 0 {
 				let min_amount_buy = Self::min_order_size(order.asset_buy)?;
 
 				ensure!(
-					remaining_amount_buy > min_amount_buy,
+					remaining_amount_buy >= min_amount_buy,
 					Error::<T>::RemainingOrderSizeTooSmall
 				);
 			}
 
 			let remaining_amount_sell = Self::amount_remaining(amount_sell, amount_receive)?;
 
-			if remaining_amount_sell > 0_u128 {
-				let min_amount_sell = Self::min_order_size(order.asset_buy)?;
+			if remaining_amount_sell > 0 {
+				let min_amount_sell = Self::min_order_size(order.asset_sell)?;
 
 				ensure!(
-					remaining_amount_sell > min_amount_sell,
+					remaining_amount_sell >= min_amount_sell,
 					Error::<T>::RemainingOrderSizeTooSmall
 				);
 			}
@@ -405,7 +405,7 @@ where
 
 	fn min_order_size(asset: T::AssetId) -> Result<Balance, Error<T>> {
 		T::ExistentialDeposits::get(&asset)
-			.checked_mul(T::ExistentialDepositMultiplier::get())
+			.checked_mul(T::ExistentialDepositMultiplier::get().into())
 			.ok_or(Error::<T>::MathError)
 	}
 

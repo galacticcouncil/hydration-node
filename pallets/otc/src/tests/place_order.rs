@@ -27,7 +27,7 @@ use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 
 #[test]
-fn create_order_should_work() {
+fn place_order_should_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Act
 		assert_ok!(OTC::place_order(
@@ -66,7 +66,7 @@ fn create_order_should_work() {
 }
 
 #[test]
-fn create_order_should_throw_error_when_amount_is_higher_than_balance() {
+fn place_order_should_throw_error_when_amount_is_higher_than_balance() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Act
 		assert_noop!(
@@ -77,7 +77,7 @@ fn create_order_should_throw_error_when_amount_is_higher_than_balance() {
 }
 
 #[test]
-fn create_order_should_throw_error_when_asset_sell_is_not_registered() {
+fn place_order_should_throw_error_when_asset_sell_is_not_registered() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Act
 		assert_noop!(
@@ -88,7 +88,7 @@ fn create_order_should_throw_error_when_asset_sell_is_not_registered() {
 }
 
 #[test]
-fn create_order_should_throw_error_when_asset_buy_is_not_registered() {
+fn place_order_should_throw_error_when_asset_buy_is_not_registered() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Act
 		assert_noop!(
@@ -99,22 +99,22 @@ fn create_order_should_throw_error_when_asset_buy_is_not_registered() {
 }
 
 #[test]
-fn create_order_should_throw_error_when_amount_buy_is_too_low() {
+fn place_order_should_throw_error_when_amount_buy_is_too_low() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Act
 		assert_noop!(
-			OTC::place_order(Origin::signed(ALICE), DAI, HDX, 5 * ONE, 100 * ONE, true),
+			OTC::place_order(Origin::signed(ALICE), DAI, HDX, 4 * ONE, 100 * ONE, true),
 			Error::<Test>::OrderSizeTooSmall
 		);
 	});
 }
 
 #[test]
-fn create_order_should_throw_error_when_amount_sell_is_too_low() {
+fn place_order_should_throw_error_when_amount_sell_is_too_low() {
 	ExtBuilder::default().build().execute_with(|| {
 		// Act
 		assert_noop!(
-			OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 5 * ONE, true),
+			OTC::place_order(Origin::signed(ALICE), DAI, HDX, 20 * ONE, 4 * ONE, true),
 			Error::<Test>::OrderSizeTooSmall
 		);
 	});

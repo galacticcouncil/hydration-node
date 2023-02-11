@@ -206,7 +206,7 @@ fn partial_fill_order_should_throw_error_when_remaining_amounts_are_too_low() {
 		));
 
 		// Act
-		let amount_fill = 15_000_000_000_001;
+		let amount_fill = 16 * ONE;
 		assert_noop!(
 			OTC::fill_order(Origin::signed(BOB), 0, DAI, amount_fill),
 			Error::<Test>::RemainingOrderSizeTooSmall
