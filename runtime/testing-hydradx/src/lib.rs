@@ -857,7 +857,7 @@ impl pallet_otc::Config for Runtime {
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type NativeAssetId = NativeAssetId;
 	// Fix
-	type WeightInfo = ();
+	type WeightInfo = weights::otc::HydraWeight<Runtime>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
