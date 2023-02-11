@@ -728,6 +728,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
+	type SequentialIdStartAt = SequentialIdOffset;
 	type NativeAssetId = NativeAssetId;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
@@ -843,6 +844,23 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const ExistentialDepositMultiplier: u8 = 5;
+}
+
+impl pallet_otc::Config for Runtime {
+	type AssetId = AssetId;
+	type AssetRegistry = AssetRegistry;
+	type Currency = Currencies;
+	type Event = Event;
+	type ExistentialDeposits = AssetRegistry;
+	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type NamedMultiReservableCurrency = Currencies;
+	type NativeAssetId = NativeAssetId;
+	// Fix
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -875,6 +893,7 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
+		OTC: pallet_otc = 61,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
