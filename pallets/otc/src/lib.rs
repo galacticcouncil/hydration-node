@@ -71,12 +71,12 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		/// Multi currency mechanism
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>
-			+ NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
-
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
+
+		/// Named reservable multi currency
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>
+			+ NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -160,22 +160,7 @@ pub mod pallet {
 	pub type Orders<T: Config> = StorageMap<_, Blake2_128Concat, OrderId, Order<T::AccountId, T::AssetId>, OptionQuery>;
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-			<T as frame_system::Config>::AccountId,
-		>>::CurrencyId: From<<T as pallet::Config>::AssetId>,
-
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-			<T as frame_system::Config>::AccountId,
-		>>::Balance: From<u128>,
-
-		u128: From<
-			<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-				<T as frame_system::Config>::AccountId,
-			>>::Balance,
-		>,
-	{
+	impl<T: Config> Pallet<T> {
 		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
 		#[transactional]
 		pub fn place_order(
@@ -205,12 +190,7 @@ pub mod pallet {
 			})?;
 
 			let reserve_id = Self::named_reserve_identifier(order_id);
-			T::Currency::reserve_named(
-				&reserve_id,
-				order.asset_sell,
-				&order.owner,
-				amount_sell,
-			)?;
+			T::Currency::reserve_named(&reserve_id, order.asset_sell, &order.owner, amount_sell)?;
 
 			<Orders<T>>::insert(order_id, order.clone());
 			Self::deposit_event(Event::OrderPlaced {
@@ -284,12 +264,7 @@ pub mod pallet {
 
 				let amount_sell = Self::amount_sell(order_id, order);
 				let reserve_id = Self::named_reserve_identifier(order_id);
-				T::Currency::unreserve_named(
-					&reserve_id,
-					order.asset_sell,
-					&order.owner,
-					amount_sell,
-				);
+				T::Currency::unreserve_named(&reserve_id, order.asset_sell, &order.owner, amount_sell);
 
 				*maybe_order = None;
 
@@ -301,22 +276,7 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T>
-where
-	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-		<T as frame_system::Config>::AccountId,
-	>>::CurrencyId: From<<T as pallet::Config>::AssetId>,
-
-	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-		<T as frame_system::Config>::AccountId,
-	>>::Balance: From<u128>,
-
-	u128: From<
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-			<T as frame_system::Config>::AccountId,
-		>>::Balance,
-	>,
-{
+impl<T: Config> Pallet<T> {
 	fn validate_place_order(order: Order<T::AccountId, T::AssetId>, amount_sell: Balance) -> DispatchResult {
 		ensure!(
 			T::AssetRegistry::exists(order.asset_sell),
@@ -437,12 +397,7 @@ where
 		amount_receive: Balance,
 	) -> DispatchResult {
 		let reserve_id = Self::named_reserve_identifier(order_id);
-		T::Currency::unreserve_named(
-			&reserve_id,
-			order.asset_sell,
-			&order.owner,
-			amount_receive,
-		);
+		T::Currency::unreserve_named(&reserve_id, order.asset_sell, &order.owner, amount_receive);
 
 		T::Currency::transfer(order.asset_buy, &who, &order.owner, amount_fill)?;
 
