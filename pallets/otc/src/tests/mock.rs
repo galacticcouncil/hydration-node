@@ -89,11 +89,10 @@ parameter_type_with_key! {
 impl Config for Test {
 	type AssetId = AssetId;
 	type AssetRegistry = DummyRegistry<Test>;
-	type Currency = Tokens;
+	type Currency = Currencies;
 	type Event = Event;
 	type ExistentialDeposits = ExistentialDeposits;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
-	type NamedMultiReservableCurrency = Currencies;
 	type NativeAssetId = NativeCurrencyId;
 	type WeightInfo = ();
 }

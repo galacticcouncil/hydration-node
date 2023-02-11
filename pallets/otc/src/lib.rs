@@ -35,6 +35,9 @@ use sp_std::{result, vec::Vec};
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(feature = "runtime-benchmarks", test))]
+mod benchmarks;
+
 pub mod types;
 pub mod weights;
 
@@ -69,7 +72,8 @@ pub mod pallet {
 			+ TypeInfo;
 
 		/// Multi currency mechanism
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>
+			+ NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
@@ -80,11 +84,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type ExistentialDepositMultiplier: Get<u8>;
-
-		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<
-			Self::AccountId,
-			ReserveIdentifier = NamedReserveIdentifier,
-		>;
 
 		/// Native Asset
 		#[pallet::constant]
@@ -163,16 +162,16 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
 	where
-		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::CurrencyId: From<<T as pallet::Config>::AssetId>,
 
-		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::Balance: From<u128>,
 
 		u128: From<
-			<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+			<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 				<T as frame_system::Config>::AccountId,
 			>>::Balance,
 		>,
@@ -206,11 +205,11 @@ pub mod pallet {
 			})?;
 
 			let reserve_id = Self::named_reserve_identifier(order_id);
-			T::NamedMultiReservableCurrency::reserve_named(
+			T::Currency::reserve_named(
 				&reserve_id,
-				order.asset_sell.into(),
+				order.asset_sell,
 				&order.owner,
-				amount_sell.into(),
+				amount_sell,
 			)?;
 
 			<Orders<T>>::insert(order_id, order.clone());
@@ -285,11 +284,11 @@ pub mod pallet {
 
 				let amount_sell = Self::amount_sell(order_id, order);
 				let reserve_id = Self::named_reserve_identifier(order_id);
-				T::NamedMultiReservableCurrency::unreserve_named(
+				T::Currency::unreserve_named(
 					&reserve_id,
-					order.asset_sell.into(),
+					order.asset_sell,
 					&order.owner,
-					amount_sell.into(),
+					amount_sell,
 				);
 
 				*maybe_order = None;
@@ -304,16 +303,16 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T>
 where
-	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 		<T as frame_system::Config>::AccountId,
 	>>::CurrencyId: From<<T as pallet::Config>::AssetId>,
 
-	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 		<T as frame_system::Config>::AccountId,
 	>>::Balance: From<u128>,
 
 	u128: From<
-		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::Balance,
 	>,
@@ -330,7 +329,7 @@ where
 		);
 
 		ensure!(
-			T::NamedMultiReservableCurrency::can_reserve(order.asset_sell.into(), &order.owner, amount_sell.into()),
+			T::Currency::can_reserve(order.asset_sell, &order.owner, amount_sell),
 			Error::<T>::InsufficientBalance
 		);
 
@@ -411,8 +410,7 @@ where
 
 	fn amount_sell(order_id: OrderId, order: &mut Order<T::AccountId, T::AssetId>) -> Balance {
 		let reserve_id = Self::named_reserve_identifier(order_id);
-		T::NamedMultiReservableCurrency::reserved_balance_named(&reserve_id, order.asset_sell.into(), &order.owner)
-			.into()
+		T::Currency::reserved_balance_named(&reserve_id, order.asset_sell, &order.owner)
 	}
 
 	fn amount_receive(
@@ -439,11 +437,11 @@ where
 		amount_receive: Balance,
 	) -> DispatchResult {
 		let reserve_id = Self::named_reserve_identifier(order_id);
-		T::NamedMultiReservableCurrency::unreserve_named(
+		T::Currency::unreserve_named(
 			&reserve_id,
-			order.asset_sell.into(),
+			order.asset_sell,
 			&order.owner,
-			amount_receive.into(),
+			amount_receive,
 		);
 
 		T::Currency::transfer(order.asset_buy, &who, &order.owner, amount_fill)?;

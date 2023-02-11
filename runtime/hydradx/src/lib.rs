@@ -854,7 +854,6 @@ impl pallet_otc::Config for Runtime {
 	type Event = Event;
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
-	type NamedMultiReservableCurrency = Currencies;
 	type NativeAssetId = NativeAssetId;
 	// Fix
 	type WeightInfo = ();
@@ -1117,6 +1116,8 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
 
+			list_benchmark!(list, extra, pallet_otc, OTC);
+
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
 			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
@@ -1173,6 +1174,8 @@ impl_runtime_apis! {
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
+
+			add_benchmark!(params, batches, pallet_otc, OTC);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
