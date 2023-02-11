@@ -855,8 +855,6 @@ impl pallet_otc::Config for Runtime {
 	type Event = Event;
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
-	type NativeAssetId = NativeAssetId;
-	// Fix
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
 }
 
