@@ -32,6 +32,7 @@
 // --output
 // ./pallets/otc/src/weights.rs
 // --template=.maintain/pallet-weight-template.hbs
+
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
@@ -40,14 +41,10 @@ use frame_support::{
 	traits::Get,
 	weights::{constants::RocksDbWeight, Weight},
 };
+
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_otc.
-pub trait WeightInfo {
-	fn place_order() -> Weight;
-	fn fill_order() -> Weight;
-	fn cancel_order() -> Weight;
-}
+use pallet_otc::weights::WeightInfo;
 
 /// Weights for pallet_otc using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
@@ -67,24 +64,5 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_ref_time(26_000_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
-	}
-}
-
-// For backwards compatibility and tests
-impl WeightInfo for () {
-	fn place_order() -> Weight {
-		Weight::from_ref_time(36_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(5 as u64))
-			.saturating_add(RocksDbWeight::get().writes(4 as u64))
-	}
-	fn fill_order() -> Weight {
-		Weight::from_ref_time(55_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(8 as u64))
-			.saturating_add(RocksDbWeight::get().writes(6 as u64))
-	}
-	fn cancel_order() -> Weight {
-		Weight::from_ref_time(26_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(3 as u64))
-			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 }

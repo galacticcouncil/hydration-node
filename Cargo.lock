@@ -1044,6 +1044,7 @@ dependencies = [
  "pallet-democracy",
  "pallet-identity",
  "pallet-omnipool",
+ "pallet-otc",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-scheduler",

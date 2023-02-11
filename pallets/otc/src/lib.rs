@@ -25,7 +25,9 @@ use codec::MaxEncodedLen;
 use frame_support::{pallet_prelude::*, require_transactional, transactional};
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 use hydradx_traits::Registry;
-use orml_traits::{GetByKey, MultiCurrency, MultiReservableCurrency, NamedMultiReservableCurrency};
+use orml_traits::{
+	GetByKey, MultiCurrency, MultiCurrencyExtended, MultiReservableCurrency, NamedMultiReservableCurrency,
+};
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash, One},
 	DispatchError,
@@ -76,6 +78,7 @@ pub mod pallet {
 
 		/// Named reservable multi currency
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>
+			+ MultiCurrencyExtended<Self::AccountId>
 			+ NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -205,8 +208,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// TODO: update weight fn
-		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
+		#[pallet::weight(<T as Config>::WeightInfo::fill_order())]
 		#[transactional]
 		pub fn fill_order(
 			origin: OriginFor<T>,
@@ -251,8 +253,7 @@ pub mod pallet {
 			})
 		}
 
-		/// TODO: update weight fn
-		#[pallet::weight(<T as Config>::WeightInfo::place_order())]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_order())]
 		#[transactional]
 		pub fn cancel_order(origin: OriginFor<T>, order_id: OrderId) -> DispatchResult {
 			let who = ensure_signed(origin)?;

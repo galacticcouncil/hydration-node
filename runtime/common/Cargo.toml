@@ -17,6 +17,7 @@ codec = { package = "parity-scale-codec", version = "3.1.5", default-features = 
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 primitives = {path = '../../primitives', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
+pallet-otc = { path = '../../pallets/otc', default-features = false }
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }

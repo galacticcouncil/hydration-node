@@ -119,7 +119,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 [features]
 default = ["std"]
 runtime-benchmarks = [
-    "frame-benchmarking",
+    "frame-benchmarking",   
     "frame-support/runtime-benchmarks",
     "frame-system-benchmarking",
     "frame-system/runtime-benchmarks",
@@ -148,6 +148,7 @@ runtime-benchmarks = [
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
+    "pallet-otc/runtime-benchmarks",
 ]
 std = [
     "codec/std",
