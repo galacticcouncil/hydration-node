@@ -26,8 +26,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 
 use orml_traits::NamedMultiReservableCurrency;
-use pallet_otc::types::OrderId;
-use sp_runtime::traits::{BlakeTwo256, Hash};
+use pallet_otc::{RESERVE_ID_PREFIX, types::OrderId};
 use xcm_emulator::TestExt;
 #[test]
 fn place_order_should_work() {
@@ -116,13 +115,9 @@ fn cancel_order_should_work() {
 }
 
 fn named_reserve_identifier(order_id: OrderId) -> [u8; 8] {
-	let prefix = b"otc";
 	let mut result = [0; 8];
-	result[0..3].copy_from_slice(prefix);
+	result[0..3].copy_from_slice(RESERVE_ID_PREFIX);
 	result[3..7].copy_from_slice(&order_id.to_be_bytes());
 
-	let hashed = BlakeTwo256::hash(&result);
-	let mut hashed_array = [0; 8];
-	hashed_array.copy_from_slice(&hashed.as_ref()[..8]);
-	hashed_array
+  result
 }
