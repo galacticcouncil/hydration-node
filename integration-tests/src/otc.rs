@@ -26,7 +26,7 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 
 use orml_traits::NamedMultiReservableCurrency;
-use pallet_otc::{RESERVE_ID_PREFIX, types::OrderId};
+use pallet_otc::{types::OrderId, RESERVE_ID_PREFIX};
 use xcm_emulator::TestExt;
 #[test]
 fn place_order_should_work() {
@@ -43,8 +43,14 @@ fn place_order_should_work() {
 		));
 
 		// Assert
-		let order = hydradx_runtime::OTC::orders(0);
+		let order = hydradx_runtime::OTC::orders(1);
 		assert!(order.is_some());
+
+		let reserve_id = named_reserve_identifier(1);
+		assert_eq!(
+			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
+			100 * UNITS
+		);
 	});
 }
 
@@ -65,16 +71,16 @@ fn fill_order_should_work() {
 		// Act
 		assert_ok!(hydradx_runtime::OTC::fill_order(
 			hydradx_runtime::Origin::signed(BOB.into()),
-			0,
+			1,
 			DAI,
 			15 * UNITS,
 		));
 
 		//Assert
-		let order = hydradx_runtime::OTC::orders(0);
+		let order = hydradx_runtime::OTC::orders(1);
 		assert!(order.is_some());
 
-		let reserve_id = named_reserve_identifier(0);
+		let reserve_id = named_reserve_identifier(1);
 		assert_eq!(
 			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
 			25 * UNITS
@@ -99,14 +105,14 @@ fn cancel_order_should_work() {
 		// Act
 		assert_ok!(hydradx_runtime::OTC::cancel_order(
 			hydradx_runtime::Origin::signed(ALICE.into()),
-			0
+			1
 		));
 
 		//Assert
-		let order = hydradx_runtime::OTC::orders(0);
+		let order = hydradx_runtime::OTC::orders(1);
 		assert!(order.is_none());
 
-		let reserve_id = named_reserve_identifier(0);
+		let reserve_id = named_reserve_identifier(1);
 		assert_eq!(
 			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
 			0
@@ -119,5 +125,5 @@ fn named_reserve_identifier(order_id: OrderId) -> [u8; 8] {
 	result[0..3].copy_from_slice(RESERVE_ID_PREFIX);
 	result[3..7].copy_from_slice(&order_id.to_be_bytes());
 
-  result
+	result
 }
