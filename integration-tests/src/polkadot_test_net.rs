@@ -22,6 +22,8 @@ pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
+pub const ETH: AssetId = 4;
+pub const BTC: AssetId = 5;
 
 use cumulus_primitives_core::ParaId;
 //use cumulus_primitives_core::relay_chain::AccountId;
@@ -152,6 +154,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let stable_amount = 50_000 * UNITS * 1_000_000;
 	let native_amount = 936_329_588_000_000_000;
 	let dot_amount = 87_719_298_250_000_u128;
+	let eth_amount = 63_750_000_000_000_000_000u128;
+	let btc_amount = 1_000_000_000u128;
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
 	let existential_deposit = NativeExistentialDeposit::get();
@@ -174,10 +178,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_asset_registry::GenesisConfig::<Runtime> {
-		asset_names: vec![
-			(b"LRNA".to_vec(), 1_000u128),
-			(b"DAI".to_vec(), 1_000u128),
-			(b"USDC".to_vec(), 1_000u128),
+		registered_assets: vec![
+			(b"LRNA".to_vec(), 1_000u128, Some(1)),
+			(b"DAI".to_vec(), 1_000u128, Some(2)),
+			(b"DOT".to_vec(), 1_000u128, Some(3)),
+			(b"ETH".to_vec(), 1_000u128, Some(4)),
+			(b"BTC".to_vec(), 1_000u128, Some(5)),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
@@ -198,10 +204,13 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), 2, 200 * UNITS),
 			(AccountId::from(BOB), 1, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
 			(omnipool_account.clone(), DAI, stable_amount),
+			(omnipool_account.clone(), ETH, eth_amount),
+			(omnipool_account.clone(), BTC, btc_amount),
 			(omnipool_account, DOT, dot_amount),
 		],
 	}
