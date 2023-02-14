@@ -187,13 +187,6 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(b"ETH".to_vec(), 1_000u128, Some(4)),
 			(b"BTC".to_vec(), 1_000u128, Some(5)),
 		],
-		asset_ids: vec![
-			(b"LRNA".to_vec(), 1_000u128, 1),
-			(b"DAI".to_vec(), 1_000u128, 2),
-			(b"DOT".to_vec(), 1_000u128, 3),
-			(b"ETH".to_vec(), 1_000u128, 4),
-			(b"BTC".to_vec(), 1_000u128, 5),
-		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
 	}

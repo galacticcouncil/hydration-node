@@ -80,8 +80,6 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 				vec![],
 				// registered_assets
 				vec![],
-				//registered_ids
-				vec![],
 				// accepted_assets
 				vec![],
 				// token balances
@@ -115,7 +113,7 @@ pub fn _parachain_config_rococo() -> Result<ChainSpec, String> {
 				(_TELEMETRY_URLS[0].to_string(), 0),
 				(_TELEMETRY_URLS[1].to_string(), 0),
 			])
-			.expect("Telemetry url is valid"),
+				.expect("Telemetry url is valid"),
 		),
 		// Protocol ID
 		Some(PROTOCOL_ID),

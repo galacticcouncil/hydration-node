@@ -721,7 +721,6 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetNativeLocation = AssetLocation;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type StringLimit = RegistryStrLimit;
-	type SequentialIdStartAt = SequentialIdOffset;
 	type NativeAssetId = NativeAssetId;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
