@@ -66,7 +66,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
-	use orml_traits::MultiLockableCurrency;
+	use orml_traits::{MultiCurrency, MultiLockableCurrency};
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -83,11 +83,7 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
-		type Currency: Currency<Self::AccountId>;
-
-		// This type is needed to convert from Currency to Balance
-		type CurrencyBalance: From<Balance>
-			+ Into<<Self::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
+		type Currency: MultiCurrency<Self::AccountId>;
 
 		type AssetTransactor: TransactAsset;
 	}

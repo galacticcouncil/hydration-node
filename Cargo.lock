@@ -6580,6 +6580,7 @@ dependencies = [
  "orml-traits",
  "orml-utilities",
  "pallet-balances",
+ "pallet-currencies",
  "parity-scale-codec",
  "primitives",
  "rustc-hex",

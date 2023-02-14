@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use super::*;
-use crate as claims;
+use crate as xcm_rate_limit;
 use crate::{Config, EthereumAddress};
 use frame_support::parameter_types;
 use hex_literal::hex;
@@ -26,8 +26,12 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+use orml_traits::arithmetic::One;
 
-use frame_support::traits::{Everything, GenesisBuild};
+use frame_support::traits::{Everything, GenesisBuild, Nothing};
+use orml_traits::parameter_type_with_key;
+use pallet_currencies::BasicCurrencyAdapter;
+use primitives::constants::chain::CORE_ASSET_ID;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -38,9 +42,11 @@ frame_support::construct_runtime!(
 	 NodeBlock = Block,
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
-		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		 ClaimsPallet: claims::{Pallet, Call, Storage, Event<T>},
-		 Balances: pallet_balances::{Pallet, Event<T>},
+		 System: frame_system,
+		 XcmRateLimit: xcm_rate_limit,
+		 Balances: pallet_balances,
+		 Currencies: pallet_currencies,
+		 Tokens: orml_tokens,
 	 }
 );
 
@@ -89,15 +95,53 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
 	pub Prefix: &'static [u8] = b"I hereby claim all my xHDX tokens to wallet:";
+	pub NativeCurrencyId: u32 = CORE_ASSET_ID;
+
 }
 
 impl Config for Test {
 	type Event = Event;
-	type Currency = Balances;
+	type Currency = Currencies;
 	type Prefix = Prefix;
 	type WeightInfo = ();
-	type CurrencyBalance = Balance;
 	type AssetTransactor = ();
+}
+pub type Amount = i128;
+
+impl pallet_currencies::Config for Test {
+	type Event = Event;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: u32| -> Balance {
+		One::one()
+	};
+}
+
+
+parameter_types! {
+	pub const MaxReserves: u32 = 50;
+
+}
+
+impl orml_tokens::Config for Test {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = u32;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
+	type MaxLocks = ();
+	type DustRemovalWhitelist = Nothing;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+	type ReserveIdentifier = ();
+	type MaxReserves = MaxReserves;
 }
 
 pub type AccountId = u64;
