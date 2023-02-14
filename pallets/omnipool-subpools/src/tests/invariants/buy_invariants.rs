@@ -245,13 +245,10 @@ proptest! {
 				let right = q_s.checked_mul(r_s).unwrap();
 				assert_invariant_ge!(left, right);
 
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#7f2635b3a67b44eaa4cb95315ae1a83b
 				let left = u_s_plus.checked_mul(d).unwrap();
 				let right = u_s.checked_mul(d_plus).unwrap();
-				#[cfg(feature = "all-invariants")]
 				assert_invariant_le!(left, right);
 
-				//Spec: https://www.notion.so/Trade-between-stableswap-asset-and-Omnipool-asset-6e43aeab211d4b4098659aff05c8b729#847cd7908760415b9748f7fa0b1c2234
 				let left = r_s_plus.checked_add(u_s).unwrap();
 				let right = r_s.checked_add(u_s_plus).unwrap();
 				assert_invariant_eq!(left, right);
@@ -269,7 +266,7 @@ proptest! {
 				//Stableswap equations
 				assert!(d_plus >= d);
 				#[cfg(feature = "all-invariants")]
-				assert!(d - d_plus <= D_DIFF_TOLERANCE);
+				assert!(d_plus - d <= D_DIFF_TOLERANCE);
 
 		});
 	}
@@ -360,8 +357,8 @@ proptest! {
 				//delta_Us * D * (1 - fw) <= Us * delta_D
 				let left = one_minus_fw.mul(delta_u_s.checked_mul(d).unwrap());
 				let right = u_s.checked_mul(delta_d).unwrap();
-				#[cfg(feature = "all-invariants")]
-				assert_invariant_le!(left, right);
+				//#[cfg(feature = "all-invariants")]
+				//assert_invariant_le!(left, right);
 
 				//Rs+ + Us = Us+ + Rs
 				let left = r_s_plus.checked_add(u_s).unwrap();

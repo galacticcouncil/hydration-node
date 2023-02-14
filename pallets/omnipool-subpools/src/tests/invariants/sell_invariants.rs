@@ -394,7 +394,7 @@ proptest! {
 			// TODO: should be flipped or not ?
 			let left = delta_u_s.checked_mul_into(&d_before_sell).unwrap();
 			let right = u_s.checked_mul_into(&delta_d).unwrap();
-			assert_invariant_le!(right, left);
+			assert_invariant_ge!(left, right);
 
 			//(Qs+ + L+ Qs+ / Q+ ) * Rs <= (Qs + L Qs/Q) * Rs+
 			let left_one = q_s_plus.checked_mul_into(&r_s).unwrap();
