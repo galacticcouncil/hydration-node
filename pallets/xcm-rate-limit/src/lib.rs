@@ -35,7 +35,8 @@ use scale_info::TypeInfo;
 use sp_runtime::{traits::Zero, ModuleError};
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
 use weights::WeightInfo;
-
+use polkadot_xcm::prelude::*;
+use frame_support::pallet_prelude::*;
 mod benchmarking;
 mod traits;
 pub use traits::*;
@@ -47,7 +48,11 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+#[derive(Clone, Default, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct AssetVolume {
+	asset_in: u128,
+	asset_out: u128
+}
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
@@ -57,6 +62,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
+	use orml_traits::MultiLockableCurrency;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -95,7 +101,7 @@ pub mod pallet {
 	/// Asset id storage for each shared token
 	#[pallet::storage]
 	#[pallet::getter(fn claims)]
-	pub type Claims<T: Config> = StorageMap<_, Blake2_128Concat, EthereumAddress, BalanceOf<T>, ValueQuery>;
+	pub type VolumePerAsset<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, AssetVolume, ValueQuery>;
 
 
 	#[pallet::call]

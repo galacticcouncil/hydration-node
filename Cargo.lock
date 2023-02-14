@@ -6589,6 +6589,8 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm",
+ "xcm-executor",
 ]
 
 [[package]]

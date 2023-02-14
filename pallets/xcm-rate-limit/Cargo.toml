@@ -36,6 +36,10 @@ orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 orml-utilities = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
+# Polkadot dependencies
+polkadot-xcm = { package = "xcm", git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1", default-features = false }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1", default-features = false }
+
 [dev-dependencies]
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
@@ -54,6 +58,8 @@ std = [
   'orml-traits/std',
   'orml-tokens/std',
   'orml-utilities/std',
+  "polkadot-xcm/std",
+  "xcm-executor/std",
   'primitives/std',
   'rustc-hex/std',
   'serde/std',
