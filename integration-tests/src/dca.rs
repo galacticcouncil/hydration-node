@@ -18,6 +18,7 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
+
 #[test]
 fn crate_schedule_should_work() {
 	TestNet::reset();
@@ -66,63 +67,61 @@ fn schedule_execution_should_work_when_block_is_initialized() {
 
 #[test]
 fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block() {
-	//We simulate a failing scenarios so we get errros we can use for verification
-	//The user don't have enough balance
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipol();
 
-		let schedule1 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
-		let schedule2 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
-		let schedule3 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
-		let schedule4 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
-		let schedule5 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
-		let schedule6 = schedule_fake_with_sell_order(LRNA, HDX, CHARLIE_INITIAL_LRNA_BALANCE + UNITS);
+		let schedule1 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule2 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule3 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule4 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule5 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule6 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
 
-		create_schedule_by_charlie(schedule1);
-		create_schedule_by_charlie(schedule2);
-		create_schedule_by_charlie(schedule3);
-		create_schedule_by_charlie(schedule4);
-		create_schedule_by_charlie(schedule5);
-		create_schedule_by_charlie(schedule6);
+		create_schedule(schedule1);
+		create_schedule(schedule2);
+		create_schedule(schedule3);
+		create_schedule(schedule4);
+		create_schedule(schedule5);
+		create_schedule(schedule6);
 
 		//Act
 		hydra_run_to_block(5);
 
 		//Assert
-		//We check the reordering based on the the emitted events.
-		//As the CHARLIE has no balance of DAI, all the schedule execution will fail and be suspended
-		//As the hash is fixed for the relay block number for integration tests, therefore we should always expect the same result
-		expect_suspended_events(vec![
-			pallet_dca::Event::Suspended {
+		//We simulate a failing scenarios so we get errors we can use for verification
+		//DCA has sell order bigger than what is reserved amounts, therefore it will be always completed without executing any  trad
+		//We check the random ordering based on the the emitted events.
+		expect_completed_dca_events(vec![
+			pallet_dca::Event::Completed {
 				id: 1,
-				who: sp_runtime::AccountId32::from(CHARLIE),
+				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
-			pallet_dca::Event::Suspended {
+			pallet_dca::Event::Completed {
 				id: 2,
-				who: sp_runtime::AccountId32::from(CHARLIE),
+				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
-			pallet_dca::Event::Suspended {
+			pallet_dca::Event::Completed {
 				id: 6,
-				who: sp_runtime::AccountId32::from(CHARLIE),
+				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
-			pallet_dca::Event::Suspended {
+			pallet_dca::Event::Completed {
 				id: 4,
-				who: sp_runtime::AccountId32::from(CHARLIE),
+				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
-			pallet_dca::Event::Suspended {
+			pallet_dca::Event::Completed {
 				id: 3,
-				who: sp_runtime::AccountId32::from(CHARLIE),
+				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
-			pallet_dca::Event::Suspended {
+			pallet_dca::Event::Completed {
 				id: 5,
-				who: sp_runtime::AccountId32::from(CHARLIE),
+				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
 		]);
@@ -185,12 +184,13 @@ fn create_schedule_by_charlie(schedule1: Schedule<AssetId, u32>) {
 fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
+		total_amount: 100 * UNITS,
 		recurrence: Recurrence::Fixed(5),
 		order: Order::Buy {
 			asset_in: asset_in,
 			asset_out: asset_out,
 			amount_out: amount,
-			max_limit: Balance::MAX,
+			max_limit: 2 * UNITS,
 			route: create_bounded_vec(vec![]),
 		},
 	};
@@ -200,12 +200,13 @@ fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: B
 fn schedule_fake_with_sell_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
+		total_amount: 20 * UNITS,
 		recurrence: Recurrence::Fixed(5),
-		order: Order::Buy {
+		order: Order::Sell {
 			asset_in: asset_in,
 			asset_out: asset_out,
-			amount_out: amount,
-			max_limit: Balance::MAX,
+			amount_in: amount,
+			min_limit: Balance::MIN,
 			route: create_bounded_vec(vec![]),
 		},
 	};
@@ -218,8 +219,8 @@ pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<Asset
 }
 
 pub fn init_omnipol() {
-	let native_price = FixedU128::from_inner(1201500000000000);
-	let stable_price = FixedU128::from_inner(801500000000000);
+	let native_price = FixedU128::from_float(0.5);
+	let stable_price = FixedU128::from_float(0.7);
 	hydradx_runtime::Omnipool::protocol_account();
 
 	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
@@ -228,8 +229,8 @@ pub fn init_omnipol() {
 		hydradx_runtime::Origin::root(),
 		stable_price,
 		native_price,
-		Permill::from_percent(100),
-		Permill::from_percent(10)
+		Permill::from_percent(60),
+		Permill::from_percent(60)
 	));
 }
 
@@ -248,21 +249,22 @@ pub fn hydra_run_to_block(to: BlockNumber) {
 	}
 }
 
-pub fn expect_suspended_events(e: Vec<hydradx_runtime::Event>) {
-	let last_events: Vec<hydradx_runtime::Event> = get_last_suspended_events();
+pub fn expect_completed_dca_events(e: Vec<hydradx_runtime::Event>) {
+	let last_events: Vec<hydradx_runtime::Event> = get_last_completed_dca_events();
 	pretty_assertions::assert_eq!(last_events, e);
 }
 
-pub fn get_last_suspended_events() -> Vec<hydradx_runtime::Event> {
+pub fn get_last_completed_dca_events() -> Vec<hydradx_runtime::Event> {
 	let last_events: Vec<hydradx_runtime::Event> = last_hydra_events(1000);
 	let mut suspended_events = vec![];
 
 	for event in last_events {
 		let e = event.clone();
-		if let hydradx_runtime::Event::DCA(pallet_dca::Event::Suspended { .. }) = e {
+		if let hydradx_runtime::Event::DCA(pallet_dca::Event:: Completed { .. }) = e {
 			suspended_events.push(event.clone());
 		}
 	}
 
 	suspended_events
 }
+

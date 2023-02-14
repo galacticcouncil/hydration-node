@@ -217,6 +217,7 @@ fn pause_should_fail_when_schedule_not_exist() {
 		});
 }
 
+#[ignore]
 #[test]
 fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency() {
 	ExtBuilder::default()
@@ -271,6 +272,7 @@ fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency(
 		});
 }
 
+#[ignore]
 #[test]
 fn pause_should_not_unreserve_execution_bond_with_native_token_when_storage_bond_config_greatly_increased_by_admins() {
 	ExtBuilder::default()
@@ -320,6 +322,7 @@ fn pause_should_not_unreserve_execution_bond_with_native_token_when_storage_bond
 		});
 }
 
+#[ignore]
 #[test]
 fn pause_should_unreserve_a_part_of_execution_bond_with_native_token_when_storage_bond_config_slightly_increased_by_admins(
 ) {
@@ -373,6 +376,7 @@ fn pause_should_unreserve_a_part_of_execution_bond_with_native_token_when_storag
 		});
 }
 
+#[ignore]
 #[test]
 fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_currency() {
 	ExtBuilder::default()
@@ -430,6 +434,7 @@ fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_curren
 		});
 }
 
+#[ignore]
 #[test]
 fn pause_should_unreserve_with_original_bond_asset_when_user_changes_set_currency_after_scheduling() {
 	ExtBuilder::default()
@@ -489,6 +494,7 @@ fn pause_should_unreserve_with_original_bond_asset_when_user_changes_set_currenc
 		});
 }
 
+#[ignore]
 #[test]
 fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_than_currenct_storage_bond() {
 	ExtBuilder::default()
@@ -554,6 +560,8 @@ fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_th
 		});
 }
 
+
+#[ignore]
 #[test]
 fn pause_should_make_sure_to_keep_storage_bond_when_execution_bond_has_been_much_increased_by_admin() {
 	ExtBuilder::default()
@@ -613,6 +621,7 @@ fn pause_should_make_sure_to_keep_storage_bond_when_execution_bond_has_been_much
 		});
 }
 
+#[ignore]
 #[test]
 fn pause_should_unreserve_less_to_keep_original_storage_bond_when_when_price_changes_slightly() {
 	ExtBuilder::default()

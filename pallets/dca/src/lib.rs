@@ -165,6 +165,8 @@ pub mod pallet {
 		>;
 
 		///Spot price provider to get the spot price of the native asset comparing to other assets
+		///
+		//TODO: use better abstraction for this
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block

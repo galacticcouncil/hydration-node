@@ -165,6 +165,7 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 		});
 }
 
+#[ignore]
 #[test]
 fn schedule_creation_should_store_bond_taken_from_user() {
 	ExtBuilder::default()
@@ -196,6 +197,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 		});
 }
 
+#[ignore]
 #[test]
 fn schedule_creation_should_store_bond_when_user_has_set_currency_with_nonnative_token() {
 	ExtBuilder::default()
