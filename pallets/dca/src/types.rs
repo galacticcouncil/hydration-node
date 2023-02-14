@@ -12,6 +12,7 @@ const MAX_NUMBER_OF_TRADES: u32 = 5;
 pub struct Schedule<AssetId, BlockNumber> {
 	pub period: BlockNumber,
 	pub recurrence: Recurrence,
+	pub total_amount: Balance,
 	pub order: Order<AssetId>,
 }
 

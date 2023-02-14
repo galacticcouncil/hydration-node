@@ -17,12 +17,13 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{assert_scheduled_ids, Bond};
+use crate::{assert_scheduled_ids, reserve_identifier, Bond};
 use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::DispatchError;
@@ -46,33 +47,43 @@ fn terminate_should_remove_schedule_from_storage() {
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
-			assert!(DCA::schedules(schedule_id).is_none());
-			assert!(DCA::owner_of(schedule_id).is_none());
-			assert!(DCA::remaining_recurrences(schedule_id).is_none());
+			assert_that_schedule_has_been_removed_from_storages(schedule_id);
 
 			expect_events(vec![Event::Terminated { id: 1, who: ALICE }.into()]);
 		});
 }
 
 #[test]
-fn terminate_should_discard_complete_bond() {
+fn terminate_should_unreserve_all_named_reserved() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_recurrence(Recurrence::Fixed(5))
+				.build();
 
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+
+			let schedule_id = 1;
+			let named_reserve_id = reserve_identifier(schedule_id);
+			assert_eq!(
+				total_amount,
+				Currencies::reserved_balance_named(&named_reserve_id, HDX.into(), &ALICE.into())
+			);
 
 			//Act
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
-			assert!(DCA::bond(schedule_id).is_none());
-			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(
+				0,
+				Currencies::reserved_balance_named(&named_reserve_id, HDX.into(), &ALICE.into())
+			);
 		});
 }
 
