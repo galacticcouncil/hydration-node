@@ -20,13 +20,13 @@ use crate as xcm_rate_limit;
 use crate::{Config, EthereumAddress};
 use frame_support::parameter_types;
 use hex_literal::hex;
+use orml_traits::arithmetic::One;
 use primitives::Balance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use orml_traits::arithmetic::One;
 
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use orml_traits::parameter_type_with_key;
@@ -106,6 +106,7 @@ impl Config for Test {
 	type WeightInfo = ();
 	type AssetTransactor = ();
 	type LocationToAccountIdConverter = ();
+	type CurrencyIdConverter = ();
 }
 pub type Amount = i128;
 
@@ -122,7 +123,6 @@ parameter_type_with_key! {
 		One::one()
 	};
 }
-
 
 parameter_types! {
 	pub const MaxReserves: u32 = 50;

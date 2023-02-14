@@ -20,6 +20,7 @@
 
 use codec::{Decode, Encode};
 use frame_support::pallet_prelude::*;
+use frame_support::BoundedBTreeMap;
 use frame_support::{
 	dispatch::{DispatchError, DispatchResult},
 	ensure,
@@ -37,10 +38,13 @@ use sp_runtime::{traits::Zero, ModuleError};
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
 use weights::WeightInfo;
 
+use orml_traits::LockIdentifier;
+use orml_traits::MultiCurrency;
+use orml_traits::MultiLockableCurrency;
 use polkadot_xcm::prelude::*;
+use xcm_executor::traits::Convert;
 use xcm_executor::traits::TransactAsset;
 use xcm_executor::Assets;
-use orml_traits::MultiLockableCurrency;
 
 mod benchmarking;
 mod traits;
@@ -66,6 +70,9 @@ use primitives::constants::currency::UNITS;
 //TODO: Use spot price provider or existential deposit fall back
 pub const MAX_VOLUME_LIMIT: u128 = 10_000 * UNITS;
 
+pub const LOCK_ID: LockIdentifier = *b"XCMlimit";
+
+pub type CurrencyId = u32;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -74,7 +81,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use orml_traits::{MultiCurrency, MultiLockableCurrency};
 	use xcm_executor::traits::Convert;
-
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -91,10 +97,12 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
-		//TODO: do we need reserve or lock
+		//TODO: do we need reserve or lock?
 		type Currency: MultiLockableCurrency<Self::AccountId>;
 
 		type LocationToAccountIdConverter: Convert<MultiLocation, Self::AccountId>;
+
+		type CurrencyIdConverter: Convert<MultiAsset, CurrencyId>;
 
 		type AssetTransactor: TransactAsset;
 	}
@@ -116,6 +124,12 @@ pub mod pallet {
 	#[pallet::getter(fn volume)]
 	pub type VolumePerAsset<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, AssetVolume, ValueQuery>;
 
+	/// TODO: figure out actual max number of btree entries
+	#[pallet::storage]
+	#[pallet::getter(fn locked_assets)]
+	pub type LockedAssets<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedBTreeMap<CurrencyId, Balance, ConstU32<20>>, ValueQuery>;
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight((<T as Config>::WeightInfo::claim(), DispatchClass::Normal, Pays::No))]
@@ -127,16 +141,23 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> TransactAsset for Pallet<T> {
+impl<T: Config> TransactAsset for Pallet<T>
+where
+	<<T as pallet::Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId: From<u32>,
+{
 	/// Ensure that `check_in` will result in `Ok`.
 	///
 	/// When composed as a tuple, all type-items are called and at least one must result in `Ok`.
 	fn can_check_in(_origin: &MultiLocation, _what: &MultiAsset) -> XcmResult {
-		Ok(())
+		T::AssetTransactor::can_check_in(_origin, _what)
 	}
 
-	fn check_in(_origin: &MultiLocation, _what: &MultiAsset) {}
-	fn check_out(_dest: &MultiLocation, _what: &MultiAsset) {}
+	fn check_in(_origin: &MultiLocation, _what: &MultiAsset) {
+		T::AssetTransactor::check_in(_origin, _what)
+	}
+	fn check_out(_dest: &MultiLocation, _what: &MultiAsset) {
+		T::AssetTransactor::check_out(_dest, _what)
+	}
 
 	/// Deposit the `what` asset into the account of `who`.
 	///
@@ -144,12 +165,30 @@ impl<T: Config> TransactAsset for Pallet<T> {
 	fn deposit_asset(what: &MultiAsset, who: &MultiLocation) -> XcmResult {
 		let asset_in_volume = Pallet::<T>::track_volume_in(what);
 
-		T::AssetTransactor::deposit_asset(what, who)
+		let res = T::AssetTransactor::deposit_asset(what, who);
 
-		/*if asset_in_volume >= MAX_VOLUME_LIMIT {
-			T::Currency::set_lock(who)
-		}*/
+		if res.is_ok() && asset_in_volume >= MAX_VOLUME_LIMIT {
+			let who = T::LocationToAccountIdConverter::convert_ref(who)
+				.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert account id"))?;
+			let currency_id = T::CurrencyIdConverter::convert_ref(what)
+				.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert currency id"))?;
+			let amount = Pallet::<T>::amount(what);
+			let mut locked_assets = LockedAssets::<T>::get(&who);
+			let prev_amount = locked_assets.get(&currency_id).unwrap_or(&0);
+			let new_lock_amount = prev_amount.saturating_add(amount);
+			locked_assets
+				.try_insert(currency_id, new_lock_amount)
+				.map_err(|_| XcmError::FailedToTransactAsset("Failed to insert locked asset"))?;
+			LockedAssets::<T>::insert(&who, locked_assets);
+			let lock_amount = new_lock_amount
+				.try_into()
+				.map_err(|_| XcmError::FailedToTransactAsset("Failed to conver to balance"))?;
+			let id = currency_id.into();
+			T::Currency::set_lock(LOCK_ID, id, &who, lock_amount)
+				.map_err(|_| XcmError::FailedToTransactAsset("Failed to set lock"))?;
+		}
 
+		res
 	}
 
 	/// Withdraw the given asset from the consensus system. Return the actual asset(s) withdrawn,
@@ -190,28 +229,34 @@ impl<T: Config> TransactAsset for Pallet<T> {
 					..
 				},
 			) => Pallet::<T>::track_volume_out(asset),
-			_ =>
-				todo!()
+			_ => todo!(),
 		};
 		T::AssetTransactor::internal_transfer_asset(asset, from, to)
 	}
 }
 
 impl<T: Config> Pallet<T> {
-	fn track_volume_in(asset: &MultiAsset) -> u128{
+	fn amount(asset: &MultiAsset) -> u128 {
 		match asset {
 			MultiAsset {
 				id: Concrete(loc),
 				fun: Fungible(amount),
-			} => {
-				VolumePerAsset::<T>::mutate(loc, |volume| {
-					volume.asset_in += amount;
-					volume.asset_in
-				})
-			}
+			} => *amount,
 			_ => todo!(),
 		}
+	}
 
+	fn track_volume_in(asset: &MultiAsset) -> u128 {
+		match asset {
+			MultiAsset {
+				id: Concrete(loc),
+				fun: Fungible(amount),
+			} => VolumePerAsset::<T>::mutate(loc, |volume| {
+				volume.asset_in += amount;
+				volume.asset_in
+			}),
+			_ => todo!(),
+		}
 	}
 
 	fn track_volume_out(asset: &MultiAsset) -> u128 {
@@ -219,12 +264,10 @@ impl<T: Config> Pallet<T> {
 			MultiAsset {
 				id: Concrete(loc),
 				fun: Fungible(amount),
-			} => {
-				VolumePerAsset::<T>::mutate(loc, |volume| {
-					volume.asset_out += amount;
-					volume.asset_out
-				})
-			}
+			} => VolumePerAsset::<T>::mutate(loc, |volume| {
+				volume.asset_out += amount;
+				volume.asset_out
+			}),
 			_ => todo!(),
 		}
 	}
