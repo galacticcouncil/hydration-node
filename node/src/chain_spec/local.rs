@@ -80,9 +80,10 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				// vestings
 				vec![],
 				// registered assets
-				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
-				//registered ids
-				vec![(b"KSM".to_vec(), 1_000u128, 1), (b"KUSD".to_vec(), 1_000u128, 2)],
+				vec![
+					(b"KSM".to_vec(), 1_000u128, Some(1)),
+					(b"KUSD".to_vec(), 1_000u128, Some(2)),
+				],
 				// accepted assets
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
 				// token balances

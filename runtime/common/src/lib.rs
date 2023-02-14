@@ -314,5 +314,4 @@ parameter_types! {
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
 	pub const SequentialIdOffset: u32 = 1_000_000;
-
 }
