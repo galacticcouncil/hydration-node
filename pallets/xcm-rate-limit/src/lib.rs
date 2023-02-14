@@ -40,6 +40,7 @@ use weights::WeightInfo;
 use polkadot_xcm::prelude::*;
 use xcm_executor::traits::TransactAsset;
 use xcm_executor::Assets;
+use orml_traits::MultiLockableCurrency;
 
 mod benchmarking;
 mod traits;
@@ -60,6 +61,11 @@ pub struct AssetVolume {
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
+use primitives::constants::currency::UNITS;
+
+//TODO: Use spot price provider or existential deposit fall back
+pub const MAX_VOLUME_LIMIT: u128 = 10_000 * UNITS;
+
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -67,6 +73,8 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::OriginFor;
 	use orml_traits::{MultiCurrency, MultiLockableCurrency};
+	use xcm_executor::traits::Convert;
+
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -83,7 +91,10 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
-		type Currency: MultiCurrency<Self::AccountId>;
+		//TODO: do we need reserve or lock
+		type Currency: MultiLockableCurrency<Self::AccountId>;
+
+		type LocationToAccountIdConverter: Convert<MultiLocation, Self::AccountId>;
 
 		type AssetTransactor: TransactAsset;
 	}
@@ -131,8 +142,14 @@ impl<T: Config> TransactAsset for Pallet<T> {
 	///
 	/// Implementations should return `XcmError::FailedToTransactAsset` if deposit failed.
 	fn deposit_asset(what: &MultiAsset, who: &MultiLocation) -> XcmResult {
-		Pallet::<T>::track_volume_in(what);
+		let asset_in_volume = Pallet::<T>::track_volume_in(what);
+
 		T::AssetTransactor::deposit_asset(what, who)
+
+		/*if asset_in_volume >= MAX_VOLUME_LIMIT {
+			T::Currency::set_lock(who)
+		}*/
+
 	}
 
 	/// Withdraw the given asset from the consensus system. Return the actual asset(s) withdrawn,
@@ -173,14 +190,15 @@ impl<T: Config> TransactAsset for Pallet<T> {
 					..
 				},
 			) => Pallet::<T>::track_volume_out(asset),
-			_ => {}
-		}
+			_ =>
+				todo!()
+		};
 		T::AssetTransactor::internal_transfer_asset(asset, from, to)
 	}
 }
 
 impl<T: Config> Pallet<T> {
-	fn track_volume_in(asset: &MultiAsset) {
+	fn track_volume_in(asset: &MultiAsset) -> u128{
 		match asset {
 			MultiAsset {
 				id: Concrete(loc),
@@ -188,13 +206,15 @@ impl<T: Config> Pallet<T> {
 			} => {
 				VolumePerAsset::<T>::mutate(loc, |volume| {
 					volume.asset_in += amount;
-				});
+					volume.asset_in
+				})
 			}
 			_ => todo!(),
 		}
+
 	}
 
-	fn track_volume_out(asset: &MultiAsset) {
+	fn track_volume_out(asset: &MultiAsset) -> u128 {
 		match asset {
 			MultiAsset {
 				id: Concrete(loc),
@@ -202,7 +222,8 @@ impl<T: Config> Pallet<T> {
 			} => {
 				VolumePerAsset::<T>::mutate(loc, |volume| {
 					volume.asset_out += amount;
-				});
+					volume.asset_out
+				})
 			}
 			_ => todo!(),
 		}

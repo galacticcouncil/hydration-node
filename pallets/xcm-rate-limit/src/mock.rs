@@ -105,6 +105,7 @@ impl Config for Test {
 	type Prefix = Prefix;
 	type WeightInfo = ();
 	type AssetTransactor = ();
+	type LocationToAccountIdConverter = ();
 }
 pub type Amount = i128;
 
