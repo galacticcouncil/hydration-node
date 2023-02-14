@@ -59,7 +59,6 @@ pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse"
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "c0b3453f301e6935a3048f3d4d56cbbcc1abf7f7", default-features = false}
 pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "c0b3453f301e6935a3048f3d4d56cbbcc1abf7f7", default-features = false }
 
-
 # ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }

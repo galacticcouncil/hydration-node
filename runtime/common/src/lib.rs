@@ -316,7 +316,7 @@ parameter_types! {
 	pub const SequentialIdOffset: u32 = 1_000_000;
 }
 
-// pallet circuit breaker registry
+// pallet circuit breaker
 parameter_types! {
 	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (2_000, 10_000);	// 20%
 	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((4_000, 10_000));	// 40%
