@@ -16,9 +16,7 @@
 // limitations under the License.
 
 use crate::mock::*;
-use crate::{
-	 EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransaction,
-};
+use crate::{EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransaction};
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
@@ -32,6 +30,5 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 #[test]
 fn claiming_works() {
-	new_test_ext().execute_with(|| {
-	})
+	new_test_ext().execute_with(|| {})
 }

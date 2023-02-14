@@ -97,6 +97,7 @@ impl Config for Test {
 	type Prefix = Prefix;
 	type WeightInfo = ();
 	type CurrencyBalance = Balance;
+	type AssetTransactor = ();
 }
 
 pub type AccountId = u64;
@@ -119,7 +120,6 @@ impl ExtBuilder {
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
-
 
 		t.into()
 	}
