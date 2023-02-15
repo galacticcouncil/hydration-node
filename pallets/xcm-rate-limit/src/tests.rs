@@ -16,15 +16,16 @@
 // limitations under the License.
 
 use crate::mock::*;
+use crate::Balance;
 use crate::MAX_VOLUME_LIMIT;
 use crate::{EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransaction};
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
 use polkadot_xcm::prelude::*;
+use primitives::constants::currency::UNITS;
 use sp_std::marker::PhantomData;
 use xcm_executor::traits::TransactAsset;
-use primitives::constants::currency::UNITS;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -32,34 +33,41 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
+fn multi_loc(acc: [u8; 32]) -> MultiLocation {
+	MultiLocation {
+		interior: X1(AccountId32 { network: Any, id: acc }),
+		parents: 0,
+	}
+}
 
 #[test]
 fn balance_should_be_locked_when_rate_limit_triggers() {
 	new_test_ext().execute_with(|| {
-		//Arrange
-		let asset = (
-			MultiLocation {
-				interior: X1(Parachain(1000)),
-				parents: 1,
-			},
-			MAX_VOLUME_LIMIT + 1 * UNITS,
-		)
-			.into();
-		let who = MultiLocation {
-			interior: X1(AccountId32 {
-				network: Any,
-				id: ALICE,
-			}),
-			parents: 0,
+		let create_asset = |id: u32, amount: Balance| -> MultiAsset {
+			(
+				MultiLocation {
+					interior: X1(Parachain(id)),
+					parents: 1,
+				},
+				amount,
+			)
+				.into()
 		};
+
+		//Arrange
+		let bob_asset = create_asset(1000, MAX_VOLUME_LIMIT);
+		let bob = multi_loc(BOB);
+		let result = XcmRateLimit::deposit_asset(&bob_asset, &bob);
+
+		let asset = create_asset(1000, 1 * UNITS);
+		let who = multi_loc(ALICE);
 
 		//Act
 		let result = XcmRateLimit::deposit_asset(&asset, &who);
 		assert_ok!(result);
 
 		//Assert
-		let locks = Tokens::locks(sp_runtime::AccountId32::from(ALICE),1000);
-		assert_eq!(locks[0].amount,1 * UNITS);
-
+		let locks = Tokens::locks(sp_runtime::AccountId32::from(ALICE), 1000);
+		assert_eq!(locks[0].amount, 1 * UNITS);
 	})
 }

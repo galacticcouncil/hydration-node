@@ -44,7 +44,7 @@ xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "relea
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "ea6e89e2348ca349337bc4269a5637f4e9c3c9b1"}
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", features=["std"]}
+orml-xcm-support = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29" }
 
 [features]
 default = ['std']

@@ -34,6 +34,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 use primitives::Balance;
 use scale_info::TypeInfo;
+use sp_runtime::traits::Saturating;
 use sp_runtime::{traits::Zero, ModuleError};
 use sp_std::{marker::PhantomData, prelude::*, vec::Vec};
 use weights::WeightInfo;
@@ -165,29 +166,37 @@ where
 	fn deposit_asset(what: &MultiAsset, who: &MultiLocation) -> XcmResult {
 		let asset_in_volume = Pallet::<T>::track_volume_in(what);
 
+		let acc = T::LocationToAccountIdConverter::convert_ref(who)
+			.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert account id"))?;
+		let currency_id = T::CurrencyIdConverter::convert_ref(what)
+			.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert currency id"))?;
+		let prev_amount = T::Currency::total_balance(currency_id.into(), &acc);
 		let res = T::AssetTransactor::deposit_asset(what, who);
+		let new_amount = T::Currency::total_balance(currency_id.into(), &acc);
 
+		let account_delta = new_amount
+			.saturating_sub(prev_amount)
+			.try_into()
+			.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert to balance"))?;
 		if res.is_ok() && asset_in_volume >= MAX_VOLUME_LIMIT {
-			let who = T::LocationToAccountIdConverter::convert_ref(who)
-				.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert account id"))?;
-			let currency_id = T::CurrencyIdConverter::convert_ref(what)
-				.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert currency id"))?;
 			let amount = Pallet::<T>::amount(what);
-			let mut locked_assets = LockedAssets::<T>::get(&who);
+			let mut locked_assets = LockedAssets::<T>::get(&acc);
 			let prev_amount = locked_assets.get(&currency_id).unwrap_or(&0);
-			let new_lock_amount = prev_amount.saturating_add(amount);
+			let new_lock_amount = prev_amount.saturating_add(account_delta);
 			locked_assets
 				.try_insert(currency_id, new_lock_amount)
 				.map_err(|_| XcmError::FailedToTransactAsset("Failed to insert locked asset"))?;
-			LockedAssets::<T>::insert(&who, locked_assets);
+			LockedAssets::<T>::insert(&acc, locked_assets);
 			let lock_amount = new_lock_amount
 				.try_into()
-				.map_err(|_| XcmError::FailedToTransactAsset("Failed to conver to balance"))?;
+				.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert to balance"))?;
 			let id = currency_id.into();
 
 			//TODO: Only lock amount when bigger than the existential deposit
-			T::Currency::set_lock(LOCK_ID, id, &who, lock_amount)
-				.map_err(|_| XcmError::FailedToTransactAsset("Failed to set lock"))?;
+			T::Currency::set_lock(LOCK_ID, id, &acc, lock_amount).map_err(|e| {
+				dbg!(e);
+				XcmError::FailedToTransactAsset("Failed to set lock")
+			})?;
 		}
 
 		res

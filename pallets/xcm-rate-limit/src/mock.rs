@@ -32,6 +32,8 @@ use sp_runtime::AccountId32 as AccountId;
 
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use orml_traits::parameter_type_with_key;
+use orml_xcm_support::IsNativeConcrete;
+use orml_xcm_support::MultiCurrencyAdapter;
 use pallet_currencies::BasicCurrencyAdapter;
 use primitives::constants::chain::CORE_ASSET_ID;
 
@@ -109,11 +111,42 @@ pub struct CurrencyIdConverterMock;
 impl Convert<MultiAsset, CurrencyId> for CurrencyIdConverterMock {
 	fn convert(value: MultiAsset) -> Result<CurrencyId, MultiAsset> {
 		let res = match value.id {
-			Concrete(MultiLocation {interior: X1(Parachain(id)),..}) => id,
-			_ => {0}
+			Concrete(MultiLocation {
+				interior: X1(Parachain(id)),
+				..
+			}) => id,
+			_ => 0,
 		};
 
 		Ok(res)
+	}
+}
+
+impl sp_runtime::traits::Convert<polkadot_xcm::v1::MultiAsset, Option<u32>> for CurrencyIdConverterMock {
+	fn convert(value: MultiAsset) -> Option<CurrencyId> {
+		let res = match value.id {
+			Concrete(MultiLocation {
+				interior: X1(Parachain(id)),
+				..
+			}) => id,
+			_ => 0,
+		};
+
+		Some(res)
+	}
+}
+
+impl sp_runtime::traits::Convert<polkadot_xcm::v1::MultiLocation, Option<u32>> for CurrencyIdConverterMock {
+	fn convert(value: MultiLocation) -> Option<CurrencyId> {
+		let res = match value {
+			MultiLocation {
+				interior: X1(Parachain(id)),
+				..
+			} => id,
+			_ => 0,
+		};
+
+		Some(res)
 	}
 }
 
@@ -122,22 +155,34 @@ pub struct LocationToAccountIdConverterMock;
 impl Convert<MultiLocation, AccountId> for LocationToAccountIdConverterMock {
 	fn convert(value: MultiLocation) -> Result<AccountId, MultiLocation> {
 		let res = match value {
-			MultiLocation {interior: X1(AccountId32{id, ..}),..} => AccountId::from(id),
-			_ => {unimplemented!()}
+			MultiLocation {
+				interior: X1(AccountId32 { id, .. }),
+				..
+			} => AccountId::from(id),
+			_ => {
+				unimplemented!()
+			}
 		};
 
 		Ok(res)
 	}
 }
 
-
-
 impl Config for Test {
 	type Event = Event;
 	type Currency = Currencies;
 	type Prefix = Prefix;
 	type WeightInfo = ();
-	type AssetTransactor = ();
+	type AssetTransactor = MultiCurrencyAdapter<
+		Currencies,
+		(), // UnknownTokens
+		IsNativeConcrete<CurrencyId, CurrencyIdConverterMock>,
+		AccountId,
+		LocationToAccountIdConverterMock,
+		CurrencyId,
+		CurrencyIdConverterMock,
+		(), // DepositToAlternative<Alternative, Currencies, CurrencyId, AccountId, Balance>,
+	>;
 	type LocationToAccountIdConverter = LocationToAccountIdConverterMock;
 	type CurrencyIdConverter = CurrencyIdConverterMock;
 }
@@ -162,15 +207,17 @@ parameter_types! {
 
 }
 
+pub type CurrencyId = u32;
+
 impl orml_tokens::Config for Test {
 	type Event = Event;
 	type Balance = Balance;
 	type Amount = Amount;
-	type CurrencyId = u32;
+	type CurrencyId = CurrencyId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = ();
-	type MaxLocks = ();
+	type MaxLocks = ConstU32<5>;
 	type DustRemovalWhitelist = Nothing;
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
