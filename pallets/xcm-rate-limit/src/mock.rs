@@ -23,16 +23,20 @@ use hex_literal::hex;
 use orml_traits::arithmetic::One;
 use primitives::Balance;
 use sp_core::H256;
-use sp_runtime::AccountId32;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
+use sp_runtime::AccountId32 as AccountId;
+
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
 use primitives::constants::chain::CORE_ASSET_ID;
+
+pub const ALICE: [u8; 32] = [4u8; 32];
+pub const BOB: [u8; 32] = [5u8; 32];
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -65,7 +69,7 @@ impl frame_system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId32;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -100,14 +104,42 @@ parameter_types! {
 
 }
 
+pub struct CurrencyIdConverterMock;
+
+impl Convert<MultiAsset, CurrencyId> for CurrencyIdConverterMock {
+	fn convert(value: MultiAsset) -> Result<CurrencyId, MultiAsset> {
+		let res = match value.id {
+			Concrete(MultiLocation {interior: X1(Parachain(id)),..}) => id,
+			_ => {0}
+		};
+
+		Ok(res)
+	}
+}
+
+pub struct LocationToAccountIdConverterMock;
+
+impl Convert<MultiLocation, AccountId> for LocationToAccountIdConverterMock {
+	fn convert(value: MultiLocation) -> Result<AccountId, MultiLocation> {
+		let res = match value {
+			MultiLocation {interior: X1(AccountId32{id, ..}),..} => AccountId::from(id),
+			_ => {unimplemented!()}
+		};
+
+		Ok(res)
+	}
+}
+
+
+
 impl Config for Test {
 	type Event = Event;
 	type Currency = Currencies;
 	type Prefix = Prefix;
 	type WeightInfo = ();
 	type AssetTransactor = ();
-	type LocationToAccountIdConverter = ();
-	type CurrencyIdConverter = ();
+	type LocationToAccountIdConverter = LocationToAccountIdConverterMock;
+	type CurrencyIdConverter = CurrencyIdConverterMock;
 }
 pub type Amount = i128;
 
@@ -146,10 +178,6 @@ impl orml_tokens::Config for Test {
 	type MaxReserves = MaxReserves;
 }
 
-pub type AccountId = [u8; 32];
-pub const ALICE: [u8; 32] = [4u8; 32];
-pub const BOB: [u8; 32] = [5u8; 32];
-
 pub const CLAIM_AMOUNT: Balance = 1_000_000_000_000;
 
 #[derive(Default)]
@@ -159,9 +187,6 @@ impl ExtBuilder {
 	// builds genesis config
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-
-
-
 
 		t.into()
 	}

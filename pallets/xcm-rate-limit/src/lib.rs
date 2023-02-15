@@ -184,6 +184,8 @@ where
 				.try_into()
 				.map_err(|_| XcmError::FailedToTransactAsset("Failed to conver to balance"))?;
 			let id = currency_id.into();
+
+			//TODO: Only lock amount when bigger than the existential deposit
 			T::Currency::set_lock(LOCK_ID, id, &who, lock_amount)
 				.map_err(|_| XcmError::FailedToTransactAsset("Failed to set lock"))?;
 		}
