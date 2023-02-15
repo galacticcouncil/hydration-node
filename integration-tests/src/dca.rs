@@ -10,7 +10,7 @@ use frame_support::{
 
 use hydradx_runtime::Origin;
 use orml_traits::MultiCurrency;
-use pallet_dca::types::{Bond, Order, Recurrence, Schedule, ScheduleId, Trade};
+use pallet_dca::types::{Bond, Order, Schedule, ScheduleId, Trade};
 use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
 use sp_core::MaxEncodedLen;
@@ -185,7 +185,6 @@ fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: B
 	let schedule1 = Schedule {
 		period: 3u32,
 		total_amount: 100 * UNITS,
-		recurrence: Recurrence::Fixed(5),
 		order: Order::Buy {
 			asset_in: asset_in,
 			asset_out: asset_out,
@@ -201,7 +200,6 @@ fn schedule_fake_with_sell_order(asset_in: AssetId, asset_out: AssetId, amount: 
 	let schedule1 = Schedule {
 		period: 3u32,
 		total_amount: 20 * UNITS,
-		recurrence: Recurrence::Fixed(5),
 		order: Order::Sell {
 			asset_in: asset_in,
 			asset_out: asset_out,
@@ -260,11 +258,10 @@ pub fn get_last_completed_dca_events() -> Vec<hydradx_runtime::Event> {
 
 	for event in last_events {
 		let e = event.clone();
-		if let hydradx_runtime::Event::DCA(pallet_dca::Event:: Completed { .. }) = e {
+		if let hydradx_runtime::Event::DCA(pallet_dca::Event::Completed { .. }) = e {
 			suspended_events.push(event.clone());
 		}
 	}
 
 	suspended_events
 }
-
