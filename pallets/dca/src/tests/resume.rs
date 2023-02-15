@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::types::{Bond, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
+use crate::types::{Bond, Order, PoolType, Schedule, ScheduleId, Trade};
 use crate::Error::ScheduleMustBeSuspended;
 use crate::{assert_scheduled_ids, Error, Event};
 use frame_support::traits::OnInitialize;
@@ -45,7 +45,7 @@ fn resume_should_fail_when_called_by_non_owner() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
@@ -73,7 +73,7 @@ fn resume_should_schedule_to_next_block_when_next_execution_block_is_not_defined
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
@@ -116,8 +116,8 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
+			let schedule2 = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_ok!(DCA::schedule(Origin::signed(BOB), schedule2, Option::None));
@@ -151,7 +151,7 @@ fn resume_should_fail_when_specified_next_block_is_not_greater_than_current_bloc
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
@@ -181,7 +181,7 @@ fn resume_should_schedule_to_next_block_when_next_execution_block_is_defined() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
@@ -225,8 +225,8 @@ fn resume_should_schedule_to_next_block_when_there_is_already_existing_schedule_
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
+			let schedule2 = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			assert_ok!(DCA::schedule(Origin::signed(BOB), schedule2, Option::Some(1000)));
@@ -256,7 +256,7 @@ fn resume_should_schedule_remove_schedule_from_suspended() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
@@ -285,7 +285,7 @@ fn resume_should_fail_when_schedule_is_not_suspended() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 

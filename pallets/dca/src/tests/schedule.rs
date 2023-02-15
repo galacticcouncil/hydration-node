@@ -18,7 +18,7 @@
 use crate::tests::mock::*;
 use crate::tests::{empty_vec, ScheduleBuilder};
 use crate::{assert_scheduled_ids, Bond};
-use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use pretty_assertions::assert_eq;
@@ -43,7 +43,6 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_order(Order::Buy {
 					asset_in: HDX,
@@ -76,7 +75,7 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			//Act
 			set_block_number(500);
@@ -85,10 +84,7 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 			//Assert
 			let schedule_id = 1;
 			let stored_schedule = DCA::schedules(schedule_id).unwrap();
-			assert_eq!(
-				stored_schedule,
-				ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build()
-			);
+			assert_eq!(stored_schedule, ScheduleBuilder::new().build());
 
 			//Check if schedule ids are stored
 			let schedule_ids = DCA::schedule_ids_per_block(501);
@@ -99,9 +95,6 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 			//Check if schedule ownership is created
 			assert!(DCA::owner_of(schedule_id).is_some());
 			assert_eq!(DCA::owner_of(schedule_id).unwrap(), ALICE);
-
-			//Check if the recurrances have been stored
-			assert_eq!(DCA::remaining_recurrences(schedule_id).unwrap(), 5);
 		});
 }
 
@@ -112,7 +105,7 @@ fn schedule_should_work_when_multiple_schedules_stored() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			//Act
 			set_block_number(500);
@@ -138,7 +131,7 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			//Act
 			set_block_number(500);
@@ -173,7 +166,7 @@ fn schedule_creation_should_store_bond_taken_from_user() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			//Act
 			set_block_number(500);
@@ -215,7 +208,7 @@ fn schedule_creation_should_store_bond_when_user_has_set_currency_with_nonnative
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			//Act
 			set_block_number(500);
@@ -246,7 +239,7 @@ fn schedule_should_emit_necessary_events() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			//Act
 			set_block_number(500);
@@ -272,8 +265,8 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
+			let schedule2 = ScheduleBuilder::new().build();
 
 			//Act and assert
 			set_block_number(500);
@@ -310,10 +303,7 @@ fn schedule_should_throw_error_when_user_has_not_enough_balance() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(100 * ONE)
-				.with_recurrence(Recurrence::Fixed(5))
-				.build();
+			let schedule = ScheduleBuilder::new().with_total_amount(100 * ONE).build();
 
 			//Act
 			set_block_number(500);
@@ -328,7 +318,7 @@ fn schedule_should_throw_error_when_user_has_not_enough_balance() {
 fn schedule_should_fail_when_not_called_by_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+		let schedule = ScheduleBuilder::new().build();
 
 		//Act and assert
 		assert_noop!(DCA::schedule(Origin::none(), schedule, Option::None), BadOrigin);
@@ -344,7 +334,7 @@ fn schedule_should_fail_when_specified_next_block_is_not_greater_than_current_bl
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 
 			//Act and assert
@@ -365,12 +355,12 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 			set_block_number(500);
 
 			for _ in RangeInclusive::new(1, 20) {
-				let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+				let schedule = ScheduleBuilder::new().build();
 				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			}
 
 			//Act
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 21;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
@@ -392,12 +382,12 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			set_block_number(500);
 
 			for _ in RangeInclusive::new(1, 40) {
-				let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+				let schedule = ScheduleBuilder::new().build();
 				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			}
 
 			//Act
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 41;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 

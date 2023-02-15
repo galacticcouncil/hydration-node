@@ -11,14 +11,8 @@ const MAX_NUMBER_OF_TRADES: u32 = 5;
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Schedule<AssetId, BlockNumber> {
 	pub period: BlockNumber,
-	pub recurrence: Recurrence,
 	pub total_amount: Balance,
 	pub order: Order<AssetId>,
-}
-
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub enum Recurrence {
-	Fixed(u32),
 }
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]

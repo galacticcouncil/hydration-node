@@ -23,7 +23,7 @@ use sp_runtime::traits::CheckedMul;
 use sp_runtime::FixedPointNumber;
 
 use crate::tests::*;
-use crate::{assert_balance, Bond, Event, Order, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{assert_balance, Bond, Event, Order, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::pools::SpotPriceProvider;
@@ -37,7 +37,7 @@ use sp_runtime::{BoundedVec, FixedU128};
 
 #[ignore]
 #[test]
-fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
+fn complete_buy_dca_schedule_should_be_executed_with() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -56,7 +56,6 @@ fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence() {
 			let total_amount = 100 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
@@ -101,7 +100,6 @@ fn complete_buy_dca_schedule_should_be_remove_all_storage_entries() {
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
@@ -134,7 +132,7 @@ fn complete_buy_dca_schedule_should_be_remove_all_storage_entries() {
 
 #[ignore]
 #[test]
-fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence_when_nonnative_currency_set_for_user() {
+fn complete_buy_dca_schedule_should_be_executed_when_nonnative_currency_set_for_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -153,7 +151,6 @@ fn complete_buy_dca_schedule_should_be_executed_with_fixed_recurrence_when_nonna
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: DAI,
@@ -201,7 +198,6 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 			let amount_to_sell = 1 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
@@ -257,7 +253,6 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 			let max_limit = 1 * ONE * 4 / 5;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
@@ -308,7 +303,6 @@ fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 			let amount_to_sell = 6 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
@@ -356,7 +350,6 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			let amount_to_sell = 5 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
@@ -384,7 +377,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 }
 
 #[test]
-fn full_sell_dca_should_be_completed_when_with_exact_tota_amount() {
+fn full_sell_dca_should_be_completed_when_with_exact_total_amount() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -399,13 +392,13 @@ fn full_sell_dca_should_be_completed_when_with_exact_tota_amount() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
+			env_logger::init();
 			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 15 * ONE;
 			let amount_to_sell = 5 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
@@ -454,7 +447,6 @@ fn full_buy_dca_should_be_completed_when_not_enough_resered_amount() {
 			let amount_to_buy = 1 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
@@ -503,7 +495,6 @@ fn full_buy_dca_should_be_completed_when_some_exeuction_is_successfull_but_not_e
 			let amount_to_buy = 1 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(1000))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
@@ -555,7 +546,6 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_bigger_th
 			let max_limit_calculated_from_spot_price = 682500000000;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
@@ -629,7 +619,6 @@ fn schedule_is_executed_in_block_when_user_has_fixed_schedule_planned() {
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
@@ -675,18 +664,12 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.build();
+			let schedule = ScheduleBuilder::new().with_period(ONE_HUNDRED_BLOCKS).build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(601)));
 
 			proceed_to_blocknumber(1, 500);
-			let schedule_2 = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.build();
+			let schedule_2 = ScheduleBuilder::new().with_period(ONE_HUNDRED_BLOCKS).build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
 
@@ -722,7 +705,6 @@ fn fixed_schedule_is_suspended_in_block_when_user_has_not_enough_balance() {
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: DAI,
@@ -771,7 +753,6 @@ fn user_bond_should_be_slashed_when_not_enough_balance_for_schedule_execution() 
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: DAI,
@@ -827,7 +808,6 @@ fn user_execution_bond_should_not_be_slashed_when_when_total_stored_bond_is_less
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
@@ -890,7 +870,6 @@ fn user_execution_bond_should_not_be_slashed_fully_when_spot_price_changes_sligh
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
@@ -957,7 +936,6 @@ fn user_execution_bond_should_not_be_slashed_with_native_when_storage_bond_confi
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(2))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: DAI,
@@ -1014,7 +992,6 @@ fn user_execution_bond_should_not_be_slashed_fullly_with_native_when_storage_bon
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(2))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: DAI,
@@ -1073,7 +1050,6 @@ fn schedule_should_not_be_planned_again_when_there_is_no_more_recurrences() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(1))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
@@ -1120,7 +1096,6 @@ fn dca_should_not_be_executed_when_schedule_is_paused_after_one_execution() {
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
@@ -1170,7 +1145,6 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(2))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: DAI,
@@ -1216,7 +1190,6 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(2))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: DAI,
@@ -1262,7 +1235,6 @@ fn bond_should_be_slashed_when_trade_is_successful_but_not_enough_balance_for_tr
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(2))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: DAI,
@@ -1320,7 +1292,6 @@ fn execution_bond_should_be_still_slashed_when_last_DCA_completed_but_not_enough
 			proceed_to_blocknumber(1, 500);
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(1))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: DAI,
@@ -1375,7 +1346,6 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 			let sell_amount = 10 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: 100,
@@ -1421,7 +1391,6 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_tr
 			let buy_amount = 10 * ONE;
 
 			let schedule = ScheduleBuilder::new()
-				.with_recurrence(Recurrence::Fixed(5))
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: 100,
@@ -1463,7 +1432,6 @@ fn assert_that_dca_is_completed(schedule_id: ScheduleId) {
 	assert!(DCA::schedules(schedule_id).is_none());
 	assert!(DCA::suspended(schedule_id).is_none());
 	assert!(DCA::owner_of(schedule_id).is_none());
-	assert!(DCA::remaining_recurrences(schedule_id).is_none());
 	assert!(DCA::bond(schedule_id).is_none());
 
 	expect_events(vec![Event::Completed {

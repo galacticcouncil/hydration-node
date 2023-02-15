@@ -18,7 +18,7 @@
 use crate::tests::mock::*;
 use crate::tests::*;
 use crate::Bond;
-use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -43,7 +43,7 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -72,9 +72,9 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule2 = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -104,7 +104,7 @@ fn pause_should_mark_schedule_suspended() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -125,7 +125,7 @@ fn pause_should_fail_when_when_called_with_nonsigned_user() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -143,7 +143,7 @@ fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block(
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -165,8 +165,8 @@ fn pause_should_fail_when_when_schedule_is_not_planned_for_next_execution_block_
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
+			let schedule2 = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(502)));
@@ -188,7 +188,7 @@ fn pause_should_fail_when_paused_by_not_schedule_owner() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -231,7 +231,7 @@ fn pause_should_unreserve_execution_bond_when_native_token_set_as_user_currency(
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 
@@ -286,7 +286,7 @@ fn pause_should_not_unreserve_execution_bond_with_native_token_when_storage_bond
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 
@@ -337,7 +337,7 @@ fn pause_should_unreserve_a_part_of_execution_bond_with_native_token_when_storag
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 
@@ -393,7 +393,7 @@ fn pause_should_unreserve_execution_bond_when_nonnative_token_set_as_user_curren
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 
@@ -450,7 +450,7 @@ fn pause_should_unreserve_with_original_bond_asset_when_user_changes_set_currenc
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 
@@ -512,7 +512,7 @@ fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_th
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 
@@ -560,7 +560,6 @@ fn pause_should_make_sure_to_keep_storage_bond_when_stored_total_bond_is_less_th
 		});
 }
 
-
 #[ignore]
 #[test]
 fn pause_should_make_sure_to_keep_storage_bond_when_execution_bond_has_been_much_increased_by_admin() {
@@ -579,7 +578,7 @@ fn pause_should_make_sure_to_keep_storage_bond_when_execution_bond_has_been_much
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 
@@ -639,7 +638,7 @@ fn pause_should_unreserve_less_to_keep_original_storage_bond_when_when_price_cha
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 
 			set_block_number(500);
 

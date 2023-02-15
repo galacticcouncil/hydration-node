@@ -67,7 +67,6 @@ use weights::WeightInfo;
 pub use pallet::*;
 
 use crate::types::*;
-use crate::Recurrence::Fixed;
 use sp_runtime::traits::One;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
@@ -77,7 +76,6 @@ type NamedReserveIdentifier = [u8; 8];
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::types::Recurrence;
 	use codec::{EncodeLike, HasCompact};
 	use frame_support::weights::WeightToFee;
 
@@ -328,7 +326,6 @@ pub mod pallet {
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
-			Self::store_recurrence_in_case_of_fixed_schedule(next_schedule_id, &schedule.recurrence);
 			ScheduleOwnership::<T>::insert(next_schedule_id, who.clone());
 
 			let blocknumber_for_first_schedule_execution =
@@ -527,20 +524,7 @@ where
 				let blocknumber_for_schedule =
 					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
 
-				match schedule.recurrence {
-					Recurrence::Fixed(_) => {
-						let remaining_reccurences = exec_or_return_if_err!(Self::decrement_recurrences(schedule_id));
-						if !remaining_reccurences.is_zero() {
-							exec_or_return_if_err!(Self::plan_schedule_for_block(
-								blocknumber_for_schedule,
-								schedule_id
-							));
-						} else {
-							Self::complete_dca(schedule_id, &owner);
-						}
-					}
-					_ => {}
-				}
+				exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			}
 			_ => {
 				exec_or_return_if_err!(Self::suspend_schedule(&owner, schedule_id));
@@ -706,32 +690,6 @@ where
 		let bounded_vec: BoundedVec<ScheduleId, T::MaxSchedulePerBlock> =
 			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?;
 		Ok(bounded_vec)
-	}
-
-	fn store_recurrence_in_case_of_fixed_schedule(next_schedule_id: ScheduleId, recurrence: &Recurrence) {
-		if let Recurrence::Fixed(number_of_recurrence) = *recurrence {
-			RemainingRecurrences::<T>::insert(next_schedule_id, number_of_recurrence);
-		};
-	}
-
-	fn decrement_recurrences(schedule_id: ScheduleId) -> Result<u32, DispatchResult> {
-		let remaining_recurrences =
-			RemainingRecurrences::<T>::try_mutate_exists(schedule_id, |maybe_remaining_occurrances| {
-				let mut remaining_recurrences = maybe_remaining_occurrances
-					.as_mut()
-					.ok_or(Error::<T>::NoRemainingRecurrencesFound)?;
-
-				*remaining_recurrences = remaining_recurrences.checked_sub(1).ok_or(ArithmeticError::Underflow)?;
-				let remainings = remaining_recurrences.clone();
-
-				if *remaining_recurrences == 0 {
-					*maybe_remaining_occurrances = None;
-				}
-
-				Ok::<u32, DispatchError>(remainings)
-			})?;
-
-		Ok(remaining_recurrences)
 	}
 
 	fn execute_trade(origin: T::Origin, order: &Order<<T as Config>::Asset>) -> DispatchResult {

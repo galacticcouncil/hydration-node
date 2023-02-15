@@ -1,5 +1,5 @@
 use crate::tests::mock::*;
-use crate::{Balance, Order, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{Balance, Order, Schedule, ScheduleId, Trade};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
@@ -23,14 +23,12 @@ struct ScheduleBuilder {
 	pub period: Option<BlockNumber>,
 	pub order: Option<Order<AssetId>>,
 	pub total_amount: Option<Balance>,
-	pub recurrence: Option<Recurrence>,
 }
 
 impl ScheduleBuilder {
 	fn new() -> ScheduleBuilder {
 		ScheduleBuilder {
 			period: Some(ONE_HUNDRED_BLOCKS),
-			recurrence: Some(Recurrence::Fixed(5)),
 			total_amount: Some(1000 * ONE),
 			order: Some(Order::Buy {
 				asset_in: HDX,
@@ -52,11 +50,6 @@ impl ScheduleBuilder {
 		return self;
 	}
 
-	fn with_recurrence(mut self, recurrence: Recurrence) -> ScheduleBuilder {
-		self.recurrence = Some(recurrence);
-		return self;
-	}
-
 	fn with_total_amount(mut self, total_amount: Balance) -> ScheduleBuilder {
 		self.total_amount = Some(total_amount);
 		return self;
@@ -65,7 +58,6 @@ impl ScheduleBuilder {
 	fn build(self) -> Schedule<AssetId, BlockNumber> {
 		Schedule {
 			period: self.period.unwrap(),
-			recurrence: self.recurrence.unwrap(),
 			total_amount: self.total_amount.unwrap(),
 			order: self.order.unwrap(),
 		}

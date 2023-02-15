@@ -18,7 +18,7 @@
 use crate::tests::mock::*;
 use crate::tests::*;
 use crate::{assert_scheduled_ids, reserve_identifier, Bond};
-use crate::{Error, Event, Order, PoolType, Recurrence, Schedule, ScheduleId, Trade};
+use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -39,7 +39,7 @@ fn terminate_should_remove_schedule_from_storage() {
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
@@ -62,10 +62,7 @@ fn terminate_should_unreserve_all_named_reserved() {
 			//Arrange
 			set_block_number(500);
 			let total_amount = 100 * ONE;
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_recurrence(Recurrence::Fixed(5))
-				.build();
+			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
@@ -95,7 +92,7 @@ fn terminate_should_remove_planned_execution_when_there_is_only_single_execution
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
@@ -115,8 +112,8 @@ fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_exe
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
+			let schedule2 = ScheduleBuilder::new().build();
 			let schedule_id = 1;
 			let block = 600;
 
@@ -145,7 +142,7 @@ fn terminate_should_remove_suspended_schedule_when_no_block_specified_by_user() 
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 600));
@@ -167,7 +164,7 @@ fn terminate_should_throw_error_when_schedule_is_not_suspended_and_next_exec_blo
 		.execute_with(|| {
 			//Arrange
 			set_block_number(500);
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
@@ -186,7 +183,7 @@ fn terminate_should_fail_when_called_by_non_owner() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -206,7 +203,7 @@ fn terminate_should_fail_when_called_by_non_signed() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -223,7 +220,7 @@ fn terminate_should_fail_when_no_planned_execution_in_block() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
@@ -243,8 +240,8 @@ fn terminate_should_fail_when_there_is_planned_execution_in_block_not_not_for_sc
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
-			let schedule2 = ScheduleBuilder::new().with_recurrence(Recurrence::Fixed(5)).build();
+			let schedule = ScheduleBuilder::new().build();
+			let schedule2 = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 1;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(1000)));
