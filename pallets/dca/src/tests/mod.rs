@@ -34,7 +34,7 @@ impl ScheduleBuilder {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_out: ONE,
-				max_limit: Balance::MAX,
+				max_limit: 2 * ONE,
 				route: create_bounded_vec(vec![]),
 			}),
 		}

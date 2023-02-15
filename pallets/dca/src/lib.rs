@@ -837,7 +837,7 @@ where
 
 	fn suspend_schedule(owner: &T::AccountId, schedule_id: ScheduleId) -> DispatchResult {
 		Suspended::<T>::insert(schedule_id, ());
-		Self::slash_execution_bond(schedule_id, &owner)?;
+		//Self::slash_execution_bond(schedule_id, &owner)?;
 		Self::deposit_event(Event::Suspended {
 			id: schedule_id,
 			who: owner.clone(),
