@@ -23,6 +23,7 @@ use hex_literal::hex;
 use orml_traits::arithmetic::One;
 use primitives::Balance;
 use sp_core::H256;
+use sp_runtime::AccountId32;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
@@ -64,7 +65,7 @@ impl frame_system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId;
+	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -145,10 +146,9 @@ impl orml_tokens::Config for Test {
 	type MaxReserves = MaxReserves;
 }
 
-pub type AccountId = u64;
-pub const ALICE: AccountId = 42;
-pub const BOB: AccountId = 43;
-pub const CHARLIE: AccountId = 44;
+pub type AccountId = [u8; 32];
+pub const ALICE: [u8; 32] = [4u8; 32];
+pub const BOB: [u8; 32] = [5u8; 32];
 
 pub const CLAIM_AMOUNT: Balance = 1_000_000_000_000;
 
@@ -160,11 +160,8 @@ impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		pallet_balances::GenesisConfig::<Test> {
-			balances: vec![(42, 0), (43, 0), (44, primitives::Balance::MAX - 1)],
-		}
-		.assimilate_storage(&mut t)
-		.unwrap();
+
+
 
 		t.into()
 	}

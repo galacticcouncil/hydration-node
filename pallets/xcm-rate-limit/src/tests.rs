@@ -20,7 +20,10 @@ use crate::{EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransa
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
+use polkadot_xcm::prelude::*;
 use sp_std::marker::PhantomData;
+use crate::MAX_VOLUME_LIMIT;
+use xcm_executor::traits::TransactAsset;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut ext = ExtBuilder::default().build();
@@ -29,6 +32,16 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 #[test]
-fn claiming_works() {
-	new_test_ext().execute_with(|| {})
+fn balance_should_be_locked_when_rate_limit_triggers() {
+	new_test_ext().execute_with(|| {
+		let asset =(MultiLocation {
+			interior: X1(Parachain(1000)),
+			parents: 1
+		},MAX_VOLUME_LIMIT+1).into();
+		let who = MultiLocation {
+			interior: X1(AccountId32{network: Any, id: ALICE}),
+			parents: 0
+		};
+		let result =  XcmRateLimit::deposit_asset(&asset,&who);
+	})
 }
