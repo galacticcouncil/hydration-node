@@ -241,6 +241,8 @@ pub mod pallet {
 		NoScheduleIdsPlannedInBlock,
 		///No remaining occurrences found for schedule
 		NoRemainingRecurrencesFound,
+		///The total amount to be reserved should be larger than storage bond
+		TotalAmountShouldBeLargerThanStorageBond,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -309,8 +311,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(start_execution_block)?;
-
-			//TODO: add validation - If you make the minimal size of DCA bigger than the sotrage bond, then fine, otherwise validation error
+			Self::ensure_that_total_amount_is_bigger_than_storage_bond(&schedule)?;
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
@@ -537,6 +538,16 @@ where
 		};
 
 		amount_to_sell
+	}
+
+	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
+		let sold_currency = Self::sold_currency(order);
+		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
+
+		let storage_bond_in_user_currency =
+			Self::convert_to_currency_if_asset_is_not_native(sold_currency, storage_bond_in_native_currency)?;
+
+		Ok(storage_bond_in_user_currency)
 	}
 
 	fn get_on_initialize_weight() -> u64 {
@@ -826,6 +837,23 @@ where
 				Error::<T>::BlockNumberIsNotInFuture
 			);
 		};
+
+		Ok(())
+	}
+
+	fn ensure_that_total_amount_is_bigger_than_storage_bond(
+		schedule: &Schedule<T::Asset, T::BlockNumber>,
+	) -> DispatchResult {
+		let min_total_amount = if Self::sold_currency(&schedule.order) == T::NativeAssetId::get() {
+			T::StorageBondInNativeCurrency::get()
+		} else {
+			Self::get_storage_bond_in_sold_currency(&schedule.order)?
+		};
+
+		ensure!(
+			schedule.total_amount > min_total_amount,
+			Error::<T>::TotalAmountShouldBeLargerThanStorageBond
+		);
 
 		Ok(())
 	}

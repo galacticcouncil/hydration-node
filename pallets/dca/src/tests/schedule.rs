@@ -17,7 +17,7 @@
 
 use crate::assert_scheduled_ids;
 use crate::tests::mock::*;
-use crate::tests::{empty_vec, ScheduleBuilder};
+use crate::tests::{empty_vec, set_storage_bond_config, ScheduleBuilder};
 use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -325,6 +325,102 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			assert_eq!(20, actual_schedule_ids.len());
 
 			assert_scheduled_ids!(503, vec![schedule_id]);
+		});
+}
+
+#[test]
+fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_currency_is_native() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(*OriginalStorageBondInNative)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act and Assert
+			set_block_number(500);
+
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::TotalAmountShouldBeLargerThanStorageBond
+			);
+		});
+}
+
+#[test]
+fn schedule_should_pass_when_total_amount_in_non_native_currency_is_bigger_than_storage_bond_in_native() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, DAI, 10000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from(1), FixedU128::from_float(0.5))
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(*OriginalStorageBondInNative * 2 / 3)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: HDX,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act and Assert
+			set_block_number(500);
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+		});
+}
+
+#[test]
+fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than_storage_bond_in_native() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(ALICE, DAI, 10000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from(1), FixedU128::from_float(0.5))
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(*OriginalStorageBondInNative / 3)
+				.with_order(Order::Buy {
+					asset_in: DAI,
+					asset_out: HDX,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act and Assert
+			set_block_number(500);
+
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::TotalAmountShouldBeLargerThanStorageBond
+			);
 		});
 }
 

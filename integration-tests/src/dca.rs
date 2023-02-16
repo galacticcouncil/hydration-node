@@ -24,6 +24,8 @@ fn crate_schedule_should_work() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
+		init_omnipol();
+
 		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS);
 
 		//Act
@@ -147,7 +149,7 @@ fn create_schedule_by_charlie(schedule1: Schedule<AssetId, u32>) {
 fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
-		total_amount: 100 * UNITS,
+		total_amount: 110 * UNITS,
 		order: Order::Buy {
 			asset_in: asset_in,
 			asset_out: asset_out,
@@ -162,7 +164,7 @@ fn schedule_fake_with_buy_order(asset_in: AssetId, asset_out: AssetId, amount: B
 fn schedule_fake_with_sell_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
 	let schedule1 = Schedule {
 		period: 3u32,
-		total_amount: 20 * UNITS,
+		total_amount: 110 * UNITS,
 		order: Order::Sell {
 			asset_in: asset_in,
 			asset_out: asset_out,
