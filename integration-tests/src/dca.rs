@@ -10,7 +10,7 @@ use frame_support::{
 
 use hydradx_runtime::Origin;
 use orml_traits::MultiCurrency;
-use pallet_dca::types::{Bond, Order, Schedule, ScheduleId, Trade};
+use pallet_dca::types::{Order, Schedule, ScheduleId, Trade};
 use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
 use sp_core::MaxEncodedLen;
@@ -126,43 +126,6 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 			.into(),
 		]);
 	});
-}
-
-#[test]
-#[ignore] //This test is ignored as only used for estimating the storage bond size
-fn calculate_storage_bond() {
-	let schedule_key_size = size_of::<ScheduleId>();
-	let schedule_value_size = Schedule::<ScheduleId, BlockNumber>::max_encoded_len();
-
-	let schedule_ownership_key_size = size_of::<ScheduleId>();
-	let schedule_ownership_value_size = size_of::<common_runtime::AccountId>();
-
-	let suspended_key_size = size_of::<ScheduleId>();
-
-	let remaining_reccurrencies_key_size = size_of::<ScheduleId>();
-	let remaining_reccurrencies_value_size = size_of::<u32>();
-
-	let schedule_ids_per_block_entry_size = size_of::<ScheduleId>();
-
-	let bond_key_size = size_of::<ScheduleId>();
-	let bond_value_size = Bond::<primitives::AssetId>::max_encoded_len();
-
-	let storage_bond_size: usize = vec![
-		schedule_key_size,
-		schedule_value_size,
-		schedule_ownership_key_size,
-		schedule_ownership_value_size,
-		suspended_key_size,
-		remaining_reccurrencies_key_size,
-		remaining_reccurrencies_value_size,
-		schedule_ids_per_block_entry_size,
-		bond_key_size,
-		bond_value_size,
-	]
-	.iter()
-	.sum();
-
-	let storage_bond = primitives::constants::currency::bytes_to_balance(storage_bond_size as u32);
 }
 
 fn create_schedule(schedule1: Schedule<AssetId, u32>) {

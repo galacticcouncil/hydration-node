@@ -45,9 +45,3 @@ pub struct Trade<AssetId> {
 pub enum PoolType {
 	Omnipool,
 }
-
-#[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Bond<AssetId> {
-	pub asset: AssetId,
-	pub amount: Balance,
-}

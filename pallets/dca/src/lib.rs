@@ -170,14 +170,6 @@ pub mod pallet {
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
 
-		///Execution bond in native currency
-		#[pallet::constant]
-		type ExecutionBondInNativeCurrency: Get<Balance>;
-
-		///Storage bond in native currency
-		#[pallet::constant]
-		type StorageBondInNativeCurrency: Get<Balance>;
-
 		///The number of max schedules to be executed per block
 		#[pallet::constant]
 		type MaxSchedulePerBlock: Get<u32>;
@@ -186,7 +178,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::Asset>;
 
-		///The fee receiver for transaction fees and slashed bonds
+		///Storage bond in native currency
+		#[pallet::constant]
+		type StorageBondInNativeCurrency: Get<Balance>;
+
+		///The fee receiver for transaction fees
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
 
@@ -227,14 +223,10 @@ pub mod pallet {
 	pub enum Error<T> {
 		///Schedule not exist
 		ScheduleNotExist,
-		///Balance is too low to reserve for bond
-		BalanceTooLowForReservingBond,
 		///The user has not enough balance for the reserving the total amount to spend
 		InsufficientBalanceForTotalAmount,
 		///The user is not the owner of the schedule
 		NotScheduleOwner,
-		///The bond does not exist. It should not really happen, only in case of invalid state
-		BondNotExist,
 		///The next execution block number is not in the future
 		BlockNumberIsNotInFuture,
 		///There is not planned execution on the given block
@@ -285,11 +277,6 @@ pub mod pallet {
 	pub type ScheduleIdsPerBlock<T: Config> =
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, OptionQuery>;
 
-	/// Storing storage and execution bond for a given schedule
-	#[pallet::storage]
-	#[pallet::getter(fn bond)]
-	pub type Bonds<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Bond<T::Asset>, OptionQuery>;
-
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
 	where
@@ -322,6 +309,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(start_execution_block)?;
+
+			//TODO: add validation - If you make the minimal size of DCA bigger than the sotrage bond, then fine, otherwise validation error
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
@@ -388,8 +377,6 @@ pub mod pallet {
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
 
-			//Self::unreserve_excecution_bond(schedule_id, &who)?;
-
 			Self::deposit_event(Event::Paused { id: schedule_id, who });
 
 			Ok(())
@@ -421,8 +408,6 @@ pub mod pallet {
 			Self::plan_schedule_for_block(next_execution_block, schedule_id)?;
 
 			Suspended::<T>::remove(schedule_id);
-
-			//Self::reserve_excecution_bond(schedule_id, &who)?;
 
 			Self::deposit_event(Event::Resumed {
 				id: schedule_id,
@@ -463,8 +448,6 @@ pub mod pallet {
 
 			Self::remove_planning_or_suspension(schedule_id, next_execution_block)?;
 			Self::remove_schedule_from_storages(schedule_id);
-
-			//Self::discard_bond(schedule_id, &who)?;
 
 			Self::deposit_event(Event::Terminated {
 				id: schedule_id,
@@ -796,140 +779,14 @@ where
 		Ok(())
 	}
 
-	fn calculate_and_store_bond(who: T::AccountId, next_schedule_id: ScheduleId) -> DispatchResult {
-		let user_fee_currency = Self::get_user_fee_currency(&who)?;
-		let total_bond_in_native_currency = Self::get_total_bond_from_config_in_native_currency()?;
-		let total_bond_in_user_currency =
-			Self::convert_to_currency_if_asset_is_not_native(user_fee_currency, total_bond_in_native_currency)?;
-
-		let bond = Bond {
-			asset: user_fee_currency,
-			amount: total_bond_in_user_currency,
-		};
-
-		//Self::reserve_bond(&who, &bond)?;
-
-		Bonds::<T>::insert(next_schedule_id, bond);
-
-		Ok(())
-	}
-
-	fn reserve_bond(who: &T::AccountId, bond: &Bond<T::Asset>) -> DispatchResult {
-		ensure!(
-			T::MultiReservableCurrency::can_reserve(bond.asset, &who, bond.amount),
-			Error::<T>::BalanceTooLowForReservingBond
-		);
-
-		T::MultiReservableCurrency::reserve(bond.asset, &who, bond.amount)?;
-
-		Ok(())
-	}
-
-	fn get_total_bond_from_config_in_native_currency() -> Result<u128, DispatchError> {
-		let exb = T::ExecutionBondInNativeCurrency::get();
-		let sb = T::StorageBondInNativeCurrency::get();
-		let total_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get()
-			.checked_add(T::StorageBondInNativeCurrency::get())
-			.ok_or(ArithmeticError::Overflow)?;
-
-		Ok(total_bond_in_native_currency)
-	}
-
 	fn suspend_schedule(owner: &T::AccountId, schedule_id: ScheduleId) -> DispatchResult {
 		Suspended::<T>::insert(schedule_id, ());
-		//Self::slash_execution_bond(schedule_id, &owner)?;
 		Self::deposit_event(Event::Suspended {
 			id: schedule_id,
 			who: owner.clone(),
 		});
 
 		Ok(())
-	}
-
-	fn slash_execution_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
-		let execution_bond = Self::unreserve_excecution_bond(schedule_id, &owner)?;
-
-		if let Some(execution_bond) = execution_bond {
-			T::Currency::transfer(
-				execution_bond.asset.into(),
-				&owner,
-				&T::FeeReceiver::get(),
-				execution_bond.amount,
-			)?;
-		};
-
-		Ok(())
-	}
-
-	fn unreserve_excecution_bond(
-		schedule_id: ScheduleId,
-		who: &T::AccountId,
-	) -> Result<Option<Bond<T::Asset>>, DispatchError> {
-		let execution_bond = Bonds::<T>::try_mutate(schedule_id, |maybe_bond| {
-			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
-
-			let storage_bond_in_bond_currency = Self::get_storage_bond_in_currency(&who, bond.asset)?;
-
-			return if bond.amount <= storage_bond_in_bond_currency {
-				Ok::<Option<Bond<T::Asset>>, DispatchError>(None)
-			} else {
-				let to_be_extracted_amount = bond
-					.amount
-					.checked_sub(storage_bond_in_bond_currency)
-					.ok_or(ArithmeticError::Underflow)?;
-
-				bond.amount = bond
-					.amount
-					.checked_sub(to_be_extracted_amount)
-					.ok_or(ArithmeticError::Underflow)?;
-
-				T::MultiReservableCurrency::unreserve(bond.asset, &who, to_be_extracted_amount);
-
-				Ok::<Option<Bond<T::Asset>>, DispatchError>(Some(Bond {
-					amount: to_be_extracted_amount,
-					asset: bond.asset,
-				}))
-			};
-		})?;
-
-		Ok(execution_bond)
-	}
-
-	fn reserve_excecution_bond(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		Bonds::<T>::try_mutate(schedule_id, |maybe_bond| -> DispatchResult {
-			let bond = maybe_bond.as_mut().ok_or(Error::<T>::BondNotExist)?;
-
-			let execution_bond_in_user_currency = Self::get_execution_bond_in_currency(&who, bond.asset)?;
-
-			bond.amount = bond
-				.amount
-				.checked_add(execution_bond_in_user_currency)
-				.ok_or(ArithmeticError::Underflow)?;
-
-			T::MultiReservableCurrency::reserve(bond.asset, &who, execution_bond_in_user_currency)?;
-
-			Ok(())
-		})?;
-
-		Ok(())
-	}
-
-	fn get_execution_bond_in_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
-		let execution_bond_in_native_currency = T::ExecutionBondInNativeCurrency::get();
-
-		let execution_bond_in_user_currency =
-			Self::convert_to_currency_if_asset_is_not_native(bond_asset, execution_bond_in_native_currency)?;
-
-		Ok(execution_bond_in_user_currency)
-	}
-
-	fn get_storage_bond_in_currency(who: &T::AccountId, bond_asset: T::Asset) -> Result<Balance, DispatchError> {
-		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
-
-		let storage_bond_in_user_currency =
-			Self::convert_to_currency_if_asset_is_not_native(bond_asset, storage_bond_in_native_currency)?;
-
-		Ok(storage_bond_in_user_currency)
 	}
 
 	fn get_user_fee_currency(who: &T::AccountId) -> Result<T::Asset, DispatchError> {
@@ -941,7 +798,7 @@ where
 		asset_id: T::Asset,
 		asset_amount: u128,
 	) -> Result<u128, DispatchError> {
-		let total_bond_in_user_currency = if asset_id == T::NativeAssetId::get() {
+		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
 			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), asset_id)
@@ -949,7 +806,7 @@ where
 			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
 		};
 
-		Ok(total_bond_in_user_currency)
+		Ok(amount)
 	}
 
 	fn remove_schedule_from_storages(schedule_id: ScheduleId) {
@@ -957,14 +814,6 @@ where
 		Suspended::<T>::remove(schedule_id);
 		ScheduleOwnership::<T>::remove(schedule_id);
 		RemainingRecurrences::<T>::remove(schedule_id);
-	}
-
-	fn discard_bond(schedule_id: ScheduleId, owner: &T::AccountId) -> DispatchResult {
-		let bond = Self::bond(schedule_id).ok_or(Error::<T>::BondNotExist)?;
-		T::MultiReservableCurrency::unreserve(bond.asset, &owner, bond.amount);
-		Bonds::<T>::remove(schedule_id);
-
-		Ok(())
 	}
 
 	fn ensure_that_next_blocknumber_bigger_than_current_block(
@@ -1017,7 +866,6 @@ where
 
 	fn complete_dca(schedule_id: ScheduleId, owner: &T::AccountId) {
 		Self::remove_schedule_from_storages(schedule_id);
-		//exec_or_return_if_err!(Self::discard_bond(schedule_id, &owner));
 		Self::deposit_event(Event::Completed {
 			id: schedule_id,
 			who: owner.clone(),

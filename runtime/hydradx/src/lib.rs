@@ -846,10 +846,7 @@ impl pallet_transaction_pause::Config for Runtime {
 }
 
 parameter_types! {
-	pub ExecutionBondInNativeCurrency: Balance= WeightToFee::weight_to_fee(&weights::dca::HydraWeight::<Runtime>::execute_schedule());
-	//pub ExecutionBondInNativeCurrency: Balance= UNITS;
-	//pub StorageBondInNativeCurrency: Balance= deposit(1, pallet_dca::types::Schedule::<AssetId, BlockNumber>::max_encoded_len() as u32);
-	pub StorageBondInNativeCurrency: Balance= UNITS;
+	pub StorageBondInNativeCurrency: Balance= 100 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 20;
 	pub SlippageLimitPercentage: Permill = Permill::from_percent(5);
 }
@@ -862,10 +859,9 @@ impl pallet_dca::Config for Runtime {
 	type NamedMultiReservableCurrency = Currencies;
 	type SpotPriceProvider = Omnipool;
 	type RandomnessProvider = DCA;
-	type ExecutionBondInNativeCurrency = ExecutionBondInNativeCurrency;
-	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
+	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type FeeReceiver = TreasuryAccount;
 	type SlippageLimitPercentage = ();
 	type WeightToFee = WeightToFee;

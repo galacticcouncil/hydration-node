@@ -109,6 +109,4 @@ pub fn assert_that_schedule_has_been_removed_from_storages(schedule_id: Schedule
 	assert!(DCA::schedules(schedule_id).is_none());
 	assert!(DCA::suspended(schedule_id).is_none());
 	assert!(DCA::owner_of(schedule_id).is_none());
-	assert!(DCA::remaining_recurrences(schedule_id).is_none());
-	assert!(DCA::bond(schedule_id).is_none());
 }

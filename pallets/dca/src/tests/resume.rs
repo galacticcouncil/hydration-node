@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::types::{Bond, Order, PoolType, Schedule, ScheduleId, Trade};
+use crate::types::{Order, PoolType, Schedule, ScheduleId, Trade};
 use crate::Error::ScheduleMustBeSuspended;
 use crate::{assert_scheduled_ids, Error, Event};
 use frame_support::traits::OnInitialize;

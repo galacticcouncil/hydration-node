@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{assert_scheduled_ids, reserve_identifier, Bond};
+use crate::{assert_scheduled_ids, reserve_identifier};
 use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};

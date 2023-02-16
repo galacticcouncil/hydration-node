@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::assert_scheduled_ids;
 use crate::tests::mock::*;
 use crate::tests::{empty_vec, ScheduleBuilder};
-use crate::{assert_scheduled_ids, Bond};
 use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -158,80 +158,6 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 		});
 }
 
-#[ignore]
-#[test]
-fn schedule_creation_should_store_bond_taken_from_user() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			let schedule = ScheduleBuilder::new().build();
-
-			//Act
-			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-
-			//Assert
-			let schedule_id = 1;
-			let amount_to_reserve_as_bond = 3_000_000;
-			assert_eq!(
-				DCA::bond(schedule_id).unwrap(),
-				Bond {
-					asset: HDX,
-					amount: amount_to_reserve_as_bond
-				}
-			);
-
-			assert_eq!(
-				amount_to_reserve_as_bond,
-				Currencies::reserved_balance(HDX.into(), &ALICE.into())
-			);
-		});
-}
-
-#[ignore]
-#[test]
-fn schedule_creation_should_store_bond_when_user_has_set_currency_with_nonnative_token() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(ALICE, DAI, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_fee_asset(vec![(ALICE, DAI)])
-		.with_registered_asset(BTC)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 5000 * ONE)
-		.build()
-		.execute_with(|| {
-			//Arrange
-			let schedule = ScheduleBuilder::new().build();
-
-			//Act
-			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-
-			//Assert
-			let schedule_id = 1;
-			let amount_to_reserve_as_bond = 6_000_000;
-			assert_eq!(
-				DCA::bond(schedule_id).unwrap(),
-				Bond {
-					asset: DAI,
-					amount: amount_to_reserve_as_bond
-				}
-			);
-
-			assert_eq!(
-				amount_to_reserve_as_bond,
-				Currencies::reserved_balance(DAI.into(), &ALICE.into())
-			);
-		});
-}
-
 #[test]
 fn schedule_should_emit_necessary_events() {
 	ExtBuilder::default()
@@ -297,9 +223,9 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 
 #[test]
 fn schedule_should_throw_error_when_user_has_not_enough_balance() {
-	let total_bond_amount_to_be_taken = 100 * ONE;
+	let total_amount_to_be_taken = 100 * ONE;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, total_bond_amount_to_be_taken - 1)])
+		.with_endowed_accounts(vec![(ALICE, HDX, total_amount_to_be_taken - 1)])
 		.build()
 		.execute_with(|| {
 			//Arrange
