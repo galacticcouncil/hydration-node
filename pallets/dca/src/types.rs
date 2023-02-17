@@ -1,12 +1,31 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::BoundedVec;
+use sp_runtime::{BoundedVec, DispatchResult};
 
 pub type Balance = u128;
 pub type ScheduleId = u32;
 
 const MAX_NUMBER_OF_TRADES: u32 = 5;
+
+//TODO: place this to warehouse
+pub trait AMMTrader<Origin, AssetId, Balance> {
+	fn sell(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		min_buy_amount: Balance,
+	) -> DispatchResult;
+
+	fn buy(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		max_sell_amount: Balance,
+	) -> DispatchResult;
+}
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Schedule<AssetId, BlockNumber> {

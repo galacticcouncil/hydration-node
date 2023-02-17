@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use frame_support::traits::OnInitialize;
+use std::borrow::Borrow;
 use std::io::empty;
 use std::ops::RangeInclusive;
 
@@ -23,7 +24,11 @@ use sp_runtime::traits::CheckedMul;
 use sp_runtime::FixedPointNumber;
 
 use crate::tests::*;
-use crate::{assert_balance, Event, Order, Schedule, ScheduleId, Trade};
+use crate::{
+	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
+	assert_number_of_executed_sell_trades, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages,
+	Event, Order, Schedule, ScheduleId, Trade,
+};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use hydradx_traits::pools::SpotPriceProvider;
@@ -52,7 +57,6 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 5 * ONE;
 			let amount_to_sell = 1 * ONE;
@@ -76,13 +80,15 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 			set_to_blocknumber(501);
 
 			//Assert
+			let fee = 2269868000;
 			let remaining_named_reserve = total_amount - amount_to_sell;
-			assert_balance!(
-				ALICE,
-				HDX,
-				initial_alice_hdx_balance - amount_to_sell - remaining_named_reserve
-			);
-			assert_balance!(ALICE, BTC, 1533639373243);
+			assert_executed_sell_trades!(vec![SellExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_in: amount_to_sell - fee,
+				min_buy_amount: 0,
+			}]);
+
 			assert_eq!(
 				remaining_named_reserve,
 				Currencies::reserved_balance(HDX.into(), &ALICE.into())
@@ -106,7 +112,6 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = 1 * ONE;
@@ -131,8 +136,13 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(ALICE, BTC, amount_to_buy);
-			assert_balance!(ALICE, HDX, 9995149632542385);
+			assert_executed_buy_trades!(vec![BuyExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_out: ONE,
+				max_sell_amount: max_limit,
+			}]);
+
 			let fee = 2269868000;
 			assert_eq!(
 				total_amount - max_limit - fee,
@@ -157,7 +167,6 @@ fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 5 * ONE;
 			let amount_to_sell = 6 * ONE;
@@ -182,7 +191,6 @@ fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
-			assert_balance!(ALICE, BTC, 0);
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
 			assert!(
@@ -208,7 +216,6 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 16 * ONE;
 			let amount_to_sell = 5 * ONE;
@@ -233,15 +240,16 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
-			assert_balance!(ALICE, BTC, 22769699685998);
-			let schedule_id = 1;
+
+			assert_number_of_executed_sell_trades!(3);
+
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
 		});
 }
 
 #[test]
-fn full_sell_dca_should_be_completed_when_with_exact_total_amount() {
+fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_trades() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -256,8 +264,6 @@ fn full_sell_dca_should_be_completed_when_with_exact_total_amount() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			env_logger::init();
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 15 * ONE;
 			let amount_to_sell = 5 * ONE;
@@ -282,15 +288,15 @@ fn full_sell_dca_should_be_completed_when_with_exact_total_amount() {
 
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
-			assert_balance!(ALICE, BTC, 22769699685998);
-			let schedule_id = 1;
+			assert_number_of_executed_sell_trades!(3);
+
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
 		});
 }
 
 #[test]
-fn full_buy_dca_should_be_completed_when_not_enough_resered_amount() {
+fn full_buy_dca_should_be_completed_when_not_enough_reserved_amount() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -305,7 +311,6 @@ fn full_buy_dca_should_be_completed_when_not_enough_resered_amount() {
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = ONE / 1000;
 			let amount_to_buy = 1 * ONE;
@@ -329,8 +334,7 @@ fn full_buy_dca_should_be_completed_when_not_enough_resered_amount() {
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 0);
-			assert_balance!(ALICE, HDX, 10000 * ONE);
+			assert_number_of_executed_buy_trades!(0);
 			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
@@ -338,7 +342,7 @@ fn full_buy_dca_should_be_completed_when_not_enough_resered_amount() {
 }
 
 #[test]
-fn full_buy_dca_should_be_completed_when_some_exeuction_is_successfull_but_not_enough_balance() {
+fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_enough_balance() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -353,7 +357,6 @@ fn full_buy_dca_should_be_completed_when_some_exeuction_is_successfull_but_not_e
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = 1 * ONE;
@@ -377,8 +380,7 @@ fn full_buy_dca_should_be_completed_when_some_exeuction_is_successfull_but_not_e
 			proceed_to_blocknumber(501, 2001);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 7 * ONE);
-			assert_balance!(ALICE, HDX, 9995416044220179);
+			assert_number_of_executed_buy_trades!(7);
 			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
@@ -386,7 +388,7 @@ fn full_buy_dca_should_be_completed_when_some_exeuction_is_successfull_but_not_e
 }
 
 #[test]
-fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_bigger_than_specified_max_limit() {
+fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_is_bigger_than_specified_max_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -401,12 +403,9 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_bigger_th
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = 1 * ONE;
-			//let spent_amount = 4852637325615;
-			let max_limit = 1 * ONE * 4 / 5;
 			let max_limit_calculated_from_spot_price = 682500000000;
 
 			let schedule = ScheduleBuilder::new()
@@ -428,8 +427,13 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_bigger_th
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(ALICE, BTC, amount_to_buy);
-			assert_balance!(ALICE, HDX, 9995032132542385);
+			assert_executed_buy_trades!(vec![BuyExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_out: ONE,
+				max_sell_amount: max_limit_calculated_from_spot_price,
+			}]);
+
 			let fee = 2269868000;
 
 			assert_eq!(
@@ -457,7 +461,6 @@ fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
 			proceed_to_blocknumber(1, 500);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 0);
 			let schedule_id = 1;
 			assert!(DCA::schedules(schedule_id).is_none());
 		});
@@ -497,15 +500,10 @@ fn schedule_is_planned_for_next_block_when_user_one_execution_finished() {
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(ALICE, BTC, ONE);
+			assert_number_of_executed_buy_trades!(1);
 
 			let schedule_id = 1;
-			let scheduled_ids_for_next_planned_block = DCA::schedule_ids_per_block(601).unwrap();
-			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![schedule_id]);
-			assert_eq!(
-				scheduled_ids_for_next_planned_block,
-				expected_scheduled_ids_for_next_block
-			);
+			assert_scheduled_ids!(601, vec![schedule_id]);
 		});
 }
 
@@ -539,13 +537,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 			set_to_blocknumber(501);
 
 			//Assert
-			let scheduled_ids_for_next_planned_block = DCA::schedule_ids_per_block(601).unwrap();
-			let expected_scheduled_ids_for_next_block =
-				create_bounded_vec_with_schedule_ids(vec![schedule_id, schedule_id_2]);
-			assert_eq!(
-				scheduled_ids_for_next_planned_block,
-				expected_scheduled_ids_for_next_block
-			);
+			assert_scheduled_ids!(601, vec![schedule_id, schedule_id_2]);
 		});
 }
 
@@ -584,7 +576,8 @@ fn dca_schedule_is_suspended_in_block_when_trade_fails_with_insufficient_trade_l
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 0);
+			assert_number_of_executed_buy_trades!(0);
+
 			let schedule_id = 1;
 			assert!(DCA::suspended(schedule_id).is_some());
 
@@ -631,12 +624,14 @@ fn dca_should_not_be_executed_when_schedule_is_paused_after_one_execution() {
 			//Act
 			set_to_blocknumber(501);
 
+			assert_number_of_executed_buy_trades!(1);
+
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 601));
 
 			proceed_to_blocknumber(502, 901);
 
 			//Assert
-			assert_balance!(ALICE, BTC, 1 * ONE);
+			assert_number_of_executed_buy_trades!(1);
 		});
 }
 
@@ -674,13 +669,11 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
-			assert_balance!(ALICE, BTC, 0);
-
 			set_to_blocknumber(501);
 
 			//Assert
 			assert_balance!(TreasuryAccount::get(), DAI, 4539736000);
-			assert_balance!(ALICE, BTC, ONE);
+			assert_number_of_executed_buy_trades!(1);
 		});
 }
 
@@ -747,12 +740,14 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
+			let amount_in = 100 * ONE;
+
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_in: 100 * ONE,
+					amount_in: amount_in,
 					min_limit: Balance::MIN,
 					route: empty_vec(),
 				})
@@ -762,13 +757,18 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
-			assert_balance!(ALICE, BTC, 0);
 
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 4539736000);
-			assert_balance!(ALICE, BTC, 67564873224348);
+			let fee = 4539736000;
+			assert_balance!(TreasuryAccount::get(), DAI, fee);
+			assert_executed_sell_trades!(vec![SellExecution {
+				asset_in: DAI,
+				asset_out: BTC,
+				amount_in: amount_in - fee,
+				min_buy_amount: 0,
+			}]);
 		});
 }
 
@@ -780,28 +780,20 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			(ALICE, HDX, 10000 * ONE),
-			(ALICE, 100, 2000 * ONE),
-			(LP2, 100, 2000 * ONE),
-			(LP3, 200, 2000 * ONE),
 		])
-		.with_registered_asset(100)
-		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
 		.build()
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
-			assert_balance!(ALICE, BTC, 0);
 
 			let sell_amount = 10 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Sell {
-					asset_in: 100,
-					asset_out: 200,
+					asset_in: HDX,
+					asset_out: DAI,
 					amount_in: sell_amount,
 					min_limit: Balance::MAX,
 					route: empty_vec(),
@@ -814,7 +806,13 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(ALICE, 200, 9897566790814);
+			let fee = 2269868000;
+			assert_executed_sell_trades!(vec![SellExecution {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: sell_amount - fee,
+				min_buy_amount: 19_000_000_000_000,
+			}]);
 		});
 }
 
@@ -825,15 +823,8 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_tr
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
 			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
 			(ALICE, HDX, 10000 * ONE),
-			(ALICE, 100, 2000 * ONE),
-			(LP2, 100, 2000 * ONE),
-			(LP3, 200, 2000 * ONE),
 		])
-		.with_registered_asset(100)
-		.with_registered_asset(200)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(100, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_token(200, FixedU128::from_float(0.65), LP3, 2000 * ONE)
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -845,8 +836,8 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_tr
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
-					asset_in: 100,
-					asset_out: 200,
+					asset_in: HDX,
+					asset_out: DAI,
 					amount_out: buy_amount,
 					max_limit: Balance::MIN,
 					route: empty_vec(),
@@ -859,7 +850,12 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_tr
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(ALICE, 200, buy_amount);
+			assert_executed_buy_trades!(vec![BuyExecution {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_out: buy_amount,
+				max_sell_amount: 5250000000000,
+			}]);
 		});
 }
 
@@ -881,9 +877,7 @@ pub fn set_to_blocknumber(to: u64) {
 }
 
 fn assert_that_dca_is_completed(schedule_id: ScheduleId) {
-	assert!(DCA::schedules(schedule_id).is_none());
-	assert!(DCA::suspended(schedule_id).is_none());
-	assert!(DCA::owner_of(schedule_id).is_none());
+	assert_that_schedule_has_been_removed_from_storages!(schedule_id);
 
 	expect_events(vec![Event::Completed {
 		id: schedule_id,

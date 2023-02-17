@@ -105,8 +105,11 @@ pub fn set_execution_bond_config(amount: Balance) {
 	});
 }
 
-pub fn assert_that_schedule_has_been_removed_from_storages(schedule_id: ScheduleId) {
-	assert!(DCA::schedules(schedule_id).is_none());
-	assert!(DCA::suspended(schedule_id).is_none());
-	assert!(DCA::owner_of(schedule_id).is_none());
+#[macro_export]
+macro_rules! assert_that_schedule_has_been_removed_from_storages {
+	($schedule_id:expr) => {
+		assert!(DCA::schedules($schedule_id).is_none());
+		assert!(DCA::suspended($schedule_id).is_none());
+		assert!(DCA::owner_of($schedule_id).is_none());
+	};
 }

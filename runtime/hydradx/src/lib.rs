@@ -37,6 +37,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
+use sp_std::marker::PhantomData;
 
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
@@ -63,6 +64,7 @@ use sp_runtime::traits::BlockNumberProvider;
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
+mod adapters;
 mod benchmarking;
 mod migrations;
 mod xcm;
@@ -115,6 +117,8 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
+use crate::adapters::AmmTraderAdapter;
+use pallet_dca::types::AMMTrader;
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -858,6 +862,7 @@ impl pallet_dca::Config for Runtime {
 	type MultiReservableCurrency = Currencies;
 	type NamedMultiReservableCurrency = Currencies;
 	type SpotPriceProvider = Omnipool;
+	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
 	type RandomnessProvider = DCA;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;

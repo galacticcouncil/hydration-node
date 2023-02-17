@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Schedule};
+use crate::{AMMTrader, Config, Schedule};
 use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
@@ -114,6 +114,24 @@ thread_local! {
 	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*OriginalStorageBondInNative);
 	pub static EXECUTION_BOND: RefCell<Balance> = RefCell::new(1_000_000);
 	pub static SLIPPAGE: RefCell<Permill> = RefCell::new(Permill::from_percent(5));
+	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
+	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct BuyExecution {
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+	pub amount_out: Balance,
+	pub max_sell_amount: Balance,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct SellExecution {
+	pub asset_in: AssetId,
+	pub asset_out: AssetId,
+	pub amount_in: Balance,
+	pub min_buy_amount: Balance,
 }
 
 parameter_types! {
@@ -310,6 +328,58 @@ impl pallet_relaychain_info::Config for Test {
 	type RelaychainBlockNumberProvider = BlockNumberProviderMock;
 }
 
+pub struct AmmTraderMock {}
+
+impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
+	fn sell(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		min_buy_amount: Balance,
+	) -> DispatchResult {
+		if amount == 0 {
+			return Err(DispatchError::Other("Min amount is not reached"));
+		}
+
+		SELL_EXECUTIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.push(SellExecution {
+				asset_in,
+				asset_out,
+				amount_in: amount,
+				min_buy_amount,
+			});
+		});
+
+		Ok(())
+	}
+
+	fn buy(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		max_sell_amount: Balance,
+	) -> DispatchResult {
+		if amount == 0 {
+			return Err(DispatchError::Other("Min amount is not reached"));
+		}
+
+		BUY_EXECUTIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.push(BuyExecution {
+				asset_in,
+				asset_out,
+				amount_out: amount,
+				max_sell_amount,
+			});
+		});
+
+		Ok(())
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
@@ -325,6 +395,7 @@ impl Config for Test {
 	type WeightToFee = IdentityFee<Balance>;
 	type SlippageLimitPercentage = SlippageLimitPercentage;
 	type WeightInfo = ();
+	type AMMTrader = AmmTraderMock;
 }
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
@@ -671,7 +742,6 @@ impl ExtBuilder {
 		r
 	}
 }
-
 thread_local! {
 	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
 }
@@ -697,4 +767,44 @@ pub fn get_last_suspended_events() -> Vec<Event> {
 
 pub fn expect_events(e: Vec<Event>) {
 	test_utils::expect_events::<Event, Test>(e);
+}
+
+#[macro_export]
+macro_rules! assert_executed_sell_trades {
+	($expected_trades:expr) => {{
+		SELL_EXECUTIONS.borrow().with(|v| {
+			let trades = v.borrow().clone();
+			assert_eq!(trades, $expected_trades);
+		});
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_executed_buy_trades {
+	($expected_trades:expr) => {{
+		BUY_EXECUTIONS.borrow().with(|v| {
+			let trades = v.borrow().clone();
+			assert_eq!(trades, $expected_trades);
+		});
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_number_of_executed_buy_trades {
+	($number_of_trades:expr) => {{
+		BUY_EXECUTIONS.borrow().with(|v| {
+			let trades = v.borrow().clone();
+			assert_eq!(trades.len(), $number_of_trades);
+		});
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_number_of_executed_sell_trades {
+	($number_of_trades:expr) => {{
+		SELL_EXECUTIONS.borrow().with(|v| {
+			let trades = v.borrow().clone();
+			assert_eq!(trades.len(), $number_of_trades);
+		});
+	}};
 }

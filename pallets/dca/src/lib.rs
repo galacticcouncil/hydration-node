@@ -149,6 +149,7 @@ pub mod pallet {
 			FixedU128,
 		>;
 
+		//TODO: this can be deleted
 		///For reserving user's assets
 		type MultiReservableCurrency: MultiReservableCurrency<
 			Self::AccountId,
@@ -166,6 +167,8 @@ pub mod pallet {
 		///
 		//TODO: use better abstraction for this
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
+
+		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
@@ -699,7 +702,7 @@ where
 
 				let transaction_fee = Self::get_transaction_fee(*asset_in)?;
 
-				pallet_omnipool::Pallet::<T>::sell(
+				T::AMMTrader::sell(
 					origin,
 					(*asset_in).into(),
 					(*asset_out).into(),
@@ -716,10 +719,10 @@ where
 			} => {
 				let max_limit_with_slippage = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
 
-				pallet_omnipool::Pallet::<T>::buy(
+				T::AMMTrader::buy(
 					origin,
-					(*asset_out).into(),
 					(*asset_in).into(),
+					(*asset_out).into(),
 					*amount_out,
 					max(*max_limit, max_limit_with_slippage),
 				)

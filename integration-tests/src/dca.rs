@@ -19,6 +19,57 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 
+//TODO: add test for full DCA execution like this:
+/*
+#[ignore]
+#[test]
+fn full_buy_dca_should_be_completed_when_some_exeuction_is_successfull_but_not_enough_balance() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(ALICE, HDX, 10000 * ONE),
+			(LP2, BTC, 5000 * ONE),
+		])
+		.with_registered_asset(BTC)
+		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+			assert_balance!(ALICE, BTC, 0);
+
+			let total_amount = 5 * ONE;
+			let amount_to_buy = 1 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+
+			//Act
+			proceed_to_blocknumber(501, 2001);
+
+			//Assert
+			assert_number_of_executed_buy_trades!(7);
+			//assert_balance!(ALICE, BTC, 7 * ONE);
+			//assert_balance!(ALICE, HDX, 9995416044220179);
+			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			let schedule_id = 1;
+			assert_that_dca_is_completed(schedule_id);
+		});
+*/
 #[test]
 fn crate_schedule_should_work() {
 	TestNet::reset();

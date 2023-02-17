@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{assert_scheduled_ids, reserve_identifier};
+use crate::{assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages, reserve_identifier};
 use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
@@ -47,7 +47,7 @@ fn terminate_should_remove_schedule_from_storage() {
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
-			assert_that_schedule_has_been_removed_from_storages(schedule_id);
+			assert_that_schedule_has_been_removed_from_storages!(schedule_id);
 
 			expect_events(vec![Event::Terminated { id: 1, who: ALICE }.into()]);
 		});
