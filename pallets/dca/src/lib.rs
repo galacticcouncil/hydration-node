@@ -149,14 +149,6 @@ pub mod pallet {
 			FixedU128,
 		>;
 
-		//TODO: this can be deleted
-		///For reserving user's assets
-		type MultiReservableCurrency: MultiReservableCurrency<
-			Self::AccountId,
-			CurrencyId = Self::Asset,
-			Balance = Balance,
-		>;
-
 		///For reserving user's assets
 		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<
 			Self::AccountId,

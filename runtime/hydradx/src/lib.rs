@@ -859,7 +859,6 @@ impl pallet_dca::Config for Runtime {
 	type Event = Event;
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
-	type MultiReservableCurrency = Currencies;
 	type NamedMultiReservableCurrency = Currencies;
 	type SpotPriceProvider = Omnipool;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;

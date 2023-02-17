@@ -384,7 +384,6 @@ impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
-	type MultiReservableCurrency = Currencies;
 	type NamedMultiReservableCurrency = Currencies;
 	type SpotPriceProvider = Omnipool;
 	type RandomnessProvider = DCA;
