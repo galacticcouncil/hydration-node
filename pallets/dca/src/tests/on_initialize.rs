@@ -772,7 +772,6 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 		});
 }
 
-//TODO: add somet ests referring to the 5% calculation?!
 #[test]
 fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_trade_min_limit() {
 	ExtBuilder::default()
