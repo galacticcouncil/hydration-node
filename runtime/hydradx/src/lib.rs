@@ -37,7 +37,6 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
-use sp_std::marker::PhantomData;
 
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
@@ -118,7 +117,6 @@ pub fn native_version() -> NativeVersion {
 }
 
 use crate::adapters::AmmTraderAdapter;
-use pallet_dca::types::AMMTrader;
 use smallvec::smallvec;
 
 pub struct WeightToFee;
