@@ -384,7 +384,7 @@ impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
-	type NamedMultiReservableCurrency = Currencies;
+	type Currency = Currencies;
 	type SpotPriceProvider = Omnipool;
 	type RandomnessProvider = DCA;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
@@ -452,26 +452,26 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: Config> Registry<T::Asset, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
 where
-	T::AssetId: Into<AssetId> + From<u32>,
+	T::Asset: Into<AssetId> + From<u32>,
 {
-	fn exists(asset_id: T::AssetId) -> bool {
+	fn exists(asset_id: T::Asset) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
+	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::Asset, DispatchError> {
+		Ok(T::Asset::default())
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::Asset, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);
 			l as u32
 		});
-		Ok(T::AssetId::from(assigned))
+		Ok(T::Asset::from(assigned))
 	}
 }
 

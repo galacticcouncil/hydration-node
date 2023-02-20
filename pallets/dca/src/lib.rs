@@ -32,7 +32,6 @@ use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use orml_traits::NamedMultiReservableCurrency;
-use pallet_omnipool::WeightInfo as OmnipoolWeightInfo;
 use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -95,11 +94,10 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T>
 	where
-		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
-		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::CurrencyId: From<<T as pallet::Config>::Asset>,
-		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::Balance: From<u128>,
 	{
@@ -128,7 +126,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_omnipool::Config + pallet_relaychain_info::Config {
+	pub trait Config: frame_system::Config + pallet_relaychain_info::Config {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -150,10 +148,7 @@ pub mod pallet {
 		>;
 
 		///For reserving user's assets
-		type NamedMultiReservableCurrency: NamedMultiReservableCurrency<
-			Self::AccountId,
-			ReserveIdentifier = NamedReserveIdentifier,
-		>;
+		type Currency: NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
 		///Spot price provider to get the spot price of the native asset comparing to other assets
 		///
@@ -277,18 +272,17 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
 	where
-		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
-		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::CurrencyId: From<<T as pallet::Config>::Asset>,
-		<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
 			<T as frame_system::Config>::AccountId,
 		>>::Balance: From<u128>,
 	{
 		/// Creates a new DCA schedule and plans the execution in the specified start execution block.
 		/// If start execution block number is not specified, then the schedule is planned in the consequent block.
 		///
-		/// The order will be executed within omnipool
+		/// The order will be executed within the configured AMM trade pool
 		///
 		/// Parameters:
 		/// - `origin`: schedule owner
@@ -323,7 +317,7 @@ pub mod pallet {
 			};
 
 			ensure!(
-				T::NamedMultiReservableCurrency::can_reserve(
+				T::Currency::can_reserve(
 					currency_for_reserve.into(),
 					&who,
 					schedule.total_amount.into()
@@ -331,7 +325,7 @@ pub mod pallet {
 				Error::<T>::InsufficientBalanceForTotalAmount
 			);
 
-			T::NamedMultiReservableCurrency::reserve_named(
+			T::Currency::reserve_named(
 				&reserve_identifier(next_schedule_id),
 				currency_for_reserve.into(),
 				&who,
@@ -457,15 +451,11 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T>
 where
-	<T as pallet_omnipool::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId:
+		From<<T as pallet::Config>::Asset>,
 
-	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
-		<T as frame_system::Config>::AccountId,
-	>>::CurrencyId: From<<T as pallet::Config>::Asset>,
-
-	<<T as pallet::Config>::NamedMultiReservableCurrency as orml_traits::MultiCurrency<
-		<T as frame_system::Config>::AccountId,
-	>>::Balance: From<u128>,
+	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
+		From<u128>,
 {
 	fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
@@ -476,13 +466,10 @@ where
 		let sold_currency = Self::sold_currency(&schedule.order);
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
 
-		let remaining_named_reserve_balance = T::NamedMultiReservableCurrency::reserved_balance_named(
-			&dca_reserve_identifier,
-			sold_currency.into(),
-			&owner,
-		);
+		let remaining_named_reserve_balance =
+			T::Currency::reserved_balance_named(&dca_reserve_identifier, sold_currency.into(), &owner);
 
-		T::NamedMultiReservableCurrency::unreserve_named(
+		T::Currency::unreserve_named(
 			&dca_reserve_identifier,
 			sold_currency.into(),
 			&owner,
@@ -562,7 +549,7 @@ where
 			fee_currency.into(),
 			&owner,
 			&T::FeeReceiver::get(),
-			fee_amount_in_sold_asset,
+			fee_amount_in_sold_asset.into(),
 		)?;
 
 		Ok(())
@@ -572,7 +559,7 @@ where
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
 		let named_reserve_identitifer = reserve_identifier(schedule_id);
 		let sold_currency = Self::sold_currency(&schedule.order);
-		T::NamedMultiReservableCurrency::unreserve_all_named(&named_reserve_identitifer, sold_currency.into(), &who);
+		T::Currency::unreserve_all_named(&named_reserve_identitifer, sold_currency.into(), &who);
 
 		Ok(())
 	}
