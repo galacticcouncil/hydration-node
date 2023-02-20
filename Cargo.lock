@@ -3410,7 +3410,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
- "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
+ "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
  "pallet-timestamp",
@@ -5836,7 +5836,7 @@ dependencies = [
  "pallet-balances",
  "pallet-currencies",
  "pallet-omnipool",
- "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
+ "pallet-relaychain-info",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",
  "parity-scale-codec",
@@ -6252,21 +6252,6 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-relaychain-info"
-version = "0.3.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=e5cec412389c34ac0b6c41cca04e707dd7659eec#e5cec412389c34ac0b6c41cca04e707dd7659eec"
-dependencies = [
- "cumulus-pallet-parachain-system",
- "cumulus-primitives-core",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
  "sp-std",
 ]
 
@@ -8839,7 +8824,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy",
  "pallet-elections-phragmen",
- "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e6e6ff135d133ee8b430eae5cd90e42332fe12c0)",
+ "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
@@ -11528,6 +11513,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
@@ -11536,7 +11522,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-preimage",
  "pallet-proxy",
- "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=e5cec412389c34ac0b6c41cca04e707dd7659eec)",
+ "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",

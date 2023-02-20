@@ -124,6 +124,7 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
+use common_runtime::adapters::AmmTraderAdapter;
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -844,6 +845,23 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_dca::Config for Runtime {
+	type Event = Event;
+	type Asset = AssetId;
+	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
+	type Currency = Currencies;
+	type SpotPriceProvider = Omnipool;
+	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
+	type RandomnessProvider = DCA;
+	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
+	type NativeAssetId = NativeAssetId;
+	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
+	type FeeReceiver = TreasuryAccount;
+	type SlippageLimitPercentage = ();
+	type WeightToFee = WeightToFee;
+	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -876,6 +894,7 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
+		DCA: pallet_dca = 61,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

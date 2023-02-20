@@ -25,6 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
+use common_runtime::adapters::AmmTraderAdapter;
 use frame_support::weights::WeightToFee as FrameSupportWeight;
 use frame_system::{EnsureRoot, RawOrigin};
 use pallet_dca::weights::WeightInfo;
@@ -63,7 +64,6 @@ use sp_runtime::traits::BlockNumberProvider;
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
-mod adapters;
 mod benchmarking;
 mod migrations;
 mod xcm;
@@ -116,7 +116,6 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
-use crate::adapters::AmmTraderAdapter;
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -845,12 +844,6 @@ impl pallet_transaction_pause::Config for Runtime {
 	type Event = Event;
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
-}
-
-parameter_types! {
-	pub StorageBondInNativeCurrency: Balance= 100 * UNITS;
-	pub MaxSchedulesPerBlock: u32 = 20;
-	pub SlippageLimitPercentage: Permill = Permill::from_percent(5);
 }
 
 impl pallet_dca::Config for Runtime {

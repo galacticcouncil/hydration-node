@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod adapters;
 pub mod weights;
 
 use codec::alloc::vec;
@@ -314,4 +315,11 @@ parameter_types! {
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
 	pub const SequentialIdOffset: u32 = 1_000_000;
+}
+
+// pallet dca
+parameter_types! {
+	pub StorageBondInNativeCurrency: Balance = 100 * UNITS;
+	pub MaxSchedulesPerBlock: u32 = 20;
+	pub SlippageLimitPercentage: Permill = Permill::from_percent(5);
 }
