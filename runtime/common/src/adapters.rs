@@ -1,4 +1,5 @@
-use pallet_dca::types::AMMTrader;
+use hydradx_traits::pools::SpotPriceProvider;
+use pallet_dca::types::{AMMTrader, PriceProvider};
 use sp_std::marker::PhantomData;
 
 pub struct AmmTraderAdapter<T, Origin, AssetId, Balance>(PhantomData<(T, Origin, AssetId, Balance)>);
@@ -38,5 +39,15 @@ where
 			amount.into(),
 			max_sell_amount.into(),
 		)
+	}
+}
+
+pub struct PriceProviderAdapter<T, AssetId>(PhantomData<(T, AssetId)>);
+
+impl<T: SpotPriceProvider<AssetId>, AssetId> PriceProvider<AssetId> for PriceProviderAdapter<T, AssetId> {
+	type Price = T::Price;
+
+	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+		T::spot_price(asset_a, asset_b)
 	}
 }

@@ -27,6 +27,15 @@ pub trait AMMTrader<Origin, AssetId, Balance> {
 	) -> DispatchResult;
 }
 
+pub trait PriceProvider<AssetId> {
+	type Price;
+
+	/// Return spot price for given asset pair
+	///
+	/// Returns None if such pair does not exist
+	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price>;
+}
+
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Schedule<AssetId, BlockNumber> {
 	pub period: BlockNumber,

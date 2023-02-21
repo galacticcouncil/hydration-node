@@ -34,8 +34,6 @@ pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev 
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "e6e6ff135d133ee8b430eae5cd90e42332fe12c0", default-features = false }
 
-pallet-omnipool = { path = "../omnipool", default-features = false}
-
 # ORML dependencies
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
@@ -71,7 +69,6 @@ std = [
   "pallet-balances/std",
   "pallet-currencies/std",
   "pallet-relaychain-info/std",
-  "pallet-omnipool/std",
   "orml-tokens/std",
 ]
 

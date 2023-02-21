@@ -32,11 +32,7 @@ use sp_runtime::FixedU128;
 #[test]
 fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-		])
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.with_registered_asset(BTC)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -61,11 +57,7 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 #[test]
 fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multiple_entries_planned() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-		])
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.with_registered_asset(BTC)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
@@ -93,11 +85,7 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 #[test]
 fn pause_should_mark_schedule_suspended() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-		])
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.with_registered_asset(BTC)
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()

@@ -25,7 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
-use common_runtime::adapters::AmmTraderAdapter;
+use common_runtime::adapters::{AmmTraderAdapter, PriceProviderAdapter};
 use frame_support::weights::WeightToFee as FrameSupportWeight;
 use frame_system::{EnsureRoot, RawOrigin};
 use pallet_dca::weights::WeightInfo;
@@ -851,7 +851,7 @@ impl pallet_dca::Config for Runtime {
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
 	type Currency = Currencies;
-	type SpotPriceProvider = Omnipool;
+	type PriceProvider = PriceProviderAdapter<Omnipool, AssetId>;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
 	type RandomnessProvider = DCA;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;

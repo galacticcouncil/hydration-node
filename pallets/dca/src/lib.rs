@@ -147,14 +147,14 @@ pub mod pallet {
 			FixedU128,
 		>;
 
-		///For reserving user's assets
+		///For named-reserving user's assets
 		type Currency: NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
-		///Spot price provider to get the spot price of the native asset comparing to other assets
-		///
-		//TODO: use better abstraction for this
-		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
+		///Price provider to get the price of the native asset comparing to other assets
+		//TODO: Replace it to price provider by Oracle once Oracle is ready
+		type PriceProvider: PriceProvider<Self::Asset, Price = FixedU128>;
 
+		///AMMTrader for trade execution
 		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
@@ -176,6 +176,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
 
+		///Slippage limit percentage to be used for calculating min and max limits for trades
 		#[pallet::constant]
 		type SlippageLimitPercentage: Get<Permill>;
 
@@ -715,7 +716,7 @@ where
 		amount_in: &Balance,
 	) -> Result<u128, DispatchError> {
 		let spot_price =
-			T::SpotPriceProvider::spot_price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+			T::PriceProvider::spot_price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingSpotPriceError)?;
 
 		let estimated_amount_out = spot_price
 			.checked_mul_int(*amount_in)
@@ -735,7 +736,7 @@ where
 		amount_out: &Balance,
 	) -> Result<u128, DispatchError> {
 		let spot_price =
-			T::SpotPriceProvider::spot_price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+			T::PriceProvider::spot_price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingSpotPriceError)?;
 
 		let estimated_amount_in = spot_price
 			.checked_mul_int(*amount_out)
@@ -794,7 +795,7 @@ where
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let price = T::SpotPriceProvider::spot_price(T::NativeAssetId::get(), asset_id)
+			let price = T::PriceProvider::spot_price(T::NativeAssetId::get(), asset_id)
 				.ok_or(Error::<T>::CalculatingSpotPriceError)?;
 			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
 		};

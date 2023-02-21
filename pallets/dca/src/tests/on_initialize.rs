@@ -44,15 +44,7 @@ use sp_runtime::{BoundedVec, FixedU128};
 fn one_sell_dca_execution_should_unreserve_amount_in() {
 	let initial_alice_hdx_balance = 10000 * ONE;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, initial_alice_hdx_balance),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, initial_alice_hdx_balance)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -99,15 +91,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 #[test]
 fn one_buy_dca_execution_should_unreserve_max_limit() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -115,7 +99,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = 1 * ONE;
-			let max_limit = 1 * ONE * 4 / 5;
+			let max_limit = 2 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -154,15 +138,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 #[test]
 fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -203,15 +179,7 @@ fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 #[test]
 fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happened_but_no_more_reserved_amount_left() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -251,15 +219,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 #[test]
 fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_trades() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -298,15 +258,7 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 #[test]
 fn full_buy_dca_should_be_completed_when_not_enough_reserved_amount() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -344,15 +296,7 @@ fn full_buy_dca_should_be_completed_when_not_enough_reserved_amount() {
 #[test]
 fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_enough_balance() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -380,7 +324,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			proceed_to_blocknumber(501, 2001);
 
 			//Assert
-			assert_number_of_executed_buy_trades!(7);
+			assert_number_of_executed_buy_trades!(5);
 			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
@@ -390,15 +334,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 #[test]
 fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_is_bigger_than_specified_max_limit() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -406,7 +342,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = 1 * ONE;
-			let max_limit_calculated_from_spot_price = 682500000000;
+			let max_limit_calculated_from_spot_price = 840000000000;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -446,15 +382,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 #[test]
 fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Act
@@ -469,15 +397,7 @@ fn nothing_should_happen_when_no_schedule_in_storage_for_block() {
 #[test]
 fn schedule_is_planned_for_next_block_when_user_one_execution_finished() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -510,15 +430,7 @@ fn schedule_is_planned_for_next_block_when_user_one_execution_finished() {
 #[test]
 fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -544,16 +456,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 #[test]
 fn dca_schedule_is_suspended_in_block_when_trade_fails_with_insufficient_trade_limit() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 5000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_min_trade_amount(ONE)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -592,15 +495,7 @@ fn dca_schedule_is_suspended_in_block_when_trade_fails_with_insufficient_trade_l
 #[test]
 fn dca_should_not_be_executed_when_schedule_is_paused_after_one_execution() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-			(LP2, BTC, 5000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -638,17 +533,7 @@ fn dca_should_not_be_executed_when_schedule_is_paused_after_one_execution() {
 #[test]
 fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successful_buy_trade() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 5000 * ONE),
-			(ALICE, DAI, 5000 * ONE),
-			(LP2, BTC, 10000 * ONE),
-			(LP2, DAI, 10000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE), (ALICE, DAI, 5000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -672,7 +557,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 4539736000);
+			assert_balance!(TreasuryAccount::get(), DAI, 1815894400);
 			assert_number_of_executed_buy_trades!(1);
 		});
 }
@@ -680,18 +565,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 #[test]
 fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_failed_trade() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 5000 * ONE),
-			(ALICE, DAI, 5000 * ONE),
-			(LP2, BTC, 10000 * ONE),
-			(LP2, DAI, 10000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_min_trade_amount(10 * ONE)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE), (ALICE, DAI, 5000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -717,24 +591,14 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 4539736000);
+			assert_balance!(TreasuryAccount::get(), DAI, 1815894400);
 		});
 }
 
 #[test]
 fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successful_sell_trade() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 5000 * ONE),
-			(ALICE, DAI, 5000 * ONE),
-			(LP2, BTC, 10000 * ONE),
-			(LP2, DAI, 10000 * ONE),
-		])
-		.with_registered_asset(BTC)
-		.with_token(BTC, FixedU128::from_float(0.65), LP2, 2000 * ONE)
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE), (ALICE, DAI, 5000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -761,7 +625,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			let fee = 4539736000;
+			let fee = 1815894400;
 			assert_balance!(TreasuryAccount::get(), DAI, fee);
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: DAI,
@@ -775,12 +639,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 #[test]
 fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_trade_min_limit() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-		])
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -810,7 +669,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: sell_amount - fee,
-				min_buy_amount: 19_000_000_000_000,
+				min_buy_amount: 7_600_000_000_000,
 			}]);
 		});
 }
@@ -818,12 +677,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 #[test]
 fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_trade_max_limit() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![
-			(Omnipool::protocol_account(), DAI, 1000 * ONE),
-			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
-			(ALICE, HDX, 10000 * ONE),
-		])
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -853,7 +707,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_tr
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_out: buy_amount,
-				max_sell_amount: 5250000000000,
+				max_sell_amount: 8400000000000,
 			}]);
 		});
 }

@@ -124,7 +124,7 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
-use common_runtime::adapters::AmmTraderAdapter;
+use common_runtime::adapters::{AmmTraderAdapter, PriceProviderAdapter};
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -850,7 +850,7 @@ impl pallet_dca::Config for Runtime {
 	type Asset = AssetId;
 	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
 	type Currency = Currencies;
-	type SpotPriceProvider = Omnipool;
+	type PriceProvider = PriceProviderAdapter<Omnipool, AssetId>;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
 	type RandomnessProvider = DCA;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;

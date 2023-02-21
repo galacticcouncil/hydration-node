@@ -18,6 +18,9 @@ scale-info = { version = "2.1.1", default-features = false, features = ["derive"
 primitives = {path = '../../primitives', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
 
+# HydraDX dependencies
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false }
+
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
