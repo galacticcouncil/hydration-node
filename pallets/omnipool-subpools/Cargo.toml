@@ -32,11 +32,11 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "2af6a86f96d6e86abe0c1692f0ac5e45ded5c870", default-features = false }
-pallet-stableswap = { git = "https://github.com/galacticcouncil/warehouse", rev = "2af6a86f96d6e86abe0c1692f0ac5e45ded5c870", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "f1aa61654317437d4160d570f8eccf6b09f0400f", default-features = false }
+pallet-stableswap = { git = "https://github.com/galacticcouncil/warehouse", rev = "f1aa61654317437d4160d570f8eccf6b09f0400f", default-features = false }
 
 # Math
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "346f204661e1297a806ed9e33e741d6de544cb87", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "36432a1b139400eb69b096c32af488d3cf4b20c2", default-features = false }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }

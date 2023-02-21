@@ -205,7 +205,7 @@ pub mod pallet {
 			)?;
 
 			// Calculate stable asset states and migration details of each asset
-			let subpool_state = hydra_dx_math::omnipool_subpools::create_new_subpool(
+			let subpool_state = hydra_dx_math::omnipool_subpools::create_subpool_initial_state(
 				&(&asset_state_a).into(),
 				&(&asset_state_b).into(),
 			)

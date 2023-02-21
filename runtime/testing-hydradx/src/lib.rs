@@ -108,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 127,
+	spec_version: 129,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -594,7 +594,7 @@ impl orml_tokens::Config for Runtime {
 	type CurrencyId = AssetId;
 	type WeightInfo = weights::tokens::HydraWeight<Runtime>;
 	type ExistentialDeposits = AssetRegistry;
-	type OnDust = ();
+	type OnDust = orml_tokens::TransferDust<Runtime, TreasuryAccount>;
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type MaxReserves = MaxReserves;
@@ -728,6 +728,7 @@ impl pallet_asset_registry::Config for Runtime {
 	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
+	type SequentialIdStartAt = SequentialIdOffset;
 	type NativeAssetId = NativeAssetId;
 	type SequentialIdStartAt = SequentialIdOffset;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
