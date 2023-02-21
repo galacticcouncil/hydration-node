@@ -8766,7 +8766,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.11"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -8801,6 +8801,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-elections-phragmen",
  "pallet-relaychain-info",
  "pallet-scheduler",
