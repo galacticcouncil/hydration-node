@@ -1,5 +1,4 @@
-use hydradx_traits::pools::SpotPriceProvider;
-use pallet_dca::types::{AMMTrader, PriceProvider};
+use hydradx_traits::pools::{AMMTrader, PriceProvider, SpotPriceProvider};
 use sp_std::marker::PhantomData;
 
 pub struct AmmTraderAdapter<T, Origin, AssetId, Balance>(PhantomData<(T, Origin, AssetId, Balance)>);

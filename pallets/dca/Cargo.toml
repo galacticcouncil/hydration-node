@@ -28,9 +28,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true }
 
 # HydraDX dependencies
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "740b7bfd1971ace705b272ce1ae57f403ae1fb18", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "740b7bfd1971ace705b272ce1ae57f403ae1fb18", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "740b7bfd1971ace705b272ce1ae57f403ae1fb18", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "e6e6ff135d133ee8b430eae5cd90e42332fe12c0", default-features = false }
 

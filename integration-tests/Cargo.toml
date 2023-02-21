@@ -13,10 +13,10 @@ primitives = { default-features = false, path = "../primitives" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 common-runtime = { path = "../runtime/common", default-features = true }
 # HydraDX dependencies
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "e5cec412389c34ac0b6c41cca04e707dd7659eec", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "740b7bfd1971ace705b272ce1ae57f403ae1fb18", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "740b7bfd1971ace705b272ce1ae57f403ae1fb18", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "740b7bfd1971ace705b272ce1ae57f403ae1fb18", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "740b7bfd1971ace705b272ce1ae57f403ae1fb18", default-features = false}
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }

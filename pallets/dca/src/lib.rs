@@ -41,6 +41,8 @@ use frame_support::weights::WeightToFee as FrameSupportWeight;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
+use hydradx_traits::pools::AMMTrader;
+use hydradx_traits::pools::PriceProvider;
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
 use orml_traits::NamedMultiReservableCurrency;
@@ -56,9 +58,9 @@ use sp_runtime::Permill;
 use sp_runtime::{traits::BlakeTwo256, traits::Hash};
 use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::cmp::max;
+
 use sp_std::cmp::min;
 use sp_std::vec;
-
 #[cfg(test)]
 mod tests;
 
@@ -88,7 +90,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::OriginFor;
 	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
-
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);

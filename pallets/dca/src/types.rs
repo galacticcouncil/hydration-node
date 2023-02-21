@@ -8,34 +8,6 @@ pub type ScheduleId = u32;
 
 const MAX_NUMBER_OF_TRADES: u32 = 5;
 
-//TODO: place this to warehouse
-pub trait AMMTrader<Origin, AssetId, Balance> {
-	fn sell(
-		origin: Origin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount: Balance,
-		min_buy_amount: Balance,
-	) -> DispatchResult;
-
-	fn buy(
-		origin: Origin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount: Balance,
-		max_sell_amount: Balance,
-	) -> DispatchResult;
-}
-
-pub trait PriceProvider<AssetId> {
-	type Price;
-
-	/// Return spot price for given asset pair
-	///
-	/// Returns None if such pair does not exist
-	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price>;
-}
-
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Schedule<AssetId, BlockNumber> {
 	pub period: BlockNumber,

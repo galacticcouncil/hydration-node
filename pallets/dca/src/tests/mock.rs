@@ -16,16 +16,17 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AMMTrader, Config, PriceProvider};
+use crate::Config;
+use frame_support::parameter_types;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::IdentityFee;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::PalletId;
-
-use frame_support::parameter_types;
 use frame_system as system;
 use frame_system::EnsureRoot;
+use hydradx_traits::pools::AMMTrader;
+use hydradx_traits::pools::PriceProvider;
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
