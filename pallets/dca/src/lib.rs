@@ -16,6 +16,22 @@
 // limitations under the License.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+//! # DCA pallet
+//!
+//! ## Overview
+//!
+//! A dollar-cost averaging pallet that enables users to perform repeating orders.
+//!
+//! When an order is submitted, it will reserve the total amount (budget) specified by the user, as a named reserve.
+//!
+//! The DCA plan is executed as long as there is balance in the budget.
+//!
+//! If a trade fails then the oder is suspended and has to be resumed or terminated by the user.
+//!
+//! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number.
+//! Therefore they cannot be front-ran in the block they are executed.
+//!
+
 use codec::MaxEncodedLen;
 use frame_support::ensure;
 use frame_support::pallet_prelude::*;
@@ -42,22 +58,6 @@ use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::cmp::max;
 use sp_std::cmp::min;
 use sp_std::vec;
-
-//! # DCA pallet
-//!
-//! ## Overview
-//!
-//! A dollar-cost averaging pallet that enables users to perform repeating orders.
-//!
-//! When an order is submitted, it will reserve the total amount (budget) specified by the user, as a named reserve.
-//!
-//! The DCA plan is executed as long as there is balance in the budget.
-//!
-//! If a trade fails then the oder is suspended and has to be resumed or terminated by the user.
-//!
-//! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number.
-//! Therefore they cannot be front-ran in the block they are executed.
-
 
 #[cfg(test)]
 mod tests;
@@ -232,8 +232,6 @@ pub mod pallet {
 		CalculatingSpotPriceError,
 		///Invalid storage state: No schedule ids planned in block
 		NoScheduleIdsPlannedInBlock,
-		///No remaining occurrences found for schedule
-		NoRemainingRecurrencesFound,
 		///The total amount to be reserved should be larger than storage bond
 		TotalAmountShouldBeLargerThanStorageBond,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
