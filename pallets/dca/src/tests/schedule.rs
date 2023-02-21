@@ -16,21 +16,18 @@
 // limitations under the License.
 
 use crate::assert_scheduled_ids;
+use crate::reserve_identifier;
 use crate::tests::mock::*;
-use crate::tests::{empty_vec, set_storage_bond_config, ScheduleBuilder};
-use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
+use crate::tests::{empty_vec, ScheduleBuilder};
+use crate::{Error, Event, Order, ScheduleId};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
+use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::{BoundedVec, FixedU128};
 use std::ops::RangeInclusive;
-pub type Price = FixedU128;
-use crate::reserve_identifier;
-use orml_traits::MultiReservableCurrency;
-use orml_traits::NamedMultiReservableCurrency;
 use test_case::test_case;
 
 #[test]
@@ -337,7 +334,7 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 			//Arrange
 
 			let schedule = ScheduleBuilder::new()
-				.with_total_amount(*OriginalStorageBondInNative)
+				.with_total_amount(*ORIGINAL_STORAGE_BOND_IN_NATIVE)
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
@@ -367,7 +364,7 @@ fn schedule_should_pass_when_total_amount_in_non_native_currency_is_bigger_than_
 			//Arrange
 
 			let schedule = ScheduleBuilder::new()
-				.with_total_amount(*OriginalStorageBondInNative * 9 / 10)
+				.with_total_amount(*ORIGINAL_STORAGE_BOND_IN_NATIVE * 9 / 10)
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: HDX,
@@ -394,7 +391,7 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 			//Arrange
 
 			let schedule = ScheduleBuilder::new()
-				.with_total_amount(*OriginalStorageBondInNative / 3)
+				.with_total_amount(*ORIGINAL_STORAGE_BOND_IN_NATIVE / 3)
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: HDX,

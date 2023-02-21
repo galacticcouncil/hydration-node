@@ -17,19 +17,10 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::types::{Order, PoolType, Schedule, ScheduleId, Trade};
-use crate::Error::ScheduleMustBeSuspended;
 use crate::{assert_scheduled_ids, Error, Event};
-use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
-use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
-use sp_runtime::traits::ConstU32;
-use sp_runtime::BoundedVec;
-use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::FixedU128;
 use test_case::test_case;
 
 #[test]

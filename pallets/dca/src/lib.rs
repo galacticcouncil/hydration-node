@@ -1,4 +1,3 @@
-#![allow(warnings)]
 // This file is part of pallet-dca.
 
 // Copyright (C) 2020-2022  Intergalactic, Limited (GIB).
@@ -17,29 +16,23 @@
 // limitations under the License.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::MaxEncodedLen;
 use frame_support::ensure;
 use frame_support::pallet_prelude::*;
-use frame_support::traits::fungibles::Inspect;
 use frame_support::traits::{Get, Len};
 use frame_support::transactional;
 use frame_support::weights::WeightToFee as FrameSupportWeight;
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
-use hydradx_traits::pools::SpotPriceProvider;
-use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
+use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
-use orml_traits::MultiReservableCurrency;
 use orml_traits::NamedMultiReservableCurrency;
-use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
-use sp_runtime::traits::CheckedMul;
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Saturating;
-use sp_runtime::traits::Zero;
-use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 use sp_runtime::ArithmeticError;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
@@ -49,7 +42,6 @@ use sp_runtime::{BoundedVec, DispatchError};
 use sp_std::cmp::max;
 use sp_std::cmp::min;
 use sp_std::vec;
-use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod tests;
@@ -66,7 +58,6 @@ use weights::WeightInfo;
 pub use pallet::*;
 
 use crate::types::*;
-use sp_runtime::traits::One;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
@@ -75,17 +66,12 @@ type NamedReserveIdentifier = [u8; 8];
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use codec::{EncodeLike, HasCompact};
+	use codec::HasCompact;
 	use frame_support::weights::WeightToFee;
 
 	use frame_system::pallet_prelude::OriginFor;
-	use hydradx_traits::pools::SpotPriceProvider;
-	use hydradx_traits::router::ExecutorError;
 	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
 	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
-	use sp_core::H256;
-	use sp_runtime::traits::{MaybeDisplay, Saturating};
-	use sp_runtime::{FixedPointNumber, Percent};
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -112,7 +98,7 @@ pub mod pallet {
 
 				match maybe_schedules {
 					Some(mut schedules) => {
-						schedules.sort_by_key(|x| random_generator.gen::<u32>());
+						schedules.sort_by_key(|_| random_generator.gen::<u32>());
 						for schedule_id in schedules {
 							Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
 						}
@@ -487,7 +473,7 @@ where
 		*weight += Self::get_execute_schedule_weight();
 
 		match trade_result {
-			Ok(res) => {
+			Ok(_) => {
 				let blocknumber_for_schedule =
 					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
 
@@ -624,7 +610,7 @@ where
 		blocknumber_for_schedule: T::BlockNumber,
 	) -> DispatchResult {
 		ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
-			let mut schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
+			let schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
 
 			schedule_ids
 				.try_push(next_schedule_id)
@@ -676,7 +662,7 @@ where
 				asset_out,
 				amount_in,
 				min_limit,
-				route,
+				route: _,
 			} => {
 				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
 
@@ -695,7 +681,7 @@ where
 				asset_out,
 				amount_out,
 				max_limit,
-				route,
+				route: _,
 			} => {
 				let max_limit_with_slippage = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
 
@@ -755,7 +741,7 @@ where
 		next_execution_block: T::BlockNumber,
 	) -> DispatchResult {
 		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
-			let mut schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotExist)?;
+			let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotExist)?;
 
 			let index = schedule_ids
 				.iter()
@@ -781,11 +767,6 @@ where
 		});
 
 		Ok(())
-	}
-
-	fn get_user_fee_currency(who: &T::AccountId) -> Result<T::Asset, DispatchError> {
-		let user_currency_and_spot_price = T::AccountCurrencyAndPriceProvider::get_currency_and_price(&who)?;
-		Ok(user_currency_and_spot_price.0)
 	}
 
 	fn convert_to_currency_if_asset_is_not_native(
@@ -909,7 +890,7 @@ impl<T: Config> RandomnessProvider for Pallet<T> {
 		let mut seed_arr = [0u8; 8];
 		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);
 		let seed = u64::from_le_bytes(seed_arr);
-		let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+		let rng = rand::rngs::StdRng::seed_from_u64(seed);
 		rng
 	}
 }

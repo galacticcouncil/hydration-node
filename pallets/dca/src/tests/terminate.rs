@@ -18,18 +18,11 @@
 use crate::tests::mock::*;
 use crate::tests::*;
 use crate::{assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages, reserve_identifier};
-use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
-use frame_support::traits::OnInitialize;
+use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
-use frame_system::pallet_prelude::BlockNumberFor;
-use orml_traits::MultiReservableCurrency;
 use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
-use sp_runtime::traits::ConstU32;
-use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{BoundedVec, FixedU128};
-use test_case::test_case;
 
 #[test]
 fn terminate_should_remove_schedule_from_storage() {

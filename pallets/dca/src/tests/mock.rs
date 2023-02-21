@@ -16,34 +16,27 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AMMTrader, Config, PriceProvider, Schedule};
-use frame_support::pallet_prelude::Weight;
+use crate::{AMMTrader, Config, PriceProvider};
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::IdentityFee;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::PalletId;
 
-use frame_support::{assert_ok, parameter_types};
+use frame_support::parameter_types;
 use frame_system as system;
-use frame_system::pallet_prelude::OriginFor;
 use frame_system::EnsureRoot;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use hydradx_traits::Registry;
 use orml_traits::parameter_type_with_key;
-use orml_traits::MultiCurrency;
 use pallet_currencies::BasicCurrencyAdapter;
-use pretty_assertions::assert_eq;
 use sp_core::H256;
-use sp_runtime::traits::Get;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
+use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
-use sp_runtime::{Perbill, Percent};
 
 use sp_runtime::{DispatchResult, FixedU128};
 use std::borrow::Borrow;
@@ -60,16 +53,11 @@ pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
 pub const HDX: AssetId = 0;
-pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
-
-pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
-
-pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -89,7 +77,7 @@ frame_support::construct_runtime!(
 );
 
 lazy_static::lazy_static! {
-	pub static ref OriginalStorageBondInNative: Balance = 2_000_000;
+	pub static ref ORIGINAL_STORAGE_BOND_IN_NATIVE: Balance = 2_000_000;
 }
 
 thread_local! {
@@ -102,7 +90,7 @@ thread_local! {
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
-	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*OriginalStorageBondInNative);
+	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*ORIGINAL_STORAGE_BOND_IN_NATIVE);
 	pub static EXECUTION_BOND: RefCell<Balance> = RefCell::new(1_000_000);
 	pub static SLIPPAGE: RefCell<Permill> = RefCell::new(Permill::from_percent(5));
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
@@ -287,7 +275,7 @@ pub struct AmmTraderMock {}
 
 impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 	fn sell(
-		origin: Origin,
+		_: Origin,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount: Balance,
@@ -311,7 +299,7 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 	}
 
 	fn buy(
-		origin: Origin,
+		_: Origin,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount: Balance,
@@ -340,7 +328,7 @@ pub struct PriceProviderMock {}
 impl PriceProvider<AssetId> for PriceProviderMock {
 	type Price = FixedU128;
 
-	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+	fn spot_price(_: AssetId, _: AssetId) -> Option<Self::Price> {
 		Some(FixedU128::from_float(0.8))
 	}
 }
@@ -350,11 +338,11 @@ pub struct SpotPriceProviderMock {}
 impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
 	type Price = FixedU128;
 
-	fn pair_exists(asset_a: AssetId, asset_b: AssetId) -> bool {
+	fn pair_exists(_: AssetId, _: AssetId) -> bool {
 		todo!()
 	}
 
-	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
+	fn spot_price(_: AssetId, _: AssetId) -> Option<Self::Price> {
 		Some(FixedU128::from_float(0.8))
 	}
 }
@@ -375,13 +363,10 @@ impl Config for Test {
 	type WeightInfo = ();
 	type AMMTrader = AmmTraderMock;
 }
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
 use hydradx_traits::pools::SpotPriceProvider;
-use pallet_relaychain_info::OnValidationDataHandler;
-use pallet_transaction_multi_payment::{DepositAll, TransactionMultiPaymentDataProvider, TransferFees};
+use pallet_transaction_multi_payment::{DepositAll, TransferFees};
 use smallvec::smallvec;
-use test_utils::last_events;
 
 pub type AccountId = u64;
 
@@ -392,7 +377,6 @@ pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
 	init_pool: Option<(FixedU128, FixedU128)>,
-	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 }
 
 impl Default for ExtBuilder {
@@ -401,7 +385,6 @@ impl Default for ExtBuilder {
 			endowed_accounts: vec![],
 			registered_assets: vec![],
 			init_pool: None,
-			pool_tokens: vec![],
 		}
 	}
 }
@@ -412,10 +395,6 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
-		self.endowed_accounts.push(account);
-		self
-	}
 	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
 		self.registered_assets.push(asset);
 		self
@@ -434,7 +413,7 @@ impl ExtBuilder {
 				.endowed_accounts
 				.iter()
 				.filter(|a| a.1 == HDX)
-				.flat_map(|(x, asset, amount)| vec![(*x, *amount)])
+				.flat_map(|(x, _, amount)| vec![(*x, *amount)])
 				.collect(),
 		}
 		.assimilate_storage(&mut t)
@@ -456,36 +435,18 @@ impl ExtBuilder {
 			FEE_ASSET.borrow().with(|v| {
 				let user_and_fee_assets = v.borrow().deref().clone();
 				for fee_asset in user_and_fee_assets {
-					MultiTransactionPayment::add_currency(Origin::root(), fee_asset.1, FixedU128::from_inner(1000000));
-					MultiTransactionPayment::set_currency(Origin::signed(fee_asset.0), fee_asset.1);
+					let _ = MultiTransactionPayment::add_currency(
+						Origin::root(),
+						fee_asset.1,
+						FixedU128::from_inner(1000000),
+					);
+					let _ = MultiTransactionPayment::set_currency(Origin::signed(fee_asset.0), fee_asset.1);
 				}
 			});
 		});
 
 		r
 	}
-}
-thread_local! {
-	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
-}
-
-pub fn expect_suspended_events(e: Vec<Event>) {
-	let last_events: Vec<Event> = get_last_suspended_events();
-	assert_eq!(last_events, e);
-}
-
-pub fn get_last_suspended_events() -> Vec<Event> {
-	let last_events: Vec<Event> = last_events::<Event, Test>(100);
-	let mut suspended_events = vec![];
-
-	for event in last_events {
-		let e = event.clone();
-		if let crate::tests::Event::DCA(dca::Event::Suspended { id, who }) = e {
-			suspended_events.push(event.clone());
-		}
-	}
-
-	suspended_events
 }
 
 pub fn expect_events(e: Vec<Event>) {

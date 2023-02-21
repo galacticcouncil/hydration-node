@@ -17,28 +17,20 @@
 
 use frame_support::traits::OnInitialize;
 use std::borrow::Borrow;
-use std::io::empty;
 use std::ops::RangeInclusive;
-
-use sp_runtime::traits::CheckedMul;
-use sp_runtime::FixedPointNumber;
 
 use crate::tests::*;
 use crate::{
 	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
 	assert_number_of_executed_sell_trades, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages,
-	Event, Order, Schedule, ScheduleId, Trade,
+	Event, Order, ScheduleId,
 };
-use frame_support::{assert_noop, assert_ok};
-use frame_system::pallet_prelude::BlockNumberFor;
-use hydradx_traits::pools::SpotPriceProvider;
+use frame_support::assert_ok;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{BoundedVec, FixedU128};
+use sp_runtime::BoundedVec;
 
 #[test]
 fn one_sell_dca_execution_should_unreserve_amount_in() {

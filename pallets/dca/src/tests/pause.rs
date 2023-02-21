@@ -17,15 +17,11 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{Error, Event, Order, PoolType, Schedule, ScheduleId, Trade};
-use frame_support::traits::OnInitialize;
+use crate::{Error, Event, ScheduleId};
 use frame_support::{assert_noop, assert_ok};
-use frame_system::pallet_prelude::BlockNumberFor;
-use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
-use sp_runtime::DispatchError;
 use sp_runtime::DispatchError::BadOrigin;
 use sp_runtime::FixedU128;
 
