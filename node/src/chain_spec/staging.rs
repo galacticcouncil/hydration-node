@@ -108,7 +108,7 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				(TELEMETRY_URLS[0].to_string(), 0),
 				(TELEMETRY_URLS[1].to_string(), 0),
 			])
-				.expect("Telemetry url is valid"),
+			.expect("Telemetry url is valid"),
 		),
 		// Protocol ID
 		Some(PROTOCOL_ID),
