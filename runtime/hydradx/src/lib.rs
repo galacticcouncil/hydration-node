@@ -26,9 +26,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
 use common_runtime::adapters::{AmmTraderAdapter, PriceProviderAdapter};
-use frame_support::weights::WeightToFee as FrameSupportWeight;
 use frame_system::{EnsureRoot, RawOrigin};
-use pallet_dca::weights::WeightInfo;
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
