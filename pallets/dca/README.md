@@ -1,13 +1,13 @@
 # DCA pallet
 
 ## Overview
-//TODO: Dani - rewrite it as the stuff has been changed a lot
 A dollar-cost averaging pallet that enables users to perform repeating orders.
 
-When an order is submitted, it will reserve the amount for data storage and for the fee for the next trade. 
-The fee is reserved for cases when the next order execution fails. 
-Order is, in this case, suspended and has to be resumed by the user.
+When an order is submitted, it will reserve the total amount (budget) specified by the user, as a named reserve.
 
-This allows users to submit orders that they don’t have enough balance to execute immediately and also perpetual orders.
+The DCA plan is executed as long as there is balance in the budget.
 
-Orders are executed on block initialize. Therefore they cannot be front-ran in the block they are executed.
+If a trade fails then the oder is suspended and has to be resumed or terminated by the user.
+
+Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number. 
+Therefore they cannot be front-ran in the block they are executed.
