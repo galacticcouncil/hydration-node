@@ -65,17 +65,32 @@ where
 	}
 }
 
+impl<Balance> From<(MathReserveState<Balance>, Permill, Tradability)> for AssetState<Balance>
+where
+	Balance: Copy,
+{
+	fn from((state, cap, tradable): (MathReserveState<Balance>, Permill, Tradability)) -> Self {
+		Self {
+			hub_reserve: state.hub_reserve,
+			shares: state.shares,
+			protocol_shares: state.protocol_shares,
+			cap: FixedU128::from(cap).into_inner(),
+			tradable,
+		}
+	}
+}
+
 /// Position in Omnipool represents a moment when LP provided liquidity of an asset at that moment’s price.
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Position<Balance, AssetId> {
 	/// Provided Asset
-	pub(super) asset_id: AssetId,
+	pub asset_id: AssetId,
 	/// Amount of asset added to omnipool
-	pub(super) amount: Balance,
+	pub amount: Balance,
 	/// Quantity of LP shares owned by LP
-	pub(super) shares: Balance,
+	pub shares: Balance,
 	/// Price at which liquidity was provided - ( hub reserve, asset reserve ) at the time of creation
-	pub(super) price: (Balance, Balance),
+	pub price: (Balance, Balance),
 }
 
 impl<Balance, AssetId> From<&Position<Balance, AssetId>> for hydra_dx_math::omnipool::types::Position<Balance>
@@ -117,7 +132,7 @@ where
 /// Simple type to represent imbalance which can be positive or negative.
 // Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
 #[derive(Clone, Copy, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub(crate) struct SimpleImbalance<Balance> {
+pub struct SimpleImbalance<Balance> {
 	pub value: Balance,
 	pub negative: bool,
 }
@@ -191,20 +206,20 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for Simp
 }
 
 /// Asset state representation including asset pool reserve.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct AssetReserveState<Balance> {
 	/// Quantity of asset in omnipool
-	pub(crate) reserve: Balance,
+	pub reserve: Balance,
 	/// Quantity of Hub Asset matching this asset
-	pub(crate) hub_reserve: Balance,
+	pub hub_reserve: Balance,
 	/// Quantity of LP shares for this asset
-	pub(crate) shares: Balance,
+	pub shares: Balance,
 	/// Quantity of LP shares for this asset owned by protocol
-	pub(crate) protocol_shares: Balance,
+	pub protocol_shares: Balance,
 	/// Asset's weight cap
-	pub(super) cap: u128,
+	pub cap: u128,
 	/// Asset's trade state
-	pub(crate) tradable: Tradability,
+	pub tradable: Tradability,
 }
 
 impl<Balance> From<&AssetReserveState<Balance>> for MathReserveState<Balance>
@@ -212,6 +227,20 @@ where
 	Balance: Copy,
 {
 	fn from(state: &AssetReserveState<Balance>) -> Self {
+		Self {
+			reserve: state.reserve,
+			hub_reserve: state.hub_reserve,
+			shares: state.shares,
+			protocol_shares: state.protocol_shares,
+		}
+	}
+}
+
+impl<Balance> From<AssetReserveState<Balance>> for MathReserveState<Balance>
+where
+	Balance: Copy,
+{
+	fn from(state: AssetReserveState<Balance>) -> Self {
 		Self {
 			reserve: state.reserve,
 			hub_reserve: state.hub_reserve,
@@ -257,8 +286,12 @@ impl<Balance> AssetReserveState<Balance>
 where
 	Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
+	pub fn price_as_rational(&self) -> (Balance, Balance) {
+		(self.hub_reserve, self.reserve)
+	}
+
 	/// Calculate price for actual state
-	pub(crate) fn price(&self) -> Option<FixedU128> {
+	pub fn price(&self) -> Option<FixedU128> {
 		FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
 	}
 
@@ -267,7 +300,7 @@ where
 	}
 
 	/// Update current asset state with given delta changes.
-	pub(crate) fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
+	pub fn delta_update(self, delta: &AssetStateChange<Balance>) -> Option<Self> {
 		Some(Self {
 			reserve: (delta.delta_reserve + self.reserve)?,
 			hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
