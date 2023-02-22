@@ -1675,6 +1675,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Remove asset from list of Omnipool assets.
+	/// No events emitted.
 	pub fn remove_asset(asset_id: T::AssetId) -> DispatchResult {
 		<Assets<T>>::remove(asset_id);
 		Ok(())
@@ -1687,6 +1688,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Add new asset to list of Omnipool assets.
+	/// No events emitted.
 	pub fn add_asset(asset_id: T::AssetId, state: AssetState<Balance>) -> DispatchResult {
 		ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
 		ensure!(T::AssetRegistry::exists(asset_id), Error::<T>::AssetNotRegistered);
