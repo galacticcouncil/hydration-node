@@ -34,6 +34,8 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Warehouse
 pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "f860ef8ee4c9e44a53743188f38e258299f330b8", default-features = false }
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "f860ef8ee4c9e44a53743188f38e258299f330b8", default-features = false }
+#remove this
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "f860ef8ee4c9e44a53743188f38e258299f330b8", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "7fc0204c401e79447eaae96e58087413fc6cb59c", default-features = false }
 

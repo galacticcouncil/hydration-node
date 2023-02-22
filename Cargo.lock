@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.3.0"
+version = "100.4.0"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -3387,7 +3387,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "130.0.0"
+version = "131.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3431,8 +3431,10 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
@@ -6245,6 +6247,7 @@ dependencies = [
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
+ "pallet-asset-registry",
  "pallet-balances",
  "pallet-liquidity-mining",
  "pallet-omnipool",
@@ -11502,7 +11505,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "130.0.0"
+version = "131.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -11546,8 +11549,10 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",

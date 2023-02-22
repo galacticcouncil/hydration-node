@@ -18,18 +18,18 @@
 use crate::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::{Pallet as System, RawOrigin};
+use hydradx_traits::Registry;
 use orml_traits::MultiCurrencyExtended;
 use primitives::AssetId;
-use registry_traits::Registry;
 use sp_runtime::traits::One;
 use sp_runtime::Permill;
 
 const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 const ONE: Balance = 1_000_000_000_000;
 const HDX: AssetId = 0;
-const BSX: AssetId = 3;
-const ETH: AssetId = 4;
-const BTC: AssetId = 5;
+const BSX: AssetId = 1_000_001;
+const ETH: AssetId = 1_000_002;
+const BTC: AssetId = 1_000_003;
 
 const G_FARM_TOTAL_REWARDS: Balance = 10_000_000 * ONE;
 const REWARD_CURRENCY: AssetId = HDX;
