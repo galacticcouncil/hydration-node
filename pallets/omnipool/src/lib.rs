@@ -1738,7 +1738,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Updates states of anasset given calculated trade result where HUb asset was traded.
+	/// Updates states of an asset given calculated trade result where hub asset was traded.
 	#[require_transactional]
 	pub fn update_omnipool_state_given_hub_asset_trade(
 		asset: T::AssetId,
