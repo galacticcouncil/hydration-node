@@ -409,6 +409,57 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 		});
 }
 
+#[test]
+fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let fee = 2269868000;
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: fee - 1,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+			//Act
+			set_block_number(500);
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::TradeAmountIsLessThanFee
+			);
+		});
+}
+#[test]
+fn schedule_should_pass_with_buy_when_small_amount_out_as_calculated_amount_will_already_include_trade_fee() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: 50,
+					max_limit: 50000,
+					route: empty_vec(),
+				})
+				.build();
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+		});
+}
+
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
 	bounded_vec

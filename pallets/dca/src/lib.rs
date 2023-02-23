@@ -217,6 +217,8 @@ pub mod pallet {
 		ScheduleNotExist,
 		///The user has not enough balance for the reserving the total amount to spend
 		InsufficientBalanceForTotalAmount,
+		///Trade amount is less than fee
+		TradeAmountIsLessThanFee,
 		///The user is not the owner of the schedule
 		NotScheduleOwner,
 		///The next execution block number is not in the future
@@ -301,10 +303,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(start_execution_block)?;
 			Self::ensure_that_total_amount_is_bigger_than_storage_bond(&schedule)?;
-
-			//TODO:
-			//validate that amountto sell is bigger than fee in case of sesll.
-			//	how about buy?
+			Self::ensure_that_sell_amount_is_bigger_than_transaction_fee(&schedule)?;
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
@@ -512,16 +511,28 @@ where
 				max_limit,
 				..
 			} => {
-				let max_limit_from_spot_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
-				let max_limit = max(max_limit, &max_limit_from_spot_price);
-
-				let fee_amount_in_sold_asset = Self::get_transaction_fee(*asset_in)?;
-				let amount_to_sell_plus_fee = max_limit
-					.checked_add(&fee_amount_in_sold_asset)
-					.ok_or(ArithmeticError::Overflow)?;
-				Ok(amount_to_sell_plus_fee)
+				let amount_to_sell_for_buy =
+					Self::calculate_sell_amount_for_buy(asset_in, asset_out, amount_out, max_limit)?;
+				Ok(amount_to_sell_for_buy)
 			}
 		}
+	}
+
+	fn calculate_sell_amount_for_buy(
+		asset_in: &<T as Config>::Asset,
+		asset_out: &<T as Config>::Asset,
+		amount_out: &Balance,
+		max_limit: &Balance,
+	) -> Result<u128, DispatchError> {
+		let max_limit_from_spot_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
+		let max_limit = max(max_limit, &max_limit_from_spot_price);
+
+		let fee_amount_in_sold_asset = Self::get_transaction_fee(*asset_in)?;
+		let amount_to_sell_plus_fee = max_limit
+			.checked_add(&fee_amount_in_sold_asset)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		Ok(amount_to_sell_plus_fee)
 	}
 
 	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
@@ -598,6 +609,22 @@ where
 	fn ensure_that_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
 		ensure!(*who == schedule_owner, Error::<T>::NotScheduleOwner);
+
+		Ok(())
+	}
+
+	fn ensure_that_sell_amount_is_bigger_than_transaction_fee(
+		schedule: &Schedule<<T as Config>::Asset, T::BlockNumber>,
+	) -> DispatchResult {
+		if let Order::Sell {
+			asset_in, amount_in, ..
+		} = schedule.order
+		{
+			let transaction_fee = Self::get_transaction_fee(asset_in)?;
+			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+		}
+
+		//For buy we don't check as the calculated amount in will always include the fee
 
 		Ok(())
 	}
