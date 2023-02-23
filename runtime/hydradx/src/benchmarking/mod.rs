@@ -1,6 +1,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 pub mod currencies;
+pub mod duster;
 pub mod multi_payment;
 pub mod tokens;
 pub mod vesting;

@@ -99,7 +99,7 @@ fn balance_should_be_dusted_when_token_balance_is_below_ed() {
 		assert_eq!(hydradx_runtime::Tokens::free_balance(DAI, &Treasury::account_id()), 1);
 
 		expect_hydra_events(vec![
-			orml_tokens::Event::Transfer {
+			pallet_currencies::Event::Transferred {
 				currency_id: DAI,
 				from: ALICE.into(),
 				to: Treasury::account_id(),

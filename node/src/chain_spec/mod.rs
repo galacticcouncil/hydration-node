@@ -28,7 +28,7 @@ use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
-	CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
+	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
 	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SystemConfig,
 	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
@@ -98,6 +98,7 @@ pub fn parachain_genesis(
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
+	duster: DusterConfig,
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
@@ -174,6 +175,7 @@ pub fn parachain_genesis(
 		parachain_info: ParachainInfoConfig { parachain_id },
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),
+		duster,
 	}
 }
 
