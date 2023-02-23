@@ -97,7 +97,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 130,
+	spec_version: 131,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -864,6 +864,33 @@ impl pallet_duster::Config for Runtime {
 	type WeightInfo = ();
 }
 
+type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
+	type AssetId = AssetId;
+	type MultiCurrency = Currencies;
+	type PalletId = OmniWarehouseLMPalletId;
+	type MinTotalFarmRewards = MinTotalFarmRewards;
+	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type AmmPoolId = AssetId;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
+	type AssetRegistry = AssetRegistry;
+	type NonDustableWhitelistHandler = Duster;
+	type Event = Event;
+}
+
+impl pallet_omnipool_liquidity_mining::Config for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type PalletId = OmniLMPalletId;
+	type NFTCollectionId = OmnipoolLMCollectionId;
+	type NFTHandler = Uniques;
+	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -897,6 +924,8 @@ construct_runtime!(
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
 		Duster: pallet_duster = 61,
+		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
+		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1114,6 +1143,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, council, Council);
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool, Omnipool);
+			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1172,6 +1202,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, council, Council);
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool, Omnipool);
+			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);

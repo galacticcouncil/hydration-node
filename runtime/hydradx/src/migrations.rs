@@ -35,6 +35,13 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		));
 		frame_support::log::info!("Migrate Duster Pallet to v1 end");
 
+		frame_support::log::info!("Mingrate Omnipool Liquidity Mining Pallet to v1 start");
+		weight = weight.saturating_add(pallet_omnipool_liquidity_mining::migration::migrate_to_v1::<
+			Runtime,
+			OmnipoolLiquidityMining,
+		>());
+		frame_support::log::info!("Mingrate Omnipool Liquidity Mining Pallet to v1 end");
+
 		weight
 	}
 
