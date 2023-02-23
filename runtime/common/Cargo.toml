@@ -1,6 +1,6 @@
 [package]
 name = "common-runtime"
-version = "100.2.5"
+version = "100.2.6"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
