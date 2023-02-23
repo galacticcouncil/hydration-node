@@ -626,7 +626,7 @@ where
 			// - 3 - remove assets reagistered by default for the vec.len()
 			// +1 - first reg asset start with 1 not 0
 			// => 1-th asset id == 1_000_001
-			let l = 1_000_00 - 3 + 1 + v.borrow().len();
+			let l = 1_000_000 - 3 + 1 + v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);
 			l as u32
 		});
