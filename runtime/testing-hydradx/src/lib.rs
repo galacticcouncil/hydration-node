@@ -861,7 +861,7 @@ impl pallet_duster::Config for Runtime {
 	type MinCurrencyDeposits = AssetRegistry;
 	type Reward = DustingReward;
 	type NativeCurrencyId = NativeAssetId;
-	type BlacklistUpdateOrigin = MoreThanHalfCouncil;
+	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = ();
 }
 

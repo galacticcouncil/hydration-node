@@ -3345,7 +3345,7 @@ dependencies = [
 [[package]]
 name = "hydradx-adapters"
 version = "0.2.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-support",
  "hydradx-traits",
@@ -3452,8 +3452,8 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+version = "2.1.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5520,7 +5520,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "2.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5749,7 +5749,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5805,7 +5805,7 @@ dependencies = [
 [[package]]
 name = "pallet-currencies"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5838,7 +5838,7 @@ dependencies = [
 [[package]]
 name = "pallet-duster"
 version = "3.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6239,7 +6239,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.3.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6415,7 +6415,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "8.0.4"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6433,7 +6433,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.1.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6790c85ff125e4cd42be98de4334bf9fe8d23e99#6790c85ff125e4cd42be98de4334bf9fe8d23e99"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=ab68c9af316d84adfd649fc5735705daf0ba9a48#ab68c9af316d84adfd649fc5735705daf0ba9a48"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
