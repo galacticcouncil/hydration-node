@@ -262,6 +262,7 @@ try-runtime= [
     "pallet-transaction-multi-payment/try-runtime",
     "pallet-relaychain-info/try-runtime",
     "pallet-omnipool/try-runtime",
+    "pallet-dca/try-runtime",
     "pallet-collator-rewards/try-runtime",
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",

@@ -48,8 +48,8 @@ where
 		period: 3u32.into(),
 		total_amount: 500 * ONE,
 		order: Order::Buy {
-			asset_in: asset_in,
-			asset_out: asset_out,
+			asset_in,
+			asset_out,
 			amount_out: amount,
 			max_limit: Balance::MAX,
 			route: create_bounded_vec::<T>(vec![]),
@@ -76,8 +76,8 @@ where
 		period: 3u32.into(),
 		total_amount: 500 * ONE,
 		order: Order::Sell {
-			asset_in: asset_in,
-			asset_out: asset_out,
+			asset_in,
+			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
 			route: create_bounded_vec::<T>(vec![]),
@@ -209,7 +209,7 @@ benchmarks! {
 
 	}: {
 		let mut weight = 0u64;
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get().into(), &seller),0);
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 
 		crate::Pallet::<T>::execute_schedule(exeuction_block.into(), &mut weight, 1);
 	}

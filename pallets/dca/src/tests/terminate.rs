@@ -63,17 +63,14 @@ fn terminate_should_unreserve_all_named_reserved() {
 			let named_reserve_id = reserve_identifier(schedule_id);
 			assert_eq!(
 				total_amount,
-				Currencies::reserved_balance_named(&named_reserve_id, HDX.into(), &ALICE.into())
+				Currencies::reserved_balance_named(&named_reserve_id, HDX, &ALICE)
 			);
 
 			//Act
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
-			assert_eq!(
-				0,
-				Currencies::reserved_balance_named(&named_reserve_id, HDX.into(), &ALICE.into())
-			);
+			assert_eq!(0, Currencies::reserved_balance_named(&named_reserve_id, HDX, &ALICE));
 		});
 }
 

@@ -113,14 +113,11 @@ pub mod pallet {
 				let maybe_schedules: Option<BoundedVec<ScheduleId, T::MaxSchedulePerBlock>> =
 					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
 
-				match maybe_schedules {
-					Some(mut schedules) => {
-						schedules.sort_by_key(|_| random_generator.gen::<u32>());
-						for schedule_id in schedules {
-							Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
-						}
+				if let Some(mut schedules) = maybe_schedules {
+					schedules.sort_by_key(|_| random_generator.gen::<u32>());
+					for schedule_id in schedules {
+						Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
 					}
-					None => (),
 				}
 
 				Weight::from_ref_time(weight)
@@ -448,7 +445,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Terminated {
 				id: schedule_id,
-				who: who.clone(),
+				who,
 			});
 
 			Ok(())
@@ -474,10 +471,10 @@ where
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
 
 		let remaining_named_reserve_balance =
-			T::Currency::reserved_balance_named(&dca_reserve_identifier, sold_currency.into(), &owner);
+			T::Currency::reserved_balance_named(dca_reserve_identifier, sold_currency.into(), &owner);
 
 		T::Currency::unreserve_named(
-			&dca_reserve_identifier,
+			dca_reserve_identifier,
 			sold_currency.into(),
 			&owner,
 			amount_to_unreserve.into(),
@@ -495,7 +492,7 @@ where
 		match trade_result {
 			Ok(_) => {
 				let blocknumber_for_schedule =
-					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period.into()));
+					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period));
 
 				exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			}
@@ -506,7 +503,7 @@ where
 	}
 
 	fn amount_to_unreserve(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
-		let amount_to_sell = match order {
+		match order {
 			Order::Sell { amount_in, .. } => Ok(*amount_in),
 			Order::Buy {
 				asset_in,
@@ -515,7 +512,7 @@ where
 				max_limit,
 				..
 			} => {
-				let max_limit_from_spot_price = Self::get_max_limit_with_slippage(&asset_in, &asset_out, &amount_out)?;
+				let max_limit_from_spot_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
 				let max_limit = max(max_limit, &max_limit_from_spot_price);
 
 				let fee_amount_in_sold_asset = Self::get_transaction_fee(*asset_in)?;
@@ -524,9 +521,7 @@ where
 					.ok_or(ArithmeticError::Overflow)?;
 				Ok(amount_to_sell_plus_fee)
 			}
-		};
-
-		amount_to_sell
+		}
 	}
 
 	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
@@ -548,13 +543,13 @@ where
 	}
 
 	fn take_transaction_fee_from_user(owner: &T::AccountId, order: &Order<<T as Config>::Asset>) -> DispatchResult {
-		let fee_currency = Self::sold_currency(&order);
+		let fee_currency = Self::sold_currency(order);
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee(fee_currency)?;
 
 		T::Currency::transfer(
 			fee_currency.into(),
-			&owner,
+			owner,
 			&T::FeeReceiver::get(),
 			fee_amount_in_sold_asset.into(),
 		)?;
@@ -566,7 +561,7 @@ where
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
 		let named_reserve_identitifer = reserve_identifier(schedule_id);
 		let sold_currency = Self::sold_currency(&schedule.order);
-		T::Currency::unreserve_all_named(&named_reserve_identitifer, sold_currency.into(), &who);
+		T::Currency::unreserve_all_named(&named_reserve_identitifer, sold_currency.into(), who);
 
 		Ok(())
 	}
@@ -614,7 +609,7 @@ where
 		let schedule_ids =
 			ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
 		if schedule_ids.len() == T::MaxSchedulePerBlock::get() as usize {
-			let mut consequent_block = blocknumber_for_schedule.clone();
+			let mut consequent_block = blocknumber_for_schedule;
 			consequent_block.saturating_inc();
 			Self::plan_schedule_for_block(consequent_block, next_schedule_id)?;
 			return Ok(());
@@ -694,8 +689,8 @@ where
 
 				T::AMMTrader::sell(
 					origin,
-					(*asset_in).into(),
-					(*asset_out).into(),
+					*asset_in,
+					*asset_out,
 					amount_to_sell,
 					min(*min_limit, min_limit_with_slippage),
 				)
@@ -711,8 +706,8 @@ where
 
 				T::AMMTrader::buy(
 					origin,
-					(*asset_in).into(),
-					(*asset_out).into(),
+					*asset_in,
+					*asset_out,
 					*amount_out,
 					max(*max_limit, max_limit_with_slippage),
 				)
@@ -914,8 +909,7 @@ impl<T: Config> RandomnessProvider for Pallet<T> {
 		let mut seed_arr = [0u8; 8];
 		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);
 		let seed = u64::from_le_bytes(seed_arr);
-		let rng = rand::rngs::StdRng::seed_from_u64(seed);
-		rng
+		rand::rngs::StdRng::seed_from_u64(seed)
 	}
 }
 

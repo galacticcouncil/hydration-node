@@ -40,17 +40,17 @@ impl ScheduleBuilder {
 
 	fn with_period(mut self, period: BlockNumber) -> ScheduleBuilder {
 		self.period = Some(period);
-		return self;
+		self
 	}
 
 	fn with_order(mut self, buy_order: Order<AssetId>) -> ScheduleBuilder {
 		self.order = Some(buy_order);
-		return self;
+		self
 	}
 
 	fn with_total_amount(mut self, total_amount: Balance) -> ScheduleBuilder {
 		self.total_amount = Some(total_amount);
-		return self;
+		self
 	}
 
 	fn build(self) -> Schedule<AssetId, BlockNumber> {

@@ -15,13 +15,7 @@ where
 		amount: Balance,
 		min_buy_amount: Balance,
 	) -> sp_runtime::DispatchResult {
-		pallet_omnipool::Pallet::<T>::sell(
-			origin,
-			asset_in.into(),
-			asset_out.into(),
-			amount.into(),
-			min_buy_amount.into(),
-		)
+		pallet_omnipool::Pallet::<T>::sell(origin, asset_in, asset_out, amount.into(), min_buy_amount.into())
 	}
 
 	fn buy(
@@ -31,13 +25,7 @@ where
 		amount: Balance,
 		max_sell_amount: Balance,
 	) -> sp_runtime::DispatchResult {
-		pallet_omnipool::Pallet::<T>::buy(
-			origin,
-			asset_out.into(),
-			asset_in.into(),
-			amount.into(),
-			max_sell_amount.into(),
-		)
+		pallet_omnipool::Pallet::<T>::buy(origin, asset_out, asset_in, amount.into(), max_sell_amount.into())
 	}
 }
 

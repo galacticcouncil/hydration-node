@@ -64,7 +64,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
 		hydra_run_to_block(5);
@@ -80,9 +80,9 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 			HDX,
 			ALICE_INITIAL_NATIVE_BALANCE - dca_budget + over_reservation_left_over
 		);
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), dca_budget - amount_to_unreserve_for_trade);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_unreserve_for_trade);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id().into(), HDX, fee);
+		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
 	});
 }
 
@@ -103,7 +103,7 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
 		hydra_run_to_block(5);
@@ -114,9 +114,9 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), dca_budget - amount_to_sell);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id().into(), HDX, fee);
+		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
 	});
 }
 
@@ -133,8 +133,8 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-		assert_balance!(&hydradx_runtime::Treasury::account_id().into(), HDX, 0);
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), dca_budget);
+		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, 0);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
 		hydra_run_to_block(5000);
@@ -149,9 +149,9 @@ fn full_buy_dca_should_be_executed_then_completed() {
 			ALICE_INITIAL_NATIVE_BALANCE - dca_budget + over_reservation_left_over
 		);
 
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), 0);
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id().into(), HDX, fees);
+		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fees);
 
 		let schedule = hydradx_runtime::DCA::schedules(1);
 		assert!(schedule.is_none());
@@ -175,7 +175,7 @@ fn full_sell_dca_should_be_executed_then_completed() {
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
 		hydra_run_to_block(500);
@@ -186,9 +186,9 @@ fn full_sell_dca_should_be_executed_then_completed() {
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-		assert_reserved_balance!(&ALICE.into(), HDX.into(), 0);
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id().into(), HDX, fee);
+		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
 	});
 }
 
@@ -300,33 +300,31 @@ fn schedule_fake_with_buy_order(
 	amount: Balance,
 	budget: Balance,
 ) -> Schedule<AssetId, u32> {
-	let schedule1 = Schedule {
+	Schedule {
 		period: 5u32,
 		total_amount: budget,
 		order: Order::Buy {
-			asset_in: asset_in,
-			asset_out: asset_out,
+			asset_in,
+			asset_out,
 			amount_out: amount,
 			max_limit: 2 * UNITS,
 			route: create_bounded_vec(vec![]),
 		},
-	};
-	schedule1
+	}
 }
 
 fn schedule_fake_with_sell_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
-	let schedule1 = Schedule {
+	Schedule {
 		period: 3u32,
 		total_amount: 110 * UNITS,
 		order: Order::Sell {
-			asset_in: asset_in,
-			asset_out: asset_out,
+			asset_in,
+			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
 			route: create_bounded_vec(vec![]),
 		},
-	};
-	schedule1
+	}
 }
 
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {

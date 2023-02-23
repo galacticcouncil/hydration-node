@@ -60,7 +60,7 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 
 			assert_eq!(
 				total_amount,
-				Currencies::reserved_balance_named(&named_reserve_id, HDX.into(), &ALICE.into())
+				Currencies::reserved_balance_named(&named_reserve_id, HDX, &ALICE)
 			);
 		});
 }

@@ -100,7 +100,7 @@ thread_local! {
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BuyExecution {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
@@ -108,7 +108,7 @@ pub struct BuyExecution {
 	pub max_sell_amount: Balance,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SellExecution {
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,

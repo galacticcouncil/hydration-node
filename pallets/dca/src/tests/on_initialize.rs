@@ -43,7 +43,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 5 * ONE;
-			let amount_to_sell = 1 * ONE;
+			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -58,7 +58,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
@@ -73,10 +73,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				min_buy_amount: 0,
 			}]);
 
-			assert_eq!(
-				remaining_named_reserve,
-				Currencies::reserved_balance(HDX.into(), &ALICE.into())
-			);
+			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
 		});
 }
 
@@ -90,7 +87,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 5 * ONE;
-			let amount_to_buy = 1 * ONE;
+			let amount_to_buy = ONE;
 			let max_limit = 2 * ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -100,13 +97,13 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: max_limit,
+					max_limit,
 					route: empty_vec(),
 				})
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
@@ -122,7 +119,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 			let fee = 2269868000;
 			assert_eq!(
 				total_amount - max_limit - fee,
-				Currencies::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
 }
@@ -152,13 +149,13 @@ fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
 			assert!(
@@ -193,13 +190,13 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			proceed_to_blocknumber(501, 801);
 
 			//Assert
-			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
 			assert_number_of_executed_sell_trades!(3);
 
@@ -233,13 +230,13 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			proceed_to_blocknumber(501, 801);
 
 			//Assert
-			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			assert_number_of_executed_sell_trades!(3);
 
 			let schedule_id = 1;
@@ -257,7 +254,7 @@ fn full_buy_dca_should_be_completed_when_not_enough_reserved_amount() {
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = ONE / 1000;
-			let amount_to_buy = 1 * ONE;
+			let amount_to_buy = ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -272,14 +269,14 @@ fn full_buy_dca_should_be_completed_when_not_enough_reserved_amount() {
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
 
 			//Assert
 			assert_number_of_executed_buy_trades!(0);
-			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
 		});
@@ -295,7 +292,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 5 * ONE;
-			let amount_to_buy = 1 * ONE;
+			let amount_to_buy = ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -310,14 +307,14 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			proceed_to_blocknumber(501, 2001);
 
 			//Assert
 			assert_number_of_executed_buy_trades!(5);
-			assert_eq!(0, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 1;
 			assert_that_dca_is_completed(schedule_id);
 		});
@@ -333,7 +330,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 5 * ONE;
-			let amount_to_buy = 1 * ONE;
+			let amount_to_buy = ONE;
 			let max_limit_calculated_from_spot_price = 840000000000;
 
 			let schedule = ScheduleBuilder::new()
@@ -349,7 +346,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 				.build();
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX.into(), &ALICE.into()));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
 			set_to_blocknumber(501);
@@ -366,7 +363,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 
 			assert_eq!(
 				total_amount - max_limit_calculated_from_spot_price - fee,
-				Currencies::reserved_balance(HDX.into(), &ALICE.into())
+				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
 }
@@ -401,7 +398,7 @@ fn schedule_is_planned_for_next_block_when_user_one_execution_finished() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
-					max_limit: 1 * ONE,
+					max_limit: ONE,
 					route: empty_vec(),
 				})
 				.build();
@@ -603,7 +600,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				.with_order(Order::Sell {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_in: amount_in,
+					amount_in,
 					min_limit: Balance::MIN,
 					route: empty_vec(),
 				})
