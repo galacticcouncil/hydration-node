@@ -33,11 +33,11 @@
 //!
 
 use codec::MaxEncodedLen;
+use frame_support::ensure;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::{Get, Len};
 use frame_support::transactional;
 use frame_support::weights::WeightToFee as FrameSupportWeight;
-use frame_support::{assert_ok, ensure};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;

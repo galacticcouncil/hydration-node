@@ -25,8 +25,8 @@ use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
+use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError::BadOrigin;
-use sp_runtime::{BoundedVec, FixedU128};
 use std::ops::RangeInclusive;
 use test_case::test_case;
 

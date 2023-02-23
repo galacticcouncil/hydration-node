@@ -16,8 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AMMTrader, Config, Schedule};
-use frame_support::pallet_prelude::Weight;
+use crate::{AMMTrader, Config};
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::IdentityFee;
@@ -26,31 +25,24 @@ use frame_support::PalletId;
 
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
-use frame_system::pallet_prelude::OriginFor;
 use frame_system::EnsureRoot;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::Registry;
 use orml_traits::parameter_type_with_key;
-use orml_traits::MultiCurrency;
 use pallet_currencies::BasicCurrencyAdapter;
-use pretty_assertions::assert_eq;
 use sp_core::H256;
-use sp_runtime::traits::Get;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
+use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
-use sp_runtime::{Perbill, Percent};
 
 use hydradx_traits::pools::PriceProvider;
 use sp_runtime::{DispatchResult, FixedU128};
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::Deref;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -66,17 +58,7 @@ pub const BTC: AssetId = 3;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
-pub const LP1: u64 = 1;
-pub const LP2: u64 = 2;
-pub const LP3: u64 = 3;
-
 pub const ONE: Balance = 1_000_000_000_000;
-
-pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
-
-pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
-
-pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -112,7 +94,6 @@ thread_local! {
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
 	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*ORIGINAL_STORAGE_BOND_IN_NATIVE);
-	pub static EXECUTION_BOND: RefCell<Balance> = RefCell::new(1_000_000);
 	pub static SLIPPAGE: RefCell<Permill> = RefCell::new(Permill::from_percent(5));
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
@@ -308,7 +289,6 @@ impl pallet_currencies::Config for Test {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
-	pub ExecutionBondInNativeCurrency: Balance= EXECUTION_BOND.with(|v| *v.borrow());
 	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub SlippageLimitPercentage: Permill = SLIPPAGE.with(|v| *v.borrow());
@@ -360,7 +340,7 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 	}
 
 	fn buy(
-		origin: Origin,
+		_origin: Origin,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount: Balance,
@@ -394,7 +374,7 @@ impl AmmTraderMock {
 	) -> DispatchResult {
 		let mut set_omnipool_on = true;
 		SET_OMNIPOOL_ON.with(|v| {
-			let mut omnipool_on = v.borrow_mut();
+			let omnipool_on = v.borrow_mut();
 			set_omnipool_on = *omnipool_on;
 		});
 		if set_omnipool_on {
@@ -449,10 +429,8 @@ impl Config for Test {
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
 use hydradx_traits::pools::SpotPriceProvider;
-use pallet_relaychain_info::OnValidationDataHandler;
-use pallet_transaction_multi_payment::{DepositAll, TransactionMultiPaymentDataProvider, TransferFees};
+use pallet_transaction_multi_payment::{DepositAll, TransferFees};
 use smallvec::smallvec;
-use test_utils::last_events;
 
 pub struct DummyNFT;
 
@@ -525,10 +503,6 @@ where
 	}
 }
 
-pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
-	POSITIONS.with(|v| v.borrow().get(&position_id).copied())
-}
-
 pub type AccountId = u64;
 
 pub const ALICE: AccountId = 1;
@@ -537,15 +511,8 @@ pub const BOB: AccountId = 2;
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
-	asset_fee: Permill,
-	protocol_fee: Permill,
 	asset_weight_cap: Permill,
-	min_liquidity: u128,
-	min_trade_limit: u128,
 	register_stable_asset: bool,
-	max_in_ratio: Balance,
-	max_out_ratio: Balance,
-	fee_asset_for_all_users: Vec<(u64, AssetId)>,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	omnipool_trade: bool,
@@ -562,46 +529,14 @@ impl Default for ExtBuilder {
 		POSITIONS.with(|v| {
 			v.borrow_mut().clear();
 		});
-		ASSET_WEIGHT_CAP.with(|v| {
-			*v.borrow_mut() = Permill::from_percent(100);
-		});
-		ASSET_FEE.with(|v| {
-			*v.borrow_mut() = Permill::from_percent(0);
-		});
-		PROTOCOL_FEE.with(|v| {
-			*v.borrow_mut() = Permill::from_percent(0);
-		});
-		MIN_ADDED_LIQUDIITY.with(|v| {
-			*v.borrow_mut() = 1000u128;
-		});
-		MIN_TRADE_AMOUNT.with(|v| {
-			*v.borrow_mut() = 1000u128;
-		});
-		MAX_IN_RATIO.with(|v| {
-			*v.borrow_mut() = 1u128;
-		});
-		MAX_OUT_RATIO.with(|v| {
-			*v.borrow_mut() = 1u128;
-		});
-
-		FEE_ASSET.with(|v| {
-			v.borrow_mut().clear();
-		});
 
 		Self {
 			endowed_accounts: vec![(Omnipool::protocol_account(), DAI, 1000 * ONE)],
-			asset_fee: Permill::from_percent(0),
-			protocol_fee: Permill::from_percent(0),
 			asset_weight_cap: Permill::from_percent(100),
-			min_liquidity: 0,
 			registered_assets: vec![],
-			min_trade_limit: 0,
 			init_pool: None,
 			register_stable_asset: true,
 			pool_tokens: vec![],
-			fee_asset_for_all_users: vec![],
-			max_in_ratio: 1u128,
-			max_out_ratio: 1u128,
 			omnipool_trade: false,
 		}
 	}
@@ -613,75 +548,9 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
-		self.endowed_accounts.push(account);
-		self
-	}
-	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
-		self.registered_assets.push(asset);
-		self
-	}
-
-	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
-		self.asset_weight_cap = cap;
-		self
-	}
-
-	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
-		self.asset_fee = fee;
-		self
-	}
-
-	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
-		self.protocol_fee = fee;
-		self
-	}
-	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
-		self.min_liquidity = limit;
-		self
-	}
-
-	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
-		self.min_trade_limit = limit;
-		self
-	}
-
-	pub fn with_initial_pool(mut self, stable_price: FixedU128, native_price: FixedU128) -> Self {
-		self.init_pool = Some((stable_price, native_price));
-		self
-	}
-
-	pub fn without_stable_asset_in_registry(mut self) -> Self {
-		self.register_stable_asset = false;
-		self
-	}
-	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
-		self.max_in_ratio = value;
-		self
-	}
-	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
-		self.max_out_ratio = value;
-		self
-	}
-
-	pub fn with_fee_asset(mut self, user_and_asset: Vec<(u64, AssetId)>) -> Self {
-		self.fee_asset_for_all_users = user_and_asset;
-		self
-	}
-
+	#[allow(dead_code)] //This is used only in benchmark but it complains with warning
 	pub fn with_omnipool_trade(mut self, omnipool_is_on: bool) -> Self {
 		self.omnipool_trade = omnipool_is_on;
-		self
-	}
-
-	pub fn with_token(
-		mut self,
-		asset_id: AssetId,
-		price: FixedU128,
-		position_owner: AccountId,
-		amount: Balance,
-	) -> Self {
-		self.pool_tokens.push((asset_id, price, position_owner, amount));
 		self
 	}
 
@@ -699,35 +568,6 @@ impl ExtBuilder {
 			});
 		});
 
-		ASSET_FEE.with(|v| {
-			*v.borrow_mut() = self.asset_fee;
-		});
-		ASSET_WEIGHT_CAP.with(|v| {
-			*v.borrow_mut() = self.asset_weight_cap;
-		});
-
-		PROTOCOL_FEE.with(|v| {
-			*v.borrow_mut() = self.protocol_fee;
-		});
-
-		MIN_ADDED_LIQUDIITY.with(|v| {
-			*v.borrow_mut() = self.min_liquidity;
-		});
-
-		MIN_TRADE_AMOUNT.with(|v| {
-			*v.borrow_mut() = self.min_trade_limit;
-		});
-		MAX_IN_RATIO.with(|v| {
-			*v.borrow_mut() = self.max_in_ratio;
-		});
-		MAX_OUT_RATIO.with(|v| {
-			*v.borrow_mut() = self.max_out_ratio;
-		});
-
-		FEE_ASSET.with(|v| {
-			*v.borrow_mut() = self.fee_asset_for_all_users;
-		});
-
 		SET_OMNIPOOL_ON.with(|v| {
 			*v.borrow_mut() = self.omnipool_trade;
 		});
@@ -737,7 +577,7 @@ impl ExtBuilder {
 				.endowed_accounts
 				.iter()
 				.filter(|a| a.1 == HDX)
-				.flat_map(|(x, asset, amount)| vec![(*x, *amount)])
+				.flat_map(|(x, _, amount)| vec![(*x, *amount)])
 				.collect(),
 		}
 		.assimilate_storage(&mut t)
@@ -757,10 +597,7 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				Omnipool::set_tvl_cap(Origin::root(), u128::MAX);
-
-				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
-				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
+				assert_ok!(Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
 
 				assert_ok!(Omnipool::initialize_pool(
 					Origin::root(),
@@ -788,50 +625,8 @@ impl ExtBuilder {
 			});
 		}
 
-		/*r.execute_with(|| {
-			SET_OMNIPOOL_ON.borrow().with(|v| {
-				let is_omnipool_trade = v.borrow().deref().clone();
-				if is_omnipool_trade {
-					assert_eq!(3, 4);
-					use_omnipool_trade_off();
-				}
-			});
-		});*/
-
-		r.execute_with(|| {
-			FEE_ASSET.borrow().with(|v| {
-				let user_and_fee_assets = v.borrow().deref().clone();
-				for fee_asset in user_and_fee_assets {
-					MultiTransactionPayment::add_currency(Origin::root(), fee_asset.1, FixedU128::from_inner(1000000));
-					MultiTransactionPayment::set_currency(Origin::signed(fee_asset.0), fee_asset.1);
-				}
-			});
-		});
-
 		r
 	}
-}
-thread_local! {
-	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
-}
-
-pub fn expect_suspended_events(e: Vec<Event>) {
-	let last_events: Vec<Event> = get_last_suspended_events();
-	assert_eq!(last_events, e);
-}
-
-pub fn get_last_suspended_events() -> Vec<Event> {
-	let last_events: Vec<Event> = last_events::<Event, Test>(100);
-	let mut suspended_events = vec![];
-
-	for event in last_events {
-		let e = event.clone();
-		if let crate::tests::Event::DCA(dca::Event::Suspended { id, who }) = e {
-			suspended_events.push(event.clone());
-		}
-	}
-
-	suspended_events
 }
 
 pub fn expect_events(e: Vec<Event>) {
@@ -876,10 +671,4 @@ macro_rules! assert_number_of_executed_sell_trades {
 			assert_eq!(trades.len(), $number_of_trades);
 		});
 	}};
-}
-
-pub fn use_omnipool_trade_off() {
-	SET_OMNIPOOL_ON.with(|v| {
-		*v.borrow_mut() = false;
-	});
 }

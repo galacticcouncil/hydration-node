@@ -21,7 +21,7 @@ use super::*;
 
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrencyExtended;
@@ -91,8 +91,6 @@ pub fn create_bounded_vec<T: Config>(trades: Vec<Trade<T::Asset>>) -> BoundedVec
 	bounded_vec
 }
 
-const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
-type AssetIdOf<T> = <T as pallet_omnipool::Config>::AssetId;
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 
@@ -237,7 +235,6 @@ benchmarks! {
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
 	}: {
-		let mut weight = 0u64;
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 
 		crate::Pallet::<T>::on_initialize(exeuction_block.into());
@@ -318,18 +315,11 @@ benchmarks! {
 mod tests {
 	use super::Pallet;
 	use crate::tests::mock::*;
-	use frame_benchmarking::benchmarks;
 	use frame_benchmarking::impl_benchmark_test_suite;
-	use frame_support::assert_ok;
 
 	impl_benchmark_test_suite!(
 		Pallet,
-		super::ExtBuilder::default()
-			.with_registered_asset(0)
-			.with_registered_asset(1)
-			.with_registered_asset(2)
-			.with_omnipool_trade(true)
-			.build(),
+		super::ExtBuilder::default().with_omnipool_trade(true).build(),
 		super::Test
 	);
 }
