@@ -273,6 +273,6 @@ try-runtime= [
     "pallet-claims/try-runtime",
     "pallet-transaction-pause/try-runtime",
     "pallet-duster/try-runtime",
-    "warehouse-liquidity-mining/std",
-    "pallet-omnipool-liquidity-mining/std",
+    "warehouse-liquidity-mining/try-runtime",
+    "pallet-omnipool-liquidity-mining/try-runtime",
 ]

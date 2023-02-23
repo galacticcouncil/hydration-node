@@ -932,7 +932,7 @@ impl<T: Config> Pallet<T> {
 			.price()
 			.ok_or(ArithmeticError::DivisionByZero)?
 			.checked_mul_int(lp_position.amount)
-			.ok_or(ArithmeticError::Overflow.into())
+			.ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 
 	/// This function check if origin is signed and returns account if account is owner of the
