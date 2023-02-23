@@ -60,7 +60,7 @@ use orml_traits::MultiCurrency;
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
 use primitives::{Balance, ItemId as DepositId};
-use sp_runtime::{ArithmeticError, FixedPointNumber, FixedU128, Perquintill};
+use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
 
 pub use pallet::*;
@@ -929,10 +929,11 @@ impl<T: Config> Pallet<T> {
 		let state = OmnipoolPallet::<T>::load_asset_state(lp_position.asset_id)?;
 
 		state
-			.price()
-			.ok_or(ArithmeticError::DivisionByZero)?
-			.checked_mul_int(lp_position.amount)
-			.ok_or_else(|| ArithmeticError::Overflow.into())
+			.hub_reserve
+			.checked_mul(lp_position.amount)
+			.ok_or(ArithmeticError::Overflow)?
+			.checked_div(state.reserve)
+			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
 	}
 
 	/// This function check if origin is signed and returns account if account is owner of the

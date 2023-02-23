@@ -173,6 +173,7 @@ parameter_types! {
 	pub const WarehouseLMPalletId: PalletId = PalletId(*b"TEST_lm_");
 	pub const MinTotalFarmRewards: Balance = 1_000_000 * ONE;
 	pub const MinPlannedYieldingPeriods: BlockNumber  = 100;
+	#[derive(PartialEq, Eq)]
 	pub const MaxEntriesPerDeposit: u32 = 5;
 	pub const MaxYieldFarmsPerGlobalFarm: u32 = 10;
 }

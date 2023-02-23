@@ -15,6 +15,7 @@
 
 use super::*;
 
+use pallet_liquidity_mining::{DepositData, YieldFarmEntry};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -76,6 +77,22 @@ fn deposit_shares_should_work() {
 				crate::OmniPositionId::<Test>::get(deposit_id).unwrap(),
 				omnipool_position_id
 			);
+
+			let deposit =
+				pallet_liquidity_mining::Deposit::<Test, pallet_liquidity_mining::Instance1>::get(deposit_id).unwrap();
+			let mut expected_deposit = DepositData::new(2_000_000_000_000_000, KSM);
+			expected_deposit
+				.add_yield_farm_entry(YieldFarmEntry::new(
+					global_farm_id,
+					yield_farm_id,
+					1_300_000_000_000_000,
+					FixedU128::zero(),
+					1,
+					0,
+				))
+				.unwrap();
+
+			assert_eq!(deposit, expected_deposit);
 
 			//NFT check: lm account should be owner of the omnipool position.
 			let lm_account = OmnipoolMining::account_id();
