@@ -33,11 +33,11 @@
 //!
 
 use codec::MaxEncodedLen;
-use frame_support::ensure;
 use frame_support::pallet_prelude::*;
 use frame_support::traits::{Get, Len};
 use frame_support::transactional;
 use frame_support::weights::WeightToFee as FrameSupportWeight;
+use frame_support::{assert_ok, ensure};
 use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use frame_system::Origin;
@@ -143,6 +143,7 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		//TODO: remove it as not used anymore
 		///Account currency provider to get the set currency of the user
 		type AccountCurrencyAndPriceProvider: TransactionMultiPaymentDataProvider<
 			Self::AccountId,
@@ -304,6 +305,10 @@ pub mod pallet {
 			Self::ensure_that_next_blocknumber_bigger_than_current_block(start_execution_block)?;
 			Self::ensure_that_total_amount_is_bigger_than_storage_bond(&schedule)?;
 
+			//TODO:
+			//validate that amountto sell is bigger than fee in case of sesll.
+			//	how about buy?
+
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
@@ -459,7 +464,7 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
-	fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
+	pub fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
 		let owner = exec_or_return_if_none!(ScheduleOwnership::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
@@ -683,11 +688,15 @@ where
 
 				let transaction_fee = Self::get_transaction_fee(*asset_in)?;
 
+				let amount_to_sell = amount_in
+					.checked_sub(transaction_fee)
+					.ok_or(ArithmeticError::Underflow)?;
+
 				T::AMMTrader::sell(
 					origin,
 					(*asset_in).into(),
 					(*asset_out).into(),
-					*amount_in - transaction_fee,
+					amount_to_sell,
 					min(*min_limit, min_limit_with_slippage),
 				)
 			}

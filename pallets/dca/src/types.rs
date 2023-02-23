@@ -1,7 +1,7 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::{BoundedVec, DispatchResult};
+use sp_runtime::BoundedVec;
 
 pub type Balance = u128;
 pub type ScheduleId = u32;

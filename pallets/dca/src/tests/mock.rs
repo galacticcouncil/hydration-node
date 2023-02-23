@@ -16,35 +16,41 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::Config;
-use frame_support::parameter_types;
+use crate::{AMMTrader, Config, Schedule};
+use frame_support::pallet_prelude::Weight;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::IdentityFee;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::PalletId;
+
+use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
+use frame_system::pallet_prelude::OriginFor;
 use frame_system::EnsureRoot;
-use hydradx_traits::pools::AMMTrader;
-use hydradx_traits::pools::PriceProvider;
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::Registry;
 use orml_traits::parameter_type_with_key;
+use orml_traits::MultiCurrency;
 use pallet_currencies::BasicCurrencyAdapter;
+use pretty_assertions::assert_eq;
 use sp_core::H256;
+use sp_runtime::traits::Get;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
-use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
+use sp_runtime::{Perbill, Percent};
 
+use hydradx_traits::pools::PriceProvider;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
-
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -54,11 +60,23 @@ pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
 pub const HDX: AssetId = 0;
+pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
+pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
+pub const LP1: u64 = 1;
+pub const LP2: u64 = 2;
+pub const LP3: u64 = 3;
+
 pub const ONE: Balance = 1_000_000_000_000;
+
+pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
+
+pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
+
+pub const ALICE_INITIAL_NATIVE_BALANCE: u128 = 1000;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -69,6 +87,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 DCA: dca,
 		 Tokens: orml_tokens,
+		 Omnipool: pallet_omnipool,
 		 MultiTransactionPayment: pallet_transaction_multi_payment,
 		 TransasctionPayment: pallet_transaction_payment,
 		 Balances: pallet_balances,
@@ -83,6 +102,7 @@ lazy_static::lazy_static! {
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
+	pub static REGISTERED_ASSETS: RefCell<HashMap<AssetId, u32>> = RefCell::new(HashMap::default());
 	pub static ASSET_WEIGHT_CAP: RefCell<Permill> = RefCell::new(Permill::from_percent(100));
 	pub static ASSET_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static PROTOCOL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
@@ -96,6 +116,7 @@ thread_local! {
 	pub static SLIPPAGE: RefCell<Permill> = RefCell::new(Permill::from_percent(5));
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
+	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -171,13 +192,49 @@ impl orml_tokens::Config for Test {
 }
 
 parameter_types! {
+		pub const HDXAssetId: AssetId = HDX;
+	pub const LRNAAssetId: AssetId = LRNA;
+	pub const DAIAssetId: AssetId = DAI;
+	pub const PosiitionCollectionId: u32= 1000;
+
 	pub const ExistentialDeposit: u128 = 500;
 	pub const MaxReserves: u32 = 50;
+	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
+	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
+	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
+	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
+	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
+	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
+	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
+	pub const TVLCap: Balance = Balance::MAX;
 
 	pub const TransactionByteFee: Balance = 10 * ONE / 100_000;
 
 	pub const TreasuryPalletId: PalletId = PalletId(*b"aca/trsy");
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
+}
+
+impl pallet_omnipool::Config for Test {
+	type Event = Event;
+	type AssetId = AssetId;
+	type PositionItemId = u32;
+	type Currency = Currencies;
+	type HubAssetId = LRNAAssetId;
+	type ProtocolFee = ProtocolFee;
+	type AssetFee = AssetFee;
+	type StableCoinAssetId = DAIAssetId;
+	type WeightInfo = ();
+	type HdxAssetId = HDXAssetId;
+	type NFTCollectionId = PosiitionCollectionId;
+	type NFTHandler = DummyNFT;
+	type AssetRegistry = DummyRegistry<Test>;
+	type MinimumTradingLimit = MinTradeAmount;
+	type MinimumPoolLiquidity = MinAddedLiquidity;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type MaxInRatio = MaxInRatio;
+	type MaxOutRatio = MaxOutRatio;
+	type CollectionId = u32;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 }
 
 pub struct WeightToFee;
@@ -212,7 +269,7 @@ impl pallet_transaction_multi_payment::Config for Test {
 	type Event = Event;
 	type AcceptedCurrencyOrigin = EnsureRoot<AccountId>;
 	type Currencies = Tokens;
-	type SpotPriceProvider = SpotPriceProviderMock;
+	type SpotPriceProvider = Omnipool;
 	type WeightInfo = ();
 	type WithdrawFeeForSetCurrency = ();
 	type WeightToFee = WeightToFee;
@@ -276,7 +333,7 @@ pub struct AmmTraderMock {}
 
 impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 	fn sell(
-		_: Origin,
+		origin: Origin,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount: Balance,
@@ -285,6 +342,9 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 		if amount == 0 {
 			return Err(DispatchError::Other("Min amount is not reached"));
 		}
+
+		//We only want to excecute omnipool trade in case of benchmarking
+		Self::execute_trade_in_omnipool(origin, asset_in, asset_out, amount, min_buy_amount)?;
 
 		SELL_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
@@ -300,7 +360,7 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 	}
 
 	fn buy(
-		_: Origin,
+		origin: Origin,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount: Balance,
@@ -319,6 +379,27 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 				max_sell_amount,
 			});
 		});
+
+		Ok(())
+	}
+}
+
+impl AmmTraderMock {
+	fn execute_trade_in_omnipool(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		min_buy_amount: Balance,
+	) -> DispatchResult {
+		let mut set_omnipool_on = true;
+		SET_OMNIPOOL_ON.with(|v| {
+			let mut omnipool_on = v.borrow_mut();
+			set_omnipool_on = *omnipool_on;
+		});
+		if set_omnipool_on {
+			Omnipool::sell(origin, asset_in, asset_out, amount, min_buy_amount)?;
+		}
 
 		Ok(())
 	}
@@ -364,10 +445,89 @@ impl Config for Test {
 	type WeightInfo = ();
 	type AMMTrader = AmmTraderMock;
 }
+
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
 use hydradx_traits::pools::SpotPriceProvider;
-use pallet_transaction_multi_payment::{DepositAll, TransferFees};
+use pallet_relaychain_info::OnValidationDataHandler;
+use pallet_transaction_multi_payment::{DepositAll, TransactionMultiPaymentDataProvider, TransferFees};
 use smallvec::smallvec;
+use test_utils::last_events;
+
+pub struct DummyNFT;
+
+impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
+	type ItemId = u32;
+	type CollectionId = u32;
+
+	fn owner(_class: &Self::CollectionId, instance: &Self::ItemId) -> Option<AccountId> {
+		let mut owner: Option<AccountId> = None;
+
+		POSITIONS.with(|v| {
+			if let Some(o) = v.borrow().get(instance) {
+				owner = Some((*o).into());
+			}
+		});
+		owner
+	}
+}
+
+impl<AccountId: From<u64>> Create<AccountId> for DummyNFT {
+	fn create_collection(_class: &Self::CollectionId, _who: &AccountId, _admin: &AccountId) -> DispatchResult {
+		Ok(())
+	}
+}
+
+impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
+	fn mint_into(_class: &Self::CollectionId, _instance: &Self::ItemId, _who: &AccountId) -> DispatchResult {
+		POSITIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.insert(*_instance, (*_who).into());
+		});
+		Ok(())
+	}
+
+	fn burn(
+		_class: &Self::CollectionId,
+		instance: &Self::ItemId,
+		_maybe_check_owner: Option<&AccountId>,
+	) -> DispatchResult {
+		POSITIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.remove(instance);
+		});
+		Ok(())
+	}
+}
+
+pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> Registry<T::Asset, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+where
+	T::Asset: Into<AssetId> + From<u32>,
+{
+	fn exists(asset_id: T::Asset) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+		matches!(asset, Some(_))
+	}
+
+	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::Asset, DispatchError> {
+		Ok(T::Asset::default())
+	}
+
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::Asset, DispatchError> {
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			let l = v.borrow().len();
+			v.borrow_mut().insert(l as u32, l as u32);
+			l as u32
+		});
+		Ok(T::Asset::from(assigned))
+	}
+}
+
+pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
+	POSITIONS.with(|v| v.borrow().get(&position_id).copied())
+}
 
 pub type AccountId = u64;
 
@@ -377,15 +537,72 @@ pub const BOB: AccountId = 2;
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	registered_assets: Vec<AssetId>,
+	asset_fee: Permill,
+	protocol_fee: Permill,
+	asset_weight_cap: Permill,
+	min_liquidity: u128,
+	min_trade_limit: u128,
+	register_stable_asset: bool,
+	max_in_ratio: Balance,
+	max_out_ratio: Balance,
+	fee_asset_for_all_users: Vec<(u64, AssetId)>,
 	init_pool: Option<(FixedU128, FixedU128)>,
+	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
+	omnipool_trade: bool,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
+		// If eg. tests running on one thread only, this thread local is shared.
+		// let's make sure that it is empty for each  test case
+		// or set to original default value
+		REGISTERED_ASSETS.with(|v| {
+			v.borrow_mut().clear();
+		});
+		POSITIONS.with(|v| {
+			v.borrow_mut().clear();
+		});
+		ASSET_WEIGHT_CAP.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(100);
+		});
+		ASSET_FEE.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		PROTOCOL_FEE.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		MIN_ADDED_LIQUDIITY.with(|v| {
+			*v.borrow_mut() = 1000u128;
+		});
+		MIN_TRADE_AMOUNT.with(|v| {
+			*v.borrow_mut() = 1000u128;
+		});
+		MAX_IN_RATIO.with(|v| {
+			*v.borrow_mut() = 1u128;
+		});
+		MAX_OUT_RATIO.with(|v| {
+			*v.borrow_mut() = 1u128;
+		});
+
+		FEE_ASSET.with(|v| {
+			v.borrow_mut().clear();
+		});
+
 		Self {
-			endowed_accounts: vec![],
+			endowed_accounts: vec![(Omnipool::protocol_account(), DAI, 1000 * ONE)],
+			asset_fee: Permill::from_percent(0),
+			protocol_fee: Permill::from_percent(0),
+			asset_weight_cap: Permill::from_percent(100),
+			min_liquidity: 0,
 			registered_assets: vec![],
+			min_trade_limit: 0,
 			init_pool: None,
+			register_stable_asset: true,
+			pool_tokens: vec![],
+			fee_asset_for_all_users: vec![],
+			max_in_ratio: 1u128,
+			max_out_ratio: 1u128,
+			omnipool_trade: false,
 		}
 	}
 }
@@ -396,8 +613,36 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
+		self.endowed_accounts.push(account);
+		self
+	}
 	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
 		self.registered_assets.push(asset);
+		self
+	}
+
+	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
+		self.asset_weight_cap = cap;
+		self
+	}
+
+	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
+		self.asset_fee = fee;
+		self
+	}
+
+	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
+		self.protocol_fee = fee;
+		self
+	}
+	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
+		self.min_liquidity = limit;
+		self
+	}
+
+	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
+		self.min_trade_limit = limit;
 		self
 	}
 
@@ -406,15 +651,93 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn without_stable_asset_in_registry(mut self) -> Self {
+		self.register_stable_asset = false;
+		self
+	}
+	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
+		self.max_in_ratio = value;
+		self
+	}
+	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
+		self.max_out_ratio = value;
+		self
+	}
+
+	pub fn with_fee_asset(mut self, user_and_asset: Vec<(u64, AssetId)>) -> Self {
+		self.fee_asset_for_all_users = user_and_asset;
+		self
+	}
+
+	pub fn with_omnipool_trade(mut self, omnipool_is_on: bool) -> Self {
+		self.omnipool_trade = omnipool_is_on;
+		self
+	}
+
+	pub fn with_token(
+		mut self,
+		asset_id: AssetId,
+		price: FixedU128,
+		position_owner: AccountId,
+		amount: Balance,
+	) -> Self {
+		self.pool_tokens.push((asset_id, price, position_owner, amount));
+		self
+	}
+
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		// Add DAi and HDX as pre-registered assets
+		REGISTERED_ASSETS.with(|v| {
+			if self.register_stable_asset {
+				v.borrow_mut().insert(DAI, DAI);
+			}
+			v.borrow_mut().insert(HDX, HDX);
+			v.borrow_mut().insert(REGISTERED_ASSET, REGISTERED_ASSET);
+			self.registered_assets.iter().for_each(|asset| {
+				v.borrow_mut().insert(*asset, *asset);
+			});
+		});
+
+		ASSET_FEE.with(|v| {
+			*v.borrow_mut() = self.asset_fee;
+		});
+		ASSET_WEIGHT_CAP.with(|v| {
+			*v.borrow_mut() = self.asset_weight_cap;
+		});
+
+		PROTOCOL_FEE.with(|v| {
+			*v.borrow_mut() = self.protocol_fee;
+		});
+
+		MIN_ADDED_LIQUDIITY.with(|v| {
+			*v.borrow_mut() = self.min_liquidity;
+		});
+
+		MIN_TRADE_AMOUNT.with(|v| {
+			*v.borrow_mut() = self.min_trade_limit;
+		});
+		MAX_IN_RATIO.with(|v| {
+			*v.borrow_mut() = self.max_in_ratio;
+		});
+		MAX_OUT_RATIO.with(|v| {
+			*v.borrow_mut() = self.max_out_ratio;
+		});
+
+		FEE_ASSET.with(|v| {
+			*v.borrow_mut() = self.fee_asset_for_all_users;
+		});
+
+		SET_OMNIPOOL_ON.with(|v| {
+			*v.borrow_mut() = self.omnipool_trade;
+		});
 
 		pallet_balances::GenesisConfig::<Test> {
 			balances: self
 				.endowed_accounts
 				.iter()
 				.filter(|a| a.1 == HDX)
-				.flat_map(|(x, _, amount)| vec![(*x, *amount)])
+				.flat_map(|(x, asset, amount)| vec![(*x, *amount)])
 				.collect(),
 		}
 		.assimilate_storage(&mut t)
@@ -432,22 +755,83 @@ impl ExtBuilder {
 
 		let mut r: sp_io::TestExternalities = t.into();
 
+		if let Some((stable_price, native_price)) = self.init_pool {
+			r.execute_with(|| {
+				Omnipool::set_tvl_cap(Origin::root(), u128::MAX);
+
+				let stable_amount = Tokens::free_balance(DAI, &Omnipool::protocol_account());
+				let native_amount = Tokens::free_balance(HDX, &Omnipool::protocol_account());
+
+				assert_ok!(Omnipool::initialize_pool(
+					Origin::root(),
+					stable_price,
+					native_price,
+					Permill::from_percent(100),
+					Permill::from_percent(100)
+				));
+
+				for (asset_id, price, owner, amount) in self.pool_tokens {
+					assert_ok!(Tokens::transfer(
+						Origin::signed(owner),
+						Omnipool::protocol_account(),
+						asset_id,
+						amount
+					));
+					assert_ok!(Omnipool::add_token(
+						Origin::root(),
+						asset_id,
+						price,
+						self.asset_weight_cap,
+						owner
+					));
+				}
+			});
+		}
+
+		/*r.execute_with(|| {
+			SET_OMNIPOOL_ON.borrow().with(|v| {
+				let is_omnipool_trade = v.borrow().deref().clone();
+				if is_omnipool_trade {
+					assert_eq!(3, 4);
+					use_omnipool_trade_off();
+				}
+			});
+		});*/
+
 		r.execute_with(|| {
 			FEE_ASSET.borrow().with(|v| {
 				let user_and_fee_assets = v.borrow().deref().clone();
 				for fee_asset in user_and_fee_assets {
-					let _ = MultiTransactionPayment::add_currency(
-						Origin::root(),
-						fee_asset.1,
-						FixedU128::from_inner(1000000),
-					);
-					let _ = MultiTransactionPayment::set_currency(Origin::signed(fee_asset.0), fee_asset.1);
+					MultiTransactionPayment::add_currency(Origin::root(), fee_asset.1, FixedU128::from_inner(1000000));
+					MultiTransactionPayment::set_currency(Origin::signed(fee_asset.0), fee_asset.1);
 				}
 			});
 		});
 
 		r
 	}
+}
+thread_local! {
+	pub static DummyThreadLocal: RefCell<u128> = RefCell::new(100);
+}
+
+pub fn expect_suspended_events(e: Vec<Event>) {
+	let last_events: Vec<Event> = get_last_suspended_events();
+	assert_eq!(last_events, e);
+}
+
+pub fn get_last_suspended_events() -> Vec<Event> {
+	let last_events: Vec<Event> = last_events::<Event, Test>(100);
+	let mut suspended_events = vec![];
+
+	for event in last_events {
+		let e = event.clone();
+		if let crate::tests::Event::DCA(dca::Event::Suspended { id, who }) = e {
+			suspended_events.push(event.clone());
+		}
+	}
+
+	suspended_events
 }
 
 pub fn expect_events(e: Vec<Event>) {
@@ -492,4 +876,10 @@ macro_rules! assert_number_of_executed_sell_trades {
 			assert_eq!(trades.len(), $number_of_trades);
 		});
 	}};
+}
+
+pub fn use_omnipool_trade_off() {
+	SET_OMNIPOOL_ON.with(|v| {
+		*v.borrow_mut() = false;
+	});
 }

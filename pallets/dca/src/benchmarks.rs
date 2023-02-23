@@ -25,16 +25,15 @@ use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrencyExtended;
+use scale_info::prelude::vec::Vec;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
-
 pub const ONE: Balance = 1_000_000_000_000;
 
-fn schedule_fake<T: Config>(
+fn schedule_fake<T: Config + pallet_omnipool::Config>(
 	asset_in: T::Asset,
 	asset_out: T::Asset,
 	amount: Balance,
-	recurrence: Recurrence,
 ) -> Schedule<T::Asset, T::BlockNumber>
 where
 	T: crate::pallet::Config,
@@ -47,7 +46,7 @@ where
 {
 	let schedule1: Schedule<T::Asset, T::BlockNumber> = Schedule {
 		period: 3u32.into(),
-		recurrence,
+		total_amount: 500 * ONE,
 		order: Order::Buy {
 			asset_in: asset_in,
 			asset_out: asset_out,
@@ -59,11 +58,10 @@ where
 	schedule1
 }
 
-fn schedule_sell_fake<T: Config>(
+fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 	asset_in: T::Asset,
 	asset_out: T::Asset,
 	amount: Balance,
-	recurrence: Recurrence,
 ) -> Schedule<T::Asset, T::BlockNumber>
 where
 	T: crate::pallet::Config,
@@ -76,7 +74,7 @@ where
 {
 	let schedule1: Schedule<T::Asset, T::BlockNumber> = Schedule {
 		period: 3u32.into(),
-		recurrence,
+		total_amount: 500 * ONE,
 		order: Order::Sell {
 			asset_in: asset_in,
 			asset_out: asset_out,
@@ -98,12 +96,14 @@ type AssetIdOf<T> = <T as pallet_omnipool::Config>::AssetId;
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 
-fn prepare_omnipool<T: pallet_omnipool::Config>() -> Result<(T::AssetId), DispatchError>
+fn prepare_omnipool<T: pallet_omnipool::Config>() -> Result<T::AssetId, DispatchError>
 where
 	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: crate::pallet::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
+	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), u128::MAX)?;
+
 	// Initialize pool
 	let stable_amount: Balance = 1_000_000_000_000_000u128;
 	let native_amount: Balance = 1_000_000_000_000_000u128;
@@ -111,8 +111,8 @@ where
 	let native_price: FixedU128 = FixedU128::from(1);
 	let acc = OmnipoolPallet::<T>::protocol_account();
 
-	T::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
-	T::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
 
 	OmnipoolPallet::<T>::initialize_pool(
 		RawOrigin::Root.into(),
@@ -131,7 +131,7 @@ where
 	let token_price = FixedU128::from((1, 5));
 	let token_amount = 200_000_000_000_000u128;
 
-	T::Currency::update_balance(token_id, &acc, token_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &acc, token_amount as i128)?;
 
 	// Add the token to the pool
 	OmnipoolPallet::<T>::add_token(
@@ -144,14 +144,18 @@ where
 
 	// Create LP provider account with correct balance aand add some liquidity
 	let lp_provider: T::AccountId = account("provider", 1, 1);
-	T::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
 
 	let liquidity_added = 300_000_000_000_000u128;
 
 	OmnipoolPallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
 
 	let buyer: T::AccountId = account("buyer", 2, 1);
-	T::Currency::update_balance(T::StableCoinAssetId::get(), &buyer, 500_000_000_000_000i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(
+		T::StableCoinAssetId::get(),
+		&buyer,
+		500_000_000_000_000i128,
+	)?;
 	OmnipoolPallet::<T>::buy(
 		RawOrigin::Signed(buyer).into(),
 		token_id,
@@ -160,18 +164,18 @@ where
 		100_000_000_000_000u128,
 	)?;
 
-	Ok((token_id))
+	Ok(token_id)
 }
 
-fn create_account_with_native_balance<T: Config>() -> Result<T::AccountId, DispatchError>
+fn create_account_with_native_balance<T: Config + pallet_omnipool::Config>() -> Result<T::AccountId, DispatchError>
 where
 	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: crate::pallet::Config,
+	T: crate::pallet::Config + pallet_omnipool::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
 	let caller: T::AccountId = account("provider", 1, 1);
 	let token_amount = 200 * ONE;
-	T::Currency::update_balance(0.into(), &caller, token_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(0.into(), &caller, token_amount as i128)?;
 
 	Ok(caller)
 }
@@ -179,13 +183,15 @@ where
 benchmarks! {
 	 where_clause {  where
 		CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-		T: crate::pallet::Config,
+		T: crate::pallet::Config + pallet_omnipool::Config,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<u32>,
 		<T as crate::pallet::Config>::Asset: From<u32>,
 		<T as crate::pallet::Config>::Asset: Into<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
-		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>
+		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId: From<<T as pallet::Config>::Asset>,
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance: From<u128>
 	}
 
 	execute_schedule {
@@ -193,57 +199,62 @@ benchmarks! {
 
 		let seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_buy = 10_000_000_000_000u128;
+		let amount_sell = 20_000_000_000_000u128;
 		let sell_max_limit = 200_000_000_000_000u128;
 
-		T::Currency::update_balance(token_id, &seller, amount_buy as i128)?;
-		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
-		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(1));
+		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
 		let exeuction_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
 	}: {
 		let mut weight = 0u64;
-		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get().into(), &seller),0);
 
 		crate::Pallet::<T>::execute_schedule(exeuction_block.into(), &mut weight, 1);
 	}
 	verify {
-		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
+		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
+
+
 
 	on_initialize{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_buy = 10_000_000_000_000u128;
+		let amount_sell = 20_000_000_000_000u128;
 		let sell_max_limit = 200_000_000_000_000u128;
 
-		T::Currency::update_balance(token_id, &seller, amount_buy as i128)?;
-		T::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
-		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_buy, Recurrence::Fixed(1));
+		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
 		let exeuction_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
 	}: {
 		let mut weight = 0u64;
-		assert_eq!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 
 		crate::Pallet::<T>::on_initialize(exeuction_block.into());
 	}
 	verify {
-		assert!(T::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
+
+		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
 
 	schedule{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
+		let amount_sell = 20_000_000_000_000u128;
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let schedule_id : ScheduleId = 1;
 
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::None)
@@ -254,8 +265,10 @@ benchmarks! {
 	pause{
 		let token_id = prepare_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
+		let amount_sell = 20_000_000_000_000u128;
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
@@ -268,10 +281,13 @@ benchmarks! {
 	resume{
 		let token_id = prepare_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
+		let amount_sell = 20_000_000_000_000u128;
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
+
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
 		assert_ok!(crate::Pallet::<T>::pause(RawOrigin::Signed(caller.clone()).into(), schedule_id, execution_block.into()));
 
@@ -283,8 +299,10 @@ benchmarks! {
 	terminate {
 		let token_id = prepare_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), ONE, Recurrence::Fixed(5));
+		let amount_sell = 20_000_000_000_000u128;
+		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
@@ -310,6 +328,7 @@ mod tests {
 			.with_registered_asset(0)
 			.with_registered_asset(1)
 			.with_registered_asset(2)
+			.with_omnipool_trade(true)
 			.build(),
 		super::Test
 	);

@@ -5836,6 +5836,7 @@ dependencies = [
  "orml-traits",
  "pallet-balances",
  "pallet-currencies",
+ "pallet-omnipool",
  "pallet-relaychain-info",
  "pallet-transaction-multi-payment",
  "pallet-transaction-payment",

@@ -358,7 +358,6 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 fn schedule_should_pass_when_total_amount_in_non_native_currency_is_bigger_than_storage_bond_in_native() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
-		.with_initial_pool(FixedU128::from(1), FixedU128::from_float(0.5))
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -385,7 +384,6 @@ fn schedule_should_pass_when_total_amount_in_non_native_currency_is_bigger_than_
 fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than_storage_bond_in_native() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
-		.with_initial_pool(FixedU128::from(1), FixedU128::from_float(0.5))
 		.build()
 		.execute_with(|| {
 			//Arrange
