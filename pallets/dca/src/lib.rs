@@ -140,14 +140,6 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
-		//TODO: remove it as not used anymore
-		///Account currency provider to get the set currency of the user
-		type AccountCurrencyAndPriceProvider: TransactionMultiPaymentDataProvider<
-			Self::AccountId,
-			Self::Asset,
-			FixedU128,
-		>;
-
 		///For named-reserving user's assets
 		type Currency: NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 

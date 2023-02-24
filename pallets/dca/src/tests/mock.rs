@@ -412,7 +412,6 @@ impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
-	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
 	type Currency = Currencies;
 	type PriceProvider = PriceProviderMock;
 	type RandomnessProvider = DCA;

@@ -896,7 +896,6 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 impl pallet_dca::Config for Runtime {
 	type Event = Event;
 	type Asset = AssetId;
-	type AccountCurrencyAndPriceProvider = MultiTransactionPayment;
 	type Currency = Currencies;
 	type PriceProvider = PriceProviderAdapter<Omnipool, AssetId>;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
