@@ -89,7 +89,6 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
-	use pallet_transaction_multi_payment::TransactionMultiPaymentDataProvider;
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
@@ -452,6 +451,75 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
+	fn ensure_that_next_blocknumber_bigger_than_current_block(
+		next_execution_block: Option<T::BlockNumber>,
+	) -> DispatchResult {
+		if let Some(next_exection_block) = next_execution_block {
+			let current_block_number = frame_system::Pallet::<T>::current_block_number();
+			ensure!(
+				next_exection_block > current_block_number,
+				Error::<T>::BlockNumberIsNotInFuture
+			);
+		};
+
+		Ok(())
+	}
+
+	fn ensure_that_total_amount_is_bigger_than_storage_bond(
+		schedule: &Schedule<T::Asset, T::BlockNumber>,
+	) -> DispatchResult {
+		let min_total_amount = if Self::sold_currency(&schedule.order) == T::NativeAssetId::get() {
+			T::StorageBondInNativeCurrency::get()
+		} else {
+			Self::get_storage_bond_in_sold_currency(&schedule.order)?
+		};
+
+		ensure!(
+			schedule.total_amount > min_total_amount,
+			Error::<T>::TotalAmountShouldBeLargerThanStorageBond
+		);
+
+		Ok(())
+	}
+
+	fn ensure_that_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
+		ensure!(
+			Suspended::<T>::contains_key(&schedule_id),
+			Error::<T>::ScheduleMustBeSuspended
+		);
+
+		Ok(())
+	}
+
+	fn ensure_that_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
+		ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotExist);
+
+		Ok(())
+	}
+
+	fn ensure_that_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+		let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+		ensure!(*who == schedule_owner, Error::<T>::NotScheduleOwner);
+
+		Ok(())
+	}
+
+	fn ensure_that_sell_amount_is_bigger_than_transaction_fee(
+		schedule: &Schedule<<T as Config>::Asset, T::BlockNumber>,
+	) -> DispatchResult {
+		if let Order::Sell {
+			asset_in, amount_in, ..
+		} = schedule.order
+		{
+			let transaction_fee = Self::get_transaction_fee(asset_in)?;
+			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+		}
+
+		//For buy we don't check as the calculated amount in will always include the fee
+
+		Ok(())
+	}
+
 	pub fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
 		let owner = exec_or_return_if_none!(ScheduleOwnership::<T>::get(schedule_id));
@@ -590,35 +658,6 @@ where
 		// `Bounded` maximum of its data type, which is not desired.
 		let capped_weight: Weight = weight.min(T::BlockWeights::get().max_block);
 		<T as pallet::Config>::WeightToFee::weight_to_fee(&capped_weight)
-	}
-
-	fn ensure_that_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
-		ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotExist);
-
-		Ok(())
-	}
-
-	fn ensure_that_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-		ensure!(*who == schedule_owner, Error::<T>::NotScheduleOwner);
-
-		Ok(())
-	}
-
-	fn ensure_that_sell_amount_is_bigger_than_transaction_fee(
-		schedule: &Schedule<<T as Config>::Asset, T::BlockNumber>,
-	) -> DispatchResult {
-		if let Order::Sell {
-			asset_in, amount_in, ..
-		} = schedule.order
-		{
-			let transaction_fee = Self::get_transaction_fee(asset_in)?;
-			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
-		}
-
-		//For buy we don't check as the calculated amount in will always include the fee
-
-		Ok(())
 	}
 
 	fn add_schedule_id_to_existing_ids_per_block(
@@ -827,46 +866,6 @@ where
 		Suspended::<T>::remove(schedule_id);
 		ScheduleOwnership::<T>::remove(schedule_id);
 		RemainingRecurrences::<T>::remove(schedule_id);
-	}
-
-	fn ensure_that_next_blocknumber_bigger_than_current_block(
-		next_execution_block: Option<T::BlockNumber>,
-	) -> DispatchResult {
-		if let Some(next_exection_block) = next_execution_block {
-			let current_block_number = frame_system::Pallet::<T>::current_block_number();
-			ensure!(
-				next_exection_block > current_block_number,
-				Error::<T>::BlockNumberIsNotInFuture
-			);
-		};
-
-		Ok(())
-	}
-
-	fn ensure_that_total_amount_is_bigger_than_storage_bond(
-		schedule: &Schedule<T::Asset, T::BlockNumber>,
-	) -> DispatchResult {
-		let min_total_amount = if Self::sold_currency(&schedule.order) == T::NativeAssetId::get() {
-			T::StorageBondInNativeCurrency::get()
-		} else {
-			Self::get_storage_bond_in_sold_currency(&schedule.order)?
-		};
-
-		ensure!(
-			schedule.total_amount > min_total_amount,
-			Error::<T>::TotalAmountShouldBeLargerThanStorageBond
-		);
-
-		Ok(())
-	}
-
-	fn ensure_that_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
-		ensure!(
-			Suspended::<T>::contains_key(&schedule_id),
-			Error::<T>::ScheduleMustBeSuspended
-		);
-
-		Ok(())
 	}
 
 	fn remove_planning_or_suspension(
