@@ -645,14 +645,6 @@ where
 		*sold_currency
 	}
 
-	fn get_transaction_fee(fee_currency: T::Asset) -> Result<u128, DispatchError> {
-		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize());
-		let fee_amount_in_sold_asset =
-			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
-
-		Ok(fee_amount_in_sold_asset)
-	}
-
 	fn weight_to_fee(weight: Weight) -> Balance {
 		// cap the weight to the maximum defined in runtime, otherwise it will be the
 		// `Bounded` maximum of its data type, which is not desired.
@@ -811,6 +803,14 @@ where
 			.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(max_limit_with_slippage)
+	}
+
+	fn get_transaction_fee(fee_currency: T::Asset) -> Result<u128, DispatchError> {
+		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize());
+		let fee_amount_in_sold_asset =
+			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
+
+		Ok(fee_amount_in_sold_asset)
 	}
 
 	fn remove_schedule_id_from_next_execution_block(
