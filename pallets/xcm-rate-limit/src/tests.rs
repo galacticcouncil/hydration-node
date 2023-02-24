@@ -22,6 +22,7 @@ use crate::{EcdsaSignature, Error, EthereumAddress, SignedExtension, ValidTransa
 use frame_support::dispatch::DispatchInfo;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use hex_literal::hex;
+use orml_traits::MultiCurrency;
 use polkadot_xcm::prelude::*;
 use primitives::constants::currency::UNITS;
 use sp_std::marker::PhantomData;
@@ -69,5 +70,37 @@ fn balance_should_be_locked_when_rate_limit_triggers() {
 		//Assert
 		let locks = Tokens::locks(sp_runtime::AccountId32::from(ALICE), 1000);
 		assert_eq!(locks[0].amount, 1 * UNITS);
+	})
+}
+
+#[test]
+fn withdraw_should_fail_when_limit_is_exceeded() {
+	new_test_ext().execute_with(|| {
+		//Arrange
+		let build_multi_asset = |id: u32, amount: Balance| -> MultiAsset {
+			(
+				MultiLocation {
+					interior: X1(Parachain(id)),
+					parents: 1,
+				},
+				amount,
+			)
+				.into()
+		};
+
+		Currencies::deposit(1000, &BOB.into(), MAX_VOLUME_LIMIT);
+		Currencies::deposit(1000, &ALICE.into(), MAX_VOLUME_LIMIT);
+		let bob_asset = build_multi_asset(1000, MAX_VOLUME_LIMIT);
+		let bob = multi_loc(BOB);
+		let result = XcmRateLimit::withdraw_asset(&bob_asset, &bob);
+
+		let asset = build_multi_asset(1000, 1 * UNITS);
+		let who = multi_loc(ALICE);
+
+		//Act
+		assert_noop!(
+			XcmRateLimit::withdraw_asset(&asset, &who),
+			XcmError::FailedToTransactAsset("Rate limit exceeded")
+		);
 	})
 }

@@ -178,6 +178,7 @@ where
 			.saturating_sub(prev_amount)
 			.try_into()
 			.map_err(|_| XcmError::FailedToTransactAsset("Failed to convert to balance"))?;
+
 		if res.is_ok() && asset_in_volume >= MAX_VOLUME_LIMIT {
 			let amount = Pallet::<T>::amount(what);
 			let mut locked_assets = LockedAssets::<T>::get(&acc);
@@ -207,7 +208,13 @@ where
 	///
 	/// Implementations should return `XcmError::FailedToTransactAsset` if withdraw failed.
 	fn withdraw_asset(what: &MultiAsset, who: &MultiLocation) -> Result<Assets, XcmError> {
-		Pallet::<T>::track_volume_out(what);
+		let asset_out_volume = Pallet::<T>::track_volume_out(what);
+
+		ensure!(
+			asset_out_volume < MAX_VOLUME_LIMIT,
+			XcmError::FailedToTransactAsset("Rate limit exceeded")
+		);
+
 		T::AssetTransactor::withdraw_asset(what, who)
 	}
 
