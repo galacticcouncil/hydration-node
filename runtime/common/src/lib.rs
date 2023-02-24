@@ -27,7 +27,7 @@ use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
-pub use primitives::{Amount, AssetId, Balance, BlockNumber};
+pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
@@ -315,6 +315,26 @@ parameter_types! {
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
 	pub const SequentialIdOffset: u32 = 1_000_000;
+}
+
+// pallet duster
+parameter_types! {
+	pub const DustingReward: u128 = 0;
+}
+
+// omnipool's warehouse pallet liquidity mining
+parameter_types! {
+	pub const OmniWarehouseLMPalletId: PalletId = PalletId(*b"OmniWhLM");
+	pub const MaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change, TODO:
+	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
+	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:
+	pub const MinTotalFarmRewards: Balance = NATIVE_EXISTENTIAL_DEPOSIT * 100; //TODO:
+}
+
+// omnipool's liquidity mining
+parameter_types! {
+	pub const OmniLMPalletId: PalletId = PalletId(*b"Omni//LM");
+	pub const OmnipoolLMCollectionId: CollectionId = 2584_u128;
 }
 
 // pallet dca
