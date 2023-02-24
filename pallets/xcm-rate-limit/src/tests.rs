@@ -89,10 +89,9 @@ fn withdraw_should_fail_when_limit_is_exceeded() {
 		};
 
 		Currencies::deposit(1000, &BOB.into(), MAX_VOLUME_LIMIT);
-		Currencies::deposit(1000, &ALICE.into(), MAX_VOLUME_LIMIT);
 		let bob_asset = build_multi_asset(1000, MAX_VOLUME_LIMIT);
 		let bob = multi_loc(BOB);
-		let result = XcmRateLimit::withdraw_asset(&bob_asset, &bob);
+		assert_ok!(XcmRateLimit::withdraw_asset(&bob_asset, &bob));
 
 		let asset = build_multi_asset(1000, 1 * UNITS);
 		let who = multi_loc(ALICE);

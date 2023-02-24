@@ -208,12 +208,15 @@ where
 	///
 	/// Implementations should return `XcmError::FailedToTransactAsset` if withdraw failed.
 	fn withdraw_asset(what: &MultiAsset, who: &MultiLocation) -> Result<Assets, XcmError> {
-		let asset_out_volume = Pallet::<T>::track_volume_out(what);
-
+		let (loc, amount) = Pallet::<T>::location_and_amount(what);
+		let new_volume_out = VolumePerAsset::<T>::get(&loc).asset_out.saturating_add(amount);
 		ensure!(
-			asset_out_volume < MAX_VOLUME_LIMIT,
+			new_volume_out <= MAX_VOLUME_LIMIT,
 			XcmError::FailedToTransactAsset("Rate limit exceeded")
 		);
+		VolumePerAsset::<T>::mutate(&loc, |volume| {
+			volume.asset_out = new_volume_out;
+		});
 
 		T::AssetTransactor::withdraw_asset(what, who)
 	}
@@ -221,12 +224,6 @@ where
 	/// Move an `asset` `from` one location in `to` another location.
 	///
 	/// Returns `XcmError::FailedToTransactAsset` if transfer failed.
-	///
-	/// ## Notes
-	/// This function is meant to only be implemented by the type implementing `TransactAsset`, and
-	/// not be called directly. Most common API usages will instead call `transfer_asset`, which in
-	/// turn has a default implementation that calls `internal_transfer_asset`. As such, **please
-	/// do not call this method directly unless you know what you're doing**.
 	fn internal_transfer_asset(
 		asset: &MultiAsset,
 		from: &MultiLocation,
@@ -260,6 +257,16 @@ impl<T: Config> Pallet<T> {
 				id: Concrete(loc),
 				fun: Fungible(amount),
 			} => *amount,
+			_ => todo!(),
+		}
+	}
+
+	fn location_and_amount(asset: &MultiAsset) -> (MultiLocation, u128) {
+		match asset {
+			MultiAsset {
+				id: Concrete(loc),
+				fun: Fungible(amount),
+			} => (loc.clone(), *amount),
 			_ => todo!(),
 		}
 	}
