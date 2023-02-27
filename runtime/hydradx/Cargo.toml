@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "130.0.0"
+version = "132.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -26,7 +26,7 @@ common-runtime = { path = '../common', default-features = false }
 pallet-claims = { path = '../../pallets/claims', default-features = false }
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
-pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "ef2bda10d1017e1376396674ac90975b014018b8", default-features = false}
+pallet-omnipool-liquidity-mining = {path = '../../pallets/omnipool-liquidity-mining', default-features = false}
 
 # pallets
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -57,6 +57,9 @@ pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", 
 pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "ef2bda10d1017e1376396674ac90975b014018b8", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "ef2bda10d1017e1376396674ac90975b014018b8", default-features = false}
 pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "ef2bda10d1017e1376396674ac90975b014018b8", default-features = false }
+pallet-duster = { git = "https://github.com/galacticcouncil/warehouse", rev = "ef2bda10d1017e1376396674ac90975b014018b8", default-features = false }
+pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "ef2bda10d1017e1376396674ac90975b014018b8", default-features = false}
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "ef2bda10d1017e1376396674ac90975b014018b8", default-features = false }
 
 # ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
@@ -148,7 +151,12 @@ runtime-benchmarks = [
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
+<<<<<<< HEAD
     "pallet-otc/runtime-benchmarks",
+=======
+    "pallet-duster/runtime-benchmarks",
+    "pallet-omnipool-liquidity-mining/runtime-benchmarks",
+>>>>>>> master
 ]
 std = [
     "codec/std",
@@ -221,6 +229,9 @@ std = [
     "sp-trie/std",
     "sp-transaction-pool/std",
     "sp-version/std",
+    "pallet-duster/std",
+    "warehouse-liquidity-mining/std",
+    "pallet-omnipool-liquidity-mining/std",
 ]
 try-runtime= [
     "frame-try-runtime",
@@ -267,5 +278,11 @@ try-runtime= [
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
     "pallet-transaction-pause/try-runtime",
+<<<<<<< HEAD
     "pallet-otc/try-runtime",
+=======
+    "pallet-duster/try-runtime",
+    "warehouse-liquidity-mining/try-runtime",
+    "pallet-omnipool-liquidity-mining/try-runtime",
+>>>>>>> master
 ]

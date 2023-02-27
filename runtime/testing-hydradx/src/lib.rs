@@ -108,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 130,
+	spec_version: 132,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -150,6 +150,14 @@ impl WeightToFeePolynomial for WeightToFee {
 			coeff_frac: Perbill::from_rational(p % q, q),
 			coeff_integer: p / q, // 124
 		}]
+	}
+}
+
+pub struct DustRemovalWhitelist;
+
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		get_all_module_accounts().contains(a) || pallet_duster::DusterWhitelist::<Runtime>::contains(a)
 	}
 }
 
@@ -594,7 +602,7 @@ impl orml_tokens::Config for Runtime {
 	type CurrencyId = AssetId;
 	type WeightInfo = weights::tokens::HydraWeight<Runtime>;
 	type ExistentialDeposits = AssetRegistry;
-	type OnDust = ();
+	type OnDust = Duster;
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type MaxReserves = MaxReserves;
@@ -844,6 +852,46 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_duster::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type MultiCurrency = Currencies;
+	type MinCurrencyDeposits = AssetRegistry;
+	type Reward = DustingReward;
+	type NativeCurrencyId = NativeAssetId;
+	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
+	type WeightInfo = ();
+}
+
+type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
+	type AssetId = AssetId;
+	type MultiCurrency = Currencies;
+	type PalletId = OmniWarehouseLMPalletId;
+	type MinTotalFarmRewards = MinTotalFarmRewards;
+	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type AmmPoolId = AssetId;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
+	type AssetRegistry = AssetRegistry;
+	type NonDustableWhitelistHandler = Duster;
+	type Event = Event;
+}
+
+impl pallet_omnipool_liquidity_mining::Config for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type PalletId = OmniLMPalletId;
+	type NFTCollectionId = OmnipoolLMCollectionId;
+	type NFTHandler = Uniques;
+	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
 }
@@ -890,7 +938,10 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
-		OTC: pallet_otc = 61,
+		Duster: pallet_duster = 61,
+		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
+		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
+		OTC: pallet_otc = 64,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
