@@ -37,8 +37,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -48,24 +48,24 @@ use pallet_otc::weights::WeightInfo;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-    fn place_order() -> Weight {
-        Weight::from_ref_time(31_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(5 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
-    fn partial_fill_order() -> Weight {
-        Weight::from_ref_time(52_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(8 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
-    fn fill_order() -> Weight {
-        Weight::from_ref_time(49_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(7 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
-    fn cancel_order() -> Weight {
-        Weight::from_ref_time(23_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn place_order() -> Weight {
+		Weight::from_ref_time(31_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
+	fn partial_fill_order() -> Weight {
+		Weight::from_ref_time(52_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(8 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
+	fn fill_order() -> Weight {
+		Weight::from_ref_time(49_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
+	fn cancel_order() -> Weight {
+		Weight::from_ref_time(23_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 }
