@@ -151,12 +151,9 @@ runtime-benchmarks = [
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
-<<<<<<< HEAD
-    "pallet-otc/runtime-benchmarks",
-=======
     "pallet-duster/runtime-benchmarks",
     "pallet-omnipool-liquidity-mining/runtime-benchmarks",
->>>>>>> master
+    "pallet-otc/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -278,11 +275,8 @@ try-runtime= [
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
     "pallet-transaction-pause/try-runtime",
-<<<<<<< HEAD
-    "pallet-otc/try-runtime",
-=======
     "pallet-duster/try-runtime",
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
->>>>>>> master
+    "pallet-otc/try-runtime",
 ]
