@@ -23,7 +23,7 @@ use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 
 #[test]
-fn crate_schedule_should_work() {
+fn create_schedule_should_work() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
@@ -189,6 +189,9 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
 		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
+
+		let schedule = hydradx_runtime::DCA::schedules(1);
+		assert!(schedule.is_none());
 	});
 }
 
