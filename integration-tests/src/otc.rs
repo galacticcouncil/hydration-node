@@ -18,16 +18,12 @@
 //                  :?Y!                    Licensed under the Apache License, Version 2.0 (the "License");
 //                                          you may not use this file except in compliance with the License.
 //                                          http://www.apache.org/licenses/LICENSE-2.0
-
 #![cfg(test)]
-
 use crate::polkadot_test_net::*;
-
 use frame_support::assert_ok;
-
-use orml_traits::NamedMultiReservableCurrency;
-use pallet_otc::{OrderId, RESERVE_ID_PREFIX};
+use orml_traits::MultiReservableCurrency;
 use xcm_emulator::TestExt;
+
 #[test]
 fn place_order_should_work() {
 	TestNet::reset();
@@ -45,10 +41,8 @@ fn place_order_should_work() {
 		// Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_some());
-
-		let reserve_id = named_reserve_identifier(0);
 		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
+			hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()),
 			100 * UNITS
 		);
 	});
@@ -78,10 +72,8 @@ fn partial_fill_order_should_work() {
 		//Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_some());
-
-		let reserve_id = named_reserve_identifier(0);
 		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
+			hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()),
 			25 * UNITS
 		);
 	});
@@ -110,12 +102,7 @@ fn fill_order_should_work() {
 		//Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_none());
-
-		let reserve_id = named_reserve_identifier(0);
-		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
-			0
-		);
+		assert_eq!(hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()), 0);
 	});
 }
 
@@ -142,19 +129,6 @@ fn cancel_order_should_work() {
 		//Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_none());
-
-		let reserve_id = named_reserve_identifier(0);
-		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance_named(&reserve_id, HDX, &ALICE.into()),
-			0
-		);
+		assert_eq!(hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()), 0);
 	});
-}
-
-fn named_reserve_identifier(order_id: OrderId) -> [u8; 8] {
-	let mut result = [0; 8];
-	result[0..3].copy_from_slice(RESERVE_ID_PREFIX);
-	result[3..7].copy_from_slice(&order_id.to_be_bytes());
-
-	result
 }
