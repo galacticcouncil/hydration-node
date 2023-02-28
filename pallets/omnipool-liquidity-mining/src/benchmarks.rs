@@ -193,6 +193,7 @@ benchmarks! {
 	update_global_farm {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
 		let global_farm_id = 1;
+		let yield_farm_id = 2;
 		let new_price_adjustment = FixedU128::from(5_u128);
 
 		initialize_omnipool::<T>()?;
@@ -200,8 +201,11 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BSX.into())?;
 
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let _ = omnipool_add_liquidity::<T>(lp, BTC.into(), 1_000 * ONE)?;
+		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BSX.into());
+		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BSX.into(), 1_000 * ONE)?;
+
+		set_period::<T>(100);
+		lm_deposit_shares::<T>(lp, global_farm_id, yield_farm_id, position_id)?;
 
 		set_period::<T>(200);
 	}: _(RawOrigin::Signed(owner), global_farm_id, new_price_adjustment)
