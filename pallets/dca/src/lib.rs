@@ -521,6 +521,8 @@ where
 	}
 
 	pub fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
+		*weight += Self::get_execute_schedule_weight();
+
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
 		let owner = exec_or_return_if_none!(ScheduleOwnership::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
@@ -546,7 +548,6 @@ where
 
 		exec_or_return_if_err!(Self::take_transaction_fee_from_user(&owner, &schedule.order));
 		let trade_result = Self::execute_trade(origin, &schedule.order);
-		*weight += Self::get_execute_schedule_weight();
 
 		match trade_result {
 			Ok(_) => {
