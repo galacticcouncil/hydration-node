@@ -60,6 +60,7 @@ use sp_runtime::traits::BlockNumberProvider;
 
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
+use pallet_currencies::fungibles::FungibleCurrencies;
 
 mod benchmarking;
 mod migrations;
@@ -817,7 +818,7 @@ parameter_types! {
 impl pallet_omnipool::Config for Runtime {
 	type Event = Event;
 	type AssetId = AssetId;
-	type Currency = Currencies;
+	type Currency = FungibleCurrencies<Runtime>;
 	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type AssetRegistry = AssetRegistry;
