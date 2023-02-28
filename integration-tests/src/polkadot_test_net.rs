@@ -1,8 +1,20 @@
 #![cfg(test)]
-pub use hydradx_runtime::{AccountId, Treasury, VestingPalletId};
-
+use frame_support::{
+	assert_ok,
+	dispatch::{Dispatchable, GetCallMetadata},
+	sp_runtime::traits::{AccountIdConversion, Block as BlockT},
+	traits::GenesisBuild,
+	weights::Weight,
+};
+pub use hydradx_runtime::{AccountId, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
 use primitives::{AssetId, Balance};
+
+use cumulus_primitives_core::ParaId;
+//use cumulus_primitives_core::relay_chain::AccountId;
+use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+use polkadot_runtime_parachains::configuration::HostConfiguration;
+use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -24,17 +36,6 @@ pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
-
-use cumulus_primitives_core::ParaId;
-//use cumulus_primitives_core::relay_chain::AccountId;
-use frame_support::traits::GenesisBuild;
-use frame_support::weights::Weight;
-use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
-use polkadot_runtime_parachains::configuration::HostConfiguration;
-use sp_runtime::traits::AccountIdConversion;
-
-use hydradx_runtime::NativeExistentialDeposit;
-use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
 decl_test_relay_chain! {
 	pub struct PolkadotRelay {
@@ -248,6 +249,47 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		MultiTransactionPayment::on_initialize(1);
 	});
 	ext
+}
+
+pub fn hydra_live_ext() -> sp_io::TestExternalities {
+	let ext = tokio::runtime::Builder::new_current_thread()
+		.enable_all()
+		.build()
+		.unwrap()
+		.block_on(async {
+			use remote_externalities::*;
+
+			let path_str = String::from("../scraper/SNAPSHOT");
+
+			let snapshot_config = SnapshotConfig::from(path_str);
+			let offline_config = OfflineConfig {
+				state_snapshot: snapshot_config,
+			};
+			let mode = Mode::Offline(offline_config);
+
+			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
+
+			builder.build().await.unwrap()
+		});
+	ext
+}
+
+pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
+	let blocks =
+		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
+			.unwrap();
+
+	for block in blocks.iter() {
+		for tx in block.extrinsics() {
+			let call = &tx.function;
+			let call_p = call.get_call_metadata().pallet_name;
+
+			if pallet_whitelist.contains(&call_p) {
+				let acc = &tx.signature.as_ref().unwrap().0;
+				assert_ok!(call.clone().dispatch(hydradx_runtime::Origin::signed(acc.clone())));
+			}
+		}
+	}
 }
 
 pub fn acala_ext() -> sp_io::TestExternalities {
