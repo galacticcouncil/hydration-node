@@ -201,6 +201,88 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 	});
 }
 
+#[test]
+fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		let global_farm_1_id = 1;
+		let global_farm_2_id = 2;
+		let yield_farm_1_id = 3;
+		let yield_farm_2_id = 4;
+
+		//Arrange
+		init_omnipool();
+
+		set_relaychain_block_number(100);
+		create_global_farm();
+		create_global_farm();
+
+		set_relaychain_block_number(200);
+		create_yield_farm(global_farm_1_id, BTC);
+		create_yield_farm(global_farm_2_id, BTC);
+
+		set_relaychain_block_number(300);
+
+		assert_ok!(hydradx_runtime::Currencies::update_balance(
+			hydradx_runtime::Origin::root(),
+			BOB.into(),
+			BTC,
+			10_000 * UNITS as i128,
+		));
+
+		let position_id = omnipool_add_liquidity(BOB.into(), BTC, 1_000 * UNITS);
+		assert_nft_owner!(hydradx_runtime::OmnipoolCollectionId::get(), position_id, BOB.into());
+
+		set_relaychain_block_number(400);
+        let deposit_id = 1;
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
+			Origin::signed(BOB.into()),
+			global_farm_1_id,
+			yield_farm_1_id,
+			position_id
+		));
+
+        //Act
+		set_relaychain_block_number(500);
+		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
+			Origin::signed(BOB.into()),
+			global_farm_2_id,
+			yield_farm_2_id,
+		    deposit_id
+		));
+        
+		let deposit = hydradx_runtime::OmnipoolWarehouseLM::deposit(deposit_id).unwrap();
+		let mut expected_deposit = DepositData::new(1_000_000_000_000_000, BTC);
+        //1-th deposit entry
+		expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_1_id,
+				yield_farm_1_id,
+				9_647_109_647_109_650_000_000,
+				FixedU128::zero(),
+				40,
+				0,
+			))
+			.unwrap();
+	
+        //2-nd redeposit entry
+        expected_deposit
+			.add_yield_farm_entry(YieldFarmEntry::new(
+				global_farm_2_id,
+				yield_farm_2_id,
+				9_647_109_647_109_650_000_000,//NOTE: nothing changed in omnipool so shares are
+                //valued same as before
+				FixedU128::zero(),
+				50,
+				0,
+			))
+			.unwrap();
+
+		assert_eq!(deposit, expected_deposit);
+	});
+}
+
 fn init_omnipool() {
 	let native_price = FixedU128::from_inner(1201500000000000);
 	let stable_price = FixedU128::from_inner(45_000_000_000);
