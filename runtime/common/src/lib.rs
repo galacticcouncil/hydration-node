@@ -324,6 +324,7 @@ parameter_types! {
 // omnipool's warehouse pallet liquidity mining
 parameter_types! {
 	pub const OmniWarehouseLMPalletId: PalletId = PalletId(*b"OmniWhLM");
+	#[derive(PartialEq, Eq)]
 	pub const MaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change, TODO:
 	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
 	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:

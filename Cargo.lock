@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.3.0"
+version = "100.3.1"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -8850,6 +8850,7 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
+ "cumulus-test-relay-sproof-builder",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -8876,6 +8877,8 @@ dependencies = [
  "pallet-democracy",
  "pallet-duster",
  "pallet-elections-phragmen",
+ "pallet-liquidity-mining",
+ "pallet-omnipool-liquidity-mining",
  "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",

@@ -4,6 +4,8 @@ pub use hydradx_runtime::{AccountId, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
 use primitives::{AssetId, Balance};
 
+use frame_support::assert_ok;
+
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
 pub const CHARLIE: [u8; 32] = [6u8; 32];
@@ -18,7 +20,7 @@ pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 
-//pub const HDX: AssetId = 0;
+pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
@@ -26,6 +28,7 @@ pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
 
 use cumulus_primitives_core::ParaId;
+use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 //use cumulus_primitives_core::relay_chain::AccountId;
 use frame_support::traits::GenesisBuild;
 use frame_support::weights::Weight;
@@ -241,6 +244,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.assimilate_storage(&mut t)
 	.unwrap();
 
+	<pallet_omnipool_liquidity_mining::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
+		&pallet_omnipool_liquidity_mining::GenesisConfig::default(),
+		&mut t,
+	)
+	.unwrap();
+
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| {
 		System::set_block_number(1);
@@ -300,4 +309,40 @@ fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
 
 pub fn expect_hydra_events(e: Vec<hydradx_runtime::Event>) {
 	assert_eq!(last_hydra_events(e.len()), e);
+}
+
+pub fn set_relaychain_block_number(number: BlockNumber) {
+	use frame_support::traits::OnInitialize;
+	use hydradx_runtime::{Origin, ParachainSystem};
+
+	polkadot_run_to_block(number); //We need to set block number this way as well because tarpaulin code coverage tool does not like the way how we set the block number with `cumulus-test-relay-sproof-builder` package
+
+	ParachainSystem::on_initialize(number);
+
+	let (relay_storage_root, proof) = RelayStateSproofBuilder::default().into_state_root_and_proof();
+
+	assert_ok!(ParachainSystem::set_validation_data(
+		Origin::none(),
+		cumulus_primitives_parachain_inherent::ParachainInherentData {
+			validation_data: cumulus_primitives_core::PersistedValidationData {
+				parent_head: Default::default(),
+				relay_parent_number: number,
+				relay_parent_storage_root: relay_storage_root,
+				max_pov_size: Default::default(),
+			},
+			relay_chain_state: proof,
+			downward_messages: Default::default(),
+			horizontal_messages: Default::default(),
+		}
+	));
+}
+
+pub fn polkadot_run_to_block(to: BlockNumber) {
+	use frame_support::traits::{OnFinalize, OnInitialize};
+	while polkadot_runtime::System::block_number() < to {
+		let b = polkadot_runtime::System::block_number();
+		polkadot_runtime::System::on_finalize(b);
+		polkadot_runtime::System::on_initialize(b + 1);
+		polkadot_runtime::System::set_block_number(b + 1);
+	}
 }

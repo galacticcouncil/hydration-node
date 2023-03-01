@@ -13,11 +13,14 @@ primitives = { default-features = false, path = "../primitives" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 
 # HydraDX dependencies
+pallet-omnipool-liquidity-mining = { path = "../pallets/omnipool-liquidity-mining", default-features = true}
+
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "ab68c9af316d84adfd649fc5735705daf0ba9a48", default-features = false }
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "ab68c9af316d84adfd649fc5735705daf0ba9a48", default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "ab68c9af316d84adfd649fc5735705daf0ba9a48", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "ab68c9af316d84adfd649fc5735705daf0ba9a48", default-features = false}
 pallet-duster = { git = "https://github.com/galacticcouncil/warehouse",rev = "ab68c9af316d84adfd649fc5735705daf0ba9a48", default-features = false}
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "ab68c9af316d84adfd649fc5735705daf0ba9a48", default-features = false }
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -51,6 +54,7 @@ cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", br
 cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
 cumulus-primitives-timestamp = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
+cumulus-test-relay-sproof-builder = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29" }
 
 # Polkadot dependencies
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1", default-features = false, features = ["wasm-api"] }
