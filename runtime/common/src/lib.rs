@@ -22,7 +22,7 @@ pub mod weights;
 use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
-use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
+use frame_support::{dispatch::Pays, parameter_types, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
@@ -30,7 +30,7 @@ pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
-	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
+	traits::{AccountIdConversion, BlakeTwo256, Bounded, IdentifyAccount, Verify},
 	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
@@ -160,6 +160,8 @@ parameter_types! {
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+	/// The maximum amount of the multiplier.
+	pub MaximumMultiplier: Multiplier = Bounded::max_value();
 }
 
 // pallet treasury
@@ -194,7 +196,6 @@ parameter_types! {
 
 // pallet preimage
 parameter_types! {
-	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub PreimageByteDeposit: Balance = deposit(0, 1);
 }

@@ -4,12 +4,12 @@ use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 pub struct OnRuntimeUpgradeMigration;
 impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	#[cfg(feature = "try-runtime")]
-	fn pre_upgrade() -> Result<(), &'static str> {
+	fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
 		frame_support::log::info!("PreMigrate Duster Pallet start");
 		pallet_duster::migration::v1::pre_migrate::<Runtime, Duster>();
 		frame_support::log::info!("PreMigrate Duster Pallet end");
 
-		Ok(())
+		Ok(vec![])
 	}
 
 	fn on_runtime_upgrade() -> Weight {
@@ -46,7 +46,7 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 	}
 
 	#[cfg(feature = "try-runtime")]
-	fn post_upgrade() -> Result<(), &'static str> {
+	fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
 		frame_support::log::info!("PostMigrate Duster Pallet start");
 		pallet_duster::migration::v1::post_migrate::<Runtime, Duster>();
 		frame_support::log::info!("PostMigrate Duster Pallet end");
