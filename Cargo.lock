@@ -3387,7 +3387,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "131.0.0"
+version = "132.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -8178,13 +8178,14 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.0.6"
+version = "5.7.0"
 dependencies = [
  "frame-support",
  "hex-literal",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "static_assertions",
 ]
 
 [[package]]
@@ -11504,7 +11505,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "131.0.0"
+version = "132.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
