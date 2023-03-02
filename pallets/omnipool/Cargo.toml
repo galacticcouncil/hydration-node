@@ -66,6 +66,7 @@ std = [
 	"sp-io/std",
 	"pallet-balances/std",
 	"orml-tokens/std",
+	"frame-benchmarking/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

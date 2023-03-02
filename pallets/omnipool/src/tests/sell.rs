@@ -21,12 +21,12 @@ fn simple_sell_works() {
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 100, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, sell_amount, min_limit));
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550000000000000);
 			assert_eq!(Tokens::free_balance(200, &LP1), 47808764940238);
@@ -75,7 +75,7 @@ fn simple_sell_works() {
 fn sell_with_insufficient_balance_fails() {
 	ExtBuilder::default().build().execute_with(|| {
 		assert_noop!(
-			Omnipool::sell(Origin::signed(LP1), 100, 200, 10000 * ONE, 0),
+			Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 10000 * ONE, 0),
 			Error::<Test>::InsufficientBalance
 		);
 	});
@@ -87,12 +87,12 @@ fn sell_insufficient_amount_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, ONE, 0),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, ONE, 0),
 				Error::<Test>::InsufficientTradingAmount
 			);
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), LRNA, 200, ONE, 0),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), LRNA, 200, ONE, 0),
 				Error::<Test>::InsufficientTradingAmount
 			);
 		});
@@ -110,7 +110,7 @@ fn hub_asset_buy_not_allowed() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), HDX, LRNA, 100 * ONE, 0),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), HDX, LRNA, 100 * ONE, 0),
 				Error::<Test>::NotAllowed
 			);
 		});
@@ -131,15 +131,15 @@ fn selling_assets_not_in_pool_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 1000, HDX, 50 * ONE, 10 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 1000, HDX, 50 * ONE, 10 * ONE),
 				Error::<Test>::AssetNotFound
 			);
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), HDX, 1000, 50 * ONE, 10 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), HDX, 1000, 50 * ONE, 10 * ONE),
 				Error::<Test>::AssetNotFound
 			);
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 1000, 2000, 50 * ONE, 10 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 1000, 2000, 50 * ONE, 10 * ONE),
 				Error::<Test>::AssetNotFound
 			);
 		});
@@ -160,7 +160,7 @@ fn sell_limit_works() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, HDX, 50 * ONE, 1000 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, HDX, 50 * ONE, 1000 * ONE),
 				Error::<Test>::BuyLimitNotReached
 			);
 		});
@@ -182,7 +182,7 @@ fn sell_hub_asset_limit() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP3), LRNA, HDX, 50 * ONE, 1000 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP3), LRNA, HDX, 50 * ONE, 1000 * ONE),
 				Error::<Test>::BuyLimitNotReached
 			);
 		});
@@ -207,10 +207,10 @@ fn sell_hub_works() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				1,
 				200,
 				50000000000000,
@@ -306,62 +306,62 @@ fn sell_not_allowed_asset_fails() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				100,
 				Tradability::FROZEN
 			));
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
 				Error::<Test>::NotAllowed
 			);
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				100,
 				Tradability::BUY
 			));
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
 				Error::<Test>::NotAllowed
 			);
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				100,
 				Tradability::SELL
 			));
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE));
 
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				200,
 				Tradability::FROZEN
 			));
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
 				Error::<Test>::NotAllowed
 			);
 
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				200,
 				Tradability::SELL
 			));
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE),
 				Error::<Test>::NotAllowed
 			);
 
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				200,
 				Tradability::BUY
 			));
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 50 * ONE, 10 * ONE));
 		});
 }
 
@@ -392,7 +392,7 @@ fn simple_sell_with_fee_works() {
 			let expected_zero_fee = 47_619_047_619_047u128;
 			let expected_10_percent_fee = fee.mul_floor(expected_zero_fee);
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP1), 100, 200, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, sell_amount, min_limit));
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 950_000_000_000_000);
 			assert_eq!(Tokens::free_balance(200, &LP1), expected_10_percent_fee);
@@ -423,13 +423,13 @@ fn sell_hub_asset_should_fail_when_asset_out_is_not_allowed_to_buy() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				200,
 				Tradability::SELL | Tradability::ADD_LIQUIDITY
 			));
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP3), 1, 200, 50000000000000, 10000000000000),
+				Omnipool::sell(RuntimeOrigin::signed(LP3), 1, 200, 50000000000000, 10000000000000),
 				Error::<Test>::NotAllowed
 			);
 		});
@@ -455,7 +455,7 @@ fn sell_should_fail_when_trading_same_assets() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP3), 100, 100, 10 * ONE, 10000000000000),
+				Omnipool::sell(RuntimeOrigin::signed(LP3), 100, 100, 10 * ONE, 10000000000000),
 				Error::<Test>::SameAssetTradeNotAllowed
 			);
 		});
@@ -482,12 +482,12 @@ fn sell_should_work_when_trading_native_asset() {
 		.build()
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 100, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 100, liq_added));
 
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP1), HDX, 200, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), HDX, 200, sell_amount, min_limit));
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 950000000000000);
 			assert_eq!(Tokens::free_balance(200, &LP1), 53_471_964_352_023);
@@ -557,10 +557,10 @@ fn sell_imbalance() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				1,
 				200,
 				50000000000000,
@@ -576,7 +576,7 @@ fn sell_imbalance() {
 				}
 			);
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP3), 200, 100, 1000000000000, 1,));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), 200, 100, 1000000000000, 1,));
 		});
 }
 
@@ -599,7 +599,7 @@ fn sell_should_fail_when_exceeds_max_in_ratio() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
 				Error::<Test>::MaxInRatioExceeded
 			);
 		});
@@ -624,7 +624,7 @@ fn sell_should_fail_when_exceeds_max_out_ratio() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, 1000 * ONE, 0u128),
 				Error::<Test>::MaxOutRatioExceeded
 			);
 		});
@@ -647,7 +647,7 @@ fn sell_lrna_should_fail_when_exceeds_max_in_ratio() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), LRNA, 100, 1000 * ONE, 0u128),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), LRNA, 100, 1000 * ONE, 0u128),
 				Error::<Test>::MaxInRatioExceeded
 			);
 		});
@@ -670,7 +670,7 @@ fn sell_lrna_should_fail_when_exceeds_max_out_ratio() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::sell(Origin::signed(LP1), LRNA, 100, 1500 * ONE, 0u128),
+				Omnipool::sell(RuntimeOrigin::signed(LP1), LRNA, 100, 1500 * ONE, 0u128),
 				Error::<Test>::MaxOutRatioExceeded
 			);
 		});

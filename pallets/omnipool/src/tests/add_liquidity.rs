@@ -15,7 +15,7 @@ fn add_liquidity_should_work_when_asset_exists_in_pool() {
 
 			// ACT
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			// ASSERT - asset state, pool state, position
 			assert_asset_state!(
@@ -61,7 +61,7 @@ fn add_stable_asset_liquidity_works() {
 		.execute_with(|| {
 			let liq_added = 400 * ONE;
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), DAI, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), DAI, liq_added));
 
 			assert_asset_state!(
 				DAI,
@@ -104,7 +104,7 @@ fn add_liquidity_for_non_pool_token_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2000 * ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 2000 * ONE,),
 				Error::<Test>::AssetNotFound
 			);
 		});
@@ -119,7 +119,7 @@ fn add_liquidity_with_insufficient_balance_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP3), 1_000, 2000 * ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP3), 1_000, 2000 * ONE,),
 				Error::<Test>::InsufficientBalance
 			);
 		});
@@ -135,7 +135,7 @@ fn add_liquidity_exceeding_weight_cap_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2000 * ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 2000 * ONE,),
 				Error::<Test>::AssetWeightCapExceeded
 			);
 		});
@@ -152,7 +152,7 @@ fn add_insufficient_liquidity_fails() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP3), 1_000, ONE,),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP3), 1_000, ONE,),
 				Error::<Test>::InsufficientLiquidity
 			);
 		});
@@ -169,13 +169,13 @@ fn add_liquidity_should_fail_when_asset_state_does_not_include_add_liquidity() {
 		.build()
 		.execute_with(|| {
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				1000,
 				Tradability::SELL | Tradability::BUY | Tradability::REMOVE_LIQUIDITY
 			));
 
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 2 * ONE),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 2 * ONE),
 				Error::<Test>::NotAllowed
 			);
 		});

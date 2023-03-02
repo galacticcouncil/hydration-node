@@ -24,10 +24,10 @@ fn fee_test_buy_sell() {
 		.with_token(200, FixedU128::from_float(1.1), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				100,
 				200,
 				110000000000000,
@@ -35,24 +35,24 @@ fn fee_test_buy_sell() {
 			));
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP2),
+				RuntimeOrigin::signed(LP2),
 				100,
 				200,
 				50000000000000,
 				10000000000000
 			));
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP3), 200, 200000000000000));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP3), 200, 200000000000000));
 
 			assert_ok!(Omnipool::buy(
-				Origin::signed(LP3),
+				RuntimeOrigin::signed(LP3),
 				200,
 				100,
 				300000000000000,
 				100000000000000000
 			));
 
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP3), 3, 200000000000000));
+			assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(LP3), 3, 200000000000000));
 
 			assert_balance_approx!(Omnipool::protocol_account(), 0, NATIVE_AMOUNT, 10);
 			assert_balance_approx!(Omnipool::protocol_account(), 2, 1000000000000000u128, 10);

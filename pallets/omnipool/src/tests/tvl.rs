@@ -36,7 +36,7 @@ fn add_liquidity_should_fail_when_tvl_is_reached() {
 			);
 
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), DAI, 100_000 * ONE * 1_000_000),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), DAI, 100_000 * ONE * 1_000_000),
 				Error::<Test>::TVLCapExceeded
 			);
 		});
@@ -71,13 +71,13 @@ fn remove_liquidity_should_work_when_tvl_is_reached() {
 			let position_id = <NextPositionId<Test>>::get();
 			// Ensure that tvl cap has been reached
 			assert_ok!(Omnipool::add_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				DAI,
 				97_000 * ONE * 1_000_000
 			),);
 
 			assert_ok!(Omnipool::sell(
-				Origin::signed(LP2),
+				RuntimeOrigin::signed(LP2),
 				DAI,
 				dot_id,
 				10_000 * ONE * 1_000_000,
@@ -96,7 +96,7 @@ fn remove_liquidity_should_work_when_tvl_is_reached() {
 			let position = Positions::<Test>::get(position_id).unwrap();
 
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				position_id,
 				position.shares / 100
 			),);
@@ -131,7 +131,7 @@ fn set_tvl_cap_should_work() {
 		.execute_with(|| {
 			assert_eq!(TvlCap::<Test>::get(), 222_222 * ONE * 1_000_000);
 
-			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
+			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
 
 			assert_eq!(TvlCap::<Test>::get(), u128::MAX);
 		});
@@ -166,7 +166,7 @@ fn set_tvl_cap_should_fail_when_not_root_origin() {
 			assert_eq!(TvlCap::<Test>::get(), 222_222 * ONE * 1_000_000);
 
 			assert_noop!(
-				Omnipool::set_tvl_cap(Origin::signed(LP1), u128::MAX),
+				Omnipool::set_tvl_cap(RuntimeOrigin::signed(LP1), u128::MAX),
 				sp_runtime::traits::BadOrigin,
 			);
 		});

@@ -17,7 +17,7 @@ fn refund_refused_asset_should_work_when_asset_not_in_pool() {
 
 			// Act
 			assert_ok!(Omnipool::refund_refused_asset(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				asset_id,
 				1000 * ONE,
 				LP1
@@ -46,7 +46,7 @@ fn refund_refused_asset_should_work_when_refund_partial_amount() {
 			let pool_asset_balance = Tokens::free_balance(asset_id, &Omnipool::protocol_account());
 
 			// Act
-			assert_ok!(Omnipool::refund_refused_asset(Origin::root(), asset_id, 500 * ONE, LP1));
+			assert_ok!(Omnipool::refund_refused_asset(RuntimeOrigin::root(), asset_id, 500 * ONE, LP1));
 
 			// Assert
 			assert_eq!(Tokens::free_balance(asset_id, &LP1), lp1_asset_balance + 500 * ONE);
@@ -70,7 +70,7 @@ fn refund_refused_asset_should_fail_when_refund_asset_in_pool() {
 		.execute_with(|| {
 			// Act
 			assert_noop!(
-				Omnipool::refund_refused_asset(Origin::root(), asset_id, 1000 * ONE, LP1),
+				Omnipool::refund_refused_asset(RuntimeOrigin::root(), asset_id, 1000 * ONE, LP1),
 				Error::<Test>::AssetAlreadyAdded
 			);
 		});
@@ -88,7 +88,7 @@ fn refund_refused_asset_should_fail_when_refund_more_than_in_pool_account() {
 		.execute_with(|| {
 			// Act
 			assert_noop!(
-				Omnipool::refund_refused_asset(Origin::root(), asset_id, 2000 * ONE, LP1),
+				Omnipool::refund_refused_asset(RuntimeOrigin::root(), asset_id, 2000 * ONE, LP1),
 				Error::<Test>::InsufficientBalance
 			);
 		});
@@ -108,7 +108,7 @@ fn refund_refused_asset_should_emit_correct_event_when_succesful() {
 
 			// Act
 			assert_ok!(Omnipool::refund_refused_asset(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				asset_id,
 				1000 * ONE,
 				LP1
@@ -139,7 +139,7 @@ fn refund_refused_asset_should_fail_when_refund_asset_is_hub_asset() {
 		.execute_with(|| {
 			// Act
 			assert_noop!(
-				Omnipool::refund_refused_asset(Origin::root(), LRNA, 1000 * ONE, LP1),
+				Omnipool::refund_refused_asset(RuntimeOrigin::root(), LRNA, 1000 * ONE, LP1),
 				Error::<Test>::AssetRefundNotAllowed
 			);
 		});
