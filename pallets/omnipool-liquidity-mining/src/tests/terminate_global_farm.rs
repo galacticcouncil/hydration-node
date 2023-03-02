@@ -46,7 +46,7 @@ fn terminate_global_farm_should_work() {
 			let global_farm_id = 1;
 
 			assert_ok!(OmnipoolMining::terminate_global_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 			));
 
@@ -91,7 +91,7 @@ fn terminate_global_farm_should_fail_when_origin_is_none() {
 			let global_farm_id = 1;
 
 			assert_noop!(
-				OmnipoolMining::terminate_global_farm(Origin::none(), global_farm_id,),
+				OmnipoolMining::terminate_global_farm(RuntimeOrigin::none(), global_farm_id,),
 				BadOrigin
 			);
 		});

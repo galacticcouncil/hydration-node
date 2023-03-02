@@ -49,7 +49,7 @@ fn stop_yield_farm_should_work() {
 			let asset = KSM;
 
 			assert_ok!(OmnipoolMining::stop_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				asset,
 			));
@@ -102,7 +102,7 @@ fn stop_yield_farm_should_work_when_omnipool_doesnt_exists() {
 
 			//Act & assert
 			assert_ok!(OmnipoolMining::stop_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				asset,
 			));
@@ -150,7 +150,7 @@ fn stop_yield_farm_should_fail_when_origin_is_none() {
 			let asset = KSM;
 
 			assert_noop!(
-				OmnipoolMining::stop_yield_farm(Origin::none(), global_farm_id, asset,),
+				OmnipoolMining::stop_yield_farm(RuntimeOrigin::none(), global_farm_id, asset,),
 				BadOrigin
 			);
 		});

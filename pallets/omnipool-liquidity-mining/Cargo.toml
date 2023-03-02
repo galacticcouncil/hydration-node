@@ -68,7 +68,8 @@ std = [
 	"sp-io/std",
 	"pallet-balances/std",
 	"orml-tokens/std",
-  "pallet-omnipool/std",
+  	"pallet-omnipool/std",
+	"pallet-liquidity-mining/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

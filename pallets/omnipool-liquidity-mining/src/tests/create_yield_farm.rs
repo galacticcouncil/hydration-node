@@ -49,7 +49,7 @@ fn create_yield_farm_should_work() {
 			let loyalty_curve = Some(LoyaltyCurve::default());
 
 			assert_ok!(OmnipoolMining::create_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				asset,
 				multiplier,
@@ -102,7 +102,7 @@ fn create_yield_farm_should_fail_with_asset_not_found_when_omnipool_doesnt_exist
 
 			assert_noop!(
 				OmnipoolMining::create_yield_farm(
-					Origin::signed(GC),
+					RuntimeOrigin::signed(GC),
 					global_farm_id,
 					not_in_omnipool_asset,
 					multiplier,
@@ -148,7 +148,7 @@ fn create_yield_farm_should_fail_when_origin_is_none() {
 
 			assert_noop!(
 				OmnipoolMining::create_yield_farm(
-					Origin::none(),
+					RuntimeOrigin::none(),
 					global_farm_id,
 					not_in_omnipool_asset,
 					multiplier,

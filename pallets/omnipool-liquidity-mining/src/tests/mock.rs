@@ -100,12 +100,12 @@ construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Omnipool: pallet_omnipool::{Pallet, Call, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Event<T>},
-		WarehouseLM: warehouse_liquidity_mining::<Instance1>::{Pallet, Storage, Event<T>},
-		OmnipoolMining: omnipool_liquidity_mining::{Pallet, Call, Storage, Event<T>},
+		System: frame_system,
+		Balances: pallet_balances,
+		Omnipool: pallet_omnipool,
+		Tokens: orml_tokens,
+		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
+		OmnipoolMining: omnipool_liquidity_mining,
 	}
 );
 
@@ -130,8 +130,8 @@ impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = BlockNumber;
 	type Hash = H256;
@@ -139,7 +139,7 @@ impl frame_system::Config for Test {
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
@@ -159,7 +159,7 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
 	type PalletId = LMPalletId;
@@ -190,13 +190,13 @@ impl warehouse_liquidity_mining::Config<Instance1> for Test {
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = DummyRegistry<Test>;
 	type NonDustableWhitelistHandler = Whitelist;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 }
 
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -212,19 +212,17 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
 }
 
 parameter_types! {
@@ -243,7 +241,7 @@ parameter_types! {
 }
 
 impl pallet_omnipool::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u128;
 	type Currency = Tokens;
@@ -474,7 +472,7 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
 		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
@@ -482,7 +480,7 @@ impl ExtBuilder {
 				set_block_number(1);
 
 				assert_ok!(Omnipool::initialize_pool(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
@@ -491,13 +489,13 @@ impl ExtBuilder {
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
-						Origin::signed(owner),
+						RuntimeOrigin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
 					assert_ok!(Omnipool::add_token(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						asset_id,
 						price,
 						self.asset_weight_cap,
@@ -506,12 +504,12 @@ impl ExtBuilder {
 				}
 
 				for p in self.omnipool_liquidity {
-					assert_ok!(Omnipool::add_liquidity(Origin::signed(p.0), p.1, p.2));
+					assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(p.0), p.1, p.2));
 				}
 
 				for gf in self.lm_global_farms {
 					assert_ok!(OmnipoolMining::create_global_farm(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						gf.0,
 						gf.1,
 						gf.2,
@@ -525,7 +523,7 @@ impl ExtBuilder {
 
 				for yf in self.lm_yield_farms {
 					assert_ok!(OmnipoolMining::create_yield_farm(
-						Origin::signed(yf.0),
+						RuntimeOrigin::signed(yf.0),
 						yf.1,
 						yf.2,
 						yf.3,

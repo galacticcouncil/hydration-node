@@ -43,7 +43,7 @@ fn create_global_farm_should_work_when_origin_is_allowed() {
 			let lrna_price_adjustment = FixedU128::one();
 
 			assert_ok!(OmnipoolMining::create_global_farm(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				total_rewards,
 				planned_yielding_periods,
 				blocks_per_period,
@@ -99,7 +99,7 @@ fn create_global_farm_should_fail_when_origin_is_not_allowed() {
 
 			assert_noop!(
 				OmnipoolMining::create_global_farm(
-					Origin::signed(ALICE),
+					RuntimeOrigin::signed(ALICE),
 					total_rewards,
 					planned_yielding_periods,
 					blocks_per_period,
@@ -147,7 +147,7 @@ fn create_global_farm_should_fail_when_origin_is_none() {
 
 			assert_noop!(
 				OmnipoolMining::create_global_farm(
-					Origin::none(),
+					RuntimeOrigin::none(),
 					total_rewards,
 					planned_yielding_periods,
 					blocks_per_period,

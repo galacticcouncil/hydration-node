@@ -47,7 +47,7 @@ fn update_glboal_farm_should_work_when_price_adjustment_is_provided() {
 			let new_price_adjustment = FixedU128::from_float(1.345_f64);
 
 			assert_ok!(OmnipoolMining::update_global_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				new_price_adjustment
 			));
@@ -92,7 +92,7 @@ fn update_global_farm_should_fail_when_origin_is_none() {
 			let new_price_adjustment = FixedU128::from_float(1.345_f64);
 
 			assert_noop!(
-				OmnipoolMining::update_global_farm(Origin::none(), global_farm_id, new_price_adjustment),
+				OmnipoolMining::update_global_farm(RuntimeOrigin::none(), global_farm_id, new_price_adjustment),
 				BadOrigin
 			);
 		});
