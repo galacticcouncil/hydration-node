@@ -28,13 +28,16 @@ use orml_traits::MultiCurrencyExtended;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
+use sp_std::ops::RangeInclusive;
+
 pub const ONE: Balance = 1_000_000_000_000;
 
 fn schedule_fake<T: Config + pallet_omnipool::Config>(
+	owner: T::AccountId,
 	asset_in: T::Asset,
 	asset_out: T::Asset,
 	amount: Balance,
-) -> Schedule<T::Asset, T::BlockNumber>
+) -> Schedule<T::AccountId, T::Asset, T::BlockNumber>
 where
 	T: crate::pallet::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
@@ -44,7 +47,8 @@ where
 	<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
 	<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
 {
-	let schedule1: Schedule<T::Asset, T::BlockNumber> = Schedule {
+	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
+		owner,
 		period: 3u32.into(),
 		total_amount: 500 * ONE,
 		order: Order::Buy {
@@ -59,10 +63,11 @@ where
 }
 
 fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
+	owner: T::AccountId,
 	asset_in: T::Asset,
 	asset_out: T::Asset,
 	amount: Balance,
-) -> Schedule<T::Asset, T::BlockNumber>
+) -> Schedule<T::AccountId, T::Asset, T::BlockNumber>
 where
 	T: crate::pallet::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
@@ -72,7 +77,8 @@ where
 	<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
 	<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
 {
-	let schedule1: Schedule<T::Asset, T::BlockNumber> = Schedule {
+	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
+		owner,
 		period: 3u32.into(),
 		total_amount: 500 * ONE,
 		order: Order::Sell {
@@ -200,11 +206,12 @@ benchmarks! {
 		let amount_sell = 20_000_000_000_000u128;
 		let sell_max_limit = 200_000_000_000_000u128;
 
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
-		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
+		let schedule1 = schedule_sell_fake::<T>(seller.clone(), token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
 		let exeuction_block = 100u32;
+
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
 	}: {
@@ -230,7 +237,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
-		let schedule1 = schedule_sell_fake::<T>(token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
+		let schedule1 = schedule_sell_fake::<T>(seller.clone(), token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
 		let exeuction_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
 
@@ -250,13 +257,24 @@ benchmarks! {
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
+
 		let amount_sell = 20_000_000_000_000u128;
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
+		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
+		let exeuction_block = 100u32;
+
+		//We fill the execution block
+		//make this work
+		//TODO:consuider using it in the execute test, because we need it
+		//for _ in RangeInclusive::new(1, 20) {
+		//	assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(exeuction_block.into())));
+		//}
+
 		let schedule_id : ScheduleId = 1;
 
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::None)
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
+		//assert!(<ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(101u32.into()).is_some());
 	}
 
 	pause{
@@ -265,7 +283,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
 		let amount_sell = 20_000_000_000_000u128;
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
+		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
@@ -281,7 +299,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
 		let amount_sell = 20_000_000_000_000u128;
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
+		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 
@@ -299,7 +317,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
 		let amount_sell = 20_000_000_000_000u128;
-		let schedule1 = schedule_fake::<T>(token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
+		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let schedule_id : ScheduleId = 1;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));

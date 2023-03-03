@@ -18,6 +18,7 @@ macro_rules! assert_balance {
 }
 
 struct ScheduleBuilder {
+	pub owner: Option<AccountId>,
 	pub period: Option<BlockNumber>,
 	pub order: Option<Order<AssetId>>,
 	pub total_amount: Option<Balance>,
@@ -26,6 +27,7 @@ struct ScheduleBuilder {
 impl ScheduleBuilder {
 	fn new() -> ScheduleBuilder {
 		ScheduleBuilder {
+			owner: Some(ALICE),
 			period: Some(ONE_HUNDRED_BLOCKS),
 			total_amount: Some(1000 * ONE),
 			order: Some(Order::Buy {
@@ -53,8 +55,9 @@ impl ScheduleBuilder {
 		self
 	}
 
-	fn build(self) -> Schedule<AssetId, BlockNumber> {
+	fn build(self) -> Schedule<AccountId, AssetId, BlockNumber> {
 		Schedule {
+			owner: self.owner.unwrap(),
 			period: self.period.unwrap(),
 			total_amount: self.total_amount.unwrap(),
 			order: self.order.unwrap(),
@@ -87,9 +90,9 @@ fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> Bounde
 
 #[macro_export]
 macro_rules! assert_that_schedule_has_been_removed_from_storages {
-	($schedule_id:expr) => {
+	($owner:expr,$schedule_id:expr) => {
 		assert!(DCA::schedules($schedule_id).is_none());
 		assert!(DCA::suspended($schedule_id).is_none());
-		assert!(DCA::owner_of($schedule_id).is_none());
+		assert!(DCA::owner_of($owner, $schedule_id).is_none());
 	};
 }

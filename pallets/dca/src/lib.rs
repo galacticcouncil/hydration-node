@@ -239,12 +239,13 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn schedules)]
 	pub type Schedules<T: Config> =
-		StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::Asset, BlockNumberFor<T>>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, ScheduleId, Schedule<T::AccountId, T::Asset, BlockNumberFor<T>>, OptionQuery>;
 
 	/// Storing schedule ownership
 	#[pallet::storage]
 	#[pallet::getter(fn owner_of)]
-	pub type ScheduleOwnership<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, T::AccountId, OptionQuery>;
+	pub type ScheduleOwnership<T: Config> =
+		StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, ScheduleId, (), OptionQuery>;
 
 	/// Storing suspended schedules
 	#[pallet::storage]
@@ -288,7 +289,7 @@ pub mod pallet {
 		#[transactional]
 		pub fn schedule(
 			origin: OriginFor<T>,
-			schedule: Schedule<T::Asset, BlockNumberFor<T>>,
+			schedule: Schedule<T::AccountId, T::Asset, BlockNumberFor<T>>,
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
@@ -299,7 +300,7 @@ pub mod pallet {
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
-			ScheduleOwnership::<T>::insert(next_schedule_id, who.clone());
+			ScheduleOwnership::<T>::insert(who.clone(),next_schedule_id,());
 
 			let blocknumber_for_first_schedule_execution =
 				start_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
@@ -431,7 +432,7 @@ pub mod pallet {
 			Self::unreserve_all_named_reserved_sold_currency(schedule_id, &who)?;
 
 			Self::remove_planning_or_suspension(schedule_id, next_execution_block)?;
-			Self::remove_schedule_from_storages(schedule_id);
+			Self::remove_schedule_from_storages(&who, schedule_id);
 
 			Self::deposit_event(Event::Terminated {
 				id: schedule_id,
@@ -466,7 +467,7 @@ where
 	}
 
 	fn ensure_that_total_amount_is_bigger_than_storage_bond(
-		schedule: &Schedule<T::Asset, T::BlockNumber>,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
 		let min_total_amount = if Self::sold_currency(&schedule.order) == T::NativeAssetId::get() {
 			T::StorageBondInNativeCurrency::get()
@@ -498,14 +499,14 @@ where
 	}
 
 	fn ensure_that_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		let schedule_owner = ScheduleOwnership::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-		ensure!(*who == schedule_owner, Error::<T>::NotScheduleOwner);
+		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+		ensure!(*who == schedule.owner, Error::<T>::NotScheduleOwner);
 
 		Ok(())
 	}
 
 	fn ensure_that_sell_amount_is_bigger_than_transaction_fee(
-		schedule: &Schedule<<T as Config>::Asset, T::BlockNumber>,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
 		if let Order::Sell {
 			asset_in, amount_in, ..
@@ -524,29 +525,28 @@ where
 		*weight += Self::get_execute_schedule_weight();
 
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
-		let owner = exec_or_return_if_none!(ScheduleOwnership::<T>::get(schedule_id));
-		let origin: OriginFor<T> = Origin::<T>::Signed(owner.clone()).into();
+		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
 		let dca_reserve_identifier = &reserve_identifier(schedule_id);
 		let sold_currency = Self::sold_currency(&schedule.order);
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
 
 		let remaining_named_reserve_balance =
-			T::Currency::reserved_balance_named(dca_reserve_identifier, sold_currency.into(), &owner);
+			T::Currency::reserved_balance_named(dca_reserve_identifier, sold_currency.into(), &schedule.owner);
 
 		T::Currency::unreserve_named(
 			dca_reserve_identifier,
 			sold_currency.into(),
-			&owner,
+			&schedule.owner,
 			amount_to_unreserve.into(),
 		);
 
 		if remaining_named_reserve_balance < amount_to_unreserve.into() {
-			Self::complete_dca(schedule_id, &owner);
+			Self::complete_dca(&schedule.owner, schedule_id);
 			return;
 		}
 
-		exec_or_return_if_err!(Self::take_transaction_fee_from_user(&owner, &schedule.order));
+		exec_or_return_if_err!(Self::take_transaction_fee_from_user(&schedule.owner, &schedule.order));
 		let trade_result = Self::execute_trade(origin, &schedule.order);
 
 		match trade_result {
@@ -557,7 +557,7 @@ where
 				exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			}
 			_ => {
-				exec_or_return_if_err!(Self::suspend_schedule(&owner, schedule_id));
+				exec_or_return_if_err!(Self::suspend_schedule(&schedule.owner, schedule_id));
 			}
 		}
 	}
@@ -862,10 +862,10 @@ where
 		Ok(amount)
 	}
 
-	fn remove_schedule_from_storages(schedule_id: ScheduleId) {
+	fn remove_schedule_from_storages(owner: &T::AccountId, schedule_id: ScheduleId) {
 		Schedules::<T>::remove(schedule_id);
 		Suspended::<T>::remove(schedule_id);
-		ScheduleOwnership::<T>::remove(schedule_id);
+		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingRecurrences::<T>::remove(schedule_id);
 	}
 
@@ -894,8 +894,8 @@ where
 		Ok(())
 	}
 
-	fn complete_dca(schedule_id: ScheduleId, owner: &T::AccountId) {
-		Self::remove_schedule_from_storages(schedule_id);
+	fn complete_dca(owner: &T::AccountId, schedule_id: ScheduleId) {
+		Self::remove_schedule_from_storages(owner, schedule_id);
 		Self::deposit_event(Event::Completed {
 			id: schedule_id,
 			who: owner.clone(),

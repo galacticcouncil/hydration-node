@@ -261,7 +261,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 #[ignore] //This test is ignored as only used for estimating the storage bond size
 fn calculate_storage_bond() {
 	let schedule_key_size = size_of::<ScheduleId>();
-	let schedule_value_size = Schedule::<ScheduleId, BlockNumber>::max_encoded_len();
+	let schedule_value_size = Schedule::<AccountId, ScheduleId, BlockNumber>::max_encoded_len();
 
 	let schedule_ownership_key_size = size_of::<ScheduleId>();
 	let schedule_ownership_value_size = size_of::<common_runtime::AccountId>();
@@ -289,7 +289,7 @@ fn calculate_storage_bond() {
 	let _ = primitives::constants::currency::bytes_to_balance(storage_bond_size as u32);
 }
 
-fn create_schedule(schedule1: Schedule<AssetId, u32>) {
+fn create_schedule(schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(hydradx_runtime::DCA::schedule(
 		hydradx_runtime::Origin::signed(ALICE.into()),
 		schedule1,
@@ -302,8 +302,9 @@ fn schedule_fake_with_buy_order(
 	asset_out: AssetId,
 	amount: Balance,
 	budget: Balance,
-) -> Schedule<AssetId, u32> {
+) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
+		owner: AccountId::from(ALICE),
 		period: 5u32,
 		total_amount: budget,
 		order: Order::Buy {
@@ -316,8 +317,13 @@ fn schedule_fake_with_buy_order(
 	}
 }
 
-fn schedule_fake_with_sell_order(asset_in: AssetId, asset_out: AssetId, amount: Balance) -> Schedule<AssetId, u32> {
+fn schedule_fake_with_sell_order(
+	asset_in: AssetId,
+	asset_out: AssetId,
+	amount: Balance,
+) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
+		owner: AccountId::from(ALICE),
 		period: 3u32,
 		total_amount: 110 * UNITS,
 		order: Order::Sell {

@@ -157,7 +157,7 @@ fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 1;
-			assert_that_dca_is_completed(schedule_id);
+			assert_that_dca_is_completed(ALICE, schedule_id);
 			assert!(
 				DCA::schedule_ids_per_block(601).is_none(),
 				"There should be no schedule for the block, but there is"
@@ -201,7 +201,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			assert_number_of_executed_sell_trades!(3);
 
 			let schedule_id = 1;
-			assert_that_dca_is_completed(schedule_id);
+			assert_that_dca_is_completed(ALICE, schedule_id);
 		});
 }
 
@@ -240,7 +240,7 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 			assert_number_of_executed_sell_trades!(3);
 
 			let schedule_id = 1;
-			assert_that_dca_is_completed(schedule_id);
+			assert_that_dca_is_completed(ALICE, schedule_id);
 		});
 }
 
@@ -278,7 +278,7 @@ fn full_buy_dca_should_be_completed_when_not_enough_reserved_amount() {
 			assert_number_of_executed_buy_trades!(0);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 1;
-			assert_that_dca_is_completed(schedule_id);
+			assert_that_dca_is_completed(ALICE, schedule_id);
 		});
 }
 
@@ -316,7 +316,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			assert_number_of_executed_buy_trades!(5);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 1;
-			assert_that_dca_is_completed(schedule_id);
+			assert_that_dca_is_completed(ALICE, schedule_id);
 		});
 }
 
@@ -718,8 +718,8 @@ pub fn set_to_blocknumber(to: u64) {
 	DCA::on_initialize(to);
 }
 
-fn assert_that_dca_is_completed(schedule_id: ScheduleId) {
-	assert_that_schedule_has_been_removed_from_storages!(schedule_id);
+fn assert_that_dca_is_completed(owner: AccountId, schedule_id: ScheduleId) {
+	assert_that_schedule_has_been_removed_from_storages!(owner, schedule_id);
 
 	expect_events(vec![Event::Completed {
 		id: schedule_id,

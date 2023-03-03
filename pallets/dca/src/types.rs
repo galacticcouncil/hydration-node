@@ -9,7 +9,8 @@ pub type ScheduleId = u32;
 const MAX_NUMBER_OF_TRADES: u32 = 5;
 
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
-pub struct Schedule<AssetId, BlockNumber> {
+pub struct Schedule<AccountId, AssetId, BlockNumber> {
+	pub owner: AccountId,
 	pub period: BlockNumber,
 	pub total_amount: Balance,
 	pub order: Order<AssetId>,

@@ -40,7 +40,7 @@ fn terminate_should_remove_schedule_from_storage() {
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
-			assert_that_schedule_has_been_removed_from_storages!(schedule_id);
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
 
 			expect_events(vec![Event::Terminated { id: 1, who: ALICE }.into()]);
 		});
