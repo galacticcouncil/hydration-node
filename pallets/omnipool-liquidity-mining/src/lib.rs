@@ -59,6 +59,7 @@ use hydradx_traits::liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMu
 use orml_traits::MultiCurrency;
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
+use primitive_types::U256;
 use primitives::{Balance, ItemId as DepositId};
 use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
 use sp_std::vec;
@@ -928,12 +929,15 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		let state = OmnipoolPallet::<T>::load_asset_state(lp_position.asset_id)?;
 
-		state
-			.hub_reserve
-			.checked_mul(lp_position.amount)
+		let position_value: u128 = U256::from(state.hub_reserve)
+			.checked_mul(lp_position.amount.into())
 			.ok_or(ArithmeticError::Overflow)?
-			.checked_div(state.reserve)
-			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
+			.checked_div(state.reserve.into())
+			.ok_or(ArithmeticError::DivisionByZero)?
+			.try_into()
+			.map_err(|_| ArithmeticError::Overflow)?;
+
+		Ok(position_value)
 	}
 
 	/// This function check if origin is signed and returns account if account is owner of the
