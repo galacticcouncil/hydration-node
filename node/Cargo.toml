@@ -20,11 +20,11 @@ hydra-dx-build-script-utils = { path = "../utils/build-script-utils" }
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.1.5" }
 hex-literal = "0.3.4"
-jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
+jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
 log = "0.4.17"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.82"
-clap = { version = "3.2.11", features = [ "derive" ] }
+clap = { version = "4.1.8", features = [ "derive" ] }
 futures = "0.3.15"
 
 # local dependencies
@@ -92,7 +92,7 @@ cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branc
 cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37" }
 cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37" }
 cumulus-relay-chain-inprocess-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37" }
-cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37" }
+cumulus-relay-chain-minimal-node = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37" }
 
 # Polkadot dependencies
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.37" }

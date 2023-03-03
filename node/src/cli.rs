@@ -1,5 +1,5 @@
 use crate::chain_spec;
-use clap::Parser;
+use clap::{Parser, builder::PossibleValue};
 use std::fmt;
 use std::path::PathBuf;
 
@@ -33,10 +33,10 @@ impl clap::ValueEnum for RuntimeInstance {
 		&[Self::HydraDX, Self::Testing]
 	}
 
-	fn to_possible_value<'a>(&self) -> Option<clap::PossibleValue<'a>> {
+	fn to_possible_value(&self) -> Option<PossibleValue> {
 		match self {
-			Self::HydraDX => Some(clap::PossibleValue::new("hydradx")),
-			Self::Testing => Some(clap::PossibleValue::new("testing")),
+			Self::HydraDX => Some(PossibleValue::new("hydradx")),
+			Self::Testing => Some(PossibleValue::new("testing")),
 		}
 	}
 }
@@ -57,6 +57,11 @@ impl Default for RuntimeInstance {
 }
 
 #[derive(Debug, Parser)]
+#[clap(
+propagate_version = true,
+args_conflicts_with_subcommands = true,
+subcommand_negates_reqs = true
+)]
 pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: cumulus_client_cli::RunCmd,
