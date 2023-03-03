@@ -224,8 +224,6 @@ benchmarks! {
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
 
-
-
 	on_initialize{
 		let token_id = prepare_omnipool::<T>()?;
 
@@ -257,24 +255,23 @@ benchmarks! {
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
 
-
 		let amount_sell = 20_000_000_000_000u128;
 		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
 		let exeuction_block = 100u32;
+		let one_block_after_exeuction_block = exeuction_block + 1;
 
 		//We fill the execution block
-		//make this work
-		//TODO:consuider using it in the execute test, because we need it
-		//for _ in RangeInclusive::new(1, 20) {
-		//	assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(exeuction_block.into())));
-		//}
+		let number_of_generated_schediles_as_prerequisite = 20;
+		for _ in RangeInclusive::new(1, number_of_generated_schediles_as_prerequisite) {
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(exeuction_block.into())));
+		}
 
-		let schedule_id : ScheduleId = 1;
+		let schedule_id : ScheduleId = number_of_generated_schediles_as_prerequisite + 1;
 
-	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::None)
+	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::Some(exeuction_block.into()))
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
-		//assert!(<ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(101u32.into()).is_some());
+		assert!(<ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(one_block_after_exeuction_block.into()).is_some());
 	}
 
 	pause{
