@@ -30,9 +30,8 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 
 # HydraDX dependencies
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
-pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
+
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
 
 # ORML dependencies
@@ -66,8 +65,6 @@ std = [
   "scale-info/std",
   "orml-tokens/std",
   "hydradx-traits/std",
-  "pallet-transaction-payment/std",
-  "pallet-transaction-multi-payment/std",
   "pallet-currencies/std",
   "pallet-relaychain-info/std",
   "orml-tokens/std",

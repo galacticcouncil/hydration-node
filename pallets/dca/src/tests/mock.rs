@@ -70,8 +70,6 @@ frame_support::construct_runtime!(
 		 DCA: dca,
 		 Tokens: orml_tokens,
 		 Omnipool: pallet_omnipool,
-		 MultiTransactionPayment: pallet_transaction_multi_payment,
-		 TransasctionPayment: pallet_transaction_payment,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 RelaychainInfo: pallet_relaychain_info,
@@ -246,27 +244,6 @@ impl WeightToFeePolynomial for WeightToFee {
 	}
 }
 
-impl pallet_transaction_multi_payment::Config for Test {
-	type Event = Event;
-	type AcceptedCurrencyOrigin = EnsureRoot<AccountId>;
-	type Currencies = Tokens;
-	type SpotPriceProvider = Omnipool;
-	type WeightInfo = ();
-	type WithdrawFeeForSetCurrency = ();
-	type WeightToFee = WeightToFee;
-	type NativeAssetId = NativeCurrencyId;
-	type FeeReceiver = TreasuryAccount;
-}
-
-impl pallet_transaction_payment::Config for Test {
-	type Event = Event;
-	type OnChargeTransaction = TransferFees<Currencies, MultiTransactionPayment, DepositAll<Test>>;
-	type OperationalFeeMultiplier = ();
-	type WeightToFee = WeightToFee;
-	type FeeMultiplierUpdate = ();
-	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-}
-
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
@@ -426,9 +403,8 @@ impl Config for Test {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use frame_support::weights::{ConstantMultiplier, WeightToFeeCoefficients, WeightToFeePolynomial};
+use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
 use hydradx_traits::pools::SpotPriceProvider;
-use pallet_transaction_multi_payment::{DepositAll, TransferFees};
 use smallvec::smallvec;
 
 pub struct DummyNFT;

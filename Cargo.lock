@@ -5867,8 +5867,6 @@ dependencies = [
  "pallet-currencies",
  "pallet-omnipool",
  "pallet-relaychain-info",
- "pallet-transaction-multi-payment",
- "pallet-transaction-payment",
  "parity-scale-codec",
  "pretty_assertions",
  "proptest",
