@@ -8,7 +8,6 @@ license = 'Apache 2.0'
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-executor"
 
 [dependencies]
-smallvec = "1.9.0"
 log = { version = "0.4.17", default-features = false }
 rand = { version = "0.8.4", default-features = false }
 
@@ -22,8 +21,6 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true }
 
-pallet-omnipool = { path="../omnipool", default-features = false }
-
 # FRAME
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -31,7 +28,6 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 # HydraDX dependencies
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
-
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
 
 # ORML dependencies
@@ -41,6 +37,8 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
 
 [dev-dependencies]
+smallvec = "1.9.0"
+pallet-omnipool = { path="../omnipool", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
