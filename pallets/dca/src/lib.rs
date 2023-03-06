@@ -299,7 +299,7 @@ pub mod pallet {
 			ScheduleOwnership::<T>::insert(who.clone(),next_schedule_id,());
 
 			let blocknumber_for_first_schedule_execution =
-				start_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
+				start_execution_block.unwrap_or_else(|| Self::get_next_block_number());
 			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			let currency_for_reserve = match schedule.order {
@@ -376,7 +376,7 @@ pub mod pallet {
 			Self::ensure_that_next_blocknumber_is_bigger_than_current_block(next_execution_block)?;
 			Self::ensure_that_schedule_is_suspended(schedule_id)?;
 
-			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
+			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_number());
 			Self::plan_schedule_for_block(next_execution_block, schedule_id)?;
 
 			Suspended::<T>::remove(schedule_id);
@@ -693,7 +693,7 @@ where
 		})
 	}
 
-	fn get_next_block_mumber() -> BlockNumberFor<T> {
+	fn get_next_block_number() -> BlockNumberFor<T> {
 		let mut current_block_number = frame_system::Pallet::<T>::current_block_number();
 		current_block_number.saturating_inc();
 
