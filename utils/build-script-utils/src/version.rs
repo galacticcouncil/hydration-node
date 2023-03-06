@@ -3,7 +3,7 @@ use std::{borrow::Cow, env, fs, io, path, process::Command};
 
 /// Generate the `cargo:` key output
 pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {
-	let output = Command::new("git").args(&["rev-parse", "--short", "HEAD"]).output();
+	let output = Command::new("git").args(["rev-parse", "--short", "HEAD"]).output();
 
 	let commit = match output {
 		Ok(o) if o.status.success() => {
@@ -41,7 +41,7 @@ fn get_platform() -> String {
 
 fn get_release_version() -> String {
 	let output = Command::new("git")
-		.args(&["describe", "--tags", "--abbrev=0", "--always"])
+		.args(["describe", "--tags", "--abbrev=0", "--always"])
 		.output();
 
 	let version = match output {

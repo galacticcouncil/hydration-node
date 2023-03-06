@@ -109,12 +109,13 @@ runtime-benchmarks = [
   "testing-hydradx-runtime/runtime-benchmarks",
   "frame-benchmarking-cli",
   "polkadot-service/runtime-benchmarks",
+  "polkadot-cli/runtime-benchmarks",
 ]
 cli = [
     'try-runtime-cli',
 ]
 try-runtime = [
     "hydradx-runtime/try-runtime",
-    "try-runtime-cli",
+    "try-runtime-cli/try-runtime",
 ]
 
