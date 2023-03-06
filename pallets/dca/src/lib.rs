@@ -495,15 +495,16 @@ where
 	fn ensure_that_sell_amount_is_bigger_than_transaction_fee(
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
-		if let Order::Sell {
-			asset_in, amount_in, ..
-		} = schedule.order
-		{
-			let transaction_fee = Self::get_transaction_fee(asset_in)?;
-			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+		match schedule.order {
+			Order::Sell { asset_in, amount_in, .. } => {
+				let transaction_fee = Self::get_transaction_fee(asset_in)?;
+				ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+			}
+			Order::Buy { .. } => {
+				//For buy we don't check as the calculated amount in will always include the fee
+			}
 		}
 
-		//For buy we don't check as the calculated amount in will always include the fee
 
 		Ok(())
 	}
