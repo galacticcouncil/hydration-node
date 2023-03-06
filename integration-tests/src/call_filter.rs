@@ -14,12 +14,12 @@ fn transfer_should_not_work_when_transfering_lrna_to_omnipool_account() {
 		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
 		// Currencies::transfer
-		let successful_call = hydradx_runtime::Call::Currencies(pallet_currencies::Call::transfer {
+		let successful_call = hydradx_runtime::RuntimeCall::Currencies(pallet_currencies::Call::transfer {
 			dest: omnipool_account.clone(),
 			currency_id: DAI,
 			amount: 10 * UNITS,
 		});
-		let filtered_call = hydradx_runtime::Call::Currencies(pallet_currencies::Call::transfer {
+		let filtered_call = hydradx_runtime::RuntimeCall::Currencies(pallet_currencies::Call::transfer {
 			dest: omnipool_account.clone(),
 			currency_id: LRNA,
 			amount: 10 * UNITS,
@@ -29,12 +29,12 @@ fn transfer_should_not_work_when_transfering_lrna_to_omnipool_account() {
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 
 		// Tokens::transfer
-		let successful_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer {
+		let successful_call = hydradx_runtime::RuntimeCall::Tokens(orml_tokens::Call::transfer {
 			dest: omnipool_account.clone(),
 			currency_id: DAI,
 			amount: 10 * UNITS,
 		});
-		let filtered_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer {
+		let filtered_call = hydradx_runtime::RuntimeCall::Tokens(orml_tokens::Call::transfer {
 			dest: omnipool_account.clone(),
 			currency_id: LRNA,
 			amount: 10 * UNITS,
@@ -44,12 +44,12 @@ fn transfer_should_not_work_when_transfering_lrna_to_omnipool_account() {
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 
 		// Tokens::transfer_keep_alive
-		let successful_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_keep_alive {
+		let successful_call = hydradx_runtime::RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive {
 			dest: omnipool_account.clone(),
 			currency_id: DAI,
 			amount: 10 * UNITS,
 		});
-		let filtered_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_keep_alive {
+		let filtered_call = hydradx_runtime::RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive {
 			dest: omnipool_account.clone(),
 			currency_id: LRNA,
 			amount: 10 * UNITS,
@@ -59,12 +59,12 @@ fn transfer_should_not_work_when_transfering_lrna_to_omnipool_account() {
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 
 		// Tokens::transfer_all
-		let successful_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_all {
+		let successful_call = hydradx_runtime::RuntimeCall::Tokens(orml_tokens::Call::transfer_all {
 			dest: omnipool_account.clone(),
 			currency_id: DAI,
 			keep_alive: true,
 		});
-		let filtered_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_all {
+		let filtered_call = hydradx_runtime::RuntimeCall::Tokens(orml_tokens::Call::transfer_all {
 			dest: omnipool_account,
 			currency_id: LRNA,
 			keep_alive: true,
@@ -80,7 +80,7 @@ fn calling_pallet_uniques_extrinsic_should_be_filtered_by_call_filter() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		let call = hydradx_runtime::Call::Uniques(pallet_uniques::Call::create {
+		let call = hydradx_runtime::RuntimeCall::Uniques(pallet_uniques::Call::create {
 			collection: 1u128,
 			admin: AccountId::from(ALICE),
 		});
@@ -95,7 +95,7 @@ fn calling_pallet_xcm_extrinsic_should_be_filtered_by_call_filter() {
 
 	Hydra::execute_with(|| {
 		// the values here don't need to make sense, all we need is a valid Call
-		let call = hydradx_runtime::Call::PolkadotXcm(pallet_xcm::Call::send {
+		let call = hydradx_runtime::RuntimeCall::PolkadotXcm(pallet_xcm::Call::send {
 			dest: Box::new(MultiLocation::parent().into()),
 			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
 		});
@@ -110,7 +110,7 @@ fn calling_orml_xcm_extrinsic_should_be_filtered_by_call_filter() {
 
 	Hydra::execute_with(|| {
 		// the values here don't need to make sense, all we need is a valid Call
-		let call = hydradx_runtime::Call::OrmlXcm(orml_xcm::Call::send_as_sovereign {
+		let call = hydradx_runtime::RuntimeCall::OrmlXcm(orml_xcm::Call::send_as_sovereign {
 			dest: Box::new(MultiLocation::parent().into()),
 			message: Box::new(VersionedXcm::from(Xcm(vec![]))),
 		});

@@ -24,12 +24,12 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let stable_price = FixedU128::from_inner(45_000_000_000);
 
 		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			522_222_000_000_000_000_000_000,
 		));
 
 		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			stable_price,
 			native_price,
 			Permill::from_percent(100),
@@ -46,7 +46,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			DOT,
 			token_price,
 			Permill::from_percent(100),
@@ -66,7 +66,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let token_price = FixedU128::from_inner(71_145_071_145_071);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ETH,
 			token_price,
 			Permill::from_percent(100),
@@ -88,7 +88,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let charlie_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			hydradx_runtime::Origin::signed(CHARLIE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 			ETH,
 			DAI,
 			1_000_000_000_000_000_000,
@@ -105,7 +105,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let btc_price = FixedU128::from_inner(9_647_109_647_109_650_000_000_000);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			BTC,
 			btc_price,
 			Permill::from_percent(100),
@@ -119,7 +119,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let charlie_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			hydradx_runtime::Origin::signed(CHARLIE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 			BTC,
 			DAI,
 			100_000_000 / 10,

@@ -4,7 +4,7 @@ use crate::polkadot_test_net::*;
 
 use frame_support::{assert_ok, traits::Contains};
 
-use hydradx_runtime::Origin;
+use hydradx_runtime::RuntimeOrigin;
 use hydradx_traits::pools::DustRemovalAccountWhitelist;
 use xcm_emulator::TestExt;
 
@@ -38,7 +38,7 @@ fn add_nondustable_account_should_work_with_dust_removal_whitelist() {
 
 		//Act add account to whitelist
 		assert_ok!(hydradx_runtime::Duster::add_nondustable_account(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			ALICE.into()
 		));
 
@@ -57,7 +57,7 @@ fn remove_nondustable_account_should_work_with_dust_removal_whitelist() {
 
 		//Act
 		assert_ok!(hydradx_runtime::Duster::remove_nondustable_account(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			ALICE.into()
 		));
 

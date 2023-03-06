@@ -47,7 +47,7 @@ decl_test_relay_chain! {
 decl_test_parachain! {
 	pub struct Hydra{
 		Runtime = hydradx_runtime::Runtime,
-		Origin = hydradx_runtime::Origin,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
 		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
 		DmpMessageHandler = hydradx_runtime::DmpQueue,
 		new_ext = hydra_ext(),
@@ -57,7 +57,7 @@ decl_test_parachain! {
 decl_test_parachain! {
 	pub struct Acala{
 		Runtime = hydradx_runtime::Runtime,
-		Origin = hydradx_runtime::Origin,
+		RuntimeOrigin = hydradx_runtime::RuntimeOrigin,
 		XcmpMessageHandler = hydradx_runtime::XcmpQueue,
 		DmpMessageHandler = hydradx_runtime::DmpQueue,
 		new_ext = acala_ext(),
@@ -288,7 +288,7 @@ pub fn vesting_account() -> AccountId {
 	VestingPalletId::get().into_account_truncating()
 }
 
-fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
+fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::RuntimeEvent> {
 	frame_system::Pallet::<hydradx_runtime::Runtime>::events()
 		.into_iter()
 		.rev()
@@ -298,6 +298,6 @@ fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
 		.collect()
 }
 
-pub fn expect_hydra_events(e: Vec<hydradx_runtime::Event>) {
+pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 	assert_eq!(last_hydra_events(e.len()), e);
 }

@@ -9,7 +9,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use hex_literal::hex;
 use orml_traits::currency::MultiCurrency;
-use polkadot_xcm::VersionedMultiAssets;
+use polkadot_xcm::{VersionedMultiAssets, v2::WeightLimit};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
@@ -29,7 +29,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 	//Arrange
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
@@ -38,7 +38,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 	PolkadotRelay::execute_with(|| {
 		//Act
 		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
-			polkadot_runtime::Origin::signed(ALICE.into()),
+			polkadot_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(Parachain(HYDRA_PARA_ID).into().into()),
 			Box::new(
 				Junction::AccountId32 {
@@ -81,14 +81,14 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
 
 		//Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			1,
 			3 * UNITS,
 			Box::new(
@@ -101,7 +101,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 				)
 				.into()
 			),
-			4_600_000_000
+			WeightLimit::Limited(4_600_000_000)
 		));
 
 		//Assert
@@ -126,7 +126,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -135,7 +135,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 	Acala::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
 			30 * UNITS,
 			Box::new(
@@ -151,7 +151,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 				)
 				.into()
 			),
-			399_600_000_000
+			WeightLimit::Limited(399_600_000_000)
 		));
 
 		// Assert
@@ -180,7 +180,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -189,7 +189,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 	Acala::execute_with(|| {
 		assert_noop!(
 			hydradx_runtime::XTokens::transfer(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				0,
 				1_000_000,
 				Box::new(
@@ -205,7 +205,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 					)
 					.into()
 				),
-				399_600_000_000
+				WeightLimit::Limited(399_600_000_000)
 			),
 			orml_xtokens::Error::<hydradx_runtime::Runtime>::XcmExecutionFailed
 		);
@@ -230,7 +230,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 
 	Acala::execute_with(|| {
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
 			30 * UNITS,
 			Box::new(
@@ -246,7 +246,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 				)
 				.into()
 			),
-			399_600_000_000
+			WeightLimit::Limited(399_600_000_000)
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
