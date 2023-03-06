@@ -27,7 +27,6 @@ pallet-omnipool = { path="../omnipool", default-features = false }
 # FRAME
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true }
 
 # HydraDX dependencies
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
@@ -43,6 +42,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
 
 [dev-dependencies]
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
@@ -68,7 +68,6 @@ std = [
   "hydradx-traits/std",
   "pallet-transaction-payment/std",
   "pallet-transaction-multi-payment/std",
-  "pallet-balances/std",
   "pallet-currencies/std",
   "pallet-relaychain-info/std",
   "orml-tokens/std",
