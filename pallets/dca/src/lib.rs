@@ -248,7 +248,7 @@ pub mod pallet {
 	#[pallet::getter(fn suspended)]
 	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
 
-	/// Keep tracking the ramaining recurrences of fixed DCA schedules
+	/// Keep tracking the remaining recurrences of fixed DCA schedules
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
 	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
