@@ -192,7 +192,7 @@ pub mod pallet {
 		Resumed { id: ScheduleId, who: T::AccountId },
 		///The DCA is terminated and completely removed from the chain
 		Terminated { id: ScheduleId, who: T::AccountId },
-		///The DCA is suspended
+		///The DCA is suspended because it is paused by user or the DCA execution failed
 		Suspended { id: ScheduleId, who: T::AccountId },
 		///The DCA is completed and completely removed from the chain
 		Completed { id: ScheduleId, who: T::AccountId },
