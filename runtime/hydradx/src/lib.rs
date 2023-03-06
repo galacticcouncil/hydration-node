@@ -854,7 +854,7 @@ impl pallet_transaction_pause::Config for Runtime {
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
-	
+
 impl pallet_duster::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
@@ -958,7 +958,7 @@ construct_runtime!(
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
-		
+
 		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 	}
 );
