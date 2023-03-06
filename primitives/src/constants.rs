@@ -82,8 +82,11 @@ pub mod chain {
 	/// Minimum pool liquidity
 	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
 
-	/// We allow for
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_ref_time(WEIGHT_REF_TIME_PER_SECOND / 2);
+	/// We allow for 0.5 seconds of compute
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
+	WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
+	polkadot_primitives::v2::MAX_POV_SIZE as u64,
+);
 }
 
 #[cfg(test)]

@@ -14,6 +14,9 @@ hex-literal = {version = '0.3.4'}
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 
+# Polkadot dependencies
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.37", default-features = false }
+
 [features]
 default = ["std"]
 std = [

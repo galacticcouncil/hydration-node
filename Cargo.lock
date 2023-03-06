@@ -8446,6 +8446,7 @@ dependencies = [
  "frame-support",
  "hex-literal",
  "parity-scale-codec",
+ "polkadot-primitives",
  "scale-info",
  "serde",
 ]
