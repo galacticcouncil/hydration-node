@@ -33,34 +33,30 @@
 //!
 
 use codec::MaxEncodedLen;
-use frame_support::ensure;
-use frame_support::pallet_prelude::*;
-use frame_support::traits::{Get, Len};
-use frame_support::transactional;
-use frame_support::weights::WeightToFee as FrameSupportWeight;
-use frame_system::ensure_signed;
-use frame_system::pallet_prelude::OriginFor;
-use frame_system::Origin;
-use hydradx_traits::pools::AMMTrader;
-use hydradx_traits::pools::PriceProvider;
+use frame_support::{
+	ensure,
+	pallet_prelude::*,
+	traits::{Get, Len},
+	transactional,
+	weights::WeightToFee as FrameSupportWeight,
+};
+use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
+use hydradx_traits::pools::{AMMTrader, PriceProvider};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
 use orml_traits::NamedMultiReservableCurrency;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
-use sp_runtime::traits::BlockNumberProvider;
-use sp_runtime::traits::Saturating;
-use sp_runtime::ArithmeticError;
-use sp_runtime::FixedPointNumber;
-use sp_runtime::FixedU128;
-use sp_runtime::Permill;
 use sp_runtime::{traits::BlakeTwo256, traits::Hash};
-use sp_runtime::{BoundedVec, DispatchError};
-use sp_std::cmp::max;
-
-use sp_std::cmp::min;
-use sp_std::vec;
+use sp_runtime::{
+	traits::{BlockNumberProvider, Saturating},
+	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
+};
+use sp_std::{
+	cmp::{max, min},
+	vec,
+};
 #[cfg(test)]
 mod tests;
 
