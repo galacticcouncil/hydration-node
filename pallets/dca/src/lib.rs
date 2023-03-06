@@ -289,7 +289,7 @@ pub mod pallet {
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			Self::ensure_that_next_blocknumber_bigger_than_current_block(start_execution_block)?;
+			Self::ensure_that_next_blocknumber_is_bigger_than_current_block(start_execution_block)?;
 			Self::ensure_that_total_amount_is_bigger_than_storage_bond(&schedule)?;
 			Self::ensure_that_sell_amount_is_bigger_than_transaction_fee(&schedule)?;
 
@@ -373,7 +373,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
-			Self::ensure_that_next_blocknumber_bigger_than_current_block(next_execution_block)?;
+			Self::ensure_that_next_blocknumber_is_bigger_than_current_block(next_execution_block)?;
 			Self::ensure_that_schedule_is_suspended(schedule_id)?;
 
 			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_mumber());
@@ -439,7 +439,7 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
-	fn ensure_that_next_blocknumber_bigger_than_current_block(
+	fn ensure_that_next_blocknumber_is_bigger_than_current_block(
 		next_execution_block: Option<T::BlockNumber>,
 	) -> DispatchResult {
 		if let Some(next_exection_block) = next_execution_block {
