@@ -307,14 +307,7 @@ pub mod pallet {
 				Order::Sell { asset_in, .. } => asset_in,
 			};
 
-			ensure!(
-				T::Currency::can_reserve(
-					currency_for_reserve.into(),
-					&who,
-					schedule.total_amount.into()
-				),
-				Error::<T>::InsufficientBalanceForTotalAmount
-			);
+
 
 			T::Currency::reserve_named(
 				&reserve_identifier(next_schedule_id),

@@ -230,7 +230,7 @@ fn schedule_should_throw_error_when_user_has_not_enough_balance() {
 			set_block_number(500);
 			assert_noop!(
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::InsufficientBalanceForTotalAmount
+				pallet_balances::Error::<Test>::InsufficientBalance
 			);
 		});
 }
