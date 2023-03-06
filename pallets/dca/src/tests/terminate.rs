@@ -175,7 +175,7 @@ fn terminate_should_fail_when_called_by_non_owner() {
 			//Act and assert
 			assert_noop!(
 				DCA::terminate(Origin::signed(BOB), schedule_id, Option::Some(500)),
-				Error::<Test>::NotScheduleOwner
+				Error::<Test>::Forbidden
 			);
 		});
 }

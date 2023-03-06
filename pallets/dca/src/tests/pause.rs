@@ -173,7 +173,7 @@ fn pause_should_fail_when_paused_by_not_schedule_owner() {
 			let schedule_id = 1;
 			assert_noop!(
 				DCA::pause(Origin::signed(BOB), schedule_id, 501),
-				Error::<Test>::NotScheduleOwner
+				Error::<Test>::Forbidden
 			);
 		});
 }

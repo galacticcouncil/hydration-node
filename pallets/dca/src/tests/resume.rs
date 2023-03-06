@@ -40,7 +40,7 @@ fn resume_should_fail_when_called_by_non_owner() {
 			//Act and assert
 			assert_noop!(
 				DCA::resume(Origin::signed(BOB), schedule_id, Option::None),
-				Error::<Test>::NotScheduleOwner
+				Error::<Test>::Forbidden
 			);
 		});
 }

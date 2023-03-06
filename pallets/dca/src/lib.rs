@@ -206,8 +206,8 @@ pub mod pallet {
 		InsufficientBalanceForTotalAmount,
 		///Trade amount is less than fee
 		TradeAmountIsLessThanFee,
-		///The user is not the owner of the schedule
-		NotScheduleOwner,
+		///Forbidden as the user is not the owner of the schedule
+		Forbidden,
 		///The next execution block number is not in the future
 		BlockNumberIsNotInFuture,
 		///There is not planned execution on the given block
@@ -306,9 +306,7 @@ pub mod pallet {
 				Order::Buy { asset_in, .. } => asset_in,
 				Order::Sell { asset_in, .. } => asset_in,
 			};
-
-
-
+			
 			T::Currency::reserve_named(
 				&reserve_identifier(next_schedule_id),
 				currency_for_reserve.into(),
@@ -489,7 +487,7 @@ where
 
 	fn ensure_that_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-		ensure!(*who == schedule.owner, Error::<T>::NotScheduleOwner);
+		ensure!(*who == schedule.owner, Error::<T>::Forbidden);
 
 		Ok(())
 	}
