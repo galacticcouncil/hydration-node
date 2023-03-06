@@ -1,6 +1,6 @@
 [package]
 name = "hydra-dx-build-script-utils"
-version = "1.0.1"
+version = "1.0.2"
 description = "Crate with utility functions for `build.rs` scripts."
 authors = ["GalacticCouncil <hydradx@galacticcouncil.io>"]
 edition = "2021"
