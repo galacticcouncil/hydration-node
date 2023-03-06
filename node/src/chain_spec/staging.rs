@@ -74,7 +74,6 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				vec![],
 				// registered_assets
 				vec![],
-				vec![],
 				// accepted_assets
 				vec![],
 				// token balances
@@ -89,6 +88,17 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				],
 				// parachain ID
 				PARA_ID.into(),
+				// duster
+				DusterConfig {
+					// treasury
+					account_blacklist: vec![
+						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()
+					],
+					reward_account: Some(
+						hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
+					),
+					dust_account: Some(hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into()),
+				},
 			)
 		},
 		// Bootnodes

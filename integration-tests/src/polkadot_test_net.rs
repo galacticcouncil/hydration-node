@@ -1,5 +1,5 @@
 #![cfg(test)]
-pub use hydradx_runtime::{AccountId, VestingPalletId};
+pub use hydradx_runtime::{AccountId, Treasury, VestingPalletId};
 
 use pallet_transaction_multi_payment::Price;
 use primitives::{AssetId, Balance};
@@ -22,6 +22,8 @@ pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
+pub const ETH: AssetId = 4;
+pub const BTC: AssetId = 5;
 
 use cumulus_primitives_core::ParaId;
 //use cumulus_primitives_core::relay_chain::AccountId;
@@ -152,6 +154,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	let stable_amount = 50_000 * UNITS * 1_000_000;
 	let native_amount = 936_329_588_000_000_000;
 	let dot_amount = 87_719_298_250_000_u128;
+	let eth_amount = 63_750_000_000_000_000_000u128;
+	let btc_amount = 1_000_000_000u128;
 	let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
 
 	let existential_deposit = NativeExistentialDeposit::get();
@@ -174,15 +178,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_asset_registry::GenesisConfig::<Runtime> {
-		asset_names: vec![
-			(b"LRNA".to_vec(), 1_000u128),
-			(b"DAI".to_vec(), 1_000u128),
-			(b"USDC".to_vec(), 1_000u128),
-		],
-		asset_ids: vec![
-			(b"LRNA".to_vec(), 1_000u128, LRNA),
-			(b"DAI".to_vec(), 1_000u128, DAI),
-			(b"USDC".to_vec(), 1_000u128, DOT),
+		registered_assets: vec![
+			(b"LRNA".to_vec(), 1_000u128, Some(LRNA)),
+			(b"DAI".to_vec(), 1_000u128, Some(DAI)),
+			(b"DOT".to_vec(), 1_000u128, Some(DOT)),
+			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
+			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,
@@ -203,10 +204,13 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), 2, 200 * UNITS),
 			(AccountId::from(BOB), 1, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), 1, 1_000 * UNITS),
 			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
 			(omnipool_account.clone(), DAI, stable_amount),
+			(omnipool_account.clone(), ETH, eth_amount),
+			(omnipool_account.clone(), BTC, btc_amount),
 			(omnipool_account, DOT, dot_amount),
 		],
 	}
@@ -224,6 +228,15 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
 		currencies: vec![(1, Price::from(1)), (DAI, Price::from(1))],
 		account_currencies: vec![],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
+	//add duster
+	pallet_duster::GenesisConfig::<Runtime> {
+		account_blacklist: vec![Treasury::account_id()],
+		reward_account: Some(Treasury::account_id()),
+		dust_account: Some(Treasury::account_id()),
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

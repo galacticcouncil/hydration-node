@@ -28,7 +28,7 @@ use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use hydradx_runtime::{
 	pallet_claims::EthereumAddress, AccountId, AssetRegistryConfig, AuraId, Balance, BalancesConfig, ClaimsConfig,
-	CollatorSelectionConfig, CouncilConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
+	CollatorSelectionConfig, CouncilConfig, DusterConfig, ElectionsConfig, GenesisConfig, GenesisHistoryConfig,
 	MultiTransactionPaymentConfig, ParachainInfoConfig, SessionConfig, Signature, SystemConfig,
 	TechnicalCommitteeConfig, TokensConfig, VestingConfig, UNITS, WASM_BINARY,
 };
@@ -92,13 +92,13 @@ pub fn parachain_genesis(
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	vesting_list: Vec<(AccountId, BlockNumber, BlockNumber, u32, Balance)>,
-	registered_assets: Vec<(Vec<u8>, Balance)>, // (Asset name, Existential deposit)
-	registered_ids: Vec<(Vec<u8>, Balance, AssetId)>, // (Asset name, Existential deposit, Chosen asset id)
-	accepted_assets: Vec<(AssetId, Price)>,     // (Asset id, Fallback price) - asset which fee can be paid with
+	registered_assets: Vec<(Vec<u8>, Balance, Option<AssetId>)>, // (Asset name, Existential deposit, Chosen asset id)
+	accepted_assets: Vec<(AssetId, Price)>, // (Asset id, Fallback price) - asset which fee can be paid with
 	token_balances: Vec<(AccountId, Vec<(AssetId, Balance)>)>,
 	claims_data: Vec<(EthereumAddress, Balance)>,
 	elections: Vec<(AccountId, Balance)>,
 	parachain_id: ParaId,
+	duster: DusterConfig,
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig {
@@ -142,8 +142,7 @@ pub fn parachain_genesis(
 		},
 		vesting: VestingConfig { vesting: vesting_list },
 		asset_registry: AssetRegistryConfig {
-			asset_names: registered_assets.clone(),
-			asset_ids: registered_ids,
+			registered_assets: registered_assets.clone(),
 			native_asset_name: TOKEN_SYMBOL.as_bytes().to_vec(),
 			native_existential_deposit: NATIVE_EXISTENTIAL_DEPOSIT,
 		},
@@ -177,6 +176,9 @@ pub fn parachain_genesis(
 		aura_ext: Default::default(),
 		polkadot_xcm: Default::default(),
 		ema_oracle: Default::default(),
+		duster,
+		omnipool_warehouse_lm: Default::default(),
+		omnipool_liquidity_mining: Default::default(),
 	}
 }
 

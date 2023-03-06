@@ -80,8 +80,10 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				// vestings
 				vec![],
 				// registered assets
-				vec![(b"KSM".to_vec(), 1_000u128), (b"KUSD".to_vec(), 1_000u128)],
-				vec![(b"KSM".to_vec(), 1_000u128, 1u32), (b"KUSD".to_vec(), 1_000u128, 2u32)],
+				vec![
+					(b"KSM".to_vec(), 1_000u128, Some(1)),
+					(b"KUSD".to_vec(), 1_000u128, Some(2)),
+				],
 				// accepted assets
 				vec![(1, Price::from_float(0.0000212)), (2, Price::from_float(0.000806))],
 				// token balances
@@ -105,6 +107,11 @@ pub fn parachain_config() -> Result<ChainSpec, String> {
 				],
 				// parachain ID
 				PARA_ID.into(),
+				DusterConfig {
+					account_blacklist: vec![get_account_id_from_seed::<sr25519::Public>("Duster")],
+					reward_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
+					dust_account: Some(get_account_id_from_seed::<sr25519::Public>("Duster")),
+				},
 			)
 		},
 		// Bootnodes

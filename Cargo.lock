@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.2.4"
+version = "100.4.0"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -3267,7 +3267,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.4.0"
+version = "8.5.0"
 dependencies = [
  "clap",
  "common-runtime",
@@ -3364,7 +3364,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "128.0.0"
+version = "132.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3404,12 +3404,15 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
@@ -5839,6 +5842,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-duster"
+version = "3.2.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=b67141958f31fc3af0894a22b5534a26e67f6334#b67141958f31fc3af0894a22b5534a26e67f6334"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.29#cc370aa61e15c18d23a2f686b812fd576a630afe"
@@ -6020,6 +6040,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-liquidity-mining"
+version = "3.1.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=b67141958f31fc3af0894a22b5534a26e67f6334#b67141958f31fc3af0894a22b5534a26e67f6334"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-membership"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.29#cc370aa61e15c18d23a2f686b812fd576a630afe"
@@ -6172,7 +6209,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.4.3"
+version = "1.5.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6193,6 +6230,34 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-tracing",
+]
+
+[[package]]
+name = "pallet-omnipool-liquidity-mining"
+version = "1.0.1"
+dependencies = [
+ "bitflags",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-liquidity-mining",
+ "pallet-omnipool",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitive-types 0.12.1",
+ "primitives",
+ "proptest",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -8771,7 +8836,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "0.1.10"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -8806,6 +8871,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-elections-phragmen",
  "pallet-relaychain-info",
  "pallet-scheduler",
@@ -11425,8 +11491,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-utils"
+version = "1.1.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=b67141958f31fc3af0894a22b5534a26e67f6334#b67141958f31fc3af0894a22b5534a26e67f6334"
+dependencies = [
+ "frame-system",
+ "pretty_assertions",
+]
+
+[[package]]
 name = "testing-hydradx-runtime"
-version = "128.0.0"
+version = "132.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -11466,11 +11541,14 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-elections-phragmen",
  "pallet-genesis-history",
  "pallet-identity",
+ "pallet-liquidity-mining",
  "pallet-multisig",
  "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
