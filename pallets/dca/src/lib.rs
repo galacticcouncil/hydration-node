@@ -456,7 +456,7 @@ where
 	fn ensure_that_total_amount_is_bigger_than_storage_bond(
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
-		let min_total_amount = if Self::sold_currency(&schedule.order) == T::NativeAssetId::get() {
+		let min_total_amount = if Self::get_sold_currency(&schedule.order) == T::NativeAssetId::get() {
 			T::StorageBondInNativeCurrency::get()
 		} else {
 			Self::get_storage_bond_in_sold_currency(&schedule.order)?
@@ -515,7 +515,7 @@ where
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
 		let dca_reserve_identifier = &reserve_identifier(schedule_id);
-		let sold_currency = Self::sold_currency(&schedule.order);
+		let sold_currency = Self::get_sold_currency(&schedule.order);
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
 
 		let remaining_named_reserve_balance =
@@ -584,7 +584,7 @@ where
 	}
 
 	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
-		let sold_currency = Self::sold_currency(order);
+		let sold_currency = Self::get_sold_currency(order);
 		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
 
 		let storage_bond_in_user_currency =
@@ -602,7 +602,7 @@ where
 	}
 
 	fn take_transaction_fee_from_user(owner: &T::AccountId, order: &Order<<T as Config>::Asset>) -> DispatchResult {
-		let fee_currency = Self::sold_currency(order);
+		let fee_currency = Self::get_sold_currency(order);
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee(fee_currency)?;
 
@@ -619,13 +619,13 @@ where
 	fn unreserve_all_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
 		let named_reserve_identitifer = reserve_identifier(schedule_id);
-		let sold_currency = Self::sold_currency(&schedule.order);
+		let sold_currency = Self::get_sold_currency(&schedule.order);
 		T::Currency::unreserve_all_named(&named_reserve_identitifer, sold_currency.into(), who);
 
 		Ok(())
 	}
 
-	fn sold_currency(order: &Order<T::Asset>) -> <T as Config>::Asset {
+	fn get_sold_currency(order: &Order<T::Asset>) -> <T as Config>::Asset {
 		let sold_currency = match order {
 			Order::Sell { asset_in, .. } => asset_in,
 			Order::Buy { asset_in, .. } => asset_in,
