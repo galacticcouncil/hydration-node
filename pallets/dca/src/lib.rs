@@ -394,7 +394,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Terminate a DCA schedule with completely removing it from the chain.
+		/// Terminate a DCA schedule and remove it completely from the chain.
 		/// The next execution block number should be specified in case of active schedule.
 		/// To terminate a suspended schedule, the next execution block number should not be specified.
 		///
