@@ -315,7 +315,7 @@ parameter_types! {
 // pallet asset registry
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
-	pub const SequentialIdOffset: u32 = 1_000_000;
+	pub const SequentialIdStartAt: u32 = 1_000_000;
 }
 
 // pallet duster

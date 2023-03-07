@@ -719,10 +719,6 @@ impl Default for AssetLocation {
 	}
 }
 
-parameter_types! {
-	pub const SequentialIdStartAt: u32 = 1_000_000;
-}
-
 impl pallet_asset_registry::Config for Runtime {
 	type Event = Event;
 	type RegistryOrigin = SuperMajorityTechCommittee;
