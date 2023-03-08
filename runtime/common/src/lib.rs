@@ -230,6 +230,7 @@ parameter_types! {
 	pub const VotingPeriod: BlockNumber = 3 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const MinimumDeposit: Balance = 1000 * DOLLARS;
+	pub const EnactmentPeriod: BlockNumber = 24 * HOURS;
 	// Make sure VoteLockingPeriod > EnactmentPeriod
 	pub const VoteLockingPeriod: BlockNumber = 6 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
@@ -336,4 +337,16 @@ parameter_types! {
 parameter_types! {
 	pub const OmniLMPalletId: PalletId = PalletId(*b"Omni//LM");
 	pub const OmnipoolLMCollectionId: CollectionId = 2584_u128;
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn democracy_periods() {
+		// Make sure VoteLockingPeriod > EnactmentPeriod
+		assert!(VoteLockingPeriod::get() > EnactmentPeriod::get());
+
+	}
 }
