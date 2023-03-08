@@ -347,6 +347,5 @@ mod tests {
 	fn democracy_periods() {
 		// Make sure VoteLockingPeriod > EnactmentPeriod
 		assert!(VoteLockingPeriod::get() > EnactmentPeriod::get());
-
 	}
 }
