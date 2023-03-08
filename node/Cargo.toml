@@ -23,9 +23,9 @@ hex-literal = "0.3.4"
 jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
 log = "0.4.17"
 serde = { version = "1.0.136", features = ["derive"] }
-serde_json = "1.0.82"
+serde_json = "1.0.85"
 clap = { version = "4.1.8", features = [ "derive" ] }
-futures = "0.3.15"
+futures = "0.3.21"
 
 # local dependencies
 common-runtime = { path = "../runtime/common" }
