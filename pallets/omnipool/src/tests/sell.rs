@@ -26,7 +26,13 @@ fn simple_sell_works() {
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP1),
+				100,
+				200,
+				sell_amount,
+				min_limit
+			));
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 550000000000000);
 			assert_eq!(Tokens::free_balance(200, &LP1), 47808764940238);
@@ -207,7 +213,11 @@ fn sell_hub_works() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP3),
@@ -392,7 +402,13 @@ fn simple_sell_with_fee_works() {
 			let expected_zero_fee = 47_619_047_619_047u128;
 			let expected_10_percent_fee = fee.mul_floor(expected_zero_fee);
 
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), 100, 200, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP1),
+				100,
+				200,
+				sell_amount,
+				min_limit
+			));
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 950_000_000_000_000);
 			assert_eq!(Tokens::free_balance(200, &LP1), expected_10_percent_fee);
@@ -487,7 +503,13 @@ fn sell_should_work_when_trading_native_asset() {
 			let sell_amount = 50 * ONE;
 			let min_limit = 10 * ONE;
 
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP1), HDX, 200, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP1),
+				HDX,
+				200,
+				sell_amount,
+				min_limit
+			));
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 950000000000000);
 			assert_eq!(Tokens::free_balance(200, &LP1), 53_471_964_352_023);
@@ -557,7 +579,11 @@ fn sell_imbalance() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP3),

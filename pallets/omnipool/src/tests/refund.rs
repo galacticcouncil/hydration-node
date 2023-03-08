@@ -46,7 +46,12 @@ fn refund_refused_asset_should_work_when_refund_partial_amount() {
 			let pool_asset_balance = Tokens::free_balance(asset_id, &Omnipool::protocol_account());
 
 			// Act
-			assert_ok!(Omnipool::refund_refused_asset(RuntimeOrigin::root(), asset_id, 500 * ONE, LP1));
+			assert_ok!(Omnipool::refund_refused_asset(
+				RuntimeOrigin::root(),
+				asset_id,
+				500 * ONE,
+				LP1
+			));
 
 			// Assert
 			assert_eq!(Tokens::free_balance(asset_id, &LP1), lp1_asset_balance + 500 * ONE);

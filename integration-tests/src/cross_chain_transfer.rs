@@ -9,7 +9,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use hex_literal::hex;
 use orml_traits::currency::MultiCurrency;
-use polkadot_xcm::{VersionedMultiAssets, v2::WeightLimit};
+use polkadot_xcm::{v2::WeightLimit, VersionedMultiAssets};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};

@@ -129,7 +129,12 @@ fn fee_currency_on_account_lifecycle() {
 fn fee_currency_should_not_change_when_account_holds_native_currency_already() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
-		assert_ok!(Balances::set_balance(RuntimeOrigin::root(), HITCHHIKER.into(), UNITS, 0,));
+		assert_ok!(Balances::set_balance(
+			RuntimeOrigin::root(),
+			HITCHHIKER.into(),
+			UNITS,
+			0,
+		));
 
 		assert_ok!(Currencies::transfer(
 			RuntimeOrigin::signed(ALICE.into()),

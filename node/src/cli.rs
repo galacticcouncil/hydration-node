@@ -1,5 +1,5 @@
 use crate::chain_spec;
-use clap::{Parser, builder::PossibleValue};
+use clap::{builder::PossibleValue, Parser};
 use std::fmt;
 use std::path::PathBuf;
 
@@ -58,9 +58,9 @@ impl Default for RuntimeInstance {
 
 #[derive(Debug, Parser)]
 #[clap(
-propagate_version = true,
-args_conflicts_with_subcommands = true,
-subcommand_negates_reqs = true
+	propagate_version = true,
+	args_conflicts_with_subcommands = true,
+	subcommand_negates_reqs = true
 )]
 pub struct RunCmd {
 	#[clap(flatten)]

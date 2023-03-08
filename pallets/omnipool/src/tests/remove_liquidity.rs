@@ -213,7 +213,13 @@ fn lp_receives_lrna_when_price_is_higher() {
 
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
-			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP2), 1_000, DAI, 200 * ONE, 500000 * ONE));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP2),
+				1_000,
+				DAI,
+				200 * ONE,
+				500000 * ONE
+			));
 
 			assert_balance!(Omnipool::protocol_account(), 1000, 300 * ONE);
 			let expected_state = AssetReserveState {
@@ -275,7 +281,13 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			};
 			assert_asset_state!(asset_a, expected_state);
 
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP2), asset_a, HDX, 100 * ONE, 10 * ONE));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP2),
+				asset_a,
+				HDX,
+				100 * ONE,
+				10 * ONE
+			));
 
 			// ACT
 			assert_ok!(Omnipool::remove_liquidity(

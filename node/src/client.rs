@@ -146,7 +146,10 @@ impl sc_client_api::UsageProvider<Block> for Client {
 }
 
 impl sc_client_api::BlockBackend<Block> for Client {
-	fn block_body(&self, hash: <Block as BlockT>::Hash) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
+	fn block_body(
+		&self,
+		hash: <Block as BlockT>::Hash,
+	) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
 		match self {
 			Self::HydraDX(client) => client.block_body(hash),
 			Self::TestingHydraDX(client) => client.block_body(hash),
@@ -211,7 +214,11 @@ impl sc_client_api::StorageProvider<Block, FullBackend> for Client {
 		}
 	}
 
-	fn storage_keys(&self, hash: <Block as BlockT>::Hash, key_prefix: &StorageKey) -> sp_blockchain::Result<Vec<StorageKey>> {
+	fn storage_keys(
+		&self,
+		hash: <Block as BlockT>::Hash,
+		key_prefix: &StorageKey,
+	) -> sp_blockchain::Result<Vec<StorageKey>> {
 		match self {
 			Self::HydraDX(client) => client.storage_keys(hash, key_prefix),
 			Self::TestingHydraDX(client) => client.storage_keys(hash, key_prefix),

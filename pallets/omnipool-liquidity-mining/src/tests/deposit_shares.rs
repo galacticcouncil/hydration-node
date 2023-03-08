@@ -234,7 +234,12 @@ fn deposit_shares_should_fail_when_origin_is_none() {
 
 			//Act & assert
 			assert_noop!(
-				OmnipoolMining::deposit_shares(RuntimeOrigin::none(), global_farm_id, yield_farm_id, omnipool_position_id),
+				OmnipoolMining::deposit_shares(
+					RuntimeOrigin::none(),
+					global_farm_id,
+					yield_farm_id,
+					omnipool_position_id
+				),
 				BadOrigin
 			);
 		});

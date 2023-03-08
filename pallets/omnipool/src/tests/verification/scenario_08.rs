@@ -24,7 +24,11 @@ fn complex_scenario_works() {
 		.execute_with(|| {
 			assert_hub_asset!();
 
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_hub_asset!();
 
@@ -44,7 +48,11 @@ fn complex_scenario_works() {
 				10000000000000
 			));
 
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP3), 200, 200000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP3),
+				200,
+				200000000000000
+			));
 
 			assert_ok!(Omnipool::buy(
 				RuntimeOrigin::signed(LP3),
@@ -56,7 +64,11 @@ fn complex_scenario_works() {
 
 			assert_hub_asset!();
 
-			assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(LP3), 3, 200000000000000));
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP3),
+				3,
+				200000000000000
+			));
 
 			assert_hub_asset!();
 

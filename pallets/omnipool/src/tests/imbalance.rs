@@ -22,7 +22,11 @@ fn imbalance_should_update_correctly() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_pool_state!(
 				13360000000000000,
@@ -62,7 +66,11 @@ fn imbalance_should_update_correctly() {
 
 			let position_id = <NextPositionId<Test>>::get();
 			let old_imbalance = HubAssetImbalance::<Test>::get();
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 			let updated_imbalance = HubAssetImbalance::<Test>::get();
 
 			// After add additional liquidity , imbalance should increase ( more negative )
@@ -82,7 +90,13 @@ fn imbalance_should_update_correctly() {
 
 			let q = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 			let old_imbalance = HubAssetImbalance::<Test>::get();
-			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP3), 200, 100, 1000000000000, u128::MAX,));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP3),
+				200,
+				100,
+				1000000000000,
+				u128::MAX,
+			));
 			let updated_imbalance = HubAssetImbalance::<Test>::get();
 			let q_plus = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
 
@@ -115,7 +129,11 @@ fn imbalance_should_approach_zero_when_enough_trades_are_executed() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_pool_state!(
 				13360000000000000,
@@ -136,8 +154,20 @@ fn imbalance_should_approach_zero_when_enough_trades_are_executed() {
 			loop {
 				let old_imbalance = HubAssetImbalance::<Test>::get();
 
-				assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP3), 200, 100, 1000000000000, u128::MAX,));
-				assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), 200, 100, 1000000000000, 0u128,));
+				assert_ok!(Omnipool::buy(
+					RuntimeOrigin::signed(LP3),
+					200,
+					100,
+					1000000000000,
+					u128::MAX,
+				));
+				assert_ok!(Omnipool::sell(
+					RuntimeOrigin::signed(LP3),
+					200,
+					100,
+					1000000000000,
+					0u128,
+				));
 
 				let updated_imbalance = HubAssetImbalance::<Test>::get();
 
@@ -150,10 +180,26 @@ fn imbalance_should_approach_zero_when_enough_trades_are_executed() {
 
 			// Operations should work correctly after that
 
-			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP3), 200, 100, 1000000000000, u128::MAX,));
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(LP3), 200, 100, 1000000000000, 0u128,));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP3),
+				200,
+				100,
+				1000000000000,
+				u128::MAX,
+			));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP3),
+				200,
+				100,
+				1000000000000,
+				0u128,
+			));
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 			let position = Positions::<Test>::get(position_id).unwrap();
 			assert_ok!(Omnipool::remove_liquidity(
 				RuntimeOrigin::signed(LP2),

@@ -176,7 +176,13 @@ fn resume_yield_farm_should_fail_when_origin_is_none() {
 
 			//Act & assert
 			assert_noop!(
-				OmnipoolMining::resume_yield_farm(RuntimeOrigin::none(), global_farm_id, yield_farm_id, asset, new_multiplier),
+				OmnipoolMining::resume_yield_farm(
+					RuntimeOrigin::none(),
+					global_farm_id,
+					yield_farm_id,
+					asset,
+					new_multiplier
+				),
 				BadOrigin
 			);
 		});

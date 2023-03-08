@@ -68,7 +68,13 @@ fn add_token_with_zero_price_fails() {
 			let token_price = FixedU128::from(0);
 
 			assert_noop!(
-				Omnipool::add_token(RuntimeOrigin::root(), 1_000, token_price, Permill::from_percent(100), LP1),
+				Omnipool::add_token(
+					RuntimeOrigin::root(),
+					1_000,
+					token_price,
+					Permill::from_percent(100),
+					LP1
+				),
 				Error::<Test>::InvalidInitialAssetPrice
 			);
 		});

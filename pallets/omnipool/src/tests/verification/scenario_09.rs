@@ -24,7 +24,11 @@ fn sell_fee_test() {
 		.with_token(200, FixedU128::from_float(1.1), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_ok!(Omnipool::sell(
 				RuntimeOrigin::signed(LP3),

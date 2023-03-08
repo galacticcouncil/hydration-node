@@ -27,7 +27,13 @@ fn simple_buy_works() {
 			let max_limit = 100 * ONE;
 
 			// Act
-			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP1), 200, 100, buy_amount, max_limit));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				200,
+				100,
+				buy_amount,
+				max_limit
+			));
 
 			// Assert
 			assert_eq!(Tokens::free_balance(100, &LP1), 547598253275108);
@@ -250,7 +256,11 @@ fn buy_for_hub_asset_works() {
 		.with_token(200, FixedU128::from_float(0.65), LP1, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP2), 100, 400000000000000));
+			assert_ok!(Omnipool::add_liquidity(
+				RuntimeOrigin::signed(LP2),
+				100,
+				400000000000000
+			));
 
 			assert_ok!(Omnipool::buy(
 				RuntimeOrigin::signed(LP3),
@@ -365,7 +375,13 @@ fn simple_buy_with_fee_works() {
 
 			let expect_sold_amount = expected_10_percent_fee;
 
-			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP1), 200, 100, buy_amount, max_limit));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				200,
+				100,
+				buy_amount,
+				max_limit
+			));
 
 			assert_eq!(Tokens::free_balance(100, &LP1), 1000 * ONE - expect_sold_amount);
 
@@ -429,7 +445,13 @@ fn buy_for_hub_asset_should_fail_when_asset_out_is_not_allowed_to_sell() {
 			));
 
 			assert_noop!(
-				Omnipool::buy(RuntimeOrigin::signed(LP3), 200, 1, 50_000_000_000_000, 50_000_000_000_000),
+				Omnipool::buy(
+					RuntimeOrigin::signed(LP3),
+					200,
+					1,
+					50_000_000_000_000,
+					50_000_000_000_000
+				),
 				Error::<Test>::NotAllowed
 			);
 		});
@@ -455,7 +477,13 @@ fn buy_for_hub_asset_should_fail_when_limit_exceeds() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::buy(RuntimeOrigin::signed(LP3), 200, 1, 20_000_000_000_000, 30_000_000_000_000),
+				Omnipool::buy(
+					RuntimeOrigin::signed(LP3),
+					200,
+					1,
+					20_000_000_000_000,
+					30_000_000_000_000
+				),
 				Error::<Test>::SellLimitExceeded
 			);
 		});
@@ -481,7 +509,13 @@ fn buy_should_fail_when_trading_same_asset() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::buy(RuntimeOrigin::signed(LP3), 200, 200, 50_000_000_000_000, 100_000_000_000),
+				Omnipool::buy(
+					RuntimeOrigin::signed(LP3),
+					200,
+					200,
+					50_000_000_000_000,
+					100_000_000_000
+				),
 				Error::<Test>::SameAssetTradeNotAllowed
 			);
 		});
@@ -513,7 +547,13 @@ fn buy_should_work_when_trading_native_asset() {
 			let buy_amount = 50 * ONE;
 			let max_limit = 100 * ONE;
 
-			assert_ok!(Omnipool::buy(RuntimeOrigin::signed(LP1), 200, HDX, buy_amount, max_limit));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP1),
+				200,
+				HDX,
+				buy_amount,
+				max_limit
+			));
 
 			assert_eq!(Tokens::free_balance(HDX, &LP1), 953354861858628);
 			assert_eq!(Tokens::free_balance(200, &LP1), buy_amount);
