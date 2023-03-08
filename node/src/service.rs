@@ -50,7 +50,7 @@ type Hash = sp_core::H256;
 
 // native executor instance.
 pub struct HydraDXExecutorDispatch;
-impl sc_executor::NativeExecutionDispatch for HydraDXExecutorDispatch {
+impl NativeExecutionDispatch for HydraDXExecutorDispatch {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
@@ -64,7 +64,7 @@ impl sc_executor::NativeExecutionDispatch for HydraDXExecutorDispatch {
 
 // native testing executor instance.
 pub struct TestingHydraDXExecutorDispatch;
-impl sc_executor::NativeExecutionDispatch for TestingHydraDXExecutorDispatch {
+impl NativeExecutionDispatch for TestingHydraDXExecutorDispatch {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
