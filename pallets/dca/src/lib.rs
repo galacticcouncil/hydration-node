@@ -48,7 +48,6 @@ use orml_traits::NamedMultiReservableCurrency;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::BlakeTwo256, traits::Hash};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
@@ -86,7 +85,7 @@ pub mod pallet {
 	use frame_support::weights::WeightToFee;
 
 	use frame_system::pallet_prelude::OriginFor;
-	use orml_traits::{MultiReservableCurrency, NamedMultiReservableCurrency};
+	use orml_traits::NamedMultiReservableCurrency;
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
@@ -649,7 +648,7 @@ where
 		T::Currency::reserve_named(
 			&NAMED_RESERVE_ID,
 			currency_for_reserve.into(),
-			&who,
+			who,
 			schedule.total_amount.into(),
 		)?;
 
