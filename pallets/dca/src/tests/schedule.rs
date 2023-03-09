@@ -15,10 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::assert_scheduled_ids;
-use crate::reserve_identifier;
 use crate::tests::mock::*;
 use crate::tests::{empty_vec, ScheduleBuilder};
+use crate::{assert_scheduled_ids, NAMED_RESERVE_ID};
 use crate::{Error, Event, Order, ScheduleId};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -54,14 +53,89 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let schedule_id = 1;
-
-			let named_reserve_id = reserve_identifier(schedule_id);
-
 			assert_eq!(
 				total_amount,
-				Currencies::reserved_balance_named(&named_reserve_id, HDX, &ALICE)
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE)
 			);
+		});
+}
+
+#[test]
+fn schedule_should_store_total_amounts_in_storage() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			let schedule_id = 1;
+			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
+		});
+}
+
+#[test]
+fn schedule_should_compound_named_reserve_for_multiple_schedules() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			let total_amount_2 = 200 * ONE;
+			let schedule_2 = ScheduleBuilder::new()
+				.with_total_amount(total_amount_2)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: Balance::MAX,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
+
+			//Assert
+			assert_eq!(
+				total_amount + total_amount_2,
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE)
+			);
+			let schedule_id = 1;
+			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
+
+			let schedule_id_2 = 2;
+			assert_eq!(DCA::remaining_amounts(schedule_id_2).unwrap(), total_amount_2);
 		});
 }
 

@@ -60,7 +60,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
 		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
-		create_schedule(schedule1);
+		create_schedule(ALICE, schedule1);
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -98,8 +98,8 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
 		let amount_to_sell = 10 * UNITS;
-		let schedule1 = schedule_fake_with_sell_order(HDX, DAI, amount_to_sell);
-		create_schedule(schedule1);
+		let schedule1 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -129,7 +129,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		let dca_budget = 110 * UNITS;
 		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
-		create_schedule(schedule1);
+		create_schedule(ALICE, schedule1);
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -170,8 +170,8 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
 		let amount_to_sell = 10 * UNITS;
-		let schedule1 = schedule_fake_with_sell_order(HDX, DAI, amount_to_sell);
-		create_schedule(schedule1);
+		let schedule1 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -196,25 +196,77 @@ fn full_sell_dca_should_be_executed_then_completed() {
 }
 
 #[test]
+fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipol();
+
+		let dca_budget = 110 * UNITS;
+		let dca_budget_for_bob = 130 * UNITS;
+
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+		let amount_to_sell = 10 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, amount_to_sell);
+		let schedule2 = schedule_fake_with_sell_order(BOB, dca_budget_for_bob, HDX, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
+		create_schedule(BOB, schedule2);
+
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - dca_budget_for_bob);
+		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+		assert_reserved_balance!(&BOB.into(), HDX, dca_budget_for_bob);
+
+		//Act
+		hydra_run_to_block(500);
+
+		//Assert
+		let amount_out = 57744324281394;
+
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
+
+		let amount_out = 68241399276202;
+
+		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
+		assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - dca_budget_for_bob);
+		assert_reserved_balance!(&BOB.into(), HDX, 0);
+
+		let fee = 63056052283896;
+		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
+
+		let schedule = hydradx_runtime::DCA::schedules(1);
+		assert!(schedule.is_none());
+
+		let schedule = hydradx_runtime::DCA::schedules(2);
+		assert!(schedule.is_none());
+	});
+}
+
+#[test]
 fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipol();
 
-		let schedule1 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule2 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule3 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule4 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule5 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule6 = schedule_fake_with_sell_order(HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule1 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule2 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule3 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule4 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule5 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule6 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
 
-		create_schedule(schedule1);
-		create_schedule(schedule2);
-		create_schedule(schedule3);
-		create_schedule(schedule4);
-		create_schedule(schedule5);
-		create_schedule(schedule6);
+		create_schedule(ALICE, schedule1);
+		create_schedule(ALICE, schedule2);
+		create_schedule(ALICE, schedule3);
+		create_schedule(ALICE, schedule4);
+		create_schedule(ALICE, schedule5);
+		create_schedule(ALICE, schedule6);
 
 		//Act
 		hydra_run_to_block(5);
@@ -289,9 +341,9 @@ fn calculate_storage_bond() {
 	let _ = primitives::constants::currency::bytes_to_balance(storage_bond_size as u32);
 }
 
-fn create_schedule(schedule1: Schedule<AccountId, AssetId, u32>) {
+fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(hydradx_runtime::DCA::schedule(
-		hydradx_runtime::Origin::signed(ALICE.into()),
+		hydradx_runtime::Origin::signed(owner.into()),
 		schedule1,
 		None
 	));
@@ -318,14 +370,16 @@ fn schedule_fake_with_buy_order(
 }
 
 fn schedule_fake_with_sell_order(
+	owner: [u8; 32],
+	total_amount: Balance,
 	asset_in: AssetId,
 	asset_out: AssetId,
 	amount: Balance,
 ) -> Schedule<AccountId, AssetId, u32> {
 	Schedule {
-		owner: AccountId::from(ALICE),
+		owner: AccountId::from(owner),
 		period: 3u32,
-		total_amount: 110 * UNITS,
+		total_amount,
 		order: Order::Sell {
 			asset_in,
 			asset_out,

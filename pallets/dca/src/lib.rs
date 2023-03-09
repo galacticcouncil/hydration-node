@@ -77,6 +77,8 @@ type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 type NamedReserveIdentifier = [u8; 8];
 
+pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"dcaorder";
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -248,10 +250,15 @@ pub mod pallet {
 	#[pallet::getter(fn suspended)]
 	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
 
-	/// Keep tracking the remaining recurrences of fixed DCA schedules
+	/// Keep tracking the remaining recurrences for DCA schedules
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
 	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
+
+	/// Keep tracking the remaining amounts to spend for DCA schedules
+	#[pallet::storage]
+	#[pallet::getter(fn remaining_amounts)]
+	pub type RemainingAmounts<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Balance, OptionQuery>;
 
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
@@ -297,22 +304,13 @@ pub mod pallet {
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(),next_schedule_id,());
+			RemainingAmounts::<T>::insert(next_schedule_id,schedule.total_amount);
+
+			Self::reserve_named_reserve(&schedule, &who)?;
 
 			let blocknumber_for_first_schedule_execution =
 				start_execution_block.unwrap_or_else(|| Self::get_next_block_number());
 			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id)?;
-
-			let currency_for_reserve = match schedule.order {
-				Order::Buy { asset_in, .. } => asset_in,
-				Order::Sell { asset_in, .. } => asset_in,
-			};
-			
-			T::Currency::reserve_named(
-				&reserve_identifier(next_schedule_id),
-				currency_for_reserve.into(),
-				&who,
-				schedule.total_amount.into(),
-			)?;
 
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
@@ -496,7 +494,9 @@ where
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
 		match schedule.order {
-			Order::Sell { asset_in, amount_in, .. } => {
+			Order::Sell {
+				asset_in, amount_in, ..
+			} => {
 				let transaction_fee = Self::get_transaction_fee(asset_in)?;
 				ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 			}
@@ -504,7 +504,6 @@ where
 				//For buy we don't check as the calculated amount in will always include the fee
 			}
 		}
-
 
 		Ok(())
 	}
@@ -515,21 +514,21 @@ where
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
-		let dca_reserve_identifier = &reserve_identifier(schedule_id);
 		let sold_currency = Self::get_sold_currency(&schedule.order);
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
 
-		let remaining_named_reserve_balance =
-			T::Currency::reserved_balance_named(dca_reserve_identifier, sold_currency.into(), &schedule.owner);
+		let remaining_amount_to_use = exec_or_return_if_none!(RemainingAmounts::<T>::get(schedule_id));
 
 		T::Currency::unreserve_named(
-			dca_reserve_identifier,
+			&NAMED_RESERVE_ID,
 			sold_currency.into(),
 			&schedule.owner,
 			amount_to_unreserve.into(),
 		);
 
-		if remaining_named_reserve_balance < amount_to_unreserve.into() {
+		exec_or_return_if_err!(Self::decrease_remaining_amount(schedule_id, amount_to_unreserve));
+
+		if remaining_amount_to_use < amount_to_unreserve {
 			Self::complete_dca(&schedule.owner, schedule_id);
 			return;
 		}
@@ -565,6 +564,27 @@ where
 				Ok(amount_to_sell_for_buy)
 			}
 		}
+	}
+
+	fn decrease_remaining_amount(schedule_id: ScheduleId, amount_to_unreserve: Balance) -> DispatchResult {
+		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
+			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::ScheduleNotExist)?;
+
+			if amount_to_unreserve > *remaining_amount {
+				*maybe_remaining_amount = None;
+				return Ok(());
+			}
+
+			let new_amount = remaining_amount
+				.checked_sub(amount_to_unreserve)
+				.ok_or(ArithmeticError::Underflow)?;
+
+			*remaining_amount = new_amount;
+
+			Ok(())
+		})?;
+
+		Ok(())
 	}
 
 	fn calculate_sell_amount_for_buy(
@@ -617,11 +637,29 @@ where
 		Ok(())
 	}
 
+	fn reserve_named_reserve(
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+		who: &T::AccountId,
+	) -> DispatchResult {
+		let currency_for_reserve = match schedule.order {
+			Order::Buy { asset_in, .. } => asset_in,
+			Order::Sell { asset_in, .. } => asset_in,
+		};
+
+		T::Currency::reserve_named(
+			&NAMED_RESERVE_ID,
+			currency_for_reserve.into(),
+			&who,
+			schedule.total_amount.into(),
+		)?;
+
+		Ok(())
+	}
+
 	fn unreserve_all_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-		let named_reserve_identitifer = reserve_identifier(schedule_id);
 		let sold_currency = Self::get_sold_currency(&schedule.order);
-		T::Currency::unreserve_all_named(&named_reserve_identitifer, sold_currency.into(), who);
+		T::Currency::unreserve_all_named(&NAMED_RESERVE_ID, sold_currency.into(), who);
 
 		Ok(())
 	}
@@ -855,6 +893,7 @@ where
 		Suspended::<T>::remove(schedule_id);
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingRecurrences::<T>::remove(schedule_id);
+		RemainingAmounts::<T>::remove(schedule_id);
 	}
 
 	fn remove_planning_or_suspension(
@@ -889,21 +928,6 @@ where
 			who: owner.clone(),
 		});
 	}
-}
-
-pub fn reserve_identifier(schedule: u32) -> [u8; 8] {
-	let prefix = b"dca";
-	let mut result = [0; 8];
-	result[0..3].copy_from_slice(prefix);
-	result[3..7].copy_from_slice(&schedule.to_be_bytes());
-	hash_result(result)
-}
-
-fn hash_result(result: [u8; 8]) -> [u8; 8] {
-	let hashed = BlakeTwo256::hash(&result);
-	let mut hashed_array = [0; 8];
-	hashed_array.copy_from_slice(&hashed.as_ref()[..8]);
-	hashed_array
 }
 
 pub trait RandomnessProvider {

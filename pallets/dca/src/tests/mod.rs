@@ -40,6 +40,11 @@ impl ScheduleBuilder {
 		}
 	}
 
+	fn with_owner(mut self, owner: AccountId) -> ScheduleBuilder {
+		self.owner = Some(owner);
+		self
+	}
+
 	fn with_period(mut self, period: BlockNumber) -> ScheduleBuilder {
 		self.period = Some(period);
 		self
@@ -94,5 +99,6 @@ macro_rules! assert_that_schedule_has_been_removed_from_storages {
 		assert!(DCA::schedules($schedule_id).is_none());
 		assert!(DCA::suspended($schedule_id).is_none());
 		assert!(DCA::owner_of($owner, $schedule_id).is_none());
+		assert!(DCA::remaining_amounts($schedule_id).is_none());
 	};
 }

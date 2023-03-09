@@ -206,6 +206,109 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 }
 
 #[test]
+fn full_sell_dca_should_be_completed_for_multiple_users() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 16 * ONE;
+			let amount_to_sell = 5 * ONE;
+
+			let schedule_for_alice = ScheduleBuilder::new()
+				.with_owner(ALICE)
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			let schedule_for_bob = ScheduleBuilder::new()
+				.with_owner(BOB)
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_for_alice, Option::None));
+			assert_ok!(DCA::schedule(Origin::signed(BOB), schedule_for_bob, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &BOB));
+
+			//Act
+			proceed_to_blocknumber(501, 801);
+
+			//Assert
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+			assert_eq!(0, Currencies::reserved_balance(HDX, &BOB));
+
+			assert_number_of_executed_sell_trades!(6);
+
+			let schedule_id = 1;
+			let schedule_id_2 = 2;
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+			assert_that_schedule_has_been_removed_from_storages!(BOB, schedule_id_2);
+		});
+}
+
+#[test]
+fn multiple_sell_dca_should_be_completed_for_one_user() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (BOB, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 16 * ONE;
+			let amount_to_sell = 5 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_owner(ALICE)
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule.clone(), Option::None));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount + total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			proceed_to_blocknumber(501, 801);
+
+			//Assert
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+
+			assert_number_of_executed_sell_trades!(6);
+
+			let schedule_id = 1;
+			let schedule_id_2 = 2;
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id_2);
+		});
+}
+
+#[test]
 fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_trades() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -723,7 +826,7 @@ fn assert_that_dca_is_completed(owner: AccountId, schedule_id: ScheduleId) {
 
 	expect_events(vec![Event::Completed {
 		id: schedule_id,
-		who: ALICE,
+		who: owner,
 	}
 	.into()]);
 }

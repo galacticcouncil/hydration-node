@@ -17,7 +17,7 @@
 
 use crate::tests::mock::*;
 use crate::tests::*;
-use crate::{assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages, reserve_identifier};
+use crate::{assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages, NAMED_RESERVE_ID};
 use crate::{Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use orml_traits::NamedMultiReservableCurrency;
@@ -60,17 +60,16 @@ fn terminate_should_unreserve_all_named_reserved() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
 
 			let schedule_id = 1;
-			let named_reserve_id = reserve_identifier(schedule_id);
 			assert_eq!(
 				total_amount,
-				Currencies::reserved_balance_named(&named_reserve_id, HDX, &ALICE)
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE)
 			);
 
 			//Act
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
-			assert_eq!(0, Currencies::reserved_balance_named(&named_reserve_id, HDX, &ALICE));
+			assert_eq!(0, Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE));
 		});
 }
 
