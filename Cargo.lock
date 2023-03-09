@@ -3364,7 +3364,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "132.0.0"
+version = "133.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6209,7 +6209,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.5.1"
+version = "1.6.0"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6234,7 +6234,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -11501,7 +11501,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "132.0.0"
+version = "133.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
