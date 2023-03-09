@@ -1,4 +1,5 @@
 use crate::types::AssetReserveState;
+use frame_support::weights::Weight;
 use hydra_dx_math::omnipool::types::AssetStateChange;
 use sp_runtime::DispatchError;
 
@@ -36,11 +37,14 @@ where
 	Balance: Default + Clone,
 {
 	type Error;
-	fn on_liquidity_changed(asset: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error>;
+	fn on_liquidity_changed(asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error>;
 	fn on_trade(
 		asset_in: AssetInfo<AssetId, Balance>,
 		asset_out: AssetInfo<AssetId, Balance>,
-	) -> Result<(), Self::Error>;
+	) -> Result<Weight, Self::Error>;
+
+	fn on_liquidity_changed_weight() -> Weight;
+	fn on_trade_weight() -> Weight;
 }
 
 impl<AssetId, Balance> OmnipoolHooks<AssetId, Balance> for ()
@@ -49,11 +53,19 @@ where
 {
 	type Error = DispatchError;
 
-	fn on_liquidity_changed(_: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error> {
-		Ok(())
+	fn on_liquidity_changed(_: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
 	}
 
-	fn on_trade(_: AssetInfo<AssetId, Balance>, _: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error> {
-		Ok(())
+	fn on_trade(_: AssetInfo<AssetId, Balance>, _: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_liquidity_changed_weight() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_trade_weight() -> Weight {
+		Weight::zero()
 	}
 }

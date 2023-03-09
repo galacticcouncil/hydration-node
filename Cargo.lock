@@ -8873,6 +8873,7 @@ dependencies = [
  "pallet-democracy",
  "pallet-duster",
  "pallet-elections-phragmen",
+ "pallet-ema-oracle",
  "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
