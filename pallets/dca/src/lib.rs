@@ -214,8 +214,6 @@ pub mod pallet {
 		///There is not planned execution on the given block
 		NoPlannedExecutionFoundOnBlock,
 		///Schedule execution is not planned on block
-		ScheduleExecutionNotPlannedOnBlock,
-		///The schedule must be suspended when there is not execution block specified by the using during termination of a schedule
 		ScheduleMustBeSuspended,
 		///Error occurred when calculating spot price
 		CalculatingSpotPriceError,
@@ -849,7 +847,7 @@ where
 			let index = schedule_ids
 				.iter()
 				.position(|x| *x == schedule_id)
-				.ok_or(Error::<T>::ScheduleExecutionNotPlannedOnBlock)?;
+				.ok_or(Error::<T>::NoPlannedExecutionFoundOnBlock)?;
 
 			schedule_ids.remove(index);
 
@@ -906,7 +904,7 @@ where
 
 				ensure!(
 					schedule_ids_on_block.contains(&schedule_id),
-					Error::<T>::ScheduleExecutionNotPlannedOnBlock,
+					Error::<T>::NoPlannedExecutionFoundOnBlock,
 				);
 
 				Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
