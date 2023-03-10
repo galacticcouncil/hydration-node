@@ -27,7 +27,7 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 	}
 }
 
-use hydradx_runtime::OMNIPOOL_SOURCE;
+use common_runtime::adapters::OMNIPOOL_SOURCE;
 
 #[test]
 fn omnipool_trades_are_ingested_into_oracle() {

@@ -10,6 +10,7 @@ repository = "https://github.com/galacticcouncil/Basilisk-node"
 
 [dependencies]
 primitives = { default-features = false, path = "../primitives" }
+common-runtime = { path = "../runtime/common" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 
 # HydraDX dependencies

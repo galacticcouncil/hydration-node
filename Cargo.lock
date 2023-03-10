@@ -1032,6 +1032,7 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
  "frame-system",
+ "hydradx-traits",
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
@@ -1042,6 +1043,7 @@ dependencies = [
  "pallet-collective",
  "pallet-currencies",
  "pallet-democracy",
+ "pallet-ema-oracle",
  "pallet-identity",
  "pallet-omnipool",
  "pallet-preimage",
@@ -8838,6 +8840,7 @@ dependencies = [
 name = "runtime-integration-tests"
 version = "1.1.0"
 dependencies = [
+ "common-runtime",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",

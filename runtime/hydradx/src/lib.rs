@@ -51,13 +51,16 @@ use frame_support::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, DispatchClass, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
+	BoundedVec,
 };
+use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
+use common_runtime::adapters::OmnipoolHookAdapter;
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
@@ -847,7 +850,7 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = OmnipoolHookAdapter;
+	type OmnipoolHooks = OmnipoolHookAdapter<LRNA, Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -856,73 +859,14 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
 
-use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+// constants need to be in scope to use as types
+use pallet_ema_oracle::MAX_PERIODS;
 
-pub struct OmnipoolHookAdapter;
-
-pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
-
-impl OmnipoolHooks<AssetId, Balance> for OmnipoolHookAdapter {
-	type Error = DispatchError;
-
-	fn on_liquidity_changed(asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
-		OnActivityHandler::<Runtime>::on_liquidity_changed(
-			OMNIPOOL_SOURCE,
-			asset.asset_id,
-			LRNA::get(),
-			*asset.delta_changes.delta_reserve,
-			*asset.delta_changes.delta_hub_reserve,
-			asset.after.reserve,
-			asset.after.hub_reserve,
-		)
-		.map_err(|(_, e)| e)
-	}
-
-	fn on_trade(
-		asset_in: AssetInfo<AssetId, Balance>,
-		asset_out: AssetInfo<AssetId, Balance>,
-	) -> Result<Weight, Self::Error> {
-		let weight1 = OnActivityHandler::<Runtime>::on_trade(
-			OMNIPOOL_SOURCE,
-			asset_in.asset_id,
-			LRNA::get(),
-			*asset_in.delta_changes.delta_reserve,
-			*asset_in.delta_changes.delta_hub_reserve,
-			asset_in.after.reserve,
-			asset_in.after.hub_reserve,
-		)
-		.map_err(|(_, e)| e)?;
-
-		let weight2 = OnActivityHandler::<Runtime>::on_trade(
-			OMNIPOOL_SOURCE,
-			LRNA::get(),
-			asset_out.asset_id,
-			*asset_out.delta_changes.delta_hub_reserve,
-			*asset_out.delta_changes.delta_reserve,
-			asset_out.after.hub_reserve,
-			asset_out.after.reserve,
-		)
-		.map_err(|(_, e)| e)?;
-
-		Ok(weight1.saturating_add(weight2))
-	}
-
-	fn on_liquidity_changed_weight() -> Weight {
-		OnActivityHandler::<Runtime>::on_liquidity_changed_weight()
-	}
-
-	fn on_trade_weight() -> Weight {
-		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2)
-	}
-}
-
-use frame_support::BoundedVec;
-use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
-use pallet_ema_oracle::{OnActivityHandler, MAX_PERIODS};
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
 		OraclePeriod::LastBlock, OraclePeriod::TenMinutes, OraclePeriod::Day, OraclePeriod::Week]);
 }
+
 impl pallet_ema_oracle::Config for Runtime {
 	type Event = Event;
 	type WeightInfo = ();
