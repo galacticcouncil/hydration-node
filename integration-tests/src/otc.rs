@@ -21,7 +21,8 @@
 #![cfg(test)]
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
+use pallet_otc::NAMED_RESERVE_ID;
 use xcm_emulator::TestExt;
 
 #[test]
@@ -42,7 +43,7 @@ fn place_order_should_work() {
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_some());
 		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()),
+			hydradx_runtime::Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE.into()),
 			100 * UNITS
 		);
 	});
@@ -73,7 +74,7 @@ fn partial_fill_order_should_work() {
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_some());
 		assert_eq!(
-			hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()),
+			hydradx_runtime::Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE.into()),
 			25 * UNITS
 		);
 	});
@@ -102,7 +103,10 @@ fn fill_order_should_work() {
 		//Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_none());
-		assert_eq!(hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()), 0);
+		assert_eq!(
+			hydradx_runtime::Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE.into()),
+			0
+		);
 	});
 }
 
@@ -129,6 +133,9 @@ fn cancel_order_should_work() {
 		//Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_none());
-		assert_eq!(hydradx_runtime::Currencies::reserved_balance(HDX, &ALICE.into()), 0);
+		assert_eq!(
+			hydradx_runtime::Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE.into()),
+			0
+		);
 	});
 }
