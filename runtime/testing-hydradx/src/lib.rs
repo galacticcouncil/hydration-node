@@ -870,7 +870,7 @@ parameter_types! {
 
 impl pallet_ema_oracle::Config for Runtime {
 	type Event = Event;
-	type WeightInfo = ();
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
 	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 	type SupportedPeriods = SupportedPeriods;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
