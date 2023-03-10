@@ -57,6 +57,7 @@ pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/w
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "b67141958f31fc3af0894a22b5534a26e67f6334", default-features = false }
 pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "b67141958f31fc3af0894a22b5534a26e67f6334", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "b67141958f31fc3af0894a22b5534a26e67f6334", default-features = false}
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse",rev = "b67141958f31fc3af0894a22b5534a26e67f6334", default-features = false}
 pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "b67141958f31fc3af0894a22b5534a26e67f6334", default-features = false }
 pallet-duster = { git = "https://github.com/galacticcouncil/warehouse", rev = "b67141958f31fc3af0894a22b5534a26e67f6334", default-features = false }
 warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "b67141958f31fc3af0894a22b5534a26e67f6334", default-features = false }
@@ -198,6 +199,8 @@ std = [
     "pallet-authorship/std",
     "pallet-utility/std",
     "pallet-currencies/std",
+    "pallet-ema-oracle/std",
+    "pallet-transaction-pause/std",
     "hydradx-traits/std",
     "pallet-transaction-multi-payment/std",
     "pallet-genesis-history/std",

@@ -11547,6 +11547,7 @@ dependencies = [
  "pallet-democracy",
  "pallet-duster",
  "pallet-elections-phragmen",
+ "pallet-ema-oracle",
  "pallet-genesis-history",
  "pallet-identity",
  "pallet-liquidity-mining",
