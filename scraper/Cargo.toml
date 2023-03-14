@@ -14,7 +14,6 @@ jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
 serde = { version = "1.0.136", features = ["derive"] }
 clap = { version = "3.2.11", features = [ "derive" ] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-#getrandom = { version = "0.2", features = ["js"] }
 
 # local dependencies
 hydradx-runtime = { path = "../runtime/hydradx" }
