@@ -78,8 +78,8 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler, Registry};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
+use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler, Registry};
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
