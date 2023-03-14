@@ -97,7 +97,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 131,
+	spec_version: 132,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -548,7 +548,7 @@ impl pallet_democracy::Config for Runtime {
 	type MaxVotes = MaxVotes;
 	type WeightInfo = weights::democracy::HydraWeight<Runtime>;
 	type MaxProposals = MaxProposals;
-	type VoteLockingPeriod = EnactmentPeriod;
+	type VoteLockingPeriod = VoteLockingPeriod;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
