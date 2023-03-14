@@ -1,5 +1,5 @@
 #![cfg(test)]
-pub use hydradx_runtime::{AccountId, VestingPalletId};
+pub use hydradx_runtime::{AccountId, Treasury, VestingPalletId};
 
 use pallet_transaction_multi_payment::Price;
 use primitives::{AssetId, Balance};
@@ -228,6 +228,15 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
 		currencies: vec![(1, Price::from(1)), (DAI, Price::from(1))],
 		account_currencies: vec![],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
+	//add duster
+	pallet_duster::GenesisConfig::<Runtime> {
+		account_blacklist: vec![Treasury::account_id()],
+		reward_account: Some(Treasury::account_id()),
+		dust_account: Some(Treasury::account_id()),
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
