@@ -203,6 +203,7 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
+	type OmnipoolHooks = ();
 	type PoolStateChangeHandler = CircuitBreaker;
 }
 

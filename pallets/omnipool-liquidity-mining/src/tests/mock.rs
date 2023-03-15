@@ -263,6 +263,7 @@ impl pallet_omnipool::Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u128;
+	type OmnipoolHooks = ();
 	type PoolStateChangeHandler = ();
 }
 
