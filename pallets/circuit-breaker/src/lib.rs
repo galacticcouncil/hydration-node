@@ -39,8 +39,8 @@ pub const MAX_LIMIT_VALUE: u32 = 10_000;
 #[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 #[scale_info(skip_type_params(T))]
 pub struct TradeVolumeLimit<T: Config> {
-	pub amount_in: T::Balance,
-	pub amount_out: T::Balance,
+	pub volume_in: T::Balance,
+	pub volume_out: T::Balance,
 	pub limit: T::Balance,
 }
 
@@ -49,22 +49,22 @@ where
 	T::Balance: PartialOrd,
 {
 	pub fn update_amounts(&mut self, amount_in: T::Balance, amount_out: T::Balance) -> DispatchResult {
-		self.amount_in = self
-			.amount_in
+		self.volume_in = self
+			.volume_in
 			.checked_add(&amount_in)
 			.ok_or(ArithmeticError::Overflow)?;
-		self.amount_out = self
-			.amount_out
+		self.volume_out = self
+			.volume_out
 			.checked_add(&amount_out)
 			.ok_or(ArithmeticError::Overflow)?;
 		Ok(())
 	}
 
 	pub fn check_min_limit(&self) -> DispatchResult {
-		if self.amount_out > self.amount_in {
+		if self.volume_out > self.volume_in {
 			let diff = self
-				.amount_out
-				.checked_sub(&self.amount_in)
+				.volume_out
+				.checked_sub(&self.volume_in)
 				.ok_or(ArithmeticError::Underflow)?;
 			ensure!(diff <= self.limit, Error::<T>::MinTradeVolumePerBlockReached);
 		}
@@ -72,10 +72,10 @@ where
 	}
 
 	pub fn check_max_limit(&self) -> DispatchResult {
-		if self.amount_in > self.amount_out {
+		if self.volume_in > self.volume_out {
 			let diff = self
-				.amount_in
-				.checked_sub(&self.amount_out)
+				.volume_in
+				.checked_sub(&self.volume_out)
 				.ok_or(ArithmeticError::Underflow)?;
 			ensure!(diff <= self.limit, Error::<T>::MaxTradeVolumePerBlockReached);
 		}
@@ -346,8 +346,8 @@ impl<T: Config> Pallet<T> {
 				asset_id,
 				TradeVolumeLimit::<T> {
 					limit,
-					amount_in: Zero::zero(),
-					amount_out: Zero::zero(),
+					volume_in: Zero::zero(),
+					volume_out: Zero::zero(),
 				},
 			);
 		}

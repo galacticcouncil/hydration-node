@@ -34,8 +34,8 @@ fn trade_volume_limit_should_be_stored_when_called_first_time() {
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -65,8 +65,8 @@ fn trade_volume_limit_should_not_be_overwritten_when_called_consequently() {
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -79,8 +79,8 @@ fn trade_volume_limit_should_not_be_overwritten_when_called_consequently() {
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -95,8 +95,8 @@ fn trade_volume_storage_should_be_cleared_at_the_end_of_block() {
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -128,8 +128,8 @@ fn ensure_and_update_trade_volume_limit_should_work_when_liquidity_is_between_al
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -153,8 +153,8 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_min_limit_is_reached() 
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -176,8 +176,8 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_max_limit_is_reached() 
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -199,8 +199,8 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_max_limit_is_reached_fr
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 0,
-				amount_out: 0,
+				volume_in: 0,
+				volume_out: 0,
 				limit: 200_000,
 			}
 		);
@@ -224,8 +224,8 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_max_limit_is_reached_fr
 		assert_eq!(
 			CircuitBreaker::allowed_trade_volume_limit_per_asset(HDX).unwrap(),
 			TradeVolumeLimit {
-				amount_in: 450_000,
-				amount_out: 300_000,
+				volume_in: 450_000,
+				volume_out: 300_000,
 				limit: 200_000,
 			}
 		);
