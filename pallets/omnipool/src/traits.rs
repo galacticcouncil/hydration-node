@@ -44,6 +44,8 @@ where
 		asset_out: AssetInfo<AssetId, Balance>,
 	) -> Result<(), Self::Error>;
 
+	fn on_hub_asset_trade(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error>;
+
 	fn on_liquidity_changed_weight() -> Weight;
 	fn on_trade_weight() -> Weight;
 }
@@ -59,6 +61,10 @@ where
 	}
 
 	fn on_trade(_: Origin, _: AssetInfo<AssetId, Balance>, _: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_hub_asset_trade(_: Origin, _: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error> {
 		Ok(())
 	}
 
