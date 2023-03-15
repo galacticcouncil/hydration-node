@@ -174,7 +174,8 @@ pub mod pallet {
 			+ Default
 			+ CheckedAdd
 			+ CheckedSub
-			+ AtLeast32BitUnsigned;
+			+ AtLeast32BitUnsigned
+			+ MaxEncodedLen;
 
 		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
@@ -196,7 +197,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::without_storage_info]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
