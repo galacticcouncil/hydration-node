@@ -29,7 +29,7 @@ benchmarks! {
 	}
 
 	set_trade_volume_limit {
-		let asset_id = T::AssetId::from(1u32);
+		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = (crate::MAX_LIMIT_VALUE, 1);
 
 	}: _(RawOrigin::Root, asset_id, trade_limit)
@@ -38,7 +38,7 @@ benchmarks! {
 	}
 
 	set_liquidity_limit {
-		let asset_id = T::AssetId::from(1u32);
+		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 
 	}: _(RawOrigin::Root, asset_id, trade_limit)
