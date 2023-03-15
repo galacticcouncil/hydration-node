@@ -424,7 +424,10 @@ impl<T: Config> Pallet<T> {
 			numerator <= MAX_LIMIT_VALUE && denominator <= MAX_LIMIT_VALUE,
 			Error::<T>::InvalidLimitValue
 		);
-		ensure!(!numerator.is_zero() && !denominator.is_zero(), Error::<T>::InvalidLimitValue);
+		ensure!(
+			!numerator.is_zero() && !denominator.is_zero(),
+			Error::<T>::InvalidLimitValue
+		);
 
 		Ok(())
 	}
