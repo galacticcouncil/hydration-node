@@ -188,7 +188,7 @@ pub mod pallet {
 		/// If set to None, the limits are not enforced.
 		type DefaultMaxLiquidityLimitPerBlock: Get<Option<(u32, u32)>>;
 
-		/// Omnipool's hub asset id. The limits are not tracked for this asses.
+		/// Omnipool's hub asset id. The limits are not tracked for this asset.
 		type OmnipoolHubAsset: Get<Self::AssetId>;
 
 		/// Weight information for extrinsics in this pallet.
@@ -419,18 +419,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn validate_limit(limit: (u32, u32)) -> DispatchResult {
+		let (numerator, denominator) = (limit.0, limit.1);
 		ensure!(
-			limit.0 <= MAX_LIMIT_VALUE && limit.1 <= MAX_LIMIT_VALUE,
+			numerator <= MAX_LIMIT_VALUE && denominator <= MAX_LIMIT_VALUE,
 			Error::<T>::InvalidLimitValue
 		);
-		ensure!(!limit.0.is_zero() && !limit.1.is_zero(), Error::<T>::InvalidLimitValue);
+		ensure!(!numerator.is_zero() && !denominator.is_zero(), Error::<T>::InvalidLimitValue);
 
 		Ok(())
 	}
 
 	pub fn calculate_limit(liquidity: T::Balance, limit: (u32, u32)) -> Result<T::Balance, DispatchError> {
-		let numerator = limit.0;
-		let denominator = limit.1;
+		let (numerator, denominator) = (limit.0, limit.1);
 
 		// TODO: use u256
 		liquidity
