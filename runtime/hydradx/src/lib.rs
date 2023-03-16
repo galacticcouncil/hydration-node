@@ -31,7 +31,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, ConstU32, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
@@ -846,7 +846,7 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = OmnipoolHookAdapter<LRNA, Runtime>;
+	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {

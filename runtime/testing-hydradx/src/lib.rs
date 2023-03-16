@@ -847,7 +847,7 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = OmnipoolHookAdapter<LRNA, Runtime>;
+	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {

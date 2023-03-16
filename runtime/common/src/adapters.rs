@@ -8,19 +8,19 @@ use primitives::{AssetId, Balance};
 use sp_runtime::DispatchError;
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
-pub struct OmnipoolHookAdapter<Lrna, Runtime>(PhantomData<(Lrna, Runtime)>);
+pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
 /// The source of the data for the oracle.
 pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 
-impl<Lrna, Runtime> OmnipoolHooks<AssetId, Balance> for OmnipoolHookAdapter<Lrna, Runtime>
+impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config,
 {
 	type Error = DispatchError;
 
-	fn on_liquidity_changed(asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_liquidity_changed(_origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
 		OnActivityHandler::<Runtime>::on_liquidity_changed(
 			OMNIPOOL_SOURCE,
 			asset.asset_id,
@@ -34,6 +34,7 @@ where
 	}
 
 	fn on_trade(
+		_origin: Origin,
 		asset_in: AssetInfo<AssetId, Balance>,
 		asset_out: AssetInfo<AssetId, Balance>,
 	) -> Result<Weight, Self::Error> {
@@ -60,6 +61,19 @@ where
 		.map_err(|(_, e)| e)?;
 
 		Ok(weight1.saturating_add(weight2))
+	}
+
+	fn on_hub_asset_trade(_origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		OnActivityHandler::<Runtime>::on_trade(
+			OMNIPOOL_SOURCE,
+			Lrna::get(),
+			asset.asset_id,
+			*asset.delta_changes.delta_hub_reserve,
+			*asset.delta_changes.delta_reserve,
+			asset.after.hub_reserve,
+			asset.after.reserve,
+		)
+		.map_err(|(_, e)| e)
 	}
 
 	fn on_liquidity_changed_weight() -> Weight {
