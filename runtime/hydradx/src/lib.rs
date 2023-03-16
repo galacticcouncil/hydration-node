@@ -31,7 +31,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, ConstU32, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
@@ -722,10 +722,6 @@ impl Default for AssetLocation {
 	}
 }
 
-parameter_types! {
-	pub const SequentialIdStartAt: u32 = 1_000_000;
-}
-
 impl pallet_asset_registry::Config for Runtime {
 	type Event = Event;
 	type RegistryOrigin = SuperMajorityTechCommittee;
@@ -733,9 +729,9 @@ impl pallet_asset_registry::Config for Runtime {
 	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
+	type SequentialIdStartAt = SequentialIdOffset;
 	type NativeAssetId = NativeAssetId;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
-	type SequentialIdStartAt = SequentialIdStartAt;
 }
 
 impl pallet_relaychain_info::Config for Runtime {

@@ -32,33 +32,40 @@ where
 	}
 }
 
-pub trait OmnipoolHooks<AssetId, Balance>
+pub trait OmnipoolHooks<Origin, AssetId, Balance>
 where
 	Balance: Default + Clone,
 {
 	type Error;
-	fn on_liquidity_changed(asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error>;
+	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error>;
 	fn on_trade(
+		origin: Origin,
 		asset_in: AssetInfo<AssetId, Balance>,
 		asset_out: AssetInfo<AssetId, Balance>,
-	) -> Result<Weight, Self::Error>;
+	) -> Result<(), Self::Error>;
+
+	fn on_hub_asset_trade(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error>;
 
 	fn on_liquidity_changed_weight() -> Weight;
 	fn on_trade_weight() -> Weight;
 }
 
-impl<AssetId, Balance> OmnipoolHooks<AssetId, Balance> for ()
+impl<Origin, AssetId, Balance> OmnipoolHooks<Origin, AssetId, Balance> for ()
 where
 	Balance: Default + Clone,
 {
 	type Error = DispatchError;
 
-	fn on_liquidity_changed(_: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
-		Ok(Weight::zero())
+	fn on_liquidity_changed(_: Origin, _: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error> {
+		Ok(())
 	}
 
-	fn on_trade(_: AssetInfo<AssetId, Balance>, _: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
-		Ok(Weight::zero())
+	fn on_trade(_: Origin, _: AssetInfo<AssetId, Balance>, _: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error> {
+		Ok(())
+	}
+
+	fn on_hub_asset_trade(_: Origin, _: AssetInfo<AssetId, Balance>) -> Result<(), Self::Error> {
+		Ok(())
 	}
 
 	fn on_liquidity_changed_weight() -> Weight {

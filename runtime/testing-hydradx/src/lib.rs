@@ -111,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 133,
+	spec_version: 132,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -732,10 +732,6 @@ impl Default for AssetLocation {
 	}
 }
 
-parameter_types! {
-	pub const SequentialIdStartAt: u32 = 1_000_000;
-}
-
 impl pallet_asset_registry::Config for Runtime {
 	type Event = Event;
 	type RegistryOrigin = SuperMajorityTechCommittee;
@@ -743,9 +739,9 @@ impl pallet_asset_registry::Config for Runtime {
 	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
 	type StringLimit = RegistryStrLimit;
+	type SequentialIdStartAt = SequentialIdOffset;
 	type NativeAssetId = NativeAssetId;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
-	type SequentialIdStartAt = SequentialIdStartAt;
 }
 
 impl pallet_relaychain_info::Config for Runtime {

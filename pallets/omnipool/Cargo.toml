@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "1.6.0"
+version = "1.6.1"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -29,9 +29,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "ab68c9af316d84adfd649fc5735705daf0ba9a48", default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "a0cd48c26dca53e7e351434276c572d70ffd0b72", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "2d7f86ffae242fc855bc833dd22df2d8dc5d03df", default-features = false }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }
@@ -41,7 +41,7 @@ bitflags = "1.3.2"
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true}
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true}
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true}
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true}
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
