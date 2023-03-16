@@ -18,8 +18,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
+use frame_support::dispatch::Weight;
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
+use frame_system::pallet_prelude::OriginFor;
 use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler};
+use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
@@ -179,6 +182,9 @@ pub mod pallet {
 
 		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
+
+		/*/// Origin that can add token, refund refused asset and  set tvl cap.
+		type AuthorityOrigin: EnsureOrigin<Self::Origin>;*/
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
 		/// Represented as a non-zero fraction (nominator, denominator) with the max value being 10_000.
@@ -441,6 +447,47 @@ impl<T: Config> Pallet<T> {
 			.ok_or(ArithmeticError::Overflow)?
 			.checked_div(&T::Balance::from(denominator))
 			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
+	}
+}
+
+impl<T: Config> OmnipoolHooks<OriginFor<T>, T::AssetId, T::Balance> for Pallet<T> {
+	type Error = DispatchError;
+
+	fn on_liquidity_changed(origin: OriginFor<T>, asset: AssetInfo<T::AssetId, T::Balance>) -> Result<(), Self::Error> {
+		Pallet::<T>::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
+		Pallet::<T>::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;
+
+		Ok(())
+	}
+
+	fn on_trade(
+		origin: OriginFor<T>,
+		asset_in: AssetInfo<T::AssetId, T::Balance>,
+		asset_out: AssetInfo<T::AssetId, T::Balance>,
+	) -> Result<(), Self::Error> {
+		Pallet::<T>::calculate_and_store_trade_limit(asset_in.asset_id, asset_in.before.reserve)?;
+		Pallet::<T>::calculate_and_store_trade_limit(asset_out.asset_id, asset_out.before.reserve)?;
+		let amount_in = asset_in.after.reserve - asset_in.before.reserve;
+		let amount_out = asset_out.before.reserve - asset_out.after.reserve;
+		Pallet::<T>::ensure_and_update_trade_volume_limit(
+			asset_in.asset_id,
+			amount_in,
+			asset_out.asset_id,
+			amount_out,
+		)?;
+		Ok(())
+	}
+
+	fn on_hub_asset_trade(origin: OriginFor<T>, asset: AssetInfo<T::AssetId, T::Balance>) -> Result<(), Self::Error> {
+		todo!()
+	}
+
+	fn on_liquidity_changed_weight() -> Weight {
+		todo!()
+	}
+
+	fn on_trade_weight() -> Weight {
+		todo!()
 	}
 }
 

@@ -97,6 +97,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	//type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = OmnipoolHubAsset;

@@ -5749,6 +5749,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "pallet-omnipool",
  "parity-scale-codec",
  "pretty_assertions",
  "scale-info",
