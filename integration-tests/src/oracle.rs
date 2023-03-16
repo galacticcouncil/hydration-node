@@ -2,6 +2,7 @@
 
 use crate::polkadot_test_net::*;
 
+use frame_support::traits::tokens::fungibles::Mutate;
 use frame_support::{
 	assert_ok,
 	traits::{OnFinalize, OnInitialize},
@@ -27,13 +28,15 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 	}
 }
 
-use common_runtime::adapters::OMNIPOOL_SOURCE;
+use common_runtime::{adapters::OMNIPOOL_SOURCE, AssetId, CORE_ASSET_ID};
+
+const HDX: AssetId = CORE_ASSET_ID;
 
 #[test]
 fn omnipool_trades_are_ingested_into_oracle() {
 	TestNet::reset();
 
-	let asset_a = 0;
+	let asset_a = HDX;
 	let asset_b = DOT;
 
 	Hydra::execute_with(|| {
@@ -123,6 +126,57 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		assert_eq!(
 			EmaOracle::get_price(asset_b, LRNA, Week, OMNIPOOL_SOURCE),
 			Ok(expected_b)
+		);
+	});
+}
+
+#[test]
+fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// arrange
+		hydradx_run_to_block(2);
+
+		let native_price = FixedU128::from_inner(1201500000000000);
+		let stable_price = FixedU128::from_inner(45_000_000_000);
+
+		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+			hydradx_runtime::Origin::root(),
+			522_222_000_000_000_000_000_000,
+		));
+
+		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+			hydradx_runtime::Origin::root(),
+			stable_price,
+			native_price,
+			Permill::from_percent(100),
+			Permill::from_percent(10)
+		));
+
+		assert_ok!(hydradx_runtime::Tokens::mint_into(LRNA, &ALICE.into(), 5 * UNITS,));
+
+		assert_ok!(hydradx_runtime::Omnipool::buy(
+			Origin::signed(ALICE.into()),
+			HDX,
+			LRNA,
+			5 * UNITS,
+			5 * UNITS,
+		));
+
+		// act
+		// will store the data received in the sell as oracle values
+		hydradx_run_to_block(3);
+
+		// assert
+		let expected = ((5000000000000, 6022588633).into(), 0);
+		assert_eq!(
+			EmaOracle::get_price(HDX, LRNA, LastBlock, OMNIPOOL_SOURCE),
+			Ok(expected)
+		);
+		assert_eq!(
+			EmaOracle::get_price(HDX, LRNA, TenMinutes, OMNIPOOL_SOURCE),
+			Ok(expected)
 		);
 	});
 }
