@@ -79,7 +79,7 @@ use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
-use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler, Registry};
+use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
@@ -197,10 +197,6 @@ pub mod pallet {
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
 			+ Inspect<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
-
-		/// Handler for state changes
-		type PoolStateChangeHandler: OnPoolStateChangeHandler<Self::AssetId, Balance>
-			+ OnLiquidityChangeHandler<Self::AssetId, Balance>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -718,8 +714,6 @@ pub mod pallet {
 			Self::set_asset_state(asset, new_asset_state);
 
 			Self::ensure_tvl_cap()?;
-
-			T::PoolStateChangeHandler::after_add_liquidity(asset, asset_state.reserve, amount)?;
 
 			Self::deposit_event(Event::LiquidityAdded {
 				who,
@@ -1625,15 +1619,6 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
-		T::PoolStateChangeHandler::after_pool_state_change(
-			T::HubAssetId::get(),
-			asset_state.hub_reserve,
-			*state_changes.asset.delta_hub_reserve,
-			asset_out,
-			asset_state.reserve,
-			*state_changes.asset.delta_reserve,
-		)?;
-
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
@@ -1728,15 +1713,6 @@ impl<T: Config> Pallet<T> {
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
-
-		T::PoolStateChangeHandler::after_pool_state_change(
-			T::HubAssetId::get(),
-			asset_state.hub_reserve,
-			*state_changes.asset.delta_hub_reserve,
-			asset_out,
-			asset_state.reserve,
-			*state_changes.asset.delta_reserve,
-		)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),

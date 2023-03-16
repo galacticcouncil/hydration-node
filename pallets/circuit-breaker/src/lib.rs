@@ -448,46 +448,29 @@ impl<T: Config> Pallet<T> {
 			.checked_div(&T::Balance::from(denominator))
 			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
 	}
-}
 
-impl<T: Config> OmnipoolHooks<OriginFor<T>, T::AssetId, T::Balance> for Pallet<T> {
-	type Error = DispatchError;
-
-	fn on_liquidity_changed(origin: OriginFor<T>, asset: AssetInfo<T::AssetId, T::Balance>) -> Result<(), Self::Error> {
-		Pallet::<T>::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
-		Pallet::<T>::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;
-
+	pub fn after_add_liquidity(
+		asset_id: T::AssetId,
+		initial_liquidity: T::Balance,
+		added_liquidity: T::Balance,
+	) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_liquidity_limit(asset_id, initial_liquidity)?;
+		Pallet::<T>::ensure_and_update_liquidity_limit(asset_id, added_liquidity)?;
 		Ok(())
 	}
 
-	fn on_trade(
-		origin: OriginFor<T>,
-		asset_in: AssetInfo<T::AssetId, T::Balance>,
-		asset_out: AssetInfo<T::AssetId, T::Balance>,
-	) -> Result<(), Self::Error> {
-		Pallet::<T>::calculate_and_store_trade_limit(asset_in.asset_id, asset_in.before.reserve)?;
-		Pallet::<T>::calculate_and_store_trade_limit(asset_out.asset_id, asset_out.before.reserve)?;
-		let amount_in = asset_in.after.reserve - asset_in.before.reserve;
-		let amount_out = asset_out.before.reserve - asset_out.after.reserve;
-		Pallet::<T>::ensure_and_update_trade_volume_limit(
-			asset_in.asset_id,
-			amount_in,
-			asset_out.asset_id,
-			amount_out,
-		)?;
+	pub fn after_pool_state_change(
+		asset_in: T::AssetId,
+		asset_in_reserve: T::Balance,
+		amount_in: T::Balance,
+		asset_out: T::AssetId,
+		asset_out_reserve: T::Balance,
+		amount_out: T::Balance,
+	) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_trade_limit(asset_in, asset_in_reserve)?;
+		Pallet::<T>::calculate_and_store_trade_limit(asset_out, asset_out_reserve)?;
+		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
 		Ok(())
-	}
-
-	fn on_hub_asset_trade(origin: OriginFor<T>, asset: AssetInfo<T::AssetId, T::Balance>) -> Result<(), Self::Error> {
-		todo!()
-	}
-
-	fn on_liquidity_changed_weight() -> Weight {
-		todo!()
-	}
-
-	fn on_trade_weight() -> Weight {
-		todo!()
 	}
 }
 

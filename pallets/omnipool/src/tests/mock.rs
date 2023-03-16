@@ -22,7 +22,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate as pallet_omnipool;
-
+use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
@@ -35,6 +35,7 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+use sp_std::marker::PhantomData;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -203,8 +204,47 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
-	type OmnipoolHooks = CircuitBreaker;
-	type PoolStateChangeHandler = CircuitBreaker;
+	type OmnipoolHooks = ();
+}
+
+pub struct CircuitBreakerHooks<T>(PhantomData<T>);
+
+impl<T: Config> OmnipoolHooks<Origin, AssetId, Balance> for CircuitBreakerHooks<T> {
+	type Error = DispatchError;
+
+	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		/*CircuitBreaker::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
+		CircuitBreaker::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;*/
+
+		let amount = match asset.delta_changes.delta_reserve.into() {
+			BalanceUpdate::Increase(am) => am,
+			BalanceUpdate::Decrease(am) => am,
+		};
+
+		CircuitBreaker::after_add_liquidity(asset.asset_id.into(), asset.before.reserve.into(), amount.into())?;
+
+		Ok(Weight::zero())
+	}
+
+	fn on_trade(
+		origin: Origin,
+		asset_in: AssetInfo<AssetId, Balance>,
+		asset_out: AssetInfo<AssetId, Balance>,
+	) -> Result<Weight, Self::Error> {
+		todo!()
+	}
+
+	fn on_hub_asset_trade(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		todo!()
+	}
+
+	fn on_liquidity_changed_weight() -> Weight {
+		todo!()
+	}
+
+	fn on_trade_weight() -> Weight {
+		todo!()
+	}
 }
 
 pub struct ExtBuilder {
@@ -457,6 +497,8 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_system::pallet_prelude::OriginFor;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {

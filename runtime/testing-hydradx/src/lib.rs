@@ -846,7 +846,6 @@ impl pallet_omnipool::Config for Runtime {
 	type CollectionId = CollectionId;
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
-	type PoolStateChangeHandler = CircuitBreaker;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
 }

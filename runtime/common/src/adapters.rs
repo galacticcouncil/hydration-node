@@ -1,12 +1,12 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
+use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler};
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use primitives::{AssetId, Balance};
 use sp_runtime::DispatchError;
-
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
@@ -16,12 +16,14 @@ pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config,
+	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config,
+	<Runtime as pallet_circuit_breaker::Config>::Balance: From<u128>,
+	<Runtime as pallet_circuit_breaker::Config>::AssetId: From<u32>, //TODO: get  rid of these if possible
 {
 	type Error = DispatchError;
 
 	fn on_liquidity_changed(_origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
-		OnActivityHandler::<Runtime>::on_liquidity_changed(
+		let res = OnActivityHandler::<Runtime>::on_liquidity_changed(
 			OMNIPOOL_SOURCE,
 			asset.asset_id,
 			Lrna::get(),
@@ -30,7 +32,20 @@ where
 			asset.after.reserve,
 			asset.after.hub_reserve,
 		)
-		.map_err(|(_, e)| e)
+		.map_err(|(_, e)| e);
+
+		let amount = match asset.delta_changes.delta_reserve.into() {
+			BalanceUpdate::Increase(am) => am,
+			BalanceUpdate::Decrease(am) => am,
+		};
+
+		pallet_circuit_breaker::Pallet::<Runtime>::after_add_liquidity(
+			asset.asset_id.into(),
+			asset.before.reserve.into(),
+			amount.into(),
+		)?; //TODO: return weight from it and add this weight and  the oracle one together
+
+		res
 	}
 
 	fn on_trade(
@@ -59,6 +74,25 @@ where
 			asset_out.after.reserve,
 		)
 		.map_err(|(_, e)| e)?;
+
+		let amount_in = match asset_in.delta_changes.delta_reserve.into() {
+			BalanceUpdate::Increase(am) => am,
+			BalanceUpdate::Decrease(am) => am,
+		};
+
+		let amount_out = match asset_out.delta_changes.delta_reserve.into() {
+			BalanceUpdate::Increase(am) => am,
+			BalanceUpdate::Decrease(am) => am,
+		};
+
+		pallet_circuit_breaker::Pallet::<Runtime>::after_pool_state_change(
+			asset_in.asset_id.into(),
+			asset_in.before.reserve.into(),
+			amount_in.into(),
+			asset_out.asset_id.into(),
+			asset_out.before.reserve.into(),
+			amount_out.into(),
+		)?; //TODO: return weight from it and add this weight and  the oracle one together
 
 		Ok(weight1.saturating_add(weight2))
 	}
