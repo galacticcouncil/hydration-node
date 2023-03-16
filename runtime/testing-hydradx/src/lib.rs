@@ -54,13 +54,16 @@ use frame_support::{
 		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
 	},
+	BoundedVec,
 };
+use hydradx_traits::OraclePeriod;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 
+use common_runtime::adapters::OmnipoolHookAdapter;
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
@@ -108,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 133,
+	spec_version: 132,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -845,7 +848,7 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTHandler = Uniques;
 	type PoolStateChangeHandler = CircuitBreaker;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = ();
+	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -863,6 +866,24 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = LRNA;
 	type WeightInfo = ();
+}
+
+// constants need to be in scope to use as types
+use pallet_ema_oracle::MAX_PERIODS;
+
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::TenMinutes, OraclePeriod::Day, OraclePeriod::Week]);
+}
+
+impl pallet_ema_oracle::Config for Runtime {
+	type Event = Event;
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type SupportedPeriods = SupportedPeriods;
+	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
+	/// 20 seems a decent upper bound for the forseeable future.
+	type MaxUniqueEntries = ConstU32<20>;
 }
 
 impl pallet_duster::Config for Runtime {
@@ -969,6 +990,7 @@ construct_runtime!(
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
+		EmaOracle: pallet_ema_oracle = 202,
 		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 
 		// TEMPORARY

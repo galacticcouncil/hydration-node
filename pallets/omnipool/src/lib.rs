@@ -1090,16 +1090,9 @@ pub mod pallet {
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
 
-			T::PoolStateChangeHandler::after_pool_state_change(
-				asset_in,
-				asset_in_state.reserve,
-				amount,
-				asset_out,
-				asset_out_state.reserve,
-				*state_changes.asset_out.delta_reserve,
-			)?;
+			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
+			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::SellExecuted {
 				who,
@@ -1108,8 +1101,6 @@ pub mod pallet {
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
 			});
-
-			T::OmnipoolHooks::on_trade(origin, info_in, info_out)?;
 
 			Ok(())
 		}
@@ -1276,16 +1267,9 @@ pub mod pallet {
 			Self::set_asset_state(asset_in, new_asset_in_state);
 			Self::set_asset_state(asset_out, new_asset_out_state);
 
-			T::PoolStateChangeHandler::after_pool_state_change(
-				asset_in,
-				asset_in_state.reserve,
-				*state_changes.asset_in.delta_reserve,
-				asset_out,
-				asset_out_state.reserve,
-				*state_changes.asset_out.delta_reserve,
-			)?;
+			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
-			Self::update_hdx_subpool_hub_asset(state_changes.hdx_hub_amount)?;
+			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1294,8 +1278,6 @@ pub mod pallet {
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
 			});
-
-			T::OmnipoolHooks::on_trade(origin, info_in, info_out)?;
 
 			Ok(())
 		}
@@ -1490,14 +1472,28 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update Hub asset side of HDX subpool annd add given amount to hub_asset_reserve
-	fn update_hdx_subpool_hub_asset(hub_asset_amount: Balance) -> DispatchResult {
+	fn update_hdx_subpool_hub_asset(origin: T::Origin, hub_asset_amount: Balance) -> DispatchResult {
 		if hub_asset_amount > Balance::zero() {
+			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
+
 			let mut native_subpool = Assets::<T>::get(T::HdxAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;
 			native_subpool.hub_reserve = native_subpool
 				.hub_reserve
 				.checked_add(hub_asset_amount)
 				.ok_or(ArithmeticError::Overflow)?;
 			<Assets<T>>::insert(T::HdxAssetId::get(), native_subpool);
+
+			let updated_hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
+
+			let delta_changes = AssetStateChange {
+				delta_hub_reserve: BalanceUpdate::Increase(hub_asset_amount),
+				..Default::default()
+			};
+
+			let info: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(T::HdxAssetId::get(), &hdx_state, &updated_hdx_state, &delta_changes);
+
+			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 		}
 		Ok(())
 	}
@@ -1820,6 +1816,7 @@ impl<T: Config> Pallet<T> {
 	/// Updates states of 2 non-hub assets given calculated trade result.
 	#[require_transactional]
 	pub fn update_omnipool_state_given_trade_result(
+		origin: T::Origin,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		trade: TradeStateChange<Balance>,
@@ -1849,12 +1846,14 @@ impl<T: Config> Pallet<T> {
 			}
 		};
 
+		//TODO: call on_trade hook.
+
 		Self::update_imbalance(trade.delta_imbalance)?;
 
 		Self::update_asset_state(asset_in, trade.asset_in)?;
 		Self::update_asset_state(asset_out, trade.asset_out)?;
 
-		Self::update_hdx_subpool_hub_asset(trade.hdx_hub_amount)?;
+		Self::update_hdx_subpool_hub_asset(origin, trade.hdx_hub_amount)?;
 
 		Ok(())
 	}

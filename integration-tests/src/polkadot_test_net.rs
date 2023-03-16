@@ -179,11 +179,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	pallet_asset_registry::GenesisConfig::<Runtime> {
 		registered_assets: vec![
-			(b"LRNA".to_vec(), 1_000u128, Some(1)),
-			(b"DAI".to_vec(), 1_000u128, Some(2)),
-			(b"DOT".to_vec(), 1_000u128, Some(3)),
-			(b"ETH".to_vec(), 1_000u128, Some(4)),
-			(b"BTC".to_vec(), 1_000u128, Some(5)),
+			(b"LRNA".to_vec(), 1_000u128, Some(LRNA)),
+			(b"DAI".to_vec(), 1_000u128, Some(DAI)),
+			(b"DOT".to_vec(), 1_000u128, Some(DOT)),
+			(b"ETH".to_vec(), 1_000u128, Some(ETH)),
+			(b"BTC".to_vec(), 1_000u128, Some(BTC)),
 		],
 		native_asset_name: b"HDX".to_vec(),
 		native_existential_deposit: existential_deposit,

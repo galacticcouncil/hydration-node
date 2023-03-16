@@ -50,16 +50,17 @@ pallet-elections-phragmen = { git = "https://github.com/paritytech/substrate", b
 pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse dependencies
-hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false }
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false }
-pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false}
-pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false }
-pallet-duster = { git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false }
-warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "776aec92c74709bbc750034625119718fb4b1acc", default-features = false }
+hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false}
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse",rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false}
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+pallet-duster = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
 
 # ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
@@ -152,6 +153,7 @@ runtime-benchmarks = [
     "pallet-omnipool/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
     "pallet-circuit-breaker/runtime-benchmarks",
+    "pallet-ema-oracle/runtime-benchmarks",
     "pallet-duster/runtime-benchmarks",
     "pallet-omnipool-liquidity-mining/runtime-benchmarks",
 ]
@@ -164,6 +166,7 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "frame-try-runtime/std",
+    "common-runtime/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
     "cumulus-primitives-core/std",
@@ -211,6 +214,7 @@ std = [
     "pallet-currencies/std",
     "pallet-omnipool/std",
     "pallet-transaction-pause/std",
+    "pallet-ema-oracle/std",
     "sp-api/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
