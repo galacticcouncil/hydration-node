@@ -861,7 +861,8 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type Balance = Balance;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
-	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = LRNA;
 	type WeightInfo = ();
 }

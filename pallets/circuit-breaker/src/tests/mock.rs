@@ -40,7 +40,8 @@ pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
 
 thread_local! {
 	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = RefCell::new((2_000, 10_000)); // 20%
-	pub static MAX_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(Some((4_000, 10_000))); // 40%
+	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(Some((4_000, 10_000))); // 40%
+	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(Some((2_000, 10_000))); // 20%
 }
 
 frame_support::construct_runtime!(
@@ -88,7 +89,8 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
-	pub DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 	pub const OmnipoolHubAsset: AssetId = LRNA;
 }
 
@@ -99,21 +101,24 @@ impl pallet_circuit_breaker::Config for Test {
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	//type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
-	type DefaultMaxLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
 }
 
 pub struct ExtBuilder {
 	max_net_trade_volume_limit_per_block: (u32, u32),
-	max_liquidity_limit_per_block: Option<(u32, u32)>,
+	max_add_liquidity_limit_per_block: Option<(u32, u32)>,
+	max_remove_liquidity_limit_per_block: Option<(u32, u32)>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
 		Self {
 			max_net_trade_volume_limit_per_block: (2_000, 10_000),
-			max_liquidity_limit_per_block: Some((4_000, 10_000)),
+			max_add_liquidity_limit_per_block: Some((4_000, 10_000)),
+			max_remove_liquidity_limit_per_block: Some((2_000, 10_000)),
 		}
 	}
 }
@@ -124,8 +129,13 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_max_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
-		self.max_liquidity_limit_per_block = value;
+	pub fn with_max_add_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_add_liquidity_limit_per_block = value;
+		self
+	}
+
+	pub fn with_max_remove_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_remove_liquidity_limit_per_block = value;
 		self
 	}
 
@@ -136,8 +146,11 @@ impl ExtBuilder {
 		MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| {
 			*v.borrow_mut() = self.max_net_trade_volume_limit_per_block;
 		});
-		MAX_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
-			*v.borrow_mut() = self.max_liquidity_limit_per_block;
+		MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_add_liquidity_limit_per_block;
+		});
+		MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_remove_liquidity_limit_per_block;
 		});
 
 		let mut ext = sp_io::TestExternalities::new(t);

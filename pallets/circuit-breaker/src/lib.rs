@@ -95,7 +95,7 @@ where
 #[derive(Clone, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 #[scale_info(skip_type_params(T))]
 pub struct LiquidityLimit<T: Config> {
-	pub added_liquidity: T::Balance,
+	pub liquidity: T::Balance,
 	pub limit: T::Balance,
 }
 
@@ -104,8 +104,8 @@ where
 	T::Balance: PartialOrd,
 {
 	pub fn update_amount(&mut self, liquidity_in: T::Balance) -> DispatchResult {
-		self.added_liquidity = self
-			.added_liquidity
+		self.liquidity = self
+			.liquidity
 			.checked_add(&liquidity_in)
 			.ok_or(ArithmeticError::Overflow)?;
 		Ok(())
@@ -113,7 +113,7 @@ where
 
 	pub fn check_limit(&self) -> DispatchResult {
 		ensure!(
-			self.added_liquidity <= self.limit,
+			self.liquidity <= self.limit,
 			Error::<T>::MaxLiquidityLimitPerBlockReached
 		);
 		Ok(())
@@ -135,7 +135,8 @@ pub mod pallet {
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_finalize(_n: T::BlockNumber) {
 			let _ = <AllowedTradeVolumeLimitPerAsset<T>>::clear(u32::MAX, None);
-			let _ = <AllowedLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
+			let _ = <AllowedAddLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
+			let _ = <AllowedRemoveLiquidityAmountPerAsset<T>>::clear(u32::MAX, None);
 		}
 
 		fn integrity_test() {
@@ -144,10 +145,17 @@ pub mod pallet {
 				"Circuit Breaker: Max net trade volume limit per block is set to invalid value."
 			);
 
-			if let Some(liquidity_limit) = T::DefaultMaxLiquidityLimitPerBlock::get() {
+			if let Some(liquidity_limit) = T::DefaultMaxAddLiquidityLimitPerBlock::get() {
 				assert!(
 					Self::validate_limit(liquidity_limit).is_ok(),
-					"Circuit Breaker: Max liquidity limit per block is set to invalid value."
+					"Circuit Breaker: Max add liquidity limit per block is set to invalid value."
+				);
+			}
+
+			if let Some(liquidity_limit) = T::DefaultMaxRemoveLiquidityLimitPerBlock::get() {
+				assert!(
+					Self::validate_limit(liquidity_limit).is_ok(),
+					"Circuit Breaker: Max remove liquidity limit per block is set to invalid value."
 				);
 			}
 		}
@@ -193,7 +201,12 @@ pub mod pallet {
 		/// The maximum percentage of a pool's liquidity that can be added in a block.
 		/// Represented as an optional non-zero fraction (nominator, denominator) with the max value being 10_000.
 		/// If set to None, the limits are not enforced.
-		type DefaultMaxLiquidityLimitPerBlock: Get<Option<(u32, u32)>>;
+		type DefaultMaxAddLiquidityLimitPerBlock: Get<Option<(u32, u32)>>;
+
+		/// The maximum percentage of a pool's liquidity that can be removed in a block.
+		/// Represented as an optional non-zero fraction (nominator, denominator) with the max value being 10_000.
+		/// If set to None, the limits are not enforced.
+		type DefaultMaxRemoveLiquidityLimitPerBlock: Get<Option<(u32, u32)>>;
 
 		/// Omnipool's hub asset id. The limits are not tracked for this asset.
 		type OmnipoolHubAsset: Get<Self::AssetId>;
@@ -224,22 +237,39 @@ pub mod pallet {
 	pub type AllowedTradeVolumeLimitPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, TradeVolumeLimit<T>>;
 
-	/// Default maximum liquidity limit per block
+	/// Default maximum add liquidity limit per block
 	#[pallet::type_value]
-	pub fn DefaultLiquidityLimit<T: Config>() -> Option<(u32, u32)> {
-		T::DefaultMaxLiquidityLimitPerBlock::get()
+	pub fn DefaultAddLiquidityLimit<T: Config>() -> Option<(u32, u32)> {
+		T::DefaultMaxAddLiquidityLimitPerBlock::get()
 	}
 
 	#[pallet::storage]
-	/// Liquidity limits of assets that don't use the default value
-	#[pallet::getter(fn liquidity_limit_per_asset)]
-	pub type LiquidityLimitPerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, Option<(u32, u32)>, ValueQuery, DefaultLiquidityLimit<T>>;
+	/// Add liquidity limits of assets that don't use the default value
+	#[pallet::getter(fn add_liquidity_limit_per_asset)]
+	pub type LiquidityAddLimitPerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, Option<(u32, u32)>, ValueQuery, DefaultAddLiquidityLimit<T>>;
 
 	#[pallet::storage]
-	/// Liquidity volumes per asset
-	#[pallet::getter(fn allowed_liquidity_limit_per_asset)]
-	pub type AllowedLiquidityAmountPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
+	/// Add liquidity volumes per asset
+	#[pallet::getter(fn allowed_add_liquidity_limit_per_asset)]
+	pub type AllowedAddLiquidityAmountPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
+
+	/// Default maximum remove liquidity limit per block
+	#[pallet::type_value]
+	pub fn DefaultRemoveLiquidityLimit<T: Config>() -> Option<(u32, u32)> {
+		T::DefaultMaxRemoveLiquidityLimitPerBlock::get()
+	}
+
+	#[pallet::storage]
+	/// Remove liquidity limits of assets that don't use the default value
+	#[pallet::getter(fn remove_liquidity_limit_per_asset)]
+	pub type LiquidityRemoveLimitPerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, Option<(u32, u32)>, ValueQuery, DefaultRemoveLiquidityLimit<T>>;
+
+	#[pallet::storage]
+	/// Remove liquidity volumes per asset
+	#[pallet::getter(fn allowed_remove_liquidity_limit_per_asset)]
+	pub type AllowedRemoveLiquidityAmountPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -249,8 +279,13 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			trade_volume_limit: (u32, u32),
 		},
-		/// Liquidity limit of an asset was changed.
-		LiquidityLimitChanged {
+		/// Add liquidity limit of an asset was changed.
+		AddLiquidityLimitChanged {
+			asset_id: T::AssetId,
+			liquidity_limit: Option<(u32, u32)>,
+		},
+		/// Remove liquidity limit of an asset was changed.
+		RemoveLiquidityLimitChanged {
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
 		},
@@ -306,17 +341,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set liquidity limit for an asset.
+		/// Set add liquidity limit for an asset.
 		///
 		/// Parameters:
 		/// - `origin`: The dispatch origin for this call. Must be `TechnicalOrigin`
 		/// - `asset_id`: The identifier of an asset
-		/// - `liquidity_limit`: Optional liquidity limit represented as a percentage
+		/// - `liquidity_limit`: Optional add liquidity limit represented as a percentage
 		///
-		/// Emits `LiquidityLimitChanged` event when successful.
+		/// Emits `AddLiquidityLimitChanged` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::set_liquidity_limit())]
-		pub fn set_liquidity_limit(
+		#[pallet::weight(<T as Config>::WeightInfo::set_add_liquidity_limit())]
+		pub fn set_add_liquidity_limit(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
 			liquidity_limit: Option<(u32, u32)>,
@@ -329,9 +364,42 @@ pub mod pallet {
 				Self::validate_limit(limit)?;
 			}
 
-			<LiquidityLimitPerAsset<T>>::insert(asset_id, liquidity_limit);
+			<LiquidityAddLimitPerAsset<T>>::insert(asset_id, liquidity_limit);
 
-			Self::deposit_event(Event::LiquidityLimitChanged {
+			Self::deposit_event(Event::AddLiquidityLimitChanged {
+				asset_id,
+				liquidity_limit,
+			});
+
+			Ok(())
+		}
+
+		/// Set remove liquidity limit for an asset.
+		///
+		/// Parameters:
+		/// - `origin`: The dispatch origin for this call. Must be `TechnicalOrigin`
+		/// - `asset_id`: The identifier of an asset
+		/// - `liquidity_limit`: Optional remove liquidity limit represented as a percentage
+		///
+		/// Emits `RemoveLiquidityLimitChanged` event when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
+		pub fn set_remove_liquidity_limit(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			liquidity_limit: Option<(u32, u32)>,
+		) -> DispatchResult {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+
+			ensure!(asset_id != T::OmnipoolHubAsset::get(), Error::<T>::NotAllowed);
+
+			if let Some(limit) = liquidity_limit {
+				Self::validate_limit(limit)?;
+			}
+
+			<LiquidityRemoveLimitPerAsset<T>>::insert(asset_id, liquidity_limit);
+
+			Self::deposit_event(Event::RemoveLiquidityLimitChanged {
 				asset_id,
 				liquidity_limit,
 			});
@@ -360,15 +428,35 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn calculate_and_store_liquidity_limit(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
-		if let Some(limit) = Pallet::<T>::liquidity_limit_per_asset(asset_id) {
-			if asset_id != T::OmnipoolHubAsset::get() && !<AllowedLiquidityAmountPerAsset<T>>::contains_key(asset_id) {
+	fn calculate_and_store_liquidity_limits(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
+		// we don't track liquidity limits for the Omnipool Hub asset
+		if asset_id == T::OmnipoolHubAsset::get() {
+			return Ok(())
+		}
+
+		// add liquidity
+		if let Some(limit) = Pallet::<T>::add_liquidity_limit_per_asset(asset_id) {
+			if !<AllowedAddLiquidityAmountPerAsset<T>>::contains_key(asset_id) {
 				let max_limit = Self::calculate_limit(initial_liquidity, limit)?;
-				<AllowedLiquidityAmountPerAsset<T>>::insert(
+				<AllowedAddLiquidityAmountPerAsset<T>>::insert(
 					asset_id,
 					LiquidityLimit::<T> {
 						limit: max_limit,
-						added_liquidity: Zero::zero(),
+						liquidity: Zero::zero(),
+					},
+				);
+			}
+		}
+
+		// remove liquidity
+		if let Some(limit) = Pallet::<T>::remove_liquidity_limit_per_asset(asset_id) {
+			if !<AllowedRemoveLiquidityAmountPerAsset<T>>::contains_key(asset_id) {
+				let max_limit = Self::calculate_limit(initial_liquidity, limit)?;
+				<AllowedRemoveLiquidityAmountPerAsset<T>>::insert(
+					asset_id,
+					LiquidityLimit::<T> {
+						limit: max_limit,
+						liquidity: Zero::zero(),
 					},
 				);
 			}
@@ -410,15 +498,29 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn ensure_and_update_liquidity_limit(asset_id: T::AssetId, added_liquidity: T::Balance) -> DispatchResult {
-		if asset_id != T::OmnipoolHubAsset::get() && Pallet::<T>::liquidity_limit_per_asset(asset_id).is_some() {
-			let mut allowed_liquidity_limit = Pallet::<T>::allowed_liquidity_limit_per_asset(asset_id)
+	fn ensure_and_update_add_liquidity_limit(asset_id: T::AssetId, added_liquidity: T::Balance) -> DispatchResult {
+		if asset_id != T::OmnipoolHubAsset::get() && Pallet::<T>::add_liquidity_limit_per_asset(asset_id).is_some() {
+			let mut allowed_liquidity_limit = Pallet::<T>::allowed_add_liquidity_limit_per_asset(asset_id)
 				.ok_or(Error::<T>::LiquidityLimitNotStoredForAsset)?;
 
 			allowed_liquidity_limit.update_amount(added_liquidity)?;
 			allowed_liquidity_limit.check_limit()?;
 
-			<AllowedLiquidityAmountPerAsset<T>>::insert(asset_id, allowed_liquidity_limit);
+			<AllowedAddLiquidityAmountPerAsset<T>>::insert(asset_id, allowed_liquidity_limit);
+		}
+
+		Ok(())
+	}
+
+	fn ensure_and_update_remove_liquidity_limit(asset_id: T::AssetId, removed_liquidity: T::Balance) -> DispatchResult {
+		if asset_id != T::OmnipoolHubAsset::get() && Pallet::<T>::remove_liquidity_limit_per_asset(asset_id).is_some() {
+			let mut allowed_liquidity_limit = Pallet::<T>::allowed_remove_liquidity_limit_per_asset(asset_id)
+				.ok_or(Error::<T>::LiquidityLimitNotStoredForAsset)?;
+
+			allowed_liquidity_limit.update_amount(removed_liquidity)?;
+			allowed_liquidity_limit.check_limit()?;
+
+			<AllowedRemoveLiquidityAmountPerAsset<T>>::insert(asset_id, allowed_liquidity_limit);
 		}
 
 		Ok(())
@@ -449,16 +551,6 @@ impl<T: Config> Pallet<T> {
 			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
 	}
 
-	pub fn after_add_liquidity(
-		asset_id: T::AssetId,
-		initial_liquidity: T::Balance,
-		added_liquidity: T::Balance,
-	) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_liquidity_limit(asset_id, initial_liquidity)?;
-		Pallet::<T>::ensure_and_update_liquidity_limit(asset_id, added_liquidity)?;
-		Ok(())
-	}
-
 	pub fn after_pool_state_change(
 		asset_in: T::AssetId,
 		asset_in_reserve: T::Balance,
@@ -472,8 +564,29 @@ impl<T: Config> Pallet<T> {
 		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
 		Ok(())
 	}
+
+	pub fn after_add_liquidity(
+		asset_id: T::AssetId,
+		initial_liquidity: T::Balance,
+		added_liquidity: T::Balance,
+	) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
+		Pallet::<T>::ensure_and_update_add_liquidity_limit(asset_id, added_liquidity)?;
+		Ok(())
+	}
+
+	pub fn after_remove_liquidity(
+		asset_id: T::AssetId,
+		initial_liquidity: T::Balance,
+		removed_liquidity: T::Balance,
+	) -> DispatchResult {
+		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
+		Pallet::<T>::ensure_and_update_remove_liquidity_limit(asset_id, removed_liquidity)?;
+		Ok(())
+	}
 }
 
+// TODO: Remove if not necessary
 impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
 	fn after_pool_state_change(
 		asset_in: T::AssetId,
@@ -496,8 +609,8 @@ impl<T: Config> OnLiquidityChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
 	) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_liquidity_limit(asset_id, initial_liquidity)?;
-		Pallet::<T>::ensure_and_update_liquidity_limit(asset_id, added_liquidity)?;
+		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
+		Pallet::<T>::ensure_and_update_add_liquidity_limit(asset_id, added_liquidity)?;
 		Ok(())
 	}
 }
