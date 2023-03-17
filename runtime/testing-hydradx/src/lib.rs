@@ -108,7 +108,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 131,
+	spec_version: 133,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -559,7 +559,7 @@ impl pallet_democracy::Config for Runtime {
 	type MaxVotes = MaxVotes;
 	type WeightInfo = weights::democracy::HydraWeight<Runtime>;
 	type MaxProposals = MaxProposals;
-	type VoteLockingPeriod = EnactmentPeriod;
+	type VoteLockingPeriod = VoteLockingPeriod;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -844,6 +844,7 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
+	type OmnipoolHooks = ();
 }
 
 impl pallet_transaction_pause::Config for Runtime {
