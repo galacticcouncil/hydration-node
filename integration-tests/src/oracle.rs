@@ -33,7 +33,6 @@ use common_runtime::{adapters::OMNIPOOL_SOURCE, AssetId, CORE_ASSET_ID};
 const HDX: AssetId = CORE_ASSET_ID;
 
 #[test]
-#[ignore]
 fn omnipool_trades_are_ingested_into_oracle() {
 	TestNet::reset();
 
