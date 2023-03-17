@@ -70,7 +70,7 @@ fn partial_fill_order_should_work() {
 			15 * UNITS,
 		));
 
-		//Assert
+		// Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_some());
 		assert_eq!(
@@ -100,7 +100,7 @@ fn fill_order_should_work() {
 			0,
 		));
 
-		//Assert
+		// Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_none());
 		assert_eq!(
@@ -130,7 +130,7 @@ fn cancel_order_should_work() {
 			0
 		));
 
-		//Assert
+		// Assert
 		let order = hydradx_runtime::OTC::orders(0);
 		assert!(order.is_none());
 		assert_eq!(
