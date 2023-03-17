@@ -28,19 +28,19 @@ fn whitelist_storage_maps<T: Config>() {
 	// Whitelist storage map from further DB operations.
 		let iter = <AllowedTradeVolumeLimitPerAsset<T>>::iter();
 		for (k, _v) in iter {
-			let key = <AllowedTradeVolumeLimitPerAsset<T>>::hashed_key_for(&k);
+			let key = <AllowedTradeVolumeLimitPerAsset<T>>::hashed_key_for(k);
 			frame_benchmarking::benchmarking::add_to_whitelist(key.into());
 		}
 		// Whitelist storage map from further DB operations.
 		let iter = <AllowedAddLiquidityAmountPerAsset<T>>::iter();
 		for (k, _v) in iter {
-			let key = <AllowedAddLiquidityAmountPerAsset<T>>::hashed_key_for(&k);
+			let key = <AllowedAddLiquidityAmountPerAsset<T>>::hashed_key_for(k);
 			frame_benchmarking::benchmarking::add_to_whitelist(key.into());
 		}
 		// Whitelist storage map from further DB operations.
 		let iter = <AllowedRemoveLiquidityAmountPerAsset<T>>::iter();
 		for (k, _v) in iter {
-			let key = <AllowedRemoveLiquidityAmountPerAsset<T>>::hashed_key_for(&k);
+			let key = <AllowedRemoveLiquidityAmountPerAsset<T>>::hashed_key_for(k);
 			frame_benchmarking::benchmarking::add_to_whitelist(key.into());
 		}
 }
@@ -66,7 +66,7 @@ benchmarks! {
 
 		for i in 0..n {
 			let asset_id = T::AssetId::from(i);
-			Pallet::<T>::calculate_and_store_trade_limit(asset_id, amount)?;
+			Pallet::<T>::initialize_trade_limit(asset_id, amount)?;
 		}
 		for i in 0..m {
 			let asset_id = T::AssetId::from(i);
@@ -86,7 +86,7 @@ benchmarks! {
 
 		let amount = T::Balance::from(1_000_000u32);
 		let asset_id = T::AssetId::from(1);
-		Pallet::<T>::calculate_and_store_trade_limit(asset_id, amount)?;
+		Pallet::<T>::initialize_trade_limit(asset_id, amount)?;
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 
 
