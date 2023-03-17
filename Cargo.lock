@@ -8851,6 +8851,7 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
+ "cumulus-test-relay-sproof-builder",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -8878,6 +8879,8 @@ dependencies = [
  "pallet-duster",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
+ "pallet-liquidity-mining",
+ "pallet-omnipool-liquidity-mining",
  "pallet-relaychain-info",
  "pallet-scheduler",
  "pallet-session",
@@ -8898,6 +8901,8 @@ dependencies = [
  "polkadot-runtime-parachains",
  "pretty_assertions",
  "primitives",
+ "remote-externalities",
+ "scraper",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",
@@ -8913,6 +8918,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-trie",
  "sp-version",
+ "tokio",
  "xcm",
  "xcm-builder",
  "xcm-emulator",
@@ -10132,6 +10138,20 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
+
+[[package]]
+name = "scraper"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "hydradx-runtime",
+ "jsonrpsee",
+ "parity-scale-codec",
+ "remote-externalities",
+ "serde",
+ "sp-runtime",
+ "tokio",
+]
 
 [[package]]
 name = "scratch"

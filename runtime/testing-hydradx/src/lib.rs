@@ -977,8 +977,8 @@ construct_runtime!(
 		Authorship: pallet_authorship exclude_parts { Inherent } = 161,
 		CollatorSelection: pallet_collator_selection = 163,
 		Session: pallet_session = 165,
-		Aura: pallet_aura exclude_parts { Storage } = 167,
-		AuraExt: cumulus_pallet_aura_ext exclude_parts { Storage } = 169,
+		Aura: pallet_aura = 167,
+		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
