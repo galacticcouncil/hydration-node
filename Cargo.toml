@@ -13,6 +13,7 @@ members = [
   'integration-tests',
   'pallets/circuit-breaker',
   'pallets/omnipool-liquidity-mining',
+  'scraper',
 ]
 
 [patch."https://github.com/paritytech/polkadot"]

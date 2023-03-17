@@ -111,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 132,
+	spec_version: 135,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -874,7 +874,7 @@ use pallet_ema_oracle::MAX_PERIODS;
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
-		OraclePeriod::LastBlock, OraclePeriod::TenMinutes, OraclePeriod::Day, OraclePeriod::Week]);
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
 impl pallet_ema_oracle::Config for Runtime {
@@ -936,7 +936,7 @@ construct_runtime!(
 	{
 		System: frame_system exclude_parts { Origin } = 1,
 		Timestamp: pallet_timestamp = 3,
-		Scheduler: pallet_scheduler = 5,
+		//NOTE: 5 - is used by Scheduler which must be after cumulus_pallet_parachain_system
 		Balances: pallet_balances = 7,
 		TransactionPayment: pallet_transaction_payment exclude_parts { Config } = 9,
 		Treasury: pallet_treasury = 11,
@@ -971,6 +971,11 @@ construct_runtime!(
 
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
+
+		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
+		//will return 0 as current block number when used with Scheduler(democracy).
+		Scheduler: pallet_scheduler = 5,
+
 		ParachainInfo: parachain_info = 105,
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
@@ -986,8 +991,8 @@ construct_runtime!(
 		Authorship: pallet_authorship exclude_parts { Inherent } = 161,
 		CollatorSelection: pallet_collator_selection = 163,
 		Session: pallet_session = 165,
-		Aura: pallet_aura exclude_parts { Storage } = 167,
-		AuraExt: cumulus_pallet_aura_ext exclude_parts { Storage } = 169,
+		Aura: pallet_aura = 167,
+		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
