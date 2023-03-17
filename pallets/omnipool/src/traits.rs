@@ -80,3 +80,10 @@ where
 		Weight::zero()
 	}
 }
+
+pub trait ExternalPriceProvider<AssetId, Price> {
+	type Error;
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<Price, Self::Error>;
+
+	fn get_price_weight() -> Weight;
+}

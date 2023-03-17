@@ -72,7 +72,7 @@ use frame_support::pallet_prelude::{DispatchResult, Get};
 use frame_support::require_transactional;
 use frame_support::PalletId;
 use frame_support::{ensure, transactional};
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One};
+use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, One, Saturating};
 use sp_runtime::traits::{CheckedAdd, CheckedSub, Zero};
 use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
@@ -96,7 +96,7 @@ pub mod traits;
 pub mod types;
 pub mod weights;
 
-use crate::traits::{AssetInfo, OmnipoolHooks};
+use crate::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
@@ -108,7 +108,7 @@ pub type NFTCollectionIdOf<T> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{AssetInfo, OmnipoolHooks};
+	use crate::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
@@ -203,6 +203,17 @@ pub mod pallet {
 
 		/// Hooks are actions executed on add_liquidity, sell or buy.
 		type OmnipoolHooks: OmnipoolHooks<Self::Origin, Self::AssetId, Balance, Error = DispatchError>;
+
+		/// External price oracle which provides LRNA price to be used in add / remove liquidity.
+		type ExternalPriceOracle: ExternalPriceProvider<
+			Self::AssetId,
+			hydra_dx_math::ema::EmaPrice,
+			Error = DispatchError,
+		>;
+
+		/// Price difference percentage for allowing add or remove liquidity.
+		#[pallet::constant]
+		type PriceDifferencePercentage: Get<Permill>;
 	}
 
 	#[pallet::storage]
@@ -366,6 +377,8 @@ pub mod pallet {
 		MaxOutRatioExceeded,
 		/// Max fraction of asset reserve to sell has been exceeded.
 		MaxInRatioExceeded,
+		/// Max allowed price difference has been exceeded.
+		PriceDifferenceTooHigh,
 	}
 
 	#[pallet::call]
@@ -632,6 +645,8 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			Self::ensure_price(asset, &asset_state)?;
+
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			let current_hub_asset_liquidity =
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
@@ -772,6 +787,8 @@ pub mod pallet {
 				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
 			);
+
+			Self::ensure_price(asset_id, &asset_state)?;
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			let current_hub_asset_liquidity =
@@ -1273,7 +1290,6 @@ pub mod pallet {
 				amount_out: *state_changes.asset_out.delta_reserve,
 			});
 
-
 			Ok(())
 		}
 
@@ -1467,7 +1483,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update Hub asset side of HDX subpool annd add given amount to hub_asset_reserve
-	fn update_hdx_subpool_hub_asset(origin:T::Origin, hub_asset_amount: Balance) -> DispatchResult {
+	fn update_hdx_subpool_hub_asset(origin: T::Origin, hub_asset_amount: Balance) -> DispatchResult {
 		if hub_asset_amount > Balance::zero() {
 			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
 
@@ -1480,12 +1496,12 @@ impl<T: Config> Pallet<T> {
 
 			let updated_hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
 
-			let delta_changes = AssetStateChange{
+			let delta_changes = AssetStateChange {
 				delta_hub_reserve: BalanceUpdate::Increase(hub_asset_amount),
 				..Default::default()
 			};
 
-			let info : AssetInfo<T::AssetId, Balance> =
+			let info: AssetInfo<T::AssetId, Balance> =
 				AssetInfo::new(T::HdxAssetId::get(), &hdx_state, &updated_hdx_state, &delta_changes);
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
@@ -1869,5 +1885,24 @@ impl<T: Config> Pallet<T> {
 	/// Returns `true` if `asset` exists in the omnipool or `false`
 	pub fn exists(asset: T::AssetId) -> bool {
 		Assets::<T>::contains_key(asset)
+	}
+
+	/// Ensures the maximum allowed difference between external price and current omnipool price.
+	fn ensure_price(asset_id: T::AssetId, asset_state: &AssetReserveState<Balance>) -> DispatchResult {
+		let external_price = T::ExternalPriceOracle::get_price(asset_id, T::HubAssetId::get())?;
+		let external_price = FixedU128::checked_from_rational(external_price.n, external_price.d)
+			.ok_or(ArithmeticError::DivisionByZero)?;
+		let max_allowed = FixedU128::from(T::PriceDifferencePercentage::get());
+		let max_allowed_difference = external_price.saturating_mul(max_allowed);
+		let current_spot_price = asset_state.price().ok_or(ArithmeticError::DivisionByZero)?;
+
+		let diff = if current_spot_price >= external_price {
+			current_spot_price.saturating_sub(external_price)
+		} else {
+			external_price.saturating_sub(current_spot_price)
+		};
+		ensure!(diff <= max_allowed_difference, Error::<T>::PriceDifferenceTooHigh);
+
+		Ok(())
 	}
 }

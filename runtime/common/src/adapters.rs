@@ -1,11 +1,12 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
-use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler};
+use hydradx_traits::{AggregatedPriceOracle, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
 use pallet_ema_oracle::OnActivityHandler;
-use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks, ExternalPriceProvider};
 use primitives::{AssetId, Balance};
 use sp_runtime::DispatchError;
+use pallet_ema_oracle::Price;
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
@@ -82,5 +83,25 @@ where
 
 	fn on_trade_weight() -> Weight {
 		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2)
+	}
+}
+
+/// Passes ema oracle price to the omnipool.
+pub struct EmaOraclePriceAdapter<Period, Runtime>(PhantomData<(Period, Runtime)>);
+
+impl<Period, Runtime> ExternalPriceProvider<AssetId, Price> for EmaOraclePriceAdapter<Period, Runtime>
+where
+    Period: Get<OraclePeriod>,
+	Runtime: pallet_ema_oracle::Config + pallet_omnipool::Config,
+{
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<Price, Self::Error> {
+		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(asset_a, asset_b, Period::get(), OMNIPOOL_SOURCE).map_err(|_| pallet_omnipool::Error::<Runtime>::PriceDifferenceTooHigh)?;
+		Ok(price)
+	}
+
+	fn get_price_weight() -> Weight {
+		pallet_ema_oracle::Pallet::<Runtime>::get_price_weight()
 	}
 }

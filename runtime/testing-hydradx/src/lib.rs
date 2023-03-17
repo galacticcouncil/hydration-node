@@ -63,7 +63,7 @@ use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 
-use common_runtime::adapters::OmnipoolHookAdapter;
+use common_runtime::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter};
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
@@ -824,6 +824,8 @@ parameter_types! {
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
 	pub const OmnipoolCollectionId: CollectionId = 1337u128;
+	pub const EmaOracleSpotPricePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -848,6 +850,8 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
+	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPricePeriod, Runtime>;
+	type PriceDifferencePercentage = OmnipoolMaxAllowedPriceDifference;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
