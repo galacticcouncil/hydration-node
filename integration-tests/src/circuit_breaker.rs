@@ -13,10 +13,6 @@ use primitives::Balance;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
-//TODO:
-//Add integration tests
-//-remove liquidity
-//add/remove liquidty from admin
 
 #[test]
 fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
