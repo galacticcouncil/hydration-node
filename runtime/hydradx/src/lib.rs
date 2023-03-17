@@ -860,6 +860,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;

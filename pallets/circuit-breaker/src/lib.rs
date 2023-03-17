@@ -19,6 +19,7 @@
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::Weight;
+use frame_support::traits::EnsureOrigin;
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::pallet_prelude::OriginFor;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
@@ -192,8 +193,8 @@ pub mod pallet {
 		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
-		/*/// Origin that can add token, refund refused asset and  set tvl cap.
-		type AuthorityOrigin: EnsureOrigin<Self::Origin>;*/
+		/// Origin that can bypass checks for adding/removing liquidity
+		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
 		/// Represented as a non-zero fraction (nominator, denominator) with the max value being 10_000.
@@ -571,10 +572,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn ensure_add_liquidity_limit(
+		origin: OriginFor<T>,
 		asset_id: T::AssetId,
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
+		if let Ok(_) = T::AuthorityOrigin::ensure_origin(origin) {
+			return Ok(Weight::zero());
+		}
+
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_add_liquidity_limit(asset_id, added_liquidity)?;
 
@@ -582,10 +588,15 @@ impl<T: Config> Pallet<T> {
 	}
 
 	pub fn ensure_remove_liquidity_limit(
+		origin: OriginFor<T>,
 		asset_id: T::AssetId,
 		initial_liquidity: T::Balance,
 		removed_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
+		if let Ok(_) = T::AuthorityOrigin::ensure_origin(origin) {
+			return Ok(Weight::zero());
+		}
+
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_remove_liquidity_limit(asset_id, removed_liquidity)?;
 

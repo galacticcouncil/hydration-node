@@ -139,7 +139,7 @@ impl pallet_circuit_breaker::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	//type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
@@ -229,6 +229,7 @@ where
 	T: Config + pallet_circuit_breaker::Config,
 	<T as pallet_circuit_breaker::Config>::Balance: From<u128>,
 	<T as pallet_circuit_breaker::Config>::AssetId: From<u32>, //TODO: get  rid of these if possible
+	<T as frame_system::Config>::Origin: From<Origin>,
 {
 	type Error = DispatchError;
 
@@ -239,6 +240,7 @@ where
 		match asset.delta_changes.delta_reserve.into() {
 			BalanceUpdate::Increase(amount) => {
 				pallet_circuit_breaker::Pallet::<T>::ensure_add_liquidity_limit(
+					origin.into(),
 					asset.asset_id.into(),
 					asset.before.reserve.into(),
 					amount.into(),
@@ -246,6 +248,7 @@ where
 			}
 			BalanceUpdate::Decrease(amount) => {
 				pallet_circuit_breaker::Pallet::<T>::ensure_remove_liquidity_limit(
+					origin.into(),
 					asset.asset_id.into(),
 					asset.before.reserve.into(),
 					amount.into(),

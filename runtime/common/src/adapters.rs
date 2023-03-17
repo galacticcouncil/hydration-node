@@ -16,11 +16,11 @@ pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config,
+	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<Origin = Origin>,
 {
 	type Error = DispatchError;
 
-	fn on_liquidity_changed(_origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
 		let weight1 = OnActivityHandler::<Runtime>::on_liquidity_changed(
 			OMNIPOOL_SOURCE,
 			asset.asset_id,
@@ -34,12 +34,14 @@ where
 
 		let weight2 = match asset.delta_changes.delta_reserve.into() {
 			BalanceUpdate::Increase(amount) => pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidity_limit(
+				origin,
 				asset.asset_id.into(),
 				asset.before.reserve.into(),
 				amount.into(),
 			)?,
 			BalanceUpdate::Decrease(amount) => {
 				pallet_circuit_breaker::Pallet::<Runtime>::ensure_remove_liquidity_limit(
+					origin,
 					asset.asset_id.into(),
 					asset.before.reserve.into(),
 					amount.into(),
