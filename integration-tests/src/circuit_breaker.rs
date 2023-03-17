@@ -83,7 +83,7 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 }
 
 #[test]
-fn sell_lrna_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
+fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool();
@@ -113,6 +113,34 @@ fn sell_lrna_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 				CORE_ASSET_ID,
 				sell_amount,
 				min_limit
+			),
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached
+		);
+	});
+}
+
+#[test]
+fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool2();
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			LRNA,
+			100000000000 * UNITS,
+			0,
+		));
+
+		//Act and assert
+		assert_noop!(
+			Omnipool::buy(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				CORE_ASSET_ID,
+				LRNA,
+				200000 * UNITS,
+				Balance::MAX
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached
 		);
@@ -418,6 +446,24 @@ fn init_omnipool() {
 		RawOrigin::Root.into(),
 		FixedU128::from_float(0.00001), // adjust the amount of LRNA to roughly match the amount of LRNA that belongs to HDX. This way we can avoid MaxOutRatioExceeded error.
 		FixedU128::from(1),
+		Permill::from_percent(100),
+		Permill::from_percent(100)
+	));
+}
+
+fn init_omnipool2() {
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+		hydradx_runtime::Origin::root(),
+		222_222_000_000_000_000_000_000,
+	));
+
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	assert_ok!(Omnipool::initialize_pool(
+		RawOrigin::Root.into(),
+		stable_price,
+		native_price,
 		Permill::from_percent(100),
 		Permill::from_percent(100)
 	));
