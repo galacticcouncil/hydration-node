@@ -37,21 +37,21 @@ where
 		match asset.delta_changes.delta_reserve.into() {
 			BalanceUpdate::Increase(amount) => {
 				pallet_circuit_breaker::Pallet::<Runtime>::after_add_liquidity(
-			asset.asset_id.into(),
-			asset.before.reserve.into(),
-			amount.into(),
+					asset.asset_id.into(),
+					asset.before.reserve.into(),
+					amount.into(),
 				)?;
-			},
+			}
 			BalanceUpdate::Decrease(amount) => {
 				pallet_circuit_breaker::Pallet::<Runtime>::after_remove_liquidity(
-			asset.asset_id.into(),
-			asset.before.reserve.into(),
-			amount.into(),
+					asset.asset_id.into(),
+					asset.before.reserve.into(),
+					amount.into(),
 				)?;
-			},
+			}
 		};
 
-		 //TODO: return weight from it and add this weight and  the oracle one together
+		//TODO: return weight from it and add this weight and  the oracle one together
 
 		res
 	}

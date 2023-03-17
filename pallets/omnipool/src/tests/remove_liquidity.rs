@@ -465,9 +465,7 @@ fn remove_liquidity_should_fail_when_liquidity_volume_limit_exceeded() {
 			let liq_amount = CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap();
 
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_amount),
-			);
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_amount),);
 
 			// Act & Assert
 			assert_noop!(
@@ -493,7 +491,11 @@ fn remove_liquidity_should_fail_when_consequent_calls_exceed_liquidity_volume_li
 			let liq_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
 
 			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_amount.checked_mul(3).unwrap()));
+			assert_ok!(Omnipool::add_liquidity(
+				Origin::signed(LP1),
+				1_000,
+				liq_amount.checked_mul(3).unwrap()
+			));
 
 			// Act & Assert
 			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount));
