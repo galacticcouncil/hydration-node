@@ -272,7 +272,7 @@ fn add_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_exce
 
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
-			Treasury::account_id().into(),
+			Treasury::account_id(),
 			added_liquidity,
 			0,
 		));
