@@ -21,7 +21,7 @@ use codec::{Decode, Encode};
 use frame_support::dispatch::Weight;
 use frame_support::traits::{Contains, EnsureOrigin};
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
-use frame_system::ensure_signed;
+use frame_system::ensure_signed_or_root;
 use frame_system::pallet_prelude::OriginFor;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
@@ -197,7 +197,7 @@ pub mod pallet {
 		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
-		/// List of accounts that bypass checks for adding/removing liquidity
+		/// List of accounts that bypass checks for adding/removing liquidity. Root is always whitelisted
 		type WhitelistedAccounts: Contains<Self::AccountId>;
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
@@ -581,9 +581,19 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		let who = ensure_signed(origin)?;
-		if T::WhitelistedAccounts::contains(&who) {
-			return Ok(Weight::zero());
+		let who = ensure_signed_or_root(origin)?;
+
+		match who {
+			Some(account) => {
+				if T::WhitelistedAccounts::contains(&account) {
+					return Ok(Weight::zero());
+				}
+			}
+			None => {
+				//origin is root
+				//root is always whitelisted
+				return Ok(Weight::zero());
+			}
 		}
 
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
@@ -598,9 +608,18 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		removed_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		let who = ensure_signed(origin)?;
-		if T::WhitelistedAccounts::contains(&who) {
-			return Ok(Weight::zero());
+		let who = ensure_signed_or_root(origin)?;
+		match who {
+			Some(account) => {
+				if T::WhitelistedAccounts::contains(&account) {
+					return Ok(Weight::zero());
+				}
+			}
+			None => {
+				//origin is root
+				//root is always whitelisted
+				return Ok(Weight::zero());
+			}
 		}
 
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;

@@ -28,7 +28,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 pallet-omnipool = { path = "../omnipool", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "059a2dda2bf24cc3333f18a6befb29b08fc66b01", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "7794c7fef1a28430fce2b743a21bb125d9174bcc", default-features = false }
 
 [dev-dependencies]
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
