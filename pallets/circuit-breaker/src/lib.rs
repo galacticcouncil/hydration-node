@@ -412,10 +412,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn calculate_and_store_trade_limit(asset_id: T::AssetId, current_asset_reserve: T::Balance) -> DispatchResult {
+	fn initialize_trade_limit(asset_id: T::AssetId, initial_asset_reserve: T::Balance) -> DispatchResult {
 		if asset_id != T::OmnipoolHubAsset::get() && !<AllowedTradeVolumeLimitPerAsset<T>>::contains_key(asset_id) {
 			let limit = Self::calculate_limit(
-				current_asset_reserve,
+				initial_asset_reserve,
 				Pallet::<T>::trade_volume_limit_per_asset(asset_id),
 			)?;
 
@@ -562,8 +562,8 @@ impl<T: Config> Pallet<T> {
 		asset_out_reserve: T::Balance,
 		amount_out: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		Pallet::<T>::calculate_and_store_trade_limit(asset_in, asset_in_reserve)?;
-		Pallet::<T>::calculate_and_store_trade_limit(asset_out, asset_out_reserve)?;
+		Pallet::<T>::initialize_trade_limit(asset_in, asset_in_reserve)?;
+		Pallet::<T>::initialize_trade_limit(asset_out, asset_out_reserve)?;
 		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
 
 		Ok(T::WeightInfo::ensure_pool_state_change_limit())

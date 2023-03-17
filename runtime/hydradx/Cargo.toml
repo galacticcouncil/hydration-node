@@ -213,6 +213,7 @@ std = [
     "pallet-asset-registry/std",
     "pallet-currencies/std",
     "pallet-omnipool/std",
+    "pallet-circuit-breaker/std",
     "pallet-transaction-pause/std",
     "pallet-ema-oracle/std",
     "sp-api/std",
@@ -278,8 +279,8 @@ try-runtime= [
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
     "pallet-transaction-pause/try-runtime",
-    "pallet-circuit-breaker/try-runtime",
     "pallet-duster/try-runtime",
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
+    "pallet-circuit-breaker/try-runtime",
 ]

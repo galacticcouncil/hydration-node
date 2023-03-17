@@ -64,6 +64,7 @@ std = [
     "scale-info/std",
     "primitives/std",
     "pallet-omnipool/std",
+    "pallet-circuit-breaker/std",
     "sp-runtime/std",
     "sp-core/std",
     "sp-std/std",
