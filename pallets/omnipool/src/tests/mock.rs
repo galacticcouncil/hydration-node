@@ -22,7 +22,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate as pallet_omnipool;
-use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
@@ -35,7 +34,6 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use sp_std::marker::PhantomData;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -47,23 +45,18 @@ pub type AssetId = u32;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
-pub const DOT: AssetId = 3;
-pub const ACA: AssetId = 4;
+
 pub const REGISTERED_ASSET: AssetId = 1000;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
 pub const LP3: u64 = 3;
-pub const TRADER: u64 = 4;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
 pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
-
-pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
-pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
@@ -75,9 +68,6 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = RefCell::new((10_000, 1));
-	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(None);
-	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(None);
 }
 
 construct_runtime!(
@@ -90,7 +80,6 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
-		CircuitBreaker: pallet_circuit_breaker,
 	}
 );
 
@@ -155,18 +144,6 @@ impl orml_tokens::Config for Test {
 	type ReserveIdentifier = ();
 }
 
-impl pallet_circuit_breaker::Config for Test {
-	type Event = Event;
-	type AssetId = AssetId;
-	type Balance = Balance;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
-	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
-	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
-	type OmnipoolHubAsset = LRNAAssetId;
-	type WeightInfo = ();
-}
-
 parameter_types! {
 	pub const HDXAssetId: AssetId = HDX;
 	pub const LRNAAssetId: AssetId = LRNA;
@@ -181,9 +158,6 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
-	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
-	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
-	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -207,63 +181,7 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
-	type OmnipoolHooks = CircuitBreakerHooks<Test>;
-}
-
-pub struct CircuitBreakerHooks<T>(PhantomData<T>);
-
-impl<T> OmnipoolHooks<Origin, AssetId, Balance> for CircuitBreakerHooks<T>
-where
-	// Lrna: Get<AssetId>,
-	T: Config + pallet_circuit_breaker::Config,
-	<T as pallet_circuit_breaker::Config>::Balance: From<u128>,
-	<T as pallet_circuit_breaker::Config>::AssetId: From<u32>, //TODO: get  rid of these if possible
-{
-	type Error = DispatchError;
-
-	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
-		/*CircuitBreaker::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
-		CircuitBreaker::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;*/
-
-		match asset.delta_changes.delta_reserve.into() {
-			BalanceUpdate::Increase(amount) => {
-				pallet_circuit_breaker::Pallet::<T>::after_add_liquidity(
-					asset.asset_id.into(),
-					asset.before.reserve.into(),
-					amount.into(),
-				)?;
-			}
-			BalanceUpdate::Decrease(amount) => {
-				pallet_circuit_breaker::Pallet::<T>::after_remove_liquidity(
-					asset.asset_id.into(),
-					asset.before.reserve.into(),
-					amount.into(),
-				)?;
-			}
-		};
-
-		Ok(Weight::zero())
-	}
-
-	fn on_trade(
-		origin: Origin,
-		asset_in: AssetInfo<AssetId, Balance>,
-		asset_out: AssetInfo<AssetId, Balance>,
-	) -> Result<Weight, Self::Error> {
-		todo!()
-	}
-
-	fn on_hub_asset_trade(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
-		todo!()
-	}
-
-	fn on_liquidity_changed_weight() -> Weight {
-		todo!()
-	}
-
-	fn on_trade_weight() -> Weight {
-		todo!()
-	}
+	type OmnipoolHooks = ();
 }
 
 pub struct ExtBuilder {
@@ -280,9 +198,6 @@ pub struct ExtBuilder {
 	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
-	max_net_trade_volume_limit_per_block: (u32, u32),
-	max_add_liquidity_limit_per_block: Option<(u32, u32)>,
-	max_remove_liquidity_limit_per_block: Option<(u32, u32)>,
 }
 
 impl Default for ExtBuilder {
@@ -334,9 +249,6 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
-			max_net_trade_volume_limit_per_block: (10_000, 1),
-			max_add_liquidity_limit_per_block: None,
-			max_remove_liquidity_limit_per_block: None,
 			tvl_cap: u128::MAX,
 		}
 	}
@@ -402,21 +314,6 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_max_trade_volume_limit_per_block(mut self, value: (u32, u32)) -> Self {
-		self.max_net_trade_volume_limit_per_block = value;
-		self
-	}
-
-	pub fn with_max_add_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
-		self.max_add_liquidity_limit_per_block = value;
-		self
-	}
-
-	pub fn with_max_remove_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
-		self.max_remove_liquidity_limit_per_block = value;
-		self
-	}
-
 	pub fn with_token(
 		mut self,
 		asset_id: AssetId,
@@ -466,15 +363,6 @@ impl ExtBuilder {
 		});
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = self.max_out_ratio;
-		});
-		MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| {
-			*v.borrow_mut() = self.max_net_trade_volume_limit_per_block;
-		});
-		MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
-			*v.borrow_mut() = self.max_add_liquidity_limit_per_block;
-		});
-		MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
-			*v.borrow_mut() = self.max_remove_liquidity_limit_per_block;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {
@@ -526,7 +414,6 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use frame_system::pallet_prelude::OriginFor;
 
 pub struct DummyNFT;
 

@@ -44,7 +44,6 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
 
 [dev-dependencies]
-pallet-circuit-breaker = {path="../circuit-breaker", default-features = false}
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}

@@ -21,7 +21,6 @@ use codec::{Decode, Encode};
 use frame_support::dispatch::Weight;
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::pallet_prelude::OriginFor;
-use hydradx_traits::{OnLiquidityChangeHandler, OnPoolStateChangeHandler};
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
@@ -584,35 +583,6 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_remove_liquidity_limit(asset_id, removed_liquidity)?;
-		Ok(())
-	}
-}
-
-// TODO: Remove if not necessary
-impl<T: Config> OnPoolStateChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn after_pool_state_change(
-		asset_in: T::AssetId,
-		asset_in_reserve: T::Balance,
-		amount_in: T::Balance,
-		asset_out: T::AssetId,
-		asset_out_reserve: T::Balance,
-		amount_out: T::Balance,
-	) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_trade_limit(asset_in, asset_in_reserve)?;
-		Pallet::<T>::calculate_and_store_trade_limit(asset_out, asset_out_reserve)?;
-		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
-		Ok(())
-	}
-}
-
-impl<T: Config> OnLiquidityChangeHandler<T::AssetId, T::Balance> for Pallet<T> {
-	fn after_add_liquidity(
-		asset_id: T::AssetId,
-		initial_liquidity: T::Balance,
-		added_liquidity: T::Balance,
-	) -> DispatchResult {
-		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
-		Pallet::<T>::ensure_and_update_add_liquidity_limit(asset_id, added_liquidity)?;
 		Ok(())
 	}
 }

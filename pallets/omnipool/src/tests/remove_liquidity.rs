@@ -2,7 +2,6 @@ use super::*;
 use crate::types::Tradability;
 use frame_support::assert_noop;
 use sp_runtime::traits::One;
-use test_case::test_case;
 
 #[test]
 fn remove_liquidity_works() {
@@ -419,89 +418,6 @@ fn remove_liquidity_should_fail_when_shares_amount_is_zero() {
 			assert_noop!(
 				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 0u128),
 				Error::<Test>::InvalidSharesAmount
-			);
-		});
-}
-
-#[test_case(0)]
-#[test_case(ONE)]
-#[test_case(100 * ONE)]
-fn remove_liquidity_should_work_when_liquidity_volume_limit_not_exceeded(diff_from_max_limit: Balance) {
-	// Arrange
-	let initial_liquidity = 1_000_000 * ONE;
-	ExtBuilder::default()
-		.add_endowed_accounts((LP1, 1_000, 2_000_000 * ONE))
-		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
-		.with_max_add_liquidity_limit_per_block(Some(TEN_PERCENT))
-		.with_max_remove_liquidity_limit_per_block(Some(TEN_PERCENT))
-		.build()
-		.execute_with(|| {
-			let liq_amount =
-				CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() - diff_from_max_limit;
-
-			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_amount));
-
-			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount));
-		});
-}
-
-#[test]
-fn remove_liquidity_should_fail_when_liquidity_volume_limit_exceeded() {
-	// Arrange
-	let initial_liquidity = 1_000_000 * ONE;
-	ExtBuilder::default()
-		.add_endowed_accounts((LP1, 1_000, 2_000_000 * ONE))
-		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
-		.with_max_add_liquidity_limit_per_block(Some(TEN_PERCENT))
-		.with_max_remove_liquidity_limit_per_block(Some(FIVE_PERCENT))
-		.build()
-		.execute_with(|| {
-			let liq_amount = CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap();
-
-			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_amount),);
-
-			// Act & Assert
-			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount),
-				pallet_circuit_breaker::Error::<Test>::MaxLiquidityLimitPerBlockReached
-			);
-		});
-}
-
-#[test]
-fn remove_liquidity_should_fail_when_consequent_calls_exceed_liquidity_volume_limit() {
-	// Arrange
-	let initial_liquidity = 1_000_000 * ONE;
-	ExtBuilder::default()
-		.add_endowed_accounts((LP1, 1_000, 2_000_000 * ONE))
-		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
-		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
-		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
-		.with_max_add_liquidity_limit_per_block(Some((2_000, 10_000)))
-		.with_max_remove_liquidity_limit_per_block(Some(TEN_PERCENT))
-		.build()
-		.execute_with(|| {
-			let liq_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
-
-			let position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(
-				Origin::signed(LP1),
-				1_000,
-				liq_amount.checked_mul(3).unwrap()
-			));
-
-			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount));
-			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount),
-				pallet_circuit_breaker::Error::<Test>::MaxLiquidityLimitPerBlockReached
 			);
 		});
 }
