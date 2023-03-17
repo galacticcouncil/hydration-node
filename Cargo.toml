@@ -12,7 +12,6 @@ members = [
   'utils/build-script-utils',
   'integration-tests',
   'pallets/omnipool-liquidity-mining',
-  'scraper',
 ]
 
 [patch."https://github.com/paritytech/polkadot"]

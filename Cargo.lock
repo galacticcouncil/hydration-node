@@ -3366,7 +3366,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "133.0.0"
+version = "134.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -8177,13 +8177,14 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.0.6"
+version = "5.7.0"
 dependencies = [
  "frame-support",
  "hex-literal",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "static_assertions",
 ]
 
 [[package]]
@@ -10133,20 +10134,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
-name = "scraper"
-version = "1.0.0"
-dependencies = [
- "clap",
- "hydradx-runtime",
- "jsonrpsee",
- "parity-scale-codec",
- "remote-externalities",
- "serde",
- "sp-runtime",
- "tokio",
-]
-
-[[package]]
 name = "scratch"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11519,7 +11506,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "133.0.0"
+version = "134.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
