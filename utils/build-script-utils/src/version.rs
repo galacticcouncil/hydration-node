@@ -3,7 +3,7 @@ use std::{borrow::Cow, env, fs, io, path, process::Command};
 
 /// Generate the `cargo:` key output
 pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {
-	let output = Command::new("git").args(&["rev-parse", "--short", "HEAD"]).output();
+	let output = Command::new("git").args(["rev-parse", "--short", "HEAD"]).output();
 
 	let commit = match output {
 		Ok(o) if o.status.success() => {
@@ -15,7 +15,7 @@ pub fn generate_cargo_keys(runtime: &str) -> io::Result<()> {
 			Cow::from("unknown")
 		}
 		Err(err) => {
-			println!("cargo:warning=Failed to execute git command: {}", err);
+			println!("cargo:warning=Failed to execute git command: {err}");
 			Cow::from("unknown")
 		}
 	};
@@ -41,7 +41,7 @@ fn get_platform() -> String {
 
 fn get_release_version() -> String {
 	let output = Command::new("git")
-		.args(&["describe", "--tags", "--abbrev=0", "--always"])
+		.args(["describe", "--tags", "--abbrev=0", "--always"])
 		.output();
 
 	let version = match output {
@@ -54,7 +54,7 @@ fn get_release_version() -> String {
 			Cow::from("unknown")
 		}
 		Err(err) => {
-			println!("cargo:warning=Failed to execute git describe command: {}", err);
+			println!("cargo:warning=Failed to execute git describe command: {err}");
 			Cow::from("unknown")
 		}
 	};
@@ -82,7 +82,7 @@ fn get_version(impl_commit: &str, runtime: &str) -> io::Result<String> {
 	let deps = get_build_deps(env::var("CARGO_MANIFEST_DIR").unwrap().as_ref())?;
 	let runtime_dependency: Vec<(String, String)> = deps.into_iter().filter(|(dep, _)| dep.eq(runtime)).collect();
 	let runtime_version = if runtime_dependency.is_empty() {
-		println!("cargo:warning={} found in dependencies", runtime);
+		println!("cargo:warning={runtime} found in dependencies");
 		"unknown".to_string()
 	} else {
 		runtime_dependency[0].1.clone()
