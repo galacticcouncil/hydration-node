@@ -227,7 +227,7 @@ fn ensure_and_update_liquidity_limit_should_fail_when_max_limit_is_reached_from_
 			HDX,
 			INITIAL_LIQUIDITY
 		));
-        
+
 		assert_eq!(
 			CircuitBreaker::allowed_remove_liquidity_limit_per_asset(HDX).unwrap(),
 			LiquidityLimit {
@@ -263,7 +263,9 @@ fn ensure_and_update_liquidity_limit_should_ingore_omnipool_hub_asset() {
 			LRNA,
 			INITIAL_LIQUIDITY
 		));
-		assert_storage_noop!(CircuitBreaker::ensure_and_update_remove_liquidity_limit(LRNA, INITIAL_LIQUIDITY).unwrap());
+		assert_storage_noop!(
+			CircuitBreaker::ensure_and_update_remove_liquidity_limit(LRNA, INITIAL_LIQUIDITY).unwrap()
+		);
 	});
 }
 
@@ -273,7 +275,11 @@ fn set_liquidity_limit_should_work_when_signed_by_technical_origin() {
 		// Arrange & Act
 		let new_limit = Some((7, 100));
 
-		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(Origin::root(), HDX, new_limit));
+		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
+			Origin::root(),
+			HDX,
+			new_limit
+		));
 
 		expect_events(vec![crate::Event::RemoveLiquidityLimitChanged {
 			asset_id: HDX,
@@ -306,7 +312,11 @@ fn set_liquidity_limit_should_store_new_trade_volume_limit() {
 		assert_eq!(CircuitBreaker::remove_liquidity_limit_per_asset(HDX), default_limit);
 		let new_limit = Some((7, 100));
 
-		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(Origin::root(), HDX, new_limit));
+		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
+			Origin::root(),
+			HDX,
+			new_limit
+		));
 
 		// Assert
 		assert_eq!(CircuitBreaker::remove_liquidity_limit_per_asset(HDX), new_limit);

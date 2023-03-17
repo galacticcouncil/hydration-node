@@ -252,7 +252,8 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Add liquidity volumes per asset
 	#[pallet::getter(fn allowed_add_liquidity_limit_per_asset)]
-	pub type AllowedAddLiquidityAmountPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
+	pub type AllowedAddLiquidityAmountPerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
 	/// Default maximum remove liquidity limit per block
 	#[pallet::type_value]
@@ -269,7 +270,8 @@ pub mod pallet {
 	#[pallet::storage]
 	/// Remove liquidity volumes per asset
 	#[pallet::getter(fn allowed_remove_liquidity_limit_per_asset)]
-	pub type AllowedRemoveLiquidityAmountPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
+	pub type AllowedRemoveLiquidityAmountPerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, LiquidityLimit<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -431,7 +433,7 @@ impl<T: Config> Pallet<T> {
 	fn calculate_and_store_liquidity_limits(asset_id: T::AssetId, initial_liquidity: T::Balance) -> DispatchResult {
 		// we don't track liquidity limits for the Omnipool Hub asset
 		if asset_id == T::OmnipoolHubAsset::get() {
-			return Ok(())
+			return Ok(());
 		}
 
 		// add liquidity
