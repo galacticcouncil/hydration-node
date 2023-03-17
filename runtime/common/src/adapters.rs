@@ -3,11 +3,12 @@ use core::marker::PhantomData;
 use frame_support::{traits::Get, weights::Weight};
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler};
+use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use primitives::{AssetId, Balance};
+use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
-use pallet_circuit_breaker::WeightInfo;
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
@@ -106,12 +107,26 @@ where
 			asset.after.hub_reserve,
 			asset.after.reserve,
 		)
-		.map_err(|(_, e)| e)
+		.map_err(|(_, e)| e)?;
+
+		let amount_out = *asset.delta_changes.delta_reserve;
+
+		pallet_circuit_breaker::Pallet::<Runtime>::ensure_pool_state_change_limit(
+			Lrna::get().into(),
+			Balance::zero().into(),
+			Balance::zero().into(),
+			asset.asset_id.into(),
+			asset.before.reserve.into(),
+			amount_out.into(),
+		)?;
+
+		Ok(Self::on_trade_weight())
 	}
 
 	fn on_liquidity_changed_weight() -> Weight {
 		let w1 = OnActivityHandler::<Runtime>::on_liquidity_changed_weight();
-		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_add_liquidity_limit().max(<Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_remove_liquidity_limit());
+		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_add_liquidity_limit()
+			.max(<Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_remove_liquidity_limit());
 		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize(0, 1);
 		w1.saturating_add(w2).saturating_add(w3)
 	}

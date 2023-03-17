@@ -83,6 +83,43 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 }
 
 #[test]
+fn sell_lrna_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+
+		let lrna_balance_in_omnipool = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(LRNA);
+		let sell_amount = CircuitBreaker::calculate_limit(lrna_balance_in_omnipool, trade_volume_limit)
+			.unwrap()
+			.checked_add(1)
+			.unwrap();
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			LRNA,
+			sell_amount,
+			0,
+		));
+
+		let min_limit = 0;
+
+		//Act and assert
+		assert_noop!(
+			Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				LRNA,
+				CORE_ASSET_ID,
+				sell_amount,
+				min_limit
+			),
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached
+		);
+	});
+}
+
+#[test]
 fn buy_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
