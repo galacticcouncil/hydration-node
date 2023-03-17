@@ -1,6 +1,9 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use common_runtime::BlockNumber;
+use frame_support::traits::OnFinalize;
+use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, Tokens};
@@ -10,7 +13,6 @@ use primitives::Balance;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
-
 //TODO:
 //Add integration tests
 //-remove liquidity
@@ -257,7 +259,6 @@ fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_e
 }
 
 #[test]
-#[ignore]
 fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
@@ -274,7 +275,6 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 			0,
 		));
 
-		//Act and assert
 		let position_id_1 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
 			hydradx_runtime::Origin::signed(ALICE.into()),
@@ -282,7 +282,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 			added_liquidity,
 		));
 
-		hydradx_runtime::System::set_block_number(10);
+		hydradx_run_to_block(2);
 
 		let position_id_2 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -290,7 +290,39 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
+
+		hydradx_run_to_block(3);
+
+		assert_ok!(Omnipool::remove_liquidity(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			position_id_2,
+			added_liquidity,
+		));
+
+		//Act and Assert
+		assert_noop!(
+			Omnipool::remove_liquidity(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				position_id_1,
+				added_liquidity,
+			),
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxLiquidityLimitPerBlockReached
+		);
 	});
+}
+
+pub fn hydradx_run_to_block(to: BlockNumber) {
+	while hydradx_runtime::System::block_number() < to {
+		let b = hydradx_runtime::System::block_number();
+
+		hydradx_runtime::System::on_finalize(b);
+		hydradx_runtime::CircuitBreaker::on_finalize(b);
+
+		hydradx_runtime::System::on_initialize(b + 1);
+		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
+
+		hydradx_runtime::System::set_block_number(b + 1);
+	}
 }
 
 fn init_omnipool() {
