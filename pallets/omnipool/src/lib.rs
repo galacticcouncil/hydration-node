@@ -607,7 +607,9 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+		)]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			//
@@ -939,7 +941,10 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::sell())]
+		#[pallet::weight(<T as Config>::WeightInfo::sell()
+			.saturating_add(T::OmnipoolHooks::on_trade_weight())
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+		)]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -1115,7 +1120,10 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::buy())]
+		#[pallet::weight(<T as Config>::WeightInfo::buy()
+			.saturating_add(T::OmnipoolHooks::on_trade_weight())
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+		)]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
