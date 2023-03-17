@@ -126,9 +126,7 @@ pub struct CircuitBreakerWhitelist;
 
 impl Contains<AccountId> for CircuitBreakerWhitelist {
 	fn contains(a: &AccountId) -> bool {
-		<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(
-			&TreasuryPalletId::get().into_account_truncating(),
-		) == *a
+		<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(&TreasuryPalletId::get()) == *a
 	}
 }
 
