@@ -4,6 +4,7 @@ pub mod collator_selection;
 pub mod council;
 pub mod currencies;
 pub mod democracy;
+pub mod ema_oracle;
 pub mod identity;
 pub mod omnipool;
 pub mod preimage;

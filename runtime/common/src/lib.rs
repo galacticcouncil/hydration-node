@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod adapters;
 pub mod weights;
 
 use codec::alloc::vec;

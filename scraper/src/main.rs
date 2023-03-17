@@ -144,5 +144,5 @@ fn main() {
 		}
 	};
 
-	println!("The storage file has been saved to {:?}", path);
+	println!("The storage file has been saved to {path:?}");
 }

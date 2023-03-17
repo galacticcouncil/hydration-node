@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-claims'
-version = '3.4.3'
+version = "3.4.4"
 description = 'HydraDX Claims Module'
 authors = ['GalacticCouncil']
 edition = '2021'
