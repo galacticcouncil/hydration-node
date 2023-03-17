@@ -283,4 +283,5 @@ try-runtime= [
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
     "pallet-circuit-breaker/try-runtime",
+    "pallet-ema-oracle/try-runtime",
 ]

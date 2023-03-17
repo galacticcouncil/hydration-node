@@ -102,7 +102,7 @@ fn buy_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 			hydradx_runtime::Origin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			DAI,
-			1 * UNITS,
+			UNITS,
 			Balance::MAX
 		));
 	});
