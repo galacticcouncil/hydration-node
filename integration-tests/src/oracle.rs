@@ -8,7 +8,10 @@ use frame_support::{
 	traits::{OnFinalize, OnInitialize},
 };
 use hydradx_runtime::{EmaOracle, Origin};
-use hydradx_traits::{AggregatedPriceOracle, OraclePeriod::{self, *}};
+use hydradx_traits::{
+	AggregatedPriceOracle,
+	OraclePeriod::{self, *},
+};
 use pallet_ema_oracle::OracleError;
 use polkadot_primitives::v2::BlockNumber;
 use sp_runtime::{FixedU128, Permill};
