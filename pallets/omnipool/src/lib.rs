@@ -1273,7 +1273,6 @@ pub mod pallet {
 				amount_out: *state_changes.asset_out.delta_reserve,
 			});
 
-
 			Ok(())
 		}
 
@@ -1467,7 +1466,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update Hub asset side of HDX subpool annd add given amount to hub_asset_reserve
-	fn update_hdx_subpool_hub_asset(origin:T::Origin, hub_asset_amount: Balance) -> DispatchResult {
+	fn update_hdx_subpool_hub_asset(origin: T::Origin, hub_asset_amount: Balance) -> DispatchResult {
 		if hub_asset_amount > Balance::zero() {
 			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
 
@@ -1480,12 +1479,12 @@ impl<T: Config> Pallet<T> {
 
 			let updated_hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
 
-			let delta_changes = AssetStateChange{
+			let delta_changes = AssetStateChange {
 				delta_hub_reserve: BalanceUpdate::Increase(hub_asset_amount),
 				..Default::default()
 			};
 
-			let info : AssetInfo<T::AssetId, Balance> =
+			let info: AssetInfo<T::AssetId, Balance> =
 				AssetInfo::new(T::HdxAssetId::get(), &hdx_state, &updated_hdx_state, &delta_changes);
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
