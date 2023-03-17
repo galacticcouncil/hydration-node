@@ -55,13 +55,13 @@ benchmarks! {
 		assert_eq!(LiquidityRemoveLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
 
-	ensure_add_liquidty_limit {
+	ensure_add_liquidity_limit {
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 
 	}: {
-		crate::Pallet::<T>::ensure_add_liquidty_limit(asset_id.into(), 0u128.into(), 10u128.into())
+		crate::Pallet::<T>::ensure_add_liquidity_limit(asset_id.into(), 0u128.into(), 10u128.into())
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);

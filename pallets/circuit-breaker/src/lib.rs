@@ -570,7 +570,7 @@ impl<T: Config> Pallet<T> {
 		Ok(T::WeightInfo::ensure_pool_state_change_limit())
 	}
 
-	pub fn ensure_add_liquidty_limit(
+	pub fn ensure_add_liquidity_limit(
 		asset_id: T::AssetId,
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
@@ -578,7 +578,7 @@ impl<T: Config> Pallet<T> {
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_add_liquidity_limit(asset_id, added_liquidity)?;
 
-		Ok(T::WeightInfo::ensure_add_liquidty_limit())
+		Ok(T::WeightInfo::ensure_add_liquidity_limit())
 	}
 
 	pub fn ensure_remove_liquidity_limit(

@@ -238,7 +238,7 @@ where
 
 		match asset.delta_changes.delta_reserve.into() {
 			BalanceUpdate::Increase(amount) => {
-				pallet_circuit_breaker::Pallet::<T>::ensure_add_liquidty_limit(
+				pallet_circuit_breaker::Pallet::<T>::ensure_add_liquidity_limit(
 					asset.asset_id.into(),
 					asset.before.reserve.into(),
 					amount.into(),
