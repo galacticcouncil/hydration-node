@@ -113,12 +113,12 @@ where
 		let w1 = OnActivityHandler::<Runtime>::on_liquidity_changed_weight();
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_add_liquidity_limit().max(<Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_remove_liquidity_limit());
 		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize(0, 1);
-		return w1 + w2 + w3
+		return w1.saturating_add(w2).saturating_add(w3)
 	}
 
 	fn on_trade_weight() -> Weight {
 		let w1 = OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2);
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
-		return w1 + w2
+		return w1.saturating_add(w2)
 	}
 }
