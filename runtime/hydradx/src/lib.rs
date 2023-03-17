@@ -922,7 +922,7 @@ construct_runtime!(
 	{
 		System: frame_system exclude_parts { Origin } = 1,
 		Timestamp: pallet_timestamp = 3,
-		Scheduler: pallet_scheduler = 5,
+		//NOTE: 5 - is used by Scheduler which must be after cumulus_pallet_parachain_system
 		Balances: pallet_balances = 7,
 		TransactionPayment: pallet_transaction_payment exclude_parts { Config } = 9,
 		Treasury: pallet_treasury = 11,
@@ -957,6 +957,11 @@ construct_runtime!(
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
 		ParachainInfo: parachain_info = 105,
+
+		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
+		//will return 0 as current block number when used with Scheduler(democracy).
+		Scheduler: pallet_scheduler = 5,
+
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
@@ -971,8 +976,8 @@ construct_runtime!(
 		Authorship: pallet_authorship exclude_parts { Inherent } = 161,
 		CollatorSelection: pallet_collator_selection = 163,
 		Session: pallet_session = 165,
-		Aura: pallet_aura exclude_parts { Storage } = 167,
-		AuraExt: cumulus_pallet_aura_ext exclude_parts { Storage } = 169,
+		Aura: pallet_aura = 167,
+		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,

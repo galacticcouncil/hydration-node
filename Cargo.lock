@@ -8177,13 +8177,14 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.0.6"
+version = "5.7.0"
 dependencies = [
  "frame-support",
  "hex-literal",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "static_assertions",
 ]
 
 [[package]]
