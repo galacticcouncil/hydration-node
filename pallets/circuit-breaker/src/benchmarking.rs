@@ -59,8 +59,9 @@ benchmarks! {
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 
+		crate::Pallet::<T>::set_add_liquidity_limit(RawOrigin::Root.into(), asset_id.into(), trade_limit)?;
 	}: {
-		crate::Pallet::<T>::ensure_add_liquidity_limit(RawOrigin::Signed(user).into(), asset_id.into(), 0u128.into(), 10u128.into())
+		crate::Pallet::<T>::ensure_add_liquidity_limit(RawOrigin::Signed(user).into(), asset_id.into(), 100u128.into(), 10u128.into())?
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
@@ -73,7 +74,7 @@ benchmarks! {
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 	}: {
-		crate::Pallet::<T>::ensure_remove_liquidity_limit(RawOrigin::Signed(user).into(), asset_id.into(), 0u128.into(), 10u128.into())
+		crate::Pallet::<T>::ensure_remove_liquidity_limit(RawOrigin::Signed(user).into(), asset_id.into(), 100u128.into(), 10u128.into())?
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
@@ -90,7 +91,7 @@ benchmarks! {
 		let before_in = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_in_id);
 		let before_out = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_out_id);
 	}: {
-		crate::Pallet::<T>::ensure_pool_state_change_limit(asset_in_id.into(), asset_in_reserve.into(), amount_in.into(), asset_out_id.into(), asset_out_reserve.into(), amount_out.into())
+		crate::Pallet::<T>::ensure_pool_state_change_limit(asset_in_id.into(), asset_in_reserve.into(), amount_in.into(), asset_out_id.into(), asset_out_reserve.into(), amount_out.into())?
 	}
 	verify {
 		let after_in = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_in_id);
