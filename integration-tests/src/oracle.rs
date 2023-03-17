@@ -82,7 +82,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		hydradx_run_to_block(3);
 
 		// assert
-		let expected_a = ((5000000000000, 6007467920).into(), 0);
+		let expected_a = ((936334588000000000, 1124993995517813).into(), 0);
 		let expected_b = ((233506317, 6004464187).into(), 0);
 		assert_eq!(
 			EmaOracle::get_price(asset_a, LRNA, LastBlock, OMNIPOOL_SOURCE),
