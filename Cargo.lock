@@ -3269,7 +3269,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.5.1"
+version = "8.5.2"
 dependencies = [
  "clap",
  "common-runtime",
@@ -5731,7 +5731,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "3.4.3"
+version = "3.4.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6211,7 +6211,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.6.2"
+version = "1.6.3"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6236,7 +6236,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8839,7 +8839,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -10141,7 +10141,7 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scraper"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "clap",
  "hydradx-runtime",
