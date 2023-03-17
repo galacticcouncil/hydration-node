@@ -20,9 +20,9 @@
 use super::*;
 
 use frame_benchmarking::benchmarks;
+use frame_benchmarking::impl_benchmark_test_suite;
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
-
 benchmarks! {
 	 where_clause {
 		where T::AssetId: From<u32>,
@@ -37,28 +37,68 @@ benchmarks! {
 		assert_eq!(TradeVolumeLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
 
-	set_liquidity_limit {
+	set_add_liquidity_limit {
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 
 	}: _(RawOrigin::Root, asset_id, trade_limit)
 	verify {
-		assert_eq!(LiquidityLimitPerAsset::<T>::get(asset_id), trade_limit);
+		assert_eq!(LiquidityAddLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
-}
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-	use crate::tests::mock::{ExtBuilder, System, Test};
-	use frame_support::assert_ok;
+	set_remove_liquidity_limit {
+		let asset_id = T::AssetId::from(2u32);
+		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 
-	#[test]
-	fn test_benchmarks() {
-		ExtBuilder::default().build().execute_with(|| {
-			System::set_block_number(1);
-			assert_ok!(Pallet::<Test>::test_benchmark_set_trade_volume_limit());
-			assert_ok!(Pallet::<Test>::test_benchmark_set_liquidity_limit());
-		});
+	}: _(RawOrigin::Root, asset_id, trade_limit)
+	verify {
+		assert_eq!(LiquidityRemoveLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
+
+	after_add_liquidity {
+		let asset_id = T::AssetId::from(2u32);
+		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
+		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
+
+	}: {
+		crate::Pallet::<T>::after_add_liquidity(asset_id.into(), 0u128.into(), 10u128.into())
+	}
+	verify {
+		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
+		assert!(before != after);
+	}
+
+	after_remove_liquidity {
+		let asset_id = T::AssetId::from(2u32);
+		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
+		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
+	}: {
+		crate::Pallet::<T>::after_remove_liquidity(asset_id.into(), 0u128.into(), 10u128.into())
+	}
+	verify {
+		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
+		assert!(before != after);
+	}
+
+	after_pool_state_change {
+		let asset_in_id = T::AssetId::from(2u32);
+		let asset_in_reserve = 100_000_000_000_000u128;
+		let amount_in= 10_000_000_000_000u128;
+		let asset_out_id = T::AssetId::from(3u32);
+		let asset_out_reserve = 200_000_000_000_000u128;
+		let amount_out = 10_000_000_000_000u128;
+		let before_in = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_in_id);
+		let before_out = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_out_id);
+	}: {
+		crate::Pallet::<T>::after_pool_state_change(asset_in_id.into(), asset_in_reserve.into(), amount_in.into(), asset_out_id.into(), asset_out_reserve.into(), amount_out.into())
+	}
+	verify {
+		let after_in = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_in_id);
+		let after_out = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_out_id);
+
+		assert!(before_in != after_in);
+	}
+
+	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
+
 }
