@@ -4,11 +4,14 @@ version = "1.2.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
-homepage = "https://github.com/galacticcouncil/Basilisk-node"
+homepage = "https://github.com/galacticcouncil/HydraDX-node"
 license = "Apache 2.0"
-repository = "https://github.com/galacticcouncil/Basilisk-node"
+repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
+remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+scraper = { path = "../scraper" }
 primitives = { default-features = false, path = "../primitives" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 
