@@ -1,0 +1,25 @@
+endpoint: wss://hydradx-rpc.dwellir.com
+mock-signature-host: true
+#block: 1872160
+db: ./db.sqlite
+wasm-override: ./hydradx_runtime.compact.compressed.wasm
+
+import-storage:
+  System:
+    Account:
+      -
+        -
+          - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+        - data:
+            free: 1000000000000000
+  Tokens:
+    Accounts:
+      -
+        -
+          - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+          - 2
+        - free: '100000000000000000000'
+  Council:
+    Members: [5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY]
+  TechnicalCommittee:
+    Members: [5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY]
