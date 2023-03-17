@@ -258,6 +258,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	ext
 }
 
+#[allow(dead_code)]
 pub fn hydra_live_ext() -> sp_io::TestExternalities {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
@@ -281,6 +282,7 @@ pub fn hydra_live_ext() -> sp_io::TestExternalities {
 	ext
 }
 
+#[allow(dead_code)]
 pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 	let blocks =
 		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
