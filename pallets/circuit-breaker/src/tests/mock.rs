@@ -33,7 +33,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	DispatchError,
 };
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -48,7 +47,6 @@ pub const ALICE: u64 = 1;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
-pub const LP3: u64 = 3;
 pub const TRADER: u64 = 4;
 
 pub const HDX: AssetId = 100;
@@ -237,7 +235,7 @@ where
 		/*CircuitBreaker::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
 		CircuitBreaker::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;*/
 
-		match asset.delta_changes.delta_reserve.into() {
+		match asset.delta_changes.delta_reserve {
 			BalanceUpdate::Increase(amount) => {
 				pallet_circuit_breaker::Pallet::<T>::ensure_add_liquidity_limit(
 					origin.into(),
@@ -260,16 +258,16 @@ where
 	}
 
 	fn on_trade(
-		origin: Origin,
+		_: Origin,
 		asset_in: AssetInfo<AssetId, Balance>,
 		asset_out: AssetInfo<AssetId, Balance>,
 	) -> Result<Weight, Self::Error> {
-		let amount_in = match asset_in.delta_changes.delta_reserve.into() {
+		let amount_in = match asset_in.delta_changes.delta_reserve {
 			BalanceUpdate::Increase(am) => am,
 			BalanceUpdate::Decrease(am) => am,
 		};
 
-		let amount_out = match asset_out.delta_changes.delta_reserve.into() {
+		let amount_out = match asset_out.delta_changes.delta_reserve {
 			BalanceUpdate::Increase(am) => am,
 			BalanceUpdate::Decrease(am) => am,
 		};
@@ -286,7 +284,7 @@ where
 		Ok(Weight::zero())
 	}
 
-	fn on_hub_asset_trade(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_hub_asset_trade(_: Origin, _: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
 		Ok(Weight::zero())
 	}
 
@@ -301,7 +299,6 @@ where
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::Weight;
-use frame_system::pallet_prelude::OriginFor;
 
 pub struct DummyNFT;
 
@@ -468,49 +465,8 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
-		self.asset_weight_cap = cap;
-		self
-	}
-
-	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
-		self.asset_fee = fee;
-		self
-	}
-
-	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
-		self.protocol_fee = fee;
-		self
-	}
-	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
-		self.min_liquidity = limit;
-		self
-	}
-
-	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
-		self.min_trade_limit = limit;
-		self
-	}
-
 	pub fn with_initial_pool(mut self, stable_price: FixedU128, native_price: FixedU128) -> Self {
 		self.init_pool = Some((stable_price, native_price));
-		self
-	}
-
-	pub fn without_stable_asset_in_registry(mut self) -> Self {
-		self.register_stable_asset = false;
-		self
-	}
-	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
-		self.max_in_ratio = value;
-		self
-	}
-	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
-		self.max_out_ratio = value;
-		self
-	}
-	pub fn with_tvl_cap(mut self, value: Balance) -> Self {
-		self.tvl_cap = value;
 		self
 	}
 

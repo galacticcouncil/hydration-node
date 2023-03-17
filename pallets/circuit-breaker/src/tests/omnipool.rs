@@ -1,6 +1,5 @@
 use crate::tests::mock::*;
 use frame_support::assert_noop;
-use pallet_omnipool::Config;
 use sp_runtime::FixedPointNumber;
 use sp_runtime::FixedU128;
 use test_case::test_case;

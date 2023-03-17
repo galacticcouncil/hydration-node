@@ -575,7 +575,7 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		if let Ok(_) = T::AuthorityOrigin::ensure_origin(origin) {
+		if T::AuthorityOrigin::ensure_origin(origin).is_ok() {
 			return Ok(Weight::zero());
 		}
 
@@ -591,7 +591,7 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		removed_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		if let Ok(_) = T::AuthorityOrigin::ensure_origin(origin) {
+		if T::AuthorityOrigin::ensure_origin(origin).is_ok() {
 			return Ok(Weight::zero());
 		}
 

@@ -32,7 +32,7 @@ where
 		)
 		.map_err(|(_, e)| e)?;
 
-		let weight2 = match asset.delta_changes.delta_reserve.into() {
+		let weight2 = match asset.delta_changes.delta_reserve {
 			BalanceUpdate::Increase(amount) => pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidity_limit(
 				origin,
 				asset.asset_id.into(),
@@ -79,12 +79,12 @@ where
 		)
 		.map_err(|(_, e)| e)?;
 
-		let amount_in = match asset_in.delta_changes.delta_reserve.into() {
+		let amount_in = match asset_in.delta_changes.delta_reserve {
 			BalanceUpdate::Increase(am) => am,
 			BalanceUpdate::Decrease(am) => am,
 		};
 
-		let amount_out = match asset_out.delta_changes.delta_reserve.into() {
+		let amount_out = match asset_out.delta_changes.delta_reserve {
 			BalanceUpdate::Increase(am) => am,
 			BalanceUpdate::Decrease(am) => am,
 		};
