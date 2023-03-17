@@ -419,9 +419,6 @@ impl<T: Config> Pallet<T> {
 				current_asset_reserve,
 				Pallet::<T>::trade_volume_limit_per_asset(asset_id),
 			)?;
-			println!("limit {:?}", limit);
-			let limit_storage = <AllowedTradeVolumeLimitPerAsset<T>>::get(asset_id).unwrap();
-			println!("limit from storage {:?}", limit_storage.limit);
 
 			<AllowedTradeVolumeLimitPerAsset<T>>::insert(
 				asset_id,

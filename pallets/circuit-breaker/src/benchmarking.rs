@@ -87,14 +87,14 @@ benchmarks! {
 		let asset_out_id = T::AssetId::from(3u32);
 		let asset_out_reserve = 200_000_000_000_000u128;
 		let amount_out = 10_000_000_000_000u128;
-		let before_in = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_in_id);
-		let before_out = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_out_id);
+		let before_in = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_in_id);
+		let before_out = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_out_id);
 	}: {
 		crate::Pallet::<T>::after_pool_state_change(asset_in_id.into(), asset_in_reserve.into(), amount_in.into(), asset_out_id.into(), asset_out_reserve.into(), amount_out.into())
 	}
 	verify {
-		let after_in = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_in_id);
-		let after_out = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_out_id);
+		let after_in = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_in_id);
+		let after_out = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_out_id);
 
 		assert!(before_in != after_in);
 	}
