@@ -888,7 +888,7 @@ pub mod pallet {
 		/// Only owner of position can perform this action.
 		///
 		/// Emits `PositionDestroyed`.
-		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position().saturating_add(T::OmnipoolHooks::on_trade_weight()))]
+		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
 		#[transactional]
 		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -939,7 +939,7 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::sell())]
+		#[pallet::weight(<T as Config>::WeightInfo::sell().saturating_add(T::OmnipoolHooks::on_trade_weight()))]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -1115,7 +1115,7 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::buy())]
+		#[pallet::weight(<T as Config>::WeightInfo::buy().saturating_add(T::OmnipoolHooks::on_trade_weight()))]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
