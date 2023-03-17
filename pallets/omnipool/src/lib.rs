@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
@@ -92,20 +92,23 @@ mod tests;
 
 pub mod migration;
 pub mod provider;
-mod types;
+pub mod traits;
+pub mod types;
 pub mod weights;
 
-use crate::types::{AssetReserveState, AssetState, Balance, SimpleImbalance, Tradability};
+use crate::traits::{AssetInfo, OmnipoolHooks};
+use crate::types::{AssetReserveState, AssetState, Balance, Position, SimpleImbalance, Tradability};
 pub use pallet::*;
 pub use weights::WeightInfo;
 
 /// NFT class id type of provided nft implementation
-type NFTCollectionIdOf<T> =
+pub type NFTCollectionIdOf<T> =
 	<<T as Config>::NFTHandler as Inspect<<T as frame_system::Config>::AccountId>>::CollectionId;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::traits::{AssetInfo, OmnipoolHooks};
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
@@ -197,6 +200,9 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Hooks are actions executed on add_liquidity, sell or buy.
+		type OmnipoolHooks: OmnipoolHooks<Self::Origin, Self::AssetId, Balance, Error = DispatchError>;
 	}
 
 	#[pallet::storage]
@@ -205,6 +211,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Imbalance of hub asset
+	#[pallet::getter(fn current_imbalance)]
 	pub(super) type HubAssetImbalance<T: Config> = StorageValue<_, SimpleImbalance<Balance>, ValueQuery>;
 
 	#[pallet::storage]
@@ -217,6 +224,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<Balance, T::AssetId>>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
 
@@ -599,13 +607,13 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			//
 			// Preconditions
 			//
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
 
 			ensure!(
 				amount >= T::MinimumPoolLiquidity::get(),
@@ -643,6 +651,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let new_asset_state = asset_state
+				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -692,6 +701,12 @@ pub mod pallet {
 				*state_changes.asset.delta_reserve,
 			)?;
 
+			debug_assert_eq!(*state_changes.asset.delta_reserve, amount);
+
+			// Callback hook info
+			let info: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(asset, &asset_state, &new_asset_state, &state_changes.asset);
+
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::update_hub_asset_liquidity(&state_changes.asset.delta_hub_reserve)?;
@@ -706,6 +721,9 @@ pub mod pallet {
 				amount,
 				position_id: instance_id,
 			});
+
+			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
+
 			Ok(())
 		}
 
@@ -723,7 +741,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
 		pub fn remove_liquidity(
 			origin: OriginFor<T>,
@@ -733,7 +751,7 @@ pub mod pallet {
 			//
 			// Preconditions
 			//
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
 
 			ensure!(amount > Balance::zero(), Error::<T>::InvalidSharesAmount);
 
@@ -776,6 +794,7 @@ pub mod pallet {
 			.ok_or(ArithmeticError::Overflow)?;
 
 			let new_asset_state = asset_state
+				.clone()
 				.delta_update(&state_changes.asset)
 				.ok_or(ArithmeticError::Overflow)?;
 
@@ -844,6 +863,10 @@ pub mod pallet {
 				<Positions<T>>::insert(position_id, updated_position);
 			}
 
+			// Callback hook info
+			let info: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(asset_id, &asset_state, &new_asset_state, &state_changes.asset);
+
 			Self::set_asset_state(asset_id, new_asset_state);
 
 			Self::deposit_event(Event::LiquidityRemoved {
@@ -852,6 +875,8 @@ pub mod pallet {
 				asset_id,
 				shares_removed: amount,
 			});
+
+			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
 
 			Ok(())
 		}
@@ -863,7 +888,7 @@ pub mod pallet {
 		/// Only owner of position can perform this action.
 		///
 		/// Emits `PositionDestroyed`.
-		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
+		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position().saturating_add(T::OmnipoolHooks::on_trade_weight()))]
 		#[transactional]
 		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -923,7 +948,7 @@ pub mod pallet {
 			amount: Balance,
 			min_buy_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
 
 			ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
 
@@ -940,7 +965,7 @@ pub mod pallet {
 			// Special handling when one of the asset is Hub Asset
 			// Math is simplified and asset_in is actually part of asset_out state in this case
 			if asset_in == T::HubAssetId::get() {
-				return Self::sell_hub_asset(&who, asset_out, amount, min_buy_amount);
+				return Self::sell_hub_asset(origin, &who, asset_out, amount, min_buy_amount);
 			}
 
 			if asset_out == T::HubAssetId::get() {
@@ -991,11 +1016,18 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
+				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
+				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
+
+			debug_assert_eq!(
+				*state_changes.asset_in.delta_reserve, amount,
+				"delta_reserve_in is not equal to given amount in"
+			);
 
 			T::Currency::transfer(
 				asset_in,
@@ -1036,6 +1068,17 @@ pub mod pallet {
 				}
 			};
 
+			// Callback hook info
+			let info_in: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(asset_in, &asset_in_state, &new_asset_in_state, &state_changes.asset_in);
+
+			let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_out,
+				&asset_out_state,
+				&new_asset_out_state,
+				&state_changes.asset_out,
+			);
+
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
@@ -1050,6 +1093,8 @@ pub mod pallet {
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
 			});
+
+			T::OmnipoolHooks::on_trade(origin, info_in, info_out)?;
 
 			Ok(())
 		}
@@ -1079,7 +1124,7 @@ pub mod pallet {
 			amount: Balance,
 			max_sell_amount: Balance,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
 
 			ensure!(asset_in != asset_out, Error::<T>::SameAssetTradeNotAllowed);
 
@@ -1094,7 +1139,7 @@ pub mod pallet {
 			}
 
 			if asset_in == T::HubAssetId::get() {
-				return Self::buy_asset_for_hub_asset(&who, asset_out, amount, max_sell_amount);
+				return Self::buy_asset_for_hub_asset(origin, &who, asset_out, amount, max_sell_amount);
 			}
 
 			let asset_in_state = Self::load_asset_state(asset_in)?;
@@ -1148,11 +1193,18 @@ pub mod pallet {
 			);
 
 			let new_asset_in_state = asset_in_state
+				.clone()
 				.delta_update(&state_changes.asset_in)
 				.ok_or(ArithmeticError::Overflow)?;
 			let new_asset_out_state = asset_out_state
+				.clone()
 				.delta_update(&state_changes.asset_out)
 				.ok_or(ArithmeticError::Overflow)?;
+
+			debug_assert_eq!(
+				*state_changes.asset_out.delta_reserve, amount,
+				"delta_reserve_out is not equal to given amount out"
+			);
 
 			T::Currency::transfer(
 				asset_in,
@@ -1193,6 +1245,17 @@ pub mod pallet {
 				}
 			};
 
+			// Callback hook info
+			let info_in: AssetInfo<T::AssetId, Balance> =
+				AssetInfo::new(asset_in, &asset_in_state, &new_asset_in_state, &state_changes.asset_in);
+
+			let info_out: AssetInfo<T::AssetId, Balance> = AssetInfo::new(
+				asset_out,
+				&asset_out_state,
+				&new_asset_out_state,
+				&state_changes.asset_out,
+			);
+
 			Self::update_imbalance(state_changes.delta_imbalance)?;
 
 			Self::set_asset_state(asset_in, new_asset_in_state);
@@ -1207,6 +1270,8 @@ pub mod pallet {
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
 			});
+
+			T::OmnipoolHooks::on_trade(origin, info_in, info_out)?;
 
 			Ok(())
 		}
@@ -1372,7 +1437,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Retrieve state of asset from the pool and its pool balance
-	fn load_asset_state(asset_id: T::AssetId) -> Result<AssetReserveState<Balance>, DispatchError> {
+	pub fn load_asset_state(asset_id: T::AssetId) -> Result<AssetReserveState<Balance>, DispatchError> {
 		let state = <Assets<T>>::get(asset_id).ok_or(Error::<T>::AssetNotFound)?;
 		let reserve = T::Currency::free_balance(asset_id, &Self::protocol_account());
 		Ok((state, reserve).into())
@@ -1460,7 +1525,13 @@ impl<T: Config> Pallet<T> {
 
 	/// Swap hub asset for asset_out.
 	/// Special handling of sell trade where asset in is Hub Asset.
-	fn sell_hub_asset(who: &T::AccountId, asset_out: T::AssetId, amount: Balance, limit: Balance) -> DispatchResult {
+	fn sell_hub_asset(
+		origin: T::Origin,
+		who: &T::AccountId,
+		asset_out: T::AssetId,
+		amount: Balance,
+		limit: Balance,
+	) -> DispatchResult {
 		ensure!(
 			HubAssetTradability::<T>::get().contains(Tradability::SELL),
 			Error::<T>::NotAllowed
@@ -1508,6 +1579,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
+			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1525,6 +1597,9 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
+		let info: AssetInfo<T::AssetId, Balance> =
+			AssetInfo::new(asset_out, &asset_state, &new_asset_out_state, &state_changes.asset);
+
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
@@ -1537,12 +1612,15 @@ impl<T: Config> Pallet<T> {
 			amount_out: *state_changes.asset.delta_reserve,
 		});
 
+		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
+
 		Ok(())
 	}
 
 	/// Swap asset for Hub Asset
 	/// Special handling of buy trade where asset in is Hub Asset.
 	fn buy_asset_for_hub_asset(
+		origin: T::Origin,
 		who: &T::AccountId,
 		asset_out: T::AssetId,
 		amount: Balance,
@@ -1596,6 +1674,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let new_asset_out_state = asset_state
+			.clone()
 			.delta_update(&state_changes.asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -1612,6 +1691,9 @@ impl<T: Config> Pallet<T> {
 			*state_changes.asset.delta_reserve,
 		)?;
 
+		let info: AssetInfo<T::AssetId, Balance> =
+			AssetInfo::new(asset_out, &asset_state, &new_asset_out_state, &state_changes.asset);
+
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
@@ -1623,6 +1705,8 @@ impl<T: Config> Pallet<T> {
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
 		});
+
+		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
 
 		Ok(())
 	}
@@ -1658,5 +1742,114 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	/// Remove asset from list of Omnipool assets.
+	/// No events emitted.
+	pub fn remove_asset(asset_id: T::AssetId) -> DispatchResult {
+		<Assets<T>>::remove(asset_id);
+		Ok(())
+	}
+
+	/// Insert or update position with given position data.
+	pub fn set_position(position_id: T::PositionItemId, position: &Position<Balance, T::AssetId>) -> DispatchResult {
+		<Positions<T>>::insert(position_id, position);
+		Ok(())
+	}
+
+	/// Add new asset to list of Omnipool assets.
+	/// No events emitted.
+	pub fn add_asset(asset_id: T::AssetId, state: AssetState<Balance>) -> DispatchResult {
+		ensure!(!Assets::<T>::contains_key(asset_id), Error::<T>::AssetAlreadyAdded);
+		ensure!(T::AssetRegistry::exists(asset_id), Error::<T>::AssetNotRegistered);
+
+		<Assets<T>>::insert(asset_id, state);
+
+		Ok(())
+	}
+
+	/// Updates states of 2 non-hub assets given calculated trade result.
+	#[require_transactional]
+	pub fn update_omnipool_state_given_trade_result(
+		asset_in: T::AssetId,
+		asset_out: T::AssetId,
+		trade: TradeStateChange<Balance>,
+	) -> DispatchResult {
+		let delta_hub_asset = trade
+			.asset_in
+			.delta_hub_reserve
+			.merge(
+				trade
+					.asset_out
+					.delta_hub_reserve
+					.merge(BalanceUpdate::Increase(trade.hdx_hub_amount))
+					.ok_or(ArithmeticError::Overflow)?,
+			)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		match delta_hub_asset {
+			BalanceUpdate::Increase(val) if val == Balance::zero() => {
+				// nothing to do if zero.
+			}
+			BalanceUpdate::Increase(_) => {
+				// trade can only burn some.
+				return Err(Error::<T>::HubAssetUpdateError.into());
+			}
+			BalanceUpdate::Decrease(amount) => {
+				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
+			}
+		};
+
+		Self::update_imbalance(trade.delta_imbalance)?;
+
+		Self::update_asset_state(asset_in, trade.asset_in)?;
+		Self::update_asset_state(asset_out, trade.asset_out)?;
+
+		Self::update_hdx_subpool_hub_asset(trade.hdx_hub_amount)?;
+
+		Ok(())
+	}
+
+	/// Updates states of an asset given calculated trade result where hub asset was traded.
+	#[require_transactional]
+	pub fn update_omnipool_state_given_hub_asset_trade(
+		asset: T::AssetId,
+		trade: HubTradeStateChange<Balance>,
+	) -> DispatchResult {
+		Self::update_imbalance(trade.delta_imbalance)?;
+		Self::update_asset_state(asset, trade.asset)?;
+		Ok(())
+	}
+
+	/// Load state of an asset and update it with given delta changes.
+	pub fn update_asset_state(asset_id: T::AssetId, delta: AssetStateChange<Balance>) -> DispatchResult {
+		let state = Self::load_asset_state(asset_id)?;
+		let updated_state = state.delta_update(&delta).ok_or(ArithmeticError::Overflow)?;
+		Self::set_asset_state(asset_id, updated_state);
+
+		Ok(())
+	}
+
+	/// Load position and check its owner
+	/// Returns Forbidden if not position owner
+	pub fn load_position(
+		position_id: T::PositionItemId,
+		owner: T::AccountId,
+	) -> Result<Position<Balance, T::AssetId>, DispatchError> {
+		ensure!(
+			T::NFTHandler::owner(&T::NFTCollectionId::get(), &position_id) == Some(owner),
+			Error::<T>::Forbidden
+		);
+
+		Positions::<T>::get(position_id).ok_or_else(|| Error::<T>::PositionNotFound.into())
+	}
+
+	pub fn is_hub_asset_allowed(operation: Tradability) -> bool {
+		HubAssetTradability::<T>::get().contains(operation)
+	}
+
+	/// Returns `true` if `asset` exists in the omnipool or `false`
+	pub fn exists(asset: T::AssetId) -> bool {
+		Assets::<T>::contains_key(asset)
 	}
 }

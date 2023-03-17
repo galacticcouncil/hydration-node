@@ -28,6 +28,12 @@ pub mod currency {
 	pub fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
 	}
+
+	// Value on the right side of this condition represents balance deposited to liquidity mining's pot
+	// account in native currency to prevent dusting of the pot. Pot exists for every instance of warehouse
+	// liq. mining and this value has to be deposited to all pot's instances.
+	// WARN: More tokens must be sent to pots when this value is changed.
+	static_assertions::const_assert!(NATIVE_EXISTENTIAL_DEPOSIT < 100 * UNITS);
 }
 
 pub mod time {

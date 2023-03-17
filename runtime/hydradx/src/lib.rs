@@ -97,7 +97,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 130,
+	spec_version: 134,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -140,6 +140,14 @@ impl WeightToFeePolynomial for WeightToFee {
 			coeff_frac: Perbill::from_rational(p % q, q),
 			coeff_integer: p / q, // 124
 		}]
+	}
+}
+
+pub struct DustRemovalWhitelist;
+
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		get_all_module_accounts().contains(a) || pallet_duster::DusterWhitelist::<Runtime>::contains(a)
 	}
 }
 
@@ -540,7 +548,7 @@ impl pallet_democracy::Config for Runtime {
 	type MaxVotes = MaxVotes;
 	type WeightInfo = weights::democracy::HydraWeight<Runtime>;
 	type MaxProposals = MaxProposals;
-	type VoteLockingPeriod = EnactmentPeriod;
+	type VoteLockingPeriod = VoteLockingPeriod;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -584,7 +592,7 @@ impl orml_tokens::Config for Runtime {
 	type CurrencyId = AssetId;
 	type WeightInfo = weights::tokens::HydraWeight<Runtime>;
 	type ExistentialDeposits = AssetRegistry;
-	type OnDust = orml_tokens::TransferDust<Runtime, TreasuryAccount>;
+	type OnDust = Duster;
 	type MaxLocks = MaxLocks;
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type MaxReserves = MaxReserves;
@@ -835,12 +843,53 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
+	type OmnipoolHooks = ();
 }
 
 impl pallet_transaction_pause::Config for Runtime {
 	type Event = Event;
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
+}
+
+impl pallet_duster::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type MultiCurrency = Currencies;
+	type MinCurrencyDeposits = AssetRegistry;
+	type Reward = DustingReward;
+	type NativeCurrencyId = NativeAssetId;
+	type BlacklistUpdateOrigin = SuperMajorityTechCommittee;
+	type WeightInfo = ();
+}
+
+type OmnipoolLiquidityMiningInstance = warehouse_liquidity_mining::Instance1;
+impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Runtime {
+	type AssetId = AssetId;
+	type MultiCurrency = Currencies;
+	type PalletId = OmniWarehouseLMPalletId;
+	type MinTotalFarmRewards = MinTotalFarmRewards;
+	type MinPlannedYieldingPeriods = MinPlannedYieldingPeriods;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type AmmPoolId = AssetId;
+	type MaxFarmEntriesPerDeposit = MaxEntriesPerDeposit;
+	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
+	type AssetRegistry = AssetRegistry;
+	type NonDustableWhitelistHandler = Duster;
+	type Event = Event;
+}
+
+impl pallet_omnipool_liquidity_mining::Config for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type CreateOrigin = AllTechnicalCommitteeMembers;
+	type PalletId = OmniLMPalletId;
+	type NFTCollectionId = OmnipoolLMCollectionId;
+	type NFTHandler = Uniques;
+	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -852,7 +901,7 @@ construct_runtime!(
 	{
 		System: frame_system exclude_parts { Origin } = 1,
 		Timestamp: pallet_timestamp = 3,
-		Scheduler: pallet_scheduler = 5,
+		//NOTE: 5 - is used by Scheduler which must be after cumulus_pallet_parachain_system
 		Balances: pallet_balances = 7,
 		TransactionPayment: pallet_transaction_payment exclude_parts { Config } = 9,
 		Treasury: pallet_treasury = 11,
@@ -875,6 +924,9 @@ construct_runtime!(
 		CollatorRewards: pallet_collator_rewards = 57,
 		Omnipool: pallet_omnipool = 59,
 		TransactionPause: pallet_transaction_pause = 60,
+		Duster: pallet_duster = 61,
+		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
+		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -884,6 +936,11 @@ construct_runtime!(
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
 		ParachainInfo: parachain_info = 105,
+
+		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
+		//will return 0 as current block number when used with Scheduler(democracy).
+		Scheduler: pallet_scheduler = 5,
+
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
@@ -899,7 +956,7 @@ construct_runtime!(
 		CollatorSelection: pallet_collator_selection = 163,
 		Session: pallet_session = 165,
 		Aura: pallet_aura = 167,
-		AuraExt: cumulus_pallet_aura_ext exclude_parts { Storage } = 169,
+		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
@@ -1092,6 +1149,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, council, Council);
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool, Omnipool);
+			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1103,6 +1161,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
 			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
 			orml_list_benchmark!(list, extra, pallet_transaction_multi_payment, benchmarking::multi_payment);
+			orml_list_benchmark!(list, extra, pallet_duster, benchmarking::duster);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1149,6 +1208,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, council, Council);
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool, Omnipool);
+			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
@@ -1160,6 +1220,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
 			orml_add_benchmark!(params, batches, orml_vesting, benchmarking::vesting);
 			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
+			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
