@@ -16,7 +16,7 @@
 // limitations under the License.
 
 pub use crate as pallet_circuit_breaker;
-use frame_support::traits::GenesisBuild;
+use frame_support::traits::{Contains, GenesisBuild};
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
@@ -44,6 +44,7 @@ pub type AssetId = u32;
 pub type Balance = u128;
 
 pub const ALICE: u64 = 1;
+pub const WHITELISTED_ACCCOUNT: u64 = 2;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
@@ -137,12 +138,20 @@ impl pallet_circuit_breaker::Config for Test {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
 	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = OmnipoolHubAsset;
 	type WeightInfo = ();
+}
+
+pub struct CircuitBreakerWhitelist;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		WHITELISTED_ACCCOUNT == *a
+	}
 }
 
 impl pallet_balances::Config for Test {

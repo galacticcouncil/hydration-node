@@ -19,8 +19,9 @@
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::Weight;
-use frame_support::traits::EnsureOrigin;
+use frame_support::traits::{Contains, EnsureOrigin};
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
+use frame_system::ensure_signed;
 use frame_system::pallet_prelude::OriginFor;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
@@ -128,6 +129,7 @@ pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
+	use frame_support::traits::Contains;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
@@ -195,8 +197,8 @@ pub mod pallet {
 		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
-		/// Origin that can bypass checks for adding/removing liquidity
-		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
+		/// List of accounts that bypass checks for adding/removing liquidity
+		type WhitelistedAccounts: Contains<Self::AccountId>;
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
 		/// Represented as a non-zero fraction (nominator, denominator) with the max value being 10_000.
@@ -579,7 +581,8 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		if T::AuthorityOrigin::ensure_origin(origin).is_ok() {
+		let who = ensure_signed(origin)?;
+		if T::WhitelistedAccounts::contains(&who) {
 			return Ok(Weight::zero());
 		}
 
@@ -595,7 +598,8 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		removed_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		if T::AuthorityOrigin::ensure_origin(origin).is_ok() {
+		let who = ensure_signed(origin)?;
+		if T::WhitelistedAccounts::contains(&who) {
 			return Ok(Weight::zero());
 		}
 

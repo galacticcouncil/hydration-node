@@ -38,7 +38,7 @@ fn ensure_remove_liquidity_limit_should_be_ignored_for_admin_when_limit_is_reach
 
 		// Act & Assert
 		assert_ok!(CircuitBreaker::ensure_remove_liquidity_limit(
-			Origin::root(),
+			Origin::signed(WHITELISTED_ACCCOUNT),
 			HDX,
 			INITIAL_LIQUIDITY,
 			400_001

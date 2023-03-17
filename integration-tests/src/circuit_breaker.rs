@@ -195,6 +195,35 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 }
 
 #[test]
+fn add_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_exceeded_but_called_by_whitelisted() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+
+		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
+		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit)
+			.unwrap()
+			.checked_add(1)
+			.unwrap();
+
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			Treasury::account_id().into(),
+			added_liquidity,
+			0,
+		));
+
+		//Act and assert
+		assert_ok!(Omnipool::add_liquidity(
+			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			CORE_ASSET_ID,
+			added_liquidity,
+		));
+	});
+}
+
+#[test]
 fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
