@@ -581,19 +581,9 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		let who = ensure_signed_or_root(origin)?;
-
-		match who {
-			Some(account) => {
-				if T::WhitelistedAccounts::contains(&account) {
-					return Ok(Weight::zero());
-				}
-			}
-			None => {
-				//origin is root
-				//root is always whitelisted
-				return Ok(Weight::zero());
-			}
+		let is_whitelisted = Self::is_origin_whitelisted_or_root(origin)?;
+		if is_whitelisted {
+			return Ok(Weight::zero());
 		}
 
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
@@ -608,23 +598,32 @@ impl<T: Config> Pallet<T> {
 		initial_liquidity: T::Balance,
 		removed_liquidity: T::Balance,
 	) -> Result<Weight, DispatchError> {
-		let who = ensure_signed_or_root(origin)?;
-		match who {
-			Some(account) => {
-				if T::WhitelistedAccounts::contains(&account) {
-					return Ok(Weight::zero());
-				}
-			}
-			None => {
-				//origin is root
-				//root is always whitelisted
-				return Ok(Weight::zero());
-			}
+		let is_whitelisted = Self::is_origin_whitelisted_or_root(origin)?;
+		if is_whitelisted {
+			return Ok(Weight::zero());
 		}
 
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_remove_liquidity_limit(asset_id, removed_liquidity)?;
 
 		Ok(T::WeightInfo::ensure_remove_liquidity_limit())
+	}
+
+	pub(crate) fn is_origin_whitelisted_or_root(origin: OriginFor<T>) -> Result<bool, DispatchError> {
+		let who = ensure_signed_or_root(origin)?;
+		match who {
+			Some(account) => {
+				if T::WhitelistedAccounts::contains(&account) {
+					Ok(true)
+				} else {
+					Ok(false)
+				}
+			}
+			None => {
+				//origin is root
+				//root is always whitelisted
+				Ok(true)
+			}
+		}
 	}
 }

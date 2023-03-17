@@ -20,29 +20,29 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
-use frame_system::RawOrigin;
 use frame_support::traits::Hooks;
+use frame_system::RawOrigin;
 use sp_std::prelude::*;
 
 fn whitelist_storage_maps<T: Config>() {
 	// Whitelist storage map from further DB operations.
-		let iter = <AllowedTradeVolumeLimitPerAsset<T>>::iter();
-		for (k, _v) in iter {
-			let key = <AllowedTradeVolumeLimitPerAsset<T>>::hashed_key_for(k);
-			frame_benchmarking::benchmarking::add_to_whitelist(key.into());
-		}
-		// Whitelist storage map from further DB operations.
-		let iter = <AllowedAddLiquidityAmountPerAsset<T>>::iter();
-		for (k, _v) in iter {
-			let key = <AllowedAddLiquidityAmountPerAsset<T>>::hashed_key_for(k);
-			frame_benchmarking::benchmarking::add_to_whitelist(key.into());
-		}
-		// Whitelist storage map from further DB operations.
-		let iter = <AllowedRemoveLiquidityAmountPerAsset<T>>::iter();
-		for (k, _v) in iter {
-			let key = <AllowedRemoveLiquidityAmountPerAsset<T>>::hashed_key_for(k);
-			frame_benchmarking::benchmarking::add_to_whitelist(key.into());
-		}
+	let iter = <AllowedTradeVolumeLimitPerAsset<T>>::iter();
+	for (k, _v) in iter {
+		let key = <AllowedTradeVolumeLimitPerAsset<T>>::hashed_key_for(k);
+		frame_benchmarking::benchmarking::add_to_whitelist(key.into());
+	}
+	// Whitelist storage map from further DB operations.
+	let iter = <AllowedAddLiquidityAmountPerAsset<T>>::iter();
+	for (k, _v) in iter {
+		let key = <AllowedAddLiquidityAmountPerAsset<T>>::hashed_key_for(k);
+		frame_benchmarking::benchmarking::add_to_whitelist(key.into());
+	}
+	// Whitelist storage map from further DB operations.
+	let iter = <AllowedRemoveLiquidityAmountPerAsset<T>>::iter();
+	for (k, _v) in iter {
+		let key = <AllowedRemoveLiquidityAmountPerAsset<T>>::hashed_key_for(k);
+		frame_benchmarking::benchmarking::add_to_whitelist(key.into());
+	}
 }
 
 benchmarks! {
@@ -51,16 +51,16 @@ benchmarks! {
 	}
 
 	#[extra]
-    on_finalize {
+	on_finalize {
 		let n in 0 .. 400;
 		let m in 0 .. 400;
 
 		whitelist_storage_maps::<T>();
 
-        let block_num: T::BlockNumber = 5u32.into();
-        frame_system::Pallet::<T>::set_block_number(block_num);
+		let block_num: T::BlockNumber = 5u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
 
-        Pallet::<T>::on_initialize(block_num);
+		Pallet::<T>::on_initialize(block_num);
 
 		let amount = T::Balance::from(1_000_000u32);
 
@@ -72,17 +72,17 @@ benchmarks! {
 			let asset_id = T::AssetId::from(i);
 			Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 		}
-    }: { Pallet::<T>::on_finalize(block_num); }
-    verify {}
+	}: { Pallet::<T>::on_finalize(block_num); }
+	verify {}
 
 	#[extra]
-    on_finalize_single {
+	on_finalize_single {
 		whitelist_storage_maps::<T>();
 
-        let block_num: T::BlockNumber = 5u32.into();
-        frame_system::Pallet::<T>::set_block_number(block_num);
+		let block_num: T::BlockNumber = 5u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
 
-        Pallet::<T>::on_initialize(block_num);
+		Pallet::<T>::on_initialize(block_num);
 
 		let amount = T::Balance::from(1_000_000u32);
 		let asset_id = T::AssetId::from(1);
@@ -90,18 +90,18 @@ benchmarks! {
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 
 
-    }: { Pallet::<T>::on_finalize(block_num); }
-    verify {}
+	}: { Pallet::<T>::on_finalize(block_num); }
+	verify {}
 
 	#[extra]
-    on_finalize_empty {
-        let block_num: T::BlockNumber = 5u32.into();
-        frame_system::Pallet::<T>::set_block_number(block_num);
+	on_finalize_empty {
+		let block_num: T::BlockNumber = 5u32.into();
+		frame_system::Pallet::<T>::set_block_number(block_num);
 
-        Pallet::<T>::on_initialize(block_num);
+		Pallet::<T>::on_initialize(block_num);
 
-    }: { Pallet::<T>::on_finalize(block_num); }
-    verify {}
+	}: { Pallet::<T>::on_finalize(block_num); }
+	verify {}
 
 	set_trade_volume_limit {
 		let asset_id = T::AssetId::from(2u32);
