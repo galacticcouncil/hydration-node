@@ -1,8 +1,22 @@
 #![cfg(test)]
-pub use hydradx_runtime::{AccountId, Treasury, VestingPalletId};
-
+use frame_support::{
+	assert_ok,
+	dispatch::{Dispatchable, GetCallMetadata},
+	sp_runtime::traits::{AccountIdConversion, Block as BlockT},
+	traits::GenesisBuild,
+	weights::Weight,
+};
+pub use hydradx_runtime::{AccountId, NativeExistentialDeposit, Treasury, VestingPalletId};
 use pallet_transaction_multi_payment::Price;
 use primitives::{AssetId, Balance};
+
+use cumulus_primitives_core::ParaId;
+use hydradx_traits::OraclePeriod::LastBlock;
+//use cumulus_primitives_core::relay_chain::AccountId;
+use common_runtime::adapters::OMNIPOOL_SOURCE;
+use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
+use polkadot_runtime_parachains::configuration::HostConfiguration;
+use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
 pub const ALICE: [u8; 32] = [4u8; 32];
 pub const BOB: [u8; 32] = [5u8; 32];
@@ -24,17 +38,6 @@ pub const DAI: AssetId = 2;
 pub const DOT: AssetId = 3;
 pub const ETH: AssetId = 4;
 pub const BTC: AssetId = 5;
-
-use cumulus_primitives_core::ParaId;
-//use cumulus_primitives_core::relay_chain::AccountId;
-use frame_support::traits::GenesisBuild;
-use frame_support::weights::Weight;
-use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
-use polkadot_runtime_parachains::configuration::HostConfiguration;
-use sp_runtime::traits::AccountIdConversion;
-
-use hydradx_runtime::NativeExistentialDeposit;
-use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
 
 decl_test_relay_chain! {
 	pub struct PolkadotRelay {
@@ -300,4 +303,27 @@ fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::Event> {
 
 pub fn expect_hydra_events(e: Vec<hydradx_runtime::Event>) {
 	assert_eq!(last_hydra_events(e.len()), e);
+}
+
+pub fn hydra_live_ext() -> sp_io::TestExternalities {
+	let ext = tokio::runtime::Builder::new_current_thread()
+		.enable_all()
+		.build()
+		.unwrap()
+		.block_on(async {
+			use remote_externalities::*;
+
+			let path_str = String::from("omnipool-snapshot/SNAPSHOT");
+
+			let snapshot_config = SnapshotConfig::from(path_str);
+			let offline_config = OfflineConfig {
+				state_snapshot: snapshot_config,
+			};
+			let mode = Mode::Offline(offline_config);
+
+			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
+
+			builder.build().await.unwrap()
+		});
+	ext
 }
