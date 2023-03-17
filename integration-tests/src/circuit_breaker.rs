@@ -124,7 +124,7 @@ fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exce
 		));
 
 		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
-		let liquidity_limit = CircuitBreaker::liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
+		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 
 		assert_ok!(Balances::set_balance(
@@ -161,7 +161,7 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 		));
 
 		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
-		let liquidity_limit = CircuitBreaker::liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
+		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit)
 			.unwrap()
 			.checked_add(1)

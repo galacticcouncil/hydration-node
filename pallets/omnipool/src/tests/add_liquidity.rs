@@ -193,7 +193,7 @@ fn add_liquidity_should_work_when_trade_volume_limit_not_exceeded(diff_from_max_
 		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
-		.with_max_liquidity_limit_per_block(Some(TEN_PERCENT))
+		.with_max_add_liquidity_limit_per_block(Some(TEN_PERCENT))
 		.build()
 		.execute_with(|| {
 			let liq_added =
@@ -213,7 +213,7 @@ fn add_liquidity_should_fail_when_trade_volume_limit_exceeded() {
 		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
-		.with_max_liquidity_limit_per_block(Some(TEN_PERCENT))
+		.with_max_add_liquidity_limit_per_block(Some(TEN_PERCENT))
 		.build()
 		.execute_with(|| {
 			let liq_added = CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() + ONE;
@@ -235,7 +235,7 @@ fn add_liquidity_should_fail_when_consequent_calls_exceed_trade_volume_limit() {
 		.add_endowed_accounts((LP2, 1_000, 2_000_000 * ONE))
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, initial_liquidity)
-		.with_max_liquidity_limit_per_block(Some(TEN_PERCENT))
+		.with_max_add_liquidity_limit_per_block(Some(TEN_PERCENT))
 		.build()
 		.execute_with(|| {
 			let liq_added = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;

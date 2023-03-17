@@ -207,24 +207,40 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
-	type OmnipoolHooks = ();
+	type OmnipoolHooks = CircuitBreakerHooks<Test>;
 }
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 
-impl<T: Config> OmnipoolHooks<Origin, AssetId, Balance> for CircuitBreakerHooks<T> {
+impl<T> OmnipoolHooks<Origin, AssetId, Balance> for CircuitBreakerHooks<T>
+where
+	// Lrna: Get<AssetId>,
+	T: Config + pallet_circuit_breaker::Config,
+	<T as pallet_circuit_breaker::Config>::Balance: From<u128>,
+	<T as pallet_circuit_breaker::Config>::AssetId: From<u32>, //TODO: get  rid of these if possible
+{
 	type Error = DispatchError;
 
 	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
 		/*CircuitBreaker::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
 		CircuitBreaker::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;*/
 
-		let amount = match asset.delta_changes.delta_reserve.into() {
-			BalanceUpdate::Increase(am) => am,
-			BalanceUpdate::Decrease(am) => am,
+		match asset.delta_changes.delta_reserve.into() {
+			BalanceUpdate::Increase(amount) => {
+				pallet_circuit_breaker::Pallet::<T>::after_add_liquidity(
+			asset.asset_id.into(),
+			asset.before.reserve.into(),
+			amount.into(),
+				)?;
+			},
+			BalanceUpdate::Decrease(amount) => {
+				pallet_circuit_breaker::Pallet::<T>::after_remove_liquidity(
+			asset.asset_id.into(),
+			asset.before.reserve.into(),
+			amount.into(),
+				)?;
+			},
 		};
-
-		CircuitBreaker::after_add_liquidity(asset.asset_id.into(), asset.before.reserve.into(), amount.into())?;
 
 		Ok(Weight::zero())
 	}
@@ -391,13 +407,13 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_max_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
-		self.max_liquidity_limit_per_block = value;
+	pub fn with_max_add_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_add_liquidity_limit_per_block = value;
 		self
 	}
 
-	pub fn with_max_add_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
-		self.max_add_liquidity_limit_per_block = value;
+	pub fn with_max_remove_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_remove_liquidity_limit_per_block = value;
 		self
 	}
 
@@ -455,10 +471,10 @@ impl ExtBuilder {
 			*v.borrow_mut() = self.max_net_trade_volume_limit_per_block;
 		});
 		MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
-			*v.borrow_mut() = self.max_liquidity_limit_per_block;
+			*v.borrow_mut() = self.max_add_liquidity_limit_per_block;
 		});
 		MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
-			*v.borrow_mut() = self.max_liquidity_limit_per_block;
+			*v.borrow_mut() = self.max_remove_liquidity_limit_per_block;
 		});
 
 		orml_tokens::GenesisConfig::<Test> {
