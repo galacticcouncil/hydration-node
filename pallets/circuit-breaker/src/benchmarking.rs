@@ -55,32 +55,32 @@ benchmarks! {
 		assert_eq!(LiquidityRemoveLimitPerAsset::<T>::get(asset_id), trade_limit);
 	}
 
-	after_add_liquidity {
+	ensure_add_liquidty_limit {
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 
 	}: {
-		crate::Pallet::<T>::after_add_liquidity(asset_id.into(), 0u128.into(), 10u128.into())
+		crate::Pallet::<T>::ensure_add_liquidty_limit(asset_id.into(), 0u128.into(), 10u128.into())
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 		assert!(before != after);
 	}
 
-	after_remove_liquidity {
+	ensure_remove_liquidity_limit {
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 	}: {
-		crate::Pallet::<T>::after_remove_liquidity(asset_id.into(), 0u128.into(), 10u128.into())
+		crate::Pallet::<T>::ensure_remove_liquidity_limit(asset_id.into(), 0u128.into(), 10u128.into())
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 		assert!(before != after);
 	}
 
-	after_pool_state_change {
+	ensure_pool_state_change_limit {
 		let asset_in_id = T::AssetId::from(2u32);
 		let asset_in_reserve = 100_000_000_000_000u128;
 		let amount_in= 10_000_000_000_000u128;
@@ -90,7 +90,7 @@ benchmarks! {
 		let before_in = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_in_id);
 		let before_out = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_out_id);
 	}: {
-		crate::Pallet::<T>::after_pool_state_change(asset_in_id.into(), asset_in_reserve.into(), amount_in.into(), asset_out_id.into(), asset_out_reserve.into(), amount_out.into())
+		crate::Pallet::<T>::ensure_pool_state_change_limit(asset_in_id.into(), asset_in_reserve.into(), amount_in.into(), asset_out_id.into(), asset_out_reserve.into(), amount_out.into())
 	}
 	verify {
 		let after_in = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_in_id);

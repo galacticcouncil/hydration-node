@@ -52,9 +52,9 @@ pub trait WeightInfo {
 	fn set_trade_volume_limit() -> Weight;
 	fn set_add_liquidity_limit() -> Weight;
 	fn set_remove_liquidity_limit() -> Weight;
-	fn after_pool_state_change() -> Weight;
-	fn after_add_liquidity() -> Weight;
-	fn after_remove_liquidity() -> Weight;
+	fn ensure_pool_state_change_limit() -> Weight;
+	fn ensure_add_liquidty_limit() -> Weight;
+	fn ensure_remove_liquidity_limit() -> Weight;
 }
 
 // For backwards compatibility and tests
@@ -68,13 +68,13 @@ impl WeightInfo for () {
 	fn set_remove_liquidity_limit() -> Weight {
 		Weight::zero()
 	}
-	fn after_pool_state_change() -> Weight {
+	fn ensure_pool_state_change_limit() -> Weight {
 		Weight::zero()
 	}
-	fn after_add_liquidity() -> Weight {
+	fn ensure_add_liquidty_limit() -> Weight {
 		Weight::zero()
 	}
-	fn after_remove_liquidity() -> Weight {
+	fn ensure_remove_liquidity_limit() -> Weight {
 		Weight::zero()
 	}
 }

@@ -555,7 +555,7 @@ impl<T: Config> Pallet<T> {
 			.ok_or_else(|| ArithmeticError::DivisionByZero.into())
 	}
 
-	pub fn after_pool_state_change(
+	pub fn ensure_pool_state_change_limit(
 		asset_in: T::AssetId,
 		asset_in_reserve: T::Balance,
 		amount_in: T::Balance,
@@ -567,10 +567,10 @@ impl<T: Config> Pallet<T> {
 		Pallet::<T>::calculate_and_store_trade_limit(asset_out, asset_out_reserve)?;
 		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
 
-		Ok(T::WeightInfo::after_pool_state_change())
+		Ok(T::WeightInfo::ensure_pool_state_change_limit())
 	}
 
-	pub fn after_add_liquidity(
+	pub fn ensure_add_liquidty_limit(
 		asset_id: T::AssetId,
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
@@ -578,10 +578,10 @@ impl<T: Config> Pallet<T> {
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_add_liquidity_limit(asset_id, added_liquidity)?;
 
-		Ok(T::WeightInfo::after_add_liquidity())
+		Ok(T::WeightInfo::ensure_add_liquidty_limit())
 	}
 
-	pub fn after_remove_liquidity(
+	pub fn ensure_remove_liquidity_limit(
 		asset_id: T::AssetId,
 		initial_liquidity: T::Balance,
 		removed_liquidity: T::Balance,
@@ -589,6 +589,6 @@ impl<T: Config> Pallet<T> {
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_remove_liquidity_limit(asset_id, removed_liquidity)?;
 
-		Ok(T::WeightInfo::after_remove_liquidity())
+		Ok(T::WeightInfo::ensure_remove_liquidity_limit())
 	}
 }

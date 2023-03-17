@@ -33,16 +33,18 @@ where
 		.map_err(|(_, e)| e)?;
 
 		let weight2 = match asset.delta_changes.delta_reserve.into() {
-			BalanceUpdate::Increase(amount) => pallet_circuit_breaker::Pallet::<Runtime>::after_add_liquidity(
+			BalanceUpdate::Increase(amount) => pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidty_limit(
 				asset.asset_id.into(),
 				asset.before.reserve.into(),
 				amount.into(),
 			)?,
-			BalanceUpdate::Decrease(amount) => pallet_circuit_breaker::Pallet::<Runtime>::after_remove_liquidity(
-				asset.asset_id.into(),
-				asset.before.reserve.into(),
-				amount.into(),
-			)?,
+			BalanceUpdate::Decrease(amount) => {
+				pallet_circuit_breaker::Pallet::<Runtime>::ensure_remove_liquidity_limit(
+					asset.asset_id.into(),
+					asset.before.reserve.into(),
+					amount.into(),
+				)?
+			}
 		};
 
 		Ok(weight1.saturating_add(weight2))
@@ -85,7 +87,7 @@ where
 			BalanceUpdate::Decrease(am) => am,
 		};
 
-		let weight3 = pallet_circuit_breaker::Pallet::<Runtime>::after_pool_state_change(
+		let weight3 = pallet_circuit_breaker::Pallet::<Runtime>::ensure_pool_state_change_limit(
 			asset_in.asset_id.into(),
 			asset_in.before.reserve.into(),
 			amount_in.into(),
