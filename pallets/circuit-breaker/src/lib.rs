@@ -173,7 +173,8 @@ pub mod pallet {
 			+ HasCompact
 			+ MaybeSerializeDeserialize
 			+ MaxEncodedLen
-			+ TypeInfo;
+			+ TypeInfo
+			+ AtLeast32BitUnsigned;
 
 		/// Balance type.
 		type Balance: Parameter
@@ -185,7 +186,8 @@ pub mod pallet {
 			+ CheckedAdd
 			+ CheckedSub
 			+ AtLeast32BitUnsigned
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ From<u128>;
 
 		/// Origin able to change the trade volume limit of an asset.
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
@@ -559,30 +561,33 @@ impl<T: Config> Pallet<T> {
 		asset_out: T::AssetId,
 		asset_out_reserve: T::Balance,
 		amount_out: T::Balance,
-	) -> DispatchResult {
+	) -> Result<Weight, DispatchError> {
 		Pallet::<T>::calculate_and_store_trade_limit(asset_in, asset_in_reserve)?;
 		Pallet::<T>::calculate_and_store_trade_limit(asset_out, asset_out_reserve)?;
 		Pallet::<T>::ensure_and_update_trade_volume_limit(asset_in, amount_in, asset_out, amount_out)?;
-		Ok(())
+
+		Ok(T::WeightInfo::after_pool_state_change())
 	}
 
 	pub fn after_add_liquidity(
 		asset_id: T::AssetId,
 		initial_liquidity: T::Balance,
 		added_liquidity: T::Balance,
-	) -> DispatchResult {
+	) -> Result<Weight, DispatchError> {
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_add_liquidity_limit(asset_id, added_liquidity)?;
-		Ok(())
+
+		Ok(T::WeightInfo::after_add_liquidity())
 	}
 
 	pub fn after_remove_liquidity(
 		asset_id: T::AssetId,
 		initial_liquidity: T::Balance,
 		removed_liquidity: T::Balance,
-	) -> DispatchResult {
+	) -> Result<Weight, DispatchError> {
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, initial_liquidity)?;
 		Pallet::<T>::ensure_and_update_remove_liquidity_limit(asset_id, removed_liquidity)?;
-		Ok(())
+
+		Ok(T::WeightInfo::after_remove_liquidity())
 	}
 }
