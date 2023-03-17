@@ -22,7 +22,6 @@ use frame_support::dispatch::Weight;
 use frame_support::traits::EnsureOrigin;
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::pallet_prelude::OriginFor;
-use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
@@ -129,7 +128,6 @@ pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
