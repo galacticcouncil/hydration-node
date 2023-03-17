@@ -97,6 +97,7 @@ benchmarks! {
 		let after_out = AllowedTradeVolumeLimitPerAsset::<T>::get(asset_out_id);
 
 		assert!(before_in != after_in);
+		assert!(before_out != after_out);
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::tests::mock::ExtBuilder::default().build(), crate::tests::mock::Test);
