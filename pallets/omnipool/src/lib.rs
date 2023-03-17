@@ -512,7 +512,7 @@ pub mod pallet {
 			weight_cap: Permill,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin.clone())?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
@@ -574,7 +574,22 @@ pub mod pallet {
 
 			Self::update_imbalance(BalanceUpdate::Decrease(delta_imbalance))?;
 
-			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
+			let delta_hub_reserve = BalanceUpdate::Increase(hub_reserve);
+			Self::update_hub_asset_liquidity(&delta_hub_reserve)?;
+
+			let reserve = T::Currency::free_balance(asset, &Self::protocol_account());
+
+			let reserve_state: AssetReserveState<_> = (state.clone(), reserve).into();
+			let changes = AssetStateChange {
+				delta_hub_reserve,
+				delta_reserve: BalanceUpdate::Increase(reserve),
+				delta_shares: BalanceUpdate::Increase(amount),
+				delta_protocol_shares: BalanceUpdate::Increase(Balance::zero()),
+			};
+			T::OmnipoolHooks::on_liquidity_changed(
+				origin,
+				AssetInfo::new(asset, &AssetReserveState::default(), &reserve_state, &changes),
+			)?;
 
 			<Assets<T>>::insert(asset, state);
 
