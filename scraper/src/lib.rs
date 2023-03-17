@@ -69,7 +69,7 @@ impl RpcService {
 			.max_request_body_size(u32::MAX)
 			.build(uri)
 			.await
-			.map_err(|e| format!("`WsClientBuilder` failed to build: {:?}", e))
+			.map_err(|e| format!("`WsClientBuilder` failed to build: {e:?}"))
 	}
 
 	/// Generic method for making RPC requests.
