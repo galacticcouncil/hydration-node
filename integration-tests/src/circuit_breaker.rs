@@ -13,7 +13,6 @@ use xcm_emulator::TestExt;
 
 //TODO:
 //Add integration tests
-//-buy
 //-remove liquidity
 //add/remove liquidty from admin
 
@@ -192,6 +191,76 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxLiquidityLimitPerBlockReached
 		);
+	});
+}
+
+#[test]
+fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exceeded() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+
+		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
+		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
+
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			added_liquidity,
+			0,
+		));
+
+		//Act and assert
+		let position_id = Omnipool::next_position_id();
+		assert_ok!(Omnipool::add_liquidity(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			CORE_ASSET_ID,
+			added_liquidity,
+		));
+
+		assert_ok!(Omnipool::remove_liquidity(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			position_id,
+			added_liquidity,
+		));
+	});
+}
+
+#[test]
+#[ignore]
+fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+
+		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
+		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
+
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			added_liquidity * 10,
+			0,
+		));
+
+		//Act and assert
+		let position_id_1 = Omnipool::next_position_id();
+		assert_ok!(Omnipool::add_liquidity(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			CORE_ASSET_ID,
+			added_liquidity,
+		));
+
+		hydradx_runtime::System::set_block_number(10);
+
+		let position_id_2 = Omnipool::next_position_id();
+		assert_ok!(Omnipool::add_liquidity(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			CORE_ASSET_ID,
+			added_liquidity,
+		));
 	});
 }
 
