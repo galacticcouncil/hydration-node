@@ -19,15 +19,13 @@
 
 use super::*;
 
+use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_benchmarking::impl_benchmark_test_suite;
 use frame_system::RawOrigin;
 use sp_std::prelude::*;
-benchmarks! {
-	 where_clause {
-		where T::AssetId: From<u32>,
-	}
 
+benchmarks! {
 	set_trade_volume_limit {
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = (crate::MAX_LIMIT_VALUE, 1);
@@ -56,12 +54,13 @@ benchmarks! {
 	}
 
 	ensure_add_liquidity_limit {
+		let user: T::AccountId = account("user", 0, 1);
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 
 	}: {
-		crate::Pallet::<T>::ensure_add_liquidity_limit(asset_id.into(), 0u128.into(), 10u128.into())
+		crate::Pallet::<T>::ensure_add_liquidity_limit(RawOrigin::Signed(user).into(), asset_id.into(), 0u128.into(), 10u128.into())
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
@@ -69,11 +68,12 @@ benchmarks! {
 	}
 
 	ensure_remove_liquidity_limit {
+		let user: T::AccountId = account("user", 0, 1);
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
 	}: {
-		crate::Pallet::<T>::ensure_remove_liquidity_limit(asset_id.into(), 0u128.into(), 10u128.into())
+		crate::Pallet::<T>::ensure_remove_liquidity_limit(RawOrigin::Signed(user).into(), asset_id.into(), 0u128.into(), 10u128.into())
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
