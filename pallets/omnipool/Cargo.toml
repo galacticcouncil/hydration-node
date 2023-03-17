@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "1.5.1"
+version = "1.6.2"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
