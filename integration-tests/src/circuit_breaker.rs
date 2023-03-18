@@ -10,10 +10,10 @@ use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, OmnipoolCollectionId, 
 use orml_traits::MultiCurrency;
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::Balance;
+use sp_runtime::traits::Zero;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
-use sp_runtime::traits::Zero;
 
 #[test]
 fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
@@ -373,7 +373,6 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 			ALICE.into(),
 		));
 
-
 		//Act and Assert
 		assert_noop!(
 			Omnipool::remove_liquidity(hydradx_runtime::Origin::signed(ALICE.into()), position, bag,),
@@ -504,7 +503,6 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 
 		set_relaychain_block_number(200);
 
-
 		let position_id_1 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
 			hydradx_runtime::Origin::signed(Treasury::account_id()),
@@ -538,7 +536,6 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 	});
 }
 
-
 fn init_omnipool() {
 	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
 		hydradx_runtime::Origin::root(),
@@ -554,26 +551,16 @@ fn init_omnipool() {
 	));
 
 	do_trading_activity_to_populate_oracle();
-
 }
 
-
-
-
 fn do_trading_activity_to_populate_oracle() {
-	assert_ok!(Tokens::set_balance(
-			RawOrigin::Root.into(),
-			BOB.into(),
-			DAI,
-			UNITS,
-			0,
-		));
+	assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), BOB.into(), DAI, UNITS, 0,));
 
 	assert_ok!(Omnipool::sell(
-			hydradx_runtime::Origin::signed(BOB.into()),
-			DAI,
-			CORE_ASSET_ID,
-			UNITS,
-			Balance::zero()
-		));
+		hydradx_runtime::Origin::signed(BOB.into()),
+		DAI,
+		CORE_ASSET_ID,
+		UNITS,
+		Balance::zero()
+	));
 }

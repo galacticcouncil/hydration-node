@@ -824,8 +824,8 @@ parameter_types! {
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
 	pub const OmnipoolCollectionId: CollectionId = 1337u128;
- 	pub const EmaOracleSpotPricePeriod: OraclePeriod = OraclePeriod::TenMinutes;
- 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
+	 pub const EmaOracleSpotPricePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+	 pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 }
 
 impl pallet_omnipool::Config for Runtime {
