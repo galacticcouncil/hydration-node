@@ -6,7 +6,7 @@ use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
-use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, Tokens, Uniques, OmnipoolCollectionId};
+use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, OmnipoolCollectionId, Tokens, Uniques};
 use orml_traits::MultiCurrency;
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::Balance;
@@ -349,11 +349,7 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 
 		//Act and Assert
 		assert_noop!(
-			Omnipool::remove_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
-				position,
-				bag,
-			),
+			Omnipool::remove_liquidity(hydradx_runtime::Origin::signed(ALICE.into()), position, bag,),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxLiquidityLimitPerBlockReached
 		);
 	});
@@ -388,21 +384,17 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 		));
 
 		//Act and Assert
-		assert_ok!(
-			Omnipool::remove_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
-				position,
-				bag / 2,
-			)
-		);
+		assert_ok!(Omnipool::remove_liquidity(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			position,
+			bag / 2,
+		));
 		hydradx_run_to_block(2);
-		assert_ok!(
-			Omnipool::remove_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
-				position,
-				bag / 2,
-			)
-		);
+		assert_ok!(Omnipool::remove_liquidity(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			position,
+			bag / 2,
+		));
 	});
 }
 

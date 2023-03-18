@@ -127,7 +127,7 @@ where
 		let w1 = OnActivityHandler::<Runtime>::on_liquidity_changed_weight();
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_add_liquidity_limit()
 			.max(<Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_remove_liquidity_limit());
-		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single();	// TODO: implement and use on_finalize_single_liquidity_limit_entry benchmark
+		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_liquidity_limit_entry benchmark
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
