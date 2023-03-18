@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "100.5.0"
+version = "100.6.0"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -6239,7 +6239,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.6.3"
+version = "1.6.4"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8868,7 +8868,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
