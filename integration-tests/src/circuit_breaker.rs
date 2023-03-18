@@ -6,7 +6,7 @@ use frame_support::traits::OnFinalize;
 use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
-use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, Tokens};
+use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, Tokens, Uniques, OmnipoolCollectionId};
 use orml_traits::MultiCurrency;
 use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::Balance;
@@ -316,6 +316,93 @@ fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_e
 			position_id,
 			added_liquidity,
 		));
+	});
+}
+
+#[test]
+fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
+		let max_removed_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
+		let bag = max_removed_liquidity * 2;
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			Treasury::account_id(),
+			bag,
+			0,
+		));
+		let position = Omnipool::next_position_id();
+		assert_ok!(Omnipool::add_liquidity(
+			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			CORE_ASSET_ID,
+			bag,
+		));
+		assert_ok!(Uniques::transfer(
+			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			OmnipoolCollectionId::get(),
+			position,
+			ALICE.into(),
+		));
+
+		//Act and Assert
+		assert_noop!(
+			Omnipool::remove_liquidity(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				position,
+				bag,
+			),
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxLiquidityLimitPerBlockReached
+		);
+	});
+}
+
+#[test]
+fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_gradually() {
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
+		let max_removed_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
+		let bag = max_removed_liquidity * 2;
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			Treasury::account_id(),
+			bag,
+			0,
+		));
+		let position = Omnipool::next_position_id();
+		assert_ok!(Omnipool::add_liquidity(
+			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			CORE_ASSET_ID,
+			bag,
+		));
+		assert_ok!(Uniques::transfer(
+			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			OmnipoolCollectionId::get(),
+			position,
+			ALICE.into(),
+		));
+
+		//Act and Assert
+		assert_ok!(
+			Omnipool::remove_liquidity(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				position,
+				bag / 2,
+			)
+		);
+		hydradx_run_to_block(2);
+		assert_ok!(
+			Omnipool::remove_liquidity(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				position,
+				bag / 2,
+			)
+		);
 	});
 }
 
