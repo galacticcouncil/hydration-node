@@ -134,7 +134,7 @@ where
 	fn on_trade_weight() -> Weight {
 		let w1 = OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2);
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
-		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(0); // TODO: implement and use on_finalize_single_trade_limit_entry benchmark
+		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_trade_limit_entry benchmark
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 }
