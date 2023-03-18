@@ -1587,7 +1587,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
@@ -1682,7 +1683,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
@@ -1779,6 +1781,11 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	/// Get hub asset balance of protocol account
+	fn get_hub_asset_balance_of_protocol_account() -> Balance {
+		T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
 	}
 
 	/// Remove asset from list of Omnipool assets.

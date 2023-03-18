@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "1.6.3"
+version = "1.6.4"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -52,6 +52,7 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch =
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
+test-case = "2.2.2"
 
 [features]
 default = ["std"]

@@ -122,6 +122,14 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 	}
 }
 
+pub struct CircuitBreakerWhitelist;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(&TreasuryPalletId::get()) == *a
+	}
+}
+
 // frame system
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
@@ -317,6 +325,12 @@ parameter_types! {
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
 	pub const SequentialIdOffset: u32 = 1_000_000;
+}
+
+// pallet circuit breaker
+parameter_types! {
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (2_000, 10_000);	// 20%
+	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((4_000, 10_000));	// 40%
 }
 
 // pallet duster

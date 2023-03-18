@@ -1,4 +1,5 @@
 mod call_filter;
+mod circuit_breaker;
 mod cross_chain_transfer;
 mod dust;
 mod dust_removal_whitelist;
