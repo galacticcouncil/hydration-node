@@ -29,7 +29,12 @@ use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
-use sp_runtime::{create_runtime_str, generic, impl_opaque_keys, traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, ConstU32, IdentityLookup}, transaction_validity::{TransactionSource, TransactionValidity}, ApplyExtrinsicResult, Perbill, Permill};
+use sp_runtime::{
+	create_runtime_str, generic, impl_opaque_keys,
+	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, ConstU32, IdentityLookup},
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult, Perbill, Permill,
+};
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
 use sp_std::prelude::*;
@@ -818,7 +823,8 @@ parameter_types! {
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
 	pub const OmnipoolCollectionId: CollectionId = 1337u128;
-	pub const EmaOracleSpotPricePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+	pub const EmaOracleSpotPriceLastBlock: OraclePeriod = OraclePeriod::LastBlock;
+	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 }
 
@@ -844,8 +850,20 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
-	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPricePeriod, Runtime>;
-	type PriceDifferencePercentage = OmnipoolMaxAllowedPriceDifference;
+	type PriceBarrier = (
+		EnsurePriceWithin<
+			AccountId,
+			AssetId,
+			EmaOraclePriceAdapter<EmaOracleSpotPriceLastBlock, Runtime>,
+			OmnipoolMaxAllowedPriceDifference,
+		>,
+		EnsurePriceWithin<
+			AccountId,
+			AssetId,
+			EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>,
+			OmnipoolMaxAllowedPriceDifference,
+		>,
+	);
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -869,6 +887,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 
 // constants need to be in scope to use as types
 use pallet_ema_oracle::MAX_PERIODS;
+use pallet_omnipool::traits::EnsurePriceWithin;
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![

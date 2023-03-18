@@ -165,6 +165,7 @@ parameter_types! {
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
+	pub FourPercentDiff: Permill = Permill::from_percent(4);
 }
 
 impl Config for Test {
@@ -189,8 +190,10 @@ impl Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
 	type OmnipoolHooks = ();
-	type ExternalPriceOracle = MockOracle;
-	type PriceDifferencePercentage = MaxPriceDiff;
+	type PriceBarrier = (
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff>,
+	);
 }
 
 pub struct ExtBuilder {
@@ -440,6 +443,7 @@ impl ExtBuilder {
 	}
 }
 
+use crate::traits::EnsurePriceWithin;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::support::rational::Rounding;

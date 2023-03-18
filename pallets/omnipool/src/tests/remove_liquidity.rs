@@ -440,7 +440,7 @@ fn remove_liquidity_should_when_prices_differ_and_is_higher() {
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
 
 			EXT_PRICE_ADJUSTMENT.with(|v| {
-				*v.borrow_mut() = (2, 100, false);
+				*v.borrow_mut() = (3, 100, false);
 			});
 
 			assert_noop!(
@@ -467,7 +467,7 @@ fn remove_liquidity_should_when_prices_differ_and_is_lower() {
 			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
 
 			EXT_PRICE_ADJUSTMENT.with(|v| {
-				*v.borrow_mut() = (2, 100, true);
+				*v.borrow_mut() = (3, 100, true);
 			});
 
 			assert_noop!(
