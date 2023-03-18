@@ -176,7 +176,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 		hydra_run_to_block(100);
 
 		assert_noop!(
-			hydradx_runtime::Omnipool::add_liquidity(hydradx_runtime::Origin::signed(ALICE.into()), DAI, 115_000_000_000_000_000_000_000,),
+			hydradx_runtime::Omnipool::add_liquidity(hydradx_runtime::Origin::signed(ALICE.into()), DAI, 11_500_000-000_000_000,),
 			pallet_omnipool::Error::<hydradx_runtime::Runtime>::PriceDifferenceTooHigh,
 		);
 	});
