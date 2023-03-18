@@ -6247,6 +6247,8 @@ dependencies = [
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "impl-trait-for-tuples",
+ "log",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",

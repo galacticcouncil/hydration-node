@@ -189,7 +189,7 @@ fn add_liquidity_should_fail_when_prices_differ_and_is_higher() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_max_allowed_price_difference(Permill::from_percent(1))
-		.with_external_price_adjustment((2, 100, false))
+		.with_external_price_adjustment((3, 100, false))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
@@ -207,7 +207,7 @@ fn add_liquidity_should_fail_when_prices_differ_and_is_lower() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
 		.with_max_allowed_price_difference(Permill::from_percent(1))
-		.with_external_price_adjustment((2, 100, true))
+		.with_external_price_adjustment((3, 100, true))
 		.build()
 		.execute_with(|| {
 			assert_noop!(
