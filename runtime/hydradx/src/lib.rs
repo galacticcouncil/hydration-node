@@ -865,7 +865,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
 	type OmnipoolHubAsset = LRNA;
-	type WeightInfo = ();
+	type WeightInfo = weights::circuit_breaker::HydraWeight<Runtime>;
 }
 
 // constants need to be in scope to use as types
