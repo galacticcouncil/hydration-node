@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// 	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,52 +15,55 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Test environment for Assets pallet.
+pub use crate as pallet_circuit_breaker;
+use frame_support::traits::{Contains, GenesisBuild};
+pub use frame_support::traits::{Everything, OnFinalize};
+pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
-use crate::*;
-use std::cell::RefCell;
-use std::collections::HashMap;
-
-use crate as pallet_omnipool;
-
-use frame_support::dispatch::Weight;
-use frame_support::traits::{ConstU128, Everything, GenesisBuild};
-use frame_support::{
-	assert_ok, construct_runtime, parameter_types,
-	traits::{ConstU32, ConstU64},
-};
 use frame_system::EnsureRoot;
-use hydradx_traits::Registry;
+use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::parameter_type_with_key;
-use primitive_types::{U128, U256};
 use sp_core::H256;
+use sp_runtime::traits::{ConstU128, ConstU32};
+use sp_runtime::DispatchResult;
+use sp_runtime::FixedU128;
+use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	DispatchError,
 };
-
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::marker::PhantomData;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
-pub type Balance = u128;
 pub type AssetId = u32;
+pub type Balance = u128;
 
-pub const HDX: AssetId = 0;
-pub const LRNA: AssetId = 1;
-pub const DAI: AssetId = 2;
-
-pub const REGISTERED_ASSET: AssetId = 1000;
+pub const ALICE: u64 = 1;
+pub const WHITELISTED_ACCCOUNT: u64 = 2;
 
 pub const LP1: u64 = 1;
 pub const LP2: u64 = 2;
-pub const LP3: u64 = 3;
+pub const TRADER: u64 = 4;
+
+pub const HDX: AssetId = 100;
+pub const DOT: AssetId = 200;
+pub const DAI: AssetId = 2;
+pub const LRNA: AssetId = 300;
+pub const ACA: AssetId = 4;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
+pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
+pub const REGISTERED_ASSET: AssetId = 1000;
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
 
-pub const DEFAULT_WEIGHT_CAP: u128 = 1_000_000_000_000_000_000;
+pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
+pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
@@ -72,11 +75,12 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
-	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
-	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK: RefCell<(u32, u32)> = RefCell::new((2_000, 10_000)); // 20%
+	pub static MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(Some((4_000, 10_000))); // 40%
+	pub static MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK: RefCell<Option<(u32, u32)>> = RefCell::new(Some((2_000, 10_000))); // 20%
 }
 
-construct_runtime!(
+frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,
 		NodeBlock = Block,
@@ -86,13 +90,20 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
+		CircuitBreaker: pallet_circuit_breaker,
 	}
 );
+
+parameter_types! {
+	pub const BlockHashCount: u64 = 250;
+	pub const SS58Prefix: u8 = 42;
+}
 
 impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
+	type DbWeight = ();
 	type Origin = Origin;
 	type Call = Call;
 	type Index = u64;
@@ -103,17 +114,44 @@ impl frame_system::Config for Test {
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
-	type BlockHashCount = ConstU64<250>;
-	type DbWeight = ();
+	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type SS58Prefix = ();
+	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
-	type MaxConsumers = ConstU32<16>;
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
+}
+
+parameter_types! {
+	pub DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxAddLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub DefaultMaxRemoveLiquidityLimitPerBlock: Option<(u32, u32)> = MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| *v.borrow());
+	pub const OmnipoolHubAsset: AssetId = LRNA;
+}
+
+impl pallet_circuit_breaker::Config for Test {
+	type Event = Event;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxAddLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxRemoveLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = OmnipoolHubAsset;
+	type WeightInfo = ();
+}
+
+pub struct CircuitBreakerWhitelist;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		WHITELISTED_ACCCOUNT == *a
+	}
 }
 
 impl pallet_balances::Config for Test {
@@ -164,10 +202,9 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
-	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 }
 
-impl Config for Test {
+impl pallet_omnipool::Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
@@ -188,9 +225,163 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
-	type OmnipoolHooks = ();
-	type ExternalPriceOracle = MockOracle;
-	type PriceDifferencePercentage = MaxPriceDiff;
+	type OmnipoolHooks = CircuitBreakerHooks<Test>;
+}
+
+pub struct CircuitBreakerHooks<T>(PhantomData<T>);
+
+impl<T> OmnipoolHooks<Origin, AssetId, Balance> for CircuitBreakerHooks<T>
+where
+	// Lrna: Get<AssetId>,
+	T: Config + pallet_circuit_breaker::Config,
+	<T as pallet_circuit_breaker::Config>::Balance: From<u128>,
+	<T as pallet_circuit_breaker::Config>::AssetId: From<u32>, //TODO: get  rid of these if possible
+	<T as frame_system::Config>::Origin: From<Origin>,
+{
+	type Error = DispatchError;
+
+	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		/*CircuitBreaker::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
+		CircuitBreaker::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;*/
+
+		match asset.delta_changes.delta_reserve {
+			BalanceUpdate::Increase(amount) => {
+				pallet_circuit_breaker::Pallet::<T>::ensure_add_liquidity_limit(
+					origin.into(),
+					asset.asset_id.into(),
+					asset.before.reserve.into(),
+					amount.into(),
+				)?;
+			}
+			BalanceUpdate::Decrease(amount) => {
+				pallet_circuit_breaker::Pallet::<T>::ensure_remove_liquidity_limit(
+					origin.into(),
+					asset.asset_id.into(),
+					asset.before.reserve.into(),
+					amount.into(),
+				)?;
+			}
+		};
+
+		Ok(Weight::zero())
+	}
+
+	fn on_trade(
+		_: Origin,
+		asset_in: AssetInfo<AssetId, Balance>,
+		asset_out: AssetInfo<AssetId, Balance>,
+	) -> Result<Weight, Self::Error> {
+		let amount_in = match asset_in.delta_changes.delta_reserve {
+			BalanceUpdate::Increase(am) => am,
+			BalanceUpdate::Decrease(am) => am,
+		};
+
+		let amount_out = match asset_out.delta_changes.delta_reserve {
+			BalanceUpdate::Increase(am) => am,
+			BalanceUpdate::Decrease(am) => am,
+		};
+
+		pallet_circuit_breaker::Pallet::<T>::ensure_pool_state_change_limit(
+			asset_in.asset_id.into(),
+			asset_in.before.reserve.into(),
+			amount_in.into(),
+			asset_out.asset_id.into(),
+			asset_out.before.reserve.into(),
+			amount_out.into(),
+		)?;
+
+		Ok(Weight::zero())
+	}
+
+	fn on_hub_asset_trade(_: Origin, _: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
+	}
+
+	fn on_liquidity_changed_weight() -> Weight {
+		todo!()
+	}
+
+	fn on_trade_weight() -> Weight {
+		todo!()
+	}
+}
+
+use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use frame_support::weights::Weight;
+
+pub struct DummyNFT;
+
+impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
+	type ItemId = u32;
+	type CollectionId = u32;
+
+	fn owner(_class: &Self::CollectionId, instance: &Self::ItemId) -> Option<AccountId> {
+		let mut owner: Option<AccountId> = None;
+
+		POSITIONS.with(|v| {
+			if let Some(o) = v.borrow().get(instance) {
+				owner = Some((*o).into());
+			}
+		});
+		owner
+	}
+}
+
+impl<AccountId: From<u64>> Create<AccountId> for DummyNFT {
+	fn create_collection(_class: &Self::CollectionId, _who: &AccountId, _admin: &AccountId) -> DispatchResult {
+		Ok(())
+	}
+}
+
+impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
+	fn mint_into(_class: &Self::CollectionId, _instance: &Self::ItemId, _who: &AccountId) -> DispatchResult {
+		POSITIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.insert(*_instance, (*_who).into());
+		});
+		Ok(())
+	}
+
+	fn burn(
+		_class: &Self::CollectionId,
+		instance: &Self::ItemId,
+		_maybe_check_owner: Option<&AccountId>,
+	) -> DispatchResult {
+		POSITIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.remove(instance);
+		});
+		Ok(())
+	}
+}
+
+use crate::Config;
+use hydradx_traits::Registry;
+use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+
+pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+where
+	T::AssetId: Into<AssetId> + From<u32>,
+{
+	fn exists(asset_id: T::AssetId) -> bool {
+		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
+		matches!(asset, Some(_))
+	}
+
+	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
+		Ok(T::AssetId::default())
+	}
+
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+		let assigned = REGISTERED_ASSETS.with(|v| {
+			let l = v.borrow().len();
+			v.borrow_mut().insert(l as u32, l as u32);
+			l as u32
+		});
+		Ok(T::AssetId::from(assigned))
+	}
 }
 
 pub struct ExtBuilder {
@@ -207,6 +398,9 @@ pub struct ExtBuilder {
 	tvl_cap: Balance,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
+	max_net_trade_volume_limit_per_block: (u32, u32),
+	max_add_liquidity_limit_per_block: Option<(u32, u32)>,
+	max_remove_liquidity_limit_per_block: Option<(u32, u32)>,
 }
 
 impl Default for ExtBuilder {
@@ -241,12 +435,6 @@ impl Default for ExtBuilder {
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = 1u128;
 		});
-		MAX_PRICE_DIFF.with(|v| {
-			*v.borrow_mut() = Permill::from_percent(0);
-		});
-		EXT_PRICE_ADJUSTMENT.with(|v| {
-			*v.borrow_mut() = (0, 0, false);
-		});
 
 		Self {
 			endowed_accounts: vec![
@@ -264,6 +452,9 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			max_in_ratio: 1u128,
 			max_out_ratio: 1u128,
+			max_net_trade_volume_limit_per_block: (2_000, 10_000),
+			max_add_liquidity_limit_per_block: Some((4_000, 10_000)),
+			max_remove_liquidity_limit_per_block: Some((2_000, 10_000)),
 			tvl_cap: u128::MAX,
 		}
 	}
@@ -283,61 +474,23 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_asset_weight_cap(mut self, cap: Permill) -> Self {
-		self.asset_weight_cap = cap;
-		self
-	}
-
-	pub fn with_asset_fee(mut self, fee: Permill) -> Self {
-		self.asset_fee = fee;
-		self
-	}
-
-	pub fn with_protocol_fee(mut self, fee: Permill) -> Self {
-		self.protocol_fee = fee;
-		self
-	}
-	pub fn with_min_added_liquidity(mut self, limit: Balance) -> Self {
-		self.min_liquidity = limit;
-		self
-	}
-
-	pub fn with_min_trade_amount(mut self, limit: Balance) -> Self {
-		self.min_trade_limit = limit;
-		self
-	}
-
 	pub fn with_initial_pool(mut self, stable_price: FixedU128, native_price: FixedU128) -> Self {
 		self.init_pool = Some((stable_price, native_price));
 		self
 	}
 
-	pub fn without_stable_asset_in_registry(mut self) -> Self {
-		self.register_stable_asset = false;
+	pub fn with_max_trade_volume_limit_per_block(mut self, value: (u32, u32)) -> Self {
+		self.max_net_trade_volume_limit_per_block = value;
 		self
 	}
-	pub fn with_max_in_ratio(mut self, value: Balance) -> Self {
-		self.max_in_ratio = value;
+
+	pub fn with_max_add_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_add_liquidity_limit_per_block = value;
 		self
 	}
-	pub fn with_max_out_ratio(mut self, value: Balance) -> Self {
-		self.max_out_ratio = value;
-		self
-	}
-	pub fn with_tvl_cap(mut self, value: Balance) -> Self {
-		self.tvl_cap = value;
-		self
-	}
-	pub fn with_max_allowed_price_difference(self, max_allowed: Permill) -> Self {
-		MAX_PRICE_DIFF.with(|v| {
-			*v.borrow_mut() = max_allowed;
-		});
-		self
-	}
-	pub fn with_external_price_adjustment(self, price_adjustment: (u32, u32, bool)) -> Self {
-		EXT_PRICE_ADJUSTMENT.with(|v| {
-			*v.borrow_mut() = price_adjustment;
-		});
+
+	pub fn with_max_remove_liquidity_limit_per_block(mut self, value: Option<(u32, u32)>) -> Self {
+		self.max_remove_liquidity_limit_per_block = value;
 		self
 	}
 
@@ -391,6 +544,15 @@ impl ExtBuilder {
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = self.max_out_ratio;
 		});
+		MAX_NET_TRADE_VOLUME_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_net_trade_volume_limit_per_block;
+		});
+		MAX_ADD_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_add_liquidity_limit_per_block;
+		});
+		MAX_REMOVE_LIQUIDITY_LIMIT_PER_BLOCK.with(|v| {
+			*v.borrow_mut() = self.max_remove_liquidity_limit_per_block;
+		});
 
 		orml_tokens::GenesisConfig::<Test> {
 			balances: self
@@ -436,155 +598,12 @@ impl ExtBuilder {
 			});
 		}
 
+		r.execute_with(|| System::set_block_number(1));
+
 		r
 	}
 }
 
-use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::support::rational::Rounding;
-use hydra_dx_math::to_u128_wrapper;
-
-pub struct DummyNFT;
-
-impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {
-	type ItemId = u32;
-	type CollectionId = u32;
-
-	fn owner(_class: &Self::CollectionId, instance: &Self::ItemId) -> Option<AccountId> {
-		let mut owner: Option<AccountId> = None;
-
-		POSITIONS.with(|v| {
-			if let Some(o) = v.borrow().get(instance) {
-				owner = Some((*o).into());
-			}
-		});
-		owner
-	}
-}
-
-impl<AccountId: From<u64>> Create<AccountId> for DummyNFT {
-	fn create_collection(_class: &Self::CollectionId, _who: &AccountId, _admin: &AccountId) -> DispatchResult {
-		Ok(())
-	}
-}
-
-impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
-	fn mint_into(_class: &Self::CollectionId, _instance: &Self::ItemId, _who: &AccountId) -> DispatchResult {
-		POSITIONS.with(|v| {
-			let mut m = v.borrow_mut();
-			m.insert(*_instance, (*_who).into());
-		});
-		Ok(())
-	}
-
-	fn burn(
-		_class: &Self::CollectionId,
-		instance: &Self::ItemId,
-		_maybe_check_owner: Option<&AccountId>,
-	) -> DispatchResult {
-		POSITIONS.with(|v| {
-			let mut m = v.borrow_mut();
-			m.remove(instance);
-		});
-		Ok(())
-	}
-}
-
-pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
-
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
-where
-	T::AssetId: Into<AssetId> + From<u32>,
-{
-	fn exists(asset_id: T::AssetId) -> bool {
-		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
-		matches!(asset, Some(_))
-	}
-
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(T::AssetId::default())
-	}
-
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
-		let assigned = REGISTERED_ASSETS.with(|v| {
-			let l = v.borrow().len();
-			v.borrow_mut().insert(l as u32, l as u32);
-			l as u32
-		});
-		Ok(T::AssetId::from(assigned))
-	}
-}
-
-pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
-	POSITIONS.with(|v| v.borrow().get(&position_id).copied())
-}
-
-pub struct MockOracle;
-
-impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
-	type Error = DispatchError;
-
-	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
-		assert_eq!(asset_b, LRNA);
-		let asset_state = Omnipool::load_asset_state(asset_a)?;
-		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
-		let adjusted_price = EXT_PRICE_ADJUSTMENT.with(|v| {
-			let (n, d, neg) = v.borrow().clone();
-			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
-			if neg {
-				saturating_sub(price, adjustment)
-			} else {
-				saturating_add(price, adjustment)
-			}
-		});
-
-		Ok(adjusted_price)
-	}
-
-	fn get_price_weight() -> Weight {
-		todo!()
-	}
-}
-
-// Helper methods to work with Ema Price
-pub(super) fn round_to_rational((n, d): (U256, U256), rounding: Rounding) -> EmaPrice {
-	let shift = n.bits().max(d.bits()).saturating_sub(128);
-	let (n, d) = if shift > 0 {
-		let min_n = if n.is_zero() { 0 } else { 1 };
-		let (bias_n, bias_d) = rounding.to_bias(1);
-		let shifted_n = (n >> shift).low_u128();
-		let shifted_d = (d >> shift).low_u128();
-		(
-			shifted_n.saturating_add(bias_n).max(min_n),
-			shifted_d.saturating_add(bias_d).max(1),
-		)
-	} else {
-		(n.low_u128(), d.low_u128())
-	};
-	EmaPrice::new(n, d)
-}
-
-pub(super) fn saturating_add(l: EmaPrice, r: EmaPrice) -> EmaPrice {
-	if l.n.is_zero() || r.n.is_zero() {
-		return EmaPrice::new(l.n, l.d);
-	}
-	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
-	// n = l.n * r.d - r.n * l.d
-	let n = l_n.full_mul(r_d).saturating_add(r_n.full_mul(l_d));
-	// d = l.d * r.d
-	let d = l_d.full_mul(r_d);
-	round_to_rational((n, d), Rounding::Nearest)
-}
-
-pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
-	if l.n.is_zero() || r.n.is_zero() {
-		return EmaPrice::new(l.n, l.d);
-	}
-	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
-	// n = l.n * r.d - r.n * l.d
-	let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
-	// d = l.d * r.d
-	let d = l_d.full_mul(r_d);
-	round_to_rational((n, d), Rounding::Nearest)
+pub fn expect_events(e: Vec<Event>) {
+	test_utils::expect_events::<Event, Test>(e);
 }

@@ -95,7 +95,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 134,
+	spec_version: 135,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -854,12 +854,25 @@ impl pallet_transaction_pause::Config for Runtime {
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
 }
 
+impl pallet_circuit_breaker::Config for Runtime {
+	type Event = Event;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = LRNA;
+	type WeightInfo = weights::circuit_breaker::HydraWeight<Runtime>;
+}
+
 // constants need to be in scope to use as types
 use pallet_ema_oracle::MAX_PERIODS;
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
-		OraclePeriod::LastBlock, OraclePeriod::TenMinutes, OraclePeriod::Day, OraclePeriod::Week]);
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 
 impl pallet_ema_oracle::Config for Runtime {
@@ -947,6 +960,7 @@ construct_runtime!(
 		Duster: pallet_duster = 61,
 		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
+		CircuitBreaker: pallet_circuit_breaker = 65,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1171,6 +1185,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool, Omnipool);
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
+			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1231,6 +1246,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool, Omnipool);
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
+			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);

@@ -217,7 +217,7 @@ pub fn run() -> sc_cli::Result<()> {
 
 				let polkadot_config =
 					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, config.tokio_handle.clone())
-						.map_err(|err| format!("Relay chain argument error: {}", err))?;
+						.map_err(|err| format!("Relay chain argument error: {err}"))?;
 
 				cmd.run(config, polkadot_config)
 			})
@@ -372,7 +372,7 @@ pub fn run() -> sc_cli::Result<()> {
 
 				let task_executor = config.tokio_handle.clone();
 				let polkadot_config = SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, task_executor)
-					.map_err(|err| format!("Relay chain argument error: {}", err))?;
+					.map_err(|err| format!("Relay chain argument error: {err}"))?;
 
 				let collator_options = cli.run.base.collator_options();
 

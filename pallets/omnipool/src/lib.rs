@@ -525,7 +525,7 @@ pub mod pallet {
 			weight_cap: Permill,
 			position_owner: T::AccountId,
 		) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
+			T::AuthorityOrigin::ensure_origin(origin.clone())?;
 
 			ensure!(!Assets::<T>::contains_key(asset), Error::<T>::AssetAlreadyAdded);
 
@@ -587,7 +587,22 @@ pub mod pallet {
 
 			Self::update_imbalance(BalanceUpdate::Decrease(delta_imbalance))?;
 
-			Self::update_hub_asset_liquidity(&BalanceUpdate::Increase(hub_reserve))?;
+			let delta_hub_reserve = BalanceUpdate::Increase(hub_reserve);
+			Self::update_hub_asset_liquidity(&delta_hub_reserve)?;
+
+			let reserve = T::Currency::free_balance(asset, &Self::protocol_account());
+
+			let reserve_state: AssetReserveState<_> = (state.clone(), reserve).into();
+			let changes = AssetStateChange {
+				delta_hub_reserve,
+				delta_reserve: BalanceUpdate::Increase(reserve),
+				delta_shares: BalanceUpdate::Increase(amount),
+				delta_protocol_shares: BalanceUpdate::Increase(Balance::zero()),
+			};
+			T::OmnipoolHooks::on_liquidity_changed(
+				origin,
+				AssetInfo::new(asset, &AssetReserveState::default(), &reserve_state, &changes),
+			)?;
 
 			<Assets<T>>::insert(asset, state);
 
@@ -620,7 +635,9 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
+		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+		)]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			//
@@ -905,7 +922,7 @@ pub mod pallet {
 		/// Only owner of position can perform this action.
 		///
 		/// Emits `PositionDestroyed`.
-		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position().saturating_add(T::OmnipoolHooks::on_trade_weight()))]
+		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
 		#[transactional]
 		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -956,7 +973,10 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::sell())]
+		#[pallet::weight(<T as Config>::WeightInfo::sell()
+			.saturating_add(T::OmnipoolHooks::on_trade_weight())
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+		)]
 		#[transactional]
 		pub fn sell(
 			origin: OriginFor<T>,
@@ -1132,7 +1152,10 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::buy())]
+		#[pallet::weight(<T as Config>::WeightInfo::buy()
+			.saturating_add(T::OmnipoolHooks::on_trade_weight())
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+		)]
 		#[transactional]
 		pub fn buy(
 			origin: OriginFor<T>,
@@ -1581,7 +1604,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
@@ -1676,7 +1700,8 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let current_imbalance = <HubAssetImbalance<T>>::get();
-		let current_hub_asset_liquidity = T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
@@ -1773,6 +1798,11 @@ impl<T: Config> Pallet<T> {
 		// this is already ready when hub asset will be allowed to be bought from the pool
 
 		Err(Error::<T>::NotAllowed.into())
+	}
+
+	/// Get hub asset balance of protocol account
+	fn get_hub_asset_balance_of_protocol_account() -> Balance {
+		T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account())
 	}
 
 	/// Remove asset from list of Omnipool assets.

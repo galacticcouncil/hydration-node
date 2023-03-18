@@ -1,10 +1,13 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
+use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydradx_traits::{AggregatedPriceOracle, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
+use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks, ExternalPriceProvider};
 use primitives::{AssetId, Balance};
+use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 use pallet_ema_oracle::Price;
 
@@ -17,11 +20,11 @@ pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config,
+	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<Origin = Origin>,
 {
 	type Error = DispatchError;
 
-	fn on_liquidity_changed(_origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
 		OnActivityHandler::<Runtime>::on_liquidity_changed(
 			OMNIPOOL_SOURCE,
 			asset.asset_id,
@@ -31,7 +34,26 @@ where
 			asset.after.reserve,
 			asset.after.hub_reserve,
 		)
-		.map_err(|(_, e)| e)
+		.map_err(|(_, e)| e)?;
+
+		match asset.delta_changes.delta_reserve {
+			BalanceUpdate::Increase(amount) => pallet_circuit_breaker::Pallet::<Runtime>::ensure_add_liquidity_limit(
+				origin,
+				asset.asset_id.into(),
+				asset.before.reserve.into(),
+				amount.into(),
+			)?,
+			BalanceUpdate::Decrease(amount) => {
+				pallet_circuit_breaker::Pallet::<Runtime>::ensure_remove_liquidity_limit(
+					origin,
+					asset.asset_id.into(),
+					asset.before.reserve.into(),
+					amount.into(),
+				)?
+			}
+		};
+
+		Ok(Self::on_liquidity_changed_weight())
 	}
 
 	fn on_trade(
@@ -39,7 +61,7 @@ where
 		asset_in: AssetInfo<AssetId, Balance>,
 		asset_out: AssetInfo<AssetId, Balance>,
 	) -> Result<Weight, Self::Error> {
-		let weight1 = OnActivityHandler::<Runtime>::on_trade(
+		OnActivityHandler::<Runtime>::on_trade(
 			OMNIPOOL_SOURCE,
 			asset_in.asset_id,
 			Lrna::get(),
@@ -50,7 +72,7 @@ where
 		)
 		.map_err(|(_, e)| e)?;
 
-		let weight2 = OnActivityHandler::<Runtime>::on_trade(
+		OnActivityHandler::<Runtime>::on_trade(
 			OMNIPOOL_SOURCE,
 			Lrna::get(),
 			asset_out.asset_id,
@@ -61,7 +83,19 @@ where
 		)
 		.map_err(|(_, e)| e)?;
 
-		Ok(weight1.saturating_add(weight2))
+		let amount_in = *asset_in.delta_changes.delta_reserve;
+		let amount_out = *asset_out.delta_changes.delta_reserve;
+
+		pallet_circuit_breaker::Pallet::<Runtime>::ensure_pool_state_change_limit(
+			asset_in.asset_id.into(),
+			asset_in.before.reserve.into(),
+			amount_in.into(),
+			asset_out.asset_id.into(),
+			asset_out.before.reserve.into(),
+			amount_out.into(),
+		)?;
+
+		Ok(Self::on_trade_weight())
 	}
 
 	fn on_hub_asset_trade(_origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
@@ -74,15 +108,35 @@ where
 			asset.after.hub_reserve,
 			asset.after.reserve,
 		)
-		.map_err(|(_, e)| e)
+		.map_err(|(_, e)| e)?;
+
+		let amount_out = *asset.delta_changes.delta_reserve;
+
+		pallet_circuit_breaker::Pallet::<Runtime>::ensure_pool_state_change_limit(
+			Lrna::get().into(),
+			Balance::zero().into(),
+			Balance::zero().into(),
+			asset.asset_id.into(),
+			asset.before.reserve.into(),
+			amount_out.into(),
+		)?;
+
+		Ok(Self::on_trade_weight())
 	}
 
 	fn on_liquidity_changed_weight() -> Weight {
-		OnActivityHandler::<Runtime>::on_liquidity_changed_weight()
+		let w1 = OnActivityHandler::<Runtime>::on_liquidity_changed_weight();
+		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_add_liquidity_limit()
+			.max(<Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_remove_liquidity_limit());
+		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_liquidity_limit_entry benchmark
+		w1.saturating_add(w2).saturating_add(w3)
 	}
 
 	fn on_trade_weight() -> Weight {
-		OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2)
+		let w1 = OnActivityHandler::<Runtime>::on_trade_weight().saturating_mul(2);
+		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
+		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_trade_limit_entry benchmark
+		w1.saturating_add(w2).saturating_add(w3)
 	}
 }
 

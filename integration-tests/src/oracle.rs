@@ -8,7 +8,10 @@ use frame_support::{
 	traits::{OnFinalize, OnInitialize},
 };
 use hydradx_runtime::{EmaOracle, Origin};
-use hydradx_traits::{AggregatedPriceOracle, OraclePeriod::*};
+use hydradx_traits::{
+	AggregatedPriceOracle,
+	OraclePeriod::{self, *},
+};
 use pallet_ema_oracle::OracleError;
 use polkadot_primitives::v2::BlockNumber;
 use sp_runtime::{FixedU128, Permill};
@@ -31,6 +34,9 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 use common_runtime::{adapters::OMNIPOOL_SOURCE, AssetId, CORE_ASSET_ID};
 
 const HDX: AssetId = CORE_ASSET_ID;
+
+const SUPPORTED_PERIODS: &[OraclePeriod] = &[LastBlock, Short, TenMinutes];
+const UNSUPPORTED_PERIODS: &[OraclePeriod] = &[Hour, Day, Week];
 
 #[test]
 fn omnipool_trades_are_ingested_into_oracle() {
@@ -82,51 +88,28 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		hydradx_run_to_block(3);
 
 		// assert
-		let expected_a = ((5000000000000, 6007467920).into(), 0);
+		let expected_a = ((936334588000000000, 1124993995517813).into(), 0);
 		let expected_b = ((233506317, 6004464187).into(), 0);
-		assert_eq!(
-			EmaOracle::get_price(asset_a, LRNA, LastBlock, OMNIPOOL_SOURCE),
-			Ok(expected_a)
-		);
-		assert_eq!(
-			EmaOracle::get_price(asset_b, LRNA, LastBlock, OMNIPOOL_SOURCE),
-			Ok(expected_b)
-		);
-		assert_eq!(
-			EmaOracle::get_price(asset_a, LRNA, Hour, OMNIPOOL_SOURCE),
-			Err(OracleError::NotPresent)
-		);
-		assert_eq!(
-			EmaOracle::get_price(asset_a, LRNA, Hour, OMNIPOOL_SOURCE),
-			Err(OracleError::NotPresent)
-		);
-
-		assert_eq!(
-			EmaOracle::get_price(asset_a, LRNA, TenMinutes, OMNIPOOL_SOURCE),
-			Ok(expected_a)
-		);
-		assert_eq!(
-			EmaOracle::get_price(asset_b, LRNA, TenMinutes, OMNIPOOL_SOURCE),
-			Ok(expected_b)
-		);
-
-		assert_eq!(
-			EmaOracle::get_price(asset_a, LRNA, Day, OMNIPOOL_SOURCE),
-			Ok(expected_a)
-		);
-		assert_eq!(
-			EmaOracle::get_price(asset_a, LRNA, Week, OMNIPOOL_SOURCE),
-			Ok(expected_a)
-		);
-
-		assert_eq!(
-			EmaOracle::get_price(asset_b, LRNA, Day, OMNIPOOL_SOURCE),
-			Ok(expected_b)
-		);
-		assert_eq!(
-			EmaOracle::get_price(asset_b, LRNA, Week, OMNIPOOL_SOURCE),
-			Ok(expected_b)
-		);
+		for supported_period in SUPPORTED_PERIODS {
+			assert_eq!(
+				EmaOracle::get_price(asset_a, LRNA, *supported_period, OMNIPOOL_SOURCE),
+				Ok(expected_a)
+			);
+			assert_eq!(
+				EmaOracle::get_price(asset_b, LRNA, *supported_period, OMNIPOOL_SOURCE),
+				Ok(expected_b)
+			);
+		}
+		for unsupported_period in UNSUPPORTED_PERIODS {
+			assert_eq!(
+				EmaOracle::get_price(asset_a, LRNA, *unsupported_period, OMNIPOOL_SOURCE),
+				Err(OracleError::NotPresent)
+			);
+			assert_eq!(
+				EmaOracle::get_price(asset_b, LRNA, *unsupported_period, OMNIPOOL_SOURCE),
+				Err(OracleError::NotPresent)
+			);
+		}
 	});
 }
 
@@ -170,13 +153,17 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 
 		// assert
 		let expected = ((5000000000000, 6022588633).into(), 0);
-		assert_eq!(
-			EmaOracle::get_price(HDX, LRNA, LastBlock, OMNIPOOL_SOURCE),
-			Ok(expected)
-		);
-		assert_eq!(
-			EmaOracle::get_price(HDX, LRNA, TenMinutes, OMNIPOOL_SOURCE),
-			Ok(expected)
-		);
+		for supported_period in SUPPORTED_PERIODS {
+			assert_eq!(
+				EmaOracle::get_price(HDX, LRNA, *supported_period, OMNIPOOL_SOURCE),
+				Ok(expected)
+			);
+		}
+		for unsupported_period in UNSUPPORTED_PERIODS {
+			assert_eq!(
+				EmaOracle::get_price(HDX, LRNA, *unsupported_period, OMNIPOOL_SOURCE),
+				Err(OracleError::NotPresent)
+			);
+		}
 	});
 }
