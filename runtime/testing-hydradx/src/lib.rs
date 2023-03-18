@@ -824,6 +824,8 @@ parameter_types! {
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
 	pub const OmnipoolCollectionId: CollectionId = 1337u128;
+ 	pub const EmaOracleSpotPricePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+ 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -847,7 +849,9 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
-	type OmnipoolHooks = ();
+	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
+	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPricePeriod, Runtime>;
+	type PriceDifferencePercentage = OmnipoolMaxAllowedPriceDifference;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -868,6 +872,25 @@ impl pallet_circuit_breaker::Config for Runtime {
 	type OmnipoolHubAsset = LRNA;
 	type WeightInfo = weights::circuit_breaker::HydraWeight<Runtime>;
 }
+
+// constants need to be in scope to use as types
+use pallet_ema_oracle::MAX_PERIODS;
+
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+}
+
+impl pallet_ema_oracle::Config for Runtime {
+	type Event = Event;
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
+	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type SupportedPeriods = SupportedPeriods;
+	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
+	/// 20 seems a decent upper bound for the forseeable future.
+	type MaxUniqueEntries = ConstU32<20>;
+}
+
 impl pallet_duster::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;

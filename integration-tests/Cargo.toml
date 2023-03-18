@@ -107,7 +107,6 @@ polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", 
 polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1" }
 
 remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 hex-literal = "0.3.1"

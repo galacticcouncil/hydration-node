@@ -11,10 +11,8 @@ use pallet_transaction_multi_payment::Price;
 use primitives::{AssetId, Balance};
 
 use cumulus_primitives_core::ParaId;
-use hydradx_traits::OraclePeriod::LastBlock;
 use cumulus_test_relay_sproof_builder::RelayStateSproofBuilder;
 //use cumulus_primitives_core::relay_chain::AccountId;
-use common_runtime::adapters::OMNIPOOL_SOURCE;
 use polkadot_primitives::v2::{BlockNumber, MAX_CODE_SIZE, MAX_POV_SIZE};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use xcm_emulator::{decl_test_network, decl_test_parachain, decl_test_relay_chain};
@@ -257,30 +255,6 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 		// Make sure the prices are up-to-date.
 		MultiTransactionPayment::on_initialize(1);
 	});
-	ext
-}
-
-#[allow(dead_code)]
-pub fn hydra_live_ext() -> sp_io::TestExternalities {
-	let ext = tokio::runtime::Builder::new_current_thread()
-		.enable_all()
-		.build()
-		.unwrap()
-		.block_on(async {
-			use remote_externalities::*;
-
-			let path_str = String::from("../scraper/SNAPSHOT");
-
-			let snapshot_config = SnapshotConfig::from(path_str);
-			let offline_config = OfflineConfig {
-				state_snapshot: snapshot_config,
-			};
-			let mode = Mode::Offline(offline_config);
-
-			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
-
-			builder.build().await.unwrap()
-		});
 	ext
 }
 

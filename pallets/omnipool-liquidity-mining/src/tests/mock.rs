@@ -242,6 +242,23 @@ parameter_types! {
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 }
 
+pub struct MockOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_b, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_a)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+
+		Ok(price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
+}
 impl pallet_omnipool::Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
@@ -264,6 +281,8 @@ impl pallet_omnipool::Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u128;
 	type OmnipoolHooks = ();
+	type ExternalPriceOracle = MockOracle;
+	type PriceDifferencePercentage = ();
 }
 
 pub struct ExtBuilder {
@@ -541,6 +560,9 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use frame_support::weights::Weight;
+use hydra_dx_math::ema::EmaPrice;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -605,6 +627,7 @@ impl Transfer<AccountId> for DummyNFT {
 }
 
 use hydradx_traits::Registry;
+use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
