@@ -35,7 +35,7 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 
 		let min_limit = 0;
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_ok!(Omnipool::sell(
@@ -71,7 +71,7 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 
 		let min_limit = 0;
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -110,7 +110,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 
 		let min_limit = 0;
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -140,7 +140,7 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -170,7 +170,7 @@ fn buy_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		assert_ok!(Omnipool::buy(
 			hydradx_runtime::Origin::signed(ALICE.into()),
@@ -196,7 +196,7 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -216,7 +216,7 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exceeded() {
 	Hydra::execute_with(|| {
 		//Arrange
-		hydradx_run_to_block(2);
+		set_relaychain_block_number(200);
 
 		init_omnipool();
 
@@ -231,7 +231,7 @@ fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exce
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_ok!(Omnipool::add_liquidity(
@@ -262,7 +262,7 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -296,7 +296,7 @@ fn add_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_exce
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_ok!(Omnipool::add_liquidity(
@@ -324,7 +324,7 @@ fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_e
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		//Act and assert
 		let position_id = Omnipool::next_position_id();
@@ -358,7 +358,7 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		let position = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -398,7 +398,7 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		let position = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -419,7 +419,9 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 			position,
 			bag / 2,
 		));
-		hydradx_run_to_block(4);
+
+		set_relaychain_block_number(400);
+
 		assert_ok!(Omnipool::remove_liquidity(
 			hydradx_runtime::Origin::signed(ALICE.into()),
 			position,
@@ -438,7 +440,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let added_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 
-		hydradx_run_to_block(2);
+		set_relaychain_block_number(200);
 
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
@@ -454,7 +456,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 			added_liquidity,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(300);
 
 		let position_id_2 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -463,7 +465,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 			added_liquidity,
 		));
 
-		hydradx_run_to_block(4);
+		set_relaychain_block_number(400);
 
 		assert_ok!(Omnipool::remove_liquidity(
 			hydradx_runtime::Origin::signed(ALICE.into()),
@@ -500,7 +502,8 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 			0,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(200);
+
 
 		let position_id_1 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -509,7 +512,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 			added_liquidity,
 		));
 
-		hydradx_run_to_block(2);
+		set_relaychain_block_number(300);
 
 		let position_id_2 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
@@ -518,7 +521,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 			added_liquidity,
 		));
 
-		hydradx_run_to_block(3);
+		set_relaychain_block_number(400);
 
 		assert_ok!(Omnipool::remove_liquidity(
 			hydradx_runtime::Origin::signed(Treasury::account_id()),
@@ -535,23 +538,6 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 	});
 }
 
-pub fn hydradx_run_to_block(to: BlockNumber) {
-	while hydradx_runtime::System::block_number() < to {
-		let b = hydradx_runtime::System::block_number();
-
-		hydradx_runtime::System::on_finalize(b);
-		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-		hydradx_runtime::EmaOracle::on_finalize(b);
-		hydradx_runtime::CircuitBreaker::on_finalize(b);
-
-		hydradx_runtime::System::on_initialize(b + 1);
-		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-		hydradx_runtime::EmaOracle::on_initialize(b + 1);
-		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
-
-		hydradx_runtime::System::set_block_number(b + 1);
-	}
-}
 
 fn init_omnipool() {
 	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
