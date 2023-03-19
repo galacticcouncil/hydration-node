@@ -658,7 +658,7 @@ pub mod pallet {
 				&who,
 				asset,
 				T::HubAssetId::get(),
-				EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
+				EmaPrice::new(asset_state.reserve, asset_state.hub_reserve),
 			)
 			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
 
@@ -807,7 +807,7 @@ pub mod pallet {
 				&who,
 				asset_id,
 				T::HubAssetId::get(),
-				EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
+				EmaPrice::new(asset_state.reserve, asset_state.hub_reserve),
 			)
 			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
 

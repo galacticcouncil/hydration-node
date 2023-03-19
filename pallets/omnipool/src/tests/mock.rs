@@ -533,7 +533,7 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
 		assert_eq!(asset_b, LRNA);
 		let asset_state = Omnipool::load_asset_state(asset_a)?;
-		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+		let price = EmaPrice::new(asset_state.reserve, asset_state.hub_reserve);
 		let adjusted_price = EXT_PRICE_ADJUSTMENT.with(|v| {
 			let (n, d, neg) = v.borrow().clone();
 			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
