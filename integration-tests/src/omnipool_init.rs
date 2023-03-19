@@ -3,11 +3,9 @@
 use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
-use hydradx_traits::OraclePeriod;
 
 use orml_traits::currency::MultiCurrency;
 use orml_traits::MultiCurrencyExtended;
-use hydradx_traits::AggregatedPriceOracle;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
@@ -139,7 +137,6 @@ fn omnipool_launch_init_params_should_be_correct() {
 }
 
 use polkadot_primitives::v2::BlockNumber;
-use common_runtime::adapters::OMNIPOOL_SOURCE;
 
 pub fn hydra_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
@@ -178,6 +175,41 @@ fn add_liquidity_should_fail_when_price_changes() {
 		));
 
 		hydra_run_to_block(2131226);
+
+		assert_noop!(
+			hydradx_runtime::Omnipool::add_liquidity(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				DAI,
+				11_500_000_000_000_000_000_000u128,
+			),
+			pallet_omnipool::Error::<hydradx_runtime::Runtime>::PriceDifferenceTooHigh,
+		);
+	});
+}
+
+#[ignore]
+#[test]
+fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
+	hydra_live_ext().execute_with(|| {
+		let acc = AccountId::from(ALICE);
+		let eth_precision = 1_000_000_000_000_000_000u128;
+
+		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(ETH, &acc, 1000 * eth_precision as i128)
+			.unwrap();
+		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(DAI, &acc, 115_000 * eth_precision as i128)
+			.unwrap();
+
+		for idx in 1..10 {
+			assert_ok!(hydradx_runtime::Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				ETH,
+				DAI,
+				10 * eth_precision,
+				0,
+			));
+
+			hydra_run_to_block(2131225 + idx as u32);
+		}
 
 		assert_noop!(
 			hydradx_runtime::Omnipool::add_liquidity(
