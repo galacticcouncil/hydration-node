@@ -187,7 +187,6 @@ fn add_liquidity_should_fail_when_price_changes() {
 	});
 }
 
-#[ignore]
 #[test]
 fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 	hydra_live_ext().execute_with(|| {
@@ -199,6 +198,8 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(DAI, &acc, 115_000 * eth_precision as i128)
 			.unwrap();
 
+		set_relaychain_block_number(2131225);
+
 		for idx in 1..10 {
 			assert_ok!(hydradx_runtime::Omnipool::sell(
 				hydradx_runtime::Origin::signed(ALICE.into()),
@@ -208,6 +209,7 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 				0,
 			));
 
+			set_relaychain_block_number(2131225 + idx as u32);
 			hydra_run_to_block(2131225 + idx as u32);
 		}
 
