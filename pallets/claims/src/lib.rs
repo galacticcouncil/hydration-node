@@ -153,7 +153,7 @@ impl<T: Config> Pallet<T> {
 
 		match signer {
 			Some(address) => {
-				let balance_due = Claims::<T>::get(&address);
+				let balance_due = Claims::<T>::get(address);
 
 				if balance_due == Zero::zero() {
 					return Err(Error::<T>::NoClaimOrAlreadyClaimed);
