@@ -111,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 135,
+	spec_version: 136,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -927,6 +927,20 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const ExistentialDepositMultiplier: u8 = 5;
+}
+
+impl pallet_otc::Config for Runtime {
+	type AssetId = AssetId;
+	type AssetRegistry = AssetRegistry;
+	type Currency = Currencies;
+	type Event = Event;
+	type ExistentialDeposits = AssetRegistry;
+	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type WeightInfo = weights::otc::HydraWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -962,6 +976,7 @@ construct_runtime!(
 		Duster: pallet_duster = 61,
 		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
+		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
 
 		// ORML related modules

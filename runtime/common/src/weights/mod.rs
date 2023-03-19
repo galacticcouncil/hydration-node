@@ -8,6 +8,7 @@ pub mod democracy;
 pub mod ema_oracle;
 pub mod identity;
 pub mod omnipool;
+pub mod otc;
 pub mod preimage;
 pub mod proxy;
 pub mod registry;
