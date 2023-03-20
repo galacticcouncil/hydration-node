@@ -132,6 +132,15 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 		//Arrange
 		init_omnipool();
 
+		let hdx_balance_in_omnipool = Balances::free_balance(&Omnipool::protocol_account());
+		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(CORE_ASSET_ID);
+		// make multiple buys to avoid hitting MaxInRatio
+		let num_of_buys = 4;
+		let buy_amount = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, trade_volume_limit)
+			.unwrap()
+			.checked_div(num_of_buys)
+			.unwrap();
+
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
@@ -143,12 +152,22 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 		set_relaychain_block_number(300);
 
 		//Act and assert
+		for _ in 1..num_of_buys {
+			assert_ok!(Omnipool::buy(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				CORE_ASSET_ID,
+				LRNA,
+				buy_amount,
+				Balance::MAX
+			));
+		}
+
 		assert_noop!(
 			Omnipool::buy(
 				hydradx_runtime::Origin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				LRNA,
-				200000 * UNITS,
+				buy_amount + 1,
 				Balance::MAX
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached

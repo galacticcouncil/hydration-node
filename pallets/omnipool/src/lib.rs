@@ -1509,7 +1509,7 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// Update Hub asset side of HDX subpool annd add given amount to hub_asset_reserve
+	/// Update Hub asset side of HDX subpool and add given amount to hub_asset_reserve
 	fn update_hdx_subpool_hub_asset(origin: T::Origin, hub_asset_amount: Balance) -> DispatchResult {
 		if hub_asset_amount > Balance::zero() {
 			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;

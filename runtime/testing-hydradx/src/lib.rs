@@ -111,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 136,
+	spec_version: 137,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -898,7 +898,10 @@ parameter_types! {
 impl pallet_ema_oracle::Config for Runtime {
 	type Event = Event;
 	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
-	type BlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	/// The definition of the oracle time periods currently assumes a 6 second block time.
+	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
+	/// to which smoothing factor.
+	type BlockNumberProvider = System;
 	type SupportedPeriods = SupportedPeriods;
 	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
 	/// 20 seems a decent upper bound for the forseeable future.
