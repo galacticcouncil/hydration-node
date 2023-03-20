@@ -55,8 +55,6 @@ benchmarks! {
 		let n in 0 .. 400;
 		let m in 0 .. 400;
 
-		whitelist_storage_maps::<T>();
-
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
@@ -72,13 +70,13 @@ benchmarks! {
 			let asset_id = T::AssetId::from(i);
 			Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 		}
+
+		whitelist_storage_maps::<T>();
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
 	#[extra]
 	on_finalize_single {
-		whitelist_storage_maps::<T>();
-
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
@@ -89,7 +87,7 @@ benchmarks! {
 		Pallet::<T>::initialize_trade_limit(asset_id, amount)?;
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 
-
+		whitelist_storage_maps::<T>();
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
@@ -100,6 +98,7 @@ benchmarks! {
 
 		Pallet::<T>::on_initialize(block_num);
 
+		whitelist_storage_maps::<T>();
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
@@ -150,8 +149,10 @@ benchmarks! {
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
+		let initial_liquidity = 100_000_000_000_000u128;
+		let removed_liquidity = 100_000_000_000u128;	// 0.1% of initial_liquidity
 	}: {
-		crate::Pallet::<T>::ensure_remove_liquidity_limit(RawOrigin::Signed(user).into(), asset_id, 100u128.into(), 10u128.into())?
+		crate::Pallet::<T>::ensure_remove_liquidity_limit(RawOrigin::Signed(user).into(), asset_id, initial_liquidity.into(), removed_liquidity.into())?
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
