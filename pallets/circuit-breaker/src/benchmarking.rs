@@ -149,8 +149,10 @@ benchmarks! {
 		let asset_id = T::AssetId::from(2u32);
 		let trade_limit = Some((crate::MAX_LIMIT_VALUE, 1));
 		let before = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
+		let initial_liquidity = 100_000_000_000_000u128;
+		let removed_liquidity = 100_000_000_000u128;	// 0.1% of initial_liquidity
 	}: {
-		crate::Pallet::<T>::ensure_remove_liquidity_limit(RawOrigin::Signed(user).into(), asset_id, 100u128.into(), 10u128.into())?
+		crate::Pallet::<T>::ensure_remove_liquidity_limit(RawOrigin::Signed(user).into(), asset_id, initial_liquidity.into(), removed_liquidity.into())?
 	}
 	verify {
 		let after = AllowedAddLiquidityAmountPerAsset::<T>::get(asset_id);
