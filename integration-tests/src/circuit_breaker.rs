@@ -144,15 +144,13 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 
 		//Act and assert
 		for _ in 1..num_of_buys {
-			assert_ok!(
-				Omnipool::buy(
-					hydradx_runtime::Origin::signed(ALICE.into()),
-					CORE_ASSET_ID,
-					LRNA,
-					buy_amount,
-					Balance::MAX
-				)
-			);
+			assert_ok!(Omnipool::buy(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				CORE_ASSET_ID,
+				LRNA,
+				buy_amount,
+				Balance::MAX
+			));
 		}
 
 		assert_noop!(
