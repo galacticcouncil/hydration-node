@@ -202,16 +202,19 @@ pub mod pallet {
 
 		/// The maximum percentage of a pool's liquidity that can be traded in a block.
 		/// Represented as a non-zero fraction (nominator, denominator) with the max value being 10_000.
+		#[pallet::constant]
 		type DefaultMaxNetTradeVolumeLimitPerBlock: Get<(u32, u32)>;
 
 		/// The maximum percentage of a pool's liquidity that can be added in a block.
 		/// Represented as an optional non-zero fraction (nominator, denominator) with the max value being 10_000.
 		/// If set to None, the limits are not enforced.
+		#[pallet::constant]
 		type DefaultMaxAddLiquidityLimitPerBlock: Get<Option<(u32, u32)>>;
 
 		/// The maximum percentage of a pool's liquidity that can be removed in a block.
 		/// Represented as an optional non-zero fraction (nominator, denominator) with the max value being 10_000.
 		/// If set to None, the limits are not enforced.
+		#[pallet::constant]
 		type DefaultMaxRemoveLiquidityLimitPerBlock: Get<Option<(u32, u32)>>;
 
 		/// Omnipool's hub asset id. The limits are not tracked for this asset.
@@ -220,6 +223,13 @@ pub mod pallet {
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
+
+	#[pallet::extra_constants]
+		impl<T: Config> Pallet<T> {
+			pub fn default_max_net_trade_volume_limit() -> (u32, u32) {
+				T::DefaultMaxNetTradeVolumeLimitPerBlock::get()
+			}
+		}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
