@@ -1,6 +1,7 @@
 use crate::types::AssetReserveState;
 use frame_support::dispatch::fmt::Debug;
 use frame_support::ensure;
+use frame_support::traits::Contains;
 use frame_support::weights::Weight;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::AssetStateChange;
@@ -125,17 +126,22 @@ where
 	}
 }
 
-pub struct EnsurePriceWithin<AccountId, AssetId, ExternalOracle, MaxAllowed>(
-	sp_std::marker::PhantomData<(AccountId, AssetId, ExternalOracle, MaxAllowed)>,
+pub struct EnsurePriceWithin<AccountId, AssetId, ExternalOracle, MaxAllowed, WhitelistedAccounts>(
+	sp_std::marker::PhantomData<(AccountId, AssetId, ExternalOracle, MaxAllowed, WhitelistedAccounts)>,
 );
 
-impl<AccountId, AssetId, ExternalOracle, MaxAllowed> ShouldAllow<AccountId, AssetId, EmaPrice>
-	for EnsurePriceWithin<AccountId, AssetId, ExternalOracle, MaxAllowed>
+impl<AccountId, AssetId, ExternalOracle, MaxAllowed, WhitelistedAccounts> ShouldAllow<AccountId, AssetId, EmaPrice>
+	for EnsurePriceWithin<AccountId, AssetId, ExternalOracle, MaxAllowed, WhitelistedAccounts>
 where
 	ExternalOracle: ExternalPriceProvider<AssetId, EmaPrice>,
 	MaxAllowed: Get<Permill>,
+	WhitelistedAccounts: Contains<AccountId>,
 {
-	fn ensure_price(_: &AccountId, asset_a: AssetId, asset_b: AssetId, current_price: EmaPrice) -> Result<(), ()> {
+	fn ensure_price(who: &AccountId, asset_a: AssetId, asset_b: AssetId, current_price: EmaPrice) -> Result<(), ()> {
+		if WhitelistedAccounts::contains(who) {
+			return Ok(());
+		}
+
 		let external_price = ExternalOracle::get_price(asset_a, asset_b).map_err(|_| ())?;
 		let external_price = FixedU128::checked_from_rational(external_price.n, external_price.d).ok_or(())?;
 		let max_allowed = FixedU128::from(MaxAllowed::get());

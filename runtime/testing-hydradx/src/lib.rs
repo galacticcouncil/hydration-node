@@ -857,12 +857,14 @@ impl pallet_omnipool::Config for Runtime {
 			AssetId,
 			EmaOraclePriceAdapter<EmaOracleSpotPriceLastBlock, Runtime>,
 			OmnipoolMaxAllowedPriceDifference,
+			CircuitBreakerWhitelist,
 		>,
 		EnsurePriceWithin<
 			AccountId,
 			AssetId,
 			EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>,
 			OmnipoolMaxAllowedPriceDifference,
+			CircuitBreakerWhitelist,
 		>,
 	);
 }
