@@ -224,13 +224,6 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	#[pallet::extra_constants]
-		impl<T: Config> Pallet<T> {
-			pub fn default_max_net_trade_volume_limit() -> (u32, u32) {
-				T::DefaultMaxNetTradeVolumeLimitPerBlock::get()
-			}
-		}
-
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
