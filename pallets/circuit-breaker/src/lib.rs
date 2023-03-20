@@ -232,7 +232,8 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	/// Trade volume limits of assets that don't use the default value
+	/// Trade volume limits of assets set by set_trade_volume_limit.
+	/// If not set, returns the default limit.
 	#[pallet::getter(fn trade_volume_limit_per_asset)]
 	pub type TradeVolumeLimitPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, (u32, u32), ValueQuery, DefaultTradeVolumeLimit<T>>;
@@ -250,7 +251,8 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	/// Add liquidity limits of assets that don't use the default value
+	/// Liquidity limits of assets for adding liquidity.
+	/// If not set, returns the default limit.
 	#[pallet::getter(fn add_liquidity_limit_per_asset)]
 	pub type LiquidityAddLimitPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, Option<(u32, u32)>, ValueQuery, DefaultAddLiquidityLimit<T>>;
@@ -268,7 +270,8 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	/// Remove liquidity limits of assets that don't use the default value
+	/// Liquidity limits of assets for removing liquidity.
+	/// If not set, returns the default limit.
 	#[pallet::getter(fn remove_liquidity_limit_per_asset)]
 	pub type LiquidityRemoveLimitPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, Option<(u32, u32)>, ValueQuery, DefaultRemoveLiquidityLimit<T>>;
