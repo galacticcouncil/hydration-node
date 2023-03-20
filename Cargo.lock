@@ -3394,7 +3394,7 @@ dependencies = [
 [[package]]
 name = "hydradx-adapters"
 version = "0.2.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-support",
  "hydradx-traits",
@@ -3507,7 +3507,7 @@ dependencies = [
 [[package]]
 name = "hydradx-traits"
 version = "2.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5610,7 +5610,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "2.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5864,7 +5864,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5920,7 +5920,7 @@ dependencies = [
 [[package]]
 name = "pallet-currencies"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5953,7 +5953,7 @@ dependencies = [
 [[package]]
 name = "pallet-duster"
 version = "3.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6023,8 +6023,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "0.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+version = "1.0.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6151,7 +6151,7 @@ dependencies = [
 [[package]]
 name = "pallet-liquidity-mining"
 version = "3.1.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6373,7 +6373,7 @@ dependencies = [
 [[package]]
 name = "pallet-otc"
 version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6436,7 +6436,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.3.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6612,7 +6612,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "8.0.4"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6630,7 +6630,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.1.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11723,7 +11723,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=07c6a51356f6c7ff34fdc3bd33c6db24baa6a592#07c6a51356f6c7ff34fdc3bd33c6db24baa6a592"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb#8d6b2b1e9d0b30682142d5eaee88eaf9c6d813eb"
 dependencies = [
  "frame-system",
  "pretty_assertions",
