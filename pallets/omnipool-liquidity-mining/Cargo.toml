@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.0.5"
+version = "1.0.6"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
