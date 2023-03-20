@@ -55,8 +55,6 @@ benchmarks! {
 		let n in 0 .. 400;
 		let m in 0 .. 400;
 
-		whitelist_storage_maps::<T>();
-
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
@@ -72,13 +70,13 @@ benchmarks! {
 			let asset_id = T::AssetId::from(i);
 			Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 		}
+
+		whitelist_storage_maps::<T>();
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
 	#[extra]
 	on_finalize_single {
-		whitelist_storage_maps::<T>();
-
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
 
@@ -89,7 +87,7 @@ benchmarks! {
 		Pallet::<T>::initialize_trade_limit(asset_id, amount)?;
 		Pallet::<T>::calculate_and_store_liquidity_limits(asset_id, amount)?;
 
-
+		whitelist_storage_maps::<T>();
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
@@ -100,6 +98,7 @@ benchmarks! {
 
 		Pallet::<T>::on_initialize(block_num);
 
+		whitelist_storage_maps::<T>();
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
