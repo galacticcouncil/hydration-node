@@ -161,11 +161,25 @@ fn add_liquidity_should_fail_when_price_changes() {
 		let acc = AccountId::from(ALICE);
 		let eth_precision = 1_000_000_000_000_000_000u128;
 
+		assert_eq!(hydradx_runtime::System::block_number(), 2131225);
+
 		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(ETH, &acc, 1000 * eth_precision as i128)
 			.unwrap();
 		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(DAI, &acc, 115_000 * eth_precision as i128)
 			.unwrap();
 
+		// first do a trade to populate the oracle
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			ETH,
+			DAI,
+			1 * eth_precision,
+			0,
+		));
+
+		hydra_run_to_block(2131226);
+
+		// then do a trade that moves the price
 		assert_ok!(hydradx_runtime::Omnipool::sell(
 			hydradx_runtime::Origin::signed(ALICE.into()),
 			ETH,
@@ -174,7 +188,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 			0,
 		));
 
-		hydra_run_to_block(2131226);
+		hydra_run_to_block(2131227);
 
 		assert_noop!(
 			hydradx_runtime::Omnipool::add_liquidity(
@@ -198,7 +212,7 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(DAI, &acc, 115_000 * eth_precision as i128)
 			.unwrap();
 
-		set_relaychain_block_number(2131225);
+		assert_eq!(hydradx_runtime::System::block_number(), 2131225);
 
 		for idx in 1..10 {
 			assert_ok!(hydradx_runtime::Omnipool::sell(
@@ -209,7 +223,6 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 				0,
 			));
 
-			set_relaychain_block_number(2131225 + idx as u32);
 			hydra_run_to_block(2131225 + idx as u32);
 		}
 

@@ -333,7 +333,9 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 	use frame_support::traits::OnInitialize;
 	use hydradx_runtime::{Origin, ParachainSystem};
 
-	polkadot_run_to_block(number); //We need to set block number this way as well because tarpaulin code coverage tool does not like the way how we set the block number with `cumulus-test-relay-sproof-builder` package
+	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
+	// how we set the block number with `cumulus-test-relay-sproof-builder` package
+	polkadot_run_to_block(number);
 
 	ParachainSystem::on_initialize(number);
 
@@ -357,7 +359,7 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 
 pub fn polkadot_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
-	while polkadot_runtime::System::block_number() < to {
+	while hydradx_runtime::System::block_number() < to {
 		let b = hydradx_runtime::System::block_number();
 
 		hydradx_runtime::System::on_finalize(b);
