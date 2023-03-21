@@ -22,26 +22,35 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 
 		let dai_balance_in_omnipool = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(DAI);
-		let sell_amount = CircuitBreaker::calculate_limit(dai_balance_in_omnipool, trade_volume_limit).unwrap();
+		let num_of_sells = 4;
+
+		let sell_amount = CircuitBreaker::calculate_limit(dai_balance_in_omnipool, trade_volume_limit)
+			.unwrap()
+			.checked_div(num_of_sells)
+			.unwrap()
+			.checked_sub(1)
+			.unwrap();
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			DAI,
-			sell_amount,
+			sell_amount * num_of_sells,
 			0,
 		));
 
 		let min_limit = 0;
 
 		//Act and assert
-		assert_ok!(Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
-			DAI,
-			CORE_ASSET_ID,
-			sell_amount,
-			min_limit
-		));
+		for _ in 1..=num_of_sells {
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				DAI,
+				CORE_ASSET_ID,
+				sell_amount,
+				min_limit
+			));
+		}
 	});
 }
 
@@ -53,7 +62,10 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 
 		let dai_balance_in_omnipool = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(DAI);
+		let num_of_sells = 4;
 		let sell_amount = CircuitBreaker::calculate_limit(dai_balance_in_omnipool, trade_volume_limit)
+			.unwrap()
+			.checked_div(num_of_sells)
 			.unwrap()
 			.checked_add(1)
 			.unwrap();
@@ -62,11 +74,22 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			DAI,
-			sell_amount,
+			sell_amount * num_of_sells,
 			0,
 		));
 
 		let min_limit = 0;
+
+		//We need to split to avoid max in ratio
+		for _ in 1..num_of_sells {
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				DAI,
+				CORE_ASSET_ID,
+				sell_amount,
+				min_limit
+			));
+		}
 
 		//Act and assert
 		assert_noop!(
@@ -77,7 +100,7 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 				sell_amount,
 				min_limit
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenInfluxLimitReached
 		);
 	});
 }
@@ -88,22 +111,27 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 		//Arrange
 		init_omnipool();
 
-		let lrna_balance_in_omnipool = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
-		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(LRNA);
-		let sell_amount = CircuitBreaker::calculate_limit(lrna_balance_in_omnipool, trade_volume_limit)
-			.unwrap()
-			.checked_add(1)
-			.unwrap();
-
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			LRNA,
-			sell_amount,
+			1000000000000 * UNITS,
 			0,
 		));
 
 		let min_limit = 0;
+		let sell_amount = 300000 * UNITS;
+
+		//We need to split in multiple sells to avoid max in ratio error
+		for _ in 1..=3 {
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				LRNA,
+				CORE_ASSET_ID,
+				sell_amount,
+				min_limit
+			));
+		}
 
 		//Act and assert
 		assert_noop!(
@@ -114,7 +142,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 				sell_amount,
 				min_limit
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenOutflowLimitReached
 		);
 	});
 }
@@ -161,7 +189,7 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 				buy_amount + 1,
 				Balance::MAX
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenOutflowLimitReached
 		);
 	});
 }
@@ -204,16 +232,24 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			0,
 		));
 
+		assert_ok!(Omnipool::buy(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			CORE_ASSET_ID,
+			DAI,
+			100000 * UNITS,
+			Balance::MAX
+		));
+
 		//Act and assert
 		assert_noop!(
 			Omnipool::buy(
 				hydradx_runtime::Origin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				DAI,
-				100000 * UNITS,
+				50000 * UNITS,
 				Balance::MAX
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenInfluxLimitReached
 		);
 	});
 }

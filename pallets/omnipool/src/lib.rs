@@ -503,7 +503,7 @@ pub mod pallet {
 		///
 		/// Emits `TokenAdded` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::add_token())]
+		#[pallet::weight(<T as Config>::WeightInfo::add_token().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
 		pub fn add_token(
 			origin: OriginFor<T>,

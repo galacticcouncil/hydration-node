@@ -131,7 +131,7 @@ fn sell_should_fail_when_trade_volume_max_limit_exceeded() {
 			// Act & Assert
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
-				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
 }
@@ -165,7 +165,7 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
-				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
 }
@@ -198,7 +198,7 @@ fn sell_should_fail_when_trade_volume_min_limit_exceeded() {
 			//Asset_out amount would be 1056_910_569_105_689 in a successful trade, but it fails due to limit
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
-				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
 }
@@ -232,7 +232,7 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 
 			assert_noop!(
 				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
-				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
 }
@@ -346,7 +346,7 @@ fn buy_should_fail_when_trade_volume_max_limit_exceeded() {
 			//Asset_in amount would be 1250_000_000_000_002 in a successful trade, but it fails due to limit
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
-				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
 }
@@ -386,7 +386,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
-				pallet_circuit_breaker::Error::<Test>::MaxTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
 }
@@ -418,7 +418,7 @@ fn buy_should_fail_when_trade_volume_min_limit_exceeded() {
 			// Act & assert
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
-				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
 }
@@ -458,7 +458,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 
 			assert_noop!(
 				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
-				pallet_circuit_breaker::Error::<Test>::MinTradeVolumePerBlockReached
+				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
 }

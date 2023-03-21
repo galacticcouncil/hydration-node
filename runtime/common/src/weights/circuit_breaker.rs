@@ -55,8 +55,6 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_ref_time(0 as u64) // Standard Error: 7_000
 			.saturating_add(Weight::from_ref_time(927_000 as u64).saturating_mul(n as u64)) // Standard Error: 7_000
 			.saturating_add(Weight::from_ref_time(1_753_000 as u64).saturating_mul(m as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(n as u64)))
-			.saturating_add(T::DbWeight::get().writes((2 as u64).saturating_mul(m as u64)))
 	}
 	fn on_finalize_single() -> Weight {
 		Weight::from_ref_time(8_470_000 as u64)
