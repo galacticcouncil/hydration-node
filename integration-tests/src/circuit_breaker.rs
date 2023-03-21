@@ -62,7 +62,10 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 
 		let dai_balance_in_omnipool = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(DAI);
+		let num_of_sells = 4;
 		let sell_amount = CircuitBreaker::calculate_limit(dai_balance_in_omnipool, trade_volume_limit)
+			.unwrap()
+			.checked_div(num_of_sells)
 			.unwrap()
 			.checked_add(1)
 			.unwrap();
@@ -71,11 +74,22 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			DAI,
-			sell_amount,
+			sell_amount * num_of_sells,
 			0,
 		));
 
 		let min_limit = 0;
+
+		//We need to split to avoid max in ratio
+		for _ in 1..num_of_sells {
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				DAI,
+				CORE_ASSET_ID,
+				sell_amount,
+				min_limit
+			));
+		}
 
 		//Act and assert
 		assert_noop!(
