@@ -204,13 +204,21 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			0,
 		));
 
+		assert_ok!(Omnipool::buy(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			CORE_ASSET_ID,
+			DAI,
+			100000 * UNITS,
+			Balance::MAX
+		));
+
 		//Act and assert
 		assert_noop!(
 			Omnipool::buy(
 				hydradx_runtime::Origin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				DAI,
-				100000 * UNITS,
+				50000 * UNITS,
 				Balance::MAX
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxTradeVolumePerBlockReached
