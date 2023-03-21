@@ -63,31 +63,31 @@ where
 		Ok(())
 	}
 
-	pub fn check_min_limit(&self) -> DispatchResult {
+	pub fn check_outflow_limit(&self) -> DispatchResult {
 		if self.volume_out > self.volume_in {
 			let diff = self
 				.volume_out
 				.checked_sub(&self.volume_in)
 				.ok_or(ArithmeticError::Underflow)?;
-			ensure!(diff <= self.limit, Error::<T>::MinTradeVolumePerBlockReached);
+			ensure!(diff <= self.limit, Error::<T>::TokenOutflowLimitReached);
 		}
 		Ok(())
 	}
 
-	pub fn check_max_limit(&self) -> DispatchResult {
+	pub fn check_influx_limit(&self) -> DispatchResult {
 		if self.volume_in > self.volume_out {
 			let diff = self
 				.volume_in
 				.checked_sub(&self.volume_out)
 				.ok_or(ArithmeticError::Underflow)?;
-			ensure!(diff <= self.limit, Error::<T>::MaxTradeVolumePerBlockReached);
+			ensure!(diff <= self.limit, Error::<T>::TokenInfluxLimitReached);
 		}
 		Ok(())
 	}
 
 	pub fn check_limits(&self) -> DispatchResult {
-		self.check_min_limit()?;
-		self.check_max_limit()?;
+		self.check_outflow_limit()?;
+		self.check_influx_limit()?;
 		Ok(())
 	}
 }
@@ -312,10 +312,10 @@ pub mod pallet {
 		InvalidLimitValue,
 		/// Allowed liquidity limit is not stored for asset
 		LiquidityLimitNotStoredForAsset,
-		/// Minimum pool's trade volume per block has been reached
-		MinTradeVolumePerBlockReached,
-		/// Maximum pool's trade volume per block has been reached
-		MaxTradeVolumePerBlockReached,
+		/// Token trade outflow per block has been reached
+		TokenOutflowLimitReached,
+		/// Token trade influx per block has been reached
+		TokenInfluxLimitReached,
 		/// Maximum pool's liquidity limit per block has been reached
 		MaxLiquidityLimitPerBlockReached,
 		/// Asset is not allowed to have a limit

@@ -100,7 +100,7 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 				sell_amount,
 				min_limit
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenInfluxLimitReached
 		);
 	});
 }
@@ -142,7 +142,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 				sell_amount,
 				min_limit
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenOutflowLimitReached
 		);
 	});
 }
@@ -189,7 +189,7 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 				buy_amount + 1,
 				Balance::MAX
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MinTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenOutflowLimitReached
 		);
 	});
 }
@@ -249,7 +249,7 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 				50000 * UNITS,
 				Balance::MAX
 			),
-			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxTradeVolumePerBlockReached
+			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenInfluxLimitReached
 		);
 	});
 }

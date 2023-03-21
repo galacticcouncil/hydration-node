@@ -162,7 +162,7 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_min_limit_is_reached() 
 		// Act & Assert
 		assert_noop!(
 			CircuitBreaker::ensure_and_update_trade_volume_limit(DOT, 0, HDX, 200_001),
-			Error::<Test>::MinTradeVolumePerBlockReached
+			Error::<Test>::TokenOutflowLimitReached
 		);
 	});
 }
@@ -185,7 +185,7 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_max_limit_is_reached() 
 		// Act & Assert
 		assert_noop!(
 			CircuitBreaker::ensure_and_update_trade_volume_limit(HDX, 200_001, DOT, 0),
-			Error::<Test>::MaxTradeVolumePerBlockReached
+			Error::<Test>::TokenInfluxLimitReached
 		);
 	});
 }
@@ -233,7 +233,7 @@ fn ensure_and_update_trade_volume_limit_should_fail_when_max_limit_is_reached_fr
 		// Act & Assert
 		assert_noop!(
 			CircuitBreaker::ensure_and_update_trade_volume_limit(HDX, 150_000, DOT, 0),
-			Error::<Test>::MaxTradeVolumePerBlockReached
+			Error::<Test>::TokenInfluxLimitReached
 		);
 	});
 }
