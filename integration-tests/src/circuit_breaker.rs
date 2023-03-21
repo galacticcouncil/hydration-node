@@ -22,26 +22,35 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 
 		let dai_balance_in_omnipool = Tokens::free_balance(DAI, &Omnipool::protocol_account());
 		let trade_volume_limit = CircuitBreaker::trade_volume_limit_per_asset(DAI);
-		let sell_amount = CircuitBreaker::calculate_limit(dai_balance_in_omnipool, trade_volume_limit).unwrap();
+		let num_of_sells = 4;
+
+		let sell_amount = CircuitBreaker::calculate_limit(dai_balance_in_omnipool, trade_volume_limit)
+			.unwrap()
+			.checked_div(num_of_sells)
+			.unwrap()
+			.checked_sub(1)
+			.unwrap();
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
 			DAI,
-			sell_amount,
+			sell_amount * num_of_sells,
 			0,
 		));
 
 		let min_limit = 0;
 
 		//Act and assert
-		assert_ok!(Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
-			DAI,
-			CORE_ASSET_ID,
-			sell_amount,
-			min_limit
-		));
+		for _ in 1..=num_of_sells {
+			assert_ok!(Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				DAI,
+				CORE_ASSET_ID,
+				sell_amount,
+				min_limit
+			));
+		}
 	});
 }
 
