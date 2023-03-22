@@ -22,7 +22,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate as pallet_omnipool;
-
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
@@ -46,6 +45,7 @@ pub type AssetId = u32;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
+
 pub const REGISTERED_ASSET: AssetId = 1000;
 
 pub const LP1: u64 = 1;
@@ -84,7 +84,7 @@ construct_runtime!(
 );
 
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type Origin = Origin;
@@ -157,6 +157,7 @@ parameter_types! {
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
+	pub const TVLCap: Balance = Balance::MAX;
 }
 
 impl Config for Test {
@@ -180,6 +181,7 @@ impl Config for Test {
 	type MaxInRatio = MaxInRatio;
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
+	type OmnipoolHooks = ();
 }
 
 pub struct ExtBuilder {
@@ -412,6 +414,7 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u64>> Inspect<AccountId> for DummyNFT {

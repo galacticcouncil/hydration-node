@@ -1,12 +1,15 @@
 pub mod balances;
+pub mod circuit_breaker;
 pub mod claims;
 pub mod collator_selection;
 pub mod council;
 pub mod currencies;
 pub mod dca;
 pub mod democracy;
+pub mod ema_oracle;
 pub mod identity;
 pub mod omnipool;
+pub mod otc;
 pub mod preimage;
 pub mod proxy;
 pub mod registry;

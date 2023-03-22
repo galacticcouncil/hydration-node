@@ -1,6 +1,6 @@
 [package]
 name = "common-runtime"
-version = "100.5.0"
+version = "102.1.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -17,9 +17,9 @@ codec = { package = "parity-scale-codec", version = "3.1.5", default-features = 
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 primitives = {path = '../../primitives', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
+pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "06b80f4115bddc9b430f0c11c80ffca812a6b4c0", default-features = false}
 
-# HydraDX dependencies
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
+pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -40,12 +40,16 @@ pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
+hydradx-traits =  { git = "https://github.com/galacticcouncil/warehouse", rev = "06b80f4115bddc9b430f0c11c80ffca812a6b4c0", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "a0cd48c26dca53e7e351434276c572d70ffd0b72", default-features = false }
+
 pallet-dca = {path = '../../pallets/dca', default-features = false}
 pallet-claims = { path = '../../pallets/claims', default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false}
-pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "37a8857678b3b96d75bf9a84850bf0daf50b9505", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "06b80f4115bddc9b430f0c11c80ffca812a6b4c0", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "06b80f4115bddc9b430f0c11c80ffca812a6b4c0", default-features = false }
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "06b80f4115bddc9b430f0c11c80ffca812a6b4c0", default-features = false}
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "06b80f4115bddc9b430f0c11c80ffca812a6b4c0", default-features = false }
+pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "06b80f4115bddc9b430f0c11c80ffca812a6b4c0", default-features = false }
 
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
@@ -54,3 +58,41 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Cumulus dependencies
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
 cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "primitives/std",
+    "pallet-omnipool/std",
+    "pallet-circuit-breaker/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-npos-elections/std",
+    "pallet-transaction-payment/std",
+    "pallet-collective/std",
+    "pallet-treasury/std",
+    "pallet-utility/std",
+    "pallet-democracy/std",
+    "pallet-identity/std",
+    "pallet-preimage/std",
+    "pallet-proxy/std",
+    "pallet-scheduler/std",
+    "pallet-timestamp/std",
+    "pallet-balances/std",
+    "pallet-claims/std",
+    "pallet-transaction-multi-payment/std",
+    "pallet-asset-registry/std",
+    "pallet-currencies/std",
+    "pallet-transaction-pause/std",
+    "pallet-ema-oracle/std",
+    "orml-tokens/std",
+    "orml-vesting/std",
+    "orml-traits/std",
+    "pallet-collator-selection/std",
+    "cumulus-pallet-xcmp-queue/std",
+]

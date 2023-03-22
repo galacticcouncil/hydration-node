@@ -12,7 +12,9 @@ members = [
   'primitives',
   'utils/build-script-utils',
   'integration-tests',
+  'pallets/circuit-breaker',
   'pallets/omnipool-liquidity-mining',
+  'scraper',
 ]
 
 [patch."https://github.com/paritytech/polkadot"]
@@ -38,4 +40,3 @@ westend-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch 
 xcm = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
 xcm-builder = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
 xcm-executor = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-29-1" }
-

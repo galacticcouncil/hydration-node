@@ -1,0 +1,20 @@
+endpoint: wss://rpc.dotters.network/polkadot
+mock-signature-host: true
+#block: 15616800
+#timestamp: 1670190990039
+db: ./db.sqlite
+
+import-storage:
+  System:
+    Account:
+      -
+        -
+          - 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
+        - data:
+            free: '10000000000000000000'
+  Council:
+    Members: [5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY]
+  TechnicalCommittee:
+    Members: [5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY]
+  TechnicalMembership:
+    Members: [5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY]

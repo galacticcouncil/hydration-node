@@ -122,6 +122,14 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 	}
 }
 
+pub struct CircuitBreakerWhitelist;
+
+impl Contains<AccountId> for CircuitBreakerWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		<PalletId as AccountIdConversion<AccountId>>::into_account_truncating(&TreasuryPalletId::get()) == *a
+	}
+}
+
 // frame system
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 2400;
@@ -319,6 +327,12 @@ parameter_types! {
 	pub const SequentialIdOffset: u32 = 1_000_000;
 }
 
+// pallet circuit breaker
+parameter_types! {
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
+	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
+}
+
 // pallet duster
 parameter_types! {
 	pub const DustingReward: u128 = 0;
@@ -327,6 +341,7 @@ parameter_types! {
 // omnipool's warehouse pallet liquidity mining
 parameter_types! {
 	pub const OmniWarehouseLMPalletId: PalletId = PalletId(*b"OmniWhLM");
+	#[derive(PartialEq, Eq)]
 	pub const MaxEntriesPerDeposit: u8 = 5; //NOTE: Rebenchmark when this change, TODO:
 	pub const MaxYieldFarmsPerGlobalFarm: u8 = 50; //NOTE: Includes deleted/destroyed farms, TODO:
 	pub const MinPlannedYieldingPeriods: BlockNumber = 14_440;  //1d with 6s blocks, TODO:

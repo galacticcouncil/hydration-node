@@ -1,4 +1,5 @@
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::dispatch::DispatchResult;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
@@ -50,4 +51,32 @@ pub struct Trade<AssetId> {
 #[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum PoolType {
 	Omnipool,
+}
+
+/// AMM trader to define trading functionalities
+pub trait AMMTrader<Origin, AssetId, Balance> {
+	fn sell(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		min_buy_amount: Balance,
+	) -> DispatchResult;
+
+	fn buy(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		max_sell_amount: Balance,
+	) -> DispatchResult;
+}
+
+pub trait PriceProvider<AssetId> {
+	type Price;
+
+	/// Return spot price for given asset pair
+	///
+	/// Returns None if such pair does not exist
+	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price>;
 }

@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AMMTrader, Config};
+use crate::{AMMTrader, Config, PriceProvider};
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::IdentityFee;
@@ -39,7 +39,6 @@ use sp_runtime::{
 	DispatchError,
 };
 
-use hydradx_traits::pools::PriceProvider;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -214,6 +213,7 @@ impl pallet_omnipool::Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
+	type OmnipoolHooks = ();
 }
 
 pub struct WeightToFee;

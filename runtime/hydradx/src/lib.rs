@@ -32,7 +32,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, ConstU32, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
@@ -52,13 +52,16 @@ use frame_support::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, DispatchClass, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
+	BoundedVec,
 };
+use hydradx_traits::OraclePeriod;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
+use common_runtime::adapters::OmnipoolHookAdapter;
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
@@ -98,7 +101,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 133,
+	spec_version: 137,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -844,12 +847,47 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTCollectionId = OmnipoolCollectionId;
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
+	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
 	type Event = Event;
 	type UpdateOrigin = SuperMajorityTechCommittee;
 	type WeightInfo = weights::transaction_pause::HydraWeight<Runtime>;
+}
+
+impl pallet_circuit_breaker::Config for Runtime {
+	type Event = Event;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type WhitelistedAccounts = CircuitBreakerWhitelist;
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = LRNA;
+	type WeightInfo = weights::circuit_breaker::HydraWeight<Runtime>;
+}
+
+// constants need to be in scope to use as types
+use pallet_ema_oracle::MAX_PERIODS;
+
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+}
+
+impl pallet_ema_oracle::Config for Runtime {
+	type Event = Event;
+	type WeightInfo = weights::ema_oracle::HydraWeight<Runtime>;
+	/// The definition of the oracle time periods currently assumes a 6 second block time.
+	/// We use the parachain blocks anyway, because we want certain guarantees over how many blocks correspond
+	/// to which smoothing factor.
+	type BlockNumberProvider = System;
+	type SupportedPeriods = SupportedPeriods;
+	/// With every asset trading against LRNA we will only have as many pairs as there will be assets, so
+	/// 20 seems a decent upper bound for the forseeable future.
+	type MaxUniqueEntries = ConstU32<20>;
 }
 
 impl pallet_duster::Config for Runtime {
@@ -908,6 +946,20 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const ExistentialDepositMultiplier: u8 = 5;
+}
+
+impl pallet_otc::Config for Runtime {
+	type AssetId = AssetId;
+	type AssetRegistry = AssetRegistry;
+	type Currency = Currencies;
+	type Event = Event;
+	type ExistentialDeposits = AssetRegistry;
+	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
+	type WeightInfo = weights::otc::HydraWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -917,7 +969,7 @@ construct_runtime!(
 	{
 		System: frame_system exclude_parts { Origin } = 1,
 		Timestamp: pallet_timestamp = 3,
-		Scheduler: pallet_scheduler = 5,
+		//NOTE: 5 - is used by Scheduler which must be after cumulus_pallet_parachain_system
 		Balances: pallet_balances = 7,
 		TransactionPayment: pallet_transaction_payment exclude_parts { Config } = 9,
 		Treasury: pallet_treasury = 11,
@@ -943,7 +995,9 @@ construct_runtime!(
 		Duster: pallet_duster = 61,
 		OmnipoolWarehouseLM: warehouse_liquidity_mining::<Instance1> = 62,
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
-		DCA: pallet_dca= 64,
+		OTC: pallet_otc = 64,
+		CircuitBreaker: pallet_circuit_breaker = 65,
+		DCA: pallet_dca= 66,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -953,6 +1007,11 @@ construct_runtime!(
 		// Parachain
 		ParachainSystem: cumulus_pallet_parachain_system exclude_parts { Config } = 103,
 		ParachainInfo: parachain_info = 105,
+
+		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
+		//will return 0 as current block number when used with Scheduler(democracy).
+		Scheduler: pallet_scheduler = 5,
+
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
 		XcmpQueue: cumulus_pallet_xcmp_queue exclude_parts { Call } = 111,
@@ -967,11 +1026,12 @@ construct_runtime!(
 		Authorship: pallet_authorship exclude_parts { Inherent } = 161,
 		CollatorSelection: pallet_collator_selection = 163,
 		Session: pallet_session = 165,
-		Aura: pallet_aura exclude_parts { Storage } = 167,
-		AuraExt: cumulus_pallet_aura_ext exclude_parts { Storage } = 169,
+		Aura: pallet_aura = 167,
+		AuraExt: cumulus_pallet_aura_ext = 169,
 
 		// Warehouse - let's allocate indices 100+ for warehouse pallets
 		RelayChainInfo: pallet_relaychain_info = 201,
+		EmaOracle: pallet_ema_oracle = 202,
 		MultiTransactionPayment: pallet_transaction_multi_payment = 203,
 	}
 );
@@ -1162,13 +1222,17 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool, Omnipool);
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
+			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_dca, DCA);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
+			list_benchmark!(list, extra, pallet_ema_oracle, EmaOracle);
 
 			list_benchmark!(list, extra, cumulus_pallet_xcmp_queue, XcmpQueue);
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
+
+			list_benchmark!(list, extra, pallet_otc, OTC);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
@@ -1222,13 +1286,17 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool, Omnipool);
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
+			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
 			add_benchmark!(params, batches, pallet_dca, DCA);
 
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
+			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
 
 			add_benchmark!(params, batches, cumulus_pallet_xcmp_queue, XcmpQueue);
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
+
+			add_benchmark!(params, batches, pallet_otc, OTC);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
