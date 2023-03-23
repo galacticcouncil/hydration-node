@@ -6344,7 +6344,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
