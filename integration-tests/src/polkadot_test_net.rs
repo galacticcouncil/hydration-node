@@ -388,8 +388,8 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 		let b = polkadot_runtime::System::block_number();
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-		hydradx_runtime::EmaOracle::on_initialize(b);
-		hydradx_runtime::DCA::on_initialize(b);
+		hydradx_runtime::EmaOracle::on_finalize(b);
+		hydradx_runtime::DCA::on_finalize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
