@@ -41,7 +41,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		));
 
 		let bob_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999_999_999_051_826_230_041); // fallback price of 1.
+		assert_eq!(bob_balance, 999_999_999_160_455_271_082); // fallback price of 1.
 
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -77,7 +77,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		));
 
 		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999_974_683_760_342_094_701); //Omnipool spot price
+		assert_eq!(dave_balance, 999_977_584_155_737_889_401); //Omnipool spot price
 	});
 }
 
