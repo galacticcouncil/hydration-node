@@ -1069,6 +1069,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
+ "primitive-types 0.12.1",
  "primitives",
  "scale-info",
  "sp-core",

@@ -37,20 +37,28 @@ fn create_schedule_should_work() {
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
 			ALICE.into(),
-			DAI,
+			LRNA,
 			1000000000000 * UNITS,
 			0,
 		));
 
 		assert_ok!(Omnipool::sell(
 			hydradx_runtime::Origin::signed(ALICE.into()),
+			LRNA,
 			DAI,
+			100 * UNITS,
+			Balance::MIN
+		));
+
+		assert_ok!(Omnipool::sell(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			LRNA,
 			HDX,
 			100 * UNITS,
 			Balance::MIN
 		));
 
-		set_relaychain_block_number(101);
+		set_relaychain_block_number(102);
 
 		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS, 110 * UNITS);
 

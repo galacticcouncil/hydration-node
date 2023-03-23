@@ -5,12 +5,13 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::AggregatedOracle;
+use hydradx_traits::{AggregatedOracle, AggregatedPriceOracle};
 use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_dca::types::{AMMTrader, PriceProvider};
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+use primitive_types::U128;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchError, FixedU128};
@@ -172,27 +173,64 @@ where
 	}
 }
 
-pub struct PriceProviderAdapter<T, AssetId, Runtime>(PhantomData<(T, AssetId, Runtime)>);
+pub struct PriceProviderAdapter<T, AssetId, Runtime, Lrna>(PhantomData<(T, AssetId, Runtime, Lrna)>);
 
 //TODO: spot price provder not needed. The name of price provider should be also changed
-impl<T: SpotPriceProvider<AssetId>, AssetId, Runtime> PriceProvider<AssetId>
-	for PriceProviderAdapter<T, AssetId, Runtime>
+impl<T: SpotPriceProvider<AssetId>, AssetId, Runtime, Lrna> PriceProvider<AssetId>
+	for PriceProviderAdapter<T, AssetId, Runtime, Lrna>
 where
 	Runtime: pallet_ema_oracle::Config,
 	u32: From<AssetId>,
+	Lrna: Get<AssetId>,
 {
 	type Price = EmaPrice;
 
 	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
-		let oracle_entry = pallet_ema_oracle::Pallet::<Runtime>::get_entry(
+		let oracle_entry_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			asset_a.into(),
+			Lrna::get().into(),
+			OraclePeriod::LastBlock,
+			OMNIPOOL_SOURCE,
+		);
+
+		let oracle_entry_b_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+			Lrna::get().into(),
 			asset_b.into(),
 			OraclePeriod::LastBlock,
 			OMNIPOOL_SOURCE,
 		);
 
-		let oracle_entry = oracle_entry.ok();
+		/*let oracle_entry_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+			Lrna::get().into(),
+			asset_a.into(),
+			OraclePeriod::LastBlock,
+			OMNIPOOL_SOURCE,
+		);
 
-		oracle_entry.map(|entry| entry.price)
+		let oracle_entry_b_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+			Lrna::get().into(),
+			asset_b.into(),
+			OraclePeriod::LastBlock,
+			OMNIPOOL_SOURCE,
+		);*/
+
+		let nominator = U128::full_mul(
+			oracle_entry_a_lrna.ok()?.0.n.into(),
+			oracle_entry_b_lrna.ok()?.0.n.into(),
+		);
+
+		let denominator = U128::full_mul(
+			oracle_entry_a_lrna.ok()?.0.d.into(),
+			oracle_entry_b_lrna.ok()?.0.d.into(),
+		);
+
+		let n = nominator.low_u128();
+		let d = denominator.low_u128();
+
+		let rat = Ratio::new(n, d);
+
+		let oracle_entry = oracle_entry_a_lrna.ok();
+
+		oracle_entry.map(|price| price.0)
 	}
 }
