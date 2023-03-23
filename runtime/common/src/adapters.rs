@@ -200,20 +200,6 @@ where
 			OMNIPOOL_SOURCE,
 		);
 
-		/*let oracle_entry_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			Lrna::get().into(),
-			asset_a.into(),
-			OraclePeriod::LastBlock,
-			OMNIPOOL_SOURCE,
-		);
-
-		let oracle_entry_b_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			Lrna::get().into(),
-			asset_b.into(),
-			OraclePeriod::LastBlock,
-			OMNIPOOL_SOURCE,
-		);*/
-
 		let nominator = U128::full_mul(
 			oracle_entry_a_lrna.ok()?.0.n.into(),
 			oracle_entry_b_lrna.ok()?.0.n.into(),
