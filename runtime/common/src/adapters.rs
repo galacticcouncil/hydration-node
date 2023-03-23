@@ -213,10 +213,6 @@ where
 		let n = nominator.low_u128();
 		let d = denominator.low_u128();
 
-		let rat = Ratio::new(n, d);
-
-		let oracle_entry = oracle_entry_a_lrna.ok();
-
-		oracle_entry.map(|price| price.0)
+		Some(Ratio::new(n, d))
 	}
 }

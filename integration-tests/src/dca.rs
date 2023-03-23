@@ -18,7 +18,6 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule, ScheduleId, Trade};
 use polkadot_primitives::v2::BlockNumber;
-use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::{AssetId, Balance};
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::ConstU32;
@@ -32,7 +31,8 @@ fn create_schedule_should_work() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipol();
-		set_relaychain_block_number(100);
+		let block_id = 100;
+		set_relaychain_block_number(block_id);
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
@@ -58,7 +58,8 @@ fn create_schedule_should_work() {
 			Balance::MIN
 		));
 
-		set_relaychain_block_number(102);
+		let block_id = 101;
+		set_relaychain_block_number(block_id);
 
 		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS, 110 * UNITS);
 
@@ -73,7 +74,7 @@ fn create_schedule_should_work() {
 		let schedule = hydradx_runtime::DCA::schedules(1);
 		assert!(schedule.is_some());
 
-		let next_block_id = 2;
+		let next_block_id = block_id + 1;
 		let schedule = hydradx_runtime::DCA::schedule_ids_per_block(next_block_id);
 		assert!(schedule.is_some());
 	});
