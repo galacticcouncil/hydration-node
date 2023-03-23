@@ -84,6 +84,7 @@ pub mod pallet {
 	use frame_support::weights::WeightToFee;
 
 	use frame_system::pallet_prelude::OriginFor;
+	use hydra_dx_math::ema::EmaPrice;
 	use orml_traits::NamedMultiReservableCurrency;
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -140,7 +141,7 @@ pub mod pallet {
 
 		///Price provider to get the price of the native asset comparing to other assets
 		//TODO: Replace it to price provider by Oracle once Oracle is ready
-		type PriceProvider: PriceProvider<Self::Asset, Price = FixedU128>;
+		type PriceProvider: PriceProvider<Self::Asset, Price = EmaPrice>;
 
 		///AMMTrader for trade execution
 		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>;
@@ -215,6 +216,7 @@ pub mod pallet {
 		///Schedule execution is not planned on block
 		ScheduleMustBeSuspended,
 		///Error occurred when calculating spot price
+		// TODO: Rename it to Oracle Price error or something like that
 		CalculatingSpotPriceError,
 		///Invalid storage state: No schedule ids planned in block
 		NoScheduleIdsPlannedInBlock,
@@ -796,6 +798,8 @@ where
 		let spot_price =
 			T::PriceProvider::spot_price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingSpotPriceError)?;
 
+		let spot_price = FixedU128::from_rational(spot_price.n, spot_price.d);
+
 		let estimated_amount_out = spot_price
 			.checked_mul_int(*amount_in)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -815,6 +819,8 @@ where
 	) -> Result<u128, DispatchError> {
 		let spot_price =
 			T::PriceProvider::spot_price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+
+		let spot_price = FixedU128::from_rational(spot_price.n, spot_price.d);
 
 		let estimated_amount_in = spot_price
 			.checked_mul_int(*amount_out)
@@ -878,6 +884,8 @@ where
 		} else {
 			let price = T::PriceProvider::spot_price(T::NativeAssetId::get(), asset_id)
 				.ok_or(Error::<T>::CalculatingSpotPriceError)?;
+			let price = FixedU128::from_rational(price.n, price.d);
+
 			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
 		};
 

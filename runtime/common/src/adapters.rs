@@ -1,16 +1,19 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
+use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
+use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler};
+use hydradx_traits::AggregatedOracle;
+use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_dca::types::{AMMTrader, PriceProvider};
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Zero;
-use sp_runtime::DispatchError;
+use sp_runtime::{DispatchError, FixedU128};
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
@@ -169,12 +172,27 @@ where
 	}
 }
 
-pub struct PriceProviderAdapter<T, AssetId>(PhantomData<(T, AssetId)>);
+pub struct PriceProviderAdapter<T, AssetId, Runtime>(PhantomData<(T, AssetId, Runtime)>);
 
-impl<T: SpotPriceProvider<AssetId>, AssetId> PriceProvider<AssetId> for PriceProviderAdapter<T, AssetId> {
-	type Price = T::Price;
+//TODO: spot price provder not needed. The name of price provider should be also changed
+impl<T: SpotPriceProvider<AssetId>, AssetId, Runtime> PriceProvider<AssetId>
+	for PriceProviderAdapter<T, AssetId, Runtime>
+where
+	Runtime: pallet_ema_oracle::Config,
+	u32: From<AssetId>,
+{
+	type Price = EmaPrice;
 
 	fn spot_price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
-		T::spot_price(asset_a, asset_b)
+		let oracle_entry = pallet_ema_oracle::Pallet::<Runtime>::get_entry(
+			asset_a.into(),
+			asset_b.into(),
+			OraclePeriod::LastBlock,
+			OMNIPOOL_SOURCE,
+		);
+
+		let oracle_entry = oracle_entry.ok();
+
+		oracle_entry.map(|entry| entry.price)
 	}
 }

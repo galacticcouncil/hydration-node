@@ -21,8 +21,8 @@ use crate::{Error, Event, ScheduleId};
 use frame_support::{assert_noop, assert_ok};
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::{BoundedVec, FixedU128};
 
 #[test]
 fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_one_planned() {

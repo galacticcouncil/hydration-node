@@ -365,10 +365,10 @@ impl AmmTraderMock {
 pub struct PriceProviderMock {}
 
 impl PriceProvider<AssetId> for PriceProviderMock {
-	type Price = FixedU128;
+	type Price = Ratio;
 
 	fn spot_price(_: AssetId, _: AssetId) -> Option<Self::Price> {
-		Some(FixedU128::from_float(0.8))
+		Some(Ratio::new(4, 5))
 	}
 }
 
@@ -404,6 +404,7 @@ impl Config for Test {
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
+use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
 use smallvec::smallvec;
 

@@ -9,12 +9,16 @@ use frame_support::{
 };
 
 use crate::{assert_balance, assert_reserved_balance};
+use frame_system::RawOrigin;
 use hydradx_runtime::Currencies;
+use hydradx_runtime::Omnipool;
 use hydradx_runtime::Origin;
+use hydradx_runtime::Tokens;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use pallet_dca::types::{Order, Schedule, ScheduleId, Trade};
 use polkadot_primitives::v2::BlockNumber;
+use primitives::constants::chain::CORE_ASSET_ID;
 use primitives::{AssetId, Balance};
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::ConstU32;
@@ -28,6 +32,25 @@ fn create_schedule_should_work() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipol();
+		set_relaychain_block_number(100);
+
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			DAI,
+			1000000000000 * UNITS,
+			0,
+		));
+
+		assert_ok!(Omnipool::sell(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			DAI,
+			HDX,
+			100 * UNITS,
+			Balance::MIN
+		));
+
+		set_relaychain_block_number(101);
 
 		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS, 110 * UNITS);
 
@@ -418,9 +441,12 @@ pub fn hydra_run_to_block(to: BlockNumber) {
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 		hydradx_runtime::DCA::on_initialize(b);
+		hydradx_runtime::EmaOracle::on_initialize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
+		hydradx_runtime::DCA::on_initialize(b + 1);
+		hydradx_runtime::EmaOracle::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
 	}
