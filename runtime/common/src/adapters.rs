@@ -200,16 +200,15 @@ where
 		let nominator = U128::full_mul(
 			oracle_entry_a_lrna.ok()?.0.n.into(),
 			oracle_entry_b_lrna.ok()?.0.n.into(),
-		);
+		)
+		.low_u128();
 
 		let denominator = U128::full_mul(
 			oracle_entry_a_lrna.ok()?.0.d.into(),
 			oracle_entry_b_lrna.ok()?.0.d.into(),
-		);
+		)
+		.low_u128();
 
-		let n = nominator.low_u128();
-		let d = denominator.low_u128();
-
-		Some(Ratio::new(n, d))
+		Some(Ratio::new(nominator, denominator))
 	}
 }
