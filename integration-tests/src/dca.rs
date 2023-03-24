@@ -129,20 +129,12 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 	});
 }
 
-fn init_omnipool_with_oracle_for_with_block_100() {
-	init_omnipol();
-	let block_id = 100;
-	set_relaychain_block_number(block_id);
-
-	do_trade_to_populate_oracle(DAI, HDX);
-}
-
 #[test]
 fn full_buy_dca_should_be_executed_then_completed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
-		init_omnipol();
+		init_omnipool_with_oracle_for_with_block_100();
 
 		let dca_budget = 110 * UNITS;
 		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
@@ -154,12 +146,12 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
-		hydra_run_to_block(5000);
+		run_to_block(101, 500);
 
 		//Assert
-		let fees = 60_428_716_772_067;
-		let over_reservation_left_over = 17_273_319_245_142; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 23 * UNITS);
+		let fees = 47_292_039_212_922;
+		let over_reservation_left_over = 37_891_927_393_559; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 18 * UNITS);
 		assert_balance!(
 			ALICE.into(),
 			HDX,
@@ -467,6 +459,14 @@ pub fn get_last_completed_dca_events() -> Vec<hydradx_runtime::Event> {
 	}
 
 	suspended_events
+}
+
+fn init_omnipool_with_oracle_for_with_block_100() {
+	init_omnipol();
+	let block_id = 100;
+	set_relaychain_block_number(block_id);
+
+	do_trade_to_populate_oracle(DAI, HDX);
 }
 
 fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId) {
