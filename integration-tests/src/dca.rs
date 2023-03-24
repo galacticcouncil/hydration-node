@@ -59,7 +59,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
-		init_omnipol();
+		init_omnipool_with_oracle_for_with_block_100();
 
 		let dca_budget = 110 * UNITS;
 
@@ -73,12 +73,12 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
-		hydra_run_to_block(5);
+		run_to_block(101, 105);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 4_627_335_511_829;
+		let amount_to_unreserve_for_trade = 5_439_504_632_683;
 		let fee = 2_627_335_511_829;
-		let over_reservation_left_over = 595_787_016_709; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		let over_reservation_left_over = 1_408_555_068_112; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + UNITS);
 		assert_balance!(
@@ -172,7 +172,7 @@ fn full_sell_dca_should_be_executed_then_completed() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
-		init_omnipol();
+		init_omnipool_with_oracle_for_with_block_100();
 
 		let dca_budget = 110 * UNITS;
 
@@ -187,10 +187,10 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
-		hydra_run_to_block(500);
+		run_to_block(101, 500);
 
 		//Assert
-		let amount_out = 57_749_365_459_957;
+		let amount_out = 58_144_490_903_224;
 		let fee = 28900690630119;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
