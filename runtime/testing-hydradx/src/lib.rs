@@ -935,7 +935,7 @@ impl pallet_dca::Config for Runtime {
 	type Event = Event;
 	type Asset = AssetId;
 	type Currency = Currencies;
-	type PriceProvider = PriceProviderAdapter<Omnipool, AssetId, Runtime, LRNA>;
+	type PriceProvider = PriceProviderAdapter<AssetId, Runtime, LRNA>;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
 	type RandomnessProvider = DCA;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;

@@ -795,8 +795,7 @@ where
 		asset_out: &<T as Config>::Asset,
 		amount_in: &Balance,
 	) -> Result<u128, DispatchError> {
-		let spot_price =
-			T::PriceProvider::spot_price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+		let spot_price = T::PriceProvider::price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingSpotPriceError)?;
 
 		let spot_price = FixedU128::from_rational(spot_price.n, spot_price.d);
 
@@ -817,8 +816,7 @@ where
 		asset_out: &<T as Config>::Asset,
 		amount_out: &Balance,
 	) -> Result<u128, DispatchError> {
-		let spot_price =
-			T::PriceProvider::spot_price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+		let spot_price = T::PriceProvider::price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingSpotPriceError)?;
 
 		let spot_price = FixedU128::from_rational(spot_price.n, spot_price.d);
 
@@ -882,7 +880,7 @@ where
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let price = T::PriceProvider::spot_price(T::NativeAssetId::get(), asset_id)
+			let price = T::PriceProvider::price(T::NativeAssetId::get(), asset_id)
 				.ok_or(Error::<T>::CalculatingSpotPriceError)?;
 			let price = FixedU128::from_rational(price.n, price.d);
 

@@ -367,7 +367,7 @@ pub struct PriceProviderMock {}
 impl PriceProvider<AssetId> for PriceProviderMock {
 	type Price = Ratio;
 
-	fn spot_price(_: AssetId, _: AssetId) -> Option<Self::Price> {
+	fn price(_: AssetId, _: AssetId) -> Option<Self::Price> {
 		Some(Ratio::new(4, 5))
 	}
 }
