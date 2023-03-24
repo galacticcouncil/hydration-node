@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AMMTrader, Config, PriceProvider};
+use crate::{AMMTrader, Config};
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::IdentityFee;
@@ -26,7 +26,7 @@ use frame_support::PalletId;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::EnsureRoot;
-use hydradx_traits::Registry;
+use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
@@ -364,10 +364,8 @@ impl AmmTraderMock {
 
 pub struct PriceProviderMock {}
 
-impl PriceProvider<AssetId> for PriceProviderMock {
-	type Price = Ratio;
-
-	fn price(_: AssetId, _: AssetId) -> Option<Self::Price> {
+impl PriceOracle<AssetId, Ratio> for PriceProviderMock {
+	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<Ratio> {
 		Some(Ratio::new(4, 5))
 	}
 }

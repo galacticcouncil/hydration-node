@@ -41,6 +41,7 @@ use frame_support::{
 	weights::WeightToFee as FrameSupportWeight,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
+use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
 use orml_traits::NamedMultiReservableCurrency;
@@ -85,6 +86,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
+	use hydradx_traits::PriceOracle;
 	use orml_traits::NamedMultiReservableCurrency;
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -140,7 +142,7 @@ pub mod pallet {
 		type Currency: NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
 		///Price provider to get the price between two assets
-		type PriceProvider: PriceProvider<Self::Asset, Price = EmaPrice>;
+		type PriceProvider: PriceOracle<Self::Asset, EmaPrice>;
 
 		///AMMTrader for trade execution
 		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>;
@@ -793,8 +795,7 @@ where
 		asset_out: &<T as Config>::Asset,
 		amount_in: &Balance,
 	) -> Result<u128, DispatchError> {
-		let price = T::PriceProvider::price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingPriceError)?;
-		let price = FixedU128::from_rational(price.n, price.d);
+		let price = Self::get_price_from_last_block_oracle(*asset_in, *asset_out)?;
 
 		let estimated_amount_out = price.checked_mul_int(*amount_in).ok_or(ArithmeticError::Overflow)?;
 
@@ -811,9 +812,7 @@ where
 		asset_out: &<T as Config>::Asset,
 		amount_out: &Balance,
 	) -> Result<u128, DispatchError> {
-		let price = T::PriceProvider::price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingPriceError)?;
-
-		let price = FixedU128::from_rational(price.n, price.d);
+		let price = Self::get_price_from_last_block_oracle(*asset_out, *asset_in)?;
 
 		let estimated_amount_in = price.checked_mul_int(*amount_out).ok_or(ArithmeticError::Overflow)?;
 
@@ -873,14 +872,18 @@ where
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let price =
-				T::PriceProvider::price(T::NativeAssetId::get(), asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
-			let price = FixedU128::from_rational(price.n, price.d);
+			let price = Self::get_price_from_last_block_oracle(T::NativeAssetId::get(), asset_id)?;
 
 			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
 		};
 
 		Ok(amount)
+	}
+
+	fn get_price_from_last_block_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
+		let price = T::PriceProvider::price(asset_a, asset_b, OraclePeriod::LastBlock)
+			.ok_or(Error::<T>::CalculatingPriceError)?;
+		Ok(FixedU128::from_rational(price.n, price.d))
 	}
 
 	fn remove_schedule_from_storages(owner: &T::AccountId, schedule_id: ScheduleId) {

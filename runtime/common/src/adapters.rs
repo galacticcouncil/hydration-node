@@ -5,16 +5,16 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::AggregatedPriceOracle;
+use hydradx_traits::PriceOracle;
 use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
 use pallet_circuit_breaker::WeightInfo;
-use pallet_dca::types::{AMMTrader, PriceProvider};
+use pallet_dca::types::AMMTrader;
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use primitive_types::U128;
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
-
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
@@ -174,33 +174,31 @@ where
 
 pub struct PriceProviderAdapter<AssetId, Runtime, Lrna>(PhantomData<(AssetId, Runtime, Lrna)>);
 
-impl<AssetId, Runtime, Lrna> PriceProvider<AssetId> for PriceProviderAdapter<AssetId, Runtime, Lrna>
+impl<AssetId, Runtime, Lrna> PriceOracle<AssetId, EmaPrice> for PriceProviderAdapter<AssetId, Runtime, Lrna>
 where
 	Runtime: pallet_ema_oracle::Config,
 	u32: From<AssetId>,
 	Lrna: Get<AssetId>,
 {
-	type Price = EmaPrice;
-
-	fn price(asset_a: AssetId, asset_b: AssetId) -> Option<Self::Price> {
-		let oracle_entry_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
+		let price_asset_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			asset_a.into(),
 			Lrna::get().into(),
-			OraclePeriod::LastBlock,
+			period,
 			OMNIPOOL_SOURCE,
 		)
 		.ok()?;
 
-		let oracle_entry_b_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
+		let price_lrna_asset_b = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			Lrna::get().into(),
 			asset_b.into(),
-			OraclePeriod::LastBlock,
+			period,
 			OMNIPOOL_SOURCE,
 		)
 		.ok()?;
 
-		let nominator = U128::full_mul(oracle_entry_a_lrna.0.n.into(), oracle_entry_b_lrna.0.n.into()).low_u128();
-		let denominator = U128::full_mul(oracle_entry_a_lrna.0.d.into(), oracle_entry_b_lrna.0.d.into()).low_u128();
+		let nominator = U128::full_mul(price_asset_a_lrna.0.n.into(), price_lrna_asset_b.0.n.into()).low_u128();
+		let denominator = U128::full_mul(price_asset_a_lrna.0.d.into(), price_lrna_asset_b.0.d.into()).low_u128();
 
 		Some(Ratio::new(nominator, denominator))
 	}
