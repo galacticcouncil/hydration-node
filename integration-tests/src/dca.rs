@@ -265,7 +265,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
-		init_omnipol();
+		init_omnipool_with_oracle_for_with_block_100();
 
 		let schedule1 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
 		let schedule2 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
@@ -282,7 +282,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		create_schedule(ALICE, schedule6);
 
 		//Act
-		hydra_run_to_block(5);
+		run_to_block(101, 105);
 
 		//Assert
 		//We simulate a failing scenarios so we get errors we can use for verification
@@ -422,24 +422,6 @@ pub fn init_omnipol() {
 		Permill::from_percent(60),
 		Permill::from_percent(60)
 	));
-}
-
-pub fn hydra_run_to_block(to: BlockNumber) {
-	while hydradx_runtime::System::block_number() < to {
-		let b = hydradx_runtime::System::block_number();
-
-		hydradx_runtime::System::on_finalize(b);
-		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-		hydradx_runtime::DCA::on_initialize(b);
-		hydradx_runtime::EmaOracle::on_initialize(b);
-
-		hydradx_runtime::System::on_initialize(b + 1);
-		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-		hydradx_runtime::DCA::on_initialize(b + 1);
-		hydradx_runtime::EmaOracle::on_initialize(b + 1);
-
-		hydradx_runtime::System::set_block_number(b + 1);
-	}
 }
 
 pub fn expect_completed_dca_events(e: Vec<hydradx_runtime::Event>) {
