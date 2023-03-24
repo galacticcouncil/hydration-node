@@ -19,7 +19,7 @@ pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<Origin = Origin>,
+	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<RuntimeOrigin = Origin>,
 {
 	type Error = DispatchError;
 

@@ -24,7 +24,7 @@ fn add_liquidity_should_work_when_trade_volume_limit_not_exceeded(diff_from_max_
 				CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() - diff_from_max_limit;
 
 			// Act & Assert
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 		});
 }
 
@@ -44,7 +44,7 @@ fn add_liquidity_should_fail_when_trade_volume_limit_exceeded() {
 
 			// Act & Assert
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added),
 				pallet_circuit_breaker::Error::<Test>::MaxLiquidityLimitPerBlockReached
 			);
 		});
@@ -65,9 +65,9 @@ fn add_liquidity_should_fail_when_consequent_calls_exceed_trade_volume_limit() {
 			let liq_added = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added),
 				pallet_circuit_breaker::Error::<Test>::MaxLiquidityLimitPerBlockReached
 			);
 		});
@@ -100,7 +100,7 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded(diff_from_max_limit: Ba
 				CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() - diff_from_max_limit;
 
 			// Act & Assert
-			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
 		});
 }
 
@@ -130,7 +130,7 @@ fn sell_should_fail_when_trade_volume_max_limit_exceeded() {
 
 			// Act & Assert
 			assert_noop!(
-				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
+				Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
 				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
@@ -161,10 +161,10 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
-			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
+				Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
 				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
@@ -197,7 +197,7 @@ fn sell_should_fail_when_trade_volume_min_limit_exceeded() {
 			// Act & Assert
 			//Asset_out amount would be 1056_910_569_105_689 in a successful trade, but it fails due to limit
 			assert_noop!(
-				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
+				Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
 				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
@@ -228,10 +228,10 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap();
 
 			// Act & Assert
-			assert_ok!(Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
 
 			assert_noop!(
-				Omnipool::sell(Origin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
+				Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
 				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
@@ -267,7 +267,7 @@ fn trade_volume_limit_should_be_ignored_for_hub_asset() {
 
 			// Act & Assert
 			assert_ok!(Omnipool::sell(
-				Origin::signed(TRADER),
+				RuntimeOrigin::signed(TRADER),
 				LRNA,
 				ACA,
 				sell_amount,
@@ -305,7 +305,7 @@ fn buy_should_work_when_trade_volume_limit_not_exceeded(diff_from_min_limit: Bal
 
 			// Act & Assert
 			assert_ok!(Omnipool::buy(
-				Origin::signed(TRADER),
+				RuntimeOrigin::signed(TRADER),
 				DOT,
 				ACA,
 				buy_amount,
@@ -345,7 +345,7 @@ fn buy_should_fail_when_trade_volume_max_limit_exceeded() {
 			// Act & assert
 			//Asset_in amount would be 1250_000_000_000_002 in a successful trade, but it fails due to limit
 			assert_noop!(
-				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
+				Omnipool::buy(RuntimeOrigin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
 				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
@@ -377,7 +377,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 
 			// Act & assert
 			assert_ok!(Omnipool::buy(
-				Origin::signed(TRADER),
+				RuntimeOrigin::signed(TRADER),
 				DOT,
 				ACA,
 				buy_amount,
@@ -385,7 +385,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 			));
 
 			assert_noop!(
-				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
+				Omnipool::buy(RuntimeOrigin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
 				pallet_circuit_breaker::Error::<Test>::TokenInfluxLimitReached
 			);
 		});
@@ -417,7 +417,7 @@ fn buy_should_fail_when_trade_volume_min_limit_exceeded() {
 
 			// Act & assert
 			assert_noop!(
-				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
+				Omnipool::buy(RuntimeOrigin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
 				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
@@ -449,7 +449,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 
 			// Act & assert
 			assert_ok!(Omnipool::buy(
-				Origin::signed(TRADER),
+				RuntimeOrigin::signed(TRADER),
 				DOT,
 				ACA,
 				buy_amount,
@@ -457,7 +457,7 @@ fn buy_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 			));
 
 			assert_noop!(
-				Omnipool::buy(Origin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
+				Omnipool::buy(RuntimeOrigin::signed(TRADER), DOT, ACA, buy_amount, Balance::MAX),
 				pallet_circuit_breaker::Error::<Test>::TokenOutflowLimitReached
 			);
 		});
@@ -491,7 +491,7 @@ fn trade_volume_limit_should_be_ignored_for_hub_asset_when_buying_asset_for_hub_
 
 			// Act & assert
 			assert_ok!(Omnipool::buy(
-				Origin::signed(TRADER),
+				RuntimeOrigin::signed(TRADER),
 				DOT,
 				LRNA,
 				buy_amount,
@@ -519,10 +519,10 @@ fn remove_liquidity_should_work_when_liquidity_volume_limit_not_exceeded(diff_fr
 				CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() - diff_from_max_limit;
 
 			let position_id = pallet_omnipool::Pallet::<Test>::next_position_id();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_amount));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_amount));
 
 			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount));
+			assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), position_id, liq_amount));
 		});
 }
 
@@ -542,11 +542,11 @@ fn remove_liquidity_should_fail_when_liquidity_volume_limit_exceeded() {
 			let liq_amount = CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap();
 
 			let position_id = pallet_omnipool::Pallet::<Test>::next_position_id();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_amount),);
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_amount),);
 
 			// Act & Assert
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), position_id, liq_amount),
 				pallet_circuit_breaker::Error::<Test>::MaxLiquidityLimitPerBlockReached
 			);
 		});
@@ -569,15 +569,15 @@ fn remove_liquidity_should_fail_when_consequent_calls_exceed_liquidity_volume_li
 
 			let position_id = pallet_omnipool::Pallet::<Test>::next_position_id();
 			assert_ok!(Omnipool::add_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				1_000,
 				liq_amount.checked_mul(3).unwrap()
 			));
 
 			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount));
+			assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), position_id, liq_amount));
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), position_id, liq_amount),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), position_id, liq_amount),
 				pallet_circuit_breaker::Error::<Test>::MaxLiquidityLimitPerBlockReached
 			);
 		});

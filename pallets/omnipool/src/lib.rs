@@ -202,7 +202,7 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		/// Hooks are actions executed on add_liquidity, sell or buy.
-		type OmnipoolHooks: OmnipoolHooks<Self::Origin, Self::AssetId, Balance, Error = DispatchError>;
+		type OmnipoolHooks: OmnipoolHooks<Self::RuntimeOrigin, Self::AssetId, Balance, Error = DispatchError>;
 	}
 
 	#[pallet::storage]
@@ -504,9 +504,9 @@ pub mod pallet {
 		///
 		/// Emits `TokenAdded` event when successful.
 		///
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_token().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
-		#[pallet::call_index(1)]
 		pub fn add_token(
 			origin: OriginFor<T>,
 			asset: T::AssetId,
@@ -624,6 +624,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		///
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
 			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
 		)]
@@ -1313,6 +1314,7 @@ pub mod pallet {
 		///
 		/// Emits `TradableStateUpdated` event when successful.
 		///
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
 		pub fn set_asset_tradable_state(
@@ -1498,7 +1500,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update Hub asset side of HDX subpool and add given amount to hub_asset_reserve
-	fn update_hdx_subpool_hub_asset(origin: T::Origin, hub_asset_amount: Balance) -> DispatchResult {
+	fn update_hdx_subpool_hub_asset(origin: T::RuntimeOrigin, hub_asset_amount: Balance) -> DispatchResult {
 		if hub_asset_amount > Balance::zero() {
 			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
 
@@ -1572,7 +1574,7 @@ impl<T: Config> Pallet<T> {
 	/// Swap hub asset for asset_out.
 	/// Special handling of sell trade where asset in is Hub Asset.
 	fn sell_hub_asset(
-		origin: T::Origin,
+		origin: T::RuntimeOrigin,
 		who: &T::AccountId,
 		asset_out: T::AssetId,
 		amount: Balance,
@@ -1667,7 +1669,7 @@ impl<T: Config> Pallet<T> {
 	/// Swap asset for Hub Asset
 	/// Special handling of buy trade where asset in is Hub Asset.
 	fn buy_asset_for_hub_asset(
-		origin: T::Origin,
+		origin: T::RuntimeOrigin,
 		who: &T::AccountId,
 		asset_out: T::AssetId,
 		amount: Balance,
@@ -1824,7 +1826,7 @@ impl<T: Config> Pallet<T> {
 	/// Updates states of 2 non-hub assets given calculated trade result.
 	#[require_transactional]
 	pub fn update_omnipool_state_given_trade_result(
-		origin: T::Origin,
+		origin: T::RuntimeOrigin,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
 		trade: TradeStateChange<Balance>,

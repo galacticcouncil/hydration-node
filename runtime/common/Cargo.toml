@@ -17,8 +17,10 @@ codec = { package = "parity-scale-codec", version = "3.1.5", default-features = 
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 primitives = {path = '../../primitives', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
-
 pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
+
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "2717dcf804264e6fec56801356efe0b18389442c", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false }
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
@@ -45,6 +47,7 @@ pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", 
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false}
 pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false }
 pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false}
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false }
 
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.37", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.37", default-features = false }
