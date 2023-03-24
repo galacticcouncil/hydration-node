@@ -139,8 +139,7 @@ pub mod pallet {
 		///For named-reserving user's assets
 		type Currency: NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
-		///Price provider to get the price of the native asset comparing to other assets
-		//TODO: Replace it to price provider by Oracle once Oracle is ready
+		///Price provider to get the price between two assets
 		type PriceProvider: PriceProvider<Self::Asset, Price = EmaPrice>;
 
 		///AMMTrader for trade execution
@@ -215,9 +214,8 @@ pub mod pallet {
 		NoPlannedExecutionFoundOnBlock,
 		///Schedule execution is not planned on block
 		ScheduleMustBeSuspended,
-		///Error occurred when calculating spot price
-		// TODO: Rename it to Oracle Price error or something like that
-		CalculatingSpotPriceError,
+		///Error occurred when calculating price
+		CalculatingPriceError,
 		///Invalid storage state: No schedule ids planned in block
 		NoScheduleIdsPlannedInBlock,
 		///The total amount to be reserved should be larger than storage bond
@@ -591,8 +589,8 @@ where
 		amount_out: &Balance,
 		max_limit: &Balance,
 	) -> Result<u128, DispatchError> {
-		let max_limit_from_spot_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
-		let max_limit = max(max_limit, &max_limit_from_spot_price);
+		let max_limit_from_oracle_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
+		let max_limit = max(max_limit, &max_limit_from_oracle_price);
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee(*asset_in)?;
 		let amount_to_sell_plus_fee = max_limit
@@ -795,13 +793,10 @@ where
 		asset_out: &<T as Config>::Asset,
 		amount_in: &Balance,
 	) -> Result<u128, DispatchError> {
-		let spot_price = T::PriceProvider::price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+		let price = T::PriceProvider::price(*asset_in, *asset_out).ok_or(Error::<T>::CalculatingPriceError)?;
+		let price = FixedU128::from_rational(price.n, price.d);
 
-		let spot_price = FixedU128::from_rational(spot_price.n, spot_price.d);
-
-		let estimated_amount_out = spot_price
-			.checked_mul_int(*amount_in)
-			.ok_or(ArithmeticError::Overflow)?;
+		let estimated_amount_out = price.checked_mul_int(*amount_in).ok_or(ArithmeticError::Overflow)?;
 
 		let slippage_amount = T::SlippageLimitPercentage::get().mul_floor(estimated_amount_out);
 		let min_limit_with_slippage = estimated_amount_out
@@ -816,13 +811,11 @@ where
 		asset_out: &<T as Config>::Asset,
 		amount_out: &Balance,
 	) -> Result<u128, DispatchError> {
-		let spot_price = T::PriceProvider::price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingSpotPriceError)?;
+		let price = T::PriceProvider::price(*asset_out, *asset_in).ok_or(Error::<T>::CalculatingPriceError)?;
 
-		let spot_price = FixedU128::from_rational(spot_price.n, spot_price.d);
+		let price = FixedU128::from_rational(price.n, price.d);
 
-		let estimated_amount_in = spot_price
-			.checked_mul_int(*amount_out)
-			.ok_or(ArithmeticError::Overflow)?;
+		let estimated_amount_in = price.checked_mul_int(*amount_out).ok_or(ArithmeticError::Overflow)?;
 
 		let slippage_amount = T::SlippageLimitPercentage::get().mul_floor(estimated_amount_in);
 		let max_limit_with_slippage = estimated_amount_in
@@ -880,8 +873,8 @@ where
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let price = T::PriceProvider::price(T::NativeAssetId::get(), asset_id)
-				.ok_or(Error::<T>::CalculatingSpotPriceError)?;
+			let price =
+				T::PriceProvider::price(T::NativeAssetId::get(), asset_id).ok_or(Error::<T>::CalculatingPriceError)?;
 			let price = FixedU128::from_rational(price.n, price.d);
 
 			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
