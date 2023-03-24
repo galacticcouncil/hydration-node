@@ -893,7 +893,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// Account ID of the pot holding all the locked omnipool's positions(NFTs). This account
 	/// is also owner of the NFT collection used to mint liqudity mining's NFTs.
-	fn account_id() -> T::AccountId {
+	pub fn account_id() -> T::AccountId {
 		<T as pallet::Config>::PalletId::get().into_account_truncating()
 	}
 

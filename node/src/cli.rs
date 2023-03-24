@@ -9,7 +9,7 @@ pub struct RuntimeInstanceError(String);
 impl fmt::Display for RuntimeInstanceError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let RuntimeInstanceError(message) = self;
-		write!(f, "RuntimeInstanceError: {}", message)
+		write!(f, "RuntimeInstanceError: {message}")
 	}
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "testing-hydradx-runtime"
-version = "133.0.0"
+version = "137.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -26,6 +26,7 @@ common-runtime = { path = '../common', default-features = false }
 pallet-claims = { path = '../../pallets/claims', default-features = false }
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
+pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
 pallet-omnipool-liquidity-mining = {path = '../../pallets/omnipool-liquidity-mining', default-features = false}
 
 # pallets
@@ -157,6 +158,7 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "frame-try-runtime/std",
+    "common-runtime/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
     "cumulus-primitives-core/std",
@@ -198,6 +200,8 @@ std = [
     "pallet-utility/std",
     "pallet-uniques/std",
     "pallet-currencies/std",
+    "pallet-ema-oracle/std",
+    "pallet-transaction-pause/std",
     "hydradx-traits/std",
     "pallet-transaction-multi-payment/std",
     "pallet-genesis-history/std",

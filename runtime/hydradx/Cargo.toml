@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "133.0.0"
+version = "137.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -26,6 +26,7 @@ common-runtime = { path = '../common', default-features = false }
 pallet-claims = { path = '../../pallets/claims', default-features = false }
 pallet-genesis-history = {path = '../../pallets/genesis-history', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
+pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
 pallet-omnipool-liquidity-mining = {path = '../../pallets/omnipool-liquidity-mining', default-features = false}
 
 # pallets
@@ -150,8 +151,11 @@ runtime-benchmarks = [
     "pallet-uniques/runtime-benchmarks",
     "pallet-omnipool/runtime-benchmarks",
     "pallet-transaction-pause/runtime-benchmarks",
+    "pallet-circuit-breaker/runtime-benchmarks",
+    "pallet-ema-oracle/runtime-benchmarks",
     "pallet-duster/runtime-benchmarks",
     "pallet-omnipool-liquidity-mining/runtime-benchmarks",
+    "pallet-otc/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -162,6 +166,7 @@ std = [
     "frame-system/std",
     "frame-system-rpc-runtime-api/std",
     "frame-try-runtime/std",
+    "common-runtime/std",
     "cumulus-pallet-parachain-system/std",
     "cumulus-pallet-aura-ext/std",
     "cumulus-primitives-core/std",
@@ -208,7 +213,10 @@ std = [
     "pallet-asset-registry/std",
     "pallet-currencies/std",
     "pallet-omnipool/std",
+    "pallet-circuit-breaker/std",
     "pallet-transaction-pause/std",
+    "pallet-ema-oracle/std",
+    "pallet-otc/std",
     "sp-api/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
@@ -249,6 +257,7 @@ try-runtime= [
     "pallet-timestamp/try-runtime",
     "pallet-transaction-payment/try-runtime",
     "pallet-transaction-pause/try-runtime",
+    "pallet-ema-oracle/try-runtime",
     "pallet-utility/try-runtime",
     "pallet-treasury/try-runtime",
     "pallet-collective/try-runtime",
@@ -275,4 +284,7 @@ try-runtime= [
     "pallet-duster/try-runtime",
     "warehouse-liquidity-mining/try-runtime",
     "pallet-omnipool-liquidity-mining/try-runtime",
+    "pallet-circuit-breaker/try-runtime",
+    "pallet-ema-oracle/try-runtime",
+    "pallet-otc/try-runtime",
 ]

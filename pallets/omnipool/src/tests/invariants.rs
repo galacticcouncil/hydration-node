@@ -37,7 +37,7 @@ fn assert_asset_invariant(
 	let old_s = U256::from(old_state.reserve) * U256::from(old_state.hub_reserve);
 	let s2 = old_s.integer_sqrt();
 
-	assert!(new_s >= old_s, "Invariant decreased for {}", desc);
+	assert!(new_s >= old_s, "Invariant decreased for {desc}");
 
 	let s1_u128 = Balance::try_from(s1).unwrap();
 	let s2_u128 = Balance::try_from(s2).unwrap();

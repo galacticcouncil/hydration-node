@@ -1,14 +1,17 @@
 [package]
 name = "runtime-integration-tests"
-version = "1.2.0"
+version = "1.1.0"
 description = "Integration tests"
 authors = ["GalacticCouncil"]
 edition = "2021"
-homepage = "https://github.com/galacticcouncil/Basilisk-node"
+homepage = "https://github.com/galacticcouncil/HydraDX-node"
 license = "Apache 2.0"
-repository = "https://github.com/galacticcouncil/Basilisk-node"
+repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
+remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+scraper = { path = "../scraper" }
 primitives = { default-features = false, path = "../primitives" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 
@@ -18,6 +21,10 @@ hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false}
 pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false}
 pallet-duster = { git = "https://github.com/galacticcouncil/warehouse",rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false}
+pallet-omnipool-liquidity-mining = { path = "../pallets/omnipool-liquidity-mining", default-features = true}
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse",rev = "6b855e632e8f8179702b7c56d6be7535c394dbcf", default-features = false}
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "6b855e632e8f8179702b7c56d6be7535c394dbcf", default-features = false }
+pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "6b855e632e8f8179702b7c56d6be7535c394dbcf", default-features = false}
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }

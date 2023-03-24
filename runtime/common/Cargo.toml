@@ -1,6 +1,6 @@
 [package]
 name = "common-runtime"
-version = "100.5.0"
+version = "102.1.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -17,6 +17,9 @@ codec = { package = "parity-scale-codec", version = "3.1.5", default-features = 
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 primitives = {path = '../../primitives', default-features = false}
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
+pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "6b855e632e8f8179702b7c56d6be7535c394dbcf", default-features = false}
+
+pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37", default-features = false }
