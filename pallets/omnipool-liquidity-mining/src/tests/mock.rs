@@ -21,6 +21,7 @@ use std::collections::HashMap;
 
 use crate as omnipool_liquidity_mining;
 
+use frame_support::weights::Weight;
 use pallet_omnipool;
 
 use frame_support::traits::{ConstU128, Contains, Everything, GenesisBuild};
@@ -42,7 +43,10 @@ use sp_runtime::{
 
 use warehouse_liquidity_mining::Instance1;
 
-use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::{
+	oracle::{OraclePeriod, Source},
+	pools::DustRemovalAccountWhitelist,
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -156,6 +160,8 @@ impl frame_system::Config for Test {
 parameter_types! {
 	pub const LMPalletId: PalletId = PalletId(*b"TEST_lm_");
 	pub const LMCollectionId: CollectionId = LM_COLLECTION_ID;
+	pub const PeriodOracle: OraclePeriod= OraclePeriod::Day;
+	pub const OracleSource: Source = *b"omnipool";
 }
 
 impl Config for Test {
@@ -166,6 +172,9 @@ impl Config for Test {
 	type NFTCollectionId = LMCollectionId;
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = WarehouseLM;
+	type OracleSource = OracleSource;
+	type OraclePeriod = PeriodOracle;
+	type PriceOracle = DummyOracle;
 	type WeightInfo = ();
 }
 
@@ -633,6 +642,36 @@ where
 			l as u32
 		});
 		Ok(T::AssetId::from(assigned))
+	}
+}
+
+use hydradx_traits::oracle::AggregatedPriceOracle;
+
+pub struct DummyOracle;
+pub type OraclePrice = hydra_dx_math::ema::EmaPrice;
+impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
+	type Error = OracleError;
+
+	fn get_price(
+		_asset_a: AssetId,
+		asset_b: AssetId,
+		_period: OraclePeriod,
+		_source: Source,
+	) -> Result<(OraclePrice, BlockNumber), Self::Error> {
+		match asset_b {
+			KSM => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
+			_ => Err(OracleError::NotPresent),
+		}
+	}
+
+	fn get_price_weight() -> Weight {
+		Weight::zero()
 	}
 }
 

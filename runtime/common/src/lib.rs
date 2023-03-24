@@ -25,6 +25,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
 use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
+use hydradx_traits::oracle::{OraclePeriod, Source};
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
@@ -55,6 +56,8 @@ pub type Hash = sp_core::H256;
 
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+
+use self::adapters::OMNIPOOL_SOURCE;
 
 /// Header type.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -352,4 +355,6 @@ parameter_types! {
 parameter_types! {
 	pub const OmniLMPalletId: PalletId = PalletId(*b"Omni//LM");
 	pub const OmnipoolLMCollectionId: CollectionId = 2584_u128;
+	pub const OmnipoolLMOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
+	pub const OmnipoolLMOracleSource: Source = OMNIPOOL_SOURCE;
 }
