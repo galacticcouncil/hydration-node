@@ -34,29 +34,7 @@ fn create_schedule_should_work() {
 		let block_id = 100;
 		set_relaychain_block_number(block_id);
 
-		assert_ok!(Tokens::set_balance(
-			RawOrigin::Root.into(),
-			ALICE.into(),
-			LRNA,
-			1000000000000 * UNITS,
-			0,
-		));
-
-		assert_ok!(Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
-			LRNA,
-			DAI,
-			100 * UNITS,
-			Balance::MIN
-		));
-
-		assert_ok!(Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
-			LRNA,
-			HDX,
-			100 * UNITS,
-			Balance::MIN
-		));
+		do_trade_to_populate_oracle(DAI, HDX);
 
 		let block_id = 101;
 		set_relaychain_block_number(block_id);
@@ -478,4 +456,30 @@ pub fn get_last_completed_dca_events() -> Vec<hydradx_runtime::Event> {
 	}
 
 	suspended_events
+}
+
+fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		ALICE.into(),
+		LRNA,
+		1000000000000 * UNITS,
+		0,
+	));
+
+	assert_ok!(Omnipool::sell(
+		hydradx_runtime::Origin::signed(ALICE.into()),
+		LRNA,
+		asset_1,
+		100 * UNITS,
+		Balance::MIN
+	));
+
+	assert_ok!(Omnipool::sell(
+		hydradx_runtime::Origin::signed(ALICE.into()),
+		LRNA,
+		asset_2,
+		100 * UNITS,
+		Balance::MIN
+	));
 }
