@@ -221,6 +221,7 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 
 		let block_id = 101;
 		set_relaychain_block_number(block_id);
+		do_trade_to_populate_oracle(DAI, HDX);
 
 		let dca_budget = 110 * UNITS;
 		let dca_budget_for_bob = 130 * UNITS;
@@ -241,16 +242,16 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		assert_reserved_balance!(&BOB.into(), HDX, dca_budget_for_bob);
 
 		//Act
-		set_relaychain_block_number(500);
+		run_to_block(102, 500);
 
 		//Assert
-		let amount_out = 57744324281394;
+		let amount_out = 58164124159641;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let amount_out = 68241399276202;
+		let amount_out = 68825307155945;
 
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - dca_budget_for_bob);
@@ -494,19 +495,9 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId) {
 	));
 }
 
-pub fn hydra_run_to_block2(to: BlockNumber) {
-	use frame_support::traits::{OnFinalize, OnInitialize};
-	while hydradx_runtime::System::block_number() < to {
-		let b = hydradx_runtime::System::block_number();
-
-		hydradx_runtime::System::on_finalize(b);
-		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
-		hydradx_runtime::EmaOracle::on_finalize(b);
-
-		hydradx_runtime::System::on_initialize(b + 1);
-		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
-		hydradx_runtime::EmaOracle::on_initialize(b + 1);
-
-		hydradx_runtime::System::set_block_number(b + 1);
+pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
+	for b in from..to {
+		set_relaychain_block_number(b);
+		do_trade_to_populate_oracle(DAI, HDX);
 	}
 }
