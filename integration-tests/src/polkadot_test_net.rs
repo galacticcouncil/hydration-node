@@ -265,7 +265,7 @@ pub fn hydra_live_ext() -> sp_io::TestExternalities {
 		.build()
 		.unwrap()
 		.block_on(async {
-			use remote_externalities::*;
+			use frame_remote_externalities::*;
 
 			let path_str = String::from("../scraper/SNAPSHOT");
 
@@ -279,7 +279,7 @@ pub fn hydra_live_ext() -> sp_io::TestExternalities {
 
 			builder.build().await.unwrap()
 		});
-	ext
+	ext.inner_ext
 }
 
 #[allow(dead_code)]
@@ -295,7 +295,7 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 
 			if pallet_whitelist.contains(&call_p) {
 				let acc = &tx.signature.as_ref().unwrap().0;
-				assert_ok!(call.clone().dispatch(hydradx_runtime::Origin::signed(acc.clone())));
+				assert_ok!(call.clone().dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
 			}
 		}
 	}
@@ -355,7 +355,7 @@ pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{Origin, ParachainSystem};
+	use hydradx_runtime::{RuntimeOrigin, ParachainSystem};
 
 	polkadot_run_to_block(number); //We need to set block number this way as well because tarpaulin code coverage tool does not like the way how we set the block number with `cumulus-test-relay-sproof-builder` package
 
@@ -364,7 +364,7 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 	let (relay_storage_root, proof) = RelayStateSproofBuilder::default().into_state_root_and_proof();
 
 	assert_ok!(ParachainSystem::set_validation_data(
-		Origin::none(),
+		RuntimeOrigin::none(),
 		cumulus_primitives_parachain_inherent::ParachainInherentData {
 			validation_data: cumulus_primitives_core::PersistedValidationData {
 				parent_head: Default::default(),

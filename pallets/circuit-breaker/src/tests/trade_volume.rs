@@ -268,7 +268,11 @@ fn set_trade_volume_limit_should_work_when_signed_by_technical_origin() {
 		// Arrange & Act
 		let new_limit = (7, 100);
 
-		assert_ok!(CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), HDX, new_limit));
+		assert_ok!(CircuitBreaker::set_trade_volume_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			new_limit
+		));
 
 		expect_events(vec![crate::Event::TradeVolumeLimitChanged {
 			asset_id: HDX,
@@ -286,7 +290,7 @@ fn set_trade_volume_limit_should_fail_when_not_signed_by_technical_origin() {
 
 		assert_noop!(
 			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::signed(ALICE), HDX, new_limit),
-			sp_runtime::DispatchError::BadRuntimeOrigin
+			sp_runtime::DispatchError::BadOrigin
 		);
 	});
 }
@@ -301,7 +305,11 @@ fn set_trade_volume_limit_should_store_new_trade_volume_limit() {
 		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), default_limit);
 		let new_limit = (7, 100);
 
-		assert_ok!(CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), HDX, new_limit));
+		assert_ok!(CircuitBreaker::set_trade_volume_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			new_limit
+		));
 
 		// Assert
 		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), new_limit);

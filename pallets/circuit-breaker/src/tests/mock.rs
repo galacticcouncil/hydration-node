@@ -157,7 +157,7 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -228,7 +228,7 @@ impl pallet_omnipool::Config for Test {
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 
-impl<T> OmnipoolHooks<Runtimerigin, AssetId, Balance> for CircuitBreakerHooks<T>
+impl<T> OmnipoolHooks<RuntimeOrigin, AssetId, Balance> for CircuitBreakerHooks<T>
 where
 	// Lrna: Get<AssetId>,
 	T: Config + pallet_circuit_breaker::Config,
@@ -602,6 +602,6 @@ impl ExtBuilder {
 	}
 }
 
-pub fn expect_events(e: Vec<Event>) {
-	test_utils::expect_events::<Event, Test>(e);
+pub fn expect_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }

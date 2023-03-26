@@ -53,7 +53,7 @@ fn claiming_works() {
 fn invalid_signature_fail() {
 	new_test_ext().execute_with(|| {
 		let invalid_signature = hex!["a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"];
-		assert_noop!(ClaimsPallet::claim(Origin::signed(ALICE), EcdsaSignature(invalid_signature)), Error::<Test>::InvalidEthereumSignature);
+		assert_noop!(ClaimsPallet::claim(RuntimeOrigin::signed(ALICE), EcdsaSignature(invalid_signature)), Error::<Test>::InvalidEthereumSignature);
 	})
 }
 

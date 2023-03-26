@@ -32,7 +32,7 @@ use sp_runtime::{
 };
 use xcm_emulator::TestExt;
 
-use hydradx_runtime::{Balance, Origin};
+use hydradx_runtime::{Balance, RuntimeOrigin};
 use pretty_assertions::assert_eq;
 
 #[macro_export]
@@ -58,7 +58,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 		let lrna_price_adjustment = FixedU128::checked_from_rational(1, 3).unwrap();
 
 		assert_ok!(hydradx_runtime::Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			owner.clone(),
 			total_rewards,
 			0,
@@ -67,7 +67,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 		set_relaychain_block_number(100);
 
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_global_farm(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			total_rewards,
 			planned_yielding_periods,
 			blocks_per_period,
@@ -119,7 +119,7 @@ fn create_yield_farm_should_work_when_asset_is_in_omnipool() {
 
 		set_relaychain_block_number(200);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_yield_farm(
-			Origin::signed(Treasury::account_id()),
+			RuntimeOrigin::signed(Treasury::account_id()),
 			global_farm_id,
 			BTC,
 			multiplier,
@@ -160,7 +160,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			CHARLIE.into(),
 			ETH,
 			10_000 * UNITS as i128,
@@ -176,7 +176,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 		//Act
 		set_relaychain_block_number(400);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_id,
 			yield_farm_id,
 			position_id
@@ -231,7 +231,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			CHARLIE.into(),
 			ETH,
 			10_000 * UNITS as i128,
@@ -247,7 +247,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 		set_relaychain_block_number(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_1_id,
 			yield_farm_1_id,
 			position_id
@@ -256,7 +256,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 		//Act
 		set_relaychain_block_number(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
 			yield_farm_2_id,
 			deposit_id
@@ -318,7 +318,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			CHARLIE.into(),
 			ETH,
 			10_000 * UNITS as i128,
@@ -334,7 +334,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		set_relaychain_block_number(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_1_id,
 			yield_farm_1_id,
 			position_id
@@ -342,7 +342,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		set_relaychain_block_number(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
 			yield_farm_2_id,
 			deposit_id
@@ -352,7 +352,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		//Act 1 - claim rewards for 2-nd yield-farm-entry
 		set_relaychain_block_number(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
 			yield_farm_2_id
 		));
@@ -368,7 +368,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		//Act & assert 2 - claim rewards in the same period for same yield-farm-entry should not work.
 		assert_noop!(
 			hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
-				Origin::signed(CHARLIE.into()),
+				RuntimeOrigin::signed(CHARLIE.into()),
 				deposit_id,
 				yield_farm_2_id
 			),
@@ -378,7 +378,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		let bob_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 3 - claim rewards for differnt yield-farm-entry in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
 			yield_farm_1_id
 		));
@@ -419,7 +419,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			CHARLIE.into(),
 			ETH,
 			10_000 * UNITS as i128,
@@ -435,7 +435,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		set_relaychain_block_number(400);
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_1_id,
 			yield_farm_1_id,
 			position_id
@@ -443,7 +443,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		set_relaychain_block_number(500);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::redeposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_2_id,
 			yield_farm_2_id,
 			deposit_id
@@ -460,7 +460,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		//Act 1 - withdraw shares from 2-nd yield-farm
 		set_relaychain_block_number(600);
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
 			yield_farm_2_id
 		));
@@ -492,7 +492,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		set_relaychain_block_number(700);
 		//Arrange - claim before withdraw
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::claim_rewards(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
 			yield_farm_1_id
 		),);
@@ -500,7 +500,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 		let bob_hdx_balance_0 = hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into());
 		//Act 2 - claim and withdraw should in the same period should work.
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::withdraw_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			deposit_id,
 			yield_farm_1_id
 		));
@@ -531,12 +531,12 @@ fn init_omnipool() {
 	let stable_price = FixedU128::from_inner(45_000_000_000);
 
 	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		u128::MAX,
 	));
 
 	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		stable_price,
 		native_price,
 		Permill::from_percent(100),
@@ -546,7 +546,7 @@ fn init_omnipool() {
 	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		DOT,
 		token_price,
 		Permill::from_percent(100),
@@ -556,7 +556,7 @@ fn init_omnipool() {
 	let token_price = FixedU128::from_inner(71_145_071_145_071);
 
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		ETH,
 		token_price,
 		Permill::from_percent(100),
@@ -566,7 +566,7 @@ fn init_omnipool() {
 	let btc_price = FixedU128::from_inner(9_647_109_647_109_650_000_000_000);
 
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		BTC,
 		btc_price,
 		Permill::from_percent(100),
@@ -578,14 +578,14 @@ fn create_global_farm() {
 	let total_rewards = 1_000_000 * UNITS;
 
 	assert_ok!(hydradx_runtime::Balances::set_balance(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		Treasury::account_id(),
 		total_rewards,
 		0,
 	));
 
 	assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_global_farm(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		total_rewards,
 		1_000_000,
 		10,
@@ -599,7 +599,7 @@ fn create_global_farm() {
 
 fn create_yield_farm(id: GlobalFarmId, asset: AssetId) {
 	assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::create_yield_farm(
-		Origin::signed(Treasury::account_id()),
+		RuntimeOrigin::signed(Treasury::account_id()),
 		id,
 		asset,
 		FixedU128::one(),
@@ -612,7 +612,7 @@ fn omnipool_add_liquidity(lp: AccountId, asset: AssetId, amount: Balance) -> pri
 
 	let current_position_id = Omnipool::next_position_id();
 
-	assert_ok!(Omnipool::add_liquidity(Origin::signed(lp), asset, amount));
+	assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(lp), asset, amount));
 
 	current_position_id
 }
@@ -622,7 +622,7 @@ fn seed_lm_pot() {
 	//prevent pot account from dusting
 	let pot = warehouse_liquidity_mining::Pallet::<hydradx_runtime::Runtime, Instance1>::pot_account_id().unwrap();
 	assert_ok!(hydradx_runtime::Currencies::update_balance(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		pot,
 		HDX,
 		100 * UNITS as i128,

@@ -9568,6 +9568,7 @@ dependencies = [
 name = "runtime-integration-tests"
 version = "1.1.0"
 dependencies = [
+ "common-runtime",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -9577,8 +9578,10 @@ dependencies = [
  "cumulus-primitives-parachain-inherent",
  "cumulus-primitives-timestamp",
  "cumulus-primitives-utility",
+ "cumulus-test-relay-sproof-builder",
  "frame-benchmarking",
  "frame-executive",
+ "frame-remote-externalities",
  "frame-support",
  "frame-system",
  "frame-system-benchmarking",
@@ -9597,6 +9600,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
@@ -10927,14 +10931,17 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scraper"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "clap 3.2.23",
+ "frame-remote-externalities",
  "hydradx-runtime",
  "jsonrpsee 0.15.1",
  "parity-scale-codec",
  "serde",
+ "sp-rpc",
  "sp-runtime",
+ "substrate-rpc-client",
  "tokio",
 ]
 

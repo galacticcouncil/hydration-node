@@ -9,12 +9,14 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-#remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+frame-remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 scraper = { path = "../scraper" }
 primitives = { default-features = false, path = "../primitives" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
+common-runtime = { path = "../runtime/common", default-features = true}
 pallet-omnipool-liquidity-mining = { path = "../pallets/omnipool-liquidity-mining", default-features = true}
+pallet-circuit-breaker = { path = "../pallets/circuit-breaker", default-features = true}
 
 # HydraDX dependencies
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false }
@@ -58,6 +60,7 @@ cumulus-primitives-utility = { git = "https://github.com/paritytech/cumulus", br
 cumulus-primitives-parachain-inherent = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37", default-features = false }
 cumulus-primitives-timestamp = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37", default-features = false }
 parachain-info = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37", default-features = false }
+cumulus-test-relay-sproof-builder = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.37", default-features = false }
 
 # Polkadot dependencies
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.37", default-features = false, features = ["wasm-api"] }

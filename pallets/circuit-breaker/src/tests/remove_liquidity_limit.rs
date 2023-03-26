@@ -155,7 +155,11 @@ fn ensure_and_update_liquidity_limit_should_work_when_liquidity_is_within_limit(
 fn ensure_and_update_liquidity_limit_should_not_throw_error_when_turned_off() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(RuntimeOrigin::root(), HDX, None,));
+		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			None,
+		));
 
 		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
 			HDX,
@@ -184,7 +188,11 @@ fn ensure_and_update_liquidity_limit_should_not_throw_error_when_turned_off_afte
 			Error::<Test>::MaxLiquidityLimitPerBlockReached
 		);
 
-		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(RuntimeOrigin::root(), HDX, None,));
+		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			None,
+		));
 
 		// the struct is in the storage, but is ignored
 		assert!(CircuitBreaker::allowed_remove_liquidity_limit_per_asset(HDX).is_some());
@@ -297,7 +305,7 @@ fn set_liquidity_limit_should_fail_when_not_signed_by_technical_origin() {
 
 		assert_noop!(
 			CircuitBreaker::set_remove_liquidity_limit(RuntimeOrigin::signed(ALICE), HDX, new_limit),
-			sp_runtime::DispatchError::BadRuntimeOrigin
+			sp_runtime::DispatchError::BadOrigin
 		);
 	});
 }

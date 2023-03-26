@@ -100,7 +100,13 @@ fn sell_should_work_when_trade_volume_limit_not_exceeded(diff_from_max_limit: Ba
 				CircuitBreaker::calculate_limit(initial_liquidity, TEN_PERCENT).unwrap() - diff_from_max_limit;
 
 			// Act & Assert
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(TRADER),
+				DOT,
+				ACA,
+				sell_amount,
+				min_limit
+			));
 		});
 }
 
@@ -161,7 +167,13 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_max_limit() {
 			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap() + ONE;
 
 			// Act & Assert
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(TRADER),
+				DOT,
+				ACA,
+				sell_amount,
+				min_limit
+			));
 
 			assert_noop!(
 				Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
@@ -228,7 +240,13 @@ fn sell_should_fail_when_consequent_trades_exceed_trade_volume_min_limit() {
 			let sell_amount = CircuitBreaker::calculate_limit(initial_liquidity, FIVE_PERCENT).unwrap();
 
 			// Act & Assert
-			assert_ok!(Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(TRADER),
+				DOT,
+				ACA,
+				sell_amount,
+				min_limit
+			));
 
 			assert_noop!(
 				Omnipool::sell(RuntimeOrigin::signed(TRADER), DOT, ACA, sell_amount, min_limit),
@@ -522,7 +540,11 @@ fn remove_liquidity_should_work_when_liquidity_volume_limit_not_exceeded(diff_fr
 			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_amount));
 
 			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), position_id, liq_amount));
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
+				position_id,
+				liq_amount
+			));
 		});
 }
 
@@ -575,7 +597,11 @@ fn remove_liquidity_should_fail_when_consequent_calls_exceed_liquidity_volume_li
 			));
 
 			// Act & Assert
-			assert_ok!(Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), position_id, liq_amount));
+			assert_ok!(Omnipool::remove_liquidity(
+				RuntimeOrigin::signed(LP1),
+				position_id,
+				liq_amount
+			));
 			assert_noop!(
 				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), position_id, liq_amount),
 				pallet_circuit_breaker::Error::<Test>::MaxLiquidityLimitPerBlockReached

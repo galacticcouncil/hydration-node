@@ -44,7 +44,7 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 		//Act and assert
 		for _ in 1..=num_of_sells {
 			assert_ok!(Omnipool::sell(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				CORE_ASSET_ID,
 				sell_amount,
@@ -83,7 +83,7 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 		//We need to split to avoid max in ratio
 		for _ in 1..num_of_sells {
 			assert_ok!(Omnipool::sell(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				CORE_ASSET_ID,
 				sell_amount,
@@ -94,7 +94,7 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 		//Act and assert
 		assert_noop!(
 			Omnipool::sell(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				CORE_ASSET_ID,
 				sell_amount,
@@ -125,7 +125,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 		//We need to split in multiple sells to avoid max in ratio error
 		for _ in 1..=3 {
 			assert_ok!(Omnipool::sell(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				LRNA,
 				CORE_ASSET_ID,
 				sell_amount,
@@ -136,7 +136,7 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 		//Act and assert
 		assert_noop!(
 			Omnipool::sell(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				LRNA,
 				CORE_ASSET_ID,
 				sell_amount,
@@ -173,7 +173,7 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 		//Act and assert
 		for _ in 1..num_of_buys {
 			assert_ok!(Omnipool::buy(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				LRNA,
 				buy_amount,
@@ -183,7 +183,7 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 
 		assert_noop!(
 			Omnipool::buy(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				LRNA,
 				buy_amount + 1,
@@ -209,7 +209,7 @@ fn buy_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 		));
 
 		assert_ok!(Omnipool::buy(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			DAI,
 			UNITS,
@@ -233,7 +233,7 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 		));
 
 		assert_ok!(Omnipool::buy(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			DAI,
 			100000 * UNITS,
@@ -243,7 +243,7 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 		//Act and assert
 		assert_noop!(
 			Omnipool::buy(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				DAI,
 				50000 * UNITS,
@@ -273,7 +273,7 @@ fn add_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_exce
 
 		//Act and assert
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
@@ -303,7 +303,7 @@ fn add_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_exceeded
 		//Act and assert
 		assert_noop!(
 			Omnipool::add_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				added_liquidity,
 			),
@@ -334,7 +334,7 @@ fn add_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_exce
 
 		//Act and assert
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
@@ -361,13 +361,13 @@ fn remove_liquidity_to_omnipool_should_work_when_liquidity_limit_per_block_not_e
 		//Act and assert
 		let position_id = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
 
 		assert_ok!(Omnipool::remove_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			position_id,
 			added_liquidity,
 		));
@@ -391,12 +391,12 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 		));
 		let position = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			CORE_ASSET_ID,
 			bag,
 		));
 		assert_ok!(Uniques::transfer(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			OmnipoolCollectionId::get(),
 			position,
 			ALICE.into(),
@@ -404,7 +404,7 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 
 		//Act and Assert
 		assert_noop!(
-			Omnipool::remove_liquidity(hydradx_runtime::Origin::signed(ALICE.into()), position, bag,),
+			Omnipool::remove_liquidity(hydradx_runtime::RuntimeOrigin::signed(ALICE.into()), position, bag,),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::MaxLiquidityLimitPerBlockReached
 		);
 	});
@@ -427,12 +427,12 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 		));
 		let position = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			CORE_ASSET_ID,
 			bag,
 		));
 		assert_ok!(Uniques::transfer(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			OmnipoolCollectionId::get(),
 			position,
 			ALICE.into(),
@@ -440,13 +440,13 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 
 		//Act and Assert
 		assert_ok!(Omnipool::remove_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			position,
 			bag / 2,
 		));
 		hydradx_run_to_block(2);
 		assert_ok!(Omnipool::remove_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			position,
 			bag / 2,
 		));
@@ -472,7 +472,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 
 		let position_id_1 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
@@ -481,7 +481,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 
 		let position_id_2 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
@@ -489,7 +489,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 		hydradx_run_to_block(3);
 
 		assert_ok!(Omnipool::remove_liquidity(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			position_id_2,
 			added_liquidity,
 		));
@@ -497,7 +497,7 @@ fn remove_liquidity_to_omnipool_should_fail_when_liquidity_limit_per_block_excee
 		//Act and Assert
 		assert_noop!(
 			Omnipool::remove_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				position_id_1,
 				added_liquidity,
 			),
@@ -525,7 +525,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 
 		let position_id_1 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
@@ -534,7 +534,7 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 
 		let position_id_2 = Omnipool::next_position_id();
 		assert_ok!(Omnipool::add_liquidity(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			CORE_ASSET_ID,
 			added_liquidity,
 		));
@@ -542,14 +542,14 @@ fn remove_liquidity_to_omnipool_should_not_fail_when_liquidity_limit_per_block_e
 		hydradx_run_to_block(3);
 
 		assert_ok!(Omnipool::remove_liquidity(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			position_id_2,
 			added_liquidity,
 		));
 
 		//Act and Assert
 		assert_ok!(Omnipool::remove_liquidity(
-			hydradx_runtime::Origin::signed(Treasury::account_id()),
+			hydradx_runtime::RuntimeOrigin::signed(Treasury::account_id()),
 			position_id_1,
 			added_liquidity,
 		));
@@ -572,7 +572,7 @@ pub fn hydradx_run_to_block(to: BlockNumber) {
 
 fn init_omnipool() {
 	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		222_222_000_000_000_000_000_000,
 	));
 
@@ -587,7 +587,7 @@ fn init_omnipool() {
 
 fn init_omnipool2() {
 	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		222_222_000_000_000_000_000_000,
 	));
 
