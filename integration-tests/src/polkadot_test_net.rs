@@ -295,7 +295,9 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 
 			if pallet_whitelist.contains(&call_p) {
 				let acc = &tx.signature.as_ref().unwrap().0;
-				assert_ok!(call.clone().dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
+				assert_ok!(call
+					.clone()
+					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
 			}
 		}
 	}
@@ -355,7 +357,7 @@ pub fn expect_hydra_events(e: Vec<hydradx_runtime::RuntimeEvent>) {
 
 pub fn set_relaychain_block_number(number: BlockNumber) {
 	use frame_support::traits::OnInitialize;
-	use hydradx_runtime::{RuntimeOrigin, ParachainSystem};
+	use hydradx_runtime::{ParachainSystem, RuntimeOrigin};
 
 	polkadot_run_to_block(number); //We need to set block number this way as well because tarpaulin code coverage tool does not like the way how we set the block number with `cumulus-test-relay-sproof-builder` package
 
