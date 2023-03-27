@@ -171,6 +171,8 @@ where
 		let nominator = U128::full_mul(price_asset_a_lrna.0.n.into(), price_lrna_asset_b.0.n.into());
 		let denominator = U128::full_mul(price_asset_a_lrna.0.d.into(), price_lrna_asset_b.0.d.into());
 
-		Some(round_u256_to_rational((nominator, denominator), Rounding::Nearest))
+		let price_in_ema_price = round_u256_to_rational((nominator, denominator), Rounding::Nearest);
+
+		Some(price_in_ema_price)
 	}
 }
