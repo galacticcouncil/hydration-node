@@ -16,7 +16,7 @@
 // limitations under the License.
 
 #![cfg(test)]
-use crate::polkadot_test_net::*;
+use crate::{oracle::hydradx_run_to_block, polkadot_test_net::*};
 
 use frame_support::{assert_noop, assert_ok};
 use warehouse_liquidity_mining::{
@@ -151,6 +151,8 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 		//Arrange
 		init_omnipool();
 
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 		create_global_farm();
 
@@ -220,6 +222,8 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 		init_omnipool();
 		seed_lm_pot();
 
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 		create_global_farm();
 		create_global_farm();
@@ -307,6 +311,8 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		init_omnipool();
 		seed_lm_pot();
 
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 		create_global_farm();
 		create_global_farm();
@@ -408,6 +414,8 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		seed_lm_pot();
 
+		//NOTE: necessary to get oracle price.
+		hydradx_run_to_block(100);
 		set_relaychain_block_number(100);
 		create_global_farm();
 		create_global_farm();
