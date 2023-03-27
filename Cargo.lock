@@ -1041,7 +1041,7 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
  "frame-system",
- "hydra-dx-math 5.1.4",
+ "hydra-dx-math 6.0.0 (git+https://github.com/galacticcouncil/HydraDX-math?rev=a7455ee6a02083d00de6e3927d1a2d6073c9bfc3)",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -3299,8 +3299,8 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "5.1.4"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=a0cd48c26dca53e7e351434276c572d70ffd0b72#a0cd48c26dca53e7e351434276c572d70ffd0b72"
+version = "6.0.0"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=a7455ee6a02083d00de6e3927d1a2d6073c9bfc3#a7455ee6a02083d00de6e3927d1a2d6073c9bfc3"
 dependencies = [
  "fixed",
  "num-traits",
@@ -5834,7 +5834,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 5.1.4",
+ "hydra-dx-math 6.0.0 (git+https://github.com/galacticcouncil/HydraDX-math?rev=a7455ee6a02083d00de6e3927d1a2d6073c9bfc3)",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -6045,7 +6045,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 6.0.0",
+ "hydra-dx-math 6.0.0 (git+https://github.com/galacticcouncil/HydraDX-math?rev=bcb75f1c2b4f1d859ff133ca663539c59d1ed910)",
  "hydradx-traits",
  "log",
  "parity-scale-codec",
@@ -6171,7 +6171,7 @@ source = "git+https://github.com/galacticcouncil/warehouse?rev=fc0f2934ca297844b
 dependencies = [
  "frame-support",
  "frame-system",
- "hydra-dx-math 6.0.0",
+ "hydra-dx-math 6.0.0 (git+https://github.com/galacticcouncil/HydraDX-math?rev=bcb75f1c2b4f1d859ff133ca663539c59d1ed910)",
  "hydradx-traits",
  "orml-traits",
  "parity-scale-codec",
@@ -6340,7 +6340,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 5.1.4",
+ "hydra-dx-math 6.0.0 (git+https://github.com/galacticcouncil/HydraDX-math?rev=a7455ee6a02083d00de6e3927d1a2d6073c9bfc3)",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -6366,7 +6366,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 5.1.4",
+ "hydra-dx-math 6.0.0 (git+https://github.com/galacticcouncil/HydraDX-math?rev=a7455ee6a02083d00de6e3927d1a2d6073c9bfc3)",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
