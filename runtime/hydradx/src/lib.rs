@@ -25,7 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
-use common_runtime::adapters::{AmmTraderAdapter, PriceProviderAdapter};
+use common_runtime::adapters::{AmmTraderAdapter, OmnipoolPriceProviderAdapter};
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
@@ -934,7 +934,7 @@ impl pallet_dca::Config for Runtime {
 	type Event = Event;
 	type Asset = AssetId;
 	type Currency = Currencies;
-	type PriceProvider = PriceProviderAdapter<AssetId, Runtime, LRNA>;
+	type PriceProvider = OmnipoolPriceProviderAdapter<AssetId, Runtime, LRNA>;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
 	type RandomnessProvider = DCA;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;

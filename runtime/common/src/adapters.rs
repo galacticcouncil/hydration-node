@@ -1,12 +1,12 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
-use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::ema::{round_u256_to_rational, EmaPrice};
 use hydra_dx_math::omnipool::types::BalanceUpdate;
+use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::types::Ratio;
-use hydradx_traits::AggregatedPriceOracle;
-use hydradx_traits::PriceOracle;
-use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
+use hydradx_traits::oracle::AggregatedPriceOracle;
+use hydradx_traits::{NativePriceOracle, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_dca::types::AMMTrader;
 use pallet_ema_oracle::OnActivityHandler;
@@ -172,14 +172,15 @@ where
 	}
 }
 
-pub struct PriceProviderAdapter<AssetId, Runtime, Lrna>(PhantomData<(AssetId, Runtime, Lrna)>);
+pub struct OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>(PhantomData<(AssetId, Runtime, Lrna)>);
 
-impl<AssetId, Runtime, Lrna> PriceOracle<AssetId, EmaPrice> for PriceProviderAdapter<AssetId, Runtime, Lrna>
+impl<AssetId, Runtime, Lrna> PriceOracle<AssetId, EmaPrice> for OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>
 where
 	Runtime: pallet_ema_oracle::Config,
 	u32: From<AssetId>,
 	Lrna: Get<AssetId>,
 {
+	//TODO: talk with Alex as we need to change the oracle to return one. Otherwise we return one here in the code
 	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
 		let price_asset_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			asset_a.into(),
@@ -197,9 +198,11 @@ where
 		)
 		.ok()?;
 
-		let nominator = U128::full_mul(price_asset_a_lrna.0.n.into(), price_lrna_asset_b.0.n.into()).low_u128();
-		let denominator = U128::full_mul(price_asset_a_lrna.0.d.into(), price_lrna_asset_b.0.d.into()).low_u128();
+		let nominator = U128::full_mul(price_asset_a_lrna.0.n.into(), price_lrna_asset_b.0.n.into());
+		let denominator = U128::full_mul(price_asset_a_lrna.0.d.into(), price_lrna_asset_b.0.d.into());
 
-		Some(Ratio::new(nominator, denominator))
+		let price_in_ema_price = round_u256_to_rational((nominator, denominator), Rounding::Nearest);
+
+		Some(price_in_ema_price)
 	}
 }

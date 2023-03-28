@@ -3,10 +3,7 @@
 use crate::polkadot_test_net::*;
 use std::mem::size_of;
 
-use frame_support::{
-	assert_ok,
-	traits::{OnFinalize, OnInitialize},
-};
+use frame_support::assert_ok;
 
 use crate::{assert_balance, assert_reserved_balance};
 use frame_system::RawOrigin;
@@ -35,7 +32,7 @@ fn create_schedule_should_work() {
 		let block_id = 101;
 		set_relaychain_block_number(block_id);
 
-		let schedule1 = schedule_fake_with_buy_order(DAI, HDX, UNITS, 110 * UNITS);
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
 
 		//Act
 		assert_ok!(hydradx_runtime::DCA::schedule(
@@ -76,9 +73,9 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		run_to_block(101, 105);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 5_439_504_632_683;
+		let amount_to_unreserve_for_trade = 462_733_551_1829;
 		let fee = 2_627_335_511_829;
-		let over_reservation_left_over = 1_408_555_068_112; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		let over_reservation_left_over = 596_385_947_258; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + UNITS);
 		assert_balance!(
@@ -149,9 +146,9 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		run_to_block(101, 500);
 
 		//Assert
-		let fees = 47_292_039_212_922;
-		let over_reservation_left_over = 37_891_927_393_559; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 18 * UNITS);
+		let fees = 60_428_716_772_067;
+		let over_reservation_left_over = 18_026_793_831_282; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 23 * UNITS);
 		assert_balance!(
 			ALICE.into(),
 			HDX,
