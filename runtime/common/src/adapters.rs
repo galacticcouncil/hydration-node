@@ -6,7 +6,7 @@ use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydra_dx_math::support::rational::Rounding;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::oracle::AggregatedPriceOracle;
-use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle};
+use hydradx_traits::{NativePriceOracle, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
@@ -151,6 +151,7 @@ where
 	u32: From<AssetId>,
 	Lrna: Get<AssetId>,
 {
+	//TODO: talk with Alex as we need to change the oracle to return one
 	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
 		let price_asset_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			asset_a.into(),
