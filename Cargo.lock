@@ -1056,6 +1056,7 @@ dependencies = [
  "pallet-democracy",
  "pallet-ema-oracle",
  "pallet-identity",
+ "pallet-liquidity-mining",
  "pallet-omnipool",
  "pallet-otc",
  "pallet-preimage",
