@@ -1041,7 +1041,7 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
  "frame-system",
- "hydra-dx-math",
+ "hydra-dx-math 5.1.4",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -3312,6 +3312,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hydra-dx-math"
+version = "6.0.0"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=bcb75f1c2b4f1d859ff133ca663539c59d1ed910#bcb75f1c2b4f1d859ff133ca663539c59d1ed910"
+dependencies = [
+ "fixed",
+ "num-traits",
+ "parity-scale-codec",
+ "primitive-types 0.12.1",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
+ "sp-std",
+]
+
+[[package]]
 name = "hydradx"
 version = "8.5.2"
 dependencies = [
@@ -3394,7 +3409,7 @@ dependencies = [
 [[package]]
 name = "hydradx-adapters"
 version = "0.2.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-support",
  "hydradx-traits",
@@ -3506,8 +3521,8 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+version = "2.2.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -3515,6 +3530,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-arithmetic",
+ "sp-runtime",
  "sp-std",
 ]
 
@@ -5610,7 +5626,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "2.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5818,7 +5834,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math",
+ "hydra-dx-math 5.1.4",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -5864,7 +5880,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5920,7 +5936,7 @@ dependencies = [
 [[package]]
 name = "pallet-currencies"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5953,7 +5969,7 @@ dependencies = [
 [[package]]
 name = "pallet-duster"
 version = "3.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6023,13 +6039,13 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+version = "1.0.1"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math",
+ "hydra-dx-math 6.0.0",
  "hydradx-traits",
  "log",
  "parity-scale-codec",
@@ -6150,12 +6166,12 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "3.1.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+version = "4.1.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-support",
  "frame-system",
- "hydra-dx-math",
+ "hydra-dx-math 6.0.0",
  "hydradx-traits",
  "orml-traits",
  "parity-scale-codec",
@@ -6324,7 +6340,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math",
+ "hydra-dx-math 5.1.4",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -6350,7 +6366,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math",
+ "hydra-dx-math 6.0.0",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -6374,7 +6390,7 @@ dependencies = [
 [[package]]
 name = "pallet-otc"
 version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6437,7 +6453,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.3.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6613,7 +6629,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "8.0.4"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6631,7 +6647,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.1.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11724,7 +11740,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058b2de0d72ac2d2751e3f9eda#5bdf2275d50344058b2de0d72ac2d2751e3f9eda"
 dependencies = [
  "frame-system",
  "pretty_assertions",
@@ -11732,7 +11748,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "138.0.0"
+version = "137.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",

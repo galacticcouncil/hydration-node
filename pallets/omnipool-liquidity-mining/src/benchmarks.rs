@@ -71,7 +71,6 @@ where
 		owner,
 		Perquintill::from_percent(20),
 		1_000,
-		FixedU128::one(),
 	)
 }
 
@@ -186,29 +185,8 @@ benchmarks! {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
 		let yield_per_period = Perquintill::from_percent(20);
 		let min_deposit = 1_000;
-		let price_adjustment = FixedU128::from(10_u128);
 
-	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit, price_adjustment)
-
-	update_global_farm {
-		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
-		let global_farm_id = 1;
-		let yield_farm_id = 2;
-		let new_price_adjustment = FixedU128::from(5_u128);
-
-		initialize_omnipool::<T>()?;
-
-		initialize_global_farm::<T>(owner.clone())?;
-		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BSX.into())?;
-
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BSX.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BSX.into(), 1_000 * ONE)?;
-
-		set_period::<T>(100);
-		lm_deposit_shares::<T>(lp, global_farm_id, yield_farm_id, position_id)?;
-
-		set_period::<T>(200);
-	}: _(RawOrigin::Signed(owner), global_farm_id, new_price_adjustment)
+	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit)
 
 	terminate_global_farm {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());

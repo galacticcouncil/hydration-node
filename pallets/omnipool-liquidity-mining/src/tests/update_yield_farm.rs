@@ -39,7 +39,6 @@ fn update_yield_farm_should_work() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None)
 		.build()
@@ -91,7 +90,6 @@ fn update_yield_farm_should_fail_with_asset_not_found_when_omnipool_doesnt_exist
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None)
 		.build()
@@ -134,7 +132,6 @@ fn update_yield_farm_should_fail_when_origin_is_none() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None)
 		.build()

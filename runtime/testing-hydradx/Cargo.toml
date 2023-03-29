@@ -57,7 +57,7 @@ pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse",
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false}
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false }
 pallet-collator-rewards = { git = "https://github.com/galacticcouncil/warehouse",rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev =:q;kkkkkbcf", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false}
 pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse",rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false}
 pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false }
 pallet-duster = { git = "https://github.com/galacticcouncil/warehouse", rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false }

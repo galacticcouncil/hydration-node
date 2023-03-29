@@ -28,7 +28,7 @@ use polkadot_primitives::v2::BlockNumber;
 use primitives::AssetId;
 use sp_runtime::{
 	traits::{One, Zero},
-	FixedPointNumber, FixedU128, Permill, Perquintill,
+	FixedU128, Permill, Perquintill,
 };
 use xcm_emulator::TestExt;
 
@@ -54,8 +54,6 @@ fn create_global_farm_should_work_when_origin_is_root() {
 		let owner = Treasury::account_id();
 		let yield_per_period = Perquintill::from_parts(570_776_255_707);
 		let min_deposit = 1_000;
-		//3[LRNA] = 1[HDX]
-		let lrna_price_adjustment = FixedU128::checked_from_rational(1, 3).unwrap();
 
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::Origin::root(),
@@ -75,7 +73,6 @@ fn create_global_farm_should_work_when_origin_is_root() {
 			owner.clone(),
 			yield_per_period,
 			min_deposit,
-			lrna_price_adjustment
 		));
 
 		let farm_id = 1;
@@ -93,7 +90,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 				LRNA,
 				total_rewards / planned_yielding_periods as u128,
 				min_deposit,
-				lrna_price_adjustment,
+				FixedU128::one(),
 			)
 		);
 
@@ -365,7 +362,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 73_831_u128;
+		let expected_claimed_amount = 221_496_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -391,7 +388,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 157_918_u128;
+		let expected_claimed_amount = 473_757_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -475,7 +472,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Assert
 		//NOTE: withdraw is claiming rewards automatically
-		let expected_claimed_amount = 73_831_u128;
+		let expected_claimed_amount = 221_496_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -601,7 +598,6 @@ fn create_global_farm() {
 		Treasury::account_id(),
 		Perquintill::from_parts(570_776_255_707),
 		1_000,
-		FixedU128::checked_from_rational(1, 3).unwrap()
 	));
 }
 
