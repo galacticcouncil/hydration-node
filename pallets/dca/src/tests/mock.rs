@@ -368,7 +368,7 @@ impl AmmTraderMock {
 pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId, Ratio> for PriceProviderMock {
-	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<Ratio> {
+	fn price(_: AssetId, _: AssetId, _: OraclePeriod) -> Option<Ratio> {
 		Some(Ratio::new(88, 100))
 	}
 }

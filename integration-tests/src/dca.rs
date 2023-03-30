@@ -73,7 +73,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		run_to_block(1001, 1005);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 462_733_551_1829;
+		let amount_to_unreserve_for_trade = 4_627_335_511_829;
 		let fee = 2_627_335_511_829;
 		let over_reservation_left_over = 976_815_524_731; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
 

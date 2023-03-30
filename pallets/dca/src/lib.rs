@@ -478,7 +478,7 @@ where
 
 	fn ensure_that_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
 		ensure!(
-			Suspended::<T>::contains_key(&schedule_id),
+			Suspended::<T>::contains_key(schedule_id),
 			Error::<T>::ScheduleMustBeSuspended
 		);
 
