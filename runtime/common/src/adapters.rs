@@ -9,7 +9,7 @@ use pallet_ema_oracle::OnActivityHandler;
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use primitives::{AssetId, Balance};
 use sp_runtime::traits::Zero;
-use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
+use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use warehouse_liquidity_mining::GlobalFarmData;
 
 /// Passes on trade and liquidity data from the omnipool to the oracle.
@@ -146,7 +146,9 @@ pub struct PriceAdjustmentAdapter<Runtime, LMInstance>(PhantomData<(Runtime, LMI
 impl<Runtime, LMInstance> PriceAdjustment<GlobalFarmData<Runtime, LMInstance>>
 	for PriceAdjustmentAdapter<Runtime, LMInstance>
 where
-	Runtime: warehouse_liquidity_mining::Config<LMInstance> + pallet_ema_oracle::Config,
+	Runtime: warehouse_liquidity_mining::Config<LMInstance>
+		+ pallet_ema_oracle::Config
+		+ pallet_omnipool_liquidity_mining::Config,
 	u32: From<<Runtime as warehouse_liquidity_mining::Config<LMInstance>>::AssetId>,
 {
 	type Error = DispatchError;
@@ -159,8 +161,8 @@ where
 			OraclePeriod::TenMinutes,
 			OMNIPOOL_SOURCE,
 		)
-		.unwrap();
+		.map_err(|_| pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
 
-		Ok(FixedU128::checked_from_rational(price.n, price.d).unwrap())
+		FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow.into())
 	}
 }

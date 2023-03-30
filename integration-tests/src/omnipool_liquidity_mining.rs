@@ -307,6 +307,8 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 		//Arrange
 		init_omnipool();
 		seed_lm_pot();
+		//necessary for oracle to have a price.
+		do_lrna_hdx_trade();
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
@@ -362,7 +364,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 221_496_u128;
+		let expected_claimed_amount = 184_024_112_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -388,7 +390,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 473_757_u128;
+		let expected_claimed_amount = 393_607_131_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -408,8 +410,9 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Arrange
 		init_omnipool();
-
 		seed_lm_pot();
+		//necessary for oracle to have a price.
+		do_lrna_hdx_trade();
 
 		//NOTE: necessary to get oracle price.
 		hydradx_run_to_block(100);
@@ -472,7 +475,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Assert
 		//NOTE: withdraw is claiming rewards automatically
-		let expected_claimed_amount = 221_496_u128;
+		let expected_claimed_amount = 184_024_112_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -630,5 +633,29 @@ fn seed_lm_pot() {
 		pot,
 		HDX,
 		100 * UNITS as i128,
+	));
+}
+
+fn do_lrna_hdx_trade() {
+	assert_ok!(hydradx_runtime::Currencies::update_balance(
+		hydradx_runtime::Origin::root(),
+		DAVE.into(),
+		HDX,
+		100 * UNITS as i128,
+	));
+
+	assert_ok!(hydradx_runtime::Currencies::update_balance(
+		hydradx_runtime::Origin::root(),
+		DAVE.into(),
+		LRNA,
+		100 * UNITS as i128,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::sell(
+		hydradx_runtime::Origin::signed(DAVE.into()),
+		LRNA,
+		HDX,
+		1 * UNITS,
+		0,
 	));
 }

@@ -290,6 +290,10 @@ pub mod pallet {
 
 		/// Oracle could not be found for requested assets.
 		OracleNotAvailable,
+
+		/// Oracle providing `price_adjustment` could not be found for requested assets.
+		// NOTE: This error is fired from adapter(runtime/commont/src/adapters.rs)
+		PriceAdjustmentNotAvailable,
 	}
 
 	//NOTE: these errors should never happen.

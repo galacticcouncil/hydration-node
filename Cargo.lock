@@ -1058,6 +1058,7 @@ dependencies = [
  "pallet-identity",
  "pallet-liquidity-mining",
  "pallet-omnipool",
+ "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-preimage",
  "pallet-proxy",

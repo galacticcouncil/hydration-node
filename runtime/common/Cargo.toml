@@ -21,6 +21,7 @@ pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "5bdf
 warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false }
 
 pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
+pallet-omnipool-liquidity-mining = {path = '../../pallets/omnipool-liquidity-mining', default-features = false}
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
