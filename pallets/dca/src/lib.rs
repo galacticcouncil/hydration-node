@@ -561,6 +561,39 @@ where
 		}
 	}
 
+	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> Result<bool, DispatchResult> {
+		let current_price = Self::get_current_price(asset_a, asset_b)?;
+		let price_from_short_oracle = Self::get_price_from_short_oracle(asset_a, asset_b)?;
+
+		let max_allowed = FixedU128::from(T::MaxPriceDifference::get());
+		let max_allowed_difference = current_price.saturating_mul(max_allowed);
+
+		let diff = if current_price > price_from_short_oracle {
+			current_price.saturating_sub(price_from_short_oracle)
+		} else {
+			price_from_short_oracle.saturating_sub(current_price)
+		};
+
+		Ok(diff > max_allowed_difference)
+	}
+
+	fn get_current_price(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
+		let price = T::SpotPriceProvider::spot_price(asset_a, asset_b).ok_or(Error::<T>::CalculatingPriceError)?;
+		Ok(price)
+	}
+
+	fn get_price_from_last_block_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
+		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::LastBlock)
+			.ok_or(Error::<T>::CalculatingPriceError)?;
+		Ok(FixedU128::from_rational(price.n, price.d))
+	}
+
+	fn get_price_from_short_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
+		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::Short)
+			.ok_or(Error::<T>::CalculatingPriceError)?;
+		Ok(FixedU128::from_rational(price.n, price.d))
+	}
+
 	fn amount_to_unreserve(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		match order {
 			Order::Sell { amount_in, .. } => Ok(*amount_in),
@@ -900,39 +933,6 @@ where
 		};
 
 		Ok(amount)
-	}
-
-	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> Result<bool, DispatchResult> {
-		let current_price = Self::get_current_price(asset_a, asset_b)?;
-		let price_from_short_oracle = Self::get_price_from_short_oracle(asset_a, asset_b)?;
-
-		let max_allowed = FixedU128::from(T::MaxPriceDifference::get());
-		let max_allowed_difference = current_price.saturating_mul(max_allowed);
-
-		let diff = if current_price > price_from_short_oracle {
-			current_price.saturating_sub(price_from_short_oracle)
-		} else {
-			price_from_short_oracle.saturating_sub(current_price)
-		};
-
-		Ok(diff > max_allowed_difference)
-	}
-
-	fn get_current_price(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
-		let price = T::SpotPriceProvider::spot_price(asset_a, asset_b).ok_or(Error::<T>::CalculatingPriceError)?;
-		Ok(price)
-	}
-
-	fn get_price_from_last_block_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
-		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::LastBlock)
-			.ok_or(Error::<T>::CalculatingPriceError)?;
-		Ok(FixedU128::from_rational(price.n, price.d))
-	}
-
-	fn get_price_from_short_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
-		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::Short)
-			.ok_or(Error::<T>::CalculatingPriceError)?;
-		Ok(FixedU128::from_rational(price.n, price.d))
 	}
 
 	fn remove_schedule_from_storages(owner: &T::AccountId, schedule_id: ScheduleId) {
