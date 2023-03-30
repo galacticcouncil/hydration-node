@@ -364,7 +364,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 184_024_112_u128;
+		let expected_claimed_amount = 265_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -390,7 +390,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 393_607_131_u128;
+		let expected_claimed_amount = 568_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -475,7 +475,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Assert
 		//NOTE: withdraw is claiming rewards automatically
-		let expected_claimed_amount = 184_024_112_u128;
+		let expected_claimed_amount = 265_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -580,6 +580,16 @@ fn init_omnipool() {
 		Permill::from_percent(100),
 		AccountId::from(BOB),
 	));
+
+	let lrna_price = FixedU128::from_inner(71_145_071_145_071);
+
+	assert_ok!(hydradx_runtime::Omnipool::add_token(
+		hydradx_runtime::Origin::root(),
+		LRNA,
+		lrna_price,
+		Permill::from_percent(100),
+		AccountId::from(BOB),
+	));
 }
 
 fn create_global_farm() {
@@ -655,7 +665,7 @@ fn do_lrna_hdx_trade() {
 		hydradx_runtime::Origin::signed(DAVE.into()),
 		LRNA,
 		HDX,
-		1 * UNITS,
+		UNITS,
 		0,
 	));
 }
