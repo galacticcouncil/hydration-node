@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.1.0"
+version = "102.2.0"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -5831,7 +5831,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -8378,7 +8378,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.0"
+version = "5.7.1"
 dependencies = [
  "frame-support",
  "hex-literal",
@@ -11810,7 +11810,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "137.0.0"
+version = "138.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
