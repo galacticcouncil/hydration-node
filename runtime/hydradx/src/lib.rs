@@ -1070,7 +1070,15 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsReversedWithSystemFirst,
-	migrations::OnRuntimeUpgradeMigration,
+	(
+		pallet_preimage::migration::v1::Migration<Runtime>,
+		pallet_democracy::migrations::v1::Migration<Runtime>,
+		pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
+		DmpQueue,
+		XcmpQueue,
+		ParachainSystem,
+		migrations::OnRuntimeUpgradeMigration,
+	)
 >;
 
 impl_runtime_apis! {
