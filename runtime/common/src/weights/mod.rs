@@ -23,3 +23,4 @@ pub mod treasury;
 pub mod utility;
 pub mod vesting;
 pub mod xcmp_queue;
+pub mod xcm;

@@ -391,8 +391,6 @@ impl pallet_treasury::Config for Runtime {
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	type UncleGenerations = UncleGenerations;
-	type FilterUncle = ();
 	type EventHandler = (CollatorSelection,);
 }
 
@@ -734,11 +732,11 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 }
 
 #[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
-pub struct AssetLocation(pub polkadot_xcm::v1::MultiLocation);
+pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
 
 impl Default for AssetLocation {
 	fn default() -> Self {
-		AssetLocation(polkadot_xcm::v2::MultiLocation::here())
+		AssetLocation(polkadot_xcm::v3::MultiLocation::here())
 	}
 }
 
@@ -1025,7 +1023,7 @@ construct_runtime!(
 		UnknownTokens: orml_unknown_tokens = 139,
 
 		// Collator support
-		Authorship: pallet_authorship exclude_parts { Inherent } = 161,
+		Authorship: pallet_authorship = 161,
 		CollatorSelection: pallet_collator_selection = 163,
 		Session: pallet_session = 165,
 		Aura: pallet_aura = 167,
@@ -1197,6 +1195,13 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment_rpc_runtime_api::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
+		}
+
+		fn query_weight_to_fee(weight: Weight) -> Balance {
+			TransactionPayment::weight_to_fee(weight)
+		}
+		fn query_length_to_fee(length: u32) -> Balance {
+			TransactionPayment::length_to_fee(length)
 		}
 	}
 
