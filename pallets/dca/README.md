@@ -3,7 +3,8 @@
 ## Overview
 A dollar-cost averaging pallet that enables users to perform repeating orders.
 
-When an order is submitted, it will reserve the total amount (budget) specified by the user, as a named reserve.
+When an order is submitted, it will reserve the total amount (budget) specified by the user.
+A named reserve is allocated for the reserved amount of all DCA held by each user.
 
 The DCA plan is executed as long as there is balance in the budget.
 
