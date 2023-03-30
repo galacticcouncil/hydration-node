@@ -935,9 +935,11 @@ impl pallet_dca::Config for Runtime {
 	type Event = Event;
 	type Asset = AssetId;
 	type Currency = Currencies;
-	type PriceProvider = OmnipoolPriceProviderAdapter<AssetId, Runtime, LRNA>;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
 	type RandomnessProvider = DCA;
+	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, Runtime, LRNA>;
+	type SpotPriceProvider = Omnipool;
+	type MaxPriceDifference = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;

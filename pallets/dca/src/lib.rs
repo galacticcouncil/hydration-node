@@ -41,6 +41,7 @@ use frame_support::{
 	weights::WeightToFee as FrameSupportWeight,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
+use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
@@ -86,6 +87,7 @@ pub mod pallet {
 
 	use frame_system::pallet_prelude::OriginFor;
 	use hydra_dx_math::ema::EmaPrice;
+	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::PriceOracle;
 	use orml_traits::NamedMultiReservableCurrency;
 	#[pallet::pallet]
@@ -141,14 +143,21 @@ pub mod pallet {
 		///For named-reserving user's assets
 		type Currency: NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
 
-		///Price provider to get the price between two assets
-		type PriceProvider: PriceOracle<Self::Asset, EmaPrice>;
-
 		///AMMTrader for trade execution
 		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
+
+		///Oracle price provider to get the price between two assets
+		type OraclePriceProvider: PriceOracle<Self::Asset, EmaPrice>;
+
+		///Spot price provider to get the current price between two asset
+		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
+
+		///Max price difference allowed between last block and short oracle
+		#[pallet::constant]
+		type MaxPriceDifference: Get<Permill>;
 
 		///The number of max schedules to be executed per block
 		#[pallet::constant]
@@ -452,7 +461,7 @@ where
 	fn ensure_that_total_amount_is_bigger_than_storage_bond(
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
-		let min_total_amount = if Self::get_sold_currency(&schedule.order) == T::NativeAssetId::get() {
+		let min_total_amount = if Self::get_asset_in(&schedule.order) == T::NativeAssetId::get() {
 			T::StorageBondInNativeCurrency::get()
 		} else {
 			Self::get_storage_bond_in_sold_currency(&schedule.order)?
@@ -511,10 +520,18 @@ where
 
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
+		let blocknumber_for_schedule = exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period));
 
-		let sold_currency = Self::get_sold_currency(&schedule.order);
+		let sold_currency = Self::get_asset_in(&schedule.order);
+		if exec_or_return_if_err!(Self::price_change_is_bigger_than_max_allowed(
+			sold_currency,
+			Self::get_asset_out(&schedule.order)
+		)) {
+			exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
+			return;
+		}
+
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
-
 		let remaining_amount_to_use = exec_or_return_if_none!(RemainingAmounts::<T>::get(schedule_id));
 
 		T::Currency::unreserve_named(
@@ -536,9 +553,6 @@ where
 
 		match trade_result {
 			Ok(_) => {
-				let blocknumber_for_schedule =
-					exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period));
-
 				exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			}
 			_ => {
@@ -603,7 +617,7 @@ where
 	}
 
 	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
-		let sold_currency = Self::get_sold_currency(order);
+		let sold_currency = Self::get_asset_in(order);
 		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
 
 		let storage_bond_in_user_currency =
@@ -621,7 +635,7 @@ where
 	}
 
 	fn take_transaction_fee_from_user(owner: &T::AccountId, order: &Order<<T as Config>::Asset>) -> DispatchResult {
-		let fee_currency = Self::get_sold_currency(order);
+		let fee_currency = Self::get_asset_in(order);
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee(fee_currency)?;
 
@@ -656,18 +670,26 @@ where
 
 	fn unreserve_all_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-		let sold_currency = Self::get_sold_currency(&schedule.order);
+		let sold_currency = Self::get_asset_in(&schedule.order);
 		T::Currency::unreserve_all_named(&NAMED_RESERVE_ID, sold_currency.into(), who);
 
 		Ok(())
 	}
 
-	fn get_sold_currency(order: &Order<T::Asset>) -> <T as Config>::Asset {
+	fn get_asset_in(order: &Order<T::Asset>) -> <T as Config>::Asset {
 		let sold_currency = match order {
 			Order::Sell { asset_in, .. } => asset_in,
 			Order::Buy { asset_in, .. } => asset_in,
 		};
 		*sold_currency
+	}
+
+	fn get_asset_out(order: &Order<T::Asset>) -> <T as Config>::Asset {
+		let asset_out = match order {
+			Order::Sell { asset_out, .. } => asset_out,
+			Order::Buy { asset_out, .. } => asset_out,
+		};
+		*asset_out
 	}
 
 	fn weight_to_fee(weight: Weight) -> Balance {
@@ -880,8 +902,35 @@ where
 		Ok(amount)
 	}
 
+	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> Result<bool, DispatchResult> {
+		let current_price = Self::get_current_price(asset_a, asset_b)?;
+		let price_from_short_oracle = Self::get_price_from_short_oracle(asset_a, asset_b)?;
+
+		let max_allowed = FixedU128::from(T::MaxPriceDifference::get());
+		let max_allowed_difference = current_price.saturating_mul(max_allowed);
+
+		let diff = if current_price > price_from_short_oracle {
+			current_price.saturating_sub(price_from_short_oracle)
+		} else {
+			price_from_short_oracle.saturating_sub(current_price)
+		};
+
+		Ok(diff > max_allowed_difference)
+	}
+
+	fn get_current_price(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
+		let price = T::SpotPriceProvider::spot_price(asset_a, asset_b).ok_or(Error::<T>::CalculatingPriceError)?;
+		Ok(price)
+	}
+
 	fn get_price_from_last_block_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
-		let price = T::PriceProvider::price(asset_a, asset_b, OraclePeriod::LastBlock)
+		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::LastBlock)
+			.ok_or(Error::<T>::CalculatingPriceError)?;
+		Ok(FixedU128::from_rational(price.n, price.d))
+	}
+
+	fn get_price_from_short_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
+		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::Short)
 			.ok_or(Error::<T>::CalculatingPriceError)?;
 		Ok(FixedU128::from_rational(price.n, price.d))
 	}

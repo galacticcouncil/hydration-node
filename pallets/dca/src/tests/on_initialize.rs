@@ -23,7 +23,7 @@ use crate::tests::*;
 use crate::{
 	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
 	assert_number_of_executed_sell_trades, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages,
-	Event, Order, ScheduleId,
+	Event, Order, Permill, ScheduleId,
 };
 use frame_support::assert_ok;
 use orml_traits::MultiCurrency;
@@ -434,7 +434,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = ONE;
-			let max_limit_calculated_from_spot_price = 840000000000;
+			let max_limit_calculated_from_spot_price = 924000000000;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -649,7 +649,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 1815894400);
+			assert_balance!(TreasuryAccount::get(), DAI, 1997483840);
 			assert_number_of_executed_buy_trades!(1);
 		});
 }
@@ -683,7 +683,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 1815894400);
+			assert_balance!(TreasuryAccount::get(), DAI, 1997483840);
 		});
 }
 
@@ -717,7 +717,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			let fee = 1815894400;
+			let fee = 1997483840;
 			assert_balance!(TreasuryAccount::get(), DAI, fee);
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: DAI,
@@ -761,7 +761,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: sell_amount - fee,
-				min_buy_amount: 7_600_000_000_000,
+				min_buy_amount: 8_360_000_000_000,
 			}]);
 		});
 }
@@ -799,8 +799,90 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_tr
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_out: buy_amount,
-				max_sell_amount: 8400000000000,
+				max_sell_amount: 9240000000000,
 			}]);
+		});
+}
+
+#[test]
+fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_allowed() {
+	let initial_alice_hdx_balance = 10000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, initial_alice_hdx_balance)])
+		.with_max_price_difference(Permill::from_percent(9))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(501)));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_executed_sell_trades!(vec![]);
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			let schedule_id = 1;
+			assert_scheduled_ids!(601, vec![schedule_id]);
+		});
+}
+
+#[test]
+fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_allowed() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_max_price_difference(Permill::from_percent(9))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_buy = ONE;
+			let max_limit = 2 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_executed_buy_trades!(vec![]);
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			let schedule_id = 1;
+			assert_scheduled_ids!(601, vec![schedule_id]);
 		});
 }
 

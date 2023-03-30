@@ -77,6 +77,7 @@ frame_support::construct_runtime!(
 
 lazy_static::lazy_static! {
 	pub static ref ORIGINAL_STORAGE_BOND_IN_NATIVE: Balance = 2_000_000;
+	pub static ref ORIGINAL_MAX_PRICE_DIFFERENCE: Permill = Permill::from_percent(10);
 }
 
 thread_local! {
@@ -95,6 +96,7 @@ thread_local! {
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
+	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -269,6 +271,7 @@ parameter_types! {
 	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub SlippageLimitPercentage: Permill = SLIPPAGE.with(|v| *v.borrow());
+	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 }
 
 pub struct BlockNumberProviderMock {}
@@ -366,7 +369,7 @@ pub struct PriceProviderMock {}
 
 impl PriceOracle<AssetId, Ratio> for PriceProviderMock {
 	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<Ratio> {
-		Some(Ratio::new(4, 5))
+		Some(Ratio::new(88, 100))
 	}
 }
 
@@ -380,7 +383,7 @@ impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
 	}
 
 	fn spot_price(_: AssetId, _: AssetId) -> Option<Self::Price> {
-		Some(FixedU128::from_float(0.8))
+		Some(FixedU128::from_rational(80, 100))
 	}
 }
 
@@ -388,7 +391,6 @@ impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
 	type Currency = Currencies;
-	type PriceProvider = PriceProviderMock;
 	type RandomnessProvider = DCA;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
@@ -398,6 +400,9 @@ impl Config for Test {
 	type SlippageLimitPercentage = SlippageLimitPercentage;
 	type WeightInfo = ();
 	type AMMTrader = AmmTraderMock;
+	type OraclePriceProvider = PriceProviderMock;
+	type SpotPriceProvider = SpotPriceProviderMock;
+	type MaxPriceDifference = OmnipoolMaxAllowedPriceDifference;
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
@@ -490,6 +495,7 @@ pub struct ExtBuilder {
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	omnipool_trade: bool,
+	max_price_difference: Permill,
 }
 
 impl Default for ExtBuilder {
@@ -512,6 +518,7 @@ impl Default for ExtBuilder {
 			register_stable_asset: true,
 			pool_tokens: vec![],
 			omnipool_trade: false,
+			max_price_difference: Permill::from_percent(10),
 		}
 	}
 }
@@ -519,6 +526,11 @@ impl Default for ExtBuilder {
 impl ExtBuilder {
 	pub fn with_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
 		self.endowed_accounts = accounts;
+		self
+	}
+
+	pub fn with_max_price_difference(mut self, price_diff: Permill) -> Self {
+		self.max_price_difference = price_diff;
 		self
 	}
 
@@ -544,6 +556,10 @@ impl ExtBuilder {
 
 		SET_OMNIPOOL_ON.with(|v| {
 			*v.borrow_mut() = self.omnipool_trade;
+		});
+
+		MAX_PRICE_DIFFERENCE.with(|v| {
+			*v.borrow_mut() = self.max_price_difference;
 		});
 
 		pallet_balances::GenesisConfig::<Test> {

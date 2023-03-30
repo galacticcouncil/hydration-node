@@ -359,4 +359,5 @@ parameter_types! {
 	pub StorageBondInNativeCurrency: Balance = 100 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 20;
 	pub SlippageLimitPercentage: Permill = Permill::from_percent(5);
+	pub MaxPriceDifference: Permill = Permill::from_percent(10);
 }
