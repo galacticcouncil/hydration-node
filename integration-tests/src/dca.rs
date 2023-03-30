@@ -27,9 +27,9 @@ fn create_schedule_should_work() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
-		init_omnipool_with_oracle_for_with_block_100();
+		init_omnipool_with_oracle_for_with_block_1000();
 
-		let block_id = 101;
+		let block_id = 1001;
 		set_relaychain_block_number(block_id);
 
 		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
@@ -254,7 +254,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
-		init_omnipool_with_oracle_for_with_block_100();
+		init_omnipool_with_oracle_for_with_block_1000();
 
 		let schedule1 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
 		let schedule2 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
@@ -271,7 +271,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		create_schedule(ALICE, schedule6);
 
 		//Act
-		run_to_block(101, 105);
+		run_to_block(1001, 1005);
 
 		//Assert
 		//We simulate a failing scenarios so we get errors we can use for verification
@@ -432,29 +432,19 @@ pub fn get_last_completed_dca_events() -> Vec<hydradx_runtime::Event> {
 	suspended_events
 }
 
-fn init_omnipool_with_oracle_for_with_block_100() {
-	init_omnipol();
-	let trade_amount = 60000 * UNITS;
-	do_trade_to_populate_oracle3(DAI, HDX, trade_amount);
-	let block_id = 100;
-	set_relaychain_block_number(block_id);
-
-	do_trade_to_populate_oracle3(DAI, HDX, trade_amount);
-}
-
 fn init_omnipool_with_oracle_for_with_block_1000() {
 	init_omnipol();
 	let trade_amount = 40000 * UNITS;
-	do_trade_to_populate_oracle3(DAI, HDX, trade_amount);
+	do_trade_to_populate_oracle(DAI, HDX, trade_amount);
 	let block_id = 800;
 	set_relaychain_block_number(block_id);
 
-	do_trade_to_populate_oracle3(DAI, HDX, trade_amount);
+	do_trade_to_populate_oracle(DAI, HDX, trade_amount);
 
 	run_to_block(801, 1000);
 }
 
-fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId) {
+fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
 		CHARLIE.into(),
@@ -462,62 +452,6 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId) {
 		1000000000000 * UNITS,
 		0,
 	));
-
-	let amount = 150000 * UNITS;
-
-	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
-		LRNA,
-		asset_1,
-		amount,
-		Balance::MIN
-	));
-
-	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
-		LRNA,
-		asset_2,
-		amount,
-		Balance::MIN
-	));
-}
-
-fn do_trade_to_populate_oracle3(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
-	assert_ok!(Tokens::set_balance(
-		RawOrigin::Root.into(),
-		CHARLIE.into(),
-		LRNA,
-		1000000000000 * UNITS,
-		0,
-	));
-
-	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
-		LRNA,
-		asset_1,
-		amount,
-		Balance::MIN
-	));
-
-	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
-		LRNA,
-		asset_2,
-		amount,
-		Balance::MIN
-	));
-}
-
-fn do_trade_to_populate_oracle2(asset_1: AssetId, asset_2: AssetId) {
-	assert_ok!(Tokens::set_balance(
-		RawOrigin::Root.into(),
-		CHARLIE.into(),
-		LRNA,
-		1000000000000 * UNITS,
-		0,
-	));
-
-	let amount = 50000 * UNITS;
 
 	assert_ok!(Omnipool::sell(
 		hydradx_runtime::Origin::signed(CHARLIE.into()),
@@ -538,8 +472,8 @@ fn do_trade_to_populate_oracle2(asset_1: AssetId, asset_2: AssetId) {
 
 pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 	for b in from..=to {
-		do_trade_to_populate_oracle3(DAI, HDX, UNITS);
+		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 		set_relaychain_block_number(b);
-		do_trade_to_populate_oracle3(DAI, HDX, UNITS);
+		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 	}
 }
