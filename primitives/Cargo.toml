@@ -1,6 +1,6 @@
 [package]
 name = "primitives"
-version = "5.7.0"
+version = "5.7.1"
 authors = ["GalacticCouncil"]
 edition = "2021"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
