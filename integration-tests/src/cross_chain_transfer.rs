@@ -9,7 +9,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use hex_literal::hex;
 use orml_traits::currency::MultiCurrency;
-use polkadot_xcm::{v2::WeightLimit, VersionedMultiAssets};
+use polkadot_xcm::{v3::WeightLimit, VersionedMultiAssets};
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
@@ -39,13 +39,12 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		//Act
 		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
 			polkadot_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(Parachain(HYDRA_PARA_ID).into().into()),
+			Box::new(Parachain(HYDRA_PARA_ID).into()),
 			Box::new(
 				Junction::AccountId32 {
 					id: BOB,
-					network: NetworkId::Any
+					network: None,
 				}
-				.into()
 				.into()
 			),
 			Box::new((Here, 300 * UNITS).into()),
@@ -59,7 +58,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		);
 	});
 
-	let fees = 404146543536;
+	let fees = 400641025641;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
@@ -96,12 +95,12 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 					1,
 					X1(Junction::AccountId32 {
 						id: BOB,
-						network: NetworkId::Any,
+						network: None,
 					})
 				)
 				.into()
 			),
-			WeightLimit::Limited(4_600_000_000)
+			WeightLimit::Limited(Weight::from_ref_time(4_600_000_000))
 		));
 
 		//Assert
@@ -145,13 +144,13 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 {
 							id: BOB,
-							network: NetworkId::Any,
+							network: None,
 						}
 					)
 				)
 				.into()
 			),
-			WeightLimit::Limited(399_600_000_000)
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 		));
 
 		// Assert
@@ -161,7 +160,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		);
 	});
 
-	let fee = 404146543536;
+	let fee = 400641025641;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
@@ -199,13 +198,13 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 							Junction::Parachain(HYDRA_PARA_ID),
 							Junction::AccountId32 {
 								id: BOB,
-								network: NetworkId::Any,
+								network: None,
 							}
 						)
 					)
 					.into()
 				),
-				WeightLimit::Limited(399_600_000_000)
+				WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 			),
 			orml_xtokens::Error::<hydradx_runtime::Runtime>::XcmExecutionFailed
 		);
@@ -240,13 +239,13 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 {
 							id: BOB,
-							network: NetworkId::Any,
+							network: None,
 						}
 					)
 				)
 				.into()
 			),
-			WeightLimit::Limited(399_600_000_000)
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),

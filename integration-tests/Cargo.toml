@@ -110,7 +110,7 @@ polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "r
 hex-literal = "0.3.1"
 pretty_assertions = "1.2.1"
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352" }
-xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", rev = "6847a58888e483f0ed2e0b72f90e00767ea0ecac" }
+xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", rev = "754f3b90ecc65af735a6c9a2e1792c5253926ff6" }
 
 [features]
 default = ["std"]
