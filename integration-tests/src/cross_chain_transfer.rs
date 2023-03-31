@@ -39,7 +39,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		//Act
 		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
 			polkadot_runtime::RuntimeOrigin::signed(ALICE.into()),
-			Box::new(Parachain(HYDRA_PARA_ID).into()),
+			Box::new(Parachain(HYDRA_PARA_ID).into_versioned()),
 			Box::new(
 				Junction::AccountId32 {
 					id: BOB,
@@ -100,7 +100,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 				)
 				.into()
 			),
-			WeightLimit::Limited(Weight::from_ref_time(4_600_000_000))
+			WeightLimit::Unlimited,
 		));
 
 		//Assert
@@ -113,7 +113,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 	PolkadotRelay::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
-			2999578565860 // 3 * HDX - fee
+			2999637471000 // 3 * HDX - fee
 		);
 	});
 }
