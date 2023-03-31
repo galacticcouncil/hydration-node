@@ -252,7 +252,7 @@ impl sc_client_api::StorageProvider<Block, FullBackend> for Client {
 		hash: <Block as BlockT>::Hash,
 		prefix: Option<&'a StorageKey>,
 		start_key: Option<&StorageKey>,
-	) -> sp_blockchain::Result<KeyIterator<'a, <FullBackend as sc_client_api::Backend<Block>>::State, Block>> {
+	) -> sp_blockchain::Result<KeyIterator<<FullBackend as sc_client_api::Backend<Block>>::State, Block>> {
 		match self {
 			Self::HydraDX(client) => client.storage_keys_iter(hash, prefix, start_key),
 			Self::TestingHydraDX(client) => client.storage_keys_iter(hash, prefix, start_key),
@@ -289,7 +289,7 @@ impl sc_client_api::StorageProvider<Block, FullBackend> for Client {
 		child_info: ChildInfo,
 		prefix: Option<&'a StorageKey>,
 		start_key: Option<&StorageKey>,
-	) -> sp_blockchain::Result<KeyIterator<'a, <FullBackend as sc_client_api::Backend<Block>>::State, Block>> {
+	) -> sp_blockchain::Result<KeyIterator<<FullBackend as sc_client_api::Backend<Block>>::State, Block>> {
 		match self {
 			Self::HydraDX(client) => client.child_storage_keys_iter(hash, child_info, prefix, start_key),
 			Self::TestingHydraDX(client) => client.child_storage_keys_iter(hash, child_info, prefix, start_key),
