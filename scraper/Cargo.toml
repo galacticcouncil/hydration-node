@@ -9,7 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.1.5" }
+codec = { package = "parity-scale-codec", version = "3.4.0" }
 jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
 serde = { version = "1.0.136", features = ["derive"] }
 clap = { version = "3.2.11", features = [ "derive" ] }
@@ -19,7 +19,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 hydradx-runtime = { path = "../runtime/hydradx" }
 
 # Substrate dependencies
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
-sp-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
-substrate-rpc-client = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
-frame-remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.37" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+sp-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+substrate-rpc-client = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+frame-remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
