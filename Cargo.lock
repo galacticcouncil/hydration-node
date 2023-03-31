@@ -3524,7 +3524,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.5.0"
+version = "9.0.0"
 dependencies = [
  "clap 4.1.13",
  "common-runtime",
@@ -6176,7 +6176,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "3.4.2"
+version = "3.4.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9566,7 +9566,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.1.0"
+version = "1.5.3"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
