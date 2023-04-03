@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use crate as omnipool_liquidity_mining;
 
 use frame_support::weights::Weight;
+use frame_support::BoundedVec;
 use hydradx_traits::liquidity_mining::PriceAdjustment;
 use pallet_omnipool;
 
@@ -111,6 +112,7 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Event<T>},
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>::{Pallet, Storage, Event<T>},
 		OmnipoolMining: omnipool_liquidity_mining::{Pallet, Call, Storage, Event<T>},
+		EmaOracle: pallet_ema_oracle::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -236,6 +238,20 @@ impl orml_tokens::Config for Test {
 	type OnKilledTokenAccount = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+}
+
+//NOTE: oracle is not used in the unit tests. It's here to satify benchmarks bounds.
+use pallet_ema_oracle::MAX_PERIODS;
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+}
+impl pallet_ema_oracle::Config for Test {
+	type Event = Event;
+	type WeightInfo = ();
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type SupportedPeriods = SupportedPeriods;
+	type MaxUniqueEntries = ConstU32<20>;
 }
 
 parameter_types! {
