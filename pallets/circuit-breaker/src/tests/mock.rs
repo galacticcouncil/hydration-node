@@ -226,6 +226,7 @@ impl pallet_omnipool::Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
 	type OmnipoolHooks = CircuitBreakerHooks<Test>;
+	type PriceBarrier = ();
 }
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
@@ -308,6 +309,7 @@ where
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::Weight;
+use hydra_dx_math::ema::EmaPrice;
 
 pub struct DummyNFT;
 
@@ -357,7 +359,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 use crate::Config;
 use hydradx_traits::Registry;
-use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
