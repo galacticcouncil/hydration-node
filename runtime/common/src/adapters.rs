@@ -8,7 +8,7 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::oracle::AggregatedPriceOracle;
 use hydradx_traits::{NativePriceOracle, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle};
 use pallet_circuit_breaker::WeightInfo;
-use pallet_ema_oracle::OnActivityHandler;
+use pallet_ema_oracle::{OnActivityHandler, OracleError, Price};
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use primitive_types::U128;
 use primitives::{AssetId, Balance};
@@ -158,19 +158,29 @@ where
 			Lrna::get().into(),
 			period,
 			OMNIPOOL_SOURCE,
-		)
-		.ok()?;
+		);
+
+		let price_asset_a_lrna = match price_asset_a_lrna {
+			Ok(price) => price.0,
+			Err(OracleError::SameAsset) => EmaPrice::from(1),
+			Err(_) => return None,
+		};
 
 		let price_lrna_asset_b = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			Lrna::get().into(),
 			asset_b.into(),
 			period,
 			OMNIPOOL_SOURCE,
-		)
-		.ok()?;
+		);
 
-		let nominator = U128::full_mul(price_asset_a_lrna.0.n.into(), price_lrna_asset_b.0.n.into());
-		let denominator = U128::full_mul(price_asset_a_lrna.0.d.into(), price_lrna_asset_b.0.d.into());
+		let price_lrna_asset_b = match price_lrna_asset_b {
+			Ok(price) => price.0,
+			Err(OracleError::SameAsset) => EmaPrice::from(1),
+			Err(_) => return None,
+		};
+
+		let nominator = U128::full_mul(price_asset_a_lrna.n.into(), price_lrna_asset_b.n.into());
+		let denominator = U128::full_mul(price_asset_a_lrna.d.into(), price_lrna_asset_b.d.into());
 
 		let price_in_ema_price = round_u256_to_rational((nominator, denominator), Rounding::Nearest);
 

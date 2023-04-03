@@ -28,7 +28,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 pallet-omnipool = { path = "../omnipool", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "6df0e18ec61f58cab4ad0b7d6b09d67dbc594121", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "0f1322714b6f3516ef3aa135f0255132d7e687f4", default-features = false }
 
 [dev-dependencies]
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
@@ -36,7 +36,7 @@ orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29" }
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "a7455ee6a02083d00de6e3927d1a2d6073c9bfc3" }
 
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "6df0e18ec61f58cab4ad0b7d6b09d67dbc594121", default-features = false }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "0f1322714b6f3516ef3aa135f0255132d7e687f4", default-features = false }
 pretty_assertions = "1.2.1"
 test-case = "3.0.0"
 
