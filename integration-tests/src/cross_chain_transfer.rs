@@ -40,13 +40,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
 			polkadot_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(Parachain(HYDRA_PARA_ID).into_versioned()),
-			Box::new(
-				Junction::AccountId32 {
-					id: BOB,
-					network: None,
-				}
-				.into()
-			),
+			Box::new(Junction::AccountId32 { id: BOB, network: None }.into()),
 			Box::new((Here, 300 * UNITS).into()),
 			0,
 		));
@@ -90,16 +84,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			1,
 			3 * UNITS,
-			Box::new(
-				MultiLocation::new(
-					1,
-					X1(Junction::AccountId32 {
-						id: BOB,
-						network: None,
-					})
-				)
-				.into()
-			),
+			Box::new(MultiLocation::new(1, X1(Junction::AccountId32 { id: BOB, network: None })).into()),
 			WeightLimit::Unlimited,
 		));
 
@@ -142,10 +127,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 					1,
 					X2(
 						Junction::Parachain(HYDRA_PARA_ID),
-						Junction::AccountId32 {
-							id: BOB,
-							network: None,
-						}
+						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
 				.into()
@@ -196,10 +178,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 						1,
 						X2(
 							Junction::Parachain(HYDRA_PARA_ID),
-							Junction::AccountId32 {
-								id: BOB,
-								network: None,
-							}
+							Junction::AccountId32 { id: BOB, network: None }
 						)
 					)
 					.into()
@@ -237,10 +216,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 					1,
 					X2(
 						Junction::Parachain(HYDRA_PARA_ID),
-						Junction::AccountId32 {
-							id: BOB,
-							network: None,
-						}
+						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
 				.into()
