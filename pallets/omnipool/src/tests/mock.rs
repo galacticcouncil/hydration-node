@@ -22,13 +22,18 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use crate as pallet_omnipool;
+
+use crate::traits::ExternalPriceProvider;
+use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
+use hydradx_traits::Registry;
 use orml_traits::parameter_type_with_key;
+use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -68,6 +73,8 @@ thread_local! {
 	pub static MIN_TRADE_AMOUNT: RefCell<Balance> = RefCell::new(1000u128);
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
+	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
+	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 }
 
 construct_runtime!(
@@ -156,6 +163,8 @@ parameter_types! {
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
+	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
+	pub FourPercentDiff: Permill = Permill::from_percent(4);
 }
 
 impl Config for Test {
@@ -180,6 +189,10 @@ impl Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
 	type OmnipoolHooks = ();
+	type PriceBarrier = (
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff>,
+	);
 }
 
 pub struct ExtBuilder {
@@ -229,6 +242,12 @@ impl Default for ExtBuilder {
 		});
 		MAX_OUT_RATIO.with(|v| {
 			*v.borrow_mut() = 1u128;
+		});
+		MAX_PRICE_DIFF.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		EXT_PRICE_ADJUSTMENT.with(|v| {
+			*v.borrow_mut() = (0, 0, false);
 		});
 
 		Self {
@@ -309,6 +328,18 @@ impl ExtBuilder {
 	}
 	pub fn with_tvl_cap(mut self, value: Balance) -> Self {
 		self.tvl_cap = value;
+		self
+	}
+	pub fn with_max_allowed_price_difference(self, max_allowed: Permill) -> Self {
+		MAX_PRICE_DIFF.with(|v| {
+			*v.borrow_mut() = max_allowed;
+		});
+		self
+	}
+	pub fn with_external_price_adjustment(self, price_adjustment: (u32, u32, bool)) -> Self {
+		EXT_PRICE_ADJUSTMENT.with(|v| {
+			*v.borrow_mut() = price_adjustment;
+		});
 		self
 	}
 
@@ -411,7 +442,11 @@ impl ExtBuilder {
 	}
 }
 
+use crate::traits::EnsurePriceWithin;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
+use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::support::rational::Rounding;
+use hydra_dx_math::to_u128_wrapper;
 
 pub struct DummyNFT;
 
@@ -459,8 +494,6 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 	}
 }
 
-use hydradx_traits::Registry;
-
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
@@ -488,4 +521,73 @@ where
 
 pub(crate) fn get_mock_minted_position(position_id: u32) -> Option<u64> {
 	POSITIONS.with(|v| v.borrow().get(&position_id).copied())
+}
+
+pub struct MockOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_b, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_a)?;
+		let price = EmaPrice::new(asset_state.reserve, asset_state.hub_reserve);
+		let adjusted_price = EXT_PRICE_ADJUSTMENT.with(|v| {
+			let (n, d, neg) = v.borrow().clone();
+			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
+			if neg {
+				saturating_sub(price, adjustment)
+			} else {
+				saturating_add(price, adjustment)
+			}
+		});
+
+		Ok(adjusted_price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
+}
+
+// Helper methods to work with Ema Price
+pub(super) fn round_to_rational((n, d): (U256, U256), rounding: Rounding) -> EmaPrice {
+	let shift = n.bits().max(d.bits()).saturating_sub(128);
+	let (n, d) = if shift > 0 {
+		let min_n = if n.is_zero() { 0 } else { 1 };
+		let (bias_n, bias_d) = rounding.to_bias(1);
+		let shifted_n = (n >> shift).low_u128();
+		let shifted_d = (d >> shift).low_u128();
+		(
+			shifted_n.saturating_add(bias_n).max(min_n),
+			shifted_d.saturating_add(bias_d).max(1),
+		)
+	} else {
+		(n.low_u128(), d.low_u128())
+	};
+	EmaPrice::new(n, d)
+}
+
+pub(super) fn saturating_add(l: EmaPrice, r: EmaPrice) -> EmaPrice {
+	if l.n.is_zero() || r.n.is_zero() {
+		return EmaPrice::new(l.n, l.d);
+	}
+	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
+	// n = l.n * r.d - r.n * l.d
+	let n = l_n.full_mul(r_d).saturating_add(r_n.full_mul(l_d));
+	// d = l.d * r.d
+	let d = l_d.full_mul(r_d);
+	round_to_rational((n, d), Rounding::Nearest)
+}
+
+pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
+	if l.n.is_zero() || r.n.is_zero() {
+		return EmaPrice::new(l.n, l.d);
+	}
+	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
+	// n = l.n * r.d - r.n * l.d
+	let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
+	// d = l.d * r.d
+	let d = l_d.full_mul(r_d);
+	round_to_rational((n, d), Rounding::Nearest)
 }

@@ -65,7 +65,7 @@ use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::BlockNumberProvider;
 
-use common_runtime::adapters::OmnipoolHookAdapter;
+use common_runtime::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter};
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
@@ -867,6 +867,22 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 	type OmnipoolHooks = OmnipoolHookAdapter<Self::RuntimeOrigin, LRNA, Runtime>;
+	type PriceBarrier = (
+		EnsurePriceWithin<
+			AccountId,
+			AssetId,
+			EmaOraclePriceAdapter<EmaOracleSpotPriceLastBlock, Runtime>,
+			OmnipoolMaxAllowedPriceDifference,
+			CircuitBreakerWhitelist,
+		>,
+		EnsurePriceWithin<
+			AccountId,
+			AssetId,
+			EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>,
+			OmnipoolMaxAllowedPriceDifference,
+			CircuitBreakerWhitelist,
+		>,
+	);
 }
 
 impl pallet_transaction_pause::Config for Runtime {

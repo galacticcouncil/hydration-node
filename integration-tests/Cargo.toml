@@ -15,8 +15,9 @@ scraper = { path = "../scraper" }
 primitives = { default-features = false, path = "../primitives" }
 hydradx-runtime = { path = "../runtime/hydradx", default-features = true}
 common-runtime = { path = "../runtime/common", default-features = true}
+pallet-omnipool = { path = "../pallets/omnipool", default-features = true}
+pallet-circuit-breaker = { path = "../pallets/circuit-breaker",default-features = false}
 pallet-omnipool-liquidity-mining = { path = "../pallets/omnipool-liquidity-mining", default-features = true}
-pallet-circuit-breaker = { path = "../pallets/circuit-breaker", default-features = true}
 
 # HydraDX dependencies
 pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "3c34413e4303ae1f057790d3053d65ef4b4093e1", default-features = false }
