@@ -192,8 +192,8 @@ impl Config for Test {
 	type CollectionId = u32;
 	type OmnipoolHooks = ();
 	type PriceBarrier = (
-		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff>,
-		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
 }
 
@@ -535,7 +535,7 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 		let asset_state = Omnipool::load_asset_state(asset_a)?;
 		let price = EmaPrice::new(asset_state.reserve, asset_state.hub_reserve);
 		let adjusted_price = EXT_PRICE_ADJUSTMENT.with(|v| {
-			let (n, d, neg) = v.borrow().clone();
+			let (n, d, neg) = *v.borrow();
 			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
 			if neg {
 				saturating_sub(price, adjustment)

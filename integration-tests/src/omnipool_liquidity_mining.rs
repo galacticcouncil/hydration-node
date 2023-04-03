@@ -331,7 +331,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 			10_000 * eth_precision as i128,
 		));
 
-		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1 * eth_precision);
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, eth_precision);
 		assert_nft_owner!(
 			hydradx_runtime::OmnipoolCollectionId::get(),
 			position_id,
