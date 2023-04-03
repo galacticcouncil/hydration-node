@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.1.0"
+version = "102.2.0"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -3411,7 +3411,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "137.0.0"
+version = "138.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -5814,7 +5814,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6319,7 +6319,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.6.7"
+version = "1.6.8"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6345,7 +6345,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8974,7 +8974,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.5.2"
+version = "1.5.3"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -11732,7 +11732,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "137.0.0"
+version = "138.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
