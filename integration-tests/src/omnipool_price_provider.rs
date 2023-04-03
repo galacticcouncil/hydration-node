@@ -5,12 +5,10 @@ use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::Balance;
-use hydradx_runtime::BlockNumber;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::Origin;
 use hydradx_runtime::Tokens;
 use hydradx_traits::{OraclePeriod, PriceOracle};
-use orml_traits::currency::MultiCurrency;
 use primitives::AssetId;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
@@ -28,7 +26,7 @@ fn omnipool_oracle_adapter_should_return_price_for_arbitraty_pairs() {
 			AssetId,
 			hydradx_runtime::Runtime,
 			hydradx_runtime::LRNA,
-		>::price(HDX.into(), DAI, OraclePeriod::Short);
+		>::price(HDX, DAI, OraclePeriod::Short);
 
 		assert!(price.is_some());
 	});
@@ -87,7 +85,7 @@ pub fn init_omnipol() {
 		Permill::from_percent(60)
 	));
 
-	do_trade_to_populate_oracle(HDX, DAI, 1 * UNITS);
+	do_trade_to_populate_oracle(HDX, DAI, UNITS);
 }
 
 fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {
