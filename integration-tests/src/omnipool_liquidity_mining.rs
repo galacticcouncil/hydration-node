@@ -189,7 +189,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_id,
 				yield_farm_id,
-				71_145_071_145,
+				1_000_000_000_000_000,
 				FixedU128::zero(),
 				40,
 				0,
@@ -269,7 +269,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_1_id,
 				yield_farm_1_id,
-				71_145_071_145,
+				1_000_000_000_000_000,
 				FixedU128::zero(),
 				40,
 				0,
@@ -281,7 +281,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_2_id,
 				yield_farm_2_id,
-				71_145_071_145, //NOTE: nothing changed in omnipool so shares are
+				1_000_000_000_000_000, //NOTE: nothing changed in omnipool so shares are
 				//valued same as before
 				FixedU128::zero(),
 				50,
@@ -298,6 +298,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		let eth_precision = 1_000_000_000_000_000_000_u128;
 		let global_farm_1_id = 1;
 		let global_farm_2_id = 2;
 		let yield_farm_1_id = 3;
@@ -321,10 +322,10 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 			hydradx_runtime::RuntimeOrigin::root(),
 			CHARLIE.into(),
 			ETH,
-			10_000 * UNITS as i128,
+			10_000 * eth_precision as i128,
 		));
 
-		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1_000 * UNITS);
+		let position_id = omnipool_add_liquidity(CHARLIE.into(), ETH, 1 * eth_precision);
 		assert_nft_owner!(
 			hydradx_runtime::OmnipoolCollectionId::get(),
 			position_id,
@@ -359,7 +360,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 73_831_u128;
+		let expected_claimed_amount = 1_037_775_010_376_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -385,7 +386,7 @@ fn claim_rewards_should_work_when_rewards_are_accumulated_for_deposit() {
 
 		//Assert
 		//NOTE: can't assert state in the deposit because fields are private
-		let expected_claimed_amount = 157_918_u128;
+		let expected_claimed_amount = 2_219_685_438_860_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -467,7 +468,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Assert
 		//NOTE: withdraw is claiming rewards automatically
-		let expected_claimed_amount = 73_831_u128;
+		let expected_claimed_amount = 1_037_775_010_u128;
 		assert_eq!(
 			hydradx_runtime::Currencies::free_balance(HDX, &CHARLIE.into()),
 			bob_hdx_balance_0 + expected_claimed_amount
@@ -553,12 +554,10 @@ fn init_omnipool() {
 		AccountId::from(BOB),
 	));
 
-	let token_price = FixedU128::from_inner(71_145_071_145_071);
-
 	assert_ok!(hydradx_runtime::Omnipool::add_token(
 		hydradx_runtime::RuntimeOrigin::root(),
 		ETH,
-		token_price,
+		FixedU128::from_inner(1_000_000_000_000_000_000),
 		Permill::from_percent(100),
 		AccountId::from(BOB),
 	));
