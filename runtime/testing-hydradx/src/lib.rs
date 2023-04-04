@@ -842,7 +842,7 @@ parameter_types! {
 	pub const OmnipoolCollectionId: CollectionId = 1337u128;
 	pub const EmaOracleSpotPriceLastBlock: OraclePeriod = OraclePeriod::LastBlock;
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
-	 pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
+	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 }
 
 impl pallet_omnipool::Config for Runtime {
