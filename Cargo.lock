@@ -1041,7 +1041,7 @@ dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
  "frame-system",
- "hydra-dx-math 5.1.4",
+ "hydra-dx-math",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -3296,21 +3296,6 @@ version = "1.0.2"
 dependencies = [
  "cargo-lock",
  "platforms 1.1.0",
-]
-
-[[package]]
-name = "hydra-dx-math"
-version = "5.1.4"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=a0cd48c26dca53e7e351434276c572d70ffd0b72#a0cd48c26dca53e7e351434276c572d70ffd0b72"
-dependencies = [
- "fixed",
- "num-traits",
- "parity-scale-codec",
- "primitive-types 0.12.1",
- "scale-info",
- "serde",
- "sp-arithmetic",
- "sp-std",
 ]
 
 [[package]]
@@ -5836,7 +5821,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 5.1.4",
+ "hydra-dx-math",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -6047,7 +6032,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 6.0.0",
+ "hydra-dx-math",
  "hydradx-traits",
  "log",
  "parity-scale-codec",
@@ -6173,7 +6158,7 @@ source = "git+https://github.com/galacticcouncil/warehouse?rev=5bdf2275d50344058
 dependencies = [
  "frame-support",
  "frame-system",
- "hydra-dx-math 6.0.0",
+ "hydra-dx-math",
  "hydradx-traits",
  "orml-traits",
  "parity-scale-codec",
@@ -6342,8 +6327,10 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 5.1.4",
+ "hydra-dx-math",
  "hydradx-traits",
+ "impl-trait-for-tuples",
+ "log",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
@@ -6368,7 +6355,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 6.0.0",
+ "hydra-dx-math",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
@@ -9034,6 +9021,7 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
+ "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-relaychain-info",

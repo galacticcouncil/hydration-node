@@ -31,11 +31,13 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 # Warehouse
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "5bdf2275d50344058b2de0d72ac2d2751e3f9eda", default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "a0cd48c26dca53e7e351434276c572d70ffd0b72", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "bcb75f1c2b4f1d859ff133ca663539c59d1ed910", default-features = false }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }
 bitflags = "1.3.2"
+impl-trait-for-tuples = "0.2.2"
+log = { version = "0.4.17", default-features = false }
 
 # Optional imports for benchmarking
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true}

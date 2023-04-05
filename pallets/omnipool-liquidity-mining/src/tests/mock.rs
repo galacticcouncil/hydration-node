@@ -291,6 +291,7 @@ impl pallet_omnipool::Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u128;
 	type OmnipoolHooks = ();
+	type PriceBarrier = ();
 }
 
 pub struct ExtBuilder {

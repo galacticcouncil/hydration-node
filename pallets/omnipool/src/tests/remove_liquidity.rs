@@ -421,3 +421,58 @@ fn remove_liquidity_should_fail_when_shares_amount_is_zero() {
 			);
 		});
 }
+
+#[test]
+fn remove_liquidity_should_when_prices_differ_and_is_higher() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_max_allowed_price_difference(Permill::from_percent(1))
+		.build()
+		.execute_with(|| {
+			let current_position_id = <NextPositionId<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+
+			EXT_PRICE_ADJUSTMENT.with(|v| {
+				*v.borrow_mut() = (3, 100, false);
+			});
+
+			assert_noop!(
+				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 200 * ONE,),
+				Error::<Test>::PriceDifferenceTooHigh
+			);
+		});
+}
+#[test]
+fn remove_liquidity_should_when_prices_differ_and_is_lower() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+			(LP2, 1_000, 2000 * ONE),
+			(LP1, 1_000, 5000 * ONE),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.with_token(1_000, FixedU128::from_float(0.65), LP2, 2000 * ONE)
+		.with_max_allowed_price_difference(Permill::from_percent(1))
+		.build()
+		.execute_with(|| {
+			let current_position_id = <NextPositionId<Test>>::get();
+			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+
+			EXT_PRICE_ADJUSTMENT.with(|v| {
+				*v.borrow_mut() = (3, 100, true);
+			});
+
+			assert_noop!(
+				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 200 * ONE,),
+				Error::<Test>::PriceDifferenceTooHigh
+			);
+		});
+}

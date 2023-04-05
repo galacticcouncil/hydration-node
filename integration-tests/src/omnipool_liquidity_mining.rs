@@ -188,7 +188,7 @@ fn deposit_shares_should_work_when_yield_farm_exists() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_id,
 				yield_farm_id,
-				71_145_071_145,
+				71_145_071_145_u128,
 				FixedU128::zero(),
 				40,
 				0,
@@ -270,7 +270,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_1_id,
 				yield_farm_1_id,
-				71_145_071_145,
+				71_145_071_145_u128,
 				FixedU128::zero(),
 				40,
 				0,
@@ -282,7 +282,7 @@ fn redeposit_shares_multiple_times_should_work_when_shares_already_deposited() {
 			.add_yield_farm_entry(YieldFarmEntry::new(
 				global_farm_2_id,
 				yield_farm_2_id,
-				71_145_071_145, //NOTE: nothing changed in omnipool so shares are
+				71_145_071_145_u128, //NOTE: nothing changed in omnipool so shares are
 				//valued same as before
 				FixedU128::zero(),
 				50,
@@ -410,6 +410,7 @@ fn withdraw_shares_should_work_when_deposit_exists() {
 
 		//Arrange
 		init_omnipool();
+
 		seed_lm_pot();
 		//necessary for oracle to have a price.
 		do_lrna_hdx_trade();
