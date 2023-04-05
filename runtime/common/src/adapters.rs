@@ -179,8 +179,8 @@ where
 
 	fn get(global_farm: &GlobalFarmData<Runtime, LMInstance>) -> Result<Self::PriceAdjustment, Self::Error> {
 		let (price, _) = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			global_farm.incentivized_asset.into(), //LRNA
 			global_farm.reward_currency.into(),
+			global_farm.incentivized_asset.into(), //LRNA
 			OraclePeriod::TenMinutes,
 			OMNIPOOL_SOURCE,
 		)
