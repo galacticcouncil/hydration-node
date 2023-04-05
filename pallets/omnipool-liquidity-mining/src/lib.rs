@@ -452,7 +452,7 @@ pub mod pallet {
 		/// Only farm owner can perform this action.
 		///
 		/// Asset with `asset_id` has to be registered in the omnipool.
-		/// At most one `active` yield farm for the same `asset_id can exist in one global farm `.
+		/// At most one `active` yield farm can exist in one global farm for the same `asset_id`.
 		///
 		/// Parameters:
 		/// - `origin`: global farm's owner.
