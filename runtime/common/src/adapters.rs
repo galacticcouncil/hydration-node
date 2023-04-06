@@ -145,12 +145,14 @@ where
 
 pub struct OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>(PhantomData<(AssetId, Runtime, Lrna)>);
 
-impl<AssetId, Runtime, Lrna> PriceOracle<AssetId, EmaPrice> for OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>
+impl<AssetId, Runtime, Lrna> PriceOracle<AssetId> for OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>
 where
 	Runtime: pallet_ema_oracle::Config,
 	u32: From<AssetId>,
 	Lrna: Get<AssetId>,
 {
+	type Price = EmaPrice;
+
 	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
 		let price_asset_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
 			asset_a.into(),
