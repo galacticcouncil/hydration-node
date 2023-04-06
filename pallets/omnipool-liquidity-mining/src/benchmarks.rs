@@ -23,8 +23,7 @@ use hydradx_traits::Registry;
 use orml_traits::MultiCurrencyExtended;
 use pallet_liquidity_mining::Instance1;
 use primitives::AssetId;
-use sp_runtime::traits::One;
-use sp_runtime::Permill;
+use sp_runtime::{traits::One, FixedU128, Permill};
 
 const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 const ONE: Balance = 1_000_000_000_000;

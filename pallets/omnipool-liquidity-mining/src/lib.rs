@@ -46,7 +46,7 @@ pub mod weights;
 use frame_support::{
 	ensure,
 	pallet_prelude::{DispatchError, DispatchResult},
-	sp_runtime::traits::{AccountIdConversion, One, Zero},
+	sp_runtime::traits::{AccountIdConversion, Zero},
 	traits::DefensiveOption,
 	traits::{
 		tokens::nonfungibles::{Create, Inspect, Mutate, Transfer},
@@ -66,7 +66,7 @@ use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
 use primitive_types::U256;
 use primitives::{Balance, ItemId as DepositId};
-use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
+use sp_runtime::{ArithmeticError, Perquintill};
 use sp_std::vec;
 
 pub use pallet::*;
@@ -353,7 +353,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as pallet::Config>::CreateOrigin::ensure_origin(origin)?;
 
-			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm(
+			//NOTE: Oracle is used as `price_adjustment` provider.
+			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm_without_price_adjustment(
 				total_rewards,
 				planned_yielding_periods,
 				blocks_per_period,
@@ -363,8 +364,6 @@ pub mod pallet {
 				owner.clone(),
 				yield_per_period,
 				min_deposit,
-				//NOTE: oracle's price is used for `price_adjustment`
-				FixedU128::one(),
 			)?;
 
 			Self::deposit_event(Event::GlobalFarmCreated {

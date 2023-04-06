@@ -37,6 +37,7 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::GetByKey;
 use pallet_liquidity_mining as warehouse_liquidity_mining;
 use sp_core::H256;
+use sp_runtime::FixedU128;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
