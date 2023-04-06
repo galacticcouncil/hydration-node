@@ -1,8 +1,9 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
-use hydra_dx_math::ema::{round_u256_to_rational, EmaPrice};
+use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
+use hydra_dx_math::support::rational::round_to_rational;
 use hydra_dx_math::support::rational::Rounding;
 use hydradx_traits::oracle::AggregatedPriceOracle;
 use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle};
@@ -180,7 +181,8 @@ where
 		let nominator = U128::full_mul(price_asset_a_lrna.n.into(), price_lrna_asset_b.n.into());
 		let denominator = U128::full_mul(price_asset_a_lrna.d.into(), price_lrna_asset_b.d.into());
 
-		let price_in_ema_price = round_u256_to_rational((nominator, denominator), Rounding::Nearest);
+		let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
+		let price_in_ema_price = EmaPrice::new(rational_as_u128.0, rational_as_u128.1);
 
 		Some(price_in_ema_price)
 	}
