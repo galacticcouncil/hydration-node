@@ -25,7 +25,7 @@ use crate as pallet_omnipool;
 
 use crate::traits::ExternalPriceProvider;
 use frame_support::dispatch::Weight;
-use frame_support::traits::{ConstU128, Everything, GenesisBuild};
+use frame_support::traits::{ConstU128, Everything, GenesisBuild, Nothing};
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -192,8 +192,8 @@ impl Config for Test {
 	type CollectionId = u32;
 	type OmnipoolHooks = ();
 	type PriceBarrier = (
-		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff>,
-		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, Nothing>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, Nothing>,
 	);
 }
 

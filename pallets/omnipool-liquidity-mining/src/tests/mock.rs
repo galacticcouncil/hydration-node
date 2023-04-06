@@ -542,8 +542,6 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
-use frame_support::weights::Weight;
-use hydra_dx_math::ema::EmaPrice;
 
 pub struct DummyNFT;
 
@@ -609,7 +607,6 @@ impl Transfer<AccountId> for DummyNFT {
 }
 
 use hydradx_traits::Registry;
-use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 

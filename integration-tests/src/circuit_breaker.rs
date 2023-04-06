@@ -1,9 +1,6 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use common_runtime::BlockNumber;
-use frame_support::traits::OnFinalize;
-use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, OmnipoolCollectionId, Tokens, Uniques};
@@ -83,6 +80,8 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 
 		let min_limit = 0;
 
+		set_relaychain_block_number(300);
+
 		//We need to split to avoid max in ratio
 		for _ in 1..num_of_sells {
 			assert_ok!(Omnipool::sell(
@@ -93,8 +92,6 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 				min_limit
 			));
 		}
-
-		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -127,6 +124,8 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 		let min_limit = 0;
 		let sell_amount = 300000 * UNITS;
 
+		set_relaychain_block_number(300);
+
 		//We need to split in multiple sells to avoid max in ratio error
 		for _ in 1..=3 {
 			assert_ok!(Omnipool::sell(
@@ -137,8 +136,6 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 				min_limit
 			));
 		}
-
-		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -167,6 +164,8 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 		let buy_amount = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, trade_volume_limit)
 			.unwrap()
 			.checked_div(num_of_buys)
+			.unwrap()
+			.checked_add(1)
 			.unwrap();
 
 		assert_ok!(Tokens::set_balance(
@@ -195,7 +194,7 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 				hydradx_runtime::Origin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				LRNA,
-				buy_amount + 1,
+				buy_amount,
 				Balance::MAX
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenOutflowLimitReached
@@ -242,6 +241,8 @@ fn buy_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			100000000000 * UNITS,
 			0,
 		));
+
+		set_relaychain_block_number(300);
 
 		assert_ok!(Omnipool::buy(
 			hydradx_runtime::Origin::signed(ALICE.into()),
@@ -404,6 +405,7 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let max_removed_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 		let bag = max_removed_liquidity * 2;
+
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
 			Treasury::account_id(),
@@ -414,11 +416,13 @@ fn remove_liquidity_from_omnipool_should_fail_when_large_legacy_position_removed
 		set_relaychain_block_number(300);
 
 		let position = Omnipool::next_position_id();
+
 		assert_ok!(Omnipool::add_liquidity(
 			hydradx_runtime::Origin::signed(Treasury::account_id()),
 			CORE_ASSET_ID,
 			bag,
 		));
+
 		assert_ok!(Uniques::transfer(
 			hydradx_runtime::Origin::signed(Treasury::account_id()),
 			OmnipoolCollectionId::get(),
@@ -443,6 +447,7 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 		let liquidity_limit = CircuitBreaker::add_liquidity_limit_per_asset(CORE_ASSET_ID).unwrap();
 		let max_removed_liquidity = CircuitBreaker::calculate_limit(hdx_balance_in_omnipool, liquidity_limit).unwrap();
 		let bag = max_removed_liquidity * 2;
+
 		assert_ok!(Balances::set_balance(
 			RawOrigin::Root.into(),
 			Treasury::account_id(),
@@ -453,11 +458,13 @@ fn remove_liquidity_from_omnipool_should_succeed_when_legacy_position_withdrawn_
 		set_relaychain_block_number(300);
 
 		let position = Omnipool::next_position_id();
+
 		assert_ok!(Omnipool::add_liquidity(
 			hydradx_runtime::Origin::signed(Treasury::account_id()),
 			CORE_ASSET_ID,
 			bag,
 		));
+
 		assert_ok!(Uniques::transfer(
 			hydradx_runtime::Origin::signed(Treasury::account_id()),
 			OmnipoolCollectionId::get(),
