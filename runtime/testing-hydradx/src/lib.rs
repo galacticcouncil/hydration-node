@@ -742,7 +742,7 @@ pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
 
 impl Default for AssetLocation {
 	fn default() -> Self {
-		AssetLocation(polkadot_xcm::v3::MultiLocation::here())
+		AssetLocation(polkadot_xcm::v3::MultiLocation::default())
 	}
 }
 

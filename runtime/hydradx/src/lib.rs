@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 138,
+	spec_version: 140,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -736,7 +736,7 @@ pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
 
 impl Default for AssetLocation {
 	fn default() -> Self {
-		AssetLocation(polkadot_xcm::v3::MultiLocation::here())
+		AssetLocation(polkadot_xcm::v3::MultiLocation::default())
 	}
 }
 
@@ -1096,6 +1096,7 @@ pub type Executive = frame_executive::Executive<
 		XcmpQueue,
 		ParachainSystem,
 		migrations::OnRuntimeUpgradeMigration,
+		migrations::MigrateRegistryLocationToV3<Runtime>,
 	),
 >;
 
