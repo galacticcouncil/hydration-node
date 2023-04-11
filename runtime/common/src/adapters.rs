@@ -209,8 +209,7 @@ where
 	type Price = EmaPrice;
 
 	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
-		let price_asset_a_lrna =
-			AggregatedPriceGetter::get_price(asset_a.into(), Lrna::get().into(), period, OMNIPOOL_SOURCE);
+		let price_asset_a_lrna = AggregatedPriceGetter::get_price(asset_a, Lrna::get(), period, OMNIPOOL_SOURCE);
 
 		let price_asset_a_lrna = match price_asset_a_lrna {
 			Ok(price) => price.0,
@@ -218,8 +217,7 @@ where
 			Err(_) => return None,
 		};
 
-		let price_lrna_asset_b =
-			AggregatedPriceGetter::get_price(Lrna::get().into(), asset_b.into(), period, OMNIPOOL_SOURCE);
+		let price_lrna_asset_b = AggregatedPriceGetter::get_price(Lrna::get(), asset_b, period, OMNIPOOL_SOURCE);
 
 		let price_lrna_asset_b = match price_lrna_asset_b {
 			Ok(price) => price.0,
