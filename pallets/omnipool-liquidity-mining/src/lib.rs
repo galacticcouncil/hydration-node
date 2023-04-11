@@ -452,7 +452,7 @@ pub mod pallet {
 		/// Only farm owner can perform this action.
 		///
 		/// Asset with `asset_id` has to be registered in the omnipool.
-		/// Yield farm for same `asset_id` can exist only once in the global farm.
+		/// At most one `active` yield farm can exist in one global farm for the same `asset_id`.
 		///
 		/// Parameters:
 		/// - `origin`: global farm's owner.
@@ -543,7 +543,7 @@ pub mod pallet {
 		/// This function claims rewards from `GlobalFarm` last time and stop yield farm
 		/// incentivization from a `GlobalFarm`. Users will be able to only withdraw
 		/// shares(with claiming) after calling this function.
-		/// `deposit_shares()` and `claim_rewards()` are not allowed on stopped yield farm.
+		/// `deposit_shares()` is not allowed on stopped yield farm.
 		///  
 		/// Only farm owner can perform this action.
 		///
