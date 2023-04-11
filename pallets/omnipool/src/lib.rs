@@ -774,6 +774,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		///
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
 		pub fn remove_liquidity(
