@@ -24,7 +24,7 @@ fn omnipool_oracle_adapter_should_return_price_for_arbitraty_pairs() {
 
 		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
 			AssetId,
-			hydradx_runtime::Runtime,
+			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
 		>::price(HDX, DAI, OraclePeriod::Short);
 
@@ -43,7 +43,7 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_a() {
 
 		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
 			AssetId,
-			hydradx_runtime::Runtime,
+			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
 		>::price(LRNA, DAI, OraclePeriod::Short);
 
@@ -62,7 +62,7 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_b() {
 
 		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
 			AssetId,
-			hydradx_runtime::Runtime,
+			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
 		>::price(DAI, LRNA, OraclePeriod::Short);
 

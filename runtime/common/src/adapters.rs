@@ -11,7 +11,7 @@ use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::{OnActivityHandler, OracleError};
 use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
 use primitive_types::U128;
-use primitives::{AssetId, Balance};
+use primitives::{AssetId, Balance, BlockNumber};
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 /// Passes on trade and liquidity data from the omnipool to the oracle.
@@ -143,23 +143,22 @@ where
 	}
 }
 
-pub struct OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>(PhantomData<(AssetId, Runtime, Lrna)>);
+pub struct OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>(
+	PhantomData<(AssetId, AggregatedPriceGetter, Lrna)>,
+);
 
-impl<AssetId, Runtime, Lrna> PriceOracle<AssetId> for OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>
+impl<AssetId, AggregatedPriceGetter, Lrna> PriceOracle<AssetId>
+	for OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>
 where
-	Runtime: pallet_ema_oracle::Config,
 	u32: From<AssetId>,
+	AggregatedPriceGetter: AggregatedPriceOracle<AssetId, BlockNumber, EmaPrice, Error = OracleError>,
 	Lrna: Get<AssetId>,
 {
 	type Price = EmaPrice;
 
 	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
-		let price_asset_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			asset_a.into(),
-			Lrna::get().into(),
-			period,
-			OMNIPOOL_SOURCE,
-		);
+		let price_asset_a_lrna =
+			AggregatedPriceGetter::get_price(asset_a.into(), Lrna::get().into(), period, OMNIPOOL_SOURCE);
 
 		let price_asset_a_lrna = match price_asset_a_lrna {
 			Ok(price) => price.0,
@@ -167,12 +166,8 @@ where
 			Err(_) => return None,
 		};
 
-		let price_lrna_asset_b = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			Lrna::get().into(),
-			asset_b.into(),
-			period,
-			OMNIPOOL_SOURCE,
-		);
+		let price_lrna_asset_b =
+			AggregatedPriceGetter::get_price(Lrna::get().into(), asset_b.into(), period, OMNIPOOL_SOURCE);
 
 		let price_lrna_asset_b = match price_lrna_asset_b {
 			Ok(price) => price.0,
