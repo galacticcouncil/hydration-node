@@ -5,11 +5,12 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydra_dx_math::support::rational::round_to_rational;
 use hydra_dx_math::support::rational::Rounding;
-use hydradx_traits::oracle::AggregatedPriceOracle;
+use hydradx_traits::AggregatedPriceOracle;
 use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle};
 use pallet_circuit_breaker::WeightInfo;
+use pallet_ema_oracle::Price;
 use pallet_ema_oracle::{OnActivityHandler, OracleError};
-use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use primitive_types::U128;
 use primitives::{AssetId, Balance, BlockNumber};
 use sp_runtime::traits::Zero;
@@ -140,6 +141,28 @@ where
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
 		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_trade_limit_entry benchmark
 		w1.saturating_add(w2).saturating_add(w3)
+	}
+}
+
+/// Passes ema oracle price to the omnipool.
+pub struct EmaOraclePriceAdapter<Period, Runtime>(PhantomData<(Period, Runtime)>);
+
+impl<Period, Runtime> ExternalPriceProvider<AssetId, Price> for EmaOraclePriceAdapter<Period, Runtime>
+where
+	Period: Get<OraclePeriod>,
+	Runtime: pallet_ema_oracle::Config + pallet_omnipool::Config,
+{
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<Price, Self::Error> {
+		let (price, _) =
+			pallet_ema_oracle::Pallet::<Runtime>::get_price(asset_a, asset_b, Period::get(), OMNIPOOL_SOURCE)
+				.map_err(|_| pallet_omnipool::Error::<Runtime>::PriceDifferenceTooHigh)?;
+		Ok(price)
+	}
+
+	fn get_price_weight() -> Weight {
+		pallet_ema_oracle::Pallet::<Runtime>::get_price_weight()
 	}
 }
 

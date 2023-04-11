@@ -226,6 +226,7 @@ impl pallet_omnipool::Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u32;
 	type OmnipoolHooks = CircuitBreakerHooks<Test>;
+	type PriceBarrier = ();
 }
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);

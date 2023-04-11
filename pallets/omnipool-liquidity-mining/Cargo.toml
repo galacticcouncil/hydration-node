@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.0.7"
+version = "1.1.1"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -33,6 +33,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 
 # Warehouse
 pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "f794717cdeb688d204cabce96c1e7cc5c0136029", default-features = false }
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "f794717cdeb688d204cabce96c1e7cc5c0136029", default-features = false }
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "f794717cdeb688d204cabce96c1e7cc5c0136029", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "d410fb79c45c38186808444152ebdae3174595f7", default-features = false }

@@ -3411,7 +3411,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "138.0.0"
+version = "140.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6327,6 +6327,8 @@ dependencies = [
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "impl-trait-for-tuples",
+ "log",
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
@@ -6345,7 +6347,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.0.7"
+version = "1.1.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6356,6 +6358,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-ema-oracle",
  "pallet-liquidity-mining",
  "pallet-omnipool",
  "parity-scale-codec",
@@ -9016,6 +9019,7 @@ dependencies = [
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
+ "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-relaychain-info",
@@ -11732,7 +11736,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "138.0.0"
+version = "140.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
