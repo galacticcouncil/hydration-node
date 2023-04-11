@@ -172,7 +172,6 @@ where
 	Runtime: warehouse_liquidity_mining::Config<LMInstance>
 		+ pallet_ema_oracle::Config
 		+ pallet_omnipool_liquidity_mining::Config,
-	u32: From<<Runtime as warehouse_liquidity_mining::Config<LMInstance>>::AssetId>,
 {
 	type Error = DispatchError;
 	type PriceAdjustment = FixedU128;
