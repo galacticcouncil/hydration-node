@@ -216,6 +216,7 @@ impl pallet_omnipool::Config for Test {
 	type CollectionId = u32;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type OmnipoolHooks = ();
+	type PriceBarrier = ();
 }
 
 pub struct WeightToFee;
@@ -367,7 +368,9 @@ impl AmmTraderMock {
 
 pub struct PriceProviderMock {}
 
-impl PriceOracle<AssetId, Ratio> for PriceProviderMock {
+impl PriceOracle<AssetId> for PriceProviderMock {
+	type Price = Ratio;
+
 	fn price(_: AssetId, _: AssetId, _: OraclePeriod) -> Option<Ratio> {
 		Some(Ratio::new(88, 100))
 	}

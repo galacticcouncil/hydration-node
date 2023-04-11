@@ -63,7 +63,7 @@ use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 
-use common_runtime::adapters::OmnipoolHookAdapter;
+use common_runtime::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter};
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
 
@@ -111,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 138,
+	spec_version: 140,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -825,6 +825,9 @@ parameter_types! {
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
 	pub const OmnipoolCollectionId: CollectionId = 1337u128;
+	pub const EmaOracleSpotPriceLastBlock: OraclePeriod = OraclePeriod::LastBlock;
+	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
+	 pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -849,6 +852,22 @@ impl pallet_omnipool::Config for Runtime {
 	type NFTHandler = Uniques;
 	type WeightInfo = weights::omnipool::HydraWeight<Runtime>;
 	type OmnipoolHooks = OmnipoolHookAdapter<Self::Origin, LRNA, Runtime>;
+	type PriceBarrier = (
+		EnsurePriceWithin<
+			AccountId,
+			AssetId,
+			EmaOraclePriceAdapter<EmaOracleSpotPriceLastBlock, Runtime>,
+			OmnipoolMaxAllowedPriceDifference,
+			CircuitBreakerWhitelist,
+		>,
+		EnsurePriceWithin<
+			AccountId,
+			AssetId,
+			EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>,
+			OmnipoolMaxAllowedPriceDifference,
+			CircuitBreakerWhitelist,
+		>,
+	);
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -872,6 +891,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 
 // constants need to be in scope to use as types
 use pallet_ema_oracle::MAX_PERIODS;
+use pallet_omnipool::traits::EnsurePriceWithin;
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
@@ -928,6 +948,9 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type NFTCollectionId = OmnipoolLMCollectionId;
 	type NFTHandler = Uniques;
 	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	type OracleSource = OmnipoolLMOracleSource;
+	type OraclePeriod = OmnipoolLMOraclePeriod;
+	type PriceOracle = EmaOracle;
 	type WeightInfo = ();
 }
 
@@ -937,7 +960,7 @@ impl pallet_dca::Config for Runtime {
 	type Currency = Currencies;
 	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
 	type RandomnessProvider = DCA;
-	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, Runtime, LRNA>;
+	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, EmaOracle, LRNA>;
 	type SpotPriceProvider = Omnipool;
 	type MaxPriceDifference = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;

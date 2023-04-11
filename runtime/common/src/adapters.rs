@@ -1,17 +1,19 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
-use hydra_dx_math::ema::{round_u256_to_rational, EmaPrice};
+use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
+use hydra_dx_math::support::rational::round_to_rational;
 use hydra_dx_math::support::rational::Rounding;
 use hydradx_traits::oracle::AggregatedPriceOracle;
 use hydradx_traits::{OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_dca::types::AMMTrader;
-use pallet_ema_oracle::OnActivityHandler;
-use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+use pallet_ema_oracle::Price;
+use pallet_ema_oracle::{OnActivityHandler, OracleError};
+use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use primitive_types::U128;
-use primitives::{AssetId, Balance};
+use primitives::{AssetId, Balance, BlockNumber};
 use sp_runtime::traits::Zero;
 use sp_runtime::DispatchError;
 /// Passes on trade and liquidity data from the omnipool to the oracle.
@@ -171,36 +173,65 @@ where
 	}
 }
 
-pub struct OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>(PhantomData<(AssetId, Runtime, Lrna)>);
+/// Passes ema oracle price to the omnipool.
+pub struct EmaOraclePriceAdapter<Period, Runtime>(PhantomData<(Period, Runtime)>);
 
-impl<AssetId, Runtime, Lrna> PriceOracle<AssetId, EmaPrice> for OmnipoolPriceProviderAdapter<AssetId, Runtime, Lrna>
+impl<Period, Runtime> ExternalPriceProvider<AssetId, Price> for EmaOraclePriceAdapter<Period, Runtime>
 where
-	Runtime: pallet_ema_oracle::Config,
+	Period: Get<OraclePeriod>,
+	Runtime: pallet_ema_oracle::Config + pallet_omnipool::Config,
+{
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<Price, Self::Error> {
+		let (price, _) =
+			pallet_ema_oracle::Pallet::<Runtime>::get_price(asset_a, asset_b, Period::get(), OMNIPOOL_SOURCE)
+				.map_err(|_| pallet_omnipool::Error::<Runtime>::PriceDifferenceTooHigh)?;
+		Ok(price)
+	}
+
+	fn get_price_weight() -> Weight {
+		pallet_ema_oracle::Pallet::<Runtime>::get_price_weight()
+	}
+}
+
+pub struct OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>(
+	PhantomData<(AssetId, AggregatedPriceGetter, Lrna)>,
+);
+
+impl<AssetId, AggregatedPriceGetter, Lrna> PriceOracle<AssetId>
+	for OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>
+where
 	u32: From<AssetId>,
+	AggregatedPriceGetter: AggregatedPriceOracle<AssetId, BlockNumber, EmaPrice, Error = OracleError>,
 	Lrna: Get<AssetId>,
 {
-	//TODO: talk with Alex as we need to change the oracle to return one. Otherwise we return one here in the code
+	type Price = EmaPrice;
+
 	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
-		let price_asset_a_lrna = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			asset_a.into(),
-			Lrna::get().into(),
-			period,
-			OMNIPOOL_SOURCE,
-		)
-		.ok()?;
+		let price_asset_a_lrna =
+			AggregatedPriceGetter::get_price(asset_a.into(), Lrna::get().into(), period, OMNIPOOL_SOURCE);
 
-		let price_lrna_asset_b = pallet_ema_oracle::Pallet::<Runtime>::get_price(
-			Lrna::get().into(),
-			asset_b.into(),
-			period,
-			OMNIPOOL_SOURCE,
-		)
-		.ok()?;
+		let price_asset_a_lrna = match price_asset_a_lrna {
+			Ok(price) => price.0,
+			Err(OracleError::SameAsset) => EmaPrice::from(1),
+			Err(_) => return None,
+		};
 
-		let nominator = U128::full_mul(price_asset_a_lrna.0.n.into(), price_lrna_asset_b.0.n.into());
-		let denominator = U128::full_mul(price_asset_a_lrna.0.d.into(), price_lrna_asset_b.0.d.into());
+		let price_lrna_asset_b =
+			AggregatedPriceGetter::get_price(Lrna::get().into(), asset_b.into(), period, OMNIPOOL_SOURCE);
 
-		let price_in_ema_price = round_u256_to_rational((nominator, denominator), Rounding::Nearest);
+		let price_lrna_asset_b = match price_lrna_asset_b {
+			Ok(price) => price.0,
+			Err(OracleError::SameAsset) => EmaPrice::from(1),
+			Err(_) => return None,
+		};
+
+		let nominator = U128::full_mul(price_asset_a_lrna.n.into(), price_lrna_asset_b.n.into());
+		let denominator = U128::full_mul(price_asset_a_lrna.d.into(), price_lrna_asset_b.d.into());
+
+		let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
+		let price_in_ema_price = EmaPrice::new(rational_as_u128.0, rational_as_u128.1);
 
 		Some(price_in_ema_price)
 	}

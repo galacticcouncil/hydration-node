@@ -151,7 +151,7 @@ pub mod pallet {
 		type RandomnessProvider: RandomnessProvider;
 
 		///Oracle price provider to get the price between two assets
-		type OraclePriceProvider: PriceOracle<Self::Asset, EmaPrice>;
+		type OraclePriceProvider: PriceOracle<Self::Asset, Price = EmaPrice>;
 
 		///Spot price provider to get the current price between two asset
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;

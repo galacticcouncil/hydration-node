@@ -262,30 +262,6 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 }
 
 #[allow(dead_code)]
-pub fn hydra_live_ext() -> sp_io::TestExternalities {
-	let ext = tokio::runtime::Builder::new_current_thread()
-		.enable_all()
-		.build()
-		.unwrap()
-		.block_on(async {
-			use remote_externalities::*;
-
-			let path_str = String::from("../scraper/SNAPSHOT");
-
-			let snapshot_config = SnapshotConfig::from(path_str);
-			let offline_config = OfflineConfig {
-				state_snapshot: snapshot_config,
-			};
-			let mode = Mode::Offline(offline_config);
-
-			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
-
-			builder.build().await.unwrap()
-		});
-	ext
-}
-
-#[allow(dead_code)]
 pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 	let blocks =
 		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
@@ -360,7 +336,9 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 	use frame_support::traits::OnInitialize;
 	use hydradx_runtime::{Origin, ParachainSystem};
 
-	polkadot_run_to_block(number); //We need to set block number this way as well because tarpaulin code coverage tool does not like the way how we set the block number with `cumulus-test-relay-sproof-builder` package
+	// We need to set block number this way as well because tarpaulin code coverage tool does not like the way
+	// how we set the block number with `cumulus-test-relay-sproof-builder` package
+	polkadot_run_to_block(number);
 
 	ParachainSystem::on_initialize(number);
 
@@ -383,8 +361,9 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 }
 pub fn polkadot_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
-	while polkadot_runtime::System::block_number() < to {
+	while hydradx_runtime::System::block_number() < to {
 		let b = hydradx_runtime::System::block_number();
+
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 		hydradx_runtime::EmaOracle::on_finalize(b);
@@ -397,7 +376,29 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
 
-		polkadot_runtime::System::set_block_number(b + 1);
 		hydradx_runtime::System::set_block_number(b + 1);
 	}
+}
+
+pub fn hydra_live_ext() -> sp_io::TestExternalities {
+	let ext = tokio::runtime::Builder::new_current_thread()
+		.enable_all()
+		.build()
+		.unwrap()
+		.block_on(async {
+			use remote_externalities::*;
+
+			let path_str = String::from("omnipool-snapshot/SNAPSHOT");
+
+			let snapshot_config = SnapshotConfig::from(path_str);
+			let offline_config = OfflineConfig {
+				state_snapshot: snapshot_config,
+			};
+			let mode = Mode::Offline(offline_config);
+
+			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
+
+			builder.build().await.unwrap()
+		});
+	ext
 }

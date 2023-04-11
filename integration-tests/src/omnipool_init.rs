@@ -2,9 +2,10 @@
 
 use crate::polkadot_test_net::*;
 
-use frame_support::assert_ok;
+use frame_support::{assert_noop, assert_ok};
 
 use orml_traits::currency::MultiCurrency;
+use orml_traits::MultiCurrencyExtended;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
@@ -132,5 +133,106 @@ fn omnipool_launch_init_params_should_be_correct() {
 
 		let paid = charlie_dai_orig - charlie_dai;
 		assert_eq!(paid, expected);
+	});
+}
+
+use polkadot_primitives::v2::BlockNumber;
+
+pub fn hydra_run_to_block(to: BlockNumber) {
+	use frame_support::traits::{OnFinalize, OnInitialize};
+	while hydradx_runtime::System::block_number() < to {
+		let b = hydradx_runtime::System::block_number();
+
+		hydradx_runtime::System::on_finalize(b);
+		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
+		hydradx_runtime::EmaOracle::on_finalize(b);
+
+		hydradx_runtime::System::on_initialize(b + 1);
+		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
+		hydradx_runtime::EmaOracle::on_initialize(b + 1);
+
+		hydradx_runtime::System::set_block_number(b + 1);
+	}
+}
+
+#[test]
+fn add_liquidity_should_fail_when_price_changes() {
+	hydra_live_ext().execute_with(|| {
+		let acc = AccountId::from(ALICE);
+		let eth_precision = 1_000_000_000_000_000_000u128;
+
+		assert_eq!(hydradx_runtime::System::block_number(), 2131225);
+
+		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(ETH, &acc, 1000 * eth_precision as i128)
+			.unwrap();
+		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(DAI, &acc, 115_000 * eth_precision as i128)
+			.unwrap();
+
+		// first do a trade to populate the oracle
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			ETH,
+			DAI,
+			eth_precision,
+			0,
+		));
+
+		hydra_run_to_block(2131226);
+
+		// then do a trade that moves the price
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			ETH,
+			DAI,
+			100 * eth_precision,
+			0,
+		));
+
+		hydra_run_to_block(2131227);
+
+		assert_noop!(
+			hydradx_runtime::Omnipool::add_liquidity(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				DAI,
+				11_500_000_000_000_000_000_000u128,
+			),
+			pallet_omnipool::Error::<hydradx_runtime::Runtime>::PriceDifferenceTooHigh,
+		);
+	});
+}
+
+#[test]
+fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
+	hydra_live_ext().execute_with(|| {
+		let acc = AccountId::from(ALICE);
+		let eth_precision = 1_000_000_000_000_000_000u128;
+
+		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(ETH, &acc, 1000 * eth_precision as i128)
+			.unwrap();
+		orml_tokens::Pallet::<hydradx_runtime::Runtime>::update_balance(DAI, &acc, 115_000 * eth_precision as i128)
+			.unwrap();
+
+		assert_eq!(hydradx_runtime::System::block_number(), 2131225);
+
+		for idx in 1..10 {
+			assert_ok!(hydradx_runtime::Omnipool::sell(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				ETH,
+				DAI,
+				10 * eth_precision,
+				0,
+			));
+
+			hydra_run_to_block(2131225 + idx as u32);
+		}
+
+		assert_noop!(
+			hydradx_runtime::Omnipool::add_liquidity(
+				hydradx_runtime::Origin::signed(ALICE.into()),
+				DAI,
+				11_500_000_000_000_000_000_000u128,
+			),
+			pallet_omnipool::Error::<hydradx_runtime::Runtime>::PriceDifferenceTooHigh,
+		);
 	});
 }
