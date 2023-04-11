@@ -21,6 +21,8 @@ use std::collections::HashMap;
 
 use crate as omnipool_liquidity_mining;
 
+use frame_support::weights::Weight;
+use frame_support::BoundedVec;
 use pallet_omnipool;
 
 use frame_support::traits::{ConstU128, Contains, Everything, GenesisBuild};
@@ -42,7 +44,10 @@ use sp_runtime::{
 
 use warehouse_liquidity_mining::Instance1;
 
-use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::{
+	oracle::{OraclePeriod, Source},
+	pools::DustRemovalAccountWhitelist,
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -106,6 +111,7 @@ construct_runtime!(
 		Tokens: orml_tokens,
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
 		OmnipoolMining: omnipool_liquidity_mining,
+		EmaOracle: pallet_ema_oracle,
 	}
 );
 
@@ -156,6 +162,8 @@ impl frame_system::Config for Test {
 parameter_types! {
 	pub const LMPalletId: PalletId = PalletId(*b"TEST_lm_");
 	pub const LMCollectionId: CollectionId = LM_COLLECTION_ID;
+	pub const PeriodOracle: OraclePeriod= OraclePeriod::Day;
+	pub const OracleSource: Source = *b"omnipool";
 }
 
 impl Config for Test {
@@ -166,6 +174,9 @@ impl Config for Test {
 	type NFTCollectionId = LMCollectionId;
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = WarehouseLM;
+	type OracleSource = OracleSource;
+	type OraclePeriod = PeriodOracle;
+	type PriceOracle = DummyOracle;
 	type WeightInfo = ();
 }
 
@@ -223,6 +234,20 @@ impl orml_tokens::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
 	type CurrencyHooks = ();
+}
+
+//NOTE: oracle is not used in the unit tests. It's here to satify benchmarks bounds.
+use pallet_ema_oracle::MAX_PERIODS;
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+}
+impl pallet_ema_oracle::Config for Test {
+	type Event = Event;
+	type WeightInfo = ();
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type SupportedPeriods = SupportedPeriods;
+	type MaxUniqueEntries = ConstU32<20>;
 }
 
 parameter_types! {
@@ -540,9 +565,6 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
-use frame_support::weights::Weight;
-use hydra_dx_math::ema::EmaPrice;
-
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -607,7 +629,6 @@ impl Transfer<AccountId> for DummyNFT {
 }
 
 use hydradx_traits::Registry;
-use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
@@ -636,6 +657,44 @@ where
 			l as u32
 		});
 		Ok(T::AssetId::from(assigned))
+	}
+}
+
+use hydradx_traits::oracle::AggregatedPriceOracle;
+
+pub struct DummyOracle;
+pub type OraclePrice = hydra_dx_math::ema::EmaPrice;
+impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
+	type Error = OracleError;
+
+	fn get_price(
+		_asset_a: AssetId,
+		asset_b: AssetId,
+		_period: OraclePeriod,
+		_source: Source,
+	) -> Result<(OraclePrice, BlockNumber), Self::Error> {
+		match asset_b {
+			KSM => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
+			//Tokens used in benchmarks
+			1_000_001..=1_000_003 => Ok((
+				OraclePrice {
+					n: 1_000_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
+			_ => Err(OracleError::NotPresent),
+		}
+	}
+
+	fn get_price_weight() -> Weight {
+		Weight::zero()
 	}
 }
 

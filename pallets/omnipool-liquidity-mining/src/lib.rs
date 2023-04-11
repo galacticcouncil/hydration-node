@@ -55,8 +55,13 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId};
+use hydra_dx_math::ema::EmaPrice as Price;
+use hydradx_traits::{
+	liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId},
+	oracle::{AggregatedPriceOracle, OraclePeriod, Source},
+};
 use orml_traits::MultiCurrency;
+use pallet_ema_oracle::OracleError;
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
 use primitive_types::U256;
@@ -134,6 +139,17 @@ pub mod pallet {
 			LoyaltyCurve = LoyaltyCurve,
 			Period = PeriodOf<Self>,
 		>;
+
+		/// Identifier of oracle data soruce
+		#[pallet::constant]
+		type OracleSource: Get<Source>;
+
+		/// Oracle's price aggregation period.
+		#[pallet::constant]
+		type OraclePeriod: Get<OraclePeriod>;
+
+		/// Oracle providing price of LRNA/{Asset} used to calculate `valued_shares`.
+		type PriceOracle: AggregatedPriceOracle<Self::AssetId, BlockNumberFor<Self>, Price, Error = OracleError>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -278,6 +294,9 @@ pub mod pallet {
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),
+
+		/// Oracle could not be found for requested assets.
+		OracleNotAvailable,
 	}
 
 	//NOTE: these errors should never happen.
@@ -671,7 +690,7 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event when successful.
 		///
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
 		pub fn deposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -732,7 +751,7 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event when successful.
 		///
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
 		pub fn redeposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -939,12 +958,20 @@ impl<T: Config> Pallet<T> {
 	fn get_position_value_in_hub_asset(
 		lp_position: &OmniPosition<Balance, T::AssetId>,
 	) -> Result<Balance, DispatchError> {
-		let state = OmnipoolPallet::<T>::load_asset_state(lp_position.asset_id)?;
+		let hub_asset_id = <T as pallet_omnipool::Config>::HubAssetId::get();
 
-		let position_value: u128 = U256::from(state.hub_reserve)
-			.checked_mul(lp_position.amount.into())
+		let (price, _) = T::PriceOracle::get_price(
+			hub_asset_id,
+			lp_position.asset_id,
+			T::OraclePeriod::get(),
+			T::OracleSource::get(),
+		)
+		.map_err(|_| Error::<T>::OracleNotAvailable)?;
+
+		let position_value: u128 = U256::from(lp_position.amount)
+			.checked_mul(price.n.into())
 			.ok_or(ArithmeticError::Overflow)?
-			.checked_div(state.reserve.into())
+			.checked_div(price.d.into())
 			.ok_or(ArithmeticError::DivisionByZero)?
 			.try_into()
 			.map_err(|_| ArithmeticError::Overflow)?;

@@ -1,9 +1,6 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use common_runtime::BlockNumber;
-use frame_support::traits::OnFinalize;
-use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, OmnipoolCollectionId, Tokens, Uniques};
@@ -94,8 +91,6 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			));
 		}
 
-		set_relaychain_block_number(300);
-
 		//Act and assert
 		assert_noop!(
 			Omnipool::sell(
@@ -137,8 +132,6 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 				min_limit
 			));
 		}
-
-		set_relaychain_block_number(300);
 
 		//Act and assert
 		assert_noop!(
@@ -195,7 +188,8 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				LRNA,
-				buy_amount + 1,
+				//NOTE: 3 - because rounding error in buy_amount calculation.
+				buy_amount + 3,
 				Balance::MAX
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenOutflowLimitReached
