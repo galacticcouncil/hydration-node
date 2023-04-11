@@ -193,7 +193,7 @@ fn add_liquidity_should_fail_when_prices_differ_and_is_higher() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});
@@ -211,7 +211,7 @@ fn add_liquidity_should_fail_when_prices_differ_and_is_lower() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE),
+				Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});

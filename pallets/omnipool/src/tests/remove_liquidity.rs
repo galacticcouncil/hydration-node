@@ -449,14 +449,14 @@ fn remove_liquidity_should_when_prices_differ_and_is_higher() {
 		.build()
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE));
 
 			EXT_PRICE_ADJUSTMENT.with(|v| {
 				*v.borrow_mut() = (3, 100, false);
 			});
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 200 * ONE,),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), current_position_id, 200 * ONE,),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});
@@ -476,14 +476,14 @@ fn remove_liquidity_should_when_prices_differ_and_is_lower() {
 		.build()
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE));
 
 			EXT_PRICE_ADJUSTMENT.with(|v| {
 				*v.borrow_mut() = (3, 100, true);
 			});
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 200 * ONE,),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), current_position_id, 200 * ONE,),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});

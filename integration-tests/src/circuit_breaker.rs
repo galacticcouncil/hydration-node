@@ -604,7 +604,7 @@ fn do_trading_activity_to_populate_oracle() {
 	assert_ok!(Tokens::set_balance(RawOrigin::Root.into(), BOB.into(), DAI, UNITS, 0,));
 
 	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(BOB.into()),
+		hydradx_runtime::RuntimeOrigin::signed(BOB.into()),
 		DAI,
 		CORE_ASSET_ID,
 		UNITS,

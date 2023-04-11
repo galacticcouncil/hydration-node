@@ -259,30 +259,6 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 }
 
 #[allow(dead_code)]
-pub fn hydra_live_ext() -> sp_io::TestExternalities {
-	let ext = tokio::runtime::Builder::new_current_thread()
-		.enable_all()
-		.build()
-		.unwrap()
-		.block_on(async {
-			use frame_remote_externalities::*;
-
-			let path_str = String::from("../scraper/SNAPSHOT");
-
-			let snapshot_config = SnapshotConfig::from(path_str);
-			let offline_config = OfflineConfig {
-				state_snapshot: snapshot_config,
-			};
-			let mode = Mode::Offline(offline_config);
-
-			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
-
-			builder.build().await.unwrap()
-		});
-	ext.inner_ext
-}
-
-#[allow(dead_code)]
 pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 	let blocks =
 		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
@@ -408,7 +384,7 @@ pub fn hydra_live_ext() -> sp_io::TestExternalities {
 		.build()
 		.unwrap()
 		.block_on(async {
-			use remote_externalities::*;
+			use frame_remote_externalities::*;
 
 			let path_str = String::from("omnipool-snapshot/SNAPSHOT");
 
@@ -422,5 +398,5 @@ pub fn hydra_live_ext() -> sp_io::TestExternalities {
 
 			builder.build().await.unwrap()
 		});
-	ext
+	ext.inner_ext
 }

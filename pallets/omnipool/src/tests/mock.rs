@@ -554,7 +554,7 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 pub(super) fn round_to_rational((n, d): (U256, U256), rounding: Rounding) -> EmaPrice {
 	let shift = n.bits().max(d.bits()).saturating_sub(128);
 	let (n, d) = if shift > 0 {
-		let min_n = if n.is_zero() { 0 } else { 1 };
+		let min_n = u128::from(!n.is_zero());
 		let (bias_n, bias_d) = rounding.to_bias(1);
 		let shifted_n = (n >> shift).low_u128();
 		let shifted_d = (d >> shift).low_u128();

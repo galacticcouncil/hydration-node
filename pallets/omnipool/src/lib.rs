@@ -205,7 +205,7 @@ pub mod pallet {
 		/// Hooks are actions executed on add_liquidity, sell or buy.
 		type OmnipoolHooks: OmnipoolHooks<Self::RuntimeOrigin, Self::AssetId, Balance, Error = DispatchError>;
 
-		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, hydra_dx_math::ema::EmaPrice>;
+		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, EmaPrice>;
 	}
 
 	#[pallet::storage]

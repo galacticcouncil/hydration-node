@@ -659,7 +659,7 @@ fn position_should_be_valued_correctly_when_oracle_is_used() {
 		set_relaychain_block_number(300);
 
 		assert_ok!(hydradx_runtime::Currencies::update_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			CHARLIE.into(),
 			ETH,
 			10_000 * UNITS as i128,
@@ -682,7 +682,7 @@ fn position_should_be_valued_correctly_when_oracle_is_used() {
 
 		let deposit_id = 1;
 		assert_ok!(hydradx_runtime::OmnipoolLiquidityMining::deposit_shares(
-			Origin::signed(CHARLIE.into()),
+			RuntimeOrigin::signed(CHARLIE.into()),
 			global_farm_id,
 			yield_farm_id,
 			position_id

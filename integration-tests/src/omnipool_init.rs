@@ -170,7 +170,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 
 		// first do a trade to populate the oracle
 		assert_ok!(hydradx_runtime::Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			ETH,
 			DAI,
 			eth_precision,
@@ -181,7 +181,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 
 		// then do a trade that moves the price
 		assert_ok!(hydradx_runtime::Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			ETH,
 			DAI,
 			100 * eth_precision,
@@ -192,7 +192,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 
 		assert_noop!(
 			hydradx_runtime::Omnipool::add_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				11_500_000_000_000_000_000_000u128,
 			),
@@ -216,7 +216,7 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 
 		for idx in 1..10 {
 			assert_ok!(hydradx_runtime::Omnipool::sell(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				ETH,
 				DAI,
 				10 * eth_precision,
@@ -228,7 +228,7 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 
 		assert_noop!(
 			hydradx_runtime::Omnipool::add_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				11_500_000_000_000_000_000_000u128,
 			),
