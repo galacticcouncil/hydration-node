@@ -235,6 +235,7 @@ benchmarks! {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
 		let yield_per_period = Perquintill::from_percent(20);
 		let min_deposit = 1_000;
+		let price_adjustment = FixedU128::from(10_u128);
 
 	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit)
 
@@ -481,7 +482,6 @@ benchmarks! {
 		crate::Pallet::<T>::redeposit_shares(RawOrigin::Signed(lp1.clone()).into(), 9, 10, deposit_id)?;
 
 		set_period::<T>(400);
-
 
 	}: _(RawOrigin::Signed(lp1), deposit_id, 10)
 
