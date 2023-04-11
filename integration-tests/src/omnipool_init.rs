@@ -173,7 +173,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 			hydradx_runtime::Origin::signed(ALICE.into()),
 			ETH,
 			DAI,
-			1 * eth_precision,
+			eth_precision,
 			0,
 		));
 
