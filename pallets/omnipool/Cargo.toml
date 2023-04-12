@@ -29,7 +29,7 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "a6085a6e0b435607403e0ff890fc61fab796fb46", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "1db22924b0c08953f5ba466721704deb983136ba", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "bcb75f1c2b4f1d859ff133ca663539c59d1ed910", default-features = false }
 
