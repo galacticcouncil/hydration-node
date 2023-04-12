@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.2.0"
+version = "102.3.0"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -5814,7 +5814,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6319,7 +6319,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.6.8"
+version = "1.6.9"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6347,7 +6347,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -8977,7 +8977,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
