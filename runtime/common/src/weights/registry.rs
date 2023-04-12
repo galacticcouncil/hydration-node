@@ -51,22 +51,22 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	fn register() -> Weight {
-		(49_292_000 as Weight)
+		Weight::from_ref_time(49_292_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
 	fn update() -> Weight {
-		(37_980_000 as Weight)
+		Weight::from_ref_time(37_980_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	fn set_metadata() -> Weight {
-		(30_433_000 as Weight)
+		Weight::from_ref_time(30_433_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn set_location() -> Weight {
-		(32_675_000 as Weight)
+		Weight::from_ref_time(32_675_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
