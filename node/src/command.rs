@@ -50,6 +50,7 @@ fn load_spec(id: &str, is_testing: bool) -> std::result::Result<Box<dyn sc_servi
 			"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 			"staging" => Box::new(chain_spec::staging::parachain_config()?),
 			"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
+			"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
@@ -110,6 +111,7 @@ impl SubstrateCli for Cli {
 				"local" | "dev" => Box::new(chain_spec::local::parachain_config()?),
 				"staging" => Box::new(chain_spec::staging::parachain_config()?),
 				"rococo" => Box::new(chain_spec::rococo::parachain_config()?),
+				"moonbase" => Box::new(chain_spec::moonbase::parachain_config()?),
 				path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 			})
 		}

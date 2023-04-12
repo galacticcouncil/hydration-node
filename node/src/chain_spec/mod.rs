@@ -21,6 +21,7 @@
 
 pub mod hydradx;
 pub mod local;
+pub mod moonbase;
 pub mod rococo;
 pub mod staging;
 
