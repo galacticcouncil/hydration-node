@@ -171,7 +171,7 @@ parameter_types! {
 
 pub struct FeeProvider;
 
-impl GetByKey<AssetId, (Permill,Permill)> for FeeProvider {
+impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
 	fn get(_: &AssetId) -> (Permill, Permill) {
 		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
 	}
