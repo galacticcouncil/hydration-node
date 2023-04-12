@@ -26,14 +26,15 @@ use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
 use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
 use hydradx_traits::oracle::{OraclePeriod, Source};
+use pallet_dynamic_fees::types::FeeParams;
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
-	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
-	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
+	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, One, Verify, Zero},
+	FixedPointNumber, FixedU128, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 
@@ -357,4 +358,21 @@ parameter_types! {
 	pub const OmnipoolLMCollectionId: CollectionId = 2584_u128;
 	pub const OmnipoolLMOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const OmnipoolLMOracleSource: Source = OMNIPOOL_SOURCE;
+}
+
+// Dynamic fees
+parameter_types! {
+	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
+		min_fee: Permill::from_rational(25u32,10000u32),
+		max_fee: Permill::from_percent(40),
+		decay: FixedU128::zero(),
+		amplification: FixedU128::one(),
+	};
+
+	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
+		min_fee: Permill::from_rational(5u32,10000u32),
+		max_fee: Permill::from_percent(40),
+		decay: FixedU128::zero(),
+		amplification: FixedU128::one(),
+	};
 }

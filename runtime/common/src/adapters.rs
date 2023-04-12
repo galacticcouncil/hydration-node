@@ -2,8 +2,8 @@ use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use hydradx_traits::AggregatedPriceOracle;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
+use hydradx_traits::{AggregatedOracle, AggregatedPriceOracle};
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::OnActivityHandler;
 use pallet_ema_oracle::Price;
@@ -186,5 +186,44 @@ where
 		.map_err(|_| pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
 
 		FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow.into())
+	}
+}
+
+// Dynamic fees volume adapter
+pub struct OracleVolume(Balance, Balance);
+
+impl pallet_dynamic_fees::traits::Volume<Balance> for OracleVolume {
+	fn amount_in(&self) -> Balance {
+		self.0
+	}
+
+	fn amount_out(&self) -> Balance {
+		self.1
+	}
+}
+
+pub struct OracleAssetVolumeProvider<Runtime, Lrna, Period>(PhantomData<(Runtime, Lrna, Period)>);
+
+impl<Runtime, Lrna, Period> pallet_dynamic_fees::traits::VolumeProvider<AssetId, Balance>
+	for OracleAssetVolumeProvider<Runtime, Lrna, Period>
+where
+	Runtime: pallet_ema_oracle::Config,
+	Lrna: Get<AssetId>,
+	Period: Get<OraclePeriod>,
+{
+	type Volume = OracleVolume;
+
+	fn asset_volume(asset_id: AssetId) -> Option<Self::Volume> {
+		let entry =
+			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
+				.ok()?;
+		Some(OracleVolume(entry.volume.a_in, entry.volume.a_out))
+	}
+
+	fn asset_liquidity(asset_id: AssetId) -> Option<Balance> {
+		let entry =
+			pallet_ema_oracle::Pallet::<Runtime>::get_entry(asset_id, Lrna::get(), Period::get(), OMNIPOOL_SOURCE)
+				.ok()?;
+		Some(entry.liquidity.a)
 	}
 }

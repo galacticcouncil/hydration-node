@@ -53,7 +53,7 @@ use frame_support::{
 	},
 	BoundedVec,
 };
-use hydradx_traits::OraclePeriod;
+use hydradx_traits::{OraclePeriod};
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::{CollectionId, ItemId};
@@ -838,8 +838,7 @@ impl pallet_omnipool::Config for Runtime {
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type StableCoinAssetId = StableAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
+	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
@@ -967,6 +966,20 @@ impl pallet_otc::Config for Runtime {
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const DynamicFeesOraclePeriod: OraclePeriod = OraclePeriod::LastBlock;
+}
+
+impl pallet_dynamic_fees::Config for Runtime {
+	type Event = Event;
+	type BlockNumberProvider = System;
+	type Fee = Permill;
+	type AssetId = AssetId;
+	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod >;
+	type AssetFeeParameters = AssetFeeParams;
+	type ProtocolFeeParameters = ProtocolFeeParams;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1004,6 +1017,7 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
+		DynamicFees: pallet_dynamic_fees = 66,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
