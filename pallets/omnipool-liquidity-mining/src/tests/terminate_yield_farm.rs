@@ -39,7 +39,6 @@ fn terminate_yield_farm_should_work() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None)
 		.build()
@@ -97,7 +96,6 @@ fn terminate_yield_farm_should_fail_when_origin_is_none() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None)
 		.build()
