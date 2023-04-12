@@ -169,6 +169,14 @@ parameter_types! {
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
 }
 
+pub struct FeeProvider;
+
+impl GetByKey<AssetId, (Permill,Permill)> for FeeProvider {
+	fn get(_: &AssetId) -> (Permill, Permill) {
+		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
 	type AssetId = AssetId;
@@ -176,8 +184,6 @@ impl Config for Test {
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -195,6 +201,7 @@ impl Config for Test {
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
+	type Fee = FeeProvider;
 }
 
 pub struct ExtBuilder {
