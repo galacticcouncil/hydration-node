@@ -28,6 +28,7 @@ pallet-duster = { git = "https://github.com/galacticcouncil/warehouse",rev = "07
 pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse",rev = "070a34512258c7dad2e5edd7fd9830a06060c9b6", default-features = false}
 warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "070a34512258c7dad2e5edd7fd9830a06060c9b6", default-features = false }
 pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "070a34512258c7dad2e5edd7fd9830a06060c9b6", default-features = false}
+pallet-dynamic-fees = { git = "https://github.com/galacticcouncil/warehouse", rev = "070a34512258c7dad2e5edd7fd9830a06060c9b6", default-features = false}
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
@@ -173,4 +174,5 @@ std = [
     "pallet-collator-selection/std",
     "pallet-authorship/std",
     "hydradx-traits/std",
+    "pallet-dynamic-fees/std",
 ]
