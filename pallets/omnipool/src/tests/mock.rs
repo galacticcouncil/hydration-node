@@ -167,6 +167,7 @@ parameter_types! {
 	pub const TVLCap: Balance = Balance::MAX;
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
+	pub MinWithdrawFee: Permill = Permill::from_percent(0);
 }
 
 impl Config for Test {
@@ -195,6 +196,8 @@ impl Config for Test {
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
+	type MinWithdrawFee = MinWithdrawFee;
+	type PriceOracle = ZeroPriceOracle;
 }
 
 pub struct ExtBuilder {
@@ -545,6 +548,20 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 		});
 
 		Ok(adjusted_price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
+}
+
+pub struct ZeroPriceOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for ZeroPriceOracle {
+	type Error = DispatchError;
+
+	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		Ok(EmaPrice::zero())
 	}
 
 	fn get_price_weight() -> Weight {
