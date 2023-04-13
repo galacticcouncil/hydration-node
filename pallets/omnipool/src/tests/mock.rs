@@ -190,8 +190,8 @@ impl Config for Test {
 	type CollectionId = u32;
 	type OmnipoolHooks = ();
 	type PriceBarrier = (
-		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff>,
-		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
+		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
 }
 
