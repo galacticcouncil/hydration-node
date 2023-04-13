@@ -43,7 +43,7 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 hydradx-traits =  { git = "https://github.com/galacticcouncil/warehouse", rev = "a6085a6e0b435607403e0ff890fc61fab796fb46", default-features = false }
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "6464c62fd1118e9566bdbb3910833f123efee02d", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "af66eb2af12ab512fd9e8354fac79426e2cdab2a", default-features = false }
 
 pallet-claims = { path = '../../pallets/claims', default-features = false }
 pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "a6085a6e0b435607403e0ff890fc61fab796fb46", default-features = false}

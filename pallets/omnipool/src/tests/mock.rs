@@ -560,8 +560,10 @@ pub struct ZeroPriceOracle;
 impl ExternalPriceProvider<AssetId, EmaPrice> for ZeroPriceOracle {
 	type Error = DispatchError;
 
-	fn get_price(_asset_a: AssetId, _asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
-		Ok(EmaPrice::zero())
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		let asset_state = Omnipool::load_asset_state(asset_a)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+		Ok(price)
 	}
 
 	fn get_price_weight() -> Weight {

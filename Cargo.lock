@@ -3316,7 +3316,7 @@ dependencies = [
 [[package]]
 name = "hydra-dx-math"
 version = "7.0.0"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=6464c62fd1118e9566bdbb3910833f123efee02d#6464c62fd1118e9566bdbb3910833f123efee02d"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=af66eb2af12ab512fd9e8354fac79426e2cdab2a#af66eb2af12ab512fd9e8354fac79426e2cdab2a"
 dependencies = [
  "fixed",
  "num-traits",
@@ -6369,7 +6369,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "hydra-dx-math 6.0.0",
+ "hydra-dx-math 7.0.0",
  "hydradx-traits",
  "orml-tokens",
  "orml-traits",
