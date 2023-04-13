@@ -196,7 +196,7 @@ impl Config for Test {
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
-	type MinWithdrawFee = MinWithdrawFee;
+	type MinWithdrawalFee = MinWithdrawFee;
 	type PriceOracle = ZeroPriceOracle;
 }
 
@@ -561,7 +561,8 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for ZeroPriceOracle {
 	type Error = DispatchError;
 
 	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
-		let asset_state = Omnipool::load_asset_state(asset_a)?;
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
 		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
 		Ok(price)
 	}

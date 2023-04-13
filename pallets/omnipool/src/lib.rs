@@ -170,7 +170,7 @@ pub mod pallet {
 
 		/// Minimum withdrawal fee
 		#[pallet::constant]
-		type MinWithdrawFee: Get<Permill>;
+		type MinWithdrawalFee: Get<Permill>;
 
 		/// Minimum trading limit
 		#[pallet::constant]
@@ -377,6 +377,8 @@ pub mod pallet {
 		MaxInRatioExceeded,
 		/// Max allowed price difference has been exceeded.
 		PriceDifferenceTooHigh,
+		/// Invalid oracle price - division by zero.
+		InvalidOraclePrice,
 	}
 
 	#[pallet::call]
@@ -821,12 +823,11 @@ pub mod pallet {
 			let current_hub_asset_liquidity =
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
-			let ext_asset_price = T::PriceOracle::get_price(asset_id, T::HubAssetId::get())?;
+			let ext_asset_price = T::PriceOracle::get_price(T::HubAssetId::get(), asset_id)?;
 
 			//
 			// calculate state changes of remove liquidity
 			//
-
 			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
@@ -837,8 +838,8 @@ pub mod pallet {
 				},
 				current_hub_asset_liquidity,
 				FixedU128::checked_from_rational(ext_asset_price.n, ext_asset_price.d)
-					.ok_or(Error::<T>::PriceDifferenceTooHigh)?,
-				T::MinWithdrawFee::get(),
+					.ok_or(Error::<T>::InvalidOraclePrice)?,
+				T::MinWithdrawalFee::get(),
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
