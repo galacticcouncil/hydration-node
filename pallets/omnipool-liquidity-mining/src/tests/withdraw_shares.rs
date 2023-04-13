@@ -41,7 +41,6 @@ fn withdraw_shares_should_unlock_omnipool_position_when_last_entry_in_deposit() 
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None) //id: 2
 		.build()
@@ -74,7 +73,7 @@ fn withdraw_shares_should_unlock_omnipool_position_when_last_entry_in_deposit() 
 					global_farm_id,
 					yield_farm_id,
 					who: LP1,
-					claimed: 194_805_000_000_u128,
+					claimed: 97_402_500_000_u128,
 					reward_currency: HDX,
 					deposit_id
 				}
@@ -133,7 +132,6 @@ fn withdraw_shares_should_not_unlock_omnipool_position_when_deposit_is_not_burne
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_global_farm(
 			//id: 2
@@ -144,7 +142,6 @@ fn withdraw_shares_should_not_unlock_omnipool_position_when_deposit_is_not_burne
 			CHARLIE,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None) //id: 3
 		.with_yield_farm(CHARLIE, 2, KSM, FixedU128::one(), None) //id: 4
@@ -234,7 +231,6 @@ fn withdraw_shares_should_fail_when_origin_is_none() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None) //id: 2
 		.build()
@@ -286,7 +282,6 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_account_is_not_owner(
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None) //id: 2
 		.build()
@@ -338,7 +333,6 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_nft_is_missing() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
-			One::one(),
 		)
 		.with_yield_farm(GC, 1, KSM, FixedU128::one(), None) //id: 2
 		.build()

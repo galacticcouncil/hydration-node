@@ -38,6 +38,5 @@ pub mod resume_yield_farm;
 pub mod stop_yield_farm;
 pub mod terminate_global_farm;
 pub mod terminate_yield_farm;
-pub mod update_global_farm;
 pub mod update_yield_farm;
 pub mod withdraw_shares;

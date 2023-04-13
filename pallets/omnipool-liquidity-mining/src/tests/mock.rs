@@ -23,6 +23,7 @@ use crate as omnipool_liquidity_mining;
 
 use frame_support::weights::Weight;
 use frame_support::BoundedVec;
+use hydradx_traits::liquidity_mining::PriceAdjustment;
 use pallet_omnipool;
 
 use frame_support::traits::{ConstU128, Contains, Everything, GenesisBuild};
@@ -36,13 +37,14 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::GetByKey;
 use pallet_liquidity_mining as warehouse_liquidity_mining;
 use sp_core::H256;
+use sp_runtime::FixedU128;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
 	Permill,
 };
 
-use warehouse_liquidity_mining::Instance1;
+use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
 
 use hydradx_traits::{
 	oracle::{OraclePeriod, Source},
@@ -201,6 +203,7 @@ impl warehouse_liquidity_mining::Config<Instance1> for Test {
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = DummyRegistry<Test>;
 	type NonDustableWhitelistHandler = Whitelist;
+	type PriceAdjustment = DummyOracle;
 	type Event = Event;
 }
 
@@ -315,7 +318,6 @@ pub struct ExtBuilder {
 		AccountId,
 		Perquintill,
 		Balance,
-		FixedU128,
 	)>,
 	lm_yield_farms: Vec<(AccountId, GlobalFarmId, AssetId, FarmMultiplier, Option<LoyaltyCurve>)>,
 }
@@ -421,7 +423,6 @@ impl ExtBuilder {
 		owner: AccountId,
 		yield_per_period: Perquintill,
 		min_deposit: Balance,
-		price_adjustment: FixedU128,
 	) -> Self {
 		self.lm_global_farms.push((
 			total_rewards,
@@ -431,7 +432,6 @@ impl ExtBuilder {
 			owner,
 			yield_per_period,
 			min_deposit,
-			price_adjustment,
 		));
 		self
 	}
@@ -546,7 +546,6 @@ impl ExtBuilder {
 						gf.4,
 						gf.5,
 						gf.6,
-						gf.7
 					));
 				}
 
@@ -697,6 +696,16 @@ impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
 
 	fn get_price_weight() -> Weight {
 		Weight::zero()
+	}
+}
+
+impl PriceAdjustment<GlobalFarmData<Test, Instance1>> for DummyOracle {
+	type Error = DispatchError;
+
+	type PriceAdjustment = FixedU128;
+
+	fn get(_global_farm: &GlobalFarmData<Test, Instance1>) -> Result<Self::PriceAdjustment, Self::Error> {
+		Ok(FixedU128::from_inner(500_000_000_000_000_000)) //0.5
 	}
 }
 

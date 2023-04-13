@@ -937,6 +937,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
 	type Event = Event;
+	type PriceAdjustment = adapters::PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
 }
 
 impl pallet_omnipool_liquidity_mining::Config for Runtime {
