@@ -21,6 +21,9 @@ use std::collections::HashMap;
 
 use crate as omnipool_liquidity_mining;
 
+use frame_support::weights::Weight;
+use frame_support::BoundedVec;
+use hydradx_traits::liquidity_mining::PriceAdjustment;
 use pallet_omnipool;
 
 use frame_support::traits::{ConstU128, Contains, Everything, GenesisBuild};
@@ -34,15 +37,19 @@ use orml_traits::parameter_type_with_key;
 use orml_traits::GetByKey;
 use pallet_liquidity_mining as warehouse_liquidity_mining;
 use sp_core::H256;
+use sp_runtime::FixedU128;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
 	Permill,
 };
 
-use warehouse_liquidity_mining::Instance1;
+use warehouse_liquidity_mining::{GlobalFarmData, Instance1};
 
-use hydradx_traits::pools::DustRemovalAccountWhitelist;
+use hydradx_traits::{
+	oracle::{OraclePeriod, Source},
+	pools::DustRemovalAccountWhitelist,
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -106,6 +113,7 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Event<T>},
 		WarehouseLM: warehouse_liquidity_mining::<Instance1>::{Pallet, Storage, Event<T>},
 		OmnipoolMining: omnipool_liquidity_mining::{Pallet, Call, Storage, Event<T>},
+		EmaOracle: pallet_ema_oracle::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -156,6 +164,8 @@ impl frame_system::Config for Test {
 parameter_types! {
 	pub const LMPalletId: PalletId = PalletId(*b"TEST_lm_");
 	pub const LMCollectionId: CollectionId = LM_COLLECTION_ID;
+	pub const PeriodOracle: OraclePeriod= OraclePeriod::Day;
+	pub const OracleSource: Source = *b"omnipool";
 }
 
 impl Config for Test {
@@ -166,6 +176,9 @@ impl Config for Test {
 	type NFTCollectionId = LMCollectionId;
 	type NFTHandler = DummyNFT;
 	type LiquidityMiningHandler = WarehouseLM;
+	type OracleSource = OracleSource;
+	type OraclePeriod = PeriodOracle;
+	type PriceOracle = DummyOracle;
 	type WeightInfo = ();
 }
 
@@ -190,6 +203,7 @@ impl warehouse_liquidity_mining::Config<Instance1> for Test {
 	type MaxYieldFarmsPerGlobalFarm = MaxYieldFarmsPerGlobalFarm;
 	type AssetRegistry = DummyRegistry<Test>;
 	type NonDustableWhitelistHandler = Whitelist;
+	type PriceAdjustment = DummyOracle;
 	type Event = Event;
 }
 
@@ -225,6 +239,20 @@ impl orml_tokens::Config for Test {
 	type OnKilledTokenAccount = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+}
+
+//NOTE: oracle is not used in the unit tests. It's here to satify benchmarks bounds.
+use pallet_ema_oracle::MAX_PERIODS;
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+}
+impl pallet_ema_oracle::Config for Test {
+	type Event = Event;
+	type WeightInfo = ();
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type SupportedPeriods = SupportedPeriods;
+	type MaxUniqueEntries = ConstU32<20>;
 }
 
 parameter_types! {
@@ -264,6 +292,7 @@ impl pallet_omnipool::Config for Test {
 	type MaxOutRatio = MaxOutRatio;
 	type CollectionId = u128;
 	type OmnipoolHooks = ();
+	type PriceBarrier = ();
 }
 
 pub struct ExtBuilder {
@@ -289,7 +318,6 @@ pub struct ExtBuilder {
 		AccountId,
 		Perquintill,
 		Balance,
-		FixedU128,
 	)>,
 	lm_yield_farms: Vec<(AccountId, GlobalFarmId, AssetId, FarmMultiplier, Option<LoyaltyCurve>)>,
 }
@@ -395,7 +423,6 @@ impl ExtBuilder {
 		owner: AccountId,
 		yield_per_period: Perquintill,
 		min_deposit: Balance,
-		price_adjustment: FixedU128,
 	) -> Self {
 		self.lm_global_farms.push((
 			total_rewards,
@@ -405,7 +432,6 @@ impl ExtBuilder {
 			owner,
 			yield_per_period,
 			min_deposit,
-			price_adjustment,
 		));
 		self
 	}
@@ -520,7 +546,6 @@ impl ExtBuilder {
 						gf.4,
 						gf.5,
 						gf.6,
-						gf.7
 					));
 				}
 
@@ -633,6 +658,54 @@ where
 			l as u32
 		});
 		Ok(T::AssetId::from(assigned))
+	}
+}
+
+use hydradx_traits::oracle::AggregatedPriceOracle;
+
+pub struct DummyOracle;
+pub type OraclePrice = hydra_dx_math::ema::EmaPrice;
+impl AggregatedPriceOracle<AssetId, BlockNumber, OraclePrice> for DummyOracle {
+	type Error = OracleError;
+
+	fn get_price(
+		_asset_a: AssetId,
+		asset_b: AssetId,
+		_period: OraclePeriod,
+		_source: Source,
+	) -> Result<(OraclePrice, BlockNumber), Self::Error> {
+		match asset_b {
+			KSM => Ok((
+				OraclePrice {
+					n: 650_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
+			//Tokens used in benchmarks
+			1_000_001..=1_000_003 => Ok((
+				OraclePrice {
+					n: 1_000_000_000_000_000_000,
+					d: 1_000_000_000_000_000_000,
+				},
+				0,
+			)),
+			_ => Err(OracleError::NotPresent),
+		}
+	}
+
+	fn get_price_weight() -> Weight {
+		Weight::zero()
+	}
+}
+
+impl PriceAdjustment<GlobalFarmData<Test, Instance1>> for DummyOracle {
+	type Error = DispatchError;
+
+	type PriceAdjustment = FixedU128;
+
+	fn get(_global_farm: &GlobalFarmData<Test, Instance1>) -> Result<Self::PriceAdjustment, Self::Error> {
+		Ok(FixedU128::from_inner(500_000_000_000_000_000)) //0.5
 	}
 }
 

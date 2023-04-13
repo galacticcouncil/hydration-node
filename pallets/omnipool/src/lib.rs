@@ -108,11 +108,12 @@ pub type NFTCollectionIdOf<T> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{AssetInfo, OmnipoolHooks};
+	use crate::traits::{AssetInfo, OmnipoolHooks, ShouldAllow};
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
 	use sp_runtime::ArithmeticError;
 
@@ -203,6 +204,8 @@ pub mod pallet {
 
 		/// Hooks are actions executed on add_liquidity, sell or buy.
 		type OmnipoolHooks: OmnipoolHooks<Self::Origin, Self::AssetId, Balance, Error = DispatchError>;
+
+		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, hydra_dx_math::ema::EmaPrice>;
 	}
 
 	#[pallet::storage]
@@ -366,6 +369,8 @@ pub mod pallet {
 		MaxOutRatioExceeded,
 		/// Max fraction of asset reserve to sell has been exceeded.
 		MaxInRatioExceeded,
+		/// Max allowed price difference has been exceeded.
+		PriceDifferenceTooHigh,
 	}
 
 	#[pallet::call]
@@ -649,6 +654,14 @@ pub mod pallet {
 				Error::<T>::NotAllowed
 			);
 
+			T::PriceBarrier::ensure_price(
+				&who,
+				asset,
+				T::HubAssetId::get(),
+				EmaPrice::new(asset_state.reserve, asset_state.hub_reserve),
+			)
+			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
+
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			let current_hub_asset_liquidity =
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
@@ -789,6 +802,14 @@ pub mod pallet {
 				asset_state.tradable.contains(Tradability::REMOVE_LIQUIDITY),
 				Error::<T>::NotAllowed
 			);
+
+			T::PriceBarrier::ensure_price(
+				&who,
+				asset_id,
+				T::HubAssetId::get(),
+				EmaPrice::new(asset_state.reserve, asset_state.hub_reserve),
+			)
+			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
 
 			let current_imbalance = <HubAssetImbalance<T>>::get();
 			let current_hub_asset_liquidity =
