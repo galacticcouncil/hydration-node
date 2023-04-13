@@ -53,7 +53,7 @@ use frame_support::{
 	},
 	BoundedVec,
 };
-use hydradx_traits::{OraclePeriod};
+use hydradx_traits::OraclePeriod;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::{CollectionId, ItemId};
@@ -975,7 +975,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
-	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod >;
+	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }

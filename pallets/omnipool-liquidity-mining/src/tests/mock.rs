@@ -261,13 +261,19 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PositionCollectionId: CollectionId = OMNIPOOL_COLLECTION_ID;
 
-	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
-	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
+}
+
+pub struct FeeProvider;
+
+impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
+	fn get(_: &AssetId) -> (Permill, Permill) {
+		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
+	}
 }
 
 impl pallet_omnipool::Config for Test {
@@ -277,8 +283,6 @@ impl pallet_omnipool::Config for Test {
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -293,6 +297,7 @@ impl pallet_omnipool::Config for Test {
 	type CollectionId = u128;
 	type OmnipoolHooks = ();
 	type PriceBarrier = ();
+	type Fee = FeeProvider;
 }
 
 pub struct ExtBuilder {

@@ -976,7 +976,7 @@ impl pallet_dynamic_fees::Config for Runtime {
 	type BlockNumberProvider = System;
 	type Fee = Permill;
 	type AssetId = AssetId;
-	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod >;
+	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
 	type AssetFeeParameters = AssetFeeParams;
 	type ProtocolFeeParameters = ProtocolFeeParams;
 }
