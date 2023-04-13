@@ -290,4 +290,5 @@ try-runtime= [
     "pallet-circuit-breaker/try-runtime",
     "pallet-ema-oracle/try-runtime",
     "pallet-otc/try-runtime",
+    "pallet-dynamic-fees/try-runtime",
 ]
