@@ -76,6 +76,7 @@ thread_local! {
 	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 }
 
 construct_runtime!(
@@ -258,6 +259,9 @@ impl Default for ExtBuilder {
 		WITHDRAWAL_FEE.with(|v| {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
+		WITHDRAWAL_ADJUSTMENT.with(|v| {
+			*v.borrow_mut() = (0, 0, false);
+		});
 
 		Self {
 			endowed_accounts: vec![
@@ -353,6 +357,11 @@ impl ExtBuilder {
 	}
 	pub fn with_min_withdrawal_fee(self, fee: Permill) -> Self {
 		WITHDRAWAL_FEE.with(|v| *v.borrow_mut() = fee);
+		self
+	}
+
+	pub fn with_withdrawal_adjustment(self, adjustment: (u32, u32, bool)) -> Self {
+		WITHDRAWAL_ADJUSTMENT.with(|v| *v.borrow_mut() = adjustment);
 		self
 	}
 
@@ -572,7 +581,18 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for SamePriceOracle {
 		assert_eq!(asset_a, LRNA);
 		let asset_state = Omnipool::load_asset_state(asset_b)?;
 		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
-		Ok(price)
+
+		let adjusted_price = WITHDRAWAL_ADJUSTMENT.with(|v| {
+			let (n, d, neg) = *v.borrow();
+			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
+			if neg {
+				saturating_sub(price, adjustment)
+			} else {
+				saturating_add(price, adjustment)
+			}
+		});
+
+		Ok(adjusted_price)
 	}
 
 	fn get_price_weight() -> Weight {
