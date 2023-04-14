@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool-liquidity-mining"
-version = "1.1.2"
+version = "2.0.2"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -32,11 +32,11 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd5a6ac2449fb39cae920e6bfbef8cfc4f73cef6", default-features = false }
-pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd5a6ac2449fb39cae920e6bfbef8cfc4f73cef6", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd5a6ac2449fb39cae920e6bfbef8cfc4f73cef6", default-features = false }
+pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b4a7d9f09cbd16e1df1d1b806a56395517d63ef", default-features = false }
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b4a7d9f09cbd16e1df1d1b806a56395517d63ef", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b4a7d9f09cbd16e1df1d1b806a56395517d63ef", default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "d410fb79c45c38186808444152ebdae3174595f7", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "bcb75f1c2b4f1d859ff133ca663539c59d1ed910", default-features = false }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }
@@ -54,7 +54,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd5a6ac2449fb39cae920e6bfbef8cfc4f73cef6", default-features = false }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b4a7d9f09cbd16e1df1d1b806a56395517d63ef", default-features = false }
 
 [features]
 default = ["std"]
