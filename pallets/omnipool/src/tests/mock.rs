@@ -75,6 +75,7 @@ thread_local! {
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 }
 
 construct_runtime!(
@@ -167,7 +168,7 @@ parameter_types! {
 	pub const TVLCap: Balance = Balance::MAX;
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
-	pub MinWithdrawFee: Permill = Permill::from_percent(0);
+	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -253,6 +254,9 @@ impl Default for ExtBuilder {
 		});
 		EXT_PRICE_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
+		});
+		WITHDRAWAL_FEE.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
 		});
 
 		Self {
@@ -345,6 +349,10 @@ impl ExtBuilder {
 		EXT_PRICE_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = price_adjustment;
 		});
+		self
+	}
+	pub fn with_min_withdrawal_fee(self, fee: Permill) -> Self {
+		WITHDRAWAL_FEE.with(|v| *v.borrow_mut() = fee);
 		self
 	}
 
