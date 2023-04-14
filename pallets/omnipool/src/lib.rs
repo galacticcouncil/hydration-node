@@ -264,6 +264,7 @@ pub mod pallet {
 			position_id: T::PositionItemId,
 			asset_id: T::AssetId,
 			shares_removed: Balance,
+			fee: FixedU128,
 		},
 		/// Sell trade executed.
 		SellExecuted {
@@ -925,6 +926,7 @@ pub mod pallet {
 				position_id,
 				asset_id,
 				shares_removed: amount,
+				fee: state_changes.withdrawal_fee.unwrap_or_default(),
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
