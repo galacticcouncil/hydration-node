@@ -376,7 +376,7 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 	}
 }
 
-pub fn hydra_live_ext() -> sp_io::TestExternalities {
+pub fn hydra_live_ext(path_to_snapshot: &str) -> sp_io::TestExternalities {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()
@@ -384,9 +384,7 @@ pub fn hydra_live_ext() -> sp_io::TestExternalities {
 		.block_on(async {
 			use remote_externalities::*;
 
-			let path_str = String::from("omnipool-snapshot/SNAPSHOT");
-
-			let snapshot_config = SnapshotConfig::from(path_str);
+			let snapshot_config = SnapshotConfig::from(String::from(path_to_snapshot));
 			let offline_config = OfflineConfig {
 				state_snapshot: snapshot_config,
 			};
