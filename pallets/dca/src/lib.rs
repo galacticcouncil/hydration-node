@@ -304,9 +304,9 @@ pub mod pallet {
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			Self::ensure_that_next_blocknumber_is_bigger_than_current_block(start_execution_block)?;
-			Self::ensure_that_total_amount_is_bigger_than_storage_bond(&schedule)?;
-			Self::ensure_that_sell_amount_is_bigger_than_transaction_fee(&schedule)?;
+			Self::ensure_next_blocknumber_is_bigger_than_current_block(start_execution_block)?;
+			Self::ensure_total_amount_is_bigger_than_storage_bond(&schedule)?;
+			Self::ensure_sell_amount_is_bigger_than_transaction_fee(&schedule)?;
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
@@ -350,7 +350,7 @@ pub mod pallet {
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
+			Self::ensure_origin_is_schedule_owner(schedule_id, &who)?;
 
 			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
 			Suspended::<T>::insert(schedule_id, ());
@@ -378,9 +378,9 @@ pub mod pallet {
 			next_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
-			Self::ensure_that_next_blocknumber_is_bigger_than_current_block(next_execution_block)?;
-			Self::ensure_that_schedule_is_suspended(schedule_id)?;
+			Self::ensure_origin_is_schedule_owner(schedule_id, &who)?;
+			Self::ensure_next_blocknumber_is_bigger_than_current_block(next_execution_block)?;
+			Self::ensure_schedule_is_suspended(schedule_id)?;
 
 			let next_execution_block = next_execution_block.unwrap_or_else(|| Self::get_next_block_number());
 			Self::plan_schedule_for_block(next_execution_block, schedule_id)?;
@@ -419,8 +419,8 @@ pub mod pallet {
 			next_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			Self::ensure_that_schedule_exists(&schedule_id)?;
-			Self::ensure_that_origin_is_schedule_owner(schedule_id, &who)?;
+			Self::ensure_schedule_exists(&schedule_id)?;
+			Self::ensure_origin_is_schedule_owner(schedule_id, &who)?;
 
 			Self::unreserve_all_named_reserved_sold_currency(schedule_id, &who)?;
 
@@ -445,7 +445,7 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
-	fn ensure_that_next_blocknumber_is_bigger_than_current_block(
+	fn ensure_next_blocknumber_is_bigger_than_current_block(
 		next_execution_block: Option<T::BlockNumber>,
 	) -> DispatchResult {
 		if let Some(next_exection_block) = next_execution_block {
@@ -459,7 +459,7 @@ where
 		Ok(())
 	}
 
-	fn ensure_that_total_amount_is_bigger_than_storage_bond(
+	fn ensure_total_amount_is_bigger_than_storage_bond(
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
 		let min_total_amount = if Self::get_asset_in(&schedule.order) == T::NativeAssetId::get() {
@@ -476,7 +476,7 @@ where
 		Ok(())
 	}
 
-	fn ensure_that_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
+	fn ensure_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
 		ensure!(
 			Suspended::<T>::contains_key(schedule_id),
 			Error::<T>::ScheduleMustBeSuspended
@@ -485,20 +485,20 @@ where
 		Ok(())
 	}
 
-	fn ensure_that_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
+	fn ensure_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
 		ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotExist);
 
 		Ok(())
 	}
 
-	fn ensure_that_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+	fn ensure_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
 		ensure!(*who == schedule.owner, Error::<T>::Forbidden);
 
 		Ok(())
 	}
 
-	fn ensure_that_sell_amount_is_bigger_than_transaction_fee(
+	fn ensure_sell_amount_is_bigger_than_transaction_fee(
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
 		match schedule.order {
@@ -961,7 +961,7 @@ where
 				Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
 			}
 			None => {
-				Self::ensure_that_schedule_is_suspended(schedule_id)?;
+				Self::ensure_schedule_is_suspended(schedule_id)?;
 				Suspended::<T>::remove(schedule_id);
 			}
 		};
