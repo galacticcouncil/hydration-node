@@ -212,7 +212,7 @@ pub mod pallet {
 
 		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, EmaPrice>;
 
-		type PriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
+		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
 	}
 
 	#[pallet::storage]
@@ -825,7 +825,7 @@ pub mod pallet {
 			let current_hub_asset_liquidity =
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
-			let ext_asset_price = T::PriceOracle::get_price(T::HubAssetId::get(), asset_id)?;
+			let ext_asset_price = T::ExternalPriceOracle::get_price(T::HubAssetId::get(), asset_id)?;
 
 			//
 			// calculate state changes of remove liquidity

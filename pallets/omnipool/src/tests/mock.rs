@@ -199,7 +199,7 @@ impl Config for Test {
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
 	type MinWithdrawalFee = MinWithdrawFee;
-	type PriceOracle = SamePriceOracle;
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
 }
 
 pub struct ExtBuilder {
@@ -572,9 +572,9 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 	}
 }
 
-pub struct SamePriceOracle;
+pub struct WithdrawFeePriceOracle;
 
-impl ExternalPriceProvider<AssetId, EmaPrice> for SamePriceOracle {
+impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 	type Error = DispatchError;
 
 	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
