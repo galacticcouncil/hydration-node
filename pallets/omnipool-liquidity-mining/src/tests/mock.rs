@@ -268,6 +268,7 @@ parameter_types! {
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
+	pub MinWithdrawFee: Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Test {
@@ -293,6 +294,8 @@ impl pallet_omnipool::Config for Test {
 	type CollectionId = u128;
 	type OmnipoolHooks = ();
 	type PriceBarrier = ();
+	type MinWithdrawalFee = MinWithdrawFee;
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
 }
 
 pub struct ExtBuilder {
@@ -566,6 +569,8 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use hydra_dx_math::ema::EmaPrice;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -662,6 +667,7 @@ where
 }
 
 use hydradx_traits::oracle::AggregatedPriceOracle;
+use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyOracle;
 pub type OraclePrice = hydra_dx_math::ema::EmaPrice;
@@ -750,4 +756,21 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 
 pub fn set_block_number(n: u64) {
 	System::set_block_number(n);
+}
+
+pub struct WithdrawFeePriceOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+		Ok(price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
 }

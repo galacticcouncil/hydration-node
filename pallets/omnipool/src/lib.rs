@@ -638,7 +638,8 @@ pub mod pallet {
 		/// Emits `LiquidityAdded` event when successful.
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
-			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
+			.saturating_add(T::ExternalPriceOracle::get_price_weight()))
 		)]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
