@@ -3,13 +3,12 @@ use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
 
-use polkadot_xcm::latest::prelude::*;
+use polkadot_xcm::{latest::prelude::*, VersionedMultiAssets, VersionedXcm};
 
 use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use hex_literal::hex;
 use orml_traits::currency::MultiCurrency;
-use polkadot_xcm::VersionedMultiAssets;
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
@@ -273,5 +272,125 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 		let asset: MultiAsset = (loc, 30 * UNITS).into();
 		let hash = determine_hash(&origin, vec![asset]);
 		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 1);
+	});
+}
+
+#[test]
+fn claim_trapped_asset_should_work() {
+	TestNet::reset();
+
+	// traps asset when asset is not registered yet
+	let asset = trap_asset();
+
+	// register the asset
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::Origin::root(),
+			1,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+	});
+
+	claim_asset(asset.clone(), BOB);
+
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
+			1000 * UNITS + 29_652_367_378_155
+		);
+
+		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
+		let hash = determine_hash(&origin, vec![asset]);
+		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 0);
+	});
+}
+
+fn trap_asset() -> MultiAsset {
+	Acala::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN
+		);
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			0,
+			30 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 {
+							id: BOB,
+							network: NetworkId::Any,
+						}
+					)
+				)
+				.into()
+			),
+			399_600_000_000
+		));
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			200 * UNITS - 30 * UNITS
+		);
+	});
+
+	let loc = MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0)));
+	let asset: MultiAsset = (loc, 30 * UNITS).into();
+
+	Hydra::execute_with(|| {
+		expect_hydra_events(vec![
+			cumulus_pallet_xcmp_queue::Event::Fail {
+				message_hash: Some(hex!["4efbf4d7ba73f43d5bb4ebbec3189e132ccf2686aed37e97985af019e1cf62dc"].into()),
+				error: XcmError::AssetNotFound,
+				weight: Weight::from_ref_time(300_000_000),
+			}
+			.into(),
+			pallet_relaychain_info::Event::CurrentBlockNumbers {
+				parachain_block_number: 1,
+				relaychain_block_number: 4,
+			}
+			.into(),
+		]);
+		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
+		let loc = MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0)));
+		let asset: MultiAsset = (loc, 30 * UNITS).into();
+		let hash = determine_hash(&origin, vec![asset]);
+		assert_eq!(hydradx_runtime::PolkadotXcm::asset_trap(hash), 1);
+	});
+
+	asset
+}
+
+fn claim_asset(asset: MultiAsset, recipient: [u8; 32]) {
+	Acala::execute_with(|| {
+		let recipient = MultiLocation::new(
+			0,
+			X1(Junction::AccountId32 {
+				network: NetworkId::Any,
+				id: recipient,
+			}),
+		);
+		let xcm_msg = Xcm(vec![
+			ClaimAsset {
+				assets: vec![asset.clone()].into(),
+				ticket: Here.into(),
+			},
+			BuyExecution {
+				fees: asset,
+				weight_limit: Unlimited,
+			},
+			DepositAsset {
+				assets: All.into(),
+				max_assets: 1,
+				beneficiary: recipient,
+			},
+		]);
+		assert_ok!(hydradx_runtime::PolkadotXcm::send(
+			hydradx_runtime::Origin::root(),
+			Box::new(MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))).into()),
+			Box::new(VersionedXcm::from(xcm_msg))
+		));
 	});
 }
