@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crate as pallet_circuit_breaker;
+pub use crate as pallet_xcm_rate_limiter;
 use frame_support::traits::{Contains, GenesisBuild};
 pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
@@ -90,7 +90,7 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
-		CircuitBreaker: pallet_circuit_breaker,
+		XcmRateLimiter: pallet_xcm_rate_limiter,
 	}
 );
 
@@ -133,7 +133,7 @@ parameter_types! {
 	pub const OmnipoolHubAsset: AssetId = LRNA;
 }
 
-impl pallet_circuit_breaker::Config for Test {
+impl pallet_xcm_rate_limiter::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type WeightInfo = ();

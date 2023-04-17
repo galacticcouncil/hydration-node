@@ -18,6 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
+use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 use frame_support::dispatch::Weight;
 use frame_support::traits::{Contains, EnsureOrigin};
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
@@ -27,6 +28,7 @@ use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+use xcm::VersionedXcm;
 
 pub mod weights;
 
@@ -74,14 +76,10 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	/*
 	#[pallet::storage]
-	/// Liquidity limits of assets for removing liquidity.
+	/// TODO:
 	#[pallet::getter(fn remove_liquidity_limit_per_asset)]
-	pub type LiquidityRemoveLimitPerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AssetId, Option<(u32, u32)>, ValueQuery, DefaultRemoveLiquidityLimit<T>>;
-
-	 */
+	pub type LiquidityPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, u128, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -108,3 +106,13 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {}
+
+impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
+	fn deferred_by(
+		para: polkadot_parachain::primitives::Id,
+		sent_at: polkadot_core_primitives::BlockNumber,
+		xcm: &VersionedXcm<T::RuntimeCall>,
+	) -> Option<polkadot_core_primitives::BlockNumber> {
+		todo!()
+	}
+}

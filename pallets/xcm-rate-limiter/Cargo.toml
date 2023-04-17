@@ -25,6 +25,14 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
+#Polkadot
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
+polkadot-core-primitives = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
+
+# Cumulus
+cumulus-pallet-xcmp-queue = { git = "https://github.com/galacticcouncil/cumulus.git" , branch = "feat/xcmp-defer-xcm-v9-38", default-features = false }
+
 pallet-omnipool = { path = "../omnipool", default-features = false }
 
 # Warehouse
@@ -47,6 +55,7 @@ std = [
     'frame-system/std',
     'serde/std',
     'scale-info/std',
+    'cumulus-pallet-xcmp-queue/std'
 ]
 runtime-benchmarks = [
   "frame-benchmarking",
