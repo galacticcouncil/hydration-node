@@ -140,6 +140,10 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type ControllerOriginConverter = XcmOriginToCallOrigin;
 	type PriceForSiblingDelivery = ();
 	type WeightInfo = weights::xcmp_queue::HydraWeight<Runtime>;
+	type ExecuteDeferredOrigin = EnsureRoot<AccountId>;
+	type MaxDeferredMessages = ConstU32<100>;
+	type RelayChainBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
+	type XcmDeferFilter = ();
 }
 
 impl cumulus_pallet_dmp_queue::Config for Runtime {
