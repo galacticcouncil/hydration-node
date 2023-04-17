@@ -1,18 +1,22 @@
 use core::marker::PhantomData;
 
 use frame_support::{traits::Get, weights::Weight};
+use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
+use hydra_dx_math::support::rational::round_to_rational;
+use hydra_dx_math::support::rational::Rounding;
 use hydradx_traits::AggregatedPriceOracle;
+use hydradx_traits::PriceOracle;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
 use pallet_circuit_breaker::WeightInfo;
-use pallet_ema_oracle::OnActivityHandler;
 use pallet_ema_oracle::Price;
+use pallet_ema_oracle::{OnActivityHandler, OracleError};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
-use primitives::{AssetId, Balance};
+use primitive_types::U128;
+use primitives::{AssetId, Balance, BlockNumber};
 use sp_runtime::traits::Zero;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use warehouse_liquidity_mining::GlobalFarmData;
-
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
@@ -161,6 +165,46 @@ where
 
 	fn get_price_weight() -> Weight {
 		pallet_ema_oracle::Pallet::<Runtime>::get_price_weight()
+	}
+}
+
+pub struct OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>(
+	PhantomData<(AssetId, AggregatedPriceGetter, Lrna)>,
+);
+
+impl<AssetId, AggregatedPriceGetter, Lrna> PriceOracle<AssetId>
+	for OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>
+where
+	u32: From<AssetId>,
+	AggregatedPriceGetter: AggregatedPriceOracle<AssetId, BlockNumber, EmaPrice, Error = OracleError>,
+	Lrna: Get<AssetId>,
+{
+	type Price = EmaPrice;
+
+	fn price(asset_a: AssetId, asset_b: AssetId, period: OraclePeriod) -> Option<EmaPrice> {
+		let price_asset_a_lrna = AggregatedPriceGetter::get_price(asset_a, Lrna::get(), period, OMNIPOOL_SOURCE);
+
+		let price_asset_a_lrna = match price_asset_a_lrna {
+			Ok(price) => price.0,
+			Err(OracleError::SameAsset) => EmaPrice::from(1),
+			Err(_) => return None,
+		};
+
+		let price_lrna_asset_b = AggregatedPriceGetter::get_price(Lrna::get(), asset_b, period, OMNIPOOL_SOURCE);
+
+		let price_lrna_asset_b = match price_lrna_asset_b {
+			Ok(price) => price.0,
+			Err(OracleError::SameAsset) => EmaPrice::from(1),
+			Err(_) => return None,
+		};
+
+		let nominator = U128::full_mul(price_asset_a_lrna.n.into(), price_lrna_asset_b.n.into());
+		let denominator = U128::full_mul(price_asset_a_lrna.d.into(), price_lrna_asset_b.d.into());
+
+		let rational_as_u128 = round_to_rational((nominator, denominator), Rounding::Nearest);
+		let price_in_ema_price = EmaPrice::new(rational_as_u128.0, rational_as_u128.1);
+
+		Some(price_in_ema_price)
 	}
 }
 
