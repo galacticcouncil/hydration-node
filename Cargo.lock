@@ -7351,6 +7351,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-xcm-rate-limiter"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-omnipool",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-case",
+ "test-utils",
+]
+
+[[package]]
 name = "parachain-info"
 version = "0.1.0"
 source = "git+https://github.com/galacticcouncil/cumulus.git?branch=feat/xcmp-defer-xcm-v9-38#a3686ca27a1d18c614af65ef86298e0caf5ecfca"

@@ -12,6 +12,7 @@ members = [
   'utils/build-script-utils',
   'integration-tests',
   'pallets/circuit-breaker',
+  'pallets/xcm-rate-limiter',
   'pallets/omnipool-liquidity-mining',
   'scraper',
 ]
