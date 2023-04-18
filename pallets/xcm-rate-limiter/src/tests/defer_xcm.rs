@@ -73,6 +73,22 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded() {
 	});
 }
 
+#[test]
+fn set_limit_per_asset_should_work() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Act
+		assert_ok!(XcmRateLimiter::set_limit(
+			RuntimeOrigin::root(),
+			MultiLocation::parent(),
+			1000 * ONE
+		));
+
+		//Assert
+		let limit = XcmRateLimiter::rate_limit(MultiLocation::parent());
+		assert_eq!(limit, Some(1000 * ONE));
+	});
+}
+
 pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
 	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![

@@ -84,9 +84,14 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	/// TODO:
+	/// TODO: document
 	#[pallet::getter(fn liquidity_per_asset)]
 	pub type LiquidityPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, u128, ValueQuery>;
+
+	#[pallet::storage]
+	/// TODO: document
+	#[pallet::getter(fn rate_limit)]
+	pub type RateLimits<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, u128, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -106,7 +111,8 @@ pub mod pallet {
 		/// Set trade volume limit for an asset.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
-		pub fn asd(origin: OriginFor<T>, asset_id: T::AssetId, trade_volume_limit: (u32, u32)) -> DispatchResult {
+		pub fn set_limit(origin: OriginFor<T>, multi_location: MultiLocation, limit: u128) -> DispatchResult {
+			RateLimits::<T>::insert(multi_location, limit);
 			Ok(())
 		}
 	}
