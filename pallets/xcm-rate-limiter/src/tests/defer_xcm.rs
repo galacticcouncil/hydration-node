@@ -56,6 +56,23 @@ fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
 	});
 }
 
+#[test]
+fn deferred_by_should_defer_xcm_when_limit_exceeded() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::parent(), 1000 * ONE);
+		let para_id = 999.into();
+
+		//Act
+		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
+
+		//Assert
+		let volume = XcmRateLimiter::liquidity_per_asset(MultiLocation::parent());
+		assert_eq!(volume, 1000 * ONE);
+		assert_eq!(deferred_block_number, Some(<Test as Config>::DeferDuration::get()));
+	});
+}
+
 pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
 	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![

@@ -50,6 +50,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::Contains;
+	use polkadot_parachain::primitives::RelayChainBlockNumber;
 	use xcm::lts::MultiLocation;
 
 	#[pallet::hooks]
@@ -70,6 +71,9 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo
 			+ AtLeast32BitUnsigned;
+
+		#[pallet::constant]
+		type DeferDuration: Get<RelayChainBlockNumber>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -143,7 +147,12 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
 					let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
 					liquidity_per_asset += amount;
+
 					LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
+
+					if liquidity_per_asset >= 1000 * 1_000_000_000_000 {
+						return Some(T::DeferDuration::get());
+					}
 				}
 			}
 		}
