@@ -839,8 +839,7 @@ pub mod pallet {
 				FixedU128::checked_from_rational(ext_asset_price.n, ext_asset_price.d)
 					.defensive_ok_or(Error::<T>::InvalidOraclePrice)?,
 				T::MinWithdrawalFee::get(),
-			)
-			.ok_or(Error::<T>::InvalidWithdrawalFee)?;
+			);
 
 			//
 			// calculate state changes of remove liquidity
