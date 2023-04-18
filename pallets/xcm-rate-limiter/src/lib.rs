@@ -108,10 +108,12 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Set trade volume limit for an asset.
+		/// TODO: document
+		// TODO: benchmark
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
 		pub fn set_limit(origin: OriginFor<T>, multi_location: MultiLocation, limit: u128) -> DispatchResult {
+			//TODO: add root checking
 			RateLimits::<T>::insert(multi_location, limit);
 			Ok(())
 		}
@@ -156,6 +158,7 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 
 					LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
 
+					//TODO: use config for the limit
 					if liquidity_per_asset >= 1000 * 1_000_000_000_000 {
 						return Some(T::DeferDuration::get());
 					}
