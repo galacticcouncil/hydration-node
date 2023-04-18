@@ -28,7 +28,9 @@ use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+use xcm::latest::{AssetId, Fungibility, Instruction};
 use xcm::VersionedXcm;
+use xcm::VersionedXcm::V3;
 
 pub mod weights;
 
@@ -48,6 +50,7 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::Contains;
+	use xcm::lts::MultiLocation;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
@@ -78,8 +81,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// TODO:
-	#[pallet::getter(fn remove_liquidity_limit_per_asset)]
-	pub type LiquidityPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, u128, ValueQuery>;
+	#[pallet::getter(fn liquidity_per_asset)]
+	pub type LiquidityPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, u128, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -113,6 +116,29 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 		sent_at: polkadot_core_primitives::BlockNumber,
 		xcm: &VersionedXcm<T::RuntimeCall>,
 	) -> Option<polkadot_core_primitives::BlockNumber> {
-		todo!()
+		if let V3(xcm) = xcm {
+			if let Some(instruction) = xcm.first() {
+				match instruction {
+					Instruction::ReserveAssetDeposited(multi_assets) => {
+						for asset in multi_assets.inner() {
+							match asset.id {
+								AssetId::Concrete(location) => match asset.fun {
+									Fungibility::Fungible(amount) => {
+										let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
+										liquidity_per_asset += amount;
+										LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
+									}
+									Fungibility::NonFungible(_) => {}
+								},
+								AssetId::Abstract(_) => {}
+							}
+						}
+					}
+					_ => {}
+				}
+			}
+		}
+
+		None
 	}
 }

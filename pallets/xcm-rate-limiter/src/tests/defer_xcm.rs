@@ -21,7 +21,7 @@ use crate::*;
 use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 use frame_support::assert_storage_noop;
 pub use pretty_assertions::{assert_eq, assert_ne};
-use xcm::latest::prelude::*;
+use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 
 #[test]
@@ -35,12 +35,14 @@ fn deferred_by_should_track_incoming_asset_liquidity() {
 		XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
+		let volume = XcmRateLimiter::liquidity_per_asset(MultiLocation::parent());
+		assert_eq!(volume, 5);
 	});
 }
 pub fn create_versioned_reserve_asset_deposited() -> VersionedXcm<RuntimeCall> {
 	//TODO: pass an asset with volume then assert it in the test
-	let multi_asset = MultiAssets::from_sorted_and_deduplicated(vec![]).unwrap();
+	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(MultiLocation::parent(), 5).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
-		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_asset),
+		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_assets),
 	]))
 }
