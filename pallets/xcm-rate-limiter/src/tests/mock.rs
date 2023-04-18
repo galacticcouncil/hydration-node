@@ -137,6 +137,7 @@ impl pallet_xcm_rate_limiter::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type DeferDuration = ConstU32<20>;
+	type TechnicalOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
 

@@ -72,6 +72,8 @@ pub mod pallet {
 			+ TypeInfo
 			+ AtLeast32BitUnsigned;
 
+		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+
 		#[pallet::constant]
 		type DeferDuration: Get<RelayChainBlockNumber>;
 
@@ -113,7 +115,8 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
 		pub fn set_limit(origin: OriginFor<T>, multi_location: MultiLocation, limit: u128) -> DispatchResult {
-			//TODO: add root checking
+			T::TechnicalOrigin::ensure_origin(origin)?;
+
 			RateLimits::<T>::insert(multi_location, limit);
 			Ok(())
 		}
