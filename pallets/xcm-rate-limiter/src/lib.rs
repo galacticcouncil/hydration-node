@@ -28,7 +28,7 @@ use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
-use xcm::latest::{AssetId, Fungibility, Instruction};
+use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 use xcm::VersionedXcm::V3;
 
@@ -108,7 +108,29 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {}
+fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
+	match m.id {
+		AssetId::Concrete(location) => match m.fun {
+			Fungibility::Fungible(amount) => Some((location, amount)),
+			_ => None,
+		},
+		_ => None,
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	fn get_locations_and_amounts(instruction: &Instruction<T::RuntimeCall>) -> Vec<(MultiLocation, u128)> {
+		use Instruction::*;
+		match instruction {
+			ReserveAssetDeposited(multi_assets) | ReceiveTeleportedAsset(multi_assets) => multi_assets
+				.inner()
+				.iter()
+				.flat_map(|asset| get_loc_and_amount(asset))
+				.collect(),
+			_ => Vec::new(),
+		}
+	}
+}
 
 impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 	fn deferred_by(
@@ -118,23 +140,10 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 	) -> Option<polkadot_core_primitives::BlockNumber> {
 		if let V3(xcm) = xcm {
 			if let Some(instruction) = xcm.first() {
-				match instruction {
-					Instruction::ReserveAssetDeposited(multi_assets) => {
-						for asset in multi_assets.inner() {
-							match asset.id {
-								AssetId::Concrete(location) => match asset.fun {
-									Fungibility::Fungible(amount) => {
-										let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
-										liquidity_per_asset += amount;
-										LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
-									}
-									Fungibility::NonFungible(_) => {}
-								},
-								AssetId::Abstract(_) => {}
-							}
-						}
-					}
-					_ => {}
+				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
+					let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
+					liquidity_per_asset += amount;
+					LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
 				}
 			}
 		}

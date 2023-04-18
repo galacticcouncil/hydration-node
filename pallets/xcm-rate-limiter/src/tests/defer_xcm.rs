@@ -25,10 +25,10 @@ use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 
 #[test]
-fn deferred_by_should_track_incoming_asset_liquidity() {
+fn deferred_by_should_track_incoming_deposited_asset_liquidity() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_reserve_asset_deposited();
+		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::parent(), 5);
 		let para_id = 999.into();
 
 		//Act
@@ -39,10 +39,33 @@ fn deferred_by_should_track_incoming_asset_liquidity() {
 		assert_eq!(volume, 5);
 	});
 }
-pub fn create_versioned_reserve_asset_deposited() -> VersionedXcm<RuntimeCall> {
-	//TODO: pass an asset with volume then assert it in the test
-	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(MultiLocation::parent(), 5).into()]).unwrap();
+
+#[test]
+fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let versioned_xcm = create_versioned_receive_teleported_asset(MultiLocation::parent(), 5);
+		let para_id = 999.into();
+
+		//Act
+		XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
+
+		//Assert
+		let volume = XcmRateLimiter::liquidity_per_asset(MultiLocation::parent());
+		assert_eq!(volume, 5);
+	});
+}
+
+pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
+	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
 		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_assets),
+	]))
+}
+
+pub fn create_versioned_receive_teleported_asset(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
+	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
+	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
+		Instruction::<RuntimeCall>::ReceiveTeleportedAsset(multi_assets),
 	]))
 }
