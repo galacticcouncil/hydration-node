@@ -25,6 +25,7 @@ use sp_runtime::DispatchError::BadOrigin;
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 
+/*
 #[test]
 #[ignore]
 fn deferred_by_should_track_incoming_deposited_asset_liquidity() {
@@ -41,7 +42,9 @@ fn deferred_by_should_track_incoming_deposited_asset_liquidity() {
 		assert_eq!(volume, 5);
 	});
 }
+*/
 
+/*
 #[test]
 #[ignore]
 fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
@@ -58,7 +61,7 @@ fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
 		assert_eq!(volume, 5);
 	});
 }
-
+*/
 #[test]
 fn deferred_by_should_defer_xcm_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
@@ -108,6 +111,27 @@ fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 		// Second transaction should be put behind the first one by 20 blocks (2x the limit)
 		let second_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 		assert_eq!(second_deferred_block_number, Some(30));
+	});
+}
+
+#[test]
+fn deferred_by_should_defer_successive_xcm_when_time_passes() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::parent(), 2000 * ONE);
+		let para_id = 999.into();
+
+		//Act
+		let first_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
+
+		//Assert
+		let volume = XcmRateLimiter::liquidity_per_asset(MultiLocation::parent());
+		assert_eq!(first_deferred_block_number, Some(10));
+
+		System::set_block_number(5);
+
+		let second_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
+		assert_eq!(second_deferred_block_number, Some(15));
 	});
 }
 

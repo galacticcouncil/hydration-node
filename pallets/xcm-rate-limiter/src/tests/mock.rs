@@ -140,6 +140,7 @@ impl pallet_xcm_rate_limiter::Config for Test {
 	type MaxDeferDuration = ConstU32<1000>;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
+	type BlockNumberProvider = System;
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -484,8 +485,6 @@ impl ExtBuilder {
 				}
 			});
 		}
-
-		r.execute_with(|| System::set_block_number(1));
 
 		r
 	}

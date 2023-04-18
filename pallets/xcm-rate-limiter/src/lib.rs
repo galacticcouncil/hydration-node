@@ -24,14 +24,16 @@ use frame_support::traits::{Contains, EnsureOrigin};
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::ensure_signed_or_root;
 use frame_system::pallet_prelude::OriginFor;
+use polkadot_core_primitives::BlockNumber;
+use polkadot_parachain::primitives::RelayChainBlockNumber;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 use xcm::VersionedXcm::V3;
-
 pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
@@ -51,6 +53,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_support::traits::Contains;
 	use polkadot_parachain::primitives::RelayChainBlockNumber;
+	use sp_runtime::traits::BlockNumberProvider;
 	use xcm::lts::MultiLocation;
 
 	#[pallet::hooks]
@@ -75,10 +78,12 @@ pub mod pallet {
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		#[pallet::constant]
-		type DeferDuration: Get<RelayChainBlockNumber>;
+		type DeferDuration: Get<BlockNumber>;
 
 		#[pallet::constant]
-		type MaxDeferDuration: Get<RelayChainBlockNumber>;
+		type MaxDeferDuration: Get<BlockNumber>;
+
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -91,7 +96,8 @@ pub mod pallet {
 	#[pallet::storage]
 	/// TODO: document
 	#[pallet::getter(fn liquidity_per_asset)]
-	pub type LiquidityPerAsset<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, u128, ValueQuery>;
+	pub type LiquidityPerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, MultiLocation, (u128, RelayChainBlockNumber), ValueQuery>;
 
 	#[pallet::storage]
 	/// TODO: document
@@ -165,19 +171,19 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 					//LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
 
 					// TODO: use config for the limit
-					// We need to defer the messages that are above the set limit 
+					// We need to defer the messages that are above the set limit
 					// by the ratio of the size of the transaction to the defer duration i.e.
 					// If the transaction is 10x the limit, we defer it for 10x the defer duration
 					// If the transaction is 0.5x the limit, we defer it for 0.5x the defer duration
 					// As such we need to store last transaction size and the last update time
 					// to calculate the ratio. i.e.
 					// defer_duration = 10
-					
+
 					// limit_per_asset = 1000
-					
+
 					// last_update_time = 0
 					// last_filled_volume = ((defer_duration - (current_time - last_update_time)) / defer_duration) * last_filled_volume
-					
+
 					// current_time = 5
 					// last_transaction_size = 1000
 					// current_transaction_size = 1000
@@ -186,17 +192,33 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 					// defer_duration = defer_duration * defer_ratio
 					// last_update_time = current_time
 					// last_transaction_size = current_transaction_size
-					// 
+					//
 					// last_filled_volume = ((10 - (5 - 0)) / 10) * 1000 = 500
 					// volume_left = 1000 - 500 = 500
 					// defer_ratio = 500 / 1000 = 0.5
 					// defer_duration = 10 * 0.5 = 5
-					
-					
 
-					let limit_per_duration:u128 = 1000 * 1_000_000_000_000;
-					let defer_duration:u128 = T::DeferDuration::get().into();
+					let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
+
+					let limit_per_duration: u128 = 1000 * 1_000_000_000_000;
+					let defer_duration: u128 = T::DeferDuration::get().into();
 					let deferred_by: u128 = (amount - limit_per_duration) / limit_per_duration * defer_duration;
+
+					let current_time = T::BlockNumberProvider::current_block_number();
+					let last_update_time = liquidity_per_asset.1;
+
+					let time_difference: u128 =
+						TryInto::<u128>::try_into(current_time - last_update_time.into()).ok()?;
+					//let b: u128 = defer_duration - a.into();
+
+					//TODO: CONTINUE FROM HERE - we need to use last_filled_volume instead of amount, maybe
+					let last_filled_volume: u128 =
+						(defer_duration - time_difference) * liquidity_per_asset.0 / defer_duration;
+
+					liquidity_per_asset.0 += amount;
+					liquidity_per_asset.1 = TryInto::<BlockNumber>::try_into(current_time).ok()?;
+
+					LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
 
 					if amount >= limit_per_duration {
 						// convert deferred u128 to u32 safely
