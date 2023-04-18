@@ -136,7 +136,8 @@ parameter_types! {
 impl pallet_xcm_rate_limiter::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
-	type DeferDuration = ConstU32<20>;
+	type DeferDuration = ConstU32<10>;
+	type MaxDeferDuration = ConstU32<1000>;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
