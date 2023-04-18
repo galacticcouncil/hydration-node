@@ -381,6 +381,8 @@ pub mod pallet {
 		PriceDifferenceTooHigh,
 		/// Invalid oracle price - division by zero.
 		InvalidOraclePrice,
+		/// Failed to calculate withdrawal fee.
+		InvalidWithdrawalFee,
 	}
 
 	#[pallet::call]
@@ -828,6 +830,18 @@ pub mod pallet {
 
 			let ext_asset_price = T::ExternalPriceOracle::get_price(T::HubAssetId::get(), asset_id)?;
 
+			if ext_asset_price.is_zero() {
+				return Err(Error::<T>::InvalidOraclePrice.into());
+			}
+
+			let withdrawal_fee = hydra_dx_math::omnipool::calculate_withdrawal_fee(
+				asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
+				FixedU128::checked_from_rational(ext_asset_price.n, ext_asset_price.d)
+					.defensive_ok_or(Error::<T>::InvalidOraclePrice)?,
+				T::MinWithdrawalFee::get(),
+			)
+			.ok_or(Error::<T>::InvalidWithdrawalFee)?;
+
 			//
 			// calculate state changes of remove liquidity
 			//
@@ -840,9 +854,7 @@ pub mod pallet {
 					negative: current_imbalance.negative,
 				},
 				current_hub_asset_liquidity,
-				FixedU128::checked_from_rational(ext_asset_price.n, ext_asset_price.d)
-					.defensive_ok_or(Error::<T>::InvalidOraclePrice)?,
-				T::MinWithdrawalFee::get(),
+				withdrawal_fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -927,7 +939,7 @@ pub mod pallet {
 				position_id,
 				asset_id,
 				shares_removed: amount,
-				fee: state_changes.withdrawal_fee.unwrap_or_default(),
+				fee: withdrawal_fee,
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;

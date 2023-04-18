@@ -32,11 +32,11 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 
 # Warehouse
-pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd1d018b9708929e2ba4c40088eadda63172a09f", default-features = false }
-pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd1d018b9708929e2ba4c40088eadda63172a09f", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd1d018b9708929e2ba4c40088eadda63172a09f", default-features = false }
+pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "51fc8c455b75108cbc28e08f61bf655d972b41cf", default-features = false }
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "51fc8c455b75108cbc28e08f61bf655d972b41cf", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "51fc8c455b75108cbc28e08f61bf655d972b41cf", default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "cf04f530cb46643c35590a14072829d63220c0ba", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "6d72acfdd78a849d50c7660190f5463b53800dcd", default-features = false }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }
@@ -54,7 +54,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "dd1d018b9708929e2ba4c40088eadda63172a09f", default-features = false }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "51fc8c455b75108cbc28e08f61bf655d972b41cf", default-features = false }
 
 [features]
 default = ["std"]
