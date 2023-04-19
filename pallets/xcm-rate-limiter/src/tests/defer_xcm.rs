@@ -183,6 +183,96 @@ fn deferred_duration_should_be_calculated_based_on_limit_and_incoming_amounts() 
 	assert_eq!(duration, 9);
 }
 
+#[test]
+fn deferred_duration_should_return_zero_when_limit_not_reached() {
+	let global_duration = 10;
+	let rate_limit = 1000 * ONE;
+	let incoming_amount = 900 * ONE;
+	let accumulated_amount = 0;
+	let blocks_since_last_update = 0;
+	let duration = calculate_deferred_duration(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+
+	assert_eq!(duration, 0);
+}
+
+#[test]
+fn accumulated_amount_for_deferred_duration_should_decay() {
+	let global_duration = 10;
+	let rate_limit = 1000 * ONE;
+	let incoming_amount = 1100 * ONE;
+	let accumulated_amount = 1200 * ONE;
+	let blocks_since_last_update = 12;
+	let duration = calculate_deferred_duration(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+
+	assert_eq!(duration, 1);
+}
+
+#[test]
+fn defer_duration_should_incorporate_decay_amounts_and_incoming() {
+	let global_duration = 10;
+	let rate_limit = 1000 * ONE;
+	let incoming_amount = 1100 * ONE;
+	let accumulated_amount = 1200 * ONE;
+	let blocks_since_last_update = 6;
+	let duration = calculate_deferred_duration(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+
+	assert_eq!(duration, 7);
+}
+
+#[test]
+fn long_time_since_update_should_reset_rate_limit() {
+	let global_duration = 10;
+	let rate_limit = 1000 * ONE;
+	let incoming_amount = 700 * ONE;
+	let accumulated_amount = 1200 * ONE;
+	let blocks_since_last_update = 20;
+	let duration = calculate_deferred_duration(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+
+	assert_eq!(duration, 0);
+}
+
+#[test]
+fn calculate_new_accumulated_amount_should_decay_old_amounts_and_sum() {
+	let global_duration = 10;
+	let rate_limit = 1000 * ONE;
+	let incoming_amount = 700 * ONE;
+	let accumulated_amount = 1200 * ONE;
+	let blocks_since_last_update = 6;
+	let total_accumulated = calculate_new_accumulated_amount(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+
+	assert_eq!(total_accumulated, 700 * ONE + 600 * ONE);
+}
+
 fn calculate_deferred_duration(
 	global_duration: BlockNumber,
 	rate_limit: u128,
@@ -190,15 +280,48 @@ fn calculate_deferred_duration(
 	accumulated_amount: u128,
 	blocks_since_last_update: BlockNumber,
 ) -> BlockNumber {
-	let global_duration: u128 = global_duration.saturated_into();
-
-	let deferred_duration = global_duration.saturating_mul(
-		incoming_amount
-			.saturating_add(accumulated_amount)
-			.saturating_sub(rate_limit),
-	) / rate_limit.max(1);
+	let total_accumulated = calculate_new_accumulated_amount(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+	let global_duration: u128 = global_duration.max(1).saturated_into();
+	// duration * (incoming + decayed - rate_limit)
+	let deferred_duration =
+		global_duration.saturating_mul(total_accumulated.saturating_sub(rate_limit)) / rate_limit.max(1);
 
 	deferred_duration.saturated_into()
+}
+
+fn calculate_new_accumulated_amount(
+	global_duration: BlockNumber,
+	rate_limit: u128,
+	incoming_amount: u128,
+	accumulated_amount: u128,
+	blocks_since_last_update: BlockNumber,
+) -> u128 {
+	incoming_amount.saturating_add(decay(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	))
+}
+
+fn decay(
+	global_duration: BlockNumber,
+	rate_limit: u128,
+	incoming_amount: u128,
+	accumulated_amount: u128,
+	blocks_since_last_update: BlockNumber,
+) -> u128 {
+	let global_duration: u128 = global_duration.max(1).saturated_into();
+	// acc - rate_limit * blocks / duration
+	accumulated_amount
+		.saturating_sub(rate_limit.saturating_mul(blocks_since_last_update.saturated_into()) / global_duration)
 }
 
 pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
