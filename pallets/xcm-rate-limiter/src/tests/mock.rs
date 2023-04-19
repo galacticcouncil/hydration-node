@@ -24,7 +24,7 @@ use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
-use sp_runtime::traits::{ConstU128, ConstU32};
+use sp_runtime::traits::{ConstU128, ConstU32, ConstU64};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -136,11 +136,11 @@ parameter_types! {
 impl pallet_xcm_rate_limiter::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
-	type DeferDuration = ConstU32<10>;
-	type MaxDeferDuration = ConstU32<1000>;
+	type DeferDuration = ConstU64<10>;
+	type MaxDeferDuration = ConstU64<1000>;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = ();
 	type BlockNumberProvider = System;
+	type WeightInfo = ();
 }
 
 pub struct CircuitBreakerWhitelist;
@@ -485,6 +485,8 @@ impl ExtBuilder {
 				}
 			});
 		}
+
+		r.execute_with(|| System::set_block_number(1));
 
 		r
 	}

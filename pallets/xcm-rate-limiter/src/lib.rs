@@ -30,7 +30,8 @@ use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
-use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug};
+use sp_runtime::SaturatedConversion;
+use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug, Saturating};
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 use xcm::VersionedXcm::V3;
@@ -78,10 +79,10 @@ pub mod pallet {
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		#[pallet::constant]
-		type DeferDuration: Get<BlockNumber>;
+		type DeferDuration: Get<Self::BlockNumber>;
 
 		#[pallet::constant]
-		type MaxDeferDuration: Get<BlockNumber>;
+		type MaxDeferDuration: Get<Self::BlockNumber>;
 
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
@@ -97,7 +98,7 @@ pub mod pallet {
 	/// TODO: document
 	#[pallet::getter(fn liquidity_per_asset)]
 	pub type LiquidityPerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, MultiLocation, (u128, RelayChainBlockNumber), ValueQuery>;
+		StorageMap<_, Blake2_128Concat, MultiLocation, (u128, T::BlockNumber), ValueQuery>;
 
 	#[pallet::storage]
 	/// TODO: document
@@ -142,6 +143,55 @@ fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
 	}
 }
 
+pub fn calculate_deferred_duration(
+	global_duration: BlockNumber,
+	rate_limit: u128,
+	incoming_amount: u128,
+	accumulated_amount: u128,
+	blocks_since_last_update: BlockNumber,
+) -> BlockNumber {
+	let total_accumulated = calculate_new_accumulated_amount(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+	let global_duration: u128 = global_duration.max(1).saturated_into();
+	// duration * (incoming + decayed - rate_limit)
+	let deferred_duration =
+		global_duration.saturating_mul(total_accumulated.saturating_sub(rate_limit)) / rate_limit.max(1);
+
+	deferred_duration.saturated_into()
+}
+
+pub fn calculate_new_accumulated_amount(
+	global_duration: BlockNumber,
+	rate_limit: u128,
+	incoming_amount: u128,
+	accumulated_amount: u128,
+	blocks_since_last_update: BlockNumber,
+) -> u128 {
+	incoming_amount.saturating_add(decay(
+		global_duration,
+		rate_limit,
+		accumulated_amount,
+		blocks_since_last_update,
+	))
+}
+
+pub fn decay(
+	global_duration: BlockNumber,
+	rate_limit: u128,
+	accumulated_amount: u128,
+	blocks_since_last_update: BlockNumber,
+) -> u128 {
+	let global_duration: u128 = global_duration.max(1).saturated_into();
+	// acc - rate_limit * blocks / duration
+	accumulated_amount
+		.saturating_sub(rate_limit.saturating_mul(blocks_since_last_update.saturated_into()) / global_duration)
+}
+
 impl<T: Config> Pallet<T> {
 	fn get_locations_and_amounts(instruction: &Instruction<T::RuntimeCall>) -> Vec<(MultiLocation, u128)> {
 		use Instruction::*;
@@ -165,64 +215,40 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 		if let V3(xcm) = xcm {
 			if let Some(instruction) = xcm.first() {
 				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
-					// let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
-					// liquidity_per_asset += amount;
-
-					//LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
-
-					// TODO: use config for the limit
-					// We need to defer the messages that are above the set limit
-					// by the ratio of the size of the transaction to the defer duration i.e.
-					// If the transaction is 10x the limit, we defer it for 10x the defer duration
-					// If the transaction is 0.5x the limit, we defer it for 0.5x the defer duration
-					// As such we need to store last transaction size and the last update time
-					// to calculate the ratio. i.e.
-					// defer_duration = 10
-
-					// limit_per_asset = 1000
-
-					// last_update_time = 0
-					// last_filled_volume = ((defer_duration - (current_time - last_update_time)) / defer_duration) * last_filled_volume
-
-					// current_time = 5
-					// last_transaction_size = 1000
-					// current_transaction_size = 1000
-					// volume_left = limit_per_asset - last_filled_volume
-					// defer_ratio =  volume_left / current_transaction_size
-					// defer_duration = defer_duration * defer_ratio
-					// last_update_time = current_time
-					// last_transaction_size = current_transaction_size
-					//
-					// last_filled_volume = ((10 - (5 - 0)) / 10) * 1000 = 500
-					// volume_left = 1000 - 500 = 500
-					// defer_ratio = 500 / 1000 = 0.5
-					// defer_duration = 10 * 0.5 = 5
-
 					let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
 
 					let limit_per_duration: u128 = 1000 * 1_000_000_000_000;
-					let defer_duration: u128 = T::DeferDuration::get().into();
-					let deferred_by: u128 = (amount - limit_per_duration) / limit_per_duration * defer_duration;
+					let defer_duration = T::DeferDuration::get();
 
 					let current_time = T::BlockNumberProvider::current_block_number();
 					let last_update_time = liquidity_per_asset.1;
 
-					let time_difference: u128 =
-						TryInto::<u128>::try_into(current_time - last_update_time.into()).ok()?;
-					//let b: u128 = defer_duration - a.into();
+					let time_difference = current_time.saturating_sub(last_update_time);
 
-					//TODO: CONTINUE FROM HERE - we need to use last_filled_volume instead of amount, maybe
-					let last_filled_volume: u128 =
-						(defer_duration - time_difference) * liquidity_per_asset.0 / defer_duration;
+					let accumulated_amount = calculate_new_accumulated_amount(
+						defer_duration.saturated_into(),
+						limit_per_duration,
+						amount,
+						liquidity_per_asset.0,
+						time_difference.saturated_into(),
+					);
+					let deferred_by = calculate_deferred_duration(
+						defer_duration.saturated_into(),
+						limit_per_duration,
+						amount,
+						liquidity_per_asset.0,
+						time_difference.saturated_into(),
+					);
 
-					liquidity_per_asset.0 += amount;
-					liquidity_per_asset.1 = TryInto::<BlockNumber>::try_into(current_time).ok()?;
+					liquidity_per_asset.0 = accumulated_amount;
+					liquidity_per_asset.1 = current_time;
 
 					LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
 
-					if amount >= limit_per_duration {
-						// convert deferred u128 to u32 safely
-						return Some(deferred_by.try_into().unwrap_or(T::MaxDeferDuration::get()));
+					if deferred_by > 0 {
+						return Some(deferred_by);
+					} else {
+						return None;
 					}
 				}
 			}

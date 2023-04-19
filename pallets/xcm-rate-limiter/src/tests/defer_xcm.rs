@@ -96,7 +96,6 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 }
 
 #[test]
-#[ignore]
 fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -117,7 +116,6 @@ fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 }
 
 #[test]
-#[ignore]
 fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -128,13 +126,19 @@ fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 		let first_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let volume = XcmRateLimiter::liquidity_per_asset(MultiLocation::parent());
+		let (accumulated_amount, last_update) = XcmRateLimiter::liquidity_per_asset(MultiLocation::parent());
+
+		assert_eq!(accumulated_amount, 2000 * ONE);
+		assert_eq!(last_update, 1);
 		assert_eq!(first_deferred_block_number, Some(10));
 
-		System::set_block_number(5);
+		System::set_block_number(6);
 
 		let second_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
-		assert_eq!(second_deferred_block_number, Some(15));
+		let (accumulated_amount, last_update) = XcmRateLimiter::liquidity_per_asset(MultiLocation::parent());
+		assert_eq!(accumulated_amount, 3500 * ONE);
+		assert_eq!(last_update, 6);
+		assert_eq!(second_deferred_block_number, Some(25));
 	});
 }
 
@@ -271,57 +275,6 @@ fn calculate_new_accumulated_amount_should_decay_old_amounts_and_sum() {
 	);
 
 	assert_eq!(total_accumulated, 700 * ONE + 600 * ONE);
-}
-
-fn calculate_deferred_duration(
-	global_duration: BlockNumber,
-	rate_limit: u128,
-	incoming_amount: u128,
-	accumulated_amount: u128,
-	blocks_since_last_update: BlockNumber,
-) -> BlockNumber {
-	let total_accumulated = calculate_new_accumulated_amount(
-		global_duration,
-		rate_limit,
-		incoming_amount,
-		accumulated_amount,
-		blocks_since_last_update,
-	);
-	let global_duration: u128 = global_duration.max(1).saturated_into();
-	// duration * (incoming + decayed - rate_limit)
-	let deferred_duration =
-		global_duration.saturating_mul(total_accumulated.saturating_sub(rate_limit)) / rate_limit.max(1);
-
-	deferred_duration.saturated_into()
-}
-
-fn calculate_new_accumulated_amount(
-	global_duration: BlockNumber,
-	rate_limit: u128,
-	incoming_amount: u128,
-	accumulated_amount: u128,
-	blocks_since_last_update: BlockNumber,
-) -> u128 {
-	incoming_amount.saturating_add(decay(
-		global_duration,
-		rate_limit,
-		incoming_amount,
-		accumulated_amount,
-		blocks_since_last_update,
-	))
-}
-
-fn decay(
-	global_duration: BlockNumber,
-	rate_limit: u128,
-	incoming_amount: u128,
-	accumulated_amount: u128,
-	blocks_since_last_update: BlockNumber,
-) -> u128 {
-	let global_duration: u128 = global_duration.max(1).saturated_into();
-	// acc - rate_limit * blocks / duration
-	accumulated_amount
-		.saturating_sub(rate_limit.saturating_mul(blocks_since_last_update.saturated_into()) / global_duration)
 }
 
 pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
