@@ -80,6 +80,7 @@ pub mod pallet {
 
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
+		// TODO: document
 		#[pallet::constant]
 		type DeferDuration: Get<Self::BlockNumber>;
 
@@ -116,6 +117,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
+		// TODO: remove?
 		Event1 {},
 	}
 
@@ -123,12 +125,13 @@ pub mod pallet {
 	#[cfg_attr(test, derive(PartialEq, Eq))]
 	pub enum Error<T> {
 		/// Invalid value for a limit. Limit must be non-zero.
+		// TODO: remove?
 		Error1,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// TODO: document
+		// TODO: document
 		// TODO: benchmark
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
@@ -151,6 +154,7 @@ fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
 	}
 }
 
+// TODO: pull out into hdx-math
 pub fn calculate_deferred_duration(
 	global_duration: BlockNumber,
 	rate_limit: u128,
@@ -204,6 +208,7 @@ impl<T: Config> Pallet<T> {
 	fn get_locations_and_amounts(instruction: &Instruction<T::RuntimeCall>) -> Vec<(MultiLocation, u128)> {
 		use Instruction::*;
 		match instruction {
+			// NOTE: This does not address the native asset "coming back" from other chains.
 			ReserveAssetDeposited(multi_assets) | ReceiveTeleportedAsset(multi_assets) => multi_assets
 				.inner()
 				.iter()
@@ -223,36 +228,32 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 		if let V3(xcm) = xcm {
 			if let Some(instruction) = xcm.first() {
 				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
-					let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
+					let (old_accumulated, last_update_time) = LiquidityPerAsset::<T>::get(location);
 
 					let Some(asset_id) = T::CurrencyIdConvert::convert(location) else { continue };
 					let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else { continue };
 					let defer_duration = T::DeferDuration::get();
 
 					let current_time = T::BlockNumberProvider::current_block_number();
-					let last_update_time = liquidity_per_asset.1;
-
 					let time_difference = current_time.saturating_sub(last_update_time);
 
 					let accumulated_amount = calculate_new_accumulated_amount(
 						defer_duration.saturated_into(),
 						limit_per_duration,
 						amount,
-						liquidity_per_asset.0,
+						old_accumulated,
 						time_difference.saturated_into(),
 					);
+					// TODO: avoid redoing computation?
 					let deferred_by = calculate_deferred_duration(
 						defer_duration.saturated_into(),
 						limit_per_duration,
 						amount,
-						liquidity_per_asset.0,
+						old_accumulated,
 						time_difference.saturated_into(),
 					);
 
-					liquidity_per_asset.0 = accumulated_amount;
-					liquidity_per_asset.1 = current_time;
-
-					LiquidityPerAsset::<T>::insert(location, liquidity_per_asset);
+					LiquidityPerAsset::<T>::insert(location, (accumulated_amount, current_time));
 
 					if deferred_by > 0 {
 						return Some(deferred_by);
