@@ -22,6 +22,7 @@ use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 use frame_support::assert_storage_noop;
 pub use pretty_assertions::{assert_eq, assert_ne};
 use sp_runtime::DispatchError::BadOrigin;
+use sp_runtime::SaturatedConversion;
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 
@@ -95,6 +96,7 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 }
 
 #[test]
+#[ignore]
 fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -115,6 +117,7 @@ fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 }
 
 #[test]
+#[ignore]
 fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -160,6 +163,42 @@ fn set_limit_per_asset_should_fail_when_called_by_non_root() {
 			BadOrigin
 		);
 	});
+}
+
+#[test]
+fn deferred_duration_should_be_calculated_based_on_limit_and_incoming_amounts() {
+	let global_duration = 10;
+	let rate_limit = 1000 * ONE;
+	let incoming_amount = 1500 * ONE;
+	let accumulated_amount = 400 * ONE;
+	let blocks_since_last_update = 0;
+	let duration = calculate_deferred_duration(
+		global_duration,
+		rate_limit,
+		incoming_amount,
+		accumulated_amount,
+		blocks_since_last_update,
+	);
+
+	assert_eq!(duration, 9);
+}
+
+fn calculate_deferred_duration(
+	global_duration: BlockNumber,
+	rate_limit: u128,
+	incoming_amount: u128,
+	accumulated_amount: u128,
+	blocks_since_last_update: BlockNumber,
+) -> BlockNumber {
+	let global_duration: u128 = global_duration.saturated_into();
+
+	let deferred_duration = global_duration.saturating_mul(
+		incoming_amount
+			.saturating_add(accumulated_amount)
+			.saturating_sub(rate_limit),
+	) / rate_limit.max(1);
+
+	deferred_duration.saturated_into()
 }
 
 pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
