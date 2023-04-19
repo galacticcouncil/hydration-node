@@ -3465,7 +3465,7 @@ dependencies = [
  "pallet-otc",
  "pallet-preimage",
  "pallet-proxy",
- "pallet-relaychain-info",
+ "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=f6cc00d422ff5c10a901ce65c9fccaaf01d82c3d)",
  "pallet-scheduler",
  "pallet-session",
  "pallet-timestamp",
@@ -6321,7 +6321,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "2.0.0"
+version = "1.6.10"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6436,6 +6436,21 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-relaychain-info"
+version = "0.3.2"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=a6085a6e0b435607403e0ff890fc61fab796fb46#a6085a6e0b435607403e0ff890fc61fab796fb46"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
  "sp-std",
 ]
 
@@ -8979,7 +8994,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -9024,7 +9039,7 @@ dependencies = [
  "pallet-omnipool",
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
- "pallet-relaychain-info",
+ "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=a6085a6e0b435607403e0ff890fc61fab796fb46)",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
@@ -11791,7 +11806,7 @@ dependencies = [
  "pallet-otc",
  "pallet-preimage",
  "pallet-proxy",
- "pallet-relaychain-info",
+ "pallet-relaychain-info 0.3.2 (git+https://github.com/galacticcouncil/warehouse?rev=f6cc00d422ff5c10a901ce65c9fccaaf01d82c3d)",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
