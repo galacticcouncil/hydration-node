@@ -24,6 +24,7 @@ use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
+use sp_runtime::traits::Convert;
 use sp_runtime::traits::{ConstU128, ConstU32, ConstU64};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
@@ -36,6 +37,8 @@ use sp_runtime::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use xcm::lts::prelude::*;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -133,6 +136,17 @@ parameter_types! {
 	pub const OmnipoolHubAsset: AssetId = LRNA;
 }
 
+pub struct ConvertIdMock;
+impl Convert<MultiLocation, Option<AssetId>> for ConvertIdMock {
+	fn convert(location: MultiLocation) -> Option<AssetId> {
+		if location == MultiLocation::here() {
+			Some(HDX)
+		} else {
+			None
+		}
+	}
+}
+
 impl pallet_xcm_rate_limiter::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
@@ -140,6 +154,8 @@ impl pallet_xcm_rate_limiter::Config for Test {
 	type MaxDeferDuration = ConstU64<1000>;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
+	type RateLimitFor = XcmRateLimitFor;
+	type CurrencyIdConvert = ConvertIdMock;
 	type WeightInfo = ();
 }
 
@@ -166,6 +182,18 @@ impl pallet_balances::Config for Test {
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		0
+	};
+}
+parameter_type_with_key! {
+	pub XcmRateLimitFor: |asset_id: AssetId| -> Option<Balance> {
+		match *asset_id {
+			HDX => Some(1000 * ONE),
+			DOT => Some(1000 * ONE),
+			DAI => Some(1000 * ONE),
+			LRNA => Some(1000 * ONE),
+			ACA => Some(1000 * ONE),
+			_ => None
+		}
 	};
 }
 

@@ -24,11 +24,13 @@ use frame_support::traits::{Contains, EnsureOrigin};
 use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::ensure_signed_or_root;
 use frame_system::pallet_prelude::OriginFor;
+use orml_traits::GetByKey;
 use polkadot_core_primitives::BlockNumber;
 use polkadot_parachain::primitives::RelayChainBlockNumber;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
 use sp_runtime::traits::BlockNumberProvider;
+use sp_runtime::traits::Convert;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::SaturatedConversion;
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug, Saturating};
@@ -81,10 +83,16 @@ pub mod pallet {
 		#[pallet::constant]
 		type DeferDuration: Get<Self::BlockNumber>;
 
+		// TODO: implement or remove
 		#[pallet::constant]
 		type MaxDeferDuration: Get<Self::BlockNumber>;
 
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+
+		type CurrencyIdConvert: Convert<MultiLocation, Option<Self::AssetId>>;
+
+		// TODO: Which type to use to define the rate limit here?
+		type RateLimitFor: GetByKey<Self::AssetId, Option<u128>>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -217,7 +225,8 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
 					let mut liquidity_per_asset = LiquidityPerAsset::<T>::get(location);
 
-					let limit_per_duration: u128 = 1000 * 1_000_000_000_000;
+					let Some(asset_id) = T::CurrencyIdConvert::convert(location) else { continue };
+					let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else { continue };
 					let defer_duration = T::DeferDuration::get();
 
 					let current_time = T::BlockNumberProvider::current_block_number();
