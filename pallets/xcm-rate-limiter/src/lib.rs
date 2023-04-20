@@ -25,7 +25,6 @@ use frame_support::{ensure, pallet_prelude::DispatchResult, traits::Get};
 use frame_system::ensure_signed_or_root;
 use frame_system::pallet_prelude::OriginFor;
 use orml_traits::GetByKey;
-use polkadot_core_primitives::BlockNumber;
 use polkadot_parachain::primitives::RelayChainBlockNumber;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
@@ -37,6 +36,7 @@ use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug, Saturating};
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 use xcm::VersionedXcm::V3;
+
 pub mod weights;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
@@ -50,9 +50,9 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 #[derive(Clone, Default, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
-pub struct AccumulatedAmount<BlockNumber> {
+pub struct AccumulatedAmount {
 	pub amount: u128,
-	pub last_updated: BlockNumber,
+	pub last_updated: RelayChainBlockNumber,
 }
 
 #[frame_support::pallet]
@@ -88,14 +88,16 @@ pub mod pallet {
 
 		/// Defer duration base to be used for calculating the specific defer duration for any asset
 		#[pallet::constant]
-		type DeferDuration: Get<Self::BlockNumber>;
+		type DeferDuration: Get<RelayChainBlockNumber>;
 
-		// TODO: implement or remove
+		/// The maximum number of blocks to defer XCMs by.
 		#[pallet::constant]
-		type MaxDeferDuration: Get<Self::BlockNumber>;
+		type MaxDeferDuration: Get<RelayChainBlockNumber>;
 
-		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		/// Relay chain block number provider
+		type RelayBlockNumberProvider: BlockNumberProvider<BlockNumber = RelayChainBlockNumber>;
 
+		/// Convert from `MultiLocation` to local `AssetId`
 		type CurrencyIdConvert: Convert<MultiLocation, Option<Self::AssetId>>;
 
 		// TODO: Which type to use to define the rate limit here?
@@ -113,7 +115,7 @@ pub mod pallet {
 	/// Accumulated amounts for each asset
 	#[pallet::getter(fn accumulated_amount)]
 	pub type AccumulatedAmounts<T: Config> =
-		StorageMap<_, Blake2_128Concat, MultiLocation, AccumulatedAmount<T::BlockNumber>, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, MultiLocation, AccumulatedAmount, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -138,11 +140,7 @@ fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
 }
 
 // TODO: pull out into hdx-math + add property based tests
-pub fn calculate_deferred_duration(
-	global_duration: BlockNumber,
-	rate_limit: u128,
-	total_accumulated: u128,
-) -> BlockNumber {
+pub fn calculate_deferred_duration(global_duration: u32, rate_limit: u128, total_accumulated: u128) -> u32 {
 	let global_duration: u128 = global_duration.max(1).saturated_into();
 	// duration * (incoming + decayed - rate_limit)
 	let deferred_duration =
@@ -152,11 +150,11 @@ pub fn calculate_deferred_duration(
 }
 
 pub fn calculate_new_accumulated_amount(
-	global_duration: BlockNumber,
+	global_duration: u32,
 	rate_limit: u128,
 	incoming_amount: u128,
 	accumulated_amount: u128,
-	blocks_since_last_update: BlockNumber,
+	blocks_since_last_update: u32,
 ) -> u128 {
 	incoming_amount.saturating_add(decay(
 		global_duration,
@@ -166,12 +164,7 @@ pub fn calculate_new_accumulated_amount(
 	))
 }
 
-pub fn decay(
-	global_duration: BlockNumber,
-	rate_limit: u128,
-	accumulated_amount: u128,
-	blocks_since_last_update: BlockNumber,
-) -> u128 {
+pub fn decay(global_duration: u32, rate_limit: u128, accumulated_amount: u128, blocks_since_last_update: u32) -> u128 {
 	let global_duration: u128 = global_duration.max(1).saturated_into();
 	// acc - rate_limit * blocks / duration
 	accumulated_amount
@@ -196,9 +189,9 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 	fn deferred_by(
 		_para: polkadot_parachain::primitives::Id,
-		_sent_at: polkadot_core_primitives::BlockNumber,
+		_sent_at: RelayChainBlockNumber,
 		xcm: &VersionedXcm<T::RuntimeCall>,
-	) -> Option<polkadot_core_primitives::BlockNumber> {
+	) -> Option<RelayChainBlockNumber> {
 		if let V3(xcm) = xcm {
 			if let Some(instruction) = xcm.first() {
 				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
@@ -208,7 +201,7 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 					let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else { continue };
 					let defer_duration = T::DeferDuration::get();
 
-					let current_time = T::BlockNumberProvider::current_block_number();
+					let current_time = T::RelayBlockNumberProvider::current_block_number();
 					let time_difference = current_time.saturating_sub(accumulated_liquidity.last_updated);
 
 					let new_accumulated_amount = calculate_new_accumulated_amount(

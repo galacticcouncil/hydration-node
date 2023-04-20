@@ -23,7 +23,9 @@ pub use frame_support::{assert_noop, assert_ok, parameter_types};
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use orml_traits::parameter_type_with_key;
+use polkadot_parachain::primitives::RelayChainBlockNumber;
 use sp_core::H256;
+use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Convert;
 use sp_runtime::traits::{ConstU128, ConstU32, ConstU64};
 use sp_runtime::DispatchResult;
@@ -147,13 +149,24 @@ impl Convert<MultiLocation, Option<AssetId>> for ConvertIdMock {
 	}
 }
 
+pub struct TreatSystemAsRelayBlockNumberProvider;
+impl BlockNumberProvider for TreatSystemAsRelayBlockNumberProvider {
+	type BlockNumber = RelayChainBlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		use sp_runtime::SaturatedConversion;
+		System::current_block_number().saturated_into()
+	}
+}
+
 impl pallet_xcm_rate_limiter::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
-	type DeferDuration = ConstU64<10>;
-	type MaxDeferDuration = ConstU64<100>;
+	type DeferDuration = ConstU32<10>;
+	type MaxDeferDuration = ConstU32<100>;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
-	type BlockNumberProvider = System;
+	// dirty trick: we use System as a relay block number provider here
+	type RelayBlockNumberProvider = TreatSystemAsRelayBlockNumberProvider;
 	type RateLimitFor = XcmRateLimitFor;
 	type CurrencyIdConvert = ConvertIdMock;
 	type WeightInfo = ();

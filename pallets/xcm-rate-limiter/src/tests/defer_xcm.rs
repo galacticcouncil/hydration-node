@@ -132,8 +132,8 @@ fn deferred_by_should_defer_by_max_duration_when_it_is_reached() {
 		let para_id = 999.into();
 
 		//Act
-		let deferred_by: u64 = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).unwrap().into();
-		let max_defer: u64 = <Test as Config>::MaxDeferDuration::get();
+		let deferred_by = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).unwrap();
+		let max_defer: u32 = <Test as Config>::MaxDeferDuration::get();
 		//Assert
 		assert_eq!(deferred_by, max_defer);
 	});
