@@ -105,6 +105,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// TODO: document
+	/// TODO: Use better naming and possible a struct for the value - LiquidtyAccumulation?!
 	#[pallet::getter(fn liquidity_per_asset)]
 	pub type LiquidityPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, MultiLocation, (u128, T::BlockNumber), ValueQuery>;
