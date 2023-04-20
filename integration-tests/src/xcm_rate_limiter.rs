@@ -1,0 +1,152 @@
+#![cfg(test)]
+
+use crate::polkadot_test_net::*;
+
+use common_runtime::Weight;
+use frame_support::traits::tokens::fungibles::Mutate;
+use frame_support::{
+	assert_ok,
+	traits::{OnFinalize, OnInitialize},
+};
+use hydradx_runtime::{EmaOracle, RuntimeOrigin};
+use orml_traits::currency::MultiCurrency;
+use pallet_asset_registry::AssetType;
+use pallet_ema_oracle::OracleError;
+use polkadot_primitives::v2::BlockNumber;
+use polkadot_xcm::prelude::*;
+use sp_runtime::{FixedU128, Permill};
+use xcm_emulator::TestExt;
+
+#[test]
+fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
+	// Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ACA,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+
+		// set an xcm rate limit
+		assert_ok!(hydradx_runtime::AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ACA,
+			b"ACA".to_vec(),
+			AssetType::Token,
+			None,
+			Some(50 * UNITS),
+		));
+
+		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
+	});
+
+	let amount = 100 * UNITS;
+	Acala::execute_with(|| {
+		// Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			amount,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 { id: BOB, network: None }
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+		));
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			100 * UNITS
+		);
+	});
+
+	Hydra::execute_with(|| {
+		// expect_hydra_events(vec![
+		// 	cumulus_pallet_xcmp_queue::Event::XcmDeferred {
+		// 		sender: ACALA_PARA_ID.into(),
+		// 		sent_at: 1,
+		// 		deferred_to: 601,
+		// 		message_hash: None,
+		// 	}
+		// 	.into(),
+		// 	pallet_relaychain_info::Event::CurrentBlockNumbers {
+		// 		parachain_block_number: 1,
+		// 		relaychain_block_number: 5,
+		// 	}
+		// 	.into(),
+		// ]);
+		assert_eq!(hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)), 0);
+	});
+}
+
+#[test]
+fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
+	// Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ACA,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+
+		// set an xcm rate limit
+		assert_ok!(hydradx_runtime::AssetRegistry::update(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ACA,
+			b"ACA".to_vec(),
+			AssetType::Token,
+			None,
+			Some(101 * UNITS),
+		));
+	});
+
+	let amount = 100 * UNITS;
+	Acala::execute_with(|| {
+		// Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			amount,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 { id: BOB, network: None }
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+		));
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			100 * UNITS
+		);
+	});
+
+	let fee = 400641025641;
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
+			100 * UNITS - fee
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
+			fee // fees should go to treasury
+		);
+	});
+}

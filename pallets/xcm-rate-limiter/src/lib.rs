@@ -189,48 +189,51 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 	fn deferred_by(
 		_para: polkadot_parachain::primitives::Id,
 		_sent_at: RelayChainBlockNumber,
-		xcm: &VersionedXcm<T::RuntimeCall>,
+		versioned_xcm: &VersionedXcm<T::RuntimeCall>,
 	) -> Option<RelayChainBlockNumber> {
-		if let V3(xcm) = xcm {
-			if let Some(instruction) = xcm.first() {
-				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
-					let accumulated_liquidity = AccumulatedAmounts::<T>::get(location);
+		use xcm::IntoVersion;
+		let maybe_xcm = versioned_xcm.clone().into_version(3);
+		// TODO: defer when unable to interpret?
+		let Ok(V3(xcm)) = maybe_xcm else { return None };
+		// SAFETY NOTE: It is fine to only look at the first instruction because that is how assets will arrive on chain.
+		//              This is guaranteed by `AllowTopLevelExecution` which is standard in the ecosystem.
+		let Some(instruction) = xcm.first() else { return None };
+		for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
+			let accumulated_liquidity = AccumulatedAmounts::<T>::get(location);
 
-					let Some(asset_id) = T::CurrencyIdConvert::convert(location) else { continue };
-					let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else { continue };
-					let defer_duration = T::DeferDuration::get();
+			let Some(asset_id) = T::CurrencyIdConvert::convert(location) else { continue };
+			let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else { continue };
+			let defer_duration = T::DeferDuration::get();
 
-					let current_time = T::RelayBlockNumberProvider::current_block_number();
-					let time_difference = current_time.saturating_sub(accumulated_liquidity.last_updated);
+			let current_time = T::RelayBlockNumberProvider::current_block_number();
+			let time_difference = current_time.saturating_sub(accumulated_liquidity.last_updated);
 
-					let new_accumulated_amount = calculate_new_accumulated_amount(
-						defer_duration.saturated_into(),
-						limit_per_duration,
-						amount,
-						accumulated_liquidity.amount,
-						time_difference.saturated_into(),
-					);
+			let new_accumulated_amount = calculate_new_accumulated_amount(
+				defer_duration.saturated_into(),
+				limit_per_duration,
+				amount,
+				accumulated_liquidity.amount,
+				time_difference.saturated_into(),
+			);
 
-					let deferred_by = calculate_deferred_duration(
-						defer_duration.saturated_into(),
-						limit_per_duration,
-						new_accumulated_amount,
-					);
+			let deferred_by = calculate_deferred_duration(
+				defer_duration.saturated_into(),
+				limit_per_duration,
+				new_accumulated_amount,
+			);
 
-					AccumulatedAmounts::<T>::insert(
-						location,
-						AccumulatedAmount {
-							amount: new_accumulated_amount,
-							last_updated: current_time,
-						},
-					);
+			AccumulatedAmounts::<T>::insert(
+				location,
+				AccumulatedAmount {
+					amount: new_accumulated_amount,
+					last_updated: current_time,
+				},
+			);
 
-					if deferred_by > 0 {
-						return Some(deferred_by.min(T::MaxDeferDuration::get().saturated_into()));
-					} else {
-						return None;
-					}
-				}
+			if deferred_by > 0 {
+				return Some(deferred_by.min(T::MaxDeferDuration::get().saturated_into()));
+			} else {
+				return None;
 			}
 		}
 
