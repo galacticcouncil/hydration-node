@@ -50,7 +50,7 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 
 #[derive(Clone, Default, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
-pub struct AccumulatedDeferredAmount<BlockNumber> {
+pub struct AccumulatedAmount<BlockNumber> {
 	pub amount: u128,
 	pub last_updated: BlockNumber,
 }
@@ -110,10 +110,10 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	/// Accumulated deferred amounts for each asset
-	#[pallet::getter(fn accumulated_deferred_amount)]
-	pub type AccumulatedDeferredAmounts<T: Config> =
-		StorageMap<_, Blake2_128Concat, MultiLocation, AccumulatedDeferredAmount<T::BlockNumber>, ValueQuery>;
+	/// Accumulated amounts for each asset
+	#[pallet::getter(fn accumulated_amount)]
+	pub type AccumulatedAmounts<T: Config> =
+		StorageMap<_, Blake2_128Concat, MultiLocation, AccumulatedAmount<T::BlockNumber>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -212,7 +212,7 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 		if let V3(xcm) = xcm {
 			if let Some(instruction) = xcm.first() {
 				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
-					let accumulated_liquidity = AccumulatedDeferredAmounts::<T>::get(location);
+					let accumulated_liquidity = AccumulatedAmounts::<T>::get(location);
 
 					let Some(asset_id) = T::CurrencyIdConvert::convert(location) else { continue };
 					let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else { continue };
@@ -237,9 +237,9 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 						time_difference.saturated_into(),
 					);
 
-					AccumulatedDeferredAmounts::<T>::insert(
+					AccumulatedAmounts::<T>::insert(
 						location,
-						AccumulatedDeferredAmount {
+						AccumulatedAmount {
 							amount: new_accumulated_amount,
 							last_updated: current_time,
 						},
