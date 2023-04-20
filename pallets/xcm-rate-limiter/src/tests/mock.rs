@@ -151,7 +151,7 @@ impl pallet_xcm_rate_limiter::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type DeferDuration = ConstU64<10>;
-	type MaxDeferDuration = ConstU64<1000>;
+	type MaxDeferDuration = ConstU64<100>;
 	type TechnicalOrigin = EnsureRoot<AccountId>;
 	type BlockNumberProvider = System;
 	type RateLimitFor = XcmRateLimitFor;

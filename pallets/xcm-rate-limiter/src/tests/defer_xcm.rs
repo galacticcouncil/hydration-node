@@ -125,6 +125,21 @@ fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 }
 
 #[test]
+fn deferred_by_should_defer_by_max_duration_when_it_is_reached() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::here(), 20_000 * ONE);
+		let para_id = 999.into();
+
+		//Act
+		let deferred_by: u64 = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).unwrap().into();
+		let max_defer: u64 = <Test as Config>::MaxDeferDuration::get();
+		//Assert
+		assert_eq!(deferred_by, max_defer);
+	});
+}
+
+#[test]
 fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange

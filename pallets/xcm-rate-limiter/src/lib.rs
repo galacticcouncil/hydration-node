@@ -234,7 +234,7 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 					);
 
 					if deferred_by > 0 {
-						return Some(deferred_by);
+						return Some(deferred_by.min(T::MaxDeferDuration::get().saturated_into()));
 					} else {
 						return None;
 					}
