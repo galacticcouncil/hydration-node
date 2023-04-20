@@ -202,11 +202,10 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-//TODO: what to do with para and snet at?
 impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 	fn deferred_by(
-		para: polkadot_parachain::primitives::Id,
-		sent_at: polkadot_core_primitives::BlockNumber,
+		_para: polkadot_parachain::primitives::Id,
+		_sent_at: polkadot_core_primitives::BlockNumber,
 		xcm: &VersionedXcm<T::RuntimeCall>,
 	) -> Option<polkadot_core_primitives::BlockNumber> {
 		if let V3(xcm) = xcm {
