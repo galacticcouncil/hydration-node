@@ -74,9 +74,9 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded() {
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let deferred_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
-		assert_eq!(deferred_amount.amount, 2000 * ONE);
-		assert_eq!(deferred_amount.last_updated, 1);
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		assert_eq!(accumulated_amount.amount, 2000 * ONE);
+		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(deferred_block_number, Some(10));
 	});
 }
@@ -92,7 +92,9 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let volume = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		assert_eq!(accumulated_amount.amount, 3000 * ONE);
+		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(deferred_block_number, Some(20));
 	});
 }
@@ -107,12 +109,17 @@ fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 		//Act
 		let first_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
-		// Transaction should be deffered by 10 blocks because it exceeds the limit by 1000 (1x the limit)
-		let volume = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		// Transaction should be deferred by 10 blocks because it exceeds the limit by 1000 (1x the limit)
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		assert_eq!(accumulated_amount.amount, 2000 * ONE);
+		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(first_deferred_block_number, Some(10));
 
 		// Second transaction should be put behind the first one by 20 blocks (2x the limit)
 		let second_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		assert_eq!(accumulated_amount.amount, 4000 * ONE);
+		assert_eq!(accumulated_amount.last_updated, 1);
 		assert_eq!(second_deferred_block_number, Some(30));
 	});
 }
