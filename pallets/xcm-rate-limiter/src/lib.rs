@@ -110,11 +110,6 @@ pub mod pallet {
 	pub type LiquidityPerAsset<T: Config> =
 		StorageMap<_, Blake2_128Concat, MultiLocation, (u128, T::BlockNumber), ValueQuery>;
 
-	#[pallet::storage]
-	/// TODO: document
-	#[pallet::getter(fn rate_limit)]
-	pub type RateLimits<T: Config> = StorageMap<_, Blake2_128Concat, MultiLocation, u128, OptionQuery>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -131,18 +126,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-		// TODO: document
-		// TODO: benchmark
-		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
-		pub fn set_limit(origin: OriginFor<T>, multi_location: MultiLocation, limit: u128) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
-
-			RateLimits::<T>::insert(multi_location, limit);
-			Ok(())
-		}
-	}
+	impl<T: Config> Pallet<T> {}
 }
 
 fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {

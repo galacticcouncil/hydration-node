@@ -143,33 +143,6 @@ fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 }
 
 #[test]
-fn set_limit_per_asset_should_work() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Act
-		assert_ok!(XcmRateLimiter::set_limit(
-			RuntimeOrigin::root(),
-			MultiLocation::here(),
-			1000 * ONE
-		));
-
-		//Assert
-		let limit = XcmRateLimiter::rate_limit(MultiLocation::here());
-		assert_eq!(limit, Some(1000 * ONE));
-	});
-}
-
-#[test]
-fn set_limit_per_asset_should_fail_when_called_by_non_root() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Act
-		assert_noop!(
-			XcmRateLimiter::set_limit(RuntimeOrigin::signed(ALICE), MultiLocation::here(), 1000 * ONE),
-			BadOrigin
-		);
-	});
-}
-
-#[test]
 fn deferred_duration_should_be_calculated_based_on_limit_and_incoming_amounts() {
 	let global_duration = 10;
 	let rate_limit = 1000 * ONE;
