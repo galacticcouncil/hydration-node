@@ -49,6 +49,12 @@ mod tests;
 pub use pallet::*;
 pub use weights::WeightInfo;
 
+#[derive(Clone, Default, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
+pub struct AccumulatedLiquidity<BlockNumber> {
+	pub amount: u128,
+	pub last_updated: BlockNumber,
+}
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -105,10 +111,9 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// Accumulated liquidity and last update time per asset
-	/// TODO: Use better naming and possible a struct for the value - LiquidtyAccumulation?!
-	#[pallet::getter(fn liquidity_per_asset)]
-	pub type LiquidityPerAsset<T: Config> =
-		StorageMap<_, Blake2_128Concat, MultiLocation, (u128, T::BlockNumber), ValueQuery>;
+	#[pallet::getter(fn accumulated_liquidity_per_asset)]
+	pub type AccumulatedLiquidityPerAsset<T: Config> =
+		StorageMap<_, Blake2_128Concat, MultiLocation, AccumulatedLiquidity<T::BlockNumber>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
@@ -206,20 +211,20 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 		if let V3(xcm) = xcm {
 			if let Some(instruction) = xcm.first() {
 				for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
-					let (old_accumulated, last_update_time) = LiquidityPerAsset::<T>::get(location);
+					let accumulated_liquidity = AccumulatedLiquidityPerAsset::<T>::get(location);
 
 					let Some(asset_id) = T::CurrencyIdConvert::convert(location) else { continue };
 					let Some(limit_per_duration) = T::RateLimitFor::get(&asset_id) else { continue };
 					let defer_duration = T::DeferDuration::get();
 
 					let current_time = T::BlockNumberProvider::current_block_number();
-					let time_difference = current_time.saturating_sub(last_update_time);
+					let time_difference = current_time.saturating_sub(accumulated_liquidity.last_updated);
 
-					let accumulated_amount = calculate_new_accumulated_amount(
+					let new_accumulated_amount = calculate_new_accumulated_amount(
 						defer_duration.saturated_into(),
 						limit_per_duration,
 						amount,
-						old_accumulated,
+						accumulated_liquidity.amount,
 						time_difference.saturated_into(),
 					);
 					// TODO: avoid redoing computation?
@@ -227,11 +232,17 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 						defer_duration.saturated_into(),
 						limit_per_duration,
 						amount,
-						old_accumulated,
+						accumulated_liquidity.amount,
 						time_difference.saturated_into(),
 					);
 
-					LiquidityPerAsset::<T>::insert(location, (accumulated_amount, current_time));
+					AccumulatedLiquidityPerAsset::<T>::insert(
+						location,
+						AccumulatedLiquidity {
+							amount: new_accumulated_amount,
+							last_updated: current_time,
+						},
+					);
 
 					if deferred_by > 0 {
 						return Some(deferred_by);
