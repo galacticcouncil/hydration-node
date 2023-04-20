@@ -137,21 +137,12 @@ fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
 	}
 }
 
-// TODO: pull out into hdx-math
+// TODO: pull out into hdx-math + add property based tests
 pub fn calculate_deferred_duration(
 	global_duration: BlockNumber,
 	rate_limit: u128,
-	incoming_amount: u128,
-	accumulated_amount: u128,
-	blocks_since_last_update: BlockNumber,
+	total_accumulated: u128,
 ) -> BlockNumber {
-	let total_accumulated = calculate_new_accumulated_amount(
-		global_duration,
-		rate_limit,
-		incoming_amount,
-		accumulated_amount,
-		blocks_since_last_update,
-	);
 	let global_duration: u128 = global_duration.max(1).saturated_into();
 	// duration * (incoming + decayed - rate_limit)
 	let deferred_duration =
@@ -227,13 +218,11 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 						accumulated_liquidity.amount,
 						time_difference.saturated_into(),
 					);
-					// TODO: avoid redoing computation?
+
 					let deferred_by = calculate_deferred_duration(
 						defer_duration.saturated_into(),
 						limit_per_duration,
-						amount,
-						accumulated_liquidity.amount,
-						time_difference.saturated_into(),
+						new_accumulated_amount,
 					);
 
 					AccumulatedAmounts::<T>::insert(

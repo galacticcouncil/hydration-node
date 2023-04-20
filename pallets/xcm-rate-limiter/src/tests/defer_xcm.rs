@@ -157,14 +157,8 @@ fn deferred_duration_should_be_calculated_based_on_limit_and_incoming_amounts() 
 	let rate_limit = 1000 * ONE;
 	let incoming_amount = 1500 * ONE;
 	let accumulated_amount = 400 * ONE;
-	let blocks_since_last_update = 0;
-	let duration = calculate_deferred_duration(
-		global_duration,
-		rate_limit,
-		incoming_amount,
-		accumulated_amount,
-		blocks_since_last_update,
-	);
+	let total_accumulated_amount = accumulated_amount + incoming_amount;
+	let duration = calculate_deferred_duration(global_duration, rate_limit, total_accumulated_amount);
 
 	assert_eq!(duration, 9);
 }
@@ -175,14 +169,9 @@ fn deferred_duration_should_return_zero_when_limit_not_reached() {
 	let rate_limit = 1000 * ONE;
 	let incoming_amount = 900 * ONE;
 	let accumulated_amount = 0;
-	let blocks_since_last_update = 0;
-	let duration = calculate_deferred_duration(
-		global_duration,
-		rate_limit,
-		incoming_amount,
-		accumulated_amount,
-		blocks_since_last_update,
-	);
+	let total_accumulated_amount = accumulated_amount + incoming_amount;
+
+	let duration = calculate_deferred_duration(global_duration, rate_limit, total_accumulated_amount);
 
 	assert_eq!(duration, 0);
 }
@@ -194,7 +183,7 @@ fn accumulated_amount_for_deferred_duration_should_decay() {
 	let incoming_amount = 1100 * ONE;
 	let accumulated_amount = 1200 * ONE;
 	let blocks_since_last_update = 12;
-	let duration = calculate_deferred_duration(
+	let accumulated_amount = calculate_new_accumulated_amount(
 		global_duration,
 		rate_limit,
 		incoming_amount,
@@ -202,7 +191,7 @@ fn accumulated_amount_for_deferred_duration_should_decay() {
 		blocks_since_last_update,
 	);
 
-	assert_eq!(duration, 1);
+	assert_eq!(accumulated_amount, 1100 * ONE);
 }
 
 #[test]
@@ -212,7 +201,7 @@ fn defer_duration_should_incorporate_decay_amounts_and_incoming() {
 	let incoming_amount = 1100 * ONE;
 	let accumulated_amount = 1200 * ONE;
 	let blocks_since_last_update = 6;
-	let duration = calculate_deferred_duration(
+	let accumulated_amount = calculate_new_accumulated_amount(
 		global_duration,
 		rate_limit,
 		incoming_amount,
@@ -220,7 +209,7 @@ fn defer_duration_should_incorporate_decay_amounts_and_incoming() {
 		blocks_since_last_update,
 	);
 
-	assert_eq!(duration, 7);
+	assert_eq!(accumulated_amount, 1700 * ONE);
 }
 
 #[test]
@@ -230,7 +219,7 @@ fn long_time_since_update_should_reset_rate_limit() {
 	let incoming_amount = 700 * ONE;
 	let accumulated_amount = 1200 * ONE;
 	let blocks_since_last_update = 20;
-	let duration = calculate_deferred_duration(
+	let accumulated_amount = calculate_new_accumulated_amount(
 		global_duration,
 		rate_limit,
 		incoming_amount,
@@ -238,7 +227,7 @@ fn long_time_since_update_should_reset_rate_limit() {
 		blocks_since_last_update,
 	);
 
-	assert_eq!(duration, 0);
+	assert_eq!(accumulated_amount, 700 * ONE);
 }
 
 #[test]
