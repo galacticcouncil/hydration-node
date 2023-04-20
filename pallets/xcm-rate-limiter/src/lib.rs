@@ -193,8 +193,7 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 	) -> Option<RelayChainBlockNumber> {
 		use xcm::IntoVersion;
 		let maybe_xcm = versioned_xcm.clone().into_version(3);
-		// TODO: defer when unable to interpret?
-		let Ok(V3(xcm)) = maybe_xcm else { return None };
+		let Ok(V3(xcm)) = maybe_xcm else { return Some(T::MaxDeferDuration::get()) };
 		// SAFETY NOTE: It is fine to only look at the first instruction because that is how assets will arrive on chain.
 		//              This is guaranteed by `AllowTopLevelExecution` which is standard in the ecosystem.
 		let Some(instruction) = xcm.first() else { return None };

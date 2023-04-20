@@ -63,6 +63,24 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded() {
 }
 
 #[test]
+fn deferred_by_should_defer_xcm_when_v2_can_be_converted() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let versioned_xcm = create_versioned_xcm_v2(2000 * ONE);
+		let para_id = 999.into();
+
+		//Act
+		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
+
+		//Assert
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		assert_eq!(accumulated_amount.amount, 2000 * ONE);
+		assert_eq!(accumulated_amount.last_updated, 1);
+		assert_eq!(deferred_block_number, Some(10));
+	});
+}
+
+#[test]
 fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -255,5 +273,13 @@ pub fn create_versioned_receive_teleported_asset(loc: MultiLocation, amount: u12
 	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
 		Instruction::<RuntimeCall>::ReceiveTeleportedAsset(multi_assets),
+	]))
+}
+
+pub fn create_versioned_xcm_v2(amount: u128) -> VersionedXcm<RuntimeCall> {
+	use xcm::v2::prelude::*;
+	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(MultiLocation::here(), amount).into()]).unwrap();
+	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
+		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_assets),
 	]))
 }
