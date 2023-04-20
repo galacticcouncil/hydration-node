@@ -100,7 +100,7 @@ pub mod pallet {
 		/// Convert from `MultiLocation` to local `AssetId`
 		type CurrencyIdConvert: Convert<MultiLocation, Option<Self::AssetId>>;
 
-		// TODO: Which type to use to define the rate limit here?
+		/// Xcm rate limit getter for each asset
 		type RateLimitFor: GetByKey<Self::AssetId, Option<u128>>;
 
 		/// Weight information for extrinsics in this pallet.
