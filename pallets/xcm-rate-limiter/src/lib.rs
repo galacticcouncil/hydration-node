@@ -104,7 +104,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	/// TODO: document
+	/// Accumulated liquidity and last update time per asset
 	/// TODO: Use better naming and possible a struct for the value - LiquidtyAccumulation?!
 	#[pallet::getter(fn liquidity_per_asset)]
 	pub type LiquidityPerAsset<T: Config> =
