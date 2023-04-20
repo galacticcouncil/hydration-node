@@ -39,7 +39,7 @@ fn deferred_by_should_track_incoming_deposited_asset_liquidity() {
 		XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let volume = XcmRateLimiter::accumulated_liquidity_per_asset(MultiLocation::here());
+		let volume = XcmRateLimiter::accumulated_deferred_amount(MultiLocation::here());
 		assert_eq!(volume, 5);
 	});
 }
@@ -58,7 +58,7 @@ fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
 		XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let volume = XcmRateLimiter::accumulated_liquidity_per_asset(MultiLocation::here());
+		let volume = XcmRateLimiter::accumulated_deferred_amount(MultiLocation::here());
 		assert_eq!(volume, 5);
 	});
 }
@@ -74,7 +74,7 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded() {
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let volume = XcmRateLimiter::accumulated_liquidity_per_asset(MultiLocation::here());
+		let volume = XcmRateLimiter::accumulated_deferred_amount(MultiLocation::here());
 		assert_eq!(deferred_block_number, Some(10));
 	});
 }
@@ -90,7 +90,7 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let volume = XcmRateLimiter::accumulated_liquidity_per_asset(MultiLocation::here());
+		let volume = XcmRateLimiter::accumulated_deferred_amount(MultiLocation::here());
 		assert_eq!(deferred_block_number, Some(20));
 	});
 }
@@ -106,7 +106,7 @@ fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 		let first_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		// Transaction should be deffered by 10 blocks because it exceeds the limit by 1000 (1x the limit)
-		let volume = XcmRateLimiter::accumulated_liquidity_per_asset(MultiLocation::here());
+		let volume = XcmRateLimiter::accumulated_deferred_amount(MultiLocation::here());
 		assert_eq!(first_deferred_block_number, Some(10));
 
 		// Second transaction should be put behind the first one by 20 blocks (2x the limit)
@@ -126,7 +126,7 @@ fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 		let first_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let accumulated_liquidity = XcmRateLimiter::accumulated_liquidity_per_asset(MultiLocation::here());
+		let accumulated_liquidity = XcmRateLimiter::accumulated_deferred_amount(MultiLocation::here());
 
 		assert_eq!(accumulated_liquidity.amount, 2000 * ONE);
 		assert_eq!(accumulated_liquidity.last_updated, 1);
@@ -135,7 +135,7 @@ fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 		System::set_block_number(6);
 
 		let second_deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
-		let accumulated_liquidity = XcmRateLimiter::accumulated_liquidity_per_asset(MultiLocation::here());
+		let accumulated_liquidity = XcmRateLimiter::accumulated_deferred_amount(MultiLocation::here());
 		assert_eq!(accumulated_liquidity.amount, 3500 * ONE);
 		assert_eq!(accumulated_liquidity.last_updated, 6);
 		assert_eq!(second_deferred_block_number, Some(25));
