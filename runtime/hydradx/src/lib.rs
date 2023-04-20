@@ -1018,6 +1018,7 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
+		XcmRateLimiter: pallet_xcm_rate_limiter = 66,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

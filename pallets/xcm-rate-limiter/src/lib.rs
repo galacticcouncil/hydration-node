@@ -33,6 +33,7 @@ use sp_runtime::traits::Convert;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Zero};
 use sp_runtime::SaturatedConversion;
 use sp_runtime::{ArithmeticError, DispatchError, RuntimeDebug, Saturating};
+use sp_std::vec::Vec;
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 use xcm::VersionedXcm::V3;
@@ -83,8 +84,6 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo
 			+ AtLeast32BitUnsigned;
-
-		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Defer duration base to be used for calculating the specific defer duration for any asset
 		#[pallet::constant]

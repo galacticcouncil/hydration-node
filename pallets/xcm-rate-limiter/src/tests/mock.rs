@@ -164,7 +164,6 @@ impl pallet_xcm_rate_limiter::Config for Test {
 	type AssetId = AssetId;
 	type DeferDuration = ConstU32<10>;
 	type MaxDeferDuration = ConstU32<100>;
-	type TechnicalOrigin = EnsureRoot<AccountId>;
 	// dirty trick: we use System as a relay block number provider here
 	type RelayBlockNumberProvider = TreatSystemAsRelayBlockNumberProvider;
 	type RateLimitFor = XcmRateLimitFor;
