@@ -86,7 +86,7 @@ pub mod pallet {
 
 		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		// TODO: document
+		/// Defer duration base to be used for calculating the specific defer duration for any asset
 		#[pallet::constant]
 		type DeferDuration: Get<Self::BlockNumber>;
 
