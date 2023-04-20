@@ -26,43 +26,24 @@ use sp_runtime::SaturatedConversion;
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 
-/*
 #[test]
-#[ignore]
-fn deferred_by_should_track_incoming_deposited_asset_liquidity() {
-	ExtBuilder::default().build().execute_with(|| {
-		//Arrange
-		let versioned_xcm = create_versioned_reserve_asset_deposited(MultiLocation::here(), 5);
-		let para_id = 999.into();
-
-		//Act
-		XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
-
-		//Assert
-		let volume = XcmRateLimiter::accumulated_amount(MultiLocation::here());
-		assert_eq!(volume, 5);
-	});
-}
-*/
-
-/*
-#[test]
-#[ignore]
 fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		let versioned_xcm = create_versioned_receive_teleported_asset(MultiLocation::here(), 5);
+		let versioned_xcm = create_versioned_receive_teleported_asset(MultiLocation::here(), 2000 * ONE);
 		let para_id = 999.into();
 
 		//Act
-		XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
+		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm);
 
 		//Assert
-		let volume = XcmRateLimiter::accumulated_amount(MultiLocation::here());
-		assert_eq!(volume, 5);
+		let accumulated_amount = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		assert_eq!(accumulated_amount.amount, 2000 * ONE);
+		assert_eq!(accumulated_amount.last_updated, 1);
+		assert_eq!(deferred_block_number, Some(10));
 	});
 }
-*/
+
 #[test]
 fn deferred_by_should_defer_xcm_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
