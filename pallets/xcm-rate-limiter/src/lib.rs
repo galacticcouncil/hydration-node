@@ -112,18 +112,11 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T: Config> {
-		// TODO: remove?
-		Event1 {},
-	}
+	pub enum Event<T: Config> {}
 
 	#[pallet::error]
 	#[cfg_attr(test, derive(PartialEq, Eq))]
-	pub enum Error<T> {
-		/// Invalid value for a limit. Limit must be non-zero.
-		// TODO: remove?
-		Error1,
-	}
+	pub enum Error<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {}
