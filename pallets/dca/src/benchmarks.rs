@@ -28,7 +28,6 @@ use orml_traits::MultiCurrencyExtended;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
-use sp_std::ops::RangeInclusive;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -232,18 +231,20 @@ benchmarks! {
 		let amount_sell = 20_000_000_000_000u128;
 		let sell_max_limit = 200_000_000_000_000u128;
 
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
 		let schedule1 = schedule_sell_fake::<T>(seller.clone(), token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
 		let exeuction_block = 100u32;
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
+
+		for _ in 0..T::MaxSchedulePerBlock::get() {
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(exeuction_block.into())));
+		}
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 	}: {
 		crate::Pallet::<T>::on_initialize(exeuction_block.into());
 	}
 	verify {
-
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
 
@@ -269,7 +270,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::Some(exeuction_block.into()))
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
-		assert!(<ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(one_block_after_exeuction_block.into()).is_some());
+		assert!(!<ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(one_block_after_exeuction_block.into()).is_empty());
 	}
 
 	pause{
