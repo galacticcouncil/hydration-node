@@ -659,11 +659,11 @@ where
 	}
 
 	fn get_on_initialize_weight() -> u64 {
-		crate::weights::HydraWeight::<T>::on_initialize().ref_time()
+		T::WeightInfo::on_initialize().ref_time()
 	}
 
 	fn get_execute_schedule_weight() -> u64 {
-		crate::weights::HydraWeight::<T>::execute_schedule().ref_time()
+		T::WeightInfo::execute_schedule().ref_time()
 	}
 
 	fn take_transaction_fee_from_user(owner: &T::AccountId, order: &Order<<T as Config>::Asset>) -> DispatchResult {
