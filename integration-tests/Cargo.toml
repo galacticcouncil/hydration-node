@@ -115,7 +115,6 @@ pretty_assertions = "1.2.1"
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "8b4a7d9f09cbd16e1df1d1b806a56395517d63ef" }
 xcm-emulator = { git = "https://github.com/shaunxw/xcm-simulator", rev = "0460d04c798028e7bef82c907082e11753ed173b" }
 pallet-dca = { path = "../pallets/dca"}
-env_logger = "*"
 
 [features]
 default = ["std"]
