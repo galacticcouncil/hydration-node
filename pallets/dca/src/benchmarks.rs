@@ -213,10 +213,10 @@ benchmarks! {
 		let exeuction_block = 100u32;
 
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 
 	}: {
 		let mut weight = 0u64;
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 
 		crate::Pallet::<T>::execute_schedule(exeuction_block.into(), &mut weight, 1);
 	}
@@ -238,10 +238,8 @@ benchmarks! {
 		let schedule1 = schedule_sell_fake::<T>(seller.clone(), token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
 		let exeuction_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(exeuction_block.into())));
-
-	}: {
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
-
+	}: {
 		crate::Pallet::<T>::on_initialize(exeuction_block.into());
 	}
 	verify {
