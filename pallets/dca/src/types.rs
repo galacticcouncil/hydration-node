@@ -40,6 +40,27 @@ pub enum Order<AssetId> {
 	},
 }
 
+impl<AssetId> Order<AssetId>
+where
+	AssetId: Copy,
+{
+	pub fn get_asset_in(&self) -> AssetId {
+		let asset_in = match &self {
+			Order::Sell { asset_in, .. } => asset_in,
+			Order::Buy { asset_in, .. } => asset_in,
+		};
+		*asset_in
+	}
+
+	pub fn get_asset_out(&self) -> AssetId {
+		let asset_out = match &self {
+			Order::Sell { asset_out, .. } => asset_out,
+			Order::Buy { asset_out, .. } => asset_out,
+		};
+		*asset_out
+	}
+}
+
 ///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Trade<AssetId> {

@@ -462,7 +462,7 @@ where
 	fn ensure_total_amount_is_bigger_than_storage_bond(
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
-		let min_total_amount = if Self::get_asset_in(&schedule.order) == T::NativeAssetId::get() {
+		let min_total_amount = if schedule.order.get_asset_in() == T::NativeAssetId::get() {
 			T::StorageBondInNativeCurrency::get()
 		} else {
 			Self::get_storage_bond_in_sold_currency(&schedule.order)?
@@ -523,10 +523,10 @@ where
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {return};
 
-		let sold_currency = Self::get_asset_in(&schedule.order);
+		let sold_currency = schedule.order.get_asset_in();
 		if exec_or_return_if_err!(Self::price_change_is_bigger_than_max_allowed(
 			sold_currency,
-			Self::get_asset_out(&schedule.order)
+			schedule.order.get_asset_out()
 		)) {
 			exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			return;
@@ -651,7 +651,7 @@ where
 	}
 
 	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
-		let sold_currency = Self::get_asset_in(order);
+		let sold_currency = order.get_asset_in();
 		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
 
 		let storage_bond_in_user_currency =
@@ -669,7 +669,7 @@ where
 	}
 
 	fn take_transaction_fee_from_user(owner: &T::AccountId, order: &Order<<T as Config>::Asset>) -> DispatchResult {
-		let fee_currency = Self::get_asset_in(order);
+		let fee_currency = order.get_asset_in();
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee(fee_currency)?;
 
@@ -704,26 +704,10 @@ where
 
 	fn unreserve_all_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
-		let sold_currency = Self::get_asset_in(&schedule.order);
+		let sold_currency = schedule.order.get_asset_in();
 		T::Currency::unreserve_all_named(&NAMED_RESERVE_ID, sold_currency.into(), who);
 
 		Ok(())
-	}
-
-	fn get_asset_in(order: &Order<T::Asset>) -> <T as Config>::Asset {
-		let sold_currency = match order {
-			Order::Sell { asset_in, .. } => asset_in,
-			Order::Buy { asset_in, .. } => asset_in,
-		};
-		*sold_currency
-	}
-
-	fn get_asset_out(order: &Order<T::Asset>) -> <T as Config>::Asset {
-		let asset_out = match order {
-			Order::Sell { asset_out, .. } => asset_out,
-			Order::Buy { asset_out, .. } => asset_out,
-		};
-		*asset_out
 	}
 
 	fn weight_to_fee(weight: Weight) -> Balance {
