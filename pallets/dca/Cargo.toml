@@ -50,6 +50,7 @@ proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "6b855e632e8f8179702b7c56d6be7535c394dbcf", default-features = false }
 test-case = "2.2.2"
+env_logger = "*"
 
 [features]
 default = ['std']

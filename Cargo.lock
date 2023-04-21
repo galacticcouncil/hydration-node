@@ -5960,6 +5960,7 @@ dependencies = [
 name = "pallet-dca"
 version = "1.0.2"
 dependencies = [
+ "env_logger 0.9.3",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
