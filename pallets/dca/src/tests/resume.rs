@@ -65,9 +65,9 @@ fn resume_should_schedule_to_next_block_when_next_execution_block_is_not_defined
 
 			//Assert
 			let schedule_ids = DCA::schedule_ids_per_block(501);
-			assert!(DCA::schedule_ids_per_block(501).is_some());
+			assert!(!DCA::schedule_ids_per_block(501).is_empty());
 			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
-			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+			assert_eq!(schedule_ids, expected_scheduled_ids_for_next_block);
 
 			expect_events(vec![
 				Event::Resumed { id: 1, who: ALICE }.into(),
@@ -154,9 +154,9 @@ fn resume_should_schedule_to_next_block_when_next_execution_block_is_defined() {
 
 			//Assert
 			let schedule_ids = DCA::schedule_ids_per_block(1000);
-			assert!(DCA::schedule_ids_per_block(1000).is_some());
+			assert!(!DCA::schedule_ids_per_block(1000).is_empty());
 			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
-			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+			assert_eq!(schedule_ids, expected_scheduled_ids_for_next_block);
 
 			expect_events(vec![
 				Event::Resumed { id: 1, who: ALICE }.into(),

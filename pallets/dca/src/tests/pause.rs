@@ -41,7 +41,7 @@ fn pause_should_remove_storage_entry_for_planned_execution_when_there_is_only_on
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
 			//Assert
-			assert!(DCA::schedule_ids_per_block(501).is_none());
+			assert!(DCA::schedule_ids_per_block(501).is_empty());
 
 			expect_events(vec![Event::Paused { id: 1, who: ALICE }.into()]);
 		});
@@ -67,7 +67,7 @@ fn pause_should_remove_planned_schedule_from_next_execution_when_there_are_multi
 			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
 
 			//Assert
-			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501).unwrap();
+			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501);
 			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![2]);
 			assert_eq!(scheduled_ids_for_next_block, expected_scheduled_ids_for_next_block);
 		});

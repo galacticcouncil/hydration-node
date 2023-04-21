@@ -82,9 +82,9 @@ pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<Asset
 macro_rules! assert_scheduled_ids {
 	($block:expr, $expected_schedule_ids:expr) => {
 		let actual_schedule_ids = DCA::schedule_ids_per_block($block);
-		assert!(DCA::schedule_ids_per_block($block).is_some());
+		assert!(!DCA::schedule_ids_per_block($block).is_empty());
 		let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids($expected_schedule_ids);
-		assert_eq!(actual_schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+		assert_eq!(actual_schedule_ids, expected_scheduled_ids_for_next_block);
 	};
 }
 

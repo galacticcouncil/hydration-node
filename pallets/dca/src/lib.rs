@@ -111,14 +111,12 @@ pub mod pallet {
 
 				let mut random_generator = T::RandomnessProvider::generator();
 
-				let maybe_schedules: Option<BoundedVec<ScheduleId, T::MaxSchedulePerBlock>> =
+				let mut schedule_ids: BoundedVec<ScheduleId, T::MaxSchedulePerBlock> =
 					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
 
-				if let Some(mut schedules) = maybe_schedules {
-					schedules.sort_by_key(|_| random_generator.gen::<u32>());
-					for schedule_id in schedules {
-						Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
-					}
+				schedule_ids.sort_by_key(|_| random_generator.gen::<u32>());
+				for schedule_id in schedule_ids {
+					Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
 				}
 
 				Weight::from_ref_time(weight)
@@ -272,7 +270,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn schedule_ids_per_block)]
 	pub type ScheduleIdsPerBlock<T: Config> =
-		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, ValueQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T>
@@ -721,8 +719,7 @@ where
 		next_schedule_id: ScheduleId,
 		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
 	) -> DispatchResult {
-		let schedule_ids =
-			ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
+		let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
 		if schedule_ids.len() == T::MaxSchedulePerBlock::get() as usize {
 			let mut consequent_block = blocknumber_for_schedule;
 			consequent_block.saturating_inc();
@@ -934,8 +931,7 @@ where
 	) -> DispatchResult {
 		match next_execution_block {
 			Some(block) => {
-				let schedule_ids_on_block =
-					ScheduleIdsPerBlock::<T>::get(block).ok_or(Error::<T>::NoPlannedExecutionFoundOnBlock)?;
+				let schedule_ids_on_block = ScheduleIdsPerBlock::<T>::get(block);
 
 				ensure!(
 					schedule_ids_on_block.contains(&schedule_id),

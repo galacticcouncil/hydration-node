@@ -159,7 +159,7 @@ fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
 			let schedule_id = 1;
 			assert_that_dca_is_completed(ALICE, schedule_id);
 			assert!(
-				DCA::schedule_ids_per_block(601).is_none(),
+				DCA::schedule_ids_per_block(601).is_empty(),
 				"There should be no schedule for the block, but there is"
 			);
 		});

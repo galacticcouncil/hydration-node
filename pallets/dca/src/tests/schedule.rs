@@ -159,9 +159,9 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 
 			//Check if schedule ids are stored
 			let schedule_ids = DCA::schedule_ids_per_block(501);
-			assert!(DCA::schedule_ids_per_block(501).is_some());
+			assert!(!DCA::schedule_ids_per_block(501).is_empty());
 			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
-			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+			assert_eq!(schedule_ids, expected_scheduled_ids_for_next_block);
 
 			//Check if schedule ownership is created
 			assert!(DCA::owner_of(ALICE, schedule_id).is_some());
@@ -187,7 +187,7 @@ fn schedule_should_work_when_multiple_schedules_stored() {
 			assert!(DCA::schedules(1).is_some());
 			assert!(DCA::schedules(2).is_some());
 
-			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501).unwrap();
+			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501);
 
 			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1, 2]);
 			assert_eq!(scheduled_ids_for_next_block, expected_scheduled_ids_for_next_block);
@@ -218,9 +218,9 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 
 			//Check if schedule ids are stored
 			let schedule_ids = DCA::schedule_ids_per_block(600);
-			assert!(DCA::schedule_ids_per_block(600).is_some());
+			assert!(!DCA::schedule_ids_per_block(600).is_empty());
 			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
-			assert_eq!(schedule_ids.unwrap(), expected_scheduled_ids_for_next_block);
+			assert_eq!(schedule_ids, expected_scheduled_ids_for_next_block);
 
 			//Check if schedule ownership is created
 			assert!(DCA::owner_of(ALICE, schedule_id).is_some());
@@ -360,7 +360,7 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let actual_schedule_ids = DCA::schedule_ids_per_block(501).unwrap();
+			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
 			assert_eq!(20, actual_schedule_ids.len());
 
 			assert_scheduled_ids!(502, vec![schedule_id]);
@@ -387,10 +387,10 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let actual_schedule_ids = DCA::schedule_ids_per_block(501).unwrap();
+			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(502).unwrap();
+			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
 			assert_eq!(20, actual_schedule_ids.len());
 
 			assert_scheduled_ids!(503, vec![schedule_id]);

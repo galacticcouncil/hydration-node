@@ -89,7 +89,7 @@ fn terminate_should_remove_planned_execution_when_there_is_only_single_execution
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
 
 			//Assert
-			assert!(DCA::schedule_ids_per_block(600).is_none());
+			assert!(DCA::schedule_ids_per_block(600).is_empty());
 		});
 }
 
@@ -134,7 +134,7 @@ fn terminate_should_remove_suspended_schedule_when_no_block_specified_by_user() 
 			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::None));
 
 			//Assert
-			assert!(DCA::schedule_ids_per_block(600).is_none());
+			assert!(DCA::schedule_ids_per_block(600).is_empty());
 			assert!(DCA::suspended(schedule_id).is_none());
 		});
 }
