@@ -54,6 +54,7 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
 };
+use sp_std::vec::Vec;
 use sp_std::{
 	cmp::{max, min},
 	vec,
@@ -111,10 +112,10 @@ pub mod pallet {
 
 				let mut random_generator = T::RandomnessProvider::generator();
 
-				let mut schedule_ids: BoundedVec<ScheduleId, T::MaxSchedulePerBlock> =
-					ScheduleIdsPerBlock::<T>::get(current_blocknumber);
+				let mut schedule_ids: Vec<ScheduleId> =
+					ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
 
-				schedule_ids.sort_by_key(|_| random_generator.gen::<u32>());
+				schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
 				for schedule_id in schedule_ids {
 					Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
 				}

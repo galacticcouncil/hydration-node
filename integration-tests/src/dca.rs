@@ -47,7 +47,7 @@ fn create_schedule_should_work() {
 
 		let next_block_id = block_id + 1;
 		let schedule = hydradx_runtime::DCA::schedule_ids_per_block(next_block_id);
-		assert!(schedule.is_some());
+		assert!(!schedule.is_empty());
 	});
 }
 
@@ -226,13 +226,13 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		run_to_block(1001, 1500);
 
 		//Assert
-		let amount_out = 79254281820570;
+		let amount_out = 79255079162831;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let amount_out = 93663153390011;
+		let amount_out = 93662356047750;
 
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - dca_budget_for_bob);
@@ -279,12 +279,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		//We check the random ordering based on the the emitted events.
 		expect_completed_dca_events(vec![
 			pallet_dca::Event::Completed {
-				id: 1,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-			pallet_dca::Event::Completed {
-				id: 2,
+				id: 3,
 				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
@@ -294,17 +289,22 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 			}
 			.into(),
 			pallet_dca::Event::Completed {
-				id: 4,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-			pallet_dca::Event::Completed {
-				id: 3,
+				id: 1,
 				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
 			pallet_dca::Event::Completed {
 				id: 5,
+				who: sp_runtime::AccountId32::from(ALICE),
+			}
+			.into(),
+			pallet_dca::Event::Completed {
+				id: 4,
+				who: sp_runtime::AccountId32::from(ALICE),
+			}
+			.into(),
+			pallet_dca::Event::Completed {
+				id: 2,
 				who: sp_runtime::AccountId32::from(ALICE),
 			}
 			.into(),
