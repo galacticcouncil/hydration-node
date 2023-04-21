@@ -8,7 +8,7 @@ A named reserve is allocated for the reserved amount of all DCA held by each use
 
 The DCA plan is executed as long as there is balance in the budget.
 
-If a trade fails then the oder is suspended and has to be resumed or terminated by the user.
+If a trade fails then the order is suspended and has to be resumed or terminated by the user.
 
 Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number. 
 Therefore they cannot be front-ran in the block they are executed.
