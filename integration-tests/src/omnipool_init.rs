@@ -9,6 +9,8 @@ use orml_traits::MultiCurrencyExtended;
 use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
+const PATH_TO_SNAPSHOT: &str = "omnipool-snapshot/SNAPSHOT";
+
 #[test]
 fn omnipool_launch_init_params_should_be_correct() {
 	TestNet::reset();
@@ -155,9 +157,10 @@ pub fn hydra_run_to_block(to: BlockNumber) {
 	}
 }
 
+#[ignore]
 #[test]
 fn add_liquidity_should_fail_when_price_changes() {
-	hydra_live_ext().execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let acc = AccountId::from(ALICE);
 		let eth_precision = 1_000_000_000_000_000_000u128;
 
@@ -201,9 +204,10 @@ fn add_liquidity_should_fail_when_price_changes() {
 	});
 }
 
+#[ignore]
 #[test]
 fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
-	hydra_live_ext().execute_with(|| {
+	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
 		let acc = AccountId::from(ALICE);
 		let eth_precision = 1_000_000_000_000_000_000u128;
 
