@@ -259,12 +259,12 @@ benchmarks! {
 		let one_block_after_exeuction_block = exeuction_block + 1;
 
 		//We fill the execution block
-		let number_of_generated_schediles_as_prerequisite = 20;
-		for _ in RangeInclusive::new(1, number_of_generated_schediles_as_prerequisite) {
+		let number_of_generated_schedules_as_prerequisite = 20;
+		for _ in 1..=number_of_generated_schedules_as_prerequisite {
 			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(exeuction_block.into())));
 		}
 
-		let schedule_id : ScheduleId = number_of_generated_schediles_as_prerequisite + 1;
+		let schedule_id : ScheduleId = number_of_generated_schedules_as_prerequisite + 1;
 
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::Some(exeuction_block.into()))
 	verify {
