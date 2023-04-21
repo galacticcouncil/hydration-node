@@ -17,11 +17,6 @@ pub struct Schedule<AccountId, AssetId, BlockNumber> {
 	pub order: Order<AssetId>,
 }
 
-//TODO:
-//Use only one named reserve - check otc what hte ide is
-//then track the remaining stuff here
-//ScheduleId -> RemainingReservedBalance
-
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub enum Order<AssetId> {
 	Sell {
