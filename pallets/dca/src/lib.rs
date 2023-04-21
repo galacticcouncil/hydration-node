@@ -519,9 +519,9 @@ where
 	pub fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
 		*weight += Self::get_execute_schedule_weight();
 
-		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
+		let Some(schedule) = Schedules::<T>::get(schedule_id) else {return};
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
-		let blocknumber_for_schedule = exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period));
+		let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {return};
 
 		let sold_currency = Self::get_asset_in(&schedule.order);
 		if exec_or_return_if_err!(Self::price_change_is_bigger_than_max_allowed(
@@ -533,7 +533,7 @@ where
 		}
 
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
-		let remaining_amount_to_use = exec_or_return_if_none!(RemainingAmounts::<T>::get(schedule_id));
+		let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {return};
 
 		T::Currency::unreserve_named(
 			&NAMED_RESERVE_ID,
@@ -990,19 +990,6 @@ impl<T: Config> RandomnessProvider for Pallet<T> {
 		let seed = u64::from_le_bytes(seed_arr);
 		rand::rngs::StdRng::seed_from_u64(seed)
 	}
-}
-
-#[macro_export]
-macro_rules! exec_or_return_if_none {
-	($opt:expr) => {
-		match $opt {
-			Some(val) => val,
-			None => {
-				log::error!(target: "runtime::dca", "Unexpected error happened while executing schedule.");
-				return;
-			}
-		}
-	};
 }
 
 #[macro_export]
