@@ -1,0 +1,233 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`'hydraDX' upgrade > 'gov upgrade' works > enact 1`] = `[]`;
+
+exports[`'hydraDX' upgrade > 'gov upgrade' works > events 1`] = `
+[
+  {
+    "data": {
+      "hash_": "(hash)",
+    },
+    "method": "Noted",
+    "section": "preimage",
+  },
+]
+`;
+
+exports[`'hydraDX' upgrade > 'gov upgrade' works > events 2`] = `
+[
+  {
+    "data": {
+      "amount": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Withdraw",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Withdrawn",
+    "section": "currencies",
+  },
+  {
+    "data": {
+      "proposalHash": "(hash)",
+      "result": "Ok",
+    },
+    "method": "Executed",
+    "section": "council",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
+    },
+    "method": "Deposit",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
+    },
+    "method": "Deposited",
+    "section": "currencies",
+  },
+  {
+    "data": {
+      "actualFee": "(number)",
+      "tip": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "TransactionFeePaid",
+    "section": "transactionPayment",
+  },
+  {
+    "data": {
+      "dispatchInfo": {
+        "class": "Operational",
+        "paysFee": "Yes",
+        "weight": "(number)",
+      },
+    },
+    "method": "ExtrinsicSuccess",
+    "section": "system",
+  },
+]
+`;
+
+exports[`'hydraDX' upgrade > 'gov upgrade' works > tech committee 1`] = `
+[
+  {
+    "data": {
+      "amount": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Withdraw",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Withdrawn",
+    "section": "currencies",
+  },
+  {
+    "data": {
+      "refIndex": "(number)",
+      "threshold": "SimpleMajority",
+    },
+    "method": "Started",
+    "section": "democracy",
+  },
+  {
+    "data": {
+      "proposalHash": "(hash)",
+      "result": "Ok",
+    },
+    "method": "Executed",
+    "section": "technicalCommittee",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
+    },
+    "method": "Deposit",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
+    },
+    "method": "Deposited",
+    "section": "currencies",
+  },
+  {
+    "data": {
+      "actualFee": "(number)",
+      "tip": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "TransactionFeePaid",
+    "section": "transactionPayment",
+  },
+  {
+    "data": {
+      "dispatchInfo": {
+        "class": "Operational",
+        "paysFee": "Yes",
+        "weight": "(number)",
+      },
+    },
+    "method": "ExtrinsicSuccess",
+    "section": "system",
+  },
+]
+`;
+
+exports[`'hydraDX' upgrade > 'gov upgrade' works > vote 1`] = `
+[
+  {
+    "data": {
+      "amount": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Withdraw",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Withdrawn",
+    "section": "currencies",
+  },
+  {
+    "data": {
+      "refIndex": "(number)",
+      "vote": {
+        "Standard": {
+          "balance": "(number)",
+          "vote": {
+            "conviction": "Locked1x",
+            "vote": "Aye",
+          },
+        },
+      },
+      "voter": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Voted",
+    "section": "democracy",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
+    },
+    "method": "Deposit",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
+    },
+    "method": "Deposited",
+    "section": "currencies",
+  },
+  {
+    "data": {
+      "actualFee": "(number)",
+      "tip": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "TransactionFeePaid",
+    "section": "transactionPayment",
+  },
+  {
+    "data": {
+      "dispatchInfo": {
+        "class": "Normal",
+        "paysFee": "Yes",
+        "weight": "(number)",
+      },
+    },
+    "method": "ExtrinsicSuccess",
+    "section": "system",
+  },
+]
+`;

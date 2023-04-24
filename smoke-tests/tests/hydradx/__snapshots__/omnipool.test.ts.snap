@@ -1,0 +1,50 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`'hydraDX' omnipool liquidity > 'addLiquidity' works > events 1`] = `[]`;
+
+exports[`'hydraDX' omnipool liquidity > 'addLiquidity' works > events 2`] = `[]`;
+
+exports[`'hydraDX' omnipool trades > 'sell' works > events 1`] = `
+[
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "from": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+      "to": "7L53bUTBbfuj14UpdCNPwmgzzHSsrsTWBHX5pys32mVWM3C1",
+    },
+    "method": "Transfer",
+    "section": "tokens",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "from": "7L53bUTBbfuj14UpdCNPwmgzzHSsrsTWBHX5pys32mVWM3C1",
+      "to": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Transfer",
+    "section": "tokens",
+  },
+  {
+    "data": {
+      "amount": "(number)",
+      "currencyId": "(number)",
+      "who": "7L53bUTBbfuj14UpdCNPwmgzzHSsrsTWBHX5pys32mVWM3C1",
+    },
+    "method": "Withdrawn",
+    "section": "tokens",
+  },
+  {
+    "data": {
+      "amountIn": "(number)",
+      "amountOut": "(number)",
+      "assetIn": "(number)",
+      "assetOut": "(number)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "SellExecuted",
+    "section": "omnipool",
+  },
+]
+`;

@@ -1,0 +1,45 @@
+{
+	"name": "smoke-tests",
+	"version": "0.1.0",
+	"author": "GalacticCouncil",
+	"license": "MIT",
+	"private": true,
+	"packageManager": "yarn@3.2.4",
+	"scripts": {
+		"lint": "tsc --noEmit && eslint . --ext .js,.ts && prettier --check .",
+		"fix": "eslint . --ext .js,.ts --fix && prettier -w .",
+		"prepare": "husky install",
+		"test": "LOG_LEVEL=error vitest ",
+		"test:ui": "yarn test --ui",
+		"test:dev": "vitest --inspect",
+		"update-env": "ts-node scripts/update-env.ts"
+	},
+	"dependencies": {
+		"@acala-network/chopsticks": "^0.6.0",
+		"@acala-network/chopsticks-testing": "^0.6.0",
+		"@polkadot/api": "^10.2.1",
+		"dotenv": "^16.0.3",
+		"typescript": "^4.9.5",
+		"vitest": "^0.29.8"
+	},
+	"devDependencies": {
+		"@types/node": "^18.15.11",
+		"@typescript-eslint/eslint-plugin": "^5.54.0",
+		"@typescript-eslint/parser": "^5.57.0",
+		"@vitest/ui": "^0.29.8",
+		"eslint": "^8.37.0",
+		"eslint-config-prettier": "^8.6.0",
+		"eslint-import-resolver-typescript": "^3.5.3",
+		"eslint-plugin-import": "^2.27.5",
+		"eslint-plugin-sort-imports-es6-autofix": "^0.6.0",
+		"husky": "^8.0.3",
+		"lint-staged": "^13.1.2",
+		"prettier": "^2.8.4",
+		"ts-node": "^10.9.1"
+	},
+	"prettier": {
+		"tabWidth": 2,
+		"semi": false,
+		"singleQuote": true
+	}
+}
