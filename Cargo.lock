@@ -5830,7 +5830,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.2"
+version = "1.1.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5996,6 +5996,7 @@ dependencies = [
  "orml-traits",
  "parity-scale-codec",
  "scale-info",
+ "serde",
  "sp-core",
  "sp-runtime",
  "sp-std",
@@ -6380,7 +6381,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -9058,6 +9059,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-democracy",
  "pallet-duster",
+ "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
