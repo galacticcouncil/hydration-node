@@ -716,20 +716,20 @@ where
 		<T as pallet::Config>::WeightToFee::weight_to_fee(&capped_weight)
 	}
 
-	fn add_schedule_id_to_existing_ids_per_block(
-		next_schedule_id: ScheduleId,
-		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
-	) -> DispatchResult {
-		let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
-		//TODO: try to remove recursion
-		if schedule_ids.len() == T::MaxSchedulePerBlock::get() as usize {
-			let mut consequent_block = blocknumber_for_schedule;
-			consequent_block.saturating_inc();
-			Self::plan_schedule_for_block(consequent_block, next_schedule_id)?;
-			return Ok(());
-		} else {
-			Self::add_schedule_id_to_block(next_schedule_id, blocknumber_for_schedule)?;
+	fn plan_schedule_for_block(blocknumber: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
+		let mut blocknumber_for_schedule = blocknumber;
+
+		while ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
+			let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
+			if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
+				Self::add_schedule_id_to_block(schedule_id, blocknumber_for_schedule)?;
+				return Ok(());
+			}
+			blocknumber_for_schedule.saturating_inc();
 		}
+
+		let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
+		ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
 
 		Ok(())
 	}
@@ -747,16 +747,6 @@ where
 			Ok(())
 		})?;
 
-		Ok(())
-	}
-
-	fn plan_schedule_for_block(b: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
-		if !ScheduleIdsPerBlock::<T>::contains_key(b) {
-			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
-			ScheduleIdsPerBlock::<T>::insert(b, vec_with_first_schedule_id);
-		} else {
-			Self::add_schedule_id_to_existing_ids_per_block(schedule_id, b)?;
-		}
 		Ok(())
 	}
 
