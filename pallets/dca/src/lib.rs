@@ -721,6 +721,7 @@ where
 		blocknumber_for_schedule: <T as frame_system::Config>::BlockNumber,
 	) -> DispatchResult {
 		let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
+		//TODO: try to remove recursion
 		if schedule_ids.len() == T::MaxSchedulePerBlock::get() as usize {
 			let mut consequent_block = blocknumber_for_schedule;
 			consequent_block.saturating_inc();
