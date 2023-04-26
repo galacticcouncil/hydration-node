@@ -556,7 +556,7 @@ where
 				exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			}
 			_ => {
-				exec_or_return_if_err!(Self::suspend_schedule(&schedule.owner, schedule_id));
+				Self::suspend_schedule(&schedule.owner, schedule_id);
 			}
 		}
 	}
@@ -884,14 +884,12 @@ where
 		Ok(())
 	}
 
-	fn suspend_schedule(owner: &T::AccountId, schedule_id: ScheduleId) -> DispatchResult {
+	fn suspend_schedule(owner: &T::AccountId, schedule_id: ScheduleId) {
 		Suspended::<T>::insert(schedule_id, ());
 		Self::deposit_event(Event::Suspended {
 			id: schedule_id,
 			who: owner.clone(),
 		});
-
-		Ok(())
 	}
 
 	fn convert_to_currency_if_asset_is_not_native(
