@@ -841,6 +841,8 @@ pub mod pallet {
 				T::MinWithdrawalFee::get(),
 			);
 
+			dbg!(withdrawal_fee);
+
 			//
 			// calculate state changes of remove liquidity
 			//
