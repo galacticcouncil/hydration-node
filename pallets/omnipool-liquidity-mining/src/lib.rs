@@ -55,13 +55,18 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor};
-use hydradx_traits::liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId};
+use hydra_dx_math::ema::EmaPrice as Price;
+use hydradx_traits::{
+	liquidity_mining::{GlobalFarmId, Mutate as LiquidityMiningMutate, YieldFarmId},
+	oracle::{AggregatedPriceOracle, OraclePeriod, Source},
+};
 use orml_traits::MultiCurrency;
+use pallet_ema_oracle::OracleError;
 use pallet_liquidity_mining::{FarmMultiplier, LoyaltyCurve};
 use pallet_omnipool::{types::Position as OmniPosition, NFTCollectionIdOf};
 use primitive_types::U256;
 use primitives::{Balance, ItemId as DepositId};
-use sp_runtime::{ArithmeticError, FixedU128, Perquintill};
+use sp_runtime::{ArithmeticError, Perquintill};
 use sp_std::vec;
 
 pub use pallet::*;
@@ -135,6 +140,17 @@ pub mod pallet {
 			Period = PeriodOf<Self>,
 		>;
 
+		/// Identifier of oracle data soruce
+		#[pallet::constant]
+		type OracleSource: Get<Source>;
+
+		/// Oracle's price aggregation period.
+		#[pallet::constant]
+		type OraclePeriod: Get<OraclePeriod>;
+
+		/// Oracle providing price of LRNA/{Asset} used to calculate `valued_shares`.
+		type PriceOracle: AggregatedPriceOracle<Self::AssetId, BlockNumberFor<Self>, Price, Error = OracleError>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -158,13 +174,6 @@ pub mod pallet {
 			blocks_per_period: BlockNumberFor<T>,
 			max_reward_per_period: Balance,
 			min_deposit: Balance,
-			lrna_price_adjustment: FixedU128,
-		},
-
-		/// Global farm's `lrna_price_adjustment` was updated.
-		GlobalFarmUpdated {
-			id: GlobalFarmId,
-			lrna_price_adjustment: FixedU128,
 		},
 
 		/// Global farm was terminated.
@@ -278,6 +287,12 @@ pub mod pallet {
 		/// Action cannot be completed because unexpected error has occurred. This should be reported
 		/// to protocol maintainers.
 		InconsistentState(InconsistentStateError),
+
+		/// Oracle could not be found for requested assets.
+		OracleNotAvailable,
+
+		/// Oracle providing `price_adjustment` could not be found for requested assets.
+		PriceAdjustmentNotAvailable,
 	}
 
 	//NOTE: these errors should never happen.
@@ -322,7 +337,6 @@ pub mod pallet {
 		/// liquidity mining program.
 		/// - `yield_per_period`: percentage return on `reward_currency` of all farms.
 		/// - `min_deposit`: minimum amount of LP shares to be deposited into the liquidity mining by each user.
-		/// - `lrna_price_adjustment`: price adjustment between `[LRNA]` and `reward_currency`.
 		///
 		/// Emits `GlobalFarmCreated` when successful.
 		///
@@ -337,11 +351,11 @@ pub mod pallet {
 			owner: T::AccountId,
 			yield_per_period: Perquintill,
 			min_deposit: Balance,
-			lrna_price_adjustment: FixedU128,
 		) -> DispatchResult {
 			<T as pallet::Config>::CreateOrigin::ensure_origin(origin)?;
 
-			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm(
+			//NOTE: Oracle is used as `price_adjustment` provider.
+			let (id, max_reward_per_period) = T::LiquidityMiningHandler::create_global_farm_without_price_adjustment(
 				total_rewards,
 				planned_yielding_periods,
 				blocks_per_period,
@@ -351,7 +365,6 @@ pub mod pallet {
 				owner.clone(),
 				yield_per_period,
 				min_deposit,
-				lrna_price_adjustment,
 			)?;
 
 			Self::deposit_event(Event::GlobalFarmCreated {
@@ -364,37 +377,6 @@ pub mod pallet {
 				blocks_per_period,
 				max_reward_per_period,
 				min_deposit,
-				lrna_price_adjustment,
-			});
-
-			Ok(())
-		}
-
-		/// Update global farm's exchange rate between [LRNA] and `incentivized_asset`.
-		///
-		/// Only farm's owner can perform this action.
-		///
-		/// Parameters:
-		/// - `origin`: global farm's owner.
-		/// - `global_farm_id`: id of the global farm to update.
-		/// - `lrna_price_adjustment`: new value for LRNA price adjustment.
-		///
-		/// Emits `GlobalFarmUpdated` event when successful.
-		///
-		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::update_global_farm())]
-		pub fn update_global_farm(
-			origin: OriginFor<T>,
-			global_farm_id: GlobalFarmId,
-			lrna_price_adjustment: FixedU128,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			T::LiquidityMiningHandler::update_global_farm_price_adjustment(who, global_farm_id, lrna_price_adjustment)?;
-
-			Self::deposit_event(Event::GlobalFarmUpdated {
-				id: global_farm_id,
-				lrna_price_adjustment,
 			});
 
 			Ok(())
@@ -436,7 +418,7 @@ pub mod pallet {
 		/// Only farm owner can perform this action.
 		///
 		/// Asset with `asset_id` has to be registered in the omnipool.
-		/// Yield farm for same `asset_id` can exist only once in the global farm.
+		/// At most one `active` yield farm can exist in one global farm for the same `asset_id`.
 		///
 		/// Parameters:
 		/// - `origin`: global farm's owner.
@@ -529,7 +511,7 @@ pub mod pallet {
 		/// This function claims rewards from `GlobalFarm` last time and stop yield farm
 		/// incentivization from a `GlobalFarm`. Users will be able to only withdraw
 		/// shares(with claiming) after calling this function.
-		/// `deposit_shares()` and `claim_rewards()` are not allowed on stopped yield farm.
+		/// `deposit_shares()` is not allowed on stopped yield farm.
 		///  
 		/// Only farm owner can perform this action.
 		///
@@ -671,7 +653,7 @@ pub mod pallet {
 		/// Emits `SharesDeposited` event when successful.
 		///
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::deposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
 		pub fn deposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -732,7 +714,7 @@ pub mod pallet {
 		/// Emits `SharesRedeposited` event when successful.
 		///
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares())]
+		#[pallet::weight(<T as Config>::WeightInfo::redeposit_shares().saturating_add(T::PriceOracle::get_price_weight()))]
 		pub fn redeposit_shares(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -939,12 +921,20 @@ impl<T: Config> Pallet<T> {
 	fn get_position_value_in_hub_asset(
 		lp_position: &OmniPosition<Balance, T::AssetId>,
 	) -> Result<Balance, DispatchError> {
-		let state = OmnipoolPallet::<T>::load_asset_state(lp_position.asset_id)?;
+		let hub_asset_id = <T as pallet_omnipool::Config>::HubAssetId::get();
 
-		let position_value: u128 = U256::from(state.hub_reserve)
-			.checked_mul(lp_position.amount.into())
+		let (price, _) = T::PriceOracle::get_price(
+			hub_asset_id,
+			lp_position.asset_id,
+			T::OraclePeriod::get(),
+			T::OracleSource::get(),
+		)
+		.map_err(|_| Error::<T>::OracleNotAvailable)?;
+
+		let position_value: u128 = U256::from(lp_position.amount)
+			.checked_mul(price.n.into())
 			.ok_or(ArithmeticError::Overflow)?
-			.checked_div(state.reserve.into())
+			.checked_div(price.d.into())
 			.ok_or(ArithmeticError::DivisionByZero)?
 			.try_into()
 			.map_err(|_| ArithmeticError::Overflow)?;

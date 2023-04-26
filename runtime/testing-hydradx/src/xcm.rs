@@ -220,13 +220,7 @@ impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
 				1,
 				X2(Parachain(ParachainInfo::get().into()), GeneralIndex(id.into())),
 			)),
-			_ => {
-				if let Some(loc) = AssetRegistry::asset_to_location(id) {
-					Some(loc.0)
-				} else {
-					None
-				}
-			}
+			_ => AssetRegistry::asset_to_location(id).map(|loc| loc.0),
 		}
 	}
 }

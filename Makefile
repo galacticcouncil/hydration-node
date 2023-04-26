@@ -21,16 +21,19 @@ test-benchmarks:
 
 .PHONY: coverage
 coverage:
-	cargo tarpaulin --avoid-cfg-tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files infrastructure/*  --exclude-files utils/* --exclude-files **/weights.rs --ignore-tests -o Xml -o lcov
+	cargo tarpaulin --avoid-cfg-tarpaulin --all-features --workspace --locked  --exclude-files node/* --exclude-files runtime/* --exclude-files infrastructure/*  --exclude-files utils/* --exclude-files **/weights.rs --ignore-tests -o Xml -o lcov --timeout 120
 
 .PHONY: clippy
 clippy:
 	cargo clippy --release --all-targets --all-features -- -D warnings -A deprecated
 
-
 .PHONY: format
 format:
 	cargo fmt
+
+.PHONY: try-runtime
+try-runtime:
+	cargo run --release --features=try-runtime --bin hydradx try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks live --uri wss://rpc.hydradx.cloud:443
 
 .PHONY: build-docs
 build-docs:

@@ -77,7 +77,7 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		));
 
 		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999_977_584_155_737_889_401); //Omnipool spot price
+		assert_eq!(dave_balance, 999_977_755_428_786_079_601);
 	});
 }
 

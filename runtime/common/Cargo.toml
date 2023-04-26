@@ -1,6 +1,6 @@
 [package]
 name = "common-runtime"
-version = "102.1.1"
+version = "102.3.2"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -16,11 +16,24 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 primitives = {path = '../../primitives', default-features = false}
+primitive-types = {default-features = false, version = '0.12.0'}
+
 pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
 pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
+pallet-omnipool-liquidity-mining = {path = '../../pallets/omnipool-liquidity-mining', default-features = false}
+pallet-claims = { path = '../../pallets/claims', default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "3da7fffa4c2f27b4166bfeb4a494cb4e995b700e", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "3a4e017ad42c297fbe7928dc72ea6499a9260f10", default-features = false }
+
+# Warehouse dependencies
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false}
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false }
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false}
+pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false }
+pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false}
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false }
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "d048e91fb179e531aaaff28e747a5199d42ff871", default-features = false }
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
@@ -41,14 +54,7 @@ pallet-scheduler = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
-pallet-claims = { path = '../../pallets/claims', default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352", default-features = false}
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352", default-features = false }
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352", default-features = false}
-pallet-transaction-pause = { git = "https://github.com/galacticcouncil/warehouse", rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352", default-features = false }
-pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352", default-features = false}
-pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "2eeb98d3d9755dc714cf474bb445a5fdac865352", default-features = false }
-
+# ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
