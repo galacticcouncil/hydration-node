@@ -108,6 +108,7 @@ pub mod pallet {
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			{
+				//TODO: Emit start event
 				let mut weight: u64 = Self::get_on_initialize_weight();
 
 				let mut random_generator = T::RandomnessProvider::generator();
@@ -117,7 +118,27 @@ pub mod pallet {
 
 				schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
 				for schedule_id in schedule_ids {
+					//TODO: charge for on_initize divided by the 1/T::MaxSchedulesPerBlock
+					//Taking from reserve
+					let schedule = Schedules::<T>::get(schedule_id).unwrap();//TODO: remove unwrap
+					let fee_amount = Self::take_transaction_fee_from_user(&schedule.owner, &schedule.order).unwrap();//TODO: remove unwrap
+					//TODO: if fee taking fails then suspend the schedule
+					// if there is not enough reserve, need to terminate the schedule
+
+					T::Currency::unreserve_named(
+						&NAMED_RESERVE_ID,
+						schedule.order.get_asset_in().into(),
+						&schedule.owner,
+						fee_amount.into(),
+					);
+
+					//If this fails, we suspend, and also rollback with reserving the same amount
+					Self::decrease_remaining_amount(schedule_id, fee_amount).unwrap();//TODO: remove unwrap
+
+
 					Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
+					//TODO: based on the error, we need to suspend or terminate
+					//TODO: the error handling should be here
 				}
 
 				Weight::from_ref_time(weight)
@@ -202,9 +223,9 @@ pub mod pallet {
 		///The DCA is resumed to be executed
 		Resumed { id: ScheduleId, who: T::AccountId },
 		///The DCA is terminated and completely removed from the chain
-		Terminated { id: ScheduleId, who: T::AccountId },
+		Terminated { id: ScheduleId, who: T::AccountId }, //TODO: add error model (modelindex, indexOfError)
 		///The DCA is suspended because it is paused by user or the DCA execution failed
-		Suspended { id: ScheduleId, who: T::AccountId },
+		Suspended { id: ScheduleId, who: T::AccountId }, //TODO: add error model (modelindex, indexOfError)
 		///The DCA is completed and completely removed from the chain
 		Completed { id: ScheduleId, who: T::AccountId },
 	}
@@ -303,6 +324,8 @@ pub mod pallet {
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+			//TODO: inline these. 
+			//TODO: the ensure next bloxck number should be in the next
 			Self::ensure_next_blocknumber_is_bigger_than_current_block(start_execution_block)?;
 			Self::ensure_total_amount_is_bigger_than_storage_bond(&schedule)?;
 			Self::ensure_sell_amount_is_bigger_than_transaction_fee(&schedule)?;
@@ -444,6 +467,7 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
+	//TODO: this should be in the plan schedule, and it can be removed in other extrinsics such as pause
 	fn ensure_next_blocknumber_is_bigger_than_current_block(
 		next_execution_block: Option<T::BlockNumber>,
 	) -> DispatchResult {
@@ -515,25 +539,39 @@ where
 		Ok(())
 	}
 
+	//TODO: add #[transactional], and also test it somehow if it works as we expect
 	pub fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
 		*weight += Self::get_execute_schedule_weight();
 
+		//TODO: Handle error cases
+		//- if returns none, then terminate with error flag
 		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let blocknumber_for_schedule = exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period));
 
 		let sold_currency = schedule.order.get_asset_in();
+		//- If oracle fails, then we terminate
 		if exec_or_return_if_err!(Self::price_change_is_bigger_than_max_allowed(
 			sold_currency,
 			schedule.order.get_asset_out()
 		)) {
+			// If planning fails, we suspend - no rollback
+			//TODO: limit this, storae - id per number of schedules, and if it reaches a limit ,the nreschedule, global configured with 5 retries
+			//TODO: if retry fails, we suspend
 			exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			return;
 		}
 
+		//If these two fail, we terminate - no rollback
 		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
+		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id);
+		if let None = RemainingAmounts::<T>::get(schedule_id) {
+			Self::complete_dca(&schedule.owner, schedule_id);
+			return;
+		}
 		let remaining_amount_to_use = exec_or_return_if_none!(RemainingAmounts::<T>::get(schedule_id));
 
+		//TODO: check if this returns `amount_to_unreserve`, otherwise we fail, terminate
 		T::Currency::unreserve_named(
 			&NAMED_RESERVE_ID,
 			sold_currency.into(),
@@ -541,21 +579,28 @@ where
 			amount_to_unreserve.into(),
 		);
 
+		//If this fails, we suspend, and also rollback with reserving the same amount
 		exec_or_return_if_err!(Self::decrease_remaining_amount(schedule_id, amount_to_unreserve));
 
+		//TODO: we should complete when we can not schedule next one in plan_schedule_for_block
+		//because it does not make sense the reschedule but surely fail in th next oine
+		//check can be here, but it should be part in the plan_schedule_for_block
 		if remaining_amount_to_use < amount_to_unreserve {
 			Self::complete_dca(&schedule.owner, schedule_id);
 			return;
 		}
 
-		exec_or_return_if_err!(Self::take_transaction_fee_from_user(&schedule.owner, &schedule.order));
+		//this transaction feee should be somewhere else
 		let trade_result = Self::execute_trade(origin, &schedule.order);
 
 		match trade_result {
 			Ok(_) => {
+				//If this fails, we suspend - no rollback
 				exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
 			}
 			_ => {
+				//TODO: for specific errors, consider terminating instead of terying!!!
+				//TODO: reschedule it for x amount of times, then suspend
 				Self::suspend_schedule(&schedule.owner, schedule_id);
 			}
 		}
@@ -642,11 +687,12 @@ where
 		let max_limit = max(max_limit, &max_limit_from_oracle_price);
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee(*asset_in)?;
+		//TODO: double check if we really don't want this?!
 		let amount_to_sell_plus_fee = max_limit
 			.checked_add(&fee_amount_in_sold_asset)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		Ok(amount_to_sell_plus_fee)
+		Ok(*max_limit)
 	}
 
 	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
@@ -667,7 +713,10 @@ where
 		T::WeightInfo::execute_schedule().ref_time()
 	}
 
-	fn take_transaction_fee_from_user(owner: &T::AccountId, order: &Order<<T as Config>::Asset>) -> DispatchResult {
+	fn take_transaction_fee_from_user(
+		owner: &T::AccountId,
+		order: &Order<<T as Config>::Asset>,
+	) -> Result<Balance, DispatchResult> {
 		let fee_currency = order.get_asset_in();
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee(fee_currency)?;
@@ -679,7 +728,7 @@ where
 			fee_amount_in_sold_asset.into(),
 		)?;
 
-		Ok(())
+		Ok(fee_amount_in_sold_asset)
 	}
 
 	fn reserve_named_reserve(
@@ -719,18 +768,24 @@ where
 	fn plan_schedule_for_block(blocknumber: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
 		let mut blocknumber_for_schedule = blocknumber;
 
+		//TODO: find the block id first
+		//TODO: then add schedule
+
+		//TODO: bound it to 5 retry, otherwise suspend it
 		while ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
 			let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
 			if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
+				//TODO: inline this function
 				Self::add_schedule_id_to_block(schedule_id, blocknumber_for_schedule)?;
 				return Ok(());
 			}
-			blocknumber_for_schedule.saturating_inc();
+			blocknumber_for_schedule.saturating_inc(); //increment it by more number - 1 - 2 - 4 - 8 - 16
 		}
 
 		let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
 		ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
 
+		//TODO: consider emitting event
 		Ok(())
 	}
 
@@ -785,6 +840,8 @@ where
 			} => {
 				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
 
+				//TODO: this is not correct, because we need to charge this always
+				//Double check this as it might be correc.t Ask jakub
 				let transaction_fee = Self::get_transaction_fee(*asset_in)?;
 
 				let amount_to_sell = amount_in

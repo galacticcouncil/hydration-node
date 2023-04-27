@@ -32,6 +32,8 @@ use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 
+const FEE_FOR_ONE_DCA_EXECUTION: Balance = 2269868000; //TODO: used this in all places
+
 #[test]
 fn one_sell_dca_execution_should_unreserve_amount_in() {
 	let initial_alice_hdx_balance = 10000 * ONE;
@@ -64,16 +66,18 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 			set_to_blocknumber(501);
 
 			//Assert
-			let fee = 2269868000;
 			let remaining_named_reserve = total_amount - amount_to_sell;
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_in: amount_to_sell - fee,
+				amount_in: amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION,
 				min_buy_amount: 0,
 			}]);
 
-			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
+			assert_eq!(
+				remaining_named_reserve - FEE_FOR_ONE_DCA_EXECUTION,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
 		});
 }
 
@@ -116,9 +120,8 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 				max_sell_amount: max_limit,
 			}]);
 
-			let fee = 2269868000;
 			assert_eq!(
-				total_amount - max_limit - fee,
+				total_amount - max_limit - FEE_FOR_ONE_DCA_EXECUTION,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
@@ -317,7 +320,7 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 15 * ONE;
+			let total_amount = 15 * ONE + 3 * FEE_FOR_ONE_DCA_EXECUTION;
 			let amount_to_sell = 5 * ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -462,10 +465,8 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 				max_sell_amount: max_limit_calculated_from_spot_price,
 			}]);
 
-			let fee = 2269868000;
-
 			assert_eq!(
-				total_amount - max_limit_calculated_from_spot_price - fee,
+				total_amount - max_limit_calculated_from_spot_price - FEE_FOR_ONE_DCA_EXECUTION,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
@@ -756,11 +757,10 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 			set_to_blocknumber(501);
 
 			//Assert
-			let fee = 2269868000;
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: DAI,
-				amount_in: sell_amount - fee,
+				amount_in: sell_amount - FEE_FOR_ONE_DCA_EXECUTION,
 				min_buy_amount: 8_360_000_000_000,
 			}]);
 		});
@@ -838,7 +838,10 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 
 			//Assert
 			assert_executed_sell_trades!(vec![]);
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+			assert_eq!(
+				total_amount - FEE_FOR_ONE_DCA_EXECUTION,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
 
 			let schedule_id = 1;
 			assert_scheduled_ids!(601, vec![schedule_id]);
@@ -879,7 +882,10 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 
 			//Assert
 			assert_executed_buy_trades!(vec![]);
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+			assert_eq!(
+				total_amount - FEE_FOR_ONE_DCA_EXECUTION,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
 
 			let schedule_id = 1;
 			assert_scheduled_ids!(601, vec![schedule_id]);
