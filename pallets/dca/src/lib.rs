@@ -118,9 +118,10 @@ pub mod pallet {
 
 				schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
 				for schedule_id in schedule_ids {
-					//TODO: charge for on_initize divided by the 1/T::MaxSchedulesPerBlock
-					//Taking from reserve
-					let schedule = Schedules::<T>::get(schedule_id).unwrap();//TODO: remove unwrap
+					let Some(schedule) = Schedules::<T>::get(schedule_id) else {
+						continue; //TODO: discuss what to do here. The problem is that we can not really terminate as we don't know the info like user and other schedule relevant data
+					};
+
 					let fee_amount = Self::take_transaction_fee_from_user(&schedule.owner, &schedule.order).unwrap();//TODO: remove unwrap
 					//TODO: if fee taking fails then suspend the schedule
 					// if there is not enough reserve, need to terminate the schedule
