@@ -488,14 +488,13 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let fee = 2269868000;
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: fee - 1,
+					amount_in: FEE_FOR_ONE_DCA_EXECUTION - 1,
 					min_limit: Balance::MIN,
 					route: empty_vec(),
 				})

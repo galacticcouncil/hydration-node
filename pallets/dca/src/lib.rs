@@ -911,7 +911,9 @@ where
 	}
 
 	fn get_transaction_fee(fee_currency: T::Asset) -> Result<u128, DispatchError> {
-		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize());
+		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize())
+			.checked_div(T::MaxSchedulePerBlock::get().into())
+			.ok_or(ArithmeticError::Underflow)?;
 		let fee_amount_in_sold_asset =
 			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
 

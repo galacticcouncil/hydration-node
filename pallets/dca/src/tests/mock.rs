@@ -50,6 +50,9 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
+pub const FEE_FOR_ONE_DCA_EXECUTION: Balance = 113493400;
+pub const FEE_FOR_ONE_DCA_EXECUTION_IN_DAI: Balance = 99874192;
+
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;

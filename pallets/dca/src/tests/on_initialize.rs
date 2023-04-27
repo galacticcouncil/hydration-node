@@ -32,8 +32,6 @@ use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 
-const FEE_FOR_ONE_DCA_EXECUTION: Balance = 2269868000; //TODO: used this in all places
-
 #[test]
 fn one_sell_dca_execution_should_unreserve_amount_in() {
 	let initial_alice_hdx_balance = 10000 * ONE;
@@ -650,7 +648,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 1997483840);
+			assert_balance!(TreasuryAccount::get(), DAI, FEE_FOR_ONE_DCA_EXECUTION_IN_DAI);
 			assert_number_of_executed_buy_trades!(1);
 		});
 }
@@ -684,7 +682,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, 1997483840);
+			assert_balance!(TreasuryAccount::get(), DAI, FEE_FOR_ONE_DCA_EXECUTION_IN_DAI);
 		});
 }
 
@@ -718,12 +716,11 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			let fee = 1997483840;
-			assert_balance!(TreasuryAccount::get(), DAI, fee);
+			assert_balance!(TreasuryAccount::get(), DAI, FEE_FOR_ONE_DCA_EXECUTION_IN_DAI);
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: DAI,
 				asset_out: BTC,
-				amount_in: amount_in - fee,
+				amount_in: amount_in - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI,
 				min_buy_amount: 0,
 			}]);
 		});
