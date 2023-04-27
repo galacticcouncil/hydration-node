@@ -122,19 +122,14 @@ pub mod pallet {
 						continue; //TODO: discuss what to do here. The problem is that we can not really terminate as we don't know the info like user and other schedule relevant data
 					};
 
-					let fee_amount = Self::take_transaction_fee_from_user(&schedule.owner, &schedule.order).unwrap();//TODO: remove unwrap
-					//TODO: if fee taking fails then suspend the schedule
+					let Ok(())  = Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) else {
+						Self::suspend_schedule(&schedule.owner, schedule_id);
+						continue;
+					};
+
 					// if there is not enough reserve, need to terminate the schedule
 
-					T::Currency::unreserve_named(
-						&NAMED_RESERVE_ID,
-						schedule.order.get_asset_in().into(),
-						&schedule.owner,
-						fee_amount.into(),
-					);
 
-					//If this fails, we suspend, and also rollback with reserving the same amount
-					Self::decrease_remaining_amount(schedule_id, fee_amount).unwrap();//TODO: remove unwrap
 
 
 					Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
@@ -529,7 +524,7 @@ where
 			Order::Sell {
 				asset_in, amount_in, ..
 			} => {
-				let transaction_fee = Self::get_transaction_fee(asset_in)?;
+				let transaction_fee = Self::get_transaction_fee_in_sold_asset(asset_in)?;
 				ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 			}
 			Order::Buy { .. } => {
@@ -687,7 +682,7 @@ where
 		let max_limit_from_oracle_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
 		let max_limit = max(max_limit, &max_limit_from_oracle_price);
 
-		let fee_amount_in_sold_asset = Self::get_transaction_fee(*asset_in)?;
+		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_sold_asset(*asset_in)?;
 		//TODO: double check if we really don't want this?!
 		let amount_to_sell_plus_fee = max_limit
 			.checked_add(&fee_amount_in_sold_asset)
@@ -714,13 +709,24 @@ where
 		T::WeightInfo::execute_schedule().ref_time()
 	}
 
+	#[transactional]
 	fn take_transaction_fee_from_user(
+		schedule_id: ScheduleId,
 		owner: &T::AccountId,
 		order: &Order<<T as Config>::Asset>,
-	) -> Result<Balance, DispatchResult> {
+	) -> DispatchResult {
 		let fee_currency = order.get_asset_in();
 
-		let fee_amount_in_sold_asset = Self::get_transaction_fee(fee_currency)?;
+		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_sold_asset(fee_currency)?;
+
+		T::Currency::unreserve_named(
+			&NAMED_RESERVE_ID,
+			order.get_asset_in().into(),
+			&owner,
+			fee_amount_in_sold_asset.into(),
+		);
+
+		Self::decrease_remaining_amount(schedule_id, fee_amount_in_sold_asset)?;
 
 		T::Currency::transfer(
 			fee_currency.into(),
@@ -729,7 +735,7 @@ where
 			fee_amount_in_sold_asset.into(),
 		)?;
 
-		Ok(fee_amount_in_sold_asset)
+		Ok(())
 	}
 
 	fn reserve_named_reserve(
@@ -843,7 +849,7 @@ where
 
 				//TODO: this is not correct, because we need to charge this always
 				//Double check this as it might be correc.t Ask jakub
-				let transaction_fee = Self::get_transaction_fee(*asset_in)?;
+				let transaction_fee = Self::get_transaction_fee_in_sold_asset(*asset_in)?;
 
 				let amount_to_sell = amount_in
 					.checked_sub(transaction_fee)
@@ -911,7 +917,7 @@ where
 		Ok(max_limit_with_slippage)
 	}
 
-	fn get_transaction_fee(fee_currency: T::Asset) -> Result<u128, DispatchError> {
+	fn get_transaction_fee_in_sold_asset(fee_currency: T::Asset) -> Result<u128, DispatchError> {
 		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize())
 			.checked_div(T::MaxSchedulePerBlock::get().into())
 			.ok_or(ArithmeticError::Underflow)?;
