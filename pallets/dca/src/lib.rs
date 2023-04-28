@@ -127,12 +127,8 @@ pub mod pallet {
 						continue;
 					};
 
-					// if there is not enough reserve, need to terminate the schedule
-
-
-
-
-					Self::execute_schedule(current_blocknumber, &mut weight, schedule_id);
+					// TODO: if there is not enough reserve, need to terminate the schedule
+					Self::execute_schedule(current_blocknumber, &mut weight, schedule_id, schedule);
 					//TODO: based on the error, we need to suspend or terminate
 					//TODO: the error handling should be here
 				}
@@ -536,36 +532,53 @@ where
 	}
 
 	//TODO: add #[transactional], and also test it somehow if it works as we expect
-	pub fn execute_schedule(current_blocknumber: T::BlockNumber, weight: &mut u64, schedule_id: ScheduleId) {
+	pub fn execute_schedule(
+		current_blocknumber: T::BlockNumber,
+		weight: &mut u64,
+		schedule_id: ScheduleId,
+		schedule: Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+	) {
 		*weight += Self::get_execute_schedule_weight();
 
-		//TODO: Handle error cases
+		//TODO: Add logging for each error cases
 		//- if returns none, then terminate with error flag
-		let schedule = exec_or_return_if_none!(Schedules::<T>::get(schedule_id));
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
-		let blocknumber_for_schedule = exec_or_return_if_none!(current_blocknumber.checked_add(&schedule.period));
+		let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {
+			/*Self::unreserve_all_named_reserved_sold_currency(schedule_id, &who)?;
+			Self::remove_schedule_from_storages(&who, schedule_id);*/
+			return;
+		};
 
 		let sold_currency = schedule.order.get_asset_in();
-		//- If oracle fails, then we terminate
-		if exec_or_return_if_err!(Self::price_change_is_bigger_than_max_allowed(
+		let Ok(is_price_change_bigger_than_max_allowed) = Self::price_change_is_bigger_than_max_allowed(
 			sold_currency,
 			schedule.order.get_asset_out()
-		)) {
-			// If planning fails, we suspend - no rollback
+		) else {
+			//TODO: TERMINATE
+			return;
+		};
+		if is_price_change_bigger_than_max_allowed {
 			//TODO: limit this, storae - id per number of schedules, and if it reaches a limit ,the nreschedule, global configured with 5 retries
 			//TODO: if retry fails, we suspend
-			exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
+			let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
+				//TODO: SUSPEND if retry fails
+				return;
+			};
 			return;
 		}
 
 		//If these two fail, we terminate - no rollback
-		let amount_to_unreserve = exec_or_return_if_err!(Self::amount_to_unreserve(&schedule.order));
+		let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
+			//TODO: terminate
+			return;
+		};
+
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id);
-		if let None = RemainingAmounts::<T>::get(schedule_id) {
+		let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
+			//TODO: rather terminate than complete?!
 			Self::complete_dca(&schedule.owner, schedule_id);
 			return;
-		}
-		let remaining_amount_to_use = exec_or_return_if_none!(RemainingAmounts::<T>::get(schedule_id));
+		};
 
 		//TODO: check if this returns `amount_to_unreserve`, otherwise we fail, terminate
 		T::Currency::unreserve_named(
@@ -575,8 +588,10 @@ where
 			amount_to_unreserve.into(),
 		);
 
-		//If this fails, we suspend, and also rollback with reserving the same amount
-		exec_or_return_if_err!(Self::decrease_remaining_amount(schedule_id, amount_to_unreserve));
+		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_unreserve) else {
+			//TODO: If this fails, we suspend, and also rollback with reserving the same amount
+			return;
+		};
 
 		//TODO: we should complete when we can not schedule next one in plan_schedule_for_block
 		//because it does not make sense the reschedule but surely fail in th next oine
@@ -592,7 +607,10 @@ where
 		match trade_result {
 			Ok(_) => {
 				//If this fails, we suspend - no rollback
-				exec_or_return_if_err!(Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id));
+				let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
+					//TODO: RETRY 5 times then SUSPEND
+					return;
+				};
 			}
 			_ => {
 				//TODO: for specific errors, consider terminating instead of terying!!!
