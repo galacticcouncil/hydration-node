@@ -601,7 +601,6 @@ where
 			return;
 		}
 
-		//this transaction feee should be somewhere else
 		let trade_result = Self::execute_trade(origin, &schedule.order);
 
 		match trade_result {
@@ -778,7 +777,10 @@ where
 	fn unreserve_all_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
 		let sold_currency = schedule.order.get_asset_in();
-		T::Currency::unreserve_all_named(&NAMED_RESERVE_ID, sold_currency.into(), who);
+
+		let remaining_amount = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
+
+		T::Currency::unreserve_named(&NAMED_RESERVE_ID, sold_currency.into(), who, remaining_amount.into());
 
 		Ok(())
 	}

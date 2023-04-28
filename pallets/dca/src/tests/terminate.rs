@@ -74,6 +74,39 @@ fn terminate_should_unreserve_all_named_reserved() {
 }
 
 #[test]
+fn terminate_should_unreserve_all_named_reserved_onlu_for_single_dca_when_there_are_multiple() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
+			let schedule2 = ScheduleBuilder::new().with_total_amount(total_amount).build();
+			let total_reserved = total_amount * 2;
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(700)));
+
+			let schedule_id = 1;
+			assert_eq!(
+				total_reserved,
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE)
+			);
+
+			//Act
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, Option::Some(600)));
+
+			//Assert
+			assert_eq!(
+				total_reserved / 2,
+				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE)
+			);
+		});
+}
+
+#[test]
 fn terminate_should_remove_planned_execution_when_there_is_only_single_execution_on_block() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
