@@ -573,12 +573,17 @@ where
 			return;
 		};
 
-		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id);
 		let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
 			//TODO: rather terminate than complete?!
 			Self::complete_dca(&schedule.owner, schedule_id);
 			return;
 		};
+
+		if remaining_amount_to_use < amount_to_unreserve {
+			Self::unreserve_all_named_reserved_sold_currency(schedule_id, &schedule.owner).unwrap();
+			Self::complete_dca(&schedule.owner, schedule_id);
+			return;
+		}
 
 		//TODO: check if this returns `amount_to_unreserve`, otherwise we fail, terminate
 		T::Currency::unreserve_named(
@@ -589,23 +594,14 @@ where
 		);
 
 		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_unreserve) else {
-			//TODO: If this fails, we suspend, and also rollback with reserving the same amount
+			//TODO: TERMINATE
 			return;
 		};
-
-		//TODO: we should complete when we can not schedule next one in plan_schedule_for_block
-		//because it does not make sense the reschedule but surely fail in th next oine
-		//check can be here, but it should be part in the plan_schedule_for_block
-		if remaining_amount_to_use < amount_to_unreserve {
-			Self::complete_dca(&schedule.owner, schedule_id);
-			return;
-		}
 
 		let trade_result = Self::execute_trade(origin, &schedule.order);
 
 		match trade_result {
 			Ok(_) => {
-				//If this fails, we suspend - no rollback
 				let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
 					//TODO: RETRY 5 times then SUSPEND
 					return;
