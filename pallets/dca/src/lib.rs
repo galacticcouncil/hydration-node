@@ -123,6 +123,7 @@ pub mod pallet {
 					};
 
 					let Ok(())  = Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) else {
+						//TODO: consider terminate here
 						Self::suspend_schedule(&schedule.owner, schedule_id);
 						continue;
 					};
