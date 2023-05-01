@@ -123,15 +123,69 @@ pub mod pallet {
 					};
 
 					let Ok(())  = Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) else {
-						//TODO: consider terminate here
-						Self::suspend_schedule(&schedule.owner, schedule_id);
+						Self::terminate_schedule(schedule_id, &schedule);
 						continue;
 					};
 
-					// TODO: if there is not enough reserve, need to terminate the schedule
-					Self::execute_schedule(current_blocknumber, &mut weight, schedule_id, schedule);
-					//TODO: based on the error, we need to suspend or terminate
-					//TODO: the error handling should be here
+					let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {
+						Self::terminate_schedule(schedule_id, &schedule);
+						continue;
+					};
+
+					let sold_currency = schedule.order.get_asset_in();
+					let Ok(is_price_change_bigger_than_max_allowed) = Self::price_change_is_bigger_than_max_allowed(
+						sold_currency,
+						schedule.order.get_asset_out()
+					) else {
+						Self::terminate_schedule(schedule_id, &schedule);
+						continue;
+					};
+					if is_price_change_bigger_than_max_allowed {
+						//TODO: limit this, storae - id per number of schedules, and if it reaches a limit ,the nreschedule, global configured with 5 retries
+						//TODO: if retry fails, we suspend
+						let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
+							//TODO: SUSPEND if retry fails
+							continue;
+						};
+						continue;
+					}
+
+					let trade_result = Self::execute_schedule(&mut weight, schedule_id, &schedule);
+
+					match trade_result {
+						Ok(_) => {
+							let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
+								Self::terminate_schedule(schedule_id, &schedule);
+								continue;
+							};
+
+							let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
+								Self::terminate_schedule(schedule_id, &schedule);
+								continue;
+							};
+
+							if remaining_amount_to_use < amount_to_unreserve {
+								Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner.clone()).unwrap();
+								Self::complete_dca(&schedule.owner, schedule_id);
+								continue;
+							}
+
+							let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
+								//TODO: RETRY 5 times then SUSPEND
+								continue;
+							};
+						},
+						Err(err) => {
+							match err {
+								//TODO: In case of InvalidState pallet error, we need to terminate
+								_ => {Self::terminate_schedule(schedule_id, &schedule)}
+							}
+							//TODO: based on the error, we need to suspend or terminate
+							//TODO: for specific errors, consider terminating instead of retrying!!!
+							//TODO: reschedule it for x amount of times, then suspend
+							Self::suspend_schedule(&schedule.owner, schedule_id);
+						}
+					}
 				}
 
 				Weight::from_ref_time(weight)
@@ -538,48 +592,26 @@ where
 		Ok(())
 	}
 
-	//TODO: add #[transactional], and also test it somehow if it works as we expect
+	#[transactional]
 	pub fn execute_schedule(
-		current_blocknumber: T::BlockNumber,
 		weight: &mut u64,
 		schedule_id: ScheduleId,
-		schedule: Schedule<T::AccountId, T::Asset, T::BlockNumber>,
-	) {
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+	) -> DispatchResult {
 		*weight += Self::get_execute_schedule_weight();
 
 		//TODO: Add logging for each error cases
-		//- if returns none, then terminate with error flag
+		//TODO: TERMINATE WITH ERROR FLAG
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
-		let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {
-			Self::terminate_schedule(schedule_id, &schedule);
-			return;
-		};
-
-		let sold_currency = schedule.order.get_asset_in();
-		let Ok(is_price_change_bigger_than_max_allowed) = Self::price_change_is_bigger_than_max_allowed(
-			sold_currency,
-			schedule.order.get_asset_out()
-		) else {
-			Self::terminate_schedule(schedule_id, &schedule);
-			return;
-		};
-		if is_price_change_bigger_than_max_allowed {
-			//TODO: limit this, storae - id per number of schedules, and if it reaches a limit ,the nreschedule, global configured with 5 retries
-			//TODO: if retry fails, we suspend
-			let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-				//TODO: SUSPEND if retry fails
-				return;
-			};
-			return;
-		}
 
 		//If these two fail, we terminate - no rollback
 		let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
-			Self::terminate_schedule(schedule_id, &schedule);
-			return;
+			return Err(Error::<T>::InvalidState.into());
 		};
 
 		//TODO: check if this returns `amount_to_unreserve`, otherwise we fail, terminate
+		let sold_currency = schedule.order.get_asset_in();
+
 		T::Currency::unreserve_named(
 			&NAMED_RESERVE_ID,
 			sold_currency.into(),
@@ -588,36 +620,10 @@ where
 		);
 
 		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_unreserve) else {
-			Self::terminate_schedule(schedule_id, &schedule);
-			return;
+			return Err(Error::<T>::InvalidState.into());
 		};
 
-		let trade_result = Self::execute_trade(origin, &schedule.order);
-
-		match trade_result {
-			Ok(_) => {
-				let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
-					Self::terminate_schedule(schedule_id, &schedule);
-					return;
-				};
-
-				if remaining_amount_to_use < amount_to_unreserve {
-					Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner).unwrap();
-					Self::complete_dca(&schedule.owner, schedule_id);
-					return;
-				}
-
-				let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-						//TODO: RETRY 5 times then SUSPEND
-						return;
-					};
-			}
-			_ => {
-				//TODO: for specific errors, consider terminating instead of retrying!!!
-				//TODO: reschedule it for x amount of times, then suspend
-				Self::suspend_schedule(&schedule.owner, schedule_id);
-			}
-		}
+		Self::execute_trade(origin, &schedule.order)
 	}
 
 	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> Result<bool, DispatchResult> {
@@ -781,6 +787,7 @@ where
 		match result {
 			Ok(()) => {
 				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+				//TODO: terminate with error flag
 				Self::deposit_event(Event::Terminated {
 					id: schedule_id,
 					who: schedule.owner.clone(),
