@@ -5,7 +5,7 @@ use frame_support::traits::Contains;
 use frame_support::weights::Weight;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::AssetStateChange;
-use sp_runtime::traits::{Get, Saturating};
+use sp_runtime::traits::{CheckedAdd, CheckedDiv, Get, Saturating};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128, Permill};
 
 pub struct AssetInfo<AssetId, Balance>
@@ -143,10 +143,10 @@ where
 			return Ok(());
 		}
 
-		let external_price = ExternalOracle::get_price(asset_a, asset_b).map_err(|_| ())?;
-		let external_price = FixedU128::checked_from_rational(external_price.n, external_price.d).ok_or(())?;
 		let max_allowed = FixedU128::from(MaxAllowed::get());
-		let max_allowed_difference = external_price.saturating_mul(max_allowed);
+
+		let oracle_price = ExternalOracle::get_price(asset_a, asset_b).map_err(|_| ())?;
+		let external_price = FixedU128::checked_from_rational(oracle_price.n, oracle_price.d).ok_or(())?;
 		let current_spot_price = FixedU128::checked_from_rational(current_price.n, current_price.d).ok_or(())?;
 
 		let diff = if current_spot_price >= external_price {
@@ -154,7 +154,17 @@ where
 		} else {
 			external_price.saturating_sub(current_spot_price)
 		};
-		ensure!(diff <= max_allowed_difference, ());
+
+		let percent_diff = diff
+			.checked_div(
+				&current_spot_price
+					.checked_add(&external_price)
+					.ok_or(())?
+					.checked_div(&FixedU128::from(2))
+					.ok_or(())?,
+			)
+			.ok_or(())?;
+		ensure!(percent_diff <= max_allowed, ());
 		Ok(())
 	}
 }
