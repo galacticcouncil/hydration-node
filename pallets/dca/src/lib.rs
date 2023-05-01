@@ -244,6 +244,8 @@ pub mod pallet {
 		NoScheduleIdsPlannedInBlock,
 		///The total amount to be reserved should be larger than storage bond
 		TotalAmountShouldBeLargerThanStorageBond,
+		///The budget is too low for executing one DCA
+		BudgetTooLow,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -321,6 +323,10 @@ pub mod pallet {
 			Self::ensure_next_blocknumber_is_bigger_than_current_block(start_execution_block)?;
 			Self::ensure_total_amount_is_bigger_than_storage_bond(&schedule)?;
 			Self::ensure_sell_amount_is_bigger_than_transaction_fee(&schedule)?;
+
+			let amount_to_unreserve = Self::amount_to_unreserve(&schedule.order)?;
+			let transaction_fee = Self::get_transaction_fee_in_sold_asset(schedule.order.get_asset_in())?;
+			ensure!(amount_to_unreserve + transaction_fee <= schedule.total_amount, Error::<T>::BudgetTooLow);
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
@@ -573,18 +579,6 @@ where
 			return;
 		};
 
-		let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
-			//TODO: rather terminate than complete?!
-			Self::complete_dca(&schedule.owner, schedule_id);
-			return;
-		};
-
-		if remaining_amount_to_use < amount_to_unreserve {
-			Self::unreserve_all_named_reserved_sold_currency(schedule_id, &schedule.owner).unwrap();
-			Self::complete_dca(&schedule.owner, schedule_id);
-			return;
-		}
-
 		//TODO: check if this returns `amount_to_unreserve`, otherwise we fail, terminate
 		T::Currency::unreserve_named(
 			&NAMED_RESERVE_ID,
@@ -602,10 +596,22 @@ where
 
 		match trade_result {
 			Ok(_) => {
-				let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-					//TODO: RETRY 5 times then SUSPEND
+				let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
+					//TODO: rather terminate than complete?!
+					Self::complete_dca(&schedule.owner, schedule_id);
 					return;
 				};
+
+				if remaining_amount_to_use < amount_to_unreserve {
+					Self::unreserve_all_named_reserved_sold_currency(schedule_id, &schedule.owner).unwrap();
+					Self::complete_dca(&schedule.owner, schedule_id);
+					return;
+				}
+
+				let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
+						//TODO: RETRY 5 times then SUSPEND
+						return;
+					};
 			}
 			_ => {
 				//TODO: for specific errors, consider terminating instead of terying!!!

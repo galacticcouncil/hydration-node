@@ -126,47 +126,6 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 }
 
 #[test]
-fn sell_dca_should_be_completed_when_not_enough_reserved_amount_present() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 5 * ONE;
-			let amount_to_sell = 6 * ONE;
-
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
-					route: empty_vec(),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
-
-			//Act
-			set_to_blocknumber(501);
-
-			//Assert
-			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
-			let schedule_id = 1;
-			assert_that_dca_is_completed(ALICE, schedule_id);
-			assert!(
-				DCA::schedule_ids_per_block(601).is_empty(),
-				"There should be no schedule for the block, but there is"
-			);
-		});
-}
-
-#[test]
 fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happened_but_no_more_reserved_amount_left() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -343,44 +302,6 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			assert_number_of_executed_sell_trades!(3);
 
-			let schedule_id = 1;
-			assert_that_dca_is_completed(ALICE, schedule_id);
-		});
-}
-
-#[test]
-fn full_buy_dca_should_be_completed_when_not_enough_reserved_amount() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = ONE / 1000;
-			let amount_to_buy = ONE;
-
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: amount_to_buy,
-					max_limit: Balance::MIN,
-					route: empty_vec(),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
-
-			//Act
-			set_to_blocknumber(501);
-
-			//Assert
-			assert_number_of_executed_buy_trades!(0);
-			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 1;
 			assert_that_dca_is_completed(ALICE, schedule_id);
 		});

@@ -44,7 +44,7 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
-					max_limit: Balance::MAX,
+					max_limit: 10 * ONE,
 					route: empty_vec(),
 				})
 				.build();
@@ -75,7 +75,7 @@ fn schedule_should_store_total_amounts_in_storage() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
-					max_limit: Balance::MAX,
+					max_limit: 10 * ONE,
 					route: empty_vec(),
 				})
 				.build();
@@ -92,31 +92,31 @@ fn schedule_should_store_total_amounts_in_storage() {
 #[test]
 fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![(ALICE, HDX, 1000000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
 
-			let total_amount = 100 * ONE;
+			let total_amount = 10000 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
-					max_limit: Balance::MAX,
+					max_limit: 100 * ONE,
 					route: empty_vec(),
 				})
 				.build();
 
-			let total_amount_2 = 200 * ONE;
+			let total_amount_2 = 20000 * ONE;
 			let schedule_2 = ScheduleBuilder::new()
 				.with_total_amount(total_amount_2)
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
-					max_limit: Balance::MAX,
+					max_limit: 1000 * ONE,
 					route: empty_vec(),
 				})
 				.build();
@@ -310,6 +310,68 @@ fn schedule_should_throw_error_when_user_has_not_enough_balance() {
 }
 
 #[test]
+fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_sell_plus_fee() {
+	let budget = 5 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(budget)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: budget + FEE_FOR_ONE_DCA_EXECUTION,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act
+			set_block_number(500);
+
+			//Assert
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::BudgetTooLow
+			);
+		});
+}
+
+#[test]
+fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_sell_plus_fee() {
+	let budget = 5 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(budget)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: 10 * ONE,
+					max_limit: budget + FEE_FOR_ONE_DCA_EXECUTION,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act
+			set_block_number(500);
+
+			//Assert
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::BudgetTooLow
+			);
+		});
+}
+
+#[test]
 fn schedule_should_fail_when_not_called_by_user() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -411,7 +473,7 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: ONE,
-					max_limit: Balance::MAX,
+					max_limit: 100 * ONE,
 					route: empty_vec(),
 				})
 				.build();
@@ -423,32 +485,6 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::TotalAmountShouldBeLargerThanStorageBond
 			);
-		});
-}
-
-#[test]
-fn schedule_should_pass_when_total_amount_in_non_native_currency_is_bigger_than_storage_bond_in_native() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(*ORIGINAL_STORAGE_BOND_IN_NATIVE * 9 / 10)
-				.with_order(Order::Buy {
-					asset_in: DAI,
-					asset_out: HDX,
-					amount_out: ONE,
-					max_limit: Balance::MAX,
-					route: empty_vec(),
-				})
-				.build();
-
-			//Act and Assert
-			set_block_number(500);
-
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 		});
 }
 
@@ -466,7 +502,7 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 					asset_in: DAI,
 					asset_out: HDX,
 					amount_out: ONE,
-					max_limit: Balance::MAX,
+					max_limit: 100 * ONE,
 					route: empty_vec(),
 				})
 				.build();
