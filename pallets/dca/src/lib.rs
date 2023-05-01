@@ -442,7 +442,7 @@ pub mod pallet {
 			Self::ensure_schedule_exists(&schedule_id)?;
 			Self::ensure_origin_is_schedule_owner(schedule_id, &who)?;
 
-			Self::unreserve_all_named_reserved_sold_currency(schedule_id, &who)?;
+			Self::unreserve_named_reserved_sold_currency(schedule_id, &who)?;
 
 			Self::remove_planning_or_suspension(schedule_id, next_execution_block)?;
 			Self::remove_schedule_from_storages(&who, schedule_id);
@@ -603,7 +603,7 @@ where
 				};
 
 				if remaining_amount_to_use < amount_to_unreserve {
-					Self::unreserve_all_named_reserved_sold_currency(schedule_id, &schedule.owner).unwrap();
+					Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner).unwrap();
 					Self::complete_dca(&schedule.owner, schedule_id);
 					return;
 				}
@@ -614,7 +614,7 @@ where
 					};
 			}
 			_ => {
-				//TODO: for specific errors, consider terminating instead of terying!!!
+				//TODO: for specific errors, consider terminating instead of retrying!!!
 				//TODO: reschedule it for x amount of times, then suspend
 				Self::suspend_schedule(&schedule.owner, schedule_id);
 			}
@@ -776,7 +776,7 @@ where
 		Ok(())
 	}
 
-	fn unreserve_all_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+	fn unreserve_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
 		let sold_currency = schedule.order.get_asset_in();
 
