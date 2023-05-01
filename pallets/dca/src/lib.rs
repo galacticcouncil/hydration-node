@@ -550,8 +550,7 @@ where
 		//- if returns none, then terminate with error flag
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 		let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {
-			/*Self::unreserve_all_named_reserved_sold_currency(schedule_id, &who)?;
-			Self::remove_schedule_from_storages(&who, schedule_id);*/
+			Self::terminate_schedule(schedule_id, &schedule);
 			return;
 		};
 
@@ -560,7 +559,7 @@ where
 			sold_currency,
 			schedule.order.get_asset_out()
 		) else {
-			//TODO: TERMINATE
+			Self::terminate_schedule(schedule_id, &schedule);
 			return;
 		};
 		if is_price_change_bigger_than_max_allowed {
@@ -575,7 +574,7 @@ where
 
 		//If these two fail, we terminate - no rollback
 		let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
-			//TODO: terminate
+			Self::terminate_schedule(schedule_id, &schedule);
 			return;
 		};
 
@@ -588,7 +587,7 @@ where
 		);
 
 		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_unreserve) else {
-			//TODO: TERMINATE
+			Self::terminate_schedule(schedule_id, &schedule);
 			return;
 		};
 
@@ -597,8 +596,7 @@ where
 		match trade_result {
 			Ok(_) => {
 				let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
-					//TODO: rather terminate than complete?!
-					Self::complete_dca(&schedule.owner, schedule_id);
+					Self::terminate_schedule(schedule_id, &schedule);
 					return;
 				};
 
@@ -774,6 +772,26 @@ where
 		)?;
 
 		Ok(())
+	}
+
+	fn terminate_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
+		let result = Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner);
+
+		match result {
+			Ok(()) => {
+				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+				Self::deposit_event(Event::Terminated {
+					id: schedule_id,
+					who: schedule.owner.clone(),
+				});
+			}
+			Err(err) => {
+				log::error!(
+						target: "runtime::dca",
+						"Unexpected error happened while unreserving remaining sold currency, with message: {:?}.",
+						err);
+			}
+		}
 	}
 
 	fn unreserve_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
