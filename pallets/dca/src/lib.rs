@@ -79,6 +79,7 @@ type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 type NamedReserveIdentifier = [u8; 8];
 
+const MAX_NUMBER_OF_RETRY_FOR_PLANNING: u32 = 5;
 pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"dcaorder";
 
 #[frame_support::pallet]
@@ -171,7 +172,7 @@ pub mod pallet {
 							}
 
 							let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-								//TODO: RETRY 5 times then SUSPEND
+								Self::suspend_schedule(&schedule.owner, schedule_id);
 								continue;
 							};
 						},
@@ -301,6 +302,8 @@ pub mod pallet {
 		TotalAmountShouldBeLargerThanStorageBond,
 		///The budget is too low for executing one DCA
 		BudgetTooLow,
+		///There is no free block found to plan DCA execution
+		NoFreeBlockFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -821,43 +824,51 @@ where
 	}
 
 	fn plan_schedule_for_block(blocknumber: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
-		let mut blocknumber_for_schedule = blocknumber;
+		let next_free_block = Self::find_next_free_block(blocknumber)?;
 
-		//TODO: find the block id first
-		//TODO: then add schedule
+		if ScheduleIdsPerBlock::<T>::contains_key(next_free_block) {
+			ScheduleIdsPerBlock::<T>::try_mutate_exists(next_free_block, |schedule_ids| -> DispatchResult {
+				let schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
 
-		//TODO: bound it to 5 retry, otherwise suspend it
-		while ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
-			let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
-			if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
-				//TODO: inline this function
-				Self::add_schedule_id_to_block(schedule_id, blocknumber_for_schedule)?;
-				return Ok(());
-			}
-			blocknumber_for_schedule.saturating_inc(); //increment it by more number - 1 - 2 - 4 - 8 - 16
+				schedule_ids
+					.try_push(schedule_id)
+					.map_err(|_| Error::<T>::InvalidState)?;
+				Ok(())
+			})?;
+			return Ok(());
+		} else {
+			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
+			ScheduleIdsPerBlock::<T>::insert(next_free_block, vec_with_first_schedule_id);
 		}
-
-		let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
-		ScheduleIdsPerBlock::<T>::insert(blocknumber_for_schedule, vec_with_first_schedule_id);
 
 		//TODO: consider emitting event
 		Ok(())
 	}
 
-	fn add_schedule_id_to_block(
-		next_schedule_id: ScheduleId,
-		blocknumber_for_schedule: T::BlockNumber,
-	) -> DispatchResult {
-		ScheduleIdsPerBlock::<T>::try_mutate_exists(blocknumber_for_schedule, |schedule_ids| -> DispatchResult {
-			let schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
+	fn find_next_free_block(blocknumber: T::BlockNumber) -> Result<T::BlockNumber, DispatchError> {
+		let mut blocknumber_for_schedule = blocknumber;
 
-			schedule_ids
-				.try_push(next_schedule_id)
-				.map_err(|_| Error::<T>::InvalidState)?;
-			Ok(())
-		})?;
+		// We bound it to MAX_NUMBER_OF_RETRY_FOR_PLANNING to find the block number.
+		// We search for next free block with incrementing with the power of 2 (so 1 - 2 - 4 - 8 - 16)
+		for i in 1u32..=MAX_NUMBER_OF_RETRY_FOR_PLANNING {
+			if ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
+				let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
+				if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
+					return Ok(blocknumber_for_schedule);
+				}
+				let exponent = i.checked_sub(1u32).ok_or(ArithmeticError::Underflow)?;
+				let delay_with = 2u32.checked_pow(exponent).ok_or(ArithmeticError::Overflow)?;
+				blocknumber_for_schedule = blocknumber_for_schedule.saturating_add(delay_with.into());
+			}
 
-		Ok(())
+			if i == MAX_NUMBER_OF_RETRY_FOR_PLANNING
+				&& ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).len()
+					== T::MaxSchedulePerBlock::get() as usize
+			{
+				return Err(Error::<T>::NoFreeBlockFound.into());
+			}
+		}
+		Ok(blocknumber_for_schedule)
 	}
 
 	fn get_next_schedule_id() -> Result<ScheduleId, ArithmeticError> {

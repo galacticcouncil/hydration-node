@@ -21,6 +21,7 @@ use crate::{assert_scheduled_ids, Error, Event};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use pretty_assertions::assert_eq;
+use std::ops::RangeInclusive;
 use test_case::test_case;
 
 #[test]
@@ -235,6 +236,59 @@ fn resume_should_fail_when_schedule_is_not_suspended() {
 			assert_noop!(
 				DCA::resume(Origin::signed(ALICE), schedule_id, Option::None),
 				Error::<Test>::ScheduleMustBeSuspended
+			);
+		});
+}
+
+#[test]
+fn resume_should_fail_when_there_is_no_free_consequent_blocks() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 1000000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().build();
+
+			assert_ok!(DCA::schedule(
+				Origin::signed(ALICE),
+				schedule.clone(),
+				Option::Some(501)
+			));
+
+			for _ in RangeInclusive::new(1, 120) {
+				assert_ok!(DCA::schedule(
+					Origin::signed(ALICE),
+					schedule.clone(),
+					Option::Some(502)
+				));
+			}
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(503);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(505);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(509);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(517);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(533);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let schedule_id = 1;
+			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 501));
+
+			//Act and assert
+			assert_noop!(
+				DCA::resume(Origin::signed(ALICE), schedule_id, Option::Some(502)),
+				Error::<Test>::NoFreeBlockFound
 			);
 		});
 }

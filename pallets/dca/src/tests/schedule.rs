@@ -455,7 +455,48 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			assert_scheduled_ids!(503, vec![schedule_id]);
+			assert_scheduled_ids!(504, vec![schedule_id]);
+		});
+}
+
+#[test]
+fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 1000000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+
+			for _ in RangeInclusive::new(1, 120) {
+				let schedule = ScheduleBuilder::new().build();
+				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			}
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(504);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(508);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(516);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(532);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			//Act and assert
+			let schedule = ScheduleBuilder::new().build();
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::NoFreeBlockFound
+			);
 		});
 }
 
