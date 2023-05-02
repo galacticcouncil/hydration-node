@@ -142,10 +142,8 @@ pub mod pallet {
 						continue;
 					};
 					if is_price_change_bigger_than_max_allowed {
-						//TODO: limit this, storae - id per number of schedules, and if it reaches a limit ,the nreschedule, global configured with 5 retries
-						//TODO: if retry fails, we suspend
 						let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-							//TODO: SUSPEND if retry fails
+							Self::suspend_schedule(&schedule.owner, schedule_id);
 							continue;
 						};
 						continue;
