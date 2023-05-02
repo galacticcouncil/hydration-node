@@ -175,14 +175,8 @@ pub mod pallet {
 							};
 						},
 						Err(err) => {
-							match err {
-								//TODO: In case of InvalidState pallet error, we need to terminate
-								_ => {Self::terminate_schedule(schedule_id, &schedule)}
-							}
-							//TODO: based on the error, we need to suspend or terminate
-							//TODO: for specific errors, consider terminating instead of retrying!!!
-							//TODO: reschedule it for x amount of times, then suspend
-							Self::suspend_schedule(&schedule.owner, schedule_id);
+							//TODO: for specific errors, consider suspending
+							Self::terminate_schedule(schedule_id, &schedule);
 						}
 					}
 				}

@@ -494,9 +494,9 @@ fn dca_schedule_is_suspended_in_block_when_trade_fails_with_insufficient_trade_l
 			assert_number_of_executed_buy_trades!(0);
 
 			let schedule_id = 1;
-			assert!(DCA::suspended(schedule_id).is_some());
+			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
 
-			expect_events(vec![Event::Suspended {
+			expect_events(vec![Event::Terminated {
 				id: schedule_id,
 				who: ALICE,
 			}
