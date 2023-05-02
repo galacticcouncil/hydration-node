@@ -5,7 +5,7 @@ use frame_support::traits::Contains;
 use frame_support::weights::Weight;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::AssetStateChange;
-use sp_runtime::traits::{CheckedAdd, CheckedDiv, CheckedMul, Get, Saturating};
+use sp_runtime::traits::{CheckedAdd, CheckedMul, Get, Saturating};
 use sp_runtime::{DispatchError, FixedPointNumber, FixedU128, Permill};
 
 pub struct AssetInfo<AssetId, Balance>
@@ -150,13 +150,7 @@ where
 		let current_spot_price = FixedU128::checked_from_rational(current_price.n, current_price.d).ok_or(())?;
 
 		let max_allowed_difference = max_allowed
-			.checked_mul(
-				&current_spot_price
-					.checked_add(&external_price)
-					.ok_or(())?
-					.checked_div(&FixedU128::from(2))
-					.ok_or(())?,
-			)
+			.checked_mul(&current_spot_price.checked_add(&external_price).ok_or(())?)
 			.ok_or(())?;
 
 		let diff = if current_spot_price >= external_price {
@@ -165,7 +159,10 @@ where
 			external_price.saturating_sub(current_spot_price)
 		};
 
-		ensure!(diff <= max_allowed_difference, ());
+		ensure!(
+			diff.checked_mul(&FixedU128::from(2)).ok_or(())? <= max_allowed_difference,
+			()
+		);
 		Ok(())
 	}
 }
