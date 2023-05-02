@@ -15,7 +15,7 @@ impl ExternalPriceProvider<u32, EmaPrice> for SinglePriceProvider {
 	type Error = ();
 
 	fn get_price(_asset_a: u32, _asset_b: u32) -> Result<EmaPrice, Self::Error> {
-		Ok(EXTERNAL_PRICE.with(|v| v.borrow().clone()))
+		Ok(EXTERNAL_PRICE.with(|v| *v.borrow()))
 	}
 
 	fn get_price_weight() -> Weight {
