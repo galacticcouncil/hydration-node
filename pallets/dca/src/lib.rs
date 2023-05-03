@@ -114,6 +114,12 @@ pub mod pallet {
 			let mut schedule_ids: Vec<ScheduleId> =
 				ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
 
+			if !schedule_ids.is_empty() {
+				Self::deposit_event(Event::ExecutionsStarted {
+					block: current_blocknumber
+				});
+			}
+
 			schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
 			for schedule_id in schedule_ids {
 				let Some(schedule) = Schedules::<T>::get(schedule_id) else {
@@ -263,7 +269,13 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///The DCA is scheduled
-		Scheduled { id: ScheduleId, who: T::AccountId },
+		ExecutionsStarted {
+			block: BlockNumberFor<T>,
+		},
+		Scheduled {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
 		///The DCA is planned for blocknumber
 		ExecutionPlanned {
 			id: ScheduleId,
@@ -271,13 +283,25 @@ pub mod pallet {
 			block: BlockNumberFor<T>,
 		},
 		///
-		TradeExecuted { id: ScheduleId, who: T::AccountId },
+		TradeExecuted {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
 		///The DCA is terminated and completely removed from the chain
-		Terminated { id: ScheduleId, who: T::AccountId }, //TODO: add error model (modelindex, indexOfError)
+		Terminated {
+			id: ScheduleId,
+			who: T::AccountId,
+		}, //TODO: add error model (modelindex, indexOfError)
 		///The DCA is suspended because it is paused by user or the DCA execution failed
-		Suspended { id: ScheduleId, who: T::AccountId }, //TODO: add error model (modelindex, indexOfError)
+		Suspended {
+			id: ScheduleId,
+			who: T::AccountId,
+		}, //TODO: add error model (modelindex, indexOfError)
 		///The DCA is completed and completely removed from the chain
-		Completed { id: ScheduleId, who: T::AccountId },
+		Completed {
+			id: ScheduleId,
+			who: T::AccountId,
+		},
 	}
 
 	#[pallet::error]
