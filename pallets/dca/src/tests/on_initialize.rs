@@ -165,6 +165,52 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 }
 
 #[test]
+fn one_buy_dca_execution_should_slippage_limit() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_buy = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit: 0,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let max_sell_amount = 9_240_000_00_000;
+			assert_executed_buy_trades!(vec![BuyExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_out: ONE,
+				max_sell_amount: max_sell_amount,
+			}]);
+
+			assert_eq!(
+				total_amount - max_sell_amount - FEE_FOR_ONE_DCA_EXECUTION,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
+		});
+}
+
+#[test]
 fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happened_but_no_more_reserved_amount_left() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])

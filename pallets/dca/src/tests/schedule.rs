@@ -585,7 +585,7 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 		});
 }
 #[test]
-fn schedule_should_pass_with_buy_when_small_amount_out_as_calculated_amount_will_already_include_trade_fee() {
+fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -604,7 +604,12 @@ fn schedule_should_pass_with_buy_when_small_amount_out_as_calculated_amount_will
 				.build();
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::TradeAmountIsLessThanFee
+			);
 		});
 }
 

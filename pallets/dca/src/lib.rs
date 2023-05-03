@@ -381,11 +381,15 @@ pub mod pallet {
 			//TODO: inline these. 
 			//TODO: the ensure next bloxck number should be in the next
 			Self::ensure_next_blocknumber_is_bigger_than_current_block(start_execution_block)?;
-			Self::ensure_total_amount_is_bigger_than_storage_bond(&schedule)?;
-			Self::ensure_sell_amount_is_bigger_than_transaction_fee(&schedule)?;
+
+			let storage_bond = Self::get_storage_bond(&schedule)?;
+			ensure!(
+				schedule.total_amount > storage_bond,
+				Error::<T>::TotalAmountShouldBeLargerThanStorageBond);
 
 			let amount_to_unreserve = Self::amount_to_unreserve(&schedule.order)?;
 			let transaction_fee = Self::get_transaction_fee_in_sold_asset(schedule.order.get_asset_in())?;
+			ensure!(amount_to_unreserve > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 			ensure!(amount_to_unreserve + transaction_fee <= schedule.total_amount, Error::<T>::BudgetTooLow);
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
@@ -412,6 +416,7 @@ pub mod pallet {
 
 			Ok(())
 		}
+
 	}
 }
 
@@ -473,24 +478,6 @@ where
 	fn ensure_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 		ensure!(*who == schedule.owner, Error::<T>::Forbidden);
-
-		Ok(())
-	}
-
-	fn ensure_sell_amount_is_bigger_than_transaction_fee(
-		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
-	) -> DispatchResult {
-		match schedule.order {
-			Order::Sell {
-				asset_in, amount_in, ..
-			} => {
-				let transaction_fee = Self::get_transaction_fee_in_sold_asset(asset_in)?;
-				ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
-			}
-			Order::Buy { .. } => {
-				//For buy we don't check as the calculated amount in will always include the fee
-			}
-		}
 
 		Ok(())
 	}
@@ -613,6 +600,16 @@ where
 			.ok_or(ArithmeticError::Overflow)?;
 
 		Ok(*max_limit)
+	}
+
+	fn get_storage_bond(schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) -> Result<Balance, DispatchError> {
+		let storage_bond = if schedule.order.get_asset_in() == T::NativeAssetId::get() {
+			T::StorageBondInNativeCurrency::get()
+		} else {
+			Self::get_storage_bond_in_sold_currency(&schedule.order)?
+		};
+
+		Ok(storage_bond)
 	}
 
 	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
