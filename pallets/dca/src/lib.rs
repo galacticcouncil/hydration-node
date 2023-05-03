@@ -266,10 +266,6 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		///The DCA is paused from execution
-		Paused { id: ScheduleId, who: T::AccountId },
-		///The DCA is resumed to be executed
-		Resumed { id: ScheduleId, who: T::AccountId },
 		///The DCA is terminated and completely removed from the chain
 		Terminated { id: ScheduleId, who: T::AccountId }, //TODO: add error model (modelindex, indexOfError)
 		///The DCA is suspended because it is paused by user or the DCA execution failed
