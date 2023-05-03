@@ -407,7 +407,7 @@ pub mod pallet {
 				Error::<T>::TotalAmountShouldBeLargerThanStorageBond);
 
 			let amount_to_unreserve = Self::amount_to_unreserve(&schedule.order)?;
-			let transaction_fee = Self::get_transaction_fee_in_sold_asset(schedule.order.get_asset_in())?;
+			let transaction_fee = Self::get_transaction_fee_in_asset(schedule.order.get_asset_in())?;
 			ensure!(amount_to_unreserve > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 			ensure!(amount_to_unreserve + transaction_fee <= schedule.total_amount, Error::<T>::BudgetTooLow);
 
@@ -565,7 +565,7 @@ where
 		let max_limit_from_oracle_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
 		let max_limit = max(max_limit, &max_limit_from_oracle_price);
 
-		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_sold_asset(*asset_in)?;
+		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_asset(*asset_in)?;
 		//TODO: double check if we really don't want this?!
 		let amount_to_sell_plus_fee = max_limit
 			.checked_add(&fee_amount_in_sold_asset)
@@ -610,7 +610,7 @@ where
 	) -> DispatchResult {
 		let fee_currency = order.get_asset_in();
 
-		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_sold_asset(fee_currency)?;
+		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_asset(fee_currency)?;
 
 		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
 			&T::NamedReserveId::get(),
@@ -802,9 +802,7 @@ where
 			} => {
 				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
 
-				//TODO: this is not correct, because we need to charge this always
-				//Double check this as it might be correc.t Ask jakub
-				let transaction_fee = Self::get_transaction_fee_in_sold_asset(*asset_in)?;
+				let transaction_fee = Self::get_transaction_fee_in_asset(*asset_in)?;
 
 				let amount_to_sell = amount_in
 					.checked_sub(transaction_fee)
@@ -872,7 +870,7 @@ where
 		Ok(max_limit_with_slippage)
 	}
 
-	fn get_transaction_fee_in_sold_asset(fee_currency: T::Asset) -> Result<u128, DispatchError> {
+	fn get_transaction_fee_in_asset(fee_currency: T::Asset) -> Result<u128, DispatchError> {
 		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize())
 			.checked_div(T::MaxSchedulePerBlock::get().into())
 			.ok_or(ArithmeticError::Underflow)?;
