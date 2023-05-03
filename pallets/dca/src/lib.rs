@@ -106,90 +106,89 @@ pub mod pallet {
 		>>::Balance: From<u128>,
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
-			{
-				//TODO: Emit start event
-				let mut weight: u64 = Self::get_on_initialize_weight();
+			//TODO: Emit start event
+			let mut weight: u64 = Self::get_on_initialize_weight();
 
-				let mut random_generator = T::RandomnessProvider::generator();
+			let mut random_generator = T::RandomnessProvider::generator();
 
-				let mut schedule_ids: Vec<ScheduleId> =
-					ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
+			let mut schedule_ids: Vec<ScheduleId> =
+				ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
 
-				schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
-				for schedule_id in schedule_ids {
-					let Some(schedule) = Schedules::<T>::get(schedule_id) else {
-						continue; //TODO: discuss what to do here. The problem is that we can not really terminate as we don't know the info like user and other schedule relevant data
-					};
+			schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
+			for schedule_id in schedule_ids {
+				let Some(schedule) = Schedules::<T>::get(schedule_id) else {
+					continue; //TODO: discuss what to do here. The problem is that we can not really terminate as we don't know the info like user and other schedule relevant data
+				};
 
-					let Ok(())  = Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) else {
+				let Ok(())  = Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) else {
+					Self::terminate_schedule(schedule_id, &schedule);
+					continue;
+				};
+
+				let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {
+					Self::terminate_schedule(schedule_id, &schedule);
+					continue;
+				};
+
+				let sold_currency = schedule.order.get_asset_in();
+				let Ok(is_price_change_bigger_than_max_allowed) = Self::price_change_is_bigger_than_max_allowed(
+					sold_currency,
+					schedule.order.get_asset_out()
+				) else {
+					Self::terminate_schedule(schedule_id, &schedule);
+					continue;
+				};
+				if is_price_change_bigger_than_max_allowed {
+					let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
 						Self::terminate_schedule(schedule_id, &schedule);
 						continue;
 					};
+					continue;
+				}
 
-					let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {
-						Self::terminate_schedule(schedule_id, &schedule);
-						continue;
-					};
+				weight.saturating_accrue(Self::get_execute_schedule_weight());
+				let trade_result = Self::execute_schedule(schedule_id, &schedule);
 
-					let sold_currency = schedule.order.get_asset_in();
-					let Ok(is_price_change_bigger_than_max_allowed) = Self::price_change_is_bigger_than_max_allowed(
-						sold_currency,
-						schedule.order.get_asset_out()
-					) else {
-						Self::terminate_schedule(schedule_id, &schedule);
-						continue;
-					};
-					if is_price_change_bigger_than_max_allowed {
+				match trade_result {
+					Ok(_) => {
+						Self::deposit_event(Event::TradeExecuted {
+							id: schedule_id,
+							who: schedule.owner.clone(),
+						});
+
+						let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
+							Self::terminate_schedule(schedule_id, &schedule);
+							continue;
+						};
+
+						let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
+							Self::terminate_schedule(schedule_id, &schedule);
+							continue;
+						};
+
+						if remaining_amount_to_use < amount_to_unreserve {
+							Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner.clone()).unwrap(); //TODO: remove unwrap
+							Self::complete_dca(&schedule.owner, schedule_id);
+							continue;
+						}
+
 						let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
 							Self::terminate_schedule(schedule_id, &schedule);
 							continue;
 						};
-						continue;
-					}
-
-					weight.saturating_accrue(Self::get_execute_schedule_weight());
-					let trade_result = Self::execute_schedule(schedule_id, &schedule);
-
-					match trade_result {
-						Ok(_) => {
-							Self::deposit_event(Event::TradeExecuted {
-								id: schedule_id,
-								who: schedule.owner.clone(),
-							});
-
-							let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
-								Self::terminate_schedule(schedule_id, &schedule);
-								continue;
-							};
-
-							let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
-								Self::terminate_schedule(schedule_id, &schedule);
-								continue;
-							};
-
-							if remaining_amount_to_use < amount_to_unreserve {
-								Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner.clone()).unwrap(); //TODO: remove unwrap
-								Self::complete_dca(&schedule.owner, schedule_id);
-								continue;
-							}
-
-							let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-								Self::terminate_schedule(schedule_id, &schedule);
-								continue;
-							};
-						},
-						Err(err) => {
-							if T::SuspendOnErrors::contains(&err) {
-								Self::suspend_schedule(&schedule.owner, schedule_id);
-							} else {
-								Self::terminate_schedule(schedule_id, &schedule)
-							}
+					},
+					Err(err) => {
+						if T::SuspendOnErrors::contains(&err) {
+							Self::suspend_schedule(&schedule.owner, schedule_id);
+						} else {
+							Self::terminate_schedule(schedule_id, &schedule)
 						}
 					}
 				}
-
-				Weight::from_ref_time(weight)
 			}
+
+			Weight::from_ref_time(weight)
+
 		}
 	}
 
