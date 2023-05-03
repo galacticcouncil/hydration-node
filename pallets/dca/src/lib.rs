@@ -152,6 +152,11 @@ pub mod pallet {
 
 					match trade_result {
 						Ok(_) => {
+							Self::deposit_event(Event::TradeExecuted {
+								id: schedule_id,
+								who: schedule.owner.clone(),
+							});
+
 							let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
 								Self::terminate_schedule(schedule_id, &schedule);
 								continue;
@@ -266,6 +271,8 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
+		///
+		TradeExecuted { id: ScheduleId, who: T::AccountId },
 		///The DCA is terminated and completely removed from the chain
 		Terminated { id: ScheduleId, who: T::AccountId }, //TODO: add error model (modelindex, indexOfError)
 		///The DCA is suspended because it is paused by user or the DCA execution failed

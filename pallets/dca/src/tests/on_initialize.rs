@@ -33,7 +33,46 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 
 #[test]
-fn one_sell_dca_execution_should_unreserve_amount_in() {
+fn successfull_dca_execution_should_emit_trade_executed_event() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let schedule_id = 1;
+			expect_events(vec![Event::TradeExecuted {
+				id: schedule_id,
+				who: ALICE,
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn one_dca_execution_should_unreserve_amount_in() {
 	let initial_alice_hdx_balance = 10000 * ONE;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, initial_alice_hdx_balance)])
