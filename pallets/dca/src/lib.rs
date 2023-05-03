@@ -283,7 +283,7 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		///Schedule not exist
-		ScheduleNotExist,
+		ScheduleNotFound,
 		///Trade amount is less than fee
 		TradeAmountIsLessThanFee,
 		///Forbidden as the user is not the owner of the schedule
@@ -465,13 +465,13 @@ where
 	}
 
 	fn ensure_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
-		ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotExist);
+		ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotFound);
 
 		Ok(())
 	}
 
 	fn ensure_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 		ensure!(*who == schedule.owner, Error::<T>::Forbidden);
 
 		Ok(())
@@ -578,7 +578,7 @@ where
 
 	fn decrease_remaining_amount(schedule_id: ScheduleId, amount_to_unreserve: Balance) -> DispatchResult {
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
-			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::ScheduleNotExist)?;
+			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
 			if amount_to_unreserve > *remaining_amount {
 				*maybe_remaining_amount = None;
@@ -703,7 +703,7 @@ where
 	}
 
 	fn unreserve_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotExist)?;
+		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 		let sold_currency = schedule.order.get_asset_in();
 
 		let remaining_amount = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
@@ -893,7 +893,7 @@ where
 		next_execution_block: T::BlockNumber,
 	) -> DispatchResult {
 		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
-			let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotExist)?;
+			let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
 			let index = schedule_ids
 				.iter()
