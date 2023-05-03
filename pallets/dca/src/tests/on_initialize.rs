@@ -494,51 +494,13 @@ fn dca_schedule_is_suspended_in_block_when_trade_fails_with_insufficient_trade_l
 			assert_number_of_executed_buy_trades!(0);
 
 			let schedule_id = 1;
-			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
+			assert!(DCA::suspended(schedule_id).is_some());
 
-			expect_events(vec![Event::Terminated {
+			expect_events(vec![Event::Suspended {
 				id: schedule_id,
 				who: ALICE,
 			}
 			.into()]);
-		});
-}
-
-#[test]
-fn dca_should_not_be_executed_when_schedule_is_paused_after_one_execution() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let schedule = ScheduleBuilder::new()
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: ONE,
-					max_limit: 5 * ONE,
-					route: empty_vec(),
-				})
-				.build();
-
-			let schedule_id: ScheduleId = 1u32;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_balance!(ALICE, BTC, 0);
-
-			//Act
-			set_to_blocknumber(501);
-
-			assert_number_of_executed_buy_trades!(1);
-
-			assert_ok!(DCA::pause(Origin::signed(ALICE), schedule_id, 601));
-
-			proceed_to_blocknumber(502, 901);
-
-			//Assert
-			assert_number_of_executed_buy_trades!(1);
 		});
 }
 
