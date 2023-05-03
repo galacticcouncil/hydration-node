@@ -150,7 +150,8 @@ pub mod pallet {
 						continue;
 					}
 
-					let trade_result = Self::execute_schedule(&mut weight, schedule_id, &schedule);
+					weight.saturating_accrue(Self::get_execute_schedule_weight());
+					let trade_result = Self::execute_schedule(schedule_id, &schedule);
 
 					match trade_result {
 						Ok(_) => {
@@ -493,12 +494,9 @@ where
 
 	#[transactional]
 	pub fn execute_schedule(
-		weight: &mut u64,
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
-		*weight += Self::get_execute_schedule_weight();
-
 		//TODO: Add logging for each error cases
 		//TODO: TERMINATE WITH ERROR FLAG
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
