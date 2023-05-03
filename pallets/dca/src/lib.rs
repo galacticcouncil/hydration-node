@@ -443,15 +443,6 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
-	fn ensure_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
-		ensure!(
-			Suspended::<T>::contains_key(schedule_id),
-			Error::<T>::ScheduleMustBeSuspended
-		);
-
-		Ok(())
-	}
-
 	#[transactional]
 	pub fn execute_schedule(
 		schedule_id: ScheduleId,
@@ -879,29 +870,6 @@ where
 		Ok(fee_amount_in_sold_asset)
 	}
 
-	fn remove_schedule_id_from_next_execution_block(
-		schedule_id: ScheduleId,
-		next_execution_block: T::BlockNumber,
-	) -> DispatchResult {
-		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
-			let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
-
-			let index = schedule_ids
-				.iter()
-				.position(|x| *x == schedule_id)
-				.ok_or(Error::<T>::NoPlannedExecutionFoundOnBlock)?;
-
-			schedule_ids.remove(index);
-
-			if schedule_ids.is_empty() {
-				*maybe_schedule_ids = None;
-			}
-			Ok(())
-		})?;
-
-		Ok(())
-	}
-
 	fn suspend_schedule(owner: &T::AccountId, schedule_id: ScheduleId) {
 		Suspended::<T>::insert(schedule_id, ());
 		Self::deposit_event(Event::Suspended {
@@ -938,30 +906,6 @@ where
 				target: "runtime::dca",
 				"Unexpected error happened while unreserving remaining currency, with message: {:?}.",
 				err);
-	}
-
-	fn remove_planning_or_suspension(
-		schedule_id: ScheduleId,
-		next_execution_block: Option<T::BlockNumber>,
-	) -> DispatchResult {
-		match next_execution_block {
-			Some(block) => {
-				let schedule_ids_on_block = ScheduleIdsPerBlock::<T>::get(block);
-
-				ensure!(
-					schedule_ids_on_block.contains(&schedule_id),
-					Error::<T>::NoPlannedExecutionFoundOnBlock,
-				);
-
-				Self::remove_schedule_id_from_next_execution_block(schedule_id, block)?;
-			}
-			None => {
-				Self::ensure_schedule_is_suspended(schedule_id)?;
-				Suspended::<T>::remove(schedule_id);
-			}
-		};
-
-		Ok(())
 	}
 }
 
