@@ -296,6 +296,8 @@ pub mod pallet {
 		NoPlannedExecutionFoundOnBlock,
 		///Schedule execution is not planned on block
 		ScheduleMustBeSuspended,
+		///There is no asset pair found for the given assets
+		AssetPairNotFound,
 		///Error occurred when calculating price
 		CalculatingPriceError,
 		///Invalid storage state: No schedule ids planned in block
@@ -543,7 +545,7 @@ where
 	}
 
 	fn get_current_price(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
-		let price = T::SpotPriceProvider::spot_price(asset_a, asset_b).ok_or(Error::<T>::CalculatingPriceError)?;
+		let price = T::SpotPriceProvider::spot_price(asset_a, asset_b).ok_or(Error::<T>::AssetPairNotFound)?;
 		Ok(price)
 	}
 
