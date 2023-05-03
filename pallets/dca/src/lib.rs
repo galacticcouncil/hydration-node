@@ -457,8 +457,6 @@ where
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
-		//TODO: Add logging for each error cases
-		//TODO: TERMINATE WITH ERROR FLAG
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
 		//If these two fail, we terminate - no rollback
@@ -938,7 +936,7 @@ where
 	fn log_error_of_unreserving(err: DispatchError) {
 		log::error!(
 				target: "runtime::dca",
-				"Unexpected error happened while unreserving remaining sold currency, with message: {:?}.",
+				"Unexpected error happened while unreserving remaining currency, with message: {:?}.",
 				err);
 	}
 
