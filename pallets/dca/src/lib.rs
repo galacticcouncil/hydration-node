@@ -378,9 +378,6 @@ pub mod pallet {
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-			//TODO: inline these. 
-			//TODO: the ensure next bloxck number should be in the next
-			Self::ensure_next_blocknumber_is_bigger_than_current_block(start_execution_block)?;
 
 			let storage_bond = Self::get_storage_bond(&schedule)?;
 			ensure!(
@@ -428,56 +425,11 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
-	//TODO: this should be in the plan schedule, and it can be removed in other extrinsics such as pause
-	fn ensure_next_blocknumber_is_bigger_than_current_block(
-		next_execution_block: Option<T::BlockNumber>,
-	) -> DispatchResult {
-		if let Some(next_exection_block) = next_execution_block {
-			let current_block_number = frame_system::Pallet::<T>::current_block_number();
-			ensure!(
-				next_exection_block > current_block_number,
-				Error::<T>::BlockNumberIsNotInFuture
-			);
-		};
-
-		Ok(())
-	}
-
-	fn ensure_total_amount_is_bigger_than_storage_bond(
-		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
-	) -> DispatchResult {
-		let min_total_amount = if schedule.order.get_asset_in() == T::NativeAssetId::get() {
-			T::StorageBondInNativeCurrency::get()
-		} else {
-			Self::get_storage_bond_in_sold_currency(&schedule.order)?
-		};
-
-		ensure!(
-			schedule.total_amount > min_total_amount,
-			Error::<T>::TotalAmountShouldBeLargerThanStorageBond
-		);
-
-		Ok(())
-	}
-
 	fn ensure_schedule_is_suspended(schedule_id: ScheduleId) -> DispatchResult {
 		ensure!(
 			Suspended::<T>::contains_key(schedule_id),
 			Error::<T>::ScheduleMustBeSuspended
 		);
-
-		Ok(())
-	}
-
-	fn ensure_schedule_exists(schedule_id: &ScheduleId) -> DispatchResult {
-		ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotFound);
-
-		Ok(())
-	}
-
-	fn ensure_origin_is_schedule_owner(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
-		ensure!(*who == schedule.owner, Error::<T>::Forbidden);
 
 		Ok(())
 	}
@@ -723,6 +675,9 @@ where
 	}
 
 	fn plan_schedule_for_block(blocknumber: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
+		let current_block_number = frame_system::Pallet::<T>::current_block_number();
+		ensure!(blocknumber > current_block_number, Error::<T>::BlockNumberIsNotInFuture);
+
 		let next_free_block = Self::find_next_free_block(blocknumber)?;
 
 		if ScheduleIdsPerBlock::<T>::contains_key(next_free_block) {
