@@ -33,7 +33,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, Perbill, Permill,
+	ApplyExtrinsicResult, DispatchError, Perbill, Permill,
 };
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
@@ -971,6 +971,19 @@ impl pallet_dca::Config for Runtime {
 	type SlippageLimitPercentage = ();
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	type SuspendOnErrors = ErrorsToSuspendList;
+}
+
+pub struct ErrorsToSuspendList;
+
+impl Contains<DispatchError> for ErrorsToSuspendList {
+	fn contains(e: &DispatchError) -> bool {
+		vec![
+			pallet_omnipool::Error::<Runtime>::BuyLimitNotReached.into(),
+			pallet_omnipool::Error::<Runtime>::SellLimitExceeded.into(),
+		]
+		.contains(e)
+	}
 }
 
 parameter_types! {

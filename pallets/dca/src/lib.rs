@@ -86,6 +86,7 @@ pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"dcaorder";
 pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
+	use frame_support::traits::Contains;
 	use frame_support::weights::WeightToFee;
 
 	use frame_system::pallet_prelude::OriginFor;
@@ -175,8 +176,11 @@ pub mod pallet {
 							};
 						},
 						Err(err) => {
-							//TODO: for specific errors, consider suspending
-							Self::terminate_schedule(schedule_id, &schedule);
+							if T::SuspendOnErrors::contains(&err) {
+								Self::suspend_schedule(&schedule.owner, schedule_id);
+							} else {
+								Self::terminate_schedule(schedule_id, &schedule)
+							}
 						}
 					}
 				}
@@ -245,6 +249,8 @@ pub mod pallet {
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
+
+		type SuspendOnErrors: Contains<DispatchError>;
 	}
 
 	#[pallet::event]

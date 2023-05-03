@@ -17,7 +17,7 @@
 
 use crate as dca;
 use crate::{AMMTrader, Config};
-use frame_support::traits::{Everything, GenesisBuild, Nothing};
+use frame_support::traits::{Contains, Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::IdentityFee;
 use frame_support::weights::WeightToFeeCoefficient;
@@ -409,6 +409,15 @@ impl Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
 	type MaxPriceDifference = OmnipoolMaxAllowedPriceDifference;
+	type SuspendOnErrors = ErrorsToSuspendMock;
+}
+
+pub struct ErrorsToSuspendMock;
+
+impl Contains<DispatchError> for ErrorsToSuspendMock {
+	fn contains(e: &DispatchError) -> bool {
+		vec![DispatchError::Other("Min amount is not reached")].contains(e)
+	}
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};

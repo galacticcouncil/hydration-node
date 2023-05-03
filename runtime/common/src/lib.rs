@@ -33,7 +33,7 @@ use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
 	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
-	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
+	DispatchError, FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 
