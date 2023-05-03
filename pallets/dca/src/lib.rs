@@ -144,7 +144,7 @@ pub mod pallet {
 					continue;
 				};
 				if is_price_change_bigger_than_max_allowed {
-					let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
+					let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), blocknumber_for_schedule, schedule_id) else {
 						Self::terminate_schedule(schedule_id, &schedule);
 						continue;
 					};
@@ -176,7 +176,7 @@ pub mod pallet {
 							continue;
 						}
 
-						let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
+						let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), blocknumber_for_schedule, schedule_id) else {
 							Self::terminate_schedule(schedule_id, &schedule);
 							continue;
 						};
@@ -421,16 +421,11 @@ pub mod pallet {
 
 			let blocknumber_for_first_schedule_execution =
 				start_execution_block.unwrap_or_else(|| Self::get_next_block_number());
-			Self::plan_schedule_for_block(blocknumber_for_first_schedule_execution, next_schedule_id)?;
+			Self::plan_schedule_for_block(who.clone(), blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
 				who: who.clone(),
-			});
-			Self::deposit_event(Event::ExecutionPlanned {
-				id: next_schedule_id,
-				who,
-				block: blocknumber_for_first_schedule_execution,
 			});
 
 			Ok(())
@@ -713,7 +708,11 @@ where
 		<T as pallet::Config>::WeightToFee::weight_to_fee(&capped_weight)
 	}
 
-	fn plan_schedule_for_block(blocknumber: T::BlockNumber, schedule_id: ScheduleId) -> DispatchResult {
+	fn plan_schedule_for_block(
+		who: T::AccountId,
+		blocknumber: T::BlockNumber,
+		schedule_id: ScheduleId,
+	) -> DispatchResult {
 		let current_block_number = frame_system::Pallet::<T>::current_block_number();
 		ensure!(blocknumber > current_block_number, Error::<T>::BlockNumberIsNotInFuture);
 
@@ -734,7 +733,11 @@ where
 			ScheduleIdsPerBlock::<T>::insert(next_free_block, vec_with_first_schedule_id);
 		}
 
-		//TODO: consider emitting event
+		Self::deposit_event(Event::ExecutionPlanned {
+			id: schedule_id,
+			who,
+			block: next_free_block,
+		});
 		Ok(())
 	}
 

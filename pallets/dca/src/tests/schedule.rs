@@ -242,13 +242,13 @@ fn schedule_should_emit_necessary_events() {
 
 			//Assert
 			expect_events(vec![
-				Event::Scheduled { id: 1, who: ALICE }.into(),
 				Event::ExecutionPlanned {
 					id: 1,
 					who: ALICE,
 					block: 501,
 				}
 				.into(),
+				Event::Scheduled { id: 1, who: ALICE }.into(),
 			]);
 		});
 }
@@ -268,24 +268,24 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			expect_events(vec![
-				Event::Scheduled { id: 1, who: ALICE }.into(),
 				Event::ExecutionPlanned {
 					id: 1,
 					who: ALICE,
 					block: 501,
 				}
 				.into(),
+				Event::Scheduled { id: 1, who: ALICE }.into(),
 			]);
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(1000)));
 			expect_events(vec![
-				Event::Scheduled { id: 2, who: ALICE }.into(),
 				Event::ExecutionPlanned {
 					id: 2,
 					who: ALICE,
 					block: 1000,
 				}
 				.into(),
+				Event::Scheduled { id: 2, who: ALICE }.into(),
 			]);
 		});
 }

@@ -63,11 +63,19 @@ fn successfull_dca_execution_should_emit_trade_executed_event() {
 
 			//Assert
 			let schedule_id = 1;
-			expect_events(vec![Event::TradeExecuted {
-				id: schedule_id,
-				who: ALICE,
-			}
-			.into()]);
+			expect_events(vec![
+				Event::TradeExecuted {
+					id: schedule_id,
+					who: ALICE,
+				}
+				.into(),
+				Event::ExecutionPlanned {
+					id: schedule_id,
+					who: ALICE,
+					block: 601,
+				}
+				.into(),
+			]);
 		});
 }
 
