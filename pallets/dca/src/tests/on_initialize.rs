@@ -773,7 +773,7 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 }
 
 #[test]
-fn dca_should_be_suspended_when_dca_cannot_be_planned_due_to_not_free_blocks() {
+fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000000 * ONE)])
 		.build()
@@ -817,12 +817,12 @@ fn dca_should_be_suspended_when_dca_cannot_be_planned_due_to_not_free_blocks() {
 				min_buy_amount: 0,
 			}]);
 
-			assert!(DCA::suspended(schedule_id).is_some());
+			assert_that_dca_is_terminated(ALICE, schedule_id);
 		});
 }
 
 #[test]
-fn dca_should_be_suspended_when_price_change_is_big_but_no_free_blocks_to_replan() {
+fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_replan() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000000 * ONE)])
 		.with_max_price_difference(Permill::from_percent(9))
@@ -860,7 +860,7 @@ fn dca_should_be_suspended_when_price_change_is_big_but_no_free_blocks_to_replan
 
 			//Assert
 			assert_executed_sell_trades!(vec![]);
-			assert!(DCA::suspended(schedule_id).is_some());
+			assert_that_dca_is_terminated(ALICE, schedule_id);
 		});
 }
 
@@ -885,6 +885,16 @@ fn assert_that_dca_is_completed(owner: AccountId, schedule_id: ScheduleId) {
 	assert_that_schedule_has_been_removed_from_storages!(owner, schedule_id);
 
 	expect_events(vec![Event::Completed {
+		id: schedule_id,
+		who: owner,
+	}
+	.into()]);
+}
+
+fn assert_that_dca_is_terminated(owner: AccountId, schedule_id: ScheduleId) {
+	assert_that_schedule_has_been_removed_from_storages!(owner, schedule_id);
+
+	expect_events(vec![Event::Terminated {
 		id: schedule_id,
 		who: owner,
 	}

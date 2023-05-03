@@ -144,7 +144,7 @@ pub mod pallet {
 					};
 					if is_price_change_bigger_than_max_allowed {
 						let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-							Self::suspend_schedule(&schedule.owner, schedule_id);
+							Self::terminate_schedule(schedule_id, &schedule);
 							continue;
 						};
 						continue;
@@ -165,13 +165,13 @@ pub mod pallet {
 							};
 
 							if remaining_amount_to_use < amount_to_unreserve {
-								Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner.clone()).unwrap();
+								Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner.clone()).unwrap(); //TODO: remove unwrap
 								Self::complete_dca(&schedule.owner, schedule_id);
 								continue;
 							}
 
 							let Ok(()) = Self::plan_schedule_for_block(blocknumber_for_schedule, schedule_id) else {
-								Self::suspend_schedule(&schedule.owner, schedule_id);
+								Self::terminate_schedule(schedule_id, &schedule);
 								continue;
 							};
 						},
