@@ -284,8 +284,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		///Schedule not exist
 		ScheduleNotExist,
-		///The user has not enough balance for the reserving the total amount to spend
-		InsufficientBalanceForTotalAmount,
 		///Trade amount is less than fee
 		TradeAmountIsLessThanFee,
 		///Forbidden as the user is not the owner of the schedule
