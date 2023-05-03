@@ -967,7 +967,8 @@ impl pallet_dca::Config for Runtime {
 	type NativeAssetId = NativeAssetId;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type FeeReceiver = TreasuryAccount;
-	type SlippageLimitPercentage = ();
+	type SlippageLimitPercentage = (); //TODO: add slippage limit
+	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 	type SuspendOnErrors = ErrorsToSuspendList;

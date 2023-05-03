@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::assert_scheduled_ids;
 use crate::tests::mock::*;
 use crate::tests::{empty_vec, ScheduleBuilder};
-use crate::{assert_scheduled_ids, NAMED_RESERVE_ID};
 use crate::{Error, Event, Order, ScheduleId};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -55,7 +55,7 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 			//Assert
 			assert_eq!(
 				total_amount,
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE)
+				Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE)
 			);
 		});
 }
@@ -129,7 +129,7 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 			//Assert
 			assert_eq!(
 				total_amount + total_amount_2,
-				Currencies::reserved_balance_named(&NAMED_RESERVE_ID, HDX, &ALICE)
+				Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE)
 			);
 			let schedule_id = 1;
 			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);

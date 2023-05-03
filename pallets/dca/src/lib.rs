@@ -77,10 +77,7 @@ use crate::types::*;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
-type NamedReserveIdentifier = [u8; 8];
-
 const MAX_NUMBER_OF_RETRY_FOR_PLANNING: u32 = 5;
-pub const NAMED_RESERVE_ID: NamedReserveIdentifier = *b"dcaorder";
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -244,6 +241,10 @@ pub mod pallet {
 		///Slippage limit percentage to be used for calculating min and max limits for trades
 		#[pallet::constant]
 		type SlippageLimitPercentage: Get<Permill>;
+
+		/// Named reserve identifier to store named reserves for orders of each users
+		#[pallet::constant]
+		type NamedReserveId: Get<NamedReserveIdentifier>;
 
 		/// Convert a weight value into a deductible fee
 		type WeightToFee: WeightToFee<Balance = Balance>;
@@ -510,7 +511,7 @@ where
 		let sold_currency = schedule.order.get_asset_in();
 
 		T::Currency::unreserve_named(
-			&NAMED_RESERVE_ID,
+			&T::NamedReserveId::get(),
 			sold_currency.into(),
 			&schedule.owner,
 			amount_to_unreserve.into(),
@@ -641,7 +642,7 @@ where
 		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_sold_asset(fee_currency)?;
 
 		T::Currency::unreserve_named(
-			&NAMED_RESERVE_ID,
+			&T::NamedReserveId::get(),
 			order.get_asset_in().into(),
 			&owner,
 			fee_amount_in_sold_asset.into(),
@@ -669,7 +670,7 @@ where
 		};
 
 		T::Currency::reserve_named(
-			&NAMED_RESERVE_ID,
+			&T::NamedReserveId::get(),
 			currency_for_reserve.into(),
 			who,
 			schedule.total_amount.into(),
@@ -705,7 +706,12 @@ where
 
 		let remaining_amount = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 
-		T::Currency::unreserve_named(&NAMED_RESERVE_ID, sold_currency.into(), who, remaining_amount.into());
+		T::Currency::unreserve_named(
+			&T::NamedReserveId::get(),
+			sold_currency.into(),
+			who,
+			remaining_amount.into(),
+		);
 
 		Ok(())
 	}

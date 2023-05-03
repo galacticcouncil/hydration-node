@@ -54,6 +54,7 @@ pub type Index = u32;
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
+use pallet_dca::types::NamedReserveIdentifier;
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -365,4 +366,5 @@ parameter_types! {
 	pub MaxSchedulesPerBlock: u32 = 20;
 	pub SlippageLimitPercentage: Permill = Permill::from_percent(5);
 	pub MaxPriceDifference: Permill = Permill::from_percent(10);
+	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 }

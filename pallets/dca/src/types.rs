@@ -6,6 +6,7 @@ use sp_runtime::BoundedVec;
 
 pub type Balance = u128;
 pub type ScheduleId = u32;
+pub type NamedReserveIdentifier = [u8; 8];
 
 const MAX_NUMBER_OF_TRADES: u32 = 5;
 

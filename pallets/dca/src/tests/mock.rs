@@ -270,14 +270,6 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub NativeCurrencyId: AssetId = HDX;
-	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
-	pub MaxSchedulePerBlock: u32 = 20;
-	pub SlippageLimitPercentage: Permill = SLIPPAGE.with(|v| *v.borrow());
-	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
-}
-
 pub struct BlockNumberProviderMock {}
 
 impl BlockNumberProvider for BlockNumberProviderMock {
@@ -393,6 +385,15 @@ impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
 	}
 }
 
+parameter_types! {
+	pub NativeCurrencyId: AssetId = HDX;
+	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
+	pub MaxSchedulePerBlock: u32 = 20;
+	pub SlippageLimitPercentage: Permill = SLIPPAGE.with(|v| *v.borrow());
+	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
+	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
+}
+
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
@@ -410,6 +411,7 @@ impl Config for Test {
 	type SpotPriceProvider = SpotPriceProviderMock;
 	type MaxPriceDifference = OmnipoolMaxAllowedPriceDifference;
 	type SuspendOnErrors = ErrorsToSuspendMock;
+	type NamedReserveId = NamedReserveId;
 }
 
 pub struct ErrorsToSuspendMock;
