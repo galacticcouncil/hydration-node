@@ -130,7 +130,7 @@ pub mod pallet {
 					continue;
 				};
 
-				let Some(blocknumber_for_schedule) = current_blocknumber.checked_add(&schedule.period) else {
+				let Some(next_execution_block) = current_blocknumber.checked_add(&schedule.period) else {
 					Self::terminate_schedule(schedule_id, &schedule);
 					continue;
 				};
@@ -144,7 +144,7 @@ pub mod pallet {
 					continue;
 				};
 				if is_price_change_bigger_than_max_allowed {
-					let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), blocknumber_for_schedule, schedule_id) else {
+					let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) else {
 						Self::terminate_schedule(schedule_id, &schedule);
 						continue;
 					};
@@ -176,7 +176,7 @@ pub mod pallet {
 							continue;
 						}
 
-						let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), blocknumber_for_schedule, schedule_id) else {
+						let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) else {
 							Self::terminate_schedule(schedule_id, &schedule);
 							continue;
 						};
@@ -730,29 +730,28 @@ where
 	}
 
 	fn find_next_free_block(blocknumber: T::BlockNumber) -> Result<T::BlockNumber, DispatchError> {
-		let mut blocknumber_for_schedule = blocknumber;
+		let mut next_execution_block = blocknumber;
 
 		// We bound it to MAX_NUMBER_OF_RETRY_FOR_PLANNING to find the block number.
 		// We search for next free block with incrementing with the power of 2 (so 1 - 2 - 4 - 8 - 16)
 		for i in 1u32..=MAX_NUMBER_OF_RETRY_FOR_PLANNING {
-			if ScheduleIdsPerBlock::<T>::contains_key(blocknumber_for_schedule) {
-				let schedule_ids = ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule);
+			if ScheduleIdsPerBlock::<T>::contains_key(next_execution_block) {
+				let schedule_ids = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 				if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
-					return Ok(blocknumber_for_schedule);
+					return Ok(next_execution_block);
 				}
 				let exponent = i.checked_sub(1u32).ok_or(ArithmeticError::Underflow)?;
 				let delay_with = 2u32.checked_pow(exponent).ok_or(ArithmeticError::Overflow)?;
-				blocknumber_for_schedule = blocknumber_for_schedule.saturating_add(delay_with.into());
+				next_execution_block = next_execution_block.saturating_add(delay_with.into());
 			}
 
 			if i == MAX_NUMBER_OF_RETRY_FOR_PLANNING
-				&& ScheduleIdsPerBlock::<T>::get(blocknumber_for_schedule).len()
-					== T::MaxSchedulePerBlock::get() as usize
+				&& ScheduleIdsPerBlock::<T>::get(next_execution_block).len() == T::MaxSchedulePerBlock::get() as usize
 			{
 				return Err(Error::<T>::NoFreeBlockFound.into());
 			}
 		}
-		Ok(blocknumber_for_schedule)
+		Ok(next_execution_block)
 	}
 
 	fn get_next_schedule_id() -> Result<ScheduleId, ArithmeticError> {
