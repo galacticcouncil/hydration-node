@@ -321,8 +321,6 @@ pub mod pallet {
 		AssetPairNotFound,
 		///Error occurred when calculating price
 		CalculatingPriceError,
-		///Invalid storage state: No schedule ids planned in block
-		NoScheduleIdsPlannedInBlock,
 		///The total amount to be reserved should be larger than storage bond
 		TotalAmountShouldBeLargerThanStorageBond,
 		///The budget is too low for executing one DCA
@@ -710,7 +708,7 @@ where
 
 		if ScheduleIdsPerBlock::<T>::contains_key(next_free_block) {
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(next_free_block, |schedule_ids| -> DispatchResult {
-				let schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::NoScheduleIdsPlannedInBlock)?;
+				let schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
 
 				schedule_ids
 					.try_push(schedule_id)
