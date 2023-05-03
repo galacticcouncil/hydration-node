@@ -135,14 +135,11 @@ pub mod pallet {
 					continue;
 				};
 
-				let sold_currency = schedule.order.get_asset_in();
-				let Ok(is_price_change_bigger_than_max_allowed) = Self::price_change_is_bigger_than_max_allowed(
-					sold_currency,
+				let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(
+					schedule.order.get_asset_in(),
 					schedule.order.get_asset_out()
-				) else {
-					Self::terminate_schedule(schedule_id, &schedule);
-					continue;
-				};
+				);
+
 				if is_price_change_bigger_than_max_allowed {
 					let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) else {
 						Self::terminate_schedule(schedule_id, &schedule);
@@ -473,9 +470,14 @@ where
 		Self::execute_trade(origin, &schedule.order)
 	}
 
-	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> Result<bool, DispatchResult> {
-		let current_price = Self::get_current_price(asset_a, asset_b)?;
-		let price_from_short_oracle = Self::get_price_from_short_oracle(asset_a, asset_b)?;
+	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> bool {
+		let Ok(current_price) = Self::get_current_price(asset_a, asset_b) else {
+			return true;
+		};
+
+		let Ok(price_from_short_oracle) = Self::get_price_from_short_oracle(asset_a, asset_b) else {
+   			return true;
+		};
 
 		let max_allowed = FixedU128::from(T::MaxPriceDifference::get());
 		let max_allowed_difference = current_price.saturating_mul(max_allowed);
@@ -486,7 +488,7 @@ where
 			price_from_short_oracle.saturating_sub(current_price)
 		};
 
-		Ok(diff > max_allowed_difference)
+		diff > max_allowed_difference
 	}
 
 	fn get_current_price(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
