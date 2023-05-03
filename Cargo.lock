@@ -3413,7 +3413,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "143.0.0"
+version = "144.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6322,7 +6322,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -11739,7 +11739,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "143.0.0"
+version = "144.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",

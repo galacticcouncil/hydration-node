@@ -90,7 +90,6 @@ mod benchmarks;
 #[cfg(test)]
 mod tests;
 
-pub mod migration;
 pub mod provider;
 pub mod traits;
 pub mod types;
