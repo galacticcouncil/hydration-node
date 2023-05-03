@@ -165,7 +165,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 }
 
 #[test]
-fn one_buy_dca_execution_should_slippage_limit() {
+fn one_buy_dca_execution_should_use_slippage_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()

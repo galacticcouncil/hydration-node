@@ -470,14 +470,17 @@ where
 			return Err(Error::<T>::InvalidState.into());
 		};
 
-		//TODO: check if this returns `amount_to_unreserve`, otherwise we fail, terminate
 		let sold_currency = schedule.order.get_asset_in();
 
-		T::Currency::unreserve_named(
+		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
 			&T::NamedReserveId::get(),
 			sold_currency.into(),
 			&schedule.owner,
 			amount_to_unreserve.into(),
+		);
+		ensure!(
+			remaining_amount_if_insufficient_balance == 0.into(),
+			Error::<T>::InvalidState
 		);
 
 		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_unreserve) else {
@@ -614,11 +617,15 @@ where
 
 		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_sold_asset(fee_currency)?;
 
-		T::Currency::unreserve_named(
+		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
 			&T::NamedReserveId::get(),
 			order.get_asset_in().into(),
 			&owner,
 			fee_amount_in_sold_asset.into(),
+		);
+		ensure!(
+			remaining_amount_if_insufficient_balance == 0.into(),
+			Error::<T>::InvalidState
 		);
 
 		Self::decrease_remaining_amount(schedule_id, fee_amount_in_sold_asset)?;
@@ -653,7 +660,7 @@ where
 	}
 
 	fn terminate_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
-		let result = Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner);
+		let result = Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner);
 
 		match result {
 			Ok(()) => {
@@ -669,7 +676,7 @@ where
 	}
 
 	fn complete_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
-		let result = Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner);
+		let result = Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner);
 
 		match result {
 			Ok(()) => {
@@ -683,7 +690,7 @@ where
 		}
 	}
 
-	fn unreserve_named_reserved_sold_currency(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
+	fn unreserve_remaining_named_reserve(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
 		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 		let sold_currency = schedule.order.get_asset_in();
 
