@@ -182,6 +182,7 @@ pub mod pallet {
 						};
 					},
 					Err(err) => {
+						///TODO: add retry logic, but first wait till May 4th and see if Lumir has something to say about that
 						if T::SuspendOnErrors::contains(&err) {
 							Self::suspend_schedule(&schedule.owner, schedule_id);
 						} else {
