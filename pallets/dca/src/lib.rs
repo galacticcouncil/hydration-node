@@ -106,7 +106,6 @@ pub mod pallet {
 		>>::Balance: From<u128>,
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
-			//TODO: Emit start event
 			let mut weight: u64 = Self::get_on_initialize_weight();
 
 			let mut random_generator = T::RandomnessProvider::generator();
@@ -173,8 +172,7 @@ pub mod pallet {
 						};
 
 						if remaining_amount_to_use < amount_to_unreserve {
-							Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner.clone()).unwrap(); //TODO: remove unwrap
-							Self::complete_dca(&schedule.owner, schedule_id);
+							Self::complete_schedule(schedule_id, &schedule);
 							continue;
 						}
 
@@ -666,12 +664,22 @@ where
 					who: schedule.owner.clone(),
 				});
 			}
-			Err(err) => {
-				log::error!(
-						target: "runtime::dca",
-						"Unexpected error happened while unreserving remaining sold currency, with message: {:?}.",
-						err);
+			Err(err) => Self::log_error_of_unreserving(err),
+		}
+	}
+
+	fn complete_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
+		let result = Self::unreserve_named_reserved_sold_currency(schedule_id, &schedule.owner);
+
+		match result {
+			Ok(()) => {
+				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+				Self::deposit_event(Event::Completed {
+					id: schedule_id,
+					who: schedule.owner.clone(),
+				});
 			}
+			Err(err) => Self::log_error_of_unreserving(err),
 		}
 	}
 
@@ -918,6 +926,13 @@ where
 		RemainingAmounts::<T>::remove(schedule_id);
 	}
 
+	fn log_error_of_unreserving(err: DispatchError) {
+		log::error!(
+				target: "runtime::dca",
+				"Unexpected error happened while unreserving remaining sold currency, with message: {:?}.",
+				err);
+	}
+
 	fn remove_planning_or_suspension(
 		schedule_id: ScheduleId,
 		next_execution_block: Option<T::BlockNumber>,
@@ -940,14 +955,6 @@ where
 		};
 
 		Ok(())
-	}
-
-	fn complete_dca(owner: &T::AccountId, schedule_id: ScheduleId) {
-		Self::remove_schedule_from_storages(owner, schedule_id);
-		Self::deposit_event(Event::Completed {
-			id: schedule_id,
-			who: owner.clone(),
-		});
 	}
 }
 
