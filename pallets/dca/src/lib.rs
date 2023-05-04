@@ -366,8 +366,6 @@ pub mod pallet {
 		Forbidden,
 		///The next execution block number is not in the future
 		BlockNumberIsNotInFuture,
-		///There is not planned execution on the given block
-		AssetPairNotFound,
 		///Error occurred when calculating price
 		CalculatingPriceError,
 		///The total amount to be reserved should be larger than storage bond
@@ -519,7 +517,7 @@ where
 	}
 
 	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> bool {
-		let Ok(current_price) = Self::get_current_price(asset_a, asset_b) else {
+		let Some(current_price) = T::SpotPriceProvider::spot_price(asset_a, asset_b) else {
 			return true;
 		};
 
@@ -537,11 +535,6 @@ where
 		};
 
 		diff > max_allowed_difference
-	}
-
-	fn get_current_price(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
-		let price = T::SpotPriceProvider::spot_price(asset_a, asset_b).ok_or(Error::<T>::AssetPairNotFound)?;
-		Ok(price)
 	}
 
 	fn get_price_from_last_block_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
