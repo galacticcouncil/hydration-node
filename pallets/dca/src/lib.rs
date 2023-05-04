@@ -49,6 +49,7 @@ use orml_traits::NamedMultiReservableCurrency;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
+use sp_runtime::traits::CheckedMul;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
@@ -526,12 +527,29 @@ where
 		};
 
 		let max_allowed = FixedU128::from(T::MaxPriceDifference::get());
-		let max_allowed_difference = current_price.saturating_mul(max_allowed);
+
+		let Some(price_sum) = current_price
+			.checked_add(&price_from_short_oracle) else {
+			return true;
+		};
+
+		let Ok(max_allowed_difference) = max_allowed
+			.checked_mul(
+				&price_sum,
+			)
+			.ok_or(ArithmeticError::Overflow)
+			else {
+				return true;
+		};
 
 		let diff = if current_price > price_from_short_oracle {
 			current_price.saturating_sub(price_from_short_oracle)
 		} else {
 			price_from_short_oracle.saturating_sub(current_price)
+		};
+
+		let Some(diff) = diff.checked_mul(&FixedU128::from(2)) else {
+			return true;
 		};
 
 		diff > max_allowed_difference
