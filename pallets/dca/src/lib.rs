@@ -540,13 +540,21 @@ where
 	fn get_price_from_last_block_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
 		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::LastBlock)
 			.ok_or(Error::<T>::CalculatingPriceError)?;
-		Ok(FixedU128::from_rational(price.n, price.d))
+
+		let price_from_rational =
+			FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow)?;
+
+		Ok(price_from_rational)
 	}
 
 	fn get_price_from_short_oracle(asset_a: T::Asset, asset_b: T::Asset) -> Result<FixedU128, DispatchError> {
 		let price = T::OraclePriceProvider::price(asset_a, asset_b, OraclePeriod::Short)
 			.ok_or(Error::<T>::CalculatingPriceError)?;
-		Ok(FixedU128::from_rational(price.n, price.d))
+
+		let price_from_rational =
+			FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow)?;
+
+		Ok(price_from_rational)
 	}
 
 	fn amount_to_unreserve(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
