@@ -10,6 +10,7 @@ mod invariants;
 mod remove_liquidity;
 mod sell;
 
+mod barrier;
 mod imbalance;
 mod init_pool;
 pub(crate) mod mock;
