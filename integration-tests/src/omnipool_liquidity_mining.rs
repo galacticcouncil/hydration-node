@@ -75,6 +75,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 			owner.clone(),
 			yield_per_period,
 			min_deposit,
+			FixedU128::from(2)
 		));
 
 		let farm_id = 1;
@@ -92,7 +93,7 @@ fn create_global_farm_should_work_when_origin_is_root() {
 				LRNA,
 				total_rewards / planned_yielding_periods as u128,
 				min_deposit,
-				FixedU128::one(),
+				FixedU128::from(2),
 			)
 		);
 
@@ -614,6 +615,7 @@ fn create_global_farm() {
 		Treasury::account_id(),
 		Perquintill::from_parts(570_776_255_707),
 		1_000,
+		FixedU128::one()
 	));
 }
 
