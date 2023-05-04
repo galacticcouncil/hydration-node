@@ -587,7 +587,6 @@ fn dca_schedule_is_continued_when_error_is_configured_to_continue_on() {
 			assert_number_of_executed_buy_trades!(0);
 
 			let schedule_id = 1;
-			assert!(DCA::suspended(schedule_id).is_none());
 
 			assert_scheduled_ids!(601, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);

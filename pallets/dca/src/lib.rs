@@ -27,8 +27,6 @@
 //!
 //! The DCA plan is executed as long as there is balance in the budget.
 //!
-//! If a trade fails then the order is suspended and has to be resumed or terminated by the user.
-//!
 //! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number.
 //! Therefore they cannot be front-ran in the block they are executed.
 //!
@@ -348,11 +346,6 @@ pub mod pallet {
 			who: T::AccountId,
 			error: DispatchError,
 		},
-		///The DCA is suspended because it is paused by user or the DCA execution failed
-		Suspended {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
 		///The DCA is completed and completely removed from the chain
 		Completed {
 			id: ScheduleId,
@@ -371,10 +364,6 @@ pub mod pallet {
 		///The next execution block number is not in the future
 		BlockNumberIsNotInFuture,
 		///There is not planned execution on the given block
-		NoPlannedExecutionFoundOnBlock,
-		///Schedule execution is not planned on block
-		ScheduleMustBeSuspended,
-		///There is no asset pair found for the given assets
 		AssetPairNotFound,
 		///Error occurred when calculating price
 		CalculatingPriceError,
@@ -404,17 +393,6 @@ pub mod pallet {
 	#[pallet::getter(fn owner_of)]
 	pub type ScheduleOwnership<T: Config> =
 		StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Twox64Concat, ScheduleId, (), OptionQuery>;
-
-	/// Storing suspended schedules
-	#[pallet::storage]
-	#[pallet::getter(fn suspended)]
-	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
-
-	/// Keep tracking the remaining recurrences for DCA schedules
-	//TODO: delete it
-	#[pallet::storage]
-	#[pallet::getter(fn remaining_recurrences)]
-	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
 
 	/// Keep tracking the remaining amounts to spend for DCA schedules
 	#[pallet::storage]
@@ -952,14 +930,6 @@ where
 		Ok(fee_amount_in_sold_asset)
 	}
 
-	fn suspend_schedule(owner: &T::AccountId, schedule_id: ScheduleId) {
-		Suspended::<T>::insert(schedule_id, ());
-		Self::deposit_event(Event::Suspended {
-			id: schedule_id,
-			who: owner.clone(),
-		});
-	}
-
 	fn convert_to_currency_if_asset_is_not_native(
 		asset_id: T::Asset,
 		asset_amount: u128,
@@ -977,9 +947,7 @@ where
 
 	fn remove_schedule_from_storages(owner: &T::AccountId, schedule_id: ScheduleId) {
 		Schedules::<T>::remove(schedule_id);
-		Suspended::<T>::remove(schedule_id);
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
-		RemainingRecurrences::<T>::remove(schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
 	}
