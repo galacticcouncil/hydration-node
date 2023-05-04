@@ -21,6 +21,18 @@ fn price() -> impl Strategy<Value = FixedU128> {
 	(0.1f64..2f64).prop_map(FixedU128::from_float)
 }
 
+fn min_withdrawal_fee() -> impl Strategy<Value = Permill> {
+	(0.001f64..2f64).prop_map(Permill::from_float)
+}
+
+fn adjustment() -> impl Strategy<Value = (u32, u32, bool)> {
+	(
+		0u32..50u32,
+		prop_oneof![Just(100), Just(1000), Just(10000)],
+		prop_oneof![Just(true), Just(false)],
+	)
+}
+
 fn some_imbalance() -> impl Strategy<Value = SimpleImbalance<Balance>> {
 	(0..10000 * ONE).prop_map(|value| SimpleImbalance { value, negative: true })
 }
@@ -1051,6 +1063,107 @@ proptest! {
 			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
 			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
 			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.build()
+			.execute_with(|| {
+				let old_imbalance = <HubAssetImbalance<Test>>::get();
+				let old_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let position_id = <NextPositionId<Test>>::get();
+				assert_ok!(Omnipool::add_liquidity(Origin::signed(seller), 200, amount));
+
+				let position = <Positions<Test>>::get(position_id).unwrap();
+
+				let before_buy_state_200 = Omnipool::load_asset_state(200).unwrap();
+
+				// Let's do a trade so imbalance and price changes
+				assert_ok!(Omnipool::buy(Origin::signed(buyer), 200, DAI, buy_amount, Balance::max_value()));
+
+				let old_state_200 = Omnipool::load_asset_state(200).unwrap();
+
+				assert_asset_invariant(&before_buy_state_200, &old_state_200, FixedU128::from((TOLERANCE,ONE)), "Invariant 200");
+
+				assert_ok!(Omnipool::remove_liquidity(Origin::signed(seller), position_id, position.shares));
+
+				let new_state_200 = Omnipool::load_asset_state(200).unwrap();
+				let new_imbalance = <HubAssetImbalance<Test>>::get();
+
+				let new_hub_liquidity = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				// Price should not change
+				assert_eq_approx!(old_state_200.price().unwrap(),
+						new_state_200.price().unwrap(),
+						FixedU128::from_float(0.0000000001),
+						"Price has changed after remove liquidity");
+
+				assert_eq_approx!( FixedU128::from((old_imbalance.value, old_hub_liquidity)),
+								   FixedU128::from((new_imbalance.value, new_hub_liquidity)),
+								   FixedU128::from_float(0.000000001),
+								   "L/Q ratio changed after remove liquidity"
+				);
+
+				// check enforcement of overall tvl cap
+				let hub_reserve = Tokens::free_balance(LRNA, &Omnipool::protocol_account());
+
+				let stable_asset = <Assets<Test>>::get(DAI).unwrap();
+				let stable_reserve = Tokens::free_balance(DAI, &Omnipool::protocol_account());
+
+				let global_tvl = hydra_dx_math::omnipool::calculate_tvl(hub_reserve, (stable_reserve, stable_asset.hub_reserve)).unwrap();
+				assert!( global_tvl <= TvlCap::<Test>::get());
+			});
+	}
+}
+
+proptest! {
+	#![proptest_config(ProptestConfig::with_cases(100))]
+	#[test]
+	fn remove_liquidity_should_calculate_withdrawal_fee_correctly(amount in trade_amount(),
+		stable_price in price(),
+		stable_reserve in asset_reserve(),
+		native_reserve in asset_reserve(),
+		token_1 in pool_token(100),
+		token_2 in pool_token(200),
+		token_3 in pool_token(300),
+		token_4 in pool_token(400),
+		asset_fee in fee(),
+		protocol_fee in fee(),
+		buy_amount in trade_amount(),
+		min_withdraw_fee in min_withdrawal_fee(),
+		(price_adjustment, denom, direction) in adjustment(),
+	) {
+		let lp1: u64 = 100;
+		let lp2: u64 = 200;
+		let lp3: u64 = 300;
+		let lp4: u64 = 400;
+		let seller: u64 = 500;
+		let buyer: u64 = 600;
+
+		ExtBuilder::default()
+			.with_endowed_accounts(vec![
+				(Omnipool::protocol_account(), DAI, stable_reserve ),
+				(Omnipool::protocol_account(), HDX, native_reserve ),
+				(lp1, 100, token_1.amount + 2 * ONE),
+				(lp2, 200, token_2.amount + 2 * ONE),
+				(lp3, 300, token_3.amount + 2 * ONE),
+				(lp4, 400, token_4.amount + 2 * ONE),
+				(seller, 200, amount + 200 * ONE),
+				(buyer, DAI, 200_000_000 * ONE),
+			])
+			.with_registered_asset(100)
+			.with_registered_asset(200)
+			.with_registered_asset(300)
+			.with_registered_asset(400)
+			.with_asset_fee(asset_fee)
+			.with_asset_fee(protocol_fee)
+			.with_initial_pool(
+				stable_price,
+				FixedU128::from(1),
+			)
+			.with_token(token_1.asset_id, token_1.price, lp1, token_1.amount)
+			.with_token(token_2.asset_id, token_2.price, lp2, token_2.amount)
+			.with_token(token_3.asset_id, token_3.price, lp3, token_3.amount)
+			.with_token(token_4.asset_id, token_4.price, lp4, token_4.amount)
+			.with_min_withdrawal_fee(min_withdraw_fee)
+			.with_withdrawal_adjustment((price_adjustment, denom, direction))
 			.build()
 			.execute_with(|| {
 				let old_imbalance = <HubAssetImbalance<Test>>::get();
