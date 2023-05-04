@@ -23,7 +23,7 @@ use crate::tests::*;
 use crate::{
 	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
 	assert_number_of_executed_sell_trades, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages,
-	Event, Order, Permill, ScheduleId,
+	Error, Event, Order, Permill, ScheduleId,
 };
 use frame_support::assert_ok;
 use orml_traits::MultiCurrency;
@@ -31,6 +31,7 @@ use orml_traits::MultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
+use sp_runtime::DispatchError;
 
 #[test]
 fn successfull_dca_execution_should_emit_trade_executed_event() {
@@ -910,7 +911,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				min_buy_amount: 0,
 			}]);
 
-			assert_that_dca_is_terminated(ALICE, schedule_id);
+			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::NoFreeBlockFound.into());
 		});
 }
 
@@ -953,7 +954,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 
 			//Assert
 			assert_executed_sell_trades!(vec![]);
-			assert_that_dca_is_terminated(ALICE, schedule_id);
+			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::NoFreeBlockFound.into());
 		});
 }
 
@@ -984,12 +985,13 @@ fn assert_that_dca_is_completed(owner: AccountId, schedule_id: ScheduleId) {
 	.into()]);
 }
 
-fn assert_that_dca_is_terminated(owner: AccountId, schedule_id: ScheduleId) {
+fn assert_that_dca_is_terminated(owner: AccountId, schedule_id: ScheduleId, error: DispatchError) {
 	assert_that_schedule_has_been_removed_from_storages!(owner, schedule_id);
 
 	expect_events(vec![Event::Terminated {
 		id: schedule_id,
 		who: owner,
+		error,
 	}
 	.into()]);
 }

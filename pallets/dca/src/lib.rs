@@ -125,14 +125,20 @@ pub mod pallet {
 					continue; //TODO: discuss what to do here. The problem is that we can not really terminate as we don't know the info like user and other schedule relevant data
 				};
 
-				let Ok(())  = Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) else {
-					Self::terminate_schedule(schedule_id, &schedule);
-					continue;
-				};
+				match Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) {
+					Ok(()) => {},
+					Err(err) => {
+						Self::terminate_schedule2(schedule_id, &schedule, err);
+						continue;
+					}
+				}
 
-				let Some(next_execution_block) = current_blocknumber.checked_add(&schedule.period) else {
-					Self::terminate_schedule(schedule_id, &schedule);
-					continue;
+				let next_execution_block = match current_blocknumber.checked_add(&schedule.period) {
+					Some(next_execution_block) => next_execution_block,
+					None => {
+						Self::terminate_schedule2(schedule_id, &schedule,  DispatchError::Arithmetic(ArithmeticError::Overflow));
+						continue;
+					}
 				};
 
 				let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(
@@ -141,10 +147,13 @@ pub mod pallet {
 				);
 
 				if is_price_change_bigger_than_max_allowed {
-					let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) else {
-						Self::terminate_schedule(schedule_id, &schedule);
-						continue;
-					};
+					match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
+						Ok(()) => {},
+						Err(err) => {
+							Self::terminate_schedule2(schedule_id, &schedule, err);
+							continue;
+						}
+					}
 					continue;
 				}
 
@@ -158,14 +167,20 @@ pub mod pallet {
 							who: schedule.owner.clone(),
 						});
 
-						let Some(remaining_amount_to_use) = RemainingAmounts::<T>::get(schedule_id) else {
-							Self::terminate_schedule(schedule_id, &schedule);
-							continue;
+						let remaining_amount_to_use = match RemainingAmounts::<T>::get(schedule_id) {
+							Some(remaining_amount_to_use) => remaining_amount_to_use,
+							None => {
+								Self::terminate_schedule2(schedule_id, &schedule,  Error::<T>::InvalidState.into());
+								continue;
+							}
 						};
 
-						let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
-							Self::terminate_schedule(schedule_id, &schedule);
-							continue;
+						let amount_to_unreserve = match Self::amount_to_unreserve(&schedule.order) {
+							Ok(amount_to_unreserve) => amount_to_unreserve,
+							Err(err) => {
+								Self::terminate_schedule2(schedule_id, &schedule,  err);
+								continue;
+							}
 						};
 
 						if remaining_amount_to_use < amount_to_unreserve {
@@ -173,10 +188,13 @@ pub mod pallet {
 							continue;
 						}
 
-						let Ok(()) = Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) else {
-							Self::terminate_schedule(schedule_id, &schedule);
-							continue;
-						};
+						match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
+							Ok(()) => {},
+							Err(err) => {
+								Self::terminate_schedule2(schedule_id, &schedule, err);
+								continue;
+							}
+						}
 					},
 					Err(err) => {
 						///TODO: add retry logic, but first wait till May 4th and see if Lumir has something to say about that
@@ -278,21 +296,27 @@ pub mod pallet {
 			who: T::AccountId,
 			block: BlockNumberFor<T>,
 		},
-		///
+		///The DCA trade has been successfully executed
 		TradeExecuted {
 			id: ScheduleId,
 			who: T::AccountId,
 		},
+		///The DCA trade execution has been failed
+		TradeFailed {
+			id: ScheduleId,
+			who: T::AccountId,
+		}, //TODO: add dispatch error
 		///The DCA is terminated and completely removed from the chain
 		Terminated {
 			id: ScheduleId,
 			who: T::AccountId,
-		}, //TODO: add error model (modelindex, indexOfError)
+			error: DispatchError,
+		},
 		///The DCA is suspended because it is paused by user or the DCA execution failed
 		Suspended {
 			id: ScheduleId,
 			who: T::AccountId,
-		}, //TODO: add error model (modelindex, indexOfError)
+		},
 		///The DCA is completed and completely removed from the chain
 		Completed {
 			id: ScheduleId,
@@ -654,6 +678,28 @@ where
 				Self::deposit_event(Event::Terminated {
 					id: schedule_id,
 					who: schedule.owner.clone(),
+					error: DispatchError::Other("Terminated by system"),
+				});
+			}
+			Err(err) => Self::log_error_of_unreserving(err),
+		}
+	}
+
+	fn terminate_schedule2(
+		schedule_id: ScheduleId,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+		error: DispatchError,
+	) {
+		let result = Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner);
+
+		match result {
+			Ok(()) => {
+				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+				//TODO: terminate with error flag
+				Self::deposit_event(Event::Terminated {
+					id: schedule_id,
+					who: schedule.owner.clone(),
+					error,
 				});
 			}
 			Err(err) => Self::log_error_of_unreserving(err),
