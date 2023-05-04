@@ -231,7 +231,7 @@ pub mod pallet {
 								}
 							}
 						} else {
-							Self::terminate_schedule(schedule_id, &schedule, err) //TODO: add test case for this
+							Self::terminate_schedule(schedule_id, &schedule, err)
 						}
 					}
 				}

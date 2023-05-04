@@ -609,6 +609,40 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 }
 
 #[test]
+fn dca_schedule_should_terminate_when_error_is_not_configured_to_continue_on() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, FORBIDDEN_ASSET, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: FORBIDDEN_ASSET,
+					asset_out: BTC,
+					amount_in: 1 * ONE,
+					min_limit: 5 * ONE,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let schedule_id = 1;
+
+			assert_number_of_executed_buy_trades!(0);
+			assert!(DCA::schedule_ids_per_block(601).is_empty());
+			assert_that_dca_is_terminated(ALICE, schedule_id, pallet_omnipool::Error::<Test>::NotAllowed.into());
+		});
+}
+
+#[test]
 fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])

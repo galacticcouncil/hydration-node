@@ -57,6 +57,7 @@ pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 pub const BTC: AssetId = 3;
+pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
@@ -295,8 +296,8 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 		amount: Balance,
 		min_buy_amount: Balance,
 	) -> DispatchResult {
-		if amount == 0 {
-			return Err(pallet_omnipool::Error::<Test>::SellLimitExceeded.into());
+		if asset_in == FORBIDDEN_ASSET {
+			return Err(pallet_omnipool::Error::<Test>::NotAllowed.into());
 		}
 
 		//We only want to excecute omnipool trade in case of benchmarking
