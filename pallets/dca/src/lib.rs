@@ -568,7 +568,7 @@ where
 				..
 			} => {
 				let amount_to_sell_for_buy =
-					Self::calculate_sell_amount_for_buy(asset_in, asset_out, amount_out, max_limit)?;
+					Self::calculate_sell_amount_for_buy(*asset_in, *asset_out, *amount_out, *max_limit)?;
 				Ok(amount_to_sell_for_buy)
 			}
 		}
@@ -608,15 +608,15 @@ where
 	}
 
 	fn calculate_sell_amount_for_buy(
-		asset_in: &<T as Config>::Asset,
-		asset_out: &<T as Config>::Asset,
-		amount_out: &Balance,
-		max_limit: &Balance,
+		asset_in: <T as Config>::Asset,
+		asset_out: <T as Config>::Asset,
+		amount_out: Balance,
+		max_limit: Balance,
 	) -> Result<u128, DispatchError> {
 		let max_limit_from_oracle_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
-		let max_limit = max(max_limit, &max_limit_from_oracle_price);
+		let max_limit = max(max_limit, max_limit_from_oracle_price);
 
-		Ok(*max_limit)
+		Ok(max_limit)
 	}
 
 	fn get_storage_bond(schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) -> Result<Balance, DispatchError> {
@@ -871,7 +871,7 @@ where
 				max_limit,
 				route: _,
 			} => {
-				let max_limit_with_slippage = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
+				let max_limit_with_slippage = Self::get_max_limit_with_slippage(*asset_in, *asset_out, *amount_out)?;
 
 				T::AMMTrader::buy(
 					origin,
@@ -902,13 +902,13 @@ where
 	}
 
 	fn get_max_limit_with_slippage(
-		asset_in: &<T as Config>::Asset,
-		asset_out: &<T as Config>::Asset,
-		amount_out: &Balance,
+		asset_in: <T as Config>::Asset,
+		asset_out: <T as Config>::Asset,
+		amount_out: Balance,
 	) -> Result<u128, DispatchError> {
-		let price = Self::get_price_from_last_block_oracle(*asset_out, *asset_in)?;
+		let price = Self::get_price_from_last_block_oracle(asset_out, asset_in)?;
 
-		let estimated_amount_in = price.checked_mul_int(*amount_out).ok_or(ArithmeticError::Overflow)?;
+		let estimated_amount_in = price.checked_mul_int(amount_out).ok_or(ArithmeticError::Overflow)?;
 
 		let slippage_amount = T::SlippageLimitPercentage::get().mul_floor(estimated_amount_in);
 		let max_limit_with_slippage = estimated_amount_in
