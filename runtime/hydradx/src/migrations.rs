@@ -19,14 +19,6 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		weight = weight.saturating_add(pallet_uniques::migration::migrate_to_v1::<Runtime, _, Uniques>());
 		frame_support::log::info!("Migrate Uniques Pallet end");
 
-		frame_support::log::info!("Migrate Omnipool Pallet start");
-		weight = weight.saturating_add(pallet_omnipool::migration::migrate_to_v1::<Runtime, Omnipool>());
-		frame_support::log::info!("Migrate Omnipool Pallet end");
-
-		frame_support::log::info!("Migrate Omnipool Pallet to v2 start");
-		weight = weight.saturating_add(pallet_omnipool::migration::migrate_to_v2::<Runtime, Omnipool>());
-		frame_support::log::info!("Migrate Omnipool Pallet to v2 end");
-
 		frame_support::log::info!("Migrate Duster Pallet to v1 start");
 		weight = weight.saturating_add(pallet_duster::migration::v1::migrate::<Runtime, Omnipool>(
 			get_all_module_accounts(),
