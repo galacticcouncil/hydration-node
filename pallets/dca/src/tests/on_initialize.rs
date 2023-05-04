@@ -23,7 +23,7 @@ use crate::tests::*;
 use crate::{
 	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
 	assert_number_of_executed_sell_trades, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages,
-	Error, Event, Order, Permill, ScheduleId,
+	Error, Event as DcaEvent, Order, Permill, ScheduleId,
 };
 use frame_support::assert_ok;
 use orml_traits::MultiCurrency;
@@ -32,6 +32,7 @@ use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
+use test_utils::last_events;
 
 #[test]
 fn successfull_dca_execution_should_emit_trade_executed_event() {
@@ -65,12 +66,12 @@ fn successfull_dca_execution_should_emit_trade_executed_event() {
 			//Assert
 			let schedule_id = 1;
 			expect_events(vec![
-				Event::TradeExecuted {
+				DcaEvent::TradeExecuted {
 					id: schedule_id,
 					who: ALICE,
 				}
 				.into(),
-				Event::ExecutionPlanned {
+				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
 					block: 601,
@@ -560,7 +561,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 }
 
 #[test]
-fn dca_schedule_is_suspended_in_block_when_trade_fails_with_insufficient_trade_limit() {
+fn dca_schedule_is_continued_when_error_is_configured_to_continue_on() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
 		.build()
@@ -581,20 +582,67 @@ fn dca_schedule_is_suspended_in_block_when_trade_fails_with_insufficient_trade_l
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
-			//Act
 			set_to_blocknumber(501);
 
-			//Assert
 			assert_number_of_executed_buy_trades!(0);
 
 			let schedule_id = 1;
-			assert!(DCA::suspended(schedule_id).is_some());
+			assert!(DCA::suspended(schedule_id).is_none());
 
-			expect_events(vec![Event::Suspended {
-				id: schedule_id,
-				who: ALICE,
-			}
-			.into()]);
+			assert_scheduled_ids!(601, vec![schedule_id]);
+			let retries = DCA::retries_on_error(schedule_id);
+			assert_eq!(1, retries.unwrap());
+			expect_events(vec![
+				DcaEvent::TradeFailed {
+					id: schedule_id,
+					who: ALICE,
+				}
+				.into(),
+				DcaEvent::ExecutionPlanned {
+					id: schedule_id,
+					who: ALICE,
+					block: 601,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
+fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: 0,
+					max_limit: 5 * ONE,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act and assert
+			let schedule_id = 1;
+			set_to_blocknumber(501);
+			assert_scheduled_ids!(601, vec![schedule_id]);
+
+			set_to_blocknumber(601);
+			assert_scheduled_ids!(701, vec![schedule_id]);
+
+			set_to_blocknumber(701);
+			assert_scheduled_ids!(701, vec![schedule_id]);
+
+			set_to_blocknumber(801);
+			assert!(DCA::schedules(schedule_id).is_none());
 		});
 }
 
@@ -978,7 +1026,7 @@ pub fn set_to_blocknumber(to: u64) {
 fn assert_that_dca_is_completed(owner: AccountId, schedule_id: ScheduleId) {
 	assert_that_schedule_has_been_removed_from_storages!(owner, schedule_id);
 
-	expect_events(vec![Event::Completed {
+	expect_events(vec![DcaEvent::Completed {
 		id: schedule_id,
 		who: owner,
 	}
@@ -988,7 +1036,7 @@ fn assert_that_dca_is_completed(owner: AccountId, schedule_id: ScheduleId) {
 fn assert_that_dca_is_terminated(owner: AccountId, schedule_id: ScheduleId, error: DispatchError) {
 	assert_that_schedule_has_been_removed_from_storages!(owner, schedule_id);
 
-	expect_events(vec![Event::Terminated {
+	expect_events(vec![DcaEvent::Terminated {
 		id: schedule_id,
 		who: owner,
 		error,

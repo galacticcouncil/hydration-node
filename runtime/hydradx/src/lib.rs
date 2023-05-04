@@ -971,12 +971,12 @@ impl pallet_dca::Config for Runtime {
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
-	type SuspendOnErrors = ErrorsToSuspendList;
+	type ContinueOnErrors = ContinueOnErrorsList;
 }
 
-pub struct ErrorsToSuspendList;
+pub struct ContinueOnErrorsList;
 
-impl Contains<DispatchError> for ErrorsToSuspendList {
+impl Contains<DispatchError> for ContinueOnErrorsList {
 	fn contains(e: &DispatchError) -> bool {
 		vec![
 			pallet_omnipool::Error::<Runtime>::BuyLimitNotReached.into(),

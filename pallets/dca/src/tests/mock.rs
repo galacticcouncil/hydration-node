@@ -392,6 +392,7 @@ parameter_types! {
 	pub SlippageLimitPercentage: Permill = SLIPPAGE.with(|v| *v.borrow());
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
+	pub MaxNumberOfRetriesOnError: u32 = 3;
 }
 
 impl Config for Test {
@@ -410,8 +411,9 @@ impl Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
 	type MaxPriceDifference = OmnipoolMaxAllowedPriceDifference;
-	type SuspendOnErrors = ErrorsToSuspendMock;
+	type ContinueOnErrors = ErrorsToSuspendMock;
 	type NamedReserveId = NamedReserveId;
+	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 }
 
 pub struct ErrorsToSuspendMock;

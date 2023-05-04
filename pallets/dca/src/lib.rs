@@ -197,9 +197,40 @@ pub mod pallet {
 						}
 					},
 					Err(err) => {
-						///TODO: add retry logic, but first wait till May 4th and see if Lumir has something to say about that
-						if T::SuspendOnErrors::contains(&err) {
-							Self::suspend_schedule(&schedule.owner, schedule_id);
+						if T::ContinueOnErrors::contains(&err) {
+							Self::deposit_event(Event::TradeFailed {
+								id: schedule_id,
+								who: schedule.owner.clone(),
+							});
+
+							let number_of_retries = match Self::retries_on_error(schedule_id) {
+								Some(number_of_retries) => number_of_retries,
+								None => {
+									Self::terminate_schedule(schedule_id, &schedule, Error::<T>::InvalidState.into());
+									continue;
+								}
+							};
+
+							if number_of_retries == T::MaxNumberOfRetriesOnError::get() {
+								Self::terminate_schedule(schedule_id, &schedule, err);
+								continue;
+							}
+
+							match Self::increment_retries(schedule_id) {
+								Ok(()) => {},
+								Err(err) => {
+									Self::terminate_schedule(schedule_id, &schedule, err);
+									continue;
+								}
+							}
+
+							match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
+								Ok(()) => {},
+								Err(err) => {
+									Self::terminate_schedule(schedule_id, &schedule, err);
+									continue;
+								}
+							}
 						} else {
 							Self::terminate_schedule(schedule_id, &schedule, err) //TODO: add test case for this
 						}
@@ -242,6 +273,9 @@ pub mod pallet {
 		///Spot price provider to get the current price between two asset
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
 
+		///Errors on which we want to continue the schedule
+		type ContinueOnErrors: Contains<DispatchError>;
+
 		///Max price difference allowed between last block and short oracle
 		#[pallet::constant]
 		type MaxPriceDifference: Get<Permill>;
@@ -249,6 +283,10 @@ pub mod pallet {
 		///The number of max schedules to be executed per block
 		#[pallet::constant]
 		type MaxSchedulePerBlock: Get<u32>;
+
+		///The number of max retries on errors specified in `ContinueOnErrors`
+		#[pallet::constant]
+		type MaxNumberOfRetriesOnError: Get<u32>;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -275,8 +313,6 @@ pub mod pallet {
 
 		/// Weight information for the extrinsics.
 		type WeightInfo: WeightInfo;
-
-		type SuspendOnErrors: Contains<DispatchError>;
 	}
 
 	#[pallet::event]
@@ -375,6 +411,7 @@ pub mod pallet {
 	pub type Suspended<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, (), OptionQuery>;
 
 	/// Keep tracking the remaining recurrences for DCA schedules
+	//TODO: delete it
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_recurrences)]
 	pub type RemainingRecurrences<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
@@ -383,6 +420,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn remaining_amounts)]
 	pub type RemainingAmounts<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, Balance, OptionQuery>;
+
+	/// Keep tracking the retry on error flag for DCA schedules
+	#[pallet::storage]
+	#[pallet::getter(fn retries_on_error)]
+	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
 
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
@@ -436,6 +478,7 @@ pub mod pallet {
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(),next_schedule_id,());
 			RemainingAmounts::<T>::insert(next_schedule_id,schedule.total_amount);
+			RetriesOnError::<T>::insert(next_schedule_id,0);
 
 			Self::reserve_named_reserve(&schedule, &who)?;
 
@@ -570,6 +613,18 @@ where
 		Ok(())
 	}
 
+	fn increment_retries(schedule_id: ScheduleId) -> DispatchResult {
+		RetriesOnError::<T>::try_mutate_exists(schedule_id, |maybe_retries| -> DispatchResult {
+			let retries = maybe_retries.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
+
+			retries.saturating_inc();
+
+			Ok(())
+		})?;
+
+		Ok(())
+	}
+
 	fn calculate_sell_amount_for_buy(
 		asset_in: &<T as Config>::Asset,
 		asset_out: &<T as Config>::Asset,
@@ -678,7 +733,6 @@ where
 		match result {
 			Ok(()) => {
 				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
-				//TODO: terminate with error flag
 				Self::deposit_event(Event::Terminated {
 					id: schedule_id,
 					who: schedule.owner.clone(),
@@ -927,6 +981,7 @@ where
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingRecurrences::<T>::remove(schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
+		RetriesOnError::<T>::remove(schedule_id);
 	}
 
 	fn log_error_of_unreserving(err: DispatchError) {

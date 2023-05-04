@@ -613,6 +613,36 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 		});
 }
 
+#[test]
+fn schedule_should_init_retries_to_zero() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: 10 * ONE,
+					route: empty_vec(),
+				})
+				.build();
+			//Act
+			set_block_number(500);
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Assert
+			let schedule_id = 1;
+			let retries = DCA::retries_on_error(schedule_id);
+			assert_eq!(0, retries.unwrap());
+		});
+}
+
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
 	bounded_vec
