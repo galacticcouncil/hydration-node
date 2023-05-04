@@ -614,12 +614,6 @@ where
 		let max_limit_from_oracle_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
 		let max_limit = max(max_limit, &max_limit_from_oracle_price);
 
-		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_asset(*asset_in)?;
-		//TODO: double check if we really don't want this?!
-		let amount_to_sell_plus_fee = max_limit
-			.checked_add(&fee_amount_in_sold_asset)
-			.ok_or(ArithmeticError::Overflow)?;
-
 		Ok(*max_limit)
 	}
 
