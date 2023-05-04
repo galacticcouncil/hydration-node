@@ -121,10 +121,7 @@ fn one_dca_execution_should_unreserve_amount_in() {
 				min_buy_amount: 0,
 			}]);
 
-			assert_eq!(
-				remaining_named_reserve - FEE_FOR_ONE_DCA_EXECUTION,
-				Currencies::reserved_balance(HDX, &ALICE)
-			);
+			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
 		});
 }
 

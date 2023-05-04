@@ -197,13 +197,12 @@ pub mod pallet {
 						}
 					},
 					Err(err) => {
+						Self::deposit_event(Event::TradeFailed {
+							id: schedule_id,
+							who: schedule.owner.clone(),
+							error: err
+						});
 						if T::ContinueOnErrors::contains(&err) {
-							Self::deposit_event(Event::TradeFailed {
-								id: schedule_id,
-								who: schedule.owner.clone(),
-								error: err
-							});
-
 							let number_of_retries = match Self::retries_on_error(schedule_id) {
 								Some(number_of_retries) => number_of_retries,
 								None => {
@@ -448,10 +447,21 @@ pub mod pallet {
 				schedule.total_amount > storage_bond,
 				Error::<T>::TotalAmountShouldBeLargerThanStorageBond);
 
-			let amount_to_unreserve = Self::amount_to_unreserve(&schedule.order)?;
 			let transaction_fee = Self::get_transaction_fee_in_asset(schedule.order.get_asset_in())?;
-			ensure!(amount_to_unreserve > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
-			ensure!(amount_to_unreserve + transaction_fee <= schedule.total_amount, Error::<T>::BudgetTooLow);
+			let amount_in = match schedule.order {
+				Order::Sell {amount_in, ..} => {
+					//In sell the amount_in includes the transaction fee
+					ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+					amount_in
+				},
+				Order::Buy {..} => {
+					let amount_to_unreserve = Self::amount_to_unreserve(&schedule.order)?;
+					ensure!(amount_to_unreserve > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+					amount_to_unreserve
+				}
+			};
+
+			ensure!(amount_in + transaction_fee <= schedule.total_amount, Error::<T>::BudgetTooLow);
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
@@ -577,7 +587,16 @@ where
 
 	fn amount_to_unreserve(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		match order {
-			Order::Sell { amount_in, .. } => Ok(*amount_in),
+			Order::Sell {
+				asset_in, amount_in, ..
+			} => {
+				let transaction_fee = Self::get_transaction_fee_in_asset(*asset_in)?;
+
+				let amount_to_sell = amount_in
+					.checked_sub(transaction_fee)
+					.ok_or(ArithmeticError::Underflow)?;
+				Ok(amount_to_sell)
+			}
 			Order::Buy {
 				asset_in,
 				asset_out,
