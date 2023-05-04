@@ -970,33 +970,3 @@ impl<T: Config> RandomnessProvider for Pallet<T> {
 		rand::rngs::StdRng::seed_from_u64(seed)
 	}
 }
-
-#[macro_export]
-macro_rules! exec_or_return_if_none {
-	($opt:expr) => {
-		match $opt {
-			Some(val) => val,
-			None => {
-				log::error!(target: "runtime::dca", "Unexpected error happened while executing schedule.");
-				return;
-			}
-		}
-	};
-}
-
-#[macro_export]
-macro_rules! exec_or_return_if_err {
-	($res:expr) => {
-		match $res {
-			Ok(val) => val,
-			Err(e) => {
-				log::error!(
-					target: "runtime::dca",
-					"Unexpected error happened while executing schedule, with message: {:?}.",
-					e
-				);
-				return;
-			}
-		}
-	};
-}
