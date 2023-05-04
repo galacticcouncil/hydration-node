@@ -367,4 +367,5 @@ parameter_types! {
 	pub SlippageLimitPercentage: Permill = Permill::from_percent(5);
 	pub MaxPriceDifference: Permill = Permill::from_percent(10);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
+	pub MaxNumberOfRetriesOnError: u32 = 5;
 }

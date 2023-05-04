@@ -7,6 +7,7 @@ use frame_support::assert_ok;
 
 use crate::{assert_balance, assert_reserved_balance};
 use frame_system::RawOrigin;
+use hydradx_runtime::Balances;
 use hydradx_runtime::Currencies;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::Origin;
@@ -21,6 +22,9 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
+
+const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
+const DCA_EXECUTION_FEE: Balance = 131_366_775_591;
 
 #[test]
 fn create_schedule_should_work() {
@@ -62,7 +66,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
-		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, dca_budget);
 		create_schedule(ALICE, schedule1);
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -73,8 +77,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		run_to_block(1001, 1005);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 4_627_335_511_829;
-		let fee = 2_627_335_511_829;
+		let amount_to_unreserve_for_trade = 2_131_366_775_591;
 		let over_reservation_left_over = 976_815_524_731; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + UNITS);
@@ -85,7 +88,11 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_unreserve_for_trade);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE + DCA_EXECUTION_FEE
+		);
 	});
 }
 
@@ -111,14 +118,17 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		run_to_block(1001, 1002);
 
 		//Assert
-		let amount_out = 7_205_549_056_097;
-		let fee = 2627335511829;
+		let amount_out = 9_644_911_810_628;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE + DCA_EXECUTION_FEE
+		);
 	});
 }
 
@@ -135,16 +145,20 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, 0);
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE
+		);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
 		run_to_block(1001, 1500);
 
 		//Assert
-		let fees = 60_428_716_772_067;
-		let over_reservation_left_over = 26_046_800_273_363; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 23 * UNITS);
+		let fees = 6699705555141;
+		let over_reservation_left_over = 51162011419014; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 51 * UNITS);
 		assert_balance!(
 			ALICE.into(),
 			HDX,
@@ -153,7 +167,11 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fees);
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE + fees
+		);
 
 		let schedule = hydradx_runtime::DCA::schedules(1);
 		assert!(schedule.is_none());
@@ -183,14 +201,18 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		run_to_block(1001, 1500);
 
 		//Assert
-		let amount_out = 79_262_387_973_995;
-		let fee = 28900690630119;
+		let amount_out = 106_092_522_518_869;
+		let fee = 1_445_034_531_501;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE + fee
+		);
 
 		let schedule = hydradx_runtime::DCA::schedules(1);
 		assert!(schedule.is_none());
@@ -226,20 +248,24 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		run_to_block(1001, 1500);
 
 		//Assert
-		let amount_out = 79255079162831;
+		let amount_out = 106079428677451;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let amount_out = 93662356047750;
+		let amount_out = 125360766381885;
 
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - dca_budget_for_bob);
 		assert_reserved_balance!(&BOB.into(), HDX, 0);
 
-		let fee = 63056052283896;
-		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, fee);
+		let fee = 3152802614184;
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE + fee
+		);
 
 		let schedule = hydradx_runtime::DCA::schedules(1);
 		assert!(schedule.is_none());
@@ -256,12 +282,12 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		//Arrange
 		init_omnipool_with_oracle_for_with_block_1000();
 
-		let schedule1 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule2 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule3 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule4 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule5 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
-		let schedule6 = schedule_fake_with_sell_order(ALICE, 110 * UNITS, HDX, DAI, ALICE_INITIAL_NATIVE_BALANCE);
+		let schedule1 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
+		let schedule2 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
+		let schedule3 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
+		let schedule4 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
+		let schedule5 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
+		let schedule6 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
 
 		create_schedule(ALICE, schedule1);
 		create_schedule(ALICE, schedule2);
@@ -271,44 +297,12 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		create_schedule(ALICE, schedule6);
 
 		//Act
-		run_to_block(1001, 1005);
+		run_to_block(1001, 1002);
 
 		//Assert
-		//We simulate a failing scenarios so we get errors we can use for verification
-		//DCA has sell order bigger than what is reserved amounts, therefore it will be always completed without executing any  trad
 		//We check the random ordering based on the the emitted events.
-		expect_completed_dca_events(vec![
-			pallet_dca::Event::Completed {
-				id: 3,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-			pallet_dca::Event::Completed {
-				id: 6,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-			pallet_dca::Event::Completed {
-				id: 1,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-			pallet_dca::Event::Completed {
-				id: 5,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-			pallet_dca::Event::Completed {
-				id: 4,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-			pallet_dca::Event::Completed {
-				id: 2,
-				who: sp_runtime::AccountId32::from(ALICE),
-			}
-			.into(),
-		]);
+		//The orders should fail due to invalid min limit.
+		expect_schedule_ids_from_events(vec![3, 6, 1, 5, 4, 2]);
 	});
 }
 #[test]
@@ -392,6 +386,27 @@ fn schedule_fake_with_sell_order(
 	}
 }
 
+fn schedule_fake_with_invalid_min_limit(
+	owner: [u8; 32],
+	total_amount: Balance,
+	asset_in: AssetId,
+	asset_out: AssetId,
+	amount: Balance,
+) -> Schedule<AccountId, AssetId, u32> {
+	Schedule {
+		owner: AccountId::from(owner),
+		period: 3u32,
+		total_amount,
+		order: Order::Sell {
+			asset_in,
+			asset_out,
+			amount_in: amount,
+			min_limit: Balance::MAX,
+			route: create_bounded_vec(vec![]),
+		},
+	}
+}
+
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
@@ -411,6 +426,13 @@ pub fn init_omnipol() {
 		Permill::from_percent(60),
 		Permill::from_percent(60)
 	));
+
+	Balances::set_balance(
+		RawOrigin::Root.into(),
+		hydradx_runtime::Treasury::account_id(),
+		TREASURY_ACCOUNT_INIT_BALANCE,
+		0,
+	);
 }
 
 pub fn expect_completed_dca_events(e: Vec<hydradx_runtime::Event>) {
@@ -476,4 +498,23 @@ pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 		set_relaychain_block_number(b);
 		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 	}
+}
+
+pub fn expect_schedule_ids_from_events(e: Vec<u32>) {
+	let last_schedule_ids_from_events: Vec<u32> = get_last_schedule_ids_from_trade_failed_events();
+	pretty_assertions::assert_eq!(last_schedule_ids_from_events, e);
+}
+
+pub fn get_last_schedule_ids_from_trade_failed_events() -> Vec<u32> {
+	let last_events: Vec<hydradx_runtime::Event> = last_hydra_events(1000);
+	let mut schedule_ids = vec![];
+
+	for event in last_events {
+		let e = event.clone();
+		if let hydradx_runtime::Event::DCA(pallet_dca::Event::TradeFailed { id, .. }) = e {
+			schedule_ids.push(id);
+		}
+	}
+
+	schedule_ids
 }
