@@ -128,7 +128,7 @@ pub mod pallet {
 				match Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) {
 					Ok(()) => {},
 					Err(err) => {
-						Self::terminate_schedule2(schedule_id, &schedule, err);
+						Self::terminate_schedule(schedule_id, &schedule, err);
 						continue;
 					}
 				}
@@ -136,7 +136,7 @@ pub mod pallet {
 				let next_execution_block = match current_blocknumber.checked_add(&schedule.period) {
 					Some(next_execution_block) => next_execution_block,
 					None => {
-						Self::terminate_schedule2(schedule_id, &schedule,  DispatchError::Arithmetic(ArithmeticError::Overflow));
+						Self::terminate_schedule(schedule_id, &schedule, DispatchError::Arithmetic(ArithmeticError::Overflow));
 						continue;
 					}
 				};
@@ -150,7 +150,7 @@ pub mod pallet {
 					match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
 						Ok(()) => {},
 						Err(err) => {
-							Self::terminate_schedule2(schedule_id, &schedule, err);
+							Self::terminate_schedule(schedule_id, &schedule, err);
 							continue;
 						}
 					}
@@ -170,7 +170,7 @@ pub mod pallet {
 						let remaining_amount_to_use = match RemainingAmounts::<T>::get(schedule_id) {
 							Some(remaining_amount_to_use) => remaining_amount_to_use,
 							None => {
-								Self::terminate_schedule2(schedule_id, &schedule,  Error::<T>::InvalidState.into());
+								Self::terminate_schedule(schedule_id, &schedule, Error::<T>::InvalidState.into());
 								continue;
 							}
 						};
@@ -178,7 +178,7 @@ pub mod pallet {
 						let amount_to_unreserve = match Self::amount_to_unreserve(&schedule.order) {
 							Ok(amount_to_unreserve) => amount_to_unreserve,
 							Err(err) => {
-								Self::terminate_schedule2(schedule_id, &schedule,  err);
+								Self::terminate_schedule(schedule_id, &schedule, err);
 								continue;
 							}
 						};
@@ -191,7 +191,7 @@ pub mod pallet {
 						match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
 							Ok(()) => {},
 							Err(err) => {
-								Self::terminate_schedule2(schedule_id, &schedule, err);
+								Self::terminate_schedule(schedule_id, &schedule, err);
 								continue;
 							}
 						}
@@ -201,7 +201,7 @@ pub mod pallet {
 						if T::SuspendOnErrors::contains(&err) {
 							Self::suspend_schedule(&schedule.owner, schedule_id);
 						} else {
-							Self::terminate_schedule(schedule_id, &schedule)
+							Self::terminate_schedule(schedule_id, &schedule, err) //TODO: add test case for this
 						}
 					}
 				}
@@ -668,24 +668,7 @@ where
 		Ok(())
 	}
 
-	fn terminate_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
-		let result = Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner);
-
-		match result {
-			Ok(()) => {
-				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
-				//TODO: terminate with error flag
-				Self::deposit_event(Event::Terminated {
-					id: schedule_id,
-					who: schedule.owner.clone(),
-					error: DispatchError::Other("Terminated by system"),
-				});
-			}
-			Err(err) => Self::log_error_of_unreserving(err),
-		}
-	}
-
-	fn terminate_schedule2(
+	fn terminate_schedule(
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 		error: DispatchError,
