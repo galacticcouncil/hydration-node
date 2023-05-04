@@ -199,6 +199,7 @@ pub mod pallet {
 							Self::deposit_event(Event::TradeFailed {
 								id: schedule_id,
 								who: schedule.owner.clone(),
+								error: err
 							});
 
 							let number_of_retries = match Self::retries_on_error(schedule_id) {
@@ -339,7 +340,8 @@ pub mod pallet {
 		TradeFailed {
 			id: ScheduleId,
 			who: T::AccountId,
-		}, //TODO: add dispatch error
+			error: DispatchError,
+		},
 		///The DCA is terminated and completely removed from the chain
 		Terminated {
 			id: ScheduleId,

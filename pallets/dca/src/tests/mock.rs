@@ -296,7 +296,7 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 		min_buy_amount: Balance,
 	) -> DispatchResult {
 		if amount == 0 {
-			return Err(DispatchError::Other("Min amount is not reached"));
+			return Err(pallet_omnipool::Error::<Test>::SellLimitExceeded.into());
 		}
 
 		//We only want to excecute omnipool trade in case of benchmarking
@@ -323,7 +323,7 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 		max_sell_amount: Balance,
 	) -> DispatchResult {
 		if amount == 0 {
-			return Err(DispatchError::Other("Min amount is not reached"));
+			return Err(pallet_omnipool::Error::<Test>::SellLimitExceeded.into());
 		}
 
 		BUY_EXECUTIONS.with(|v| {
@@ -411,16 +411,16 @@ impl Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
 	type MaxPriceDifference = OmnipoolMaxAllowedPriceDifference;
-	type ContinueOnErrors = ErrorsToSuspendMock;
+	type ContinueOnErrors = ContinueOnErrorsListMock;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 }
 
-pub struct ErrorsToSuspendMock;
+pub struct ContinueOnErrorsListMock;
 
-impl Contains<DispatchError> for ErrorsToSuspendMock {
+impl Contains<DispatchError> for ContinueOnErrorsListMock {
 	fn contains(e: &DispatchError) -> bool {
-		vec![DispatchError::Other("Min amount is not reached")].contains(e)
+		vec![pallet_omnipool::Error::<Test>::SellLimitExceeded.into()].contains(e)
 	}
 }
 

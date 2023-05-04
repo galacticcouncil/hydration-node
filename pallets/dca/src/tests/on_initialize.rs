@@ -561,7 +561,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 }
 
 #[test]
-fn dca_schedule_is_continued_when_error_is_configured_to_continue_on() {
+fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
 		.build()
@@ -595,6 +595,7 @@ fn dca_schedule_is_continued_when_error_is_configured_to_continue_on() {
 				DcaEvent::TradeFailed {
 					id: schedule_id,
 					who: ALICE,
+					error: pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
