@@ -143,9 +143,19 @@ pub mod pallet {
 			schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
 			for schedule_id in schedule_ids {
 				let Some(schedule) = Schedules::<T>::get(schedule_id) else {
-					continue; //TODO: discuss what to do here. The problem is that we can not really terminate as we don't know the info like user and other schedule relevant data
+					//We cant terminate here as there is no schedule information to do so
+					continue;
 				};
 
+				let weight_for_single_execution = match Self::get_weight_for_single_execution() {
+					Ok(weight) => {weight.ref_time()}
+					Err(err) => {
+						Self::terminate_schedule(schedule_id, &schedule, err);
+						continue;
+					}
+				};
+
+				weight.saturating_accrue(weight_for_single_execution.into());
 				match Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) {
 					Ok(()) => {},
 					Err(err) => {
@@ -178,7 +188,6 @@ pub mod pallet {
 					continue;
 				}
 
-				weight.saturating_accrue(Self::get_execute_schedule_weight());
 				let trade_result = Self::execute_schedule(schedule_id, &schedule);
 
 				match trade_result {
@@ -987,13 +996,20 @@ where
 	}
 
 	fn get_transaction_fee_in_asset(fee_currency: T::Asset) -> Result<u128, DispatchError> {
-		let fee_amount_in_native = Self::weight_to_fee(<T as Config>::WeightInfo::on_initialize())
-			.checked_div(T::MaxSchedulePerBlock::get().into())
-			.ok_or(ArithmeticError::Underflow)?;
+		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
+		let fee_amount_in_native = Self::weight_to_fee(weight_for_single_execution);
 		let fee_amount_in_sold_asset =
 			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
 
 		Ok(fee_amount_in_sold_asset)
+	}
+
+	fn get_weight_for_single_execution() -> Result<Weight, DispatchError> {
+		let weight = <T as Config>::WeightInfo::on_initialize()
+			.checked_div(T::MaxSchedulePerBlock::get().into())
+			.ok_or(ArithmeticError::Underflow)?;
+
+		Ok(weight)
 	}
 
 	fn convert_to_currency_if_asset_is_not_native(
