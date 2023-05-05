@@ -38,6 +38,21 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+/*
+TODO:
+- check TODO comments
+- process all remarks
+- recalcualte storage bond feee
+- merge master
+
+- rebenchmark
+
+
+Discuss:
+- look at the code
+- check config for pallet
+ */
+
 use codec::MaxEncodedLen;
 use frame_support::{
 	ensure,
@@ -758,7 +773,13 @@ where
 					error,
 				});
 			}
-			Err(err) => Self::log_error_of_unreserving(err),
+			Err(error) => {
+				Self::deposit_event(Event::Terminated {
+					id: schedule_id,
+					who: schedule.owner.clone(),
+					error,
+				});
+			}
 		}
 	}
 
@@ -773,7 +794,11 @@ where
 					who: schedule.owner.clone(),
 				});
 			}
-			Err(err) => Self::log_error_of_unreserving(err),
+			Err(error) => Self::deposit_event(Event::Terminated {
+				id: schedule_id,
+				who: schedule.owner.clone(),
+				error,
+			}),
 		}
 	}
 
@@ -991,13 +1016,6 @@ where
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
-	}
-
-	fn log_error_of_unreserving(err: DispatchError) {
-		log::error!(
-				target: "runtime::dca",
-				"Unexpected error happened while unreserving remaining currency, with message: {:?}.",
-				err);
 	}
 }
 
