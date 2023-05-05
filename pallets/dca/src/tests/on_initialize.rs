@@ -118,7 +118,7 @@ fn one_dca_execution_should_unreserve_amount_in() {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION,
-				min_buy_amount: 0,
+				min_buy_amount: 836000000000,
 			}]);
 
 			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
@@ -126,7 +126,7 @@ fn one_dca_execution_should_unreserve_amount_in() {
 }
 
 #[test]
-fn one_buy_dca_execution_should_unreserve_max_limit() {
+fn one_buy_dca_execution_should_unreserve_user_specified_max_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -136,7 +136,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit() {
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = ONE;
-			let max_limit = 2 * ONE;
+			let max_limit = ONE / 2;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -190,7 +190,7 @@ fn one_buy_dca_execution_should_use_slippage_limit() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: 0,
+					max_limit: Balance::MAX,
 					route: empty_vec(),
 				})
 				.build();
@@ -418,7 +418,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: Balance::MIN,
+					max_limit: Balance::MAX,
 					route: empty_vec(),
 				})
 				.build();
@@ -438,7 +438,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 }
 
 #[test]
-fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_is_bigger_than_specified_max_limit() {
+fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_smaller_than_specified_max_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -457,7 +457,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_slippage_
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: Balance::MIN,
+					max_limit: Balance::MAX,
 					route: empty_vec(),
 				})
 				.build();
@@ -571,7 +571,7 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: 0,
+					amount_out: AMOUNT_LESS_THAN_MIN_BUY_AMOUNT,
 					max_limit: 5 * ONE,
 					route: empty_vec(),
 				})
@@ -592,7 +592,7 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 				DcaEvent::TradeFailed {
 					id: schedule_id,
 					who: ALICE,
-					error: pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
+					error: pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
@@ -653,7 +653,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: 0,
+					amount_out: AMOUNT_LESS_THAN_MIN_BUY_AMOUNT,
 					max_limit: 5 * ONE,
 					route: empty_vec(),
 				})
@@ -723,7 +723,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_out: 0,
+					amount_out: AMOUNT_LESS_THAN_MIN_BUY_AMOUNT,
 					max_limit: 5 * ONE,
 					route: empty_vec(),
 				})
@@ -777,7 +777,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				asset_in: DAI,
 				asset_out: BTC,
 				amount_in: amount_in - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI,
-				min_buy_amount: 0,
+				min_buy_amount: 83600000000000,
 			}]);
 		});
 }
@@ -799,7 +799,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_in: sell_amount,
-					min_limit: Balance::MAX,
+					min_limit: Balance::MIN,
 					route: empty_vec(),
 				})
 				.build();
@@ -820,7 +820,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 }
 
 #[test]
-fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_trade_max_limit() {
+fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_trade_max_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -837,7 +837,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_bigger_than_specified_tr
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_out: buy_amount,
-					max_limit: Balance::MIN,
+					max_limit: Balance::MAX,
 					route: empty_vec(),
 				})
 				.build();
@@ -987,7 +987,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION,
-				min_buy_amount: 0,
+				min_buy_amount: 836000000000,
 			}]);
 
 			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::NoFreeBlockFound.into());

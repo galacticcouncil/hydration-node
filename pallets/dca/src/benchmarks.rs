@@ -245,6 +245,7 @@ benchmarks! {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
+		//TODO: Add assertion
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
 

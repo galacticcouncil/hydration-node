@@ -127,7 +127,11 @@ pub mod pallet {
 		>>::Balance: From<u128>,
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
-			let mut weight: u64 = Self::get_on_initialize_weight();
+			//TODO: write in channel to discuss if we want to have a way to pause the execution of the orders
+			//TODO: To recover, Consider having an offset for the current blocknumber so we can execute "old" schedules
+
+			let mut weight: u64 = Self::get_on_initialize_weight(); //TODO: do minimal weight
+			//TODO: use weight instead of u64
 
 			let mut random_generator = T::RandomnessProvider::generator();
 
@@ -147,6 +151,7 @@ pub mod pallet {
 					continue;
 				};
 
+				//TODO: optimize, do it outside the loop, and miltiple the single execution weight with the number of schedules
 				let weight_for_single_execution = match Self::get_weight_for_single_execution() {
 					Ok(weight) => {weight.ref_time()}
 					Err(err) => {
@@ -156,6 +161,8 @@ pub mod pallet {
 				};
 
 				weight.saturating_accrue(weight_for_single_execution.into());
+
+				//TODO: prepare_schedule_for_execution
 				match Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) {
 					Ok(()) => {},
 					Err(err) => {
@@ -178,6 +185,7 @@ pub mod pallet {
 				);
 
 				if is_price_change_bigger_than_max_allowed {
+					//TODO: use if Err() => continue;
 					match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
 						Ok(()) => {},
 						Err(err) => {
@@ -232,6 +240,8 @@ pub mod pallet {
 							who: schedule.owner.clone(),
 							error: err
 						});
+
+						//TODO: in case of successfull trade, we want to reset the retries
 						if T::ContinueOnErrors::contains(&err) {
 							let number_of_retries = match Self::retries_on_error(schedule_id) {
 								Some(number_of_retries) => number_of_retries,
@@ -306,9 +316,9 @@ pub mod pallet {
 		///Errors on which we want to continue the schedule
 		type ContinueOnErrors: Contains<DispatchError>;
 
-		///Max price difference allowed between last block and short oracle
+		///Max price difference allowed between the last block and short oracle
 		#[pallet::constant]
-		type MaxPriceDifference: Get<Permill>;
+		type MaxPriceDifferenceBetweenBlocks: Get<Permill>;
 
 		///The number of max schedules to be executed per block
 		#[pallet::constant]
@@ -330,9 +340,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
 
-		///Slippage limit percentage to be used for calculating min and max limits for trades
+		///Max slippage limit treshold percentage to be used for contstraining limits between blocks
 		#[pallet::constant]
-		type SlippageLimitPercentage: Get<Permill>;
+		type MaxSlippageTresholdBetweenBlocks: Get<Permill>;
 
 		/// Named reserve identifier to store named reserves for orders of each users
 		#[pallet::constant]
@@ -532,7 +542,6 @@ where
 	) -> DispatchResult {
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
-		//If these two fail, we terminate - no rollback
 		let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
@@ -554,6 +563,7 @@ where
 			return Err(Error::<T>::InvalidState.into());
 		};
 
+		//TODO: pass the amount_to_unreserve instead of recalculating
 		Self::execute_trade(origin, &schedule.order)
 	}
 
@@ -566,7 +576,7 @@ where
    			return true;
 		};
 
-		let max_allowed = FixedU128::from(T::MaxPriceDifference::get());
+		let max_allowed = FixedU128::from(T::MaxPriceDifferenceBetweenBlocks::get());
 
 		let Some(price_sum) = current_price
 			.checked_add(&price_from_short_oracle) else {
@@ -634,6 +644,7 @@ where
 				max_limit,
 				..
 			} => {
+				//TODO: inline
 				let amount_to_sell_for_buy =
 					Self::calculate_sell_amount_for_buy(*asset_in, *asset_out, *amount_out, *max_limit)?;
 				Ok(amount_to_sell_for_buy)
@@ -681,7 +692,8 @@ where
 		max_limit: Balance,
 	) -> Result<u128, DispatchError> {
 		let max_limit_from_oracle_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
-		let max_limit = max(max_limit, max_limit_from_oracle_price);
+
+		let max_limit = min(max_limit, max_limit_from_oracle_price);
 
 		Ok(max_limit)
 	}
@@ -883,6 +895,7 @@ where
 				next_execution_block = next_execution_block.saturating_add(delay_with.into());
 			}
 
+			//TODO: rename i
 			if i == MAX_NUMBER_OF_RETRY_FOR_PLANNING
 				&& ScheduleIdsPerBlock::<T>::get(next_execution_block).len() == T::MaxSchedulePerBlock::get() as usize
 			{
@@ -927,6 +940,7 @@ where
 			} => {
 				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
 
+				//TODO: here I could use amount to unreserve?!
 				let transaction_fee = Self::get_transaction_fee_in_asset(*asset_in)?;
 
 				let amount_to_sell = amount_in
@@ -938,7 +952,7 @@ where
 					*asset_in,
 					*asset_out,
 					amount_to_sell,
-					min(*min_limit, min_limit_with_slippage),
+					max(*min_limit, min_limit_with_slippage),
 				)
 			}
 			Order::Buy {
@@ -955,7 +969,7 @@ where
 					*asset_in,
 					*asset_out,
 					*amount_out,
-					max(*max_limit, max_limit_with_slippage),
+					min(*max_limit, max_limit_with_slippage),
 				)
 			}
 		}
@@ -966,14 +980,17 @@ where
 		asset_out: &<T as Config>::Asset,
 		amount_in: &Balance,
 	) -> Result<u128, DispatchError> {
+		//TODO: asset out - asset in
 		let price = Self::get_price_from_last_block_oracle(*asset_in, *asset_out)?;
 
 		let estimated_amount_out = price.checked_mul_int(*amount_in).ok_or(ArithmeticError::Overflow)?;
 
-		let slippage_amount = T::SlippageLimitPercentage::get().mul_floor(estimated_amount_out);
+		let slippage_amount = T::MaxSlippageTresholdBetweenBlocks::get().mul_floor(estimated_amount_out);
 		let min_limit_with_slippage = estimated_amount_out
 			.checked_sub(slippage_amount)
 			.ok_or(ArithmeticError::Overflow)?;
+
+		//TODO: verify this - we are selling 10 tokens for 10 tokens, this function should give me 3% less than 10
 
 		Ok(min_limit_with_slippage)
 	}
@@ -983,11 +1000,13 @@ where
 		asset_out: <T as Config>::Asset,
 		amount_out: Balance,
 	) -> Result<u128, DispatchError> {
+		//TODO: check decimals property tests OTC pallet
+		//TODO: this should be the other way around, so asset_in/asset_out
 		let price = Self::get_price_from_last_block_oracle(asset_out, asset_in)?;
 
 		let estimated_amount_in = price.checked_mul_int(amount_out).ok_or(ArithmeticError::Overflow)?;
 
-		let slippage_amount = T::SlippageLimitPercentage::get().mul_floor(estimated_amount_in);
+		let slippage_amount = T::MaxSlippageTresholdBetweenBlocks::get().mul_floor(estimated_amount_in);
 		let max_limit_with_slippage = estimated_amount_in
 			.checked_add(slippage_amount)
 			.ok_or(ArithmeticError::Overflow)?;
@@ -1006,7 +1025,7 @@ where
 
 	fn get_weight_for_single_execution() -> Result<Weight, DispatchError> {
 		let weight = <T as Config>::WeightInfo::on_initialize()
-			.checked_div(T::MaxSchedulePerBlock::get().into())
+			.checked_div(T::MaxSchedulePerBlock::get().into()) //TODO: use max 1, so we surely don't divide by zero
 			.ok_or(ArithmeticError::Underflow)?;
 
 		Ok(weight)

@@ -62,6 +62,7 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
+pub const AMOUNT_LESS_THAN_MIN_BUY_AMOUNT: Balance = ONE / 10;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -323,8 +324,8 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 		amount: Balance,
 		max_sell_amount: Balance,
 	) -> DispatchResult {
-		if amount == 0 {
-			return Err(pallet_omnipool::Error::<Test>::SellLimitExceeded.into());
+		if amount == AMOUNT_LESS_THAN_MIN_BUY_AMOUNT {
+			return Err(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into());
 		}
 
 		BUY_EXECUTIONS.with(|v| {
@@ -406,12 +407,12 @@ impl Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type FeeReceiver = TreasuryAccount;
 	type WeightToFee = IdentityFee<Balance>;
-	type SlippageLimitPercentage = SlippageLimitPercentage;
+	type MaxSlippageTresholdBetweenBlocks = SlippageLimitPercentage;
 	type WeightInfo = ();
 	type AMMTrader = AmmTraderMock;
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
-	type MaxPriceDifference = OmnipoolMaxAllowedPriceDifference;
+	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
 	type ContinueOnErrors = ContinueOnErrorsListMock;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
@@ -421,7 +422,11 @@ pub struct ContinueOnErrorsListMock;
 
 impl Contains<DispatchError> for ContinueOnErrorsListMock {
 	fn contains(e: &DispatchError) -> bool {
-		vec![pallet_omnipool::Error::<Test>::SellLimitExceeded.into()].contains(e)
+		vec![
+			pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
+			pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
+		]
+		.contains(e)
 	}
 }
 

@@ -963,12 +963,12 @@ impl pallet_dca::Config for Runtime {
 	type RandomnessProvider = DCA;
 	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, EmaOracle, LRNA>;
 	type SpotPriceProvider = Omnipool;
-	type MaxPriceDifference = MaxPriceDifference;
+	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type FeeReceiver = TreasuryAccount;
-	type SlippageLimitPercentage = SlippageLimitPercentage;
+	type MaxSlippageTresholdBetweenBlocks = SlippageLimitPercentage;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
