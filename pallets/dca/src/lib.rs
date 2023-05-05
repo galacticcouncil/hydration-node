@@ -1024,8 +1024,9 @@ where
 	}
 
 	fn get_weight_for_single_execution() -> Result<Weight, DispatchError> {
+		let max_schedule_per_block = max(T::MaxSchedulePerBlock::get().into(), 1);
 		let weight = <T as Config>::WeightInfo::on_initialize()
-			.checked_div(T::MaxSchedulePerBlock::get().into()) //TODO: use max 1, so we surely don't divide by zero
+			.checked_div(max_schedule_per_block)
 			.ok_or(ArithmeticError::Underflow)?;
 
 		Ok(weight)
