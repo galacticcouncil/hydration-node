@@ -19,10 +19,9 @@ fn get_message_hash_from_event(n: usize) -> Option<[u8; 32]> {
 	use cumulus_pallet_xcmp_queue::Event;
 	use hydradx_runtime::RuntimeEvent;
 	let RuntimeEvent::XcmpQueue(Event::XcmpMessageSent { message_hash }) = &last_hydra_events(n)[0] else {
-		assert!(false, "expecting to find message sent event");
-		return None
+		panic!("expecting to find message sent event");
 	};
-	message_hash.clone()
+	*message_hash
 }
 
 #[test]

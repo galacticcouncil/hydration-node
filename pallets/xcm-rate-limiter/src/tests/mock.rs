@@ -48,7 +48,6 @@ pub type AccountId = u64;
 pub type AssetId = u32;
 pub type Balance = u128;
 
-pub const ALICE: u64 = 1;
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
 
 pub const HDX: AssetId = 100;
@@ -408,35 +407,6 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn with_endowed_accounts(mut self, accounts: Vec<(u64, AssetId, Balance)>) -> Self {
-		self.endowed_accounts = accounts;
-		self
-	}
-	pub fn add_endowed_accounts(mut self, account: (u64, AssetId, Balance)) -> Self {
-		self.endowed_accounts.push(account);
-		self
-	}
-	pub fn with_registered_asset(mut self, asset: AssetId) -> Self {
-		self.registered_assets.push(asset);
-		self
-	}
-
-	pub fn with_initial_pool(mut self, stable_price: FixedU128, native_price: FixedU128) -> Self {
-		self.init_pool = Some((stable_price, native_price));
-		self
-	}
-
-	pub fn with_token(
-		mut self,
-		asset_id: AssetId,
-		price: FixedU128,
-		position_owner: AccountId,
-		amount: Balance,
-	) -> Self {
-		self.pool_tokens.push((asset_id, price, position_owner, amount));
-		self
-	}
-
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
@@ -525,10 +495,6 @@ impl ExtBuilder {
 
 		r
 	}
-}
-
-pub fn expect_events(e: Vec<RuntimeEvent>) {
-	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }
 
 pub struct WithdrawFeePriceOracle;
