@@ -4,13 +4,10 @@ use crate::polkadot_test_net::*;
 
 use common_runtime::Weight;
 
-use frame_support::{
-	assert_ok,
-};
+use frame_support::assert_ok;
 
 use orml_traits::currency::MultiCurrency;
 use pallet_asset_registry::AssetType;
-
 
 use polkadot_xcm::prelude::*;
 

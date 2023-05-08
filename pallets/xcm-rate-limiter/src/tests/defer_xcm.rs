@@ -22,8 +22,6 @@ use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 
 pub use pretty_assertions::{assert_eq, assert_ne};
 
-
-
 use xcm::VersionedXcm;
 
 #[test]

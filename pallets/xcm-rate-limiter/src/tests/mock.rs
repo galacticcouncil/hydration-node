@@ -318,7 +318,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 use crate::Config;
 use hydradx_traits::Registry;
-use pallet_omnipool::traits::{ExternalPriceProvider};
+use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 

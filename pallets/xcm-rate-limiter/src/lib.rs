@@ -20,17 +20,15 @@
 use codec::{Decode, Encode};
 use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 
-
-use frame_support::{traits::Get};
-
+use frame_support::traits::Get;
 
 use orml_traits::GetByKey;
 use polkadot_parachain::primitives::RelayChainBlockNumber;
 use scale_info::TypeInfo;
 use sp_core::MaxEncodedLen;
+use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Convert;
-use sp_runtime::traits::{AtLeast32BitUnsigned};
 use sp_runtime::SaturatedConversion;
 use sp_runtime::{RuntimeDebug, Saturating};
 use sp_std::vec::Vec;
@@ -61,7 +59,7 @@ pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
-	
+
 	use polkadot_parachain::primitives::RelayChainBlockNumber;
 	use sp_runtime::traits::BlockNumberProvider;
 	use xcm::lts::MultiLocation;
