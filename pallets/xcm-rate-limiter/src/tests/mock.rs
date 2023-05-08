@@ -21,13 +21,13 @@ pub use frame_support::traits::{Everything, OnFinalize};
 pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
 use frame_system::EnsureRoot;
-use hydra_dx_math::omnipool::types::BalanceUpdate;
+
 use orml_traits::parameter_type_with_key;
 use polkadot_parachain::primitives::RelayChainBlockNumber;
 use sp_core::H256;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Convert;
-use sp_runtime::traits::{ConstU128, ConstU32, ConstU64};
+use sp_runtime::traits::{ConstU128, ConstU32};
 use sp_runtime::DispatchResult;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
@@ -38,7 +38,7 @@ use sp_runtime::{
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::marker::PhantomData;
+
 use xcm::lts::prelude::*;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -318,7 +318,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 use crate::Config;
 use hydradx_traits::Registry;
-use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
+use pallet_omnipool::traits::{ExternalPriceProvider};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 

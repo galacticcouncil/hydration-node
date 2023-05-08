@@ -3,18 +3,17 @@
 use crate::polkadot_test_net::*;
 
 use common_runtime::Weight;
-use frame_support::traits::tokens::fungibles::Mutate;
+
 use frame_support::{
 	assert_ok,
-	traits::{OnFinalize, OnInitialize},
 };
-use hydradx_runtime::{EmaOracle, RuntimeOrigin};
+
 use orml_traits::currency::MultiCurrency;
 use pallet_asset_registry::AssetType;
-use pallet_ema_oracle::OracleError;
-use polkadot_primitives::v2::BlockNumber;
+
+
 use polkadot_xcm::prelude::*;
-use sp_runtime::{FixedU128, Permill};
+
 use xcm_emulator::TestExt;
 
 /// Returns the message hash in the `XcmpMessageSent` event at the `n`th last event (1-indexed, so if the second to last
