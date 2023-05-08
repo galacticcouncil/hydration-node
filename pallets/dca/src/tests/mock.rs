@@ -62,7 +62,7 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const AMOUNT_LESS_THAN_MIN_BUY_AMOUNT: Balance = ONE / 10;
+pub const INVALID_BUY_AMOUNT_VALUE: Balance = ONE / 10;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -102,6 +102,7 @@ thread_local! {
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
+	pub static INVALID_BUY_AMOUNT: RefCell<Balance> = RefCell::new(INVALID_BUY_AMOUNT_VALUE);
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -324,9 +325,14 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 		amount: Balance,
 		max_sell_amount: Balance,
 	) -> DispatchResult {
-		if amount == AMOUNT_LESS_THAN_MIN_BUY_AMOUNT {
-			return Err(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into());
-		}
+		INVALID_BUY_AMOUNT.with(|v| {
+			let invalid_buy_amount = *v.borrow_mut();
+			if amount == invalid_buy_amount {
+				return Err::<(), DispatchError>(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into());
+			} else {
+				Ok(())
+			}
+		})?;
 
 		BUY_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
@@ -521,6 +527,7 @@ pub struct ExtBuilder {
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	omnipool_trade: bool,
 	max_price_difference: Permill,
+	invalid_buy_amount: Balance,
 }
 
 impl Default for ExtBuilder {
@@ -544,6 +551,7 @@ impl Default for ExtBuilder {
 			pool_tokens: vec![],
 			omnipool_trade: false,
 			max_price_difference: Permill::from_percent(10),
+			invalid_buy_amount: INVALID_BUY_AMOUNT_VALUE,
 		}
 	}
 }
@@ -556,6 +564,11 @@ impl ExtBuilder {
 
 	pub fn with_max_price_difference(mut self, price_diff: Permill) -> Self {
 		self.max_price_difference = price_diff;
+		self
+	}
+
+	pub fn with_invalid_buy_amount(mut self, amount: Balance) -> Self {
+		self.invalid_buy_amount = amount;
 		self
 	}
 
@@ -581,6 +594,10 @@ impl ExtBuilder {
 
 		SET_OMNIPOOL_ON.with(|v| {
 			*v.borrow_mut() = self.omnipool_trade;
+		});
+
+		INVALID_BUY_AMOUNT.with(|v| {
+			*v.borrow_mut() = self.invalid_buy_amount;
 		});
 
 		MAX_PRICE_DIFFERENCE.with(|v| {
@@ -642,6 +659,12 @@ impl ExtBuilder {
 
 		r
 	}
+}
+
+pub fn set_invalid_buy_amount(amount: Balance) {
+	INVALID_BUY_AMOUNT.with(|v| {
+		*v.borrow_mut() = amount;
+	});
 }
 
 pub fn expect_events(e: Vec<Event>) {

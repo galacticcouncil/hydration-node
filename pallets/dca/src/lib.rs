@@ -162,6 +162,16 @@ pub mod pallet {
 							who: schedule.owner.clone(),
 						});
 
+						//TODO: extract these and the reror handling as well to have unexpected error handling globally
+
+						match Self::reset_retries(schedule_id) {//TODO: inline reset and increment retries once they are extracted
+							Ok(()) => {},
+							Err(err) => {
+								Self::terminate_schedule(schedule_id, &schedule, err);
+								continue;
+							}
+						}
+
 						let remaining_amount_to_use = match RemainingAmounts::<T>::get(schedule_id) {
 							Some(remaining_amount_to_use) => remaining_amount_to_use,
 							None => {
@@ -667,6 +677,18 @@ where
 			let retries = maybe_retries.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
 			retries.saturating_inc();
+
+			Ok(())
+		})?;
+
+		Ok(())
+	}
+
+	fn reset_retries(schedule_id: ScheduleId) -> DispatchResult {
+		RetriesOnError::<T>::try_mutate_exists(schedule_id, |maybe_retries| -> DispatchResult {
+			let mut retries = maybe_retries.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
+
+			*retries = 0;
 
 			Ok(())
 		})?;

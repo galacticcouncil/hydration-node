@@ -571,7 +571,7 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: AMOUNT_LESS_THAN_MIN_BUY_AMOUNT,
+					amount_out: INVALID_BUY_AMOUNT_VALUE,
 					max_limit: 5 * ONE,
 					route: empty_vec(),
 				})
@@ -653,7 +653,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: AMOUNT_LESS_THAN_MIN_BUY_AMOUNT,
+					amount_out: INVALID_BUY_AMOUNT_VALUE,
 					max_limit: 5 * ONE,
 					route: empty_vec(),
 				})
@@ -674,6 +674,47 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 
 			set_to_blocknumber(801);
 			assert!(DCA::schedules(schedule_id).is_none());
+		});
+}
+
+#[test]
+fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: INVALID_BUY_AMOUNT_VALUE,
+					max_limit: 5 * ONE,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act and assert
+			let schedule_id = 1;
+			set_to_blocknumber(501);
+			assert_scheduled_ids!(601, vec![schedule_id]);
+
+			set_to_blocknumber(601);
+			assert_scheduled_ids!(701, vec![schedule_id]);
+
+			set_invalid_buy_amount(INVALID_BUY_AMOUNT_VALUE + ONE);
+
+			set_to_blocknumber(701);
+			assert_scheduled_ids!(701, vec![schedule_id]);
+			assert_number_of_executed_buy_trades!(1);
+
+			let retries = DCA::retries_on_error(schedule_id);
+			assert_eq!(0, retries.unwrap());
 		});
 }
 
@@ -723,7 +764,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_out: AMOUNT_LESS_THAN_MIN_BUY_AMOUNT,
+					amount_out: INVALID_BUY_AMOUNT_VALUE,
 					max_limit: 5 * ONE,
 					route: empty_vec(),
 				})
