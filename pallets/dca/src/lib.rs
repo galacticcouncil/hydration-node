@@ -655,9 +655,8 @@ where
 			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
 			if amount_to_unreserve > *remaining_amount {
-				*maybe_remaining_amount = None;
-				return Ok(());
-			}
+				return Err(Error::<T>::InvalidState.into());
+			};
 
 			let new_amount = remaining_amount
 				.checked_sub(amount_to_unreserve)
