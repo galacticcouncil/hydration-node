@@ -89,7 +89,7 @@ use crate::types::*;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
-const MAX_NUMBER_OF_RETRY_FOR_PLANNING: u32 = 5;
+const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -103,6 +103,7 @@ pub mod pallet {
 	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::PriceOracle;
 	use orml_traits::NamedMultiReservableCurrency;
+
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
@@ -882,7 +883,7 @@ where
 
 		// We bound it to MAX_NUMBER_OF_RETRY_FOR_PLANNING to find the block number.
 		// We search for next free block with incrementing with the power of 2 (so 1 - 2 - 4 - 8 - 16)
-		for retry_index in 1u32..=MAX_NUMBER_OF_RETRY_FOR_PLANNING {
+		for retry_index in 1u32..=RETRY_TO_SEARCH_FOR_FREE_BLOCK {
 			if ScheduleIdsPerBlock::<T>::contains_key(next_execution_block) {
 				let schedule_ids = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 				if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
@@ -893,7 +894,7 @@ where
 				next_execution_block = next_execution_block.saturating_add(delay_with.into());
 			}
 
-			if retry_index == MAX_NUMBER_OF_RETRY_FOR_PLANNING
+			if retry_index == RETRY_TO_SEARCH_FOR_FREE_BLOCK
 				&& ScheduleIdsPerBlock::<T>::get(next_execution_block).len() == T::MaxSchedulePerBlock::get() as usize
 			{
 				return Err(Error::<T>::NoFreeBlockFound.into());
