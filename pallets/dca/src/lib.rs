@@ -122,7 +122,6 @@ pub mod pallet {
 			//TODO: To recover, Consider having an offset for the current blocknumber so we can execute "old" schedules
 
 			let mut weight = T::WeightInfo::on_initialize(); //TODO: do minimal weight
-			//TODO: use weight instead of u64
 
 			let mut random_generator = T::RandomnessProvider::generator();
 
@@ -142,50 +141,17 @@ pub mod pallet {
 					continue;
 				};
 
-				//TODO: optimize, do it outside the loop, and miltiple the single execution weight with the number of schedules
-				let weight_for_single_execution = match Self::get_weight_for_single_execution() {
-					Ok(weight) => {weight}
+				let next_execution_block = match Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
+					Ok(block) => {block},
 					Err(err) => {
-						Self::terminate_schedule(schedule_id, &schedule, err);
-						continue;
-					}
-				};
-
-				weight.saturating_accrue(weight_for_single_execution);
-
-				//TODO: prepare_schedule_for_execution
-				match Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) {
-					Ok(()) => {},
-					Err(err) => {
-						Self::terminate_schedule(schedule_id, &schedule, err);
-						continue;
-					}
-				}
-
-				let next_execution_block = match current_blocknumber.checked_add(&schedule.period) {
-					Some(next_execution_block) => next_execution_block,
-					None => {
-						Self::terminate_schedule(schedule_id, &schedule, DispatchError::Arithmetic(ArithmeticError::Overflow));
-						continue;
-					}
-				};
-
-				let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(
-					schedule.order.get_asset_in(),
-					schedule.order.get_asset_out()
-				);
-
-				if is_price_change_bigger_than_max_allowed {
-					//TODO: use if Err() => continue;
-					match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
-						Ok(()) => {},
-						Err(err) => {
+						if err == Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
+							//The schedule is replanned instead of terminated
+						} else {
 							Self::terminate_schedule(schedule_id, &schedule, err);
-							continue;
 						}
+						continue;
 					}
-					continue;
-				}
+				};
 
 				let trade_result = Self::execute_schedule(schedule_id, &schedule);
 
@@ -397,6 +363,8 @@ pub mod pallet {
 		Forbidden,
 		///The next execution block number is not in the future
 		BlockNumberIsNotInFuture,
+		///Price change from oracle data is bigger than max allowed
+		PriceChangeIsBiggerThanMaxAllowed,
 		///Error occurred when calculating price
 		CalculatingPriceError,
 		///The total amount to be reserved should be larger than storage bond
@@ -526,6 +494,35 @@ where
 	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
 		From<u128>,
 {
+	fn prepare_schedule(
+		current_blocknumber: T::BlockNumber,
+		weight: &mut Weight,
+		schedule_id: ScheduleId,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+	) -> Result<T::BlockNumber, DispatchError> {
+		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
+
+		weight.saturating_accrue(weight_for_single_execution);
+
+		Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order)?;
+
+		let next_execution_block = current_blocknumber
+			.checked_add(&schedule.period)
+			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
+
+		let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(
+			schedule.order.get_asset_in(),
+			schedule.order.get_asset_out(),
+		);
+
+		if is_price_change_bigger_than_max_allowed {
+			Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
+			return Err(Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into());
+		}
+
+		Ok(next_execution_block)
+	}
+
 	#[transactional]
 	pub fn execute_schedule(
 		schedule_id: ScheduleId,
