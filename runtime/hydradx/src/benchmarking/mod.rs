@@ -33,6 +33,7 @@ pub fn update_asset(asset_id: AssetId, name: Vec<u8>, deposit: Balance) -> Resul
 		name,
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		Some(deposit),
+		None,
 	)
 	.map_err(|_| ())
 }
