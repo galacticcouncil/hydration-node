@@ -21,6 +21,7 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		deposit,
 		None,
+		None,
 	)
 	.map_err(|_| ())
 }

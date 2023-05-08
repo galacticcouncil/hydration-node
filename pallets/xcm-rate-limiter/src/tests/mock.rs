@@ -51,10 +51,6 @@ pub type Balance = u128;
 pub const ALICE: u64 = 1;
 pub const WHITELISTED_ACCCOUNT: u64 = 2;
 
-pub const LP1: u64 = 1;
-pub const LP2: u64 = 2;
-pub const TRADER: u64 = 4;
-
 pub const HDX: AssetId = 100;
 pub const DOT: AssetId = 200;
 pub const DAI: AssetId = 2;
@@ -63,12 +59,8 @@ pub const ACA: AssetId = 4;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-pub const INITIAL_LIQUIDITY: Balance = 1_000_000;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const NATIVE_AMOUNT: Balance = 10_000 * ONE;
-
-pub const FIVE_PERCENT: (u32, u32) = (500, 10_000);
-pub const TEN_PERCENT: (u32, u32) = (1_000, 10_000);
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());

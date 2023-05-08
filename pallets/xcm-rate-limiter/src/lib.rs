@@ -29,8 +29,8 @@ use sp_core::MaxEncodedLen;
 use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_runtime::traits::BlockNumberProvider;
 use sp_runtime::traits::Convert;
+use sp_runtime::RuntimeDebug;
 use sp_runtime::SaturatedConversion;
-use sp_runtime::{RuntimeDebug, Saturating};
 use sp_std::vec::Vec;
 use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
@@ -115,7 +115,6 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, MultiLocation, AccumulatedAmount, ValueQuery>;
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {}
 
 	#[pallet::error]
@@ -173,11 +172,9 @@ impl<T: Config> Pallet<T> {
 		use Instruction::*;
 		match instruction {
 			// NOTE: This does not address the native asset "coming back" from other chains.
-			ReserveAssetDeposited(multi_assets) | ReceiveTeleportedAsset(multi_assets) => multi_assets
-				.inner()
-				.iter()
-				.flat_map(|asset| get_loc_and_amount(asset))
-				.collect(),
+			ReserveAssetDeposited(multi_assets) | ReceiveTeleportedAsset(multi_assets) => {
+				multi_assets.inner().iter().flat_map(get_loc_and_amount).collect()
+			}
 			_ => Vec::new(),
 		}
 	}
