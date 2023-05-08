@@ -208,7 +208,6 @@ pub mod pallet {
 							error: err
 						});
 
-						//TODO: in case of successfull trade, we want to reset the retries
 						if T::ContinueOnErrors::contains(&err) {
 							let number_of_retries = match Self::retries_on_error(schedule_id) {
 								Some(number_of_retries) => number_of_retries,
