@@ -460,7 +460,7 @@ pub mod pallet {
 				Order::Sell {amount_in, ..} => {
 					//In sell the amount_in includes the transaction fee
 					ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
-					amount_in
+					Self::get_amount_to_sell(&schedule.order)?
 				},
 				Order::Buy {..} => {
 					let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;

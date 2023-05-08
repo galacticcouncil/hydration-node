@@ -1078,6 +1078,40 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 		});
 }
 
+#[test]
+fn dca_shell_schedule_should_be_completed_after_one_trade_when_total_amount_is_equal_to_amount_in() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			//set up tests so the budget is equal amount to sell + fee, so one, but then we unreserve ONE, so it should fail at decreasing amount with invalid state error
+			let total_amount = 1 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_total_amount(total_amount)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: total_amount,
+					min_limit: 5 * ONE,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule.clone(), Option::None));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_number_of_executed_sell_trades!(1);
+			assert_that_dca_is_completed(ALICE, 1);
+		});
+}
+
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
 	bounded_vec

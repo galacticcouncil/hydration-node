@@ -614,6 +614,30 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 }
 
 #[test]
+fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let total_amount = 1 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: total_amount,
+					max_limit: 5 * ONE,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act and Assert
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+		});
+}
+
+#[test]
 fn schedule_should_init_retries_to_zero() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
