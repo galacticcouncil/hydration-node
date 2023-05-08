@@ -867,19 +867,18 @@ where
 
 		// We bound it to MAX_NUMBER_OF_RETRY_FOR_PLANNING to find the block number.
 		// We search for next free block with incrementing with the power of 2 (so 1 - 2 - 4 - 8 - 16)
-		for i in 1u32..=MAX_NUMBER_OF_RETRY_FOR_PLANNING {
+		for retry_index in 1u32..=MAX_NUMBER_OF_RETRY_FOR_PLANNING {
 			if ScheduleIdsPerBlock::<T>::contains_key(next_execution_block) {
 				let schedule_ids = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 				if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
 					return Ok(next_execution_block);
 				}
-				let exponent = i.checked_sub(1u32).ok_or(ArithmeticError::Underflow)?;
+				let exponent = retry_index.checked_sub(1u32).ok_or(ArithmeticError::Underflow)?;
 				let delay_with = 2u32.checked_pow(exponent).ok_or(ArithmeticError::Overflow)?;
 				next_execution_block = next_execution_block.saturating_add(delay_with.into());
 			}
 
-			//TODO: rename i
-			if i == MAX_NUMBER_OF_RETRY_FOR_PLANNING
+			if retry_index == MAX_NUMBER_OF_RETRY_FOR_PLANNING
 				&& ScheduleIdsPerBlock::<T>::get(next_execution_block).len() == T::MaxSchedulePerBlock::get() as usize
 			{
 				return Err(Error::<T>::NoFreeBlockFound.into());
