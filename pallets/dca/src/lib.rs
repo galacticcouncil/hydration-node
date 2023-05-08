@@ -204,7 +204,7 @@ pub mod pallet {
 							}
 						};
 
-						let amount_to_unreserve = match Self::amount_to_unreserve(&schedule.order) {
+						let amount_to_unreserve = match Self::get_amount_to_sell(&schedule.order) {
 							Ok(amount_to_unreserve) => amount_to_unreserve,
 							Err(err) => {
 								Self::terminate_schedule(schedule_id, &schedule, err);
@@ -486,7 +486,7 @@ pub mod pallet {
 					amount_in
 				},
 				Order::Buy {..} => {
-					let amount_to_unreserve = Self::amount_to_unreserve(&schedule.order)?;
+					let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;
 					ensure!(amount_to_unreserve > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 					amount_to_unreserve
 				}
@@ -533,7 +533,7 @@ where
 	) -> DispatchResult {
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
-		let Ok(amount_to_unreserve)  = Self::amount_to_unreserve(&schedule.order) else {
+		let Ok(amount_to_sell)  = Self::get_amount_to_sell(&schedule.order) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
@@ -543,19 +543,18 @@ where
 			&T::NamedReserveId::get(),
 			sold_currency.into(),
 			&schedule.owner,
-			amount_to_unreserve.into(),
+			amount_to_sell.into(),
 		);
 		ensure!(
 			remaining_amount_if_insufficient_balance == 0.into(),
 			Error::<T>::InvalidState
 		);
 
-		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_unreserve) else {
+		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_sell) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
-		//TODO: pass the amount_to_unreserve instead of recalculating
-		Self::execute_trade(origin, &schedule.order)
+		Self::execute_trade(origin, &schedule.order, amount_to_sell)
 	}
 
 	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> bool {
@@ -616,7 +615,7 @@ where
 		Ok(price_from_rational)
 	}
 
-	fn amount_to_unreserve(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
+	fn get_amount_to_sell(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		match order {
 			Order::Sell {
 				asset_in, amount_in, ..
@@ -638,9 +637,9 @@ where
 				let max_limit_from_oracle_price =
 					Self::get_max_limit_with_slippage(*asset_in, *asset_out, *amount_out)?;
 
-				let amount_to_sell_for_buy = min(*max_limit, max_limit_from_oracle_price);
+				let estimated_amount_to_sell = min(*max_limit, max_limit_from_oracle_price);
 
-				Ok(amount_to_sell_for_buy)
+				Ok(estimated_amount_to_sell)
 			}
 		}
 	}
@@ -900,7 +899,7 @@ where
 		Ok(bounded_vec)
 	}
 
-	fn execute_trade(origin: T::Origin, order: &Order<<T as Config>::Asset>) -> DispatchResult {
+	fn execute_trade(origin: T::Origin, order: &Order<T::Asset>, amount_to_sell: Balance) -> DispatchResult {
 		match order {
 			Order::Sell {
 				asset_in,
@@ -910,13 +909,6 @@ where
 				route: _,
 			} => {
 				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
-
-				//TODO: here I could use amount to unreserve?!
-				let transaction_fee = Self::get_transaction_fee_in_asset(*asset_in)?;
-
-				let amount_to_sell = amount_in
-					.checked_sub(transaction_fee)
-					.ok_or(ArithmeticError::Underflow)?;
 
 				T::AMMTrader::sell(
 					origin,
@@ -930,19 +922,8 @@ where
 				asset_in,
 				asset_out,
 				amount_out,
-				max_limit,
-				route: _,
-			} => {
-				let max_limit_with_slippage = Self::get_max_limit_with_slippage(*asset_in, *asset_out, *amount_out)?;
-
-				T::AMMTrader::buy(
-					origin,
-					*asset_in,
-					*asset_out,
-					*amount_out,
-					min(*max_limit, max_limit_with_slippage),
-				)
-			}
+				..
+			} => T::AMMTrader::buy(origin, *asset_in, *asset_out, *amount_out, amount_to_sell),
 		}
 	}
 
