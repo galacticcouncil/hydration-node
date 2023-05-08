@@ -10,6 +10,7 @@ use crate::AssetRegistry;
 use frame_system::RawOrigin;
 
 use primitives::{AssetId, Balance};
+use sp_std::vec;
 use sp_std::vec::Vec;
 
 pub const BSX: Balance = primitives::constants::currency::UNITS;

@@ -1,7 +1,9 @@
 use super::*;
 use sp_std::marker::PhantomData;
 
-use frame_support::{log, traits::OnRuntimeUpgrade, weights::Weight};
+use frame_support::{
+	log, migration::storage_key_iter, pallet_prelude::*, traits::OnRuntimeUpgrade, weights::Weight, StoragePrefixedMap,
+};
 use pallet_asset_registry::{AssetLocations, LocationAssets};
 use polkadot_xcm::v3::MultiLocation;
 
@@ -59,16 +61,24 @@ where
 
 		let mut weight: Weight = Weight::zero();
 
-		let _ = LocationAssets::<T>::clear(u32::MAX, None);
-
-		AssetLocations::<T>::translate(|asset_id, old_location: AssetLocationV2| {
-			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 2));
+		AssetLocations::<T>::translate(|_asset_id, old_location: AssetLocationV2| {
+			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
 			let new_multi_loc: MultiLocation = old_location.0.try_into().expect("xcm::v1::MultiLocation");
 			let new_location: T::AssetNativeLocation = AssetLocation(new_multi_loc).into();
-			LocationAssets::<T>::insert(&new_location, asset_id);
 			Some(new_location)
 		});
 
+		let module_prefix = LocationAssets::<T>::module_prefix();
+		let storage_prefix = LocationAssets::<T>::storage_prefix();
+		let old_data = storage_key_iter::<AssetLocationV2, T::AssetId, Blake2_128Concat>(module_prefix, storage_prefix)
+			.drain()
+			.collect::<Vec<_>>();
+		for (old_location, asset_id) in old_data {
+			weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
+			let new_multi_loc: MultiLocation = old_location.0.try_into().expect("xcm::v1::MultiLocation");
+			let new_location: T::AssetNativeLocation = AssetLocation(new_multi_loc).into();
+			LocationAssets::<T>::insert(new_location, asset_id);
+		}
 		weight
 	}
 }

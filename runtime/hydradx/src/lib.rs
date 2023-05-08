@@ -105,7 +105,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 140,
+	spec_version: 142,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -629,10 +629,10 @@ impl EnsureOrigin<RuntimeOrigin> for RootAsVestingPallet {
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn successful_origin() -> RuntimeOrigin {
+	fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
 		let zero_account_id = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
 			.expect("infinite length input; no invalid inputs for type; qed");
-		RuntimeOrigin::from(RawOrigin::Signed(zero_account_id))
+		Ok(RuntimeOrigin::from(RawOrigin::Signed(zero_account_id)))
 	}
 }
 
@@ -731,14 +731,8 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type FeeReceiver = TreasuryAccount;
 }
 
-#[derive(Debug, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
+#[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
 pub struct AssetLocation(pub polkadot_xcm::v3::MultiLocation);
-
-impl Default for AssetLocation {
-	fn default() -> Self {
-		AssetLocation(polkadot_xcm::v3::MultiLocation::default())
-	}
-}
 
 impl pallet_asset_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -844,6 +838,7 @@ parameter_types! {
 	pub const EmaOracleSpotPriceLastBlock: OraclePeriod = OraclePeriod::LastBlock;
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
 	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
+	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -858,6 +853,7 @@ impl pallet_omnipool::Config for Runtime {
 	type StableCoinAssetId = StableAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
+	type MinWithdrawalFee = MinimumWithdrawalFee;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
@@ -884,6 +880,7 @@ impl pallet_omnipool::Config for Runtime {
 			CircuitBreakerWhitelist,
 		>,
 	);
+	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -954,6 +951,7 @@ impl warehouse_liquidity_mining::Config<OmnipoolLiquidityMiningInstance> for Run
 	type AssetRegistry = AssetRegistry;
 	type NonDustableWhitelistHandler = Duster;
 	type RuntimeEvent = RuntimeEvent;
+	type PriceAdjustment = adapters::PriceAdjustmentAdapter<Runtime, OmnipoolLiquidityMiningInstance>;
 }
 
 impl pallet_omnipool_liquidity_mining::Config for Runtime {
@@ -964,6 +962,9 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type NFTCollectionId = OmnipoolLMCollectionId;
 	type NFTHandler = Uniques;
 	type LiquidityMiningHandler = OmnipoolWarehouseLM;
+	type OracleSource = OmnipoolLMOracleSource;
+	type OraclePeriod = OmnipoolLMOraclePeriod;
+	type PriceOracle = EmaOracle;
 	type WeightInfo = ();
 }
 

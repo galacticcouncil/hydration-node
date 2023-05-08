@@ -1,9 +1,6 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use common_runtime::BlockNumber;
-use frame_support::traits::OnFinalize;
-use frame_support::traits::OnInitialize;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use hydradx_runtime::{Balances, CircuitBreaker, Omnipool, OmnipoolCollectionId, Tokens, Uniques};
@@ -29,7 +26,7 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 			.unwrap()
 			.checked_div(num_of_sells)
 			.unwrap()
-			.checked_sub(1)
+			.checked_sub(UNITS)
 			.unwrap();
 
 		assert_ok!(Tokens::set_balance(
@@ -41,8 +38,6 @@ fn sell_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 		));
 
 		let min_limit = 0;
-
-		set_relaychain_block_number(300);
 
 		//Act and assert
 		for _ in 1..=num_of_sells {
@@ -94,8 +89,6 @@ fn sell_in_omnipool_should_fail_when_max_trade_limit_per_block_exceeded() {
 			));
 		}
 
-		set_relaychain_block_number(300);
-
 		//Act and assert
 		assert_noop!(
 			Omnipool::sell(
@@ -138,8 +131,6 @@ fn sell_lrna_in_omnipool_should_fail_when_min_trade_limit_per_block_exceeded() {
 			));
 		}
 
-		set_relaychain_block_number(300);
-
 		//Act and assert
 		assert_noop!(
 			Omnipool::sell(
@@ -177,8 +168,6 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 			0,
 		));
 
-		set_relaychain_block_number(300);
-
 		//Act and assert
 		for _ in 1..num_of_buys {
 			assert_ok!(Omnipool::buy(
@@ -195,7 +184,8 @@ fn buy_asset_for_lrna_should_fail_when_min_trade_limit_per_block_exceeded() {
 				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				CORE_ASSET_ID,
 				LRNA,
-				buy_amount + 1,
+				//NOTE: 3 - because rounding error in buy_amount calculation.
+				buy_amount + 3,
 				Balance::MAX
 			),
 			pallet_circuit_breaker::Error::<hydradx_runtime::Runtime>::TokenOutflowLimitReached
@@ -216,8 +206,6 @@ fn buy_in_omnipool_should_work_when_max_trade_limit_per_block_not_exceeded() {
 			10000000 * UNITS,
 			0,
 		));
-
-		set_relaychain_block_number(300);
 
 		assert_ok!(Omnipool::buy(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),

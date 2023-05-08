@@ -139,7 +139,7 @@ pub fn polkadot_ext() -> sp_io::TestExternalities {
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
-			safe_xcm_version: Some(2),
+			safe_xcm_version: Some(3),
 		},
 		&mut t,
 	)
@@ -223,7 +223,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
-			safe_xcm_version: Some(2),
+			safe_xcm_version: Some(3),
 		},
 		&mut t,
 	)
@@ -260,51 +260,6 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-// #[allow(dead_code)]
-// pub fn hydra_live_ext() -> sp_io::TestExternalities {
-// 	let ext = tokio::runtime::Builder::new_current_thread()
-// 		.enable_all()
-// 		.build()
-// 		.unwrap()
-// 		.block_on(async {
-// 			use frame_remote_externalities::*;
-
-// 			let path_str = String::from("../scraper/SNAPSHOT");
-
-// 			let snapshot_config = SnapshotConfig::from(path_str);
-// 			let offline_config = OfflineConfig {
-// 				state_snapshot: snapshot_config,
-// 			};
-// 			let mode = Mode::Offline(offline_config);
-
-// 			let builder = Builder::<hydradx_runtime::Block>::new().mode(mode);
-
-// 			builder.build().await.unwrap()
-// 		});
-// 	ext.inner_ext
-// }
-
-// #[allow(dead_code)]
-// pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
-// 	let blocks =
-// 		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
-// 			.unwrap();
-
-// 	for block in blocks.iter() {
-// 		for tx in block.extrinsics() {
-// 			let call = &tx.function;
-// 			let call_p = call.get_call_metadata().pallet_name;
-
-// 			if pallet_whitelist.contains(&call_p) {
-// 				let acc = &tx.signature.as_ref().unwrap().0;
-// 				assert_ok!(call
-// 					.clone()
-// 					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
-// 			}
-// 		}
-// 	}
-// }
-
 pub fn acala_ext() -> sp_io::TestExternalities {
 	use hydradx_runtime::{Runtime, System};
 
@@ -328,7 +283,7 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 
 	<pallet_xcm::GenesisConfig as GenesisBuild<Runtime>>::assimilate_storage(
 		&pallet_xcm::GenesisConfig {
-			safe_xcm_version: Some(2),
+			safe_xcm_version: Some(3),
 		},
 		&mut t,
 	)
@@ -404,7 +359,9 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 	}
 }
 
-pub fn hydra_live_ext() -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
+pub fn hydra_live_ext(
+	path_to_snapshot: &str,
+) -> frame_remote_externalities::RemoteExternalities<hydradx_runtime::Block> {
 	let ext = tokio::runtime::Builder::new_current_thread()
 		.enable_all()
 		.build()
@@ -412,9 +369,7 @@ pub fn hydra_live_ext() -> frame_remote_externalities::RemoteExternalities<hydra
 		.block_on(async {
 			use frame_remote_externalities::*;
 
-			let path_str = String::from("omnipool-snapshot/SNAPSHOT");
-
-			let snapshot_config = SnapshotConfig::from(path_str);
+			let snapshot_config = SnapshotConfig::from(String::from(path_to_snapshot));
 			let offline_config = OfflineConfig {
 				state_snapshot: snapshot_config,
 			};
@@ -425,4 +380,25 @@ pub fn hydra_live_ext() -> frame_remote_externalities::RemoteExternalities<hydra
 			builder.build().await.unwrap()
 		});
 	ext
+}
+
+#[allow(dead_code)]
+pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
+	let blocks =
+		scraper::load_blocks_snapshot::<hydradx_runtime::Block>(&std::path::PathBuf::from("../scraper/SNAPSHOT"))
+			.unwrap();
+
+	for block in blocks.iter() {
+		for tx in block.extrinsics() {
+			let call = &tx.function;
+			let call_p = call.get_call_metadata().pallet_name;
+
+			if pallet_whitelist.contains(&call_p) {
+				let acc = &tx.signature.as_ref().unwrap().0;
+				assert_ok!(call
+					.clone()
+					.dispatch(hydradx_runtime::RuntimeOrigin::signed(acc.clone())));
+			}
+		}
+	}
 }

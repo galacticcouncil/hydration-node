@@ -93,6 +93,7 @@ pub trait ExternalPriceProvider<AssetId, Price> {
 	fn get_price_weight() -> Weight;
 }
 
+#[allow(clippy::result_unit_err)]
 pub trait ShouldAllow<AccountId, AssetId, Price> {
 	fn ensure_price(who: &AccountId, asset_a: AssetId, asset_b: AssetId, current_price: Price) -> Result<(), ()>;
 }

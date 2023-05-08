@@ -17,16 +17,19 @@
 
 use crate::*;
 use frame_benchmarking::{account, benchmarks};
+use frame_support::traits::{OnFinalize, OnInitialize};
 use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrencyExtended;
+use pallet_liquidity_mining::Instance1;
 use primitives::AssetId;
-use sp_runtime::traits::One;
-use sp_runtime::Permill;
+use sp_runtime::{traits::One, FixedU128, Permill};
 
 const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 const ONE: Balance = 1_000_000_000_000;
+const BTC_ONE: Balance = 100_000_000;
 const HDX: AssetId = 0;
+const LRNA: AssetId = 1;
 const BSX: AssetId = 1_000_001;
 const ETH: AssetId = 1_000_002;
 const BTC: AssetId = 1_000_003;
@@ -60,7 +63,9 @@ where
 
 fn initialize_global_farm<T: Config>(owner: T::AccountId) -> DispatchResult
 where
+	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+	T: pallet_liquidity_mining::Config<Instance1>,
 {
 	Pallet::<T>::create_global_farm(
 		RawOrigin::Root.into(),
@@ -71,8 +76,9 @@ where
 		owner,
 		Perquintill::from_percent(20),
 		1_000,
-		FixedU128::one(),
-	)
+	)?;
+
+	seed_lm_pot::<T>()
 }
 
 fn initialize_yield_farm<T: Config>(owner: T::AccountId, id: GlobalFarmId, asset: T::AssetId) -> DispatchResult
@@ -85,6 +91,7 @@ where
 fn initialize_omnipool<T: Config>() -> DispatchResult
 where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T: pallet_ema_oracle::Config,
 	T::AssetId: From<u32>,
 {
 	let stable_amount: Balance = 1_000_000_000_000_000_u128;
@@ -144,7 +151,35 @@ where
 		token_price,
 		Permill::from_percent(100),
 		owner,
-	)
+	)?;
+
+	//NOTE: This is necessary for oracle to provide price.
+	set_period::<T>(10);
+
+	do_lrna_hdx_trade::<T>()
+}
+
+//NOTE: This is necessary for oracle to provide price.
+fn do_lrna_hdx_trade<T: Config>() -> DispatchResult
+where
+	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T::AssetId: From<u32>,
+{
+	let trader = create_funded_account::<T>("tmp_trader", 0, 100 * ONE, REWARD_CURRENCY.into());
+
+	fund::<T>(trader.clone(), LRNA.into(), 100 * ONE)?;
+
+	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), HDX.into(), ONE, 0)
+}
+
+fn seed_lm_pot<T: Config>() -> DispatchResult
+where
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+	T: pallet_liquidity_mining::Config<Instance1>,
+{
+	let pot = pallet_liquidity_mining::Pallet::<T, Instance1>::pot_account_id().unwrap();
+
+	fund::<T>(pot, HDX.into(), 100 * ONE)
 }
 
 fn omnipool_add_liquidity<T: Config>(
@@ -168,16 +203,30 @@ fn lm_deposit_shares<T: Config>(
 	crate::Pallet::<T>::deposit_shares(RawOrigin::Signed(who).into(), g_id, y_id, position_id)
 }
 
-fn set_period<T: Config>(block: u32) {
+fn set_period<T: Config>(to: u32)
+where
+	T: pallet_ema_oracle::Config,
+{
 	//NOTE: predefined global farm has period size = 1 block.
-	System::<T>::set_block_number(block.into());
+
+	while System::<T>::block_number() < to.into() {
+		let b = System::<T>::block_number();
+
+		System::<T>::on_finalize(b);
+		pallet_ema_oracle::Pallet::<T>::on_finalize(b);
+
+		System::<T>::on_initialize(b + 1_u32.into());
+		pallet_ema_oracle::Pallet::<T>::on_initialize(b + 1_u32.into());
+
+		System::<T>::set_block_number(b + 1_u32.into());
+	}
 }
 
 benchmarks! {
 	where_clause { where
-		T::AssetId: From<u32>,
+		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount=i128>,
-		T: crate::pallet::Config
+		T: crate::pallet::Config + pallet_ema_oracle::Config + pallet_liquidity_mining::Config<Instance1>,
 	}
 
 	create_global_farm {
@@ -188,27 +237,7 @@ benchmarks! {
 		let min_deposit = 1_000;
 		let price_adjustment = FixedU128::from(10_u128);
 
-	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit, price_adjustment)
-
-	update_global_farm {
-		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
-		let global_farm_id = 1;
-		let yield_farm_id = 2;
-		let new_price_adjustment = FixedU128::from(5_u128);
-
-		initialize_omnipool::<T>()?;
-
-		initialize_global_farm::<T>(owner.clone())?;
-		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BSX.into())?;
-
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BSX.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BSX.into(), 1_000 * ONE)?;
-
-		set_period::<T>(100);
-		lm_deposit_shares::<T>(lp, global_farm_id, yield_farm_id, position_id)?;
-
-		set_period::<T>(200);
-	}: _(RawOrigin::Signed(owner), global_farm_id, new_price_adjustment)
+	}: _(RawOrigin::Root,  G_FARM_TOTAL_REWARDS, planned_yielding_periods, blocks_per_period, REWARD_CURRENCY.into(), owner, yield_per_period, min_deposit)
 
 	terminate_global_farm {
 		let owner = create_funded_account::<T>("owner", 0, G_FARM_TOTAL_REWARDS, REWARD_CURRENCY.into());
@@ -220,8 +249,8 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BTC.into())?;
 
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		set_period::<T>(100);
 		lm_deposit_shares::<T>(lp, global_farm_id, yield_farm_id, position_id)?;
@@ -242,8 +271,8 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BTC.into())?;
 
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		set_period::<T>(100);
 		lm_deposit_shares::<T>(lp, global_farm_id, 2, position_id)?;
@@ -262,8 +291,8 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BTC.into())?;
 
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		lm_deposit_shares::<T>(lp, global_farm_id, yield_farm_id, position_id)?;
 
@@ -280,8 +309,8 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BTC.into())?;
 
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		lm_deposit_shares::<T>(lp, global_farm_id, yield_farm_id, position_id)?;
 
@@ -300,8 +329,8 @@ benchmarks! {
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, ETH.into())?;
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BTC.into())?;
 
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		crate::Pallet::<T>::stop_yield_farm(RawOrigin::Signed(owner.clone()).into(), global_farm_id, ETH.into())?;
 
@@ -322,8 +351,8 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner.clone(), global_farm_id, BTC.into())?;
 
-		let lp = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let position_id = omnipool_add_liquidity::<T>(lp.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		lm_deposit_shares::<T>(lp, global_farm_id, yield_farm_id, position_id)?;
 
@@ -344,13 +373,13 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner, global_farm_id, BTC.into())?;
 
-		let lp1 = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp1 = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		lm_deposit_shares::<T>(lp1, global_farm_id, yield_farm_id, lp1_position_id)?;
 
-		let lp2 = create_funded_account::<T>("lp_2", 1, 1_000 * ONE, BTC.into());
-		let lp2_position_id = omnipool_add_liquidity::<T>(lp2.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp2 = create_funded_account::<T>("lp_2", 1, 10 * BTC_ONE, BTC.into());
+		let lp2_position_id = omnipool_add_liquidity::<T>(lp2.clone(), BTC.into(), 10 * BTC_ONE)?;
 		set_period::<T>(200);
 
 
@@ -388,11 +417,11 @@ benchmarks! {
 		initialize_global_farm::<T>(owner5.clone())?;
 		initialize_yield_farm::<T>(owner5, 9, BTC.into())?;
 
-		let lp1 = create_funded_account::<T>("lp_1", 5, 1_000 * ONE, BTC.into());
-		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
+		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		let lp2 = create_funded_account::<T>("lp_2", 6, 1_000 * ONE, BTC.into());
-		let lp2_position_id = omnipool_add_liquidity::<T>(lp2.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp2_position_id = omnipool_add_liquidity::<T>(lp2.clone(), BTC.into(), 10 * BTC_ONE)?;
 
 		set_period::<T>(200);
 
@@ -438,8 +467,11 @@ benchmarks! {
 		initialize_global_farm::<T>(owner5.clone())?;
 		initialize_yield_farm::<T>(owner5, 9, BTC.into())?;
 
-		let lp1 = create_funded_account::<T>("lp_1", 5, 1_000 * ONE, BTC.into());
-		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp1 = create_funded_account::<T>("lp_1", 5, 10 * BTC_ONE, BTC.into());
+		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 10 * BTC_ONE)?;
+
+		//NOTE: This is necessary because paid rewards are lower than ED.
+		fund::<T>(lp1.clone(), REWARD_CURRENCY.into(), 100 * ONE)?;
 
 		set_period::<T>(200);
 
@@ -465,8 +497,11 @@ benchmarks! {
 		initialize_global_farm::<T>(owner.clone())?;
 		initialize_yield_farm::<T>(owner, global_farm_id, BTC.into())?;
 
-		let lp1 = create_funded_account::<T>("lp_1", 1, 1_000 * ONE, BTC.into());
-		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 1_000 * ONE)?;
+		let lp1 = create_funded_account::<T>("lp_1", 1, 10 * BTC_ONE, BTC.into());
+		let lp1_position_id = omnipool_add_liquidity::<T>(lp1.clone(), BTC.into(), 10 * BTC_ONE)?;
+
+		//NOTE: This is necessary because paid rewards are lower than ED.
+		fund::<T>(lp1.clone(), REWARD_CURRENCY.into(), 100 * ONE)?;
 
 		set_period::<T>(200);
 
