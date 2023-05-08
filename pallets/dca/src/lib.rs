@@ -40,18 +40,9 @@
 
 /*
 TODO:
-- check TODO comments
-- process all remarks
-- recalcualte storage bond feee
 - merge master
-
 - rebenchmark
-
-
-Discuss:
-- look at the code
-- check config for pallet
- */
+*/
 
 use codec::MaxEncodedLen;
 use frame_support::{
@@ -130,7 +121,7 @@ pub mod pallet {
 			//TODO: write in channel to discuss if we want to have a way to pause the execution of the orders
 			//TODO: To recover, Consider having an offset for the current blocknumber so we can execute "old" schedules
 
-			let mut weight: u64 = Self::get_on_initialize_weight(); //TODO: do minimal weight
+			let mut weight = T::WeightInfo::on_initialize(); //TODO: do minimal weight
 			//TODO: use weight instead of u64
 
 			let mut random_generator = T::RandomnessProvider::generator();
@@ -153,14 +144,14 @@ pub mod pallet {
 
 				//TODO: optimize, do it outside the loop, and miltiple the single execution weight with the number of schedules
 				let weight_for_single_execution = match Self::get_weight_for_single_execution() {
-					Ok(weight) => {weight.ref_time()}
+					Ok(weight) => {weight}
 					Err(err) => {
 						Self::terminate_schedule(schedule_id, &schedule, err);
 						continue;
 					}
 				};
 
-				weight.saturating_accrue(weight_for_single_execution.into());
+				weight.saturating_accrue(weight_for_single_execution);
 
 				//TODO: prepare_schedule_for_execution
 				match Self::take_transaction_fee_from_user(schedule_id, &schedule.owner, &schedule.order) {
@@ -278,7 +269,7 @@ pub mod pallet {
 				}
 			}
 
-			Weight::from_ref_time(weight)
+			weight
 
 		}
 	}
@@ -718,14 +709,6 @@ where
 		Ok(storage_bond_in_user_currency)
 	}
 
-	fn get_on_initialize_weight() -> u64 {
-		T::WeightInfo::on_initialize().ref_time()
-	}
-
-	fn get_execute_schedule_weight() -> u64 {
-		T::WeightInfo::execute_schedule().ref_time()
-	}
-
 	#[transactional]
 	fn take_transaction_fee_from_user(
 		schedule_id: ScheduleId,
@@ -1002,6 +985,7 @@ where
 	) -> Result<u128, DispatchError> {
 		//TODO: check decimals property tests OTC pallet
 		//TODO: this should be the other way around, so asset_in/asset_out
+
 		let price = Self::get_price_from_last_block_oracle(asset_out, asset_in)?;
 
 		let estimated_amount_in = price.checked_mul_int(amount_out).ok_or(ArithmeticError::Overflow)?;
