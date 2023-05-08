@@ -635,9 +635,11 @@ where
 				max_limit,
 				..
 			} => {
-				//TODO: inline
-				let amount_to_sell_for_buy =
-					Self::calculate_sell_amount_for_buy(*asset_in, *asset_out, *amount_out, *max_limit)?;
+				let max_limit_from_oracle_price =
+					Self::get_max_limit_with_slippage(*asset_in, *asset_out, *amount_out)?;
+
+				let amount_to_sell_for_buy = min(*max_limit, max_limit_from_oracle_price);
+
 				Ok(amount_to_sell_for_buy)
 			}
 		}
@@ -674,19 +676,6 @@ where
 		})?;
 
 		Ok(())
-	}
-
-	fn calculate_sell_amount_for_buy(
-		asset_in: <T as Config>::Asset,
-		asset_out: <T as Config>::Asset,
-		amount_out: Balance,
-		max_limit: Balance,
-	) -> Result<u128, DispatchError> {
-		let max_limit_from_oracle_price = Self::get_max_limit_with_slippage(asset_in, asset_out, amount_out)?;
-
-		let max_limit = min(max_limit, max_limit_from_oracle_price);
-
-		Ok(max_limit)
 	}
 
 	fn get_storage_bond(schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) -> Result<Balance, DispatchError> {
