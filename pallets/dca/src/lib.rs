@@ -480,7 +480,7 @@ pub mod pallet {
 			RemainingAmounts::<T>::insert(next_schedule_id,schedule.total_amount);
 			RetriesOnError::<T>::insert(next_schedule_id,0);
 
-			Self::reserve_named_reserve(&schedule, &who)?;
+			Self::reserve_asset_in(&schedule, &who)?;
 
 			let blocknumber_for_first_schedule_execution =
 				start_execution_block.unwrap_or_else(|| Self::get_next_block_number());
@@ -757,7 +757,7 @@ where
 		Ok(())
 	}
 
-	fn reserve_named_reserve(
+	fn reserve_asset_in(
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 		who: &T::AccountId,
 	) -> DispatchResult {
