@@ -648,8 +648,13 @@ where
 				max_limit,
 				..
 			} => {
-				let max_limit_from_oracle_price =
-					Self::get_max_limit_with_slippage(*asset_in, *asset_out, *amount_out)?;
+				//TODO: here it should be the other way around
+				let (estimated_amount_in, slippage_amount) =
+					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_out)?;
+
+				let max_limit_from_oracle_price = estimated_amount_in
+					.checked_add(slippage_amount)
+					.ok_or(ArithmeticError::Overflow)?;
 
 				let estimated_amount_to_sell = min(*max_limit, max_limit_from_oracle_price);
 
@@ -934,7 +939,15 @@ where
 				min_limit,
 				route: _,
 			} => {
-				let min_limit_with_slippage = Self::get_min_limit_with_slippage(*asset_in, *asset_out, *amount_in)?;
+				//TODO: here it should be the other way around so asset out asset in
+
+				//TODO: verify this - we are selling 10 tokens for 10 tokens, this function should give me 3% less than 10
+				let (estimated_amount_out, slippage_amount) =
+					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_in)?;
+
+				let min_limit_with_slippage = estimated_amount_out
+					.checked_sub(slippage_amount)
+					.ok_or(ArithmeticError::Overflow)?;
 
 				T::AMMTrader::sell(
 					origin,
@@ -953,44 +966,18 @@ where
 		}
 	}
 
-	fn get_min_limit_with_slippage(
-		asset_in: <T as Config>::Asset,
-		asset_out: <T as Config>::Asset,
-		amount_in: Balance,
-	) -> Result<u128, DispatchError> {
-		//TODO: asset out - asset in
-		let price = Self::get_price_from_last_block_oracle(asset_in, asset_out)?;
+	fn calculate_estimated_and_slippage_amounts(
+		asset_a: <T as Config>::Asset,
+		asset_b: <T as Config>::Asset,
+		amount: Balance,
+	) -> Result<(Balance, Balance), DispatchError> {
+		let price = Self::get_price_from_last_block_oracle(asset_a, asset_b)?;
 
-		let estimated_amount_out = price.checked_mul_int(amount_in).ok_or(ArithmeticError::Overflow)?;
+		let estimated_amount = price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
-		let slippage_amount = T::MaxSlippageTresholdBetweenBlocks::get().mul_floor(estimated_amount_out);
-		let min_limit_with_slippage = estimated_amount_out
-			.checked_sub(slippage_amount)
-			.ok_or(ArithmeticError::Overflow)?;
+		let slippage_amount = T::MaxSlippageTresholdBetweenBlocks::get().mul_floor(estimated_amount);
 
-		//TODO: verify this - we are selling 10 tokens for 10 tokens, this function should give me 3% less than 10
-
-		Ok(min_limit_with_slippage)
-	}
-
-	fn get_max_limit_with_slippage(
-		asset_in: <T as Config>::Asset,
-		asset_out: <T as Config>::Asset,
-		amount_out: Balance,
-	) -> Result<u128, DispatchError> {
-		//TODO: check decimals property tests OTC pallet
-		//TODO: this should be the other way around, so asset_in/asset_out
-
-		let price = Self::get_price_from_last_block_oracle(asset_out, asset_in)?;
-
-		let estimated_amount_in = price.checked_mul_int(amount_out).ok_or(ArithmeticError::Overflow)?;
-
-		let slippage_amount = T::MaxSlippageTresholdBetweenBlocks::get().mul_floor(estimated_amount_in);
-		let max_limit_with_slippage = estimated_amount_in
-			.checked_add(slippage_amount)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		Ok(max_limit_with_slippage)
+		Ok((estimated_amount, slippage_amount))
 	}
 
 	fn get_transaction_fee_in_asset(weight: Weight, fee_currency: T::Asset) -> Result<u128, DispatchError> {
