@@ -119,9 +119,7 @@ pub mod pallet {
 		>>::Balance: From<u128>,
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
-			//TODO: write in channel to discuss if we want to have a way to pause the execution of the orders
-			//TODO: To recover, Consider having an offset for the current blocknumber so we can execute "old" schedules
-
+			//TODO: If verified by Lumir, we add an admin endpoint
 			let mut weight = T::WeightInfo::on_initialize(); //TODO: do minimal weight
 
 			let mut random_generator = T::RandomnessProvider::generator();
@@ -936,7 +934,7 @@ where
 				min_limit,
 				route: _,
 			} => {
-				let min_limit_with_slippage = Self::get_min_limit_with_slippage(asset_in, asset_out, amount_in)?;
+				let min_limit_with_slippage = Self::get_min_limit_with_slippage(*asset_in, *asset_out, *amount_in)?;
 
 				T::AMMTrader::sell(
 					origin,
@@ -956,14 +954,14 @@ where
 	}
 
 	fn get_min_limit_with_slippage(
-		asset_in: &<T as Config>::Asset,
-		asset_out: &<T as Config>::Asset,
-		amount_in: &Balance,
+		asset_in: <T as Config>::Asset,
+		asset_out: <T as Config>::Asset,
+		amount_in: Balance,
 	) -> Result<u128, DispatchError> {
 		//TODO: asset out - asset in
-		let price = Self::get_price_from_last_block_oracle(*asset_in, *asset_out)?;
+		let price = Self::get_price_from_last_block_oracle(asset_in, asset_out)?;
 
-		let estimated_amount_out = price.checked_mul_int(*amount_in).ok_or(ArithmeticError::Overflow)?;
+		let estimated_amount_out = price.checked_mul_int(amount_in).ok_or(ArithmeticError::Overflow)?;
 
 		let slippage_amount = T::MaxSlippageTresholdBetweenBlocks::get().mul_floor(estimated_amount_out);
 		let min_limit_with_slippage = estimated_amount_out
