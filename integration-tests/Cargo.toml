@@ -20,15 +20,15 @@ pallet-circuit-breaker = { path = "../pallets/circuit-breaker",default-features 
 # HydraDX dependencies
 pallet-omnipool-liquidity-mining = { path = "../pallets/omnipool-liquidity-mining", default-features = true}
 
-pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false }
-pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false}
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false}
-pallet-duster = { git = "https://github.com/galacticcouncil/warehouse",rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false}
-pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse",rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false}
-warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false }
-pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a", default-features = false}
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "0047e9ceff47b2a058ae9ecc25da96d1e827a26a" }
+pallet-asset-registry = { git = "https://github.com/galacticcouncil/warehouse", rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false }
+pallet-transaction-multi-payment = { git = "https://github.com/galacticcouncil/warehouse", rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false}
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse",rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false}
+pallet-duster = { git = "https://github.com/galacticcouncil/warehouse",rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false}
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse",rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false}
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https://github.com/galacticcouncil/warehouse", rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false }
+pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff", default-features = false}
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "698609e357d3bf905b8dfe6ada0ef97f04a04aff" }
 
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }

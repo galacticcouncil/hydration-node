@@ -9,8 +9,10 @@ use frame_support::{
 
 use hydradx_runtime::{Balances, Currencies, MultiTransactionPayment, Origin, Tokens};
 
+use frame_support::dispatch::{DispatchInfo, Weight};
 use orml_traits::currency::MultiCurrency;
 use polkadot_primitives::v2::BlockNumber;
+use sp_runtime::traits::SignedExtension;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
 use xcm_emulator::TestExt;
@@ -34,14 +36,27 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
-		// ------------ BOB ------------
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::Origin::signed(BOB.into()),
-			DAI,
-		));
+		let call =
+			hydradx_runtime::Call::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
+				currency: BTC,
+			});
 
-		let bob_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(BOB));
-		assert_eq!(bob_balance, 999_999_999_051_826_230_041); // fallback price of 1.
+		let info = DispatchInfo {
+			weight: Weight::from_ref_time(106_957_000),
+			..Default::default()
+		};
+		let len: usize = 10;
+
+		assert_ok!(
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
+				&AccountId::from(BOB),
+				&call,
+				&info,
+				len,
+			)
+		);
+		let bob_balance = hydradx_runtime::Tokens::free_balance(BTC, &AccountId::from(BOB));
+		assert_eq!(bob_balance, 999_957);
 
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::Origin::root(),
@@ -66,18 +81,24 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 			Permill::from_percent(100),
 			Permill::from_percent(10)
 		));
-		//let spot_price = hydradx_runtime::Omnipool::spot_price(HDX, DAI);
-		//assert_eq!(spot_price, Some(Price::from_float(26699.999999999999999999)));
-
 		hydra_run_to_block(2);
 
-		assert_ok!(hydradx_runtime::MultiTransactionPayment::set_currency(
-			hydradx_runtime::Origin::signed(DAVE.into()),
-			DAI,
-		));
+		let call =
+			hydradx_runtime::Call::MultiTransactionPayment(pallet_transaction_multi_payment::Call::set_currency {
+				currency: DAI,
+			});
+
+		assert_ok!(
+			pallet_transaction_payment::ChargeTransactionPayment::<hydradx_runtime::Runtime>::from(0).pre_dispatch(
+				&AccountId::from(DAVE),
+				&call,
+				&info,
+				len,
+			)
+		);
 
 		let dave_balance = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(DAVE));
-		assert_eq!(dave_balance, 999_974_683_760_342_094_701); //Omnipool spot price
+		assert_eq!(dave_balance, 999_991_350_824_932_202_801); //Omnipool spot price
 	});
 }
 

@@ -106,7 +106,7 @@ impl Config for XcmConfig {
 			Price,
 			CurrencyIdConvert,
 			DepositAll<Runtime>,
-			MultiTransactionPayment,
+			TreasuryAccount,
 		>,
 	>;
 
