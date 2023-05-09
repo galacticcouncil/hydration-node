@@ -62,6 +62,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
 use sp_runtime::traits::CheckedMul;
+use sp_runtime::traits::One;
 use sp_runtime::{
 	traits::{BlockNumberProvider, Saturating},
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
@@ -481,8 +482,9 @@ pub mod pallet {
 
 			Self::reserve_asset_in(&schedule, &who)?;
 
+			let next_block_number = Self::get_next_block_number()?;
 			let blocknumber_for_first_schedule_execution =
-				start_execution_block.unwrap_or_else(|| Self::get_next_block_number());
+				start_execution_block.unwrap_or_else(|| next_block_number);
 			Self::plan_schedule_for_block(who.clone(), blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			Self::deposit_event(Event::Scheduled {
@@ -918,11 +920,13 @@ where
 		})
 	}
 
-	fn get_next_block_number() -> BlockNumberFor<T> {
+	fn get_next_block_number() -> Result<BlockNumberFor<T>, DispatchError> {
 		let mut current_block_number = frame_system::Pallet::<T>::current_block_number();
-		current_block_number.saturating_inc();
+		let next_block_number = current_block_number
+			.checked_add(&T::BlockNumber::one())
+			.ok_or(ArithmeticError::Overflow)?;
 
-		current_block_number
+		Ok(next_block_number)
 	}
 
 	fn create_bounded_vec(
