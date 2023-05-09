@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
@@ -1856,62 +1856,6 @@ impl<T: Config> Pallet<T> {
 
 		<Assets<T>>::insert(asset_id, state);
 
-		Ok(())
-	}
-
-	/// Updates states of 2 non-hub assets given calculated trade result.
-	#[require_transactional]
-	pub fn update_omnipool_state_given_trade_result(
-		origin: T::Origin,
-		asset_in: T::AssetId,
-		asset_out: T::AssetId,
-		trade: TradeStateChange<Balance>,
-	) -> DispatchResult {
-		let delta_hub_asset = trade
-			.asset_in
-			.delta_hub_reserve
-			.merge(
-				trade
-					.asset_out
-					.delta_hub_reserve
-					.merge(BalanceUpdate::Increase(trade.hdx_hub_amount))
-					.ok_or(ArithmeticError::Overflow)?,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		match delta_hub_asset {
-			BalanceUpdate::Increase(val) if val == Balance::zero() => {
-				// nothing to do if zero.
-			}
-			BalanceUpdate::Increase(_) => {
-				// trade can only burn some.
-				return Err(Error::<T>::HubAssetUpdateError.into());
-			}
-			BalanceUpdate::Decrease(amount) => {
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-			}
-		};
-
-		//TODO: call on_trade hook.
-
-		Self::update_imbalance(trade.delta_imbalance)?;
-
-		Self::update_asset_state(asset_in, trade.asset_in)?;
-		Self::update_asset_state(asset_out, trade.asset_out)?;
-
-		Self::update_hdx_subpool_hub_asset(origin, trade.hdx_hub_amount)?;
-
-		Ok(())
-	}
-
-	/// Updates states of an asset given calculated trade result where hub asset was traded.
-	#[require_transactional]
-	pub fn update_omnipool_state_given_hub_asset_trade(
-		asset: T::AssetId,
-		trade: HubTradeStateChange<Balance>,
-	) -> DispatchResult {
-		Self::update_imbalance(trade.delta_imbalance)?;
-		Self::update_asset_state(asset, trade.asset)?;
 		Ok(())
 	}
 
