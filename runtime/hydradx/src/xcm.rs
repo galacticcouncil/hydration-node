@@ -98,15 +98,7 @@ impl Config for XcmConfig {
 		WeightToFee,
 		MultiTransactionPayment,
 		CurrencyIdConvert,
-		ToFeeReceiver<
-			AccountId,
-			AssetId,
-			Balance,
-			Price,
-			CurrencyIdConvert,
-			DepositAll<Runtime>,
-			TreasuryAccount,
-		>,
+		ToFeeReceiver<AccountId, AssetId, Balance, Price, CurrencyIdConvert, DepositAll<Runtime>, TreasuryAccount>,
 	>;
 
 	type ResponseHandler = PolkadotXcm;
