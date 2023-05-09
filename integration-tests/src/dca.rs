@@ -46,7 +46,8 @@ fn create_schedule_should_work() {
 		));
 
 		//Assert
-		let schedule = hydradx_runtime::DCA::schedules(1);
+		let schedule_id = 0;
+		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
 		assert!(schedule.is_some());
 
 		let next_block_id = block_id + 1;
@@ -77,8 +78,8 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		run_to_block(1001, 1005);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 2_131_366_775_591;
-		let over_reservation_left_over = 976_815_524_731; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		let amount_to_unreserve_for_trade = 1_176_369_648_890;
+		let over_reservation_left_over = 27_384_097_563; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + UNITS);
 		assert_balance!(
@@ -118,7 +119,7 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		run_to_block(1001, 1002);
 
 		//Assert
-		let amount_out = 9_644_911_810_628;
+		let amount_out = 9_697_662_718_647;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -156,9 +157,9 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		run_to_block(1001, 1500);
 
 		//Assert
-		let fees = 6699705555141;
-		let over_reservation_left_over = 51162011419014; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 51 * UNITS);
+		let fees = 12217110129963;
+		let over_reservation_left_over = 3291086248339; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 93 * UNITS);
 		assert_balance!(
 			ALICE.into(),
 			HDX,
@@ -201,7 +202,7 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		run_to_block(1001, 1500);
 
 		//Assert
-		let amount_out = 106_092_522_518_869;
+		let amount_out = 106_672_706_573_637;
 		let fee = 1_445_034_531_501;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
@@ -248,13 +249,13 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		run_to_block(1001, 1500);
 
 		//Assert
-		let amount_out = 106079428677451;
+		let amount_out = 106_659_505_227_312;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let amount_out = 125360766381885;
+		let amount_out = 126_046_248_503_771;
 
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(BOB.into(), HDX, BOB_INITIAL_NATIVE_BALANCE - dca_budget_for_bob);
@@ -302,7 +303,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		//Assert
 		//We check the random ordering based on the the emitted events.
 		//The orders should fail due to invalid min limit.
-		expect_schedule_ids_from_events(vec![3, 6, 1, 5, 4, 2]);
+		expect_schedule_ids_from_events(vec![2, 5, 0, 4, 3, 1]);
 	});
 }
 #[test]
@@ -458,12 +459,11 @@ fn init_omnipool_with_oracle_for_with_block_1000() {
 	init_omnipol();
 	let trade_amount = 40000 * UNITS;
 	do_trade_to_populate_oracle(DAI, HDX, trade_amount);
-	let block_id = 800;
+	let block_id = 50;
 	set_relaychain_block_number(block_id);
-
 	do_trade_to_populate_oracle(DAI, HDX, trade_amount);
 
-	run_to_block(801, 1000);
+	run_to_block(block_id + 1, 1000);
 }
 
 fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balance) {

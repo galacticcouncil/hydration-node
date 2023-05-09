@@ -650,9 +650,8 @@ where
 				max_limit,
 				..
 			} => {
-				//TODO: here it should be the other way around
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_out)?;
+					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out)?;
 
 				let max_limit_from_oracle_price = estimated_amount_in
 					.checked_add(slippage_amount)
@@ -947,11 +946,8 @@ where
 				min_limit,
 				route: _,
 			} => {
-				//TODO: here it should be the other way around so asset out asset in
-
-				//TODO: verify this - we are selling 10 tokens for 10 tokens, this function should give me 3% less than 10
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_in)?;
+					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_in)?;
 
 				let min_limit_with_slippage = estimated_amount_out
 					.checked_sub(slippage_amount)
