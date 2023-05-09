@@ -84,7 +84,7 @@ fn schedule_should_store_total_amounts_in_storage() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let schedule_id = 1;
+			let schedule_id = 0;
 			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
 		});
 }
@@ -131,10 +131,10 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 				total_amount + total_amount_2,
 				Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE)
 			);
-			let schedule_id = 1;
+			let schedule_id = 0;
 			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
 
-			let schedule_id_2 = 2;
+			let schedule_id_2 = 1;
 			assert_eq!(DCA::remaining_amounts(schedule_id_2).unwrap(), total_amount_2);
 		});
 }
@@ -153,14 +153,14 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let schedule_id = 1;
+			let schedule_id = 0;
 			let stored_schedule = DCA::schedules(schedule_id).unwrap();
 			assert_eq!(stored_schedule, ScheduleBuilder::new().build());
 
 			//Check if schedule ids are stored
 			let schedule_ids = DCA::schedule_ids_per_block(501);
 			assert!(!DCA::schedule_ids_per_block(501).is_empty());
-			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
+			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![schedule_id]);
 			assert_eq!(schedule_ids, expected_scheduled_ids_for_next_block);
 
 			//Check if schedule ownership is created
@@ -184,12 +184,15 @@ fn schedule_should_work_when_multiple_schedules_stored() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			assert!(DCA::schedules(1).is_some());
-			assert!(DCA::schedules(2).is_some());
+			let schedule_id = 0;
+			let schedule_id_2 = 1;
+			assert!(DCA::schedules(schedule_id).is_some());
+			assert!(DCA::schedules(schedule_id_2).is_some());
 
 			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501);
 
-			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1, 2]);
+			let expected_scheduled_ids_for_next_block =
+				create_bounded_vec_with_schedule_ids(vec![schedule_id, schedule_id_2]);
 			assert_eq!(scheduled_ids_for_next_block, expected_scheduled_ids_for_next_block);
 		});
 }
@@ -212,14 +215,14 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 			));
 
 			//Assert
-			let schedule_id = 1;
+			let schedule_id = 0;
 			let stored_schedule = DCA::schedules(schedule_id).unwrap();
 			assert_eq!(stored_schedule, schedule);
 
 			//Check if schedule ids are stored
 			let schedule_ids = DCA::schedule_ids_per_block(600);
 			assert!(!DCA::schedule_ids_per_block(600).is_empty());
-			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![1]);
+			let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids(vec![schedule_id]);
 			assert_eq!(schedule_ids, expected_scheduled_ids_for_next_block);
 
 			//Check if schedule ownership is created
@@ -241,14 +244,19 @@ fn schedule_should_emit_necessary_events() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
+			let schedule_id = 0;
 			expect_events(vec![
 				Event::ExecutionPlanned {
-					id: 1,
+					id: schedule_id,
 					who: ALICE,
 					block: 501,
 				}
 				.into(),
-				Event::Scheduled { id: 1, who: ALICE }.into(),
+				Event::Scheduled {
+					id: schedule_id,
+					who: ALICE,
+				}
+				.into(),
 			]);
 		});
 }
@@ -266,26 +274,37 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 			//Act and assert
 			set_block_number(500);
 
+			let schedule_id = 0;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 			expect_events(vec![
 				Event::ExecutionPlanned {
-					id: 1,
+					id: schedule_id,
 					who: ALICE,
 					block: 501,
 				}
 				.into(),
-				Event::Scheduled { id: 1, who: ALICE }.into(),
+				Event::Scheduled {
+					id: schedule_id,
+					who: ALICE,
+				}
+				.into(),
 			]);
+
+			let schedule_id2 = 1;
 
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(1000)));
 			expect_events(vec![
 				Event::ExecutionPlanned {
-					id: 2,
+					id: schedule_id2,
 					who: ALICE,
 					block: 1000,
 				}
 				.into(),
-				Event::Scheduled { id: 2, who: ALICE }.into(),
+				Event::Scheduled {
+					id: schedule_id2,
+					who: ALICE,
+				}
+				.into(),
 			]);
 		});
 }
@@ -418,7 +437,7 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 
 			//Act
 			let schedule = ScheduleBuilder::new().build();
-			let schedule_id = 21;
+			let schedule_id = 20;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
@@ -445,7 +464,7 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 
 			//Act
 			let schedule = ScheduleBuilder::new().build();
-			let schedule_id = 41;
+			let schedule_id = 40;
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
@@ -661,7 +680,7 @@ fn schedule_should_init_retries_to_zero() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let schedule_id = 1;
+			let schedule_id = 0;
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(0, retries.unwrap());
 		});

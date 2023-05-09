@@ -910,9 +910,11 @@ where
 
 	fn get_next_schedule_id() -> Result<ScheduleId, ArithmeticError> {
 		ScheduleIdSequencer::<T>::try_mutate(|current_id| {
+			let schedule_id = *current_id;
+
 			*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
 
-			Ok(*current_id)
+			Ok(schedule_id)
 		})
 	}
 
