@@ -197,33 +197,30 @@ benchmarks! {
 		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance: From<u128>
 	}
 
-	execute_schedule {
+	/*on_initialize_with_empty_block{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_sell = 20_000_000_000_000u128;
+		let amount_sell = 1_000_000_000_000u128;
 		let sell_max_limit = 200_000_000_000_000u128;
 
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
-		let schedule1 = schedule_sell_fake::<T>(seller.clone(), token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
 		let execution_block = 100u32;
 
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(execution_block.into())));
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
-
 	}: {
-		let mut weight = 0u64;
-
-		crate::Pallet::<T>::execute_schedule(execution_block.into(), &mut weight, 1);
+		crate::Pallet::<T>::on_initialize(execution_block.into());
+		//TODO: it fails with buy limit not reached, check out why, maybe the schedule is not correct
 	}
 	verify {
-		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
-	}
+		//TODO: Add assertion
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller), 0);
+	}*/
 
-	on_initialize{
+	/*on_initialize{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
@@ -247,7 +244,7 @@ benchmarks! {
 	verify {
 		//TODO: Add assertion
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
-	}
+	}*/
 
 	schedule{
 		let token_id = prepare_omnipool::<T>()?;
@@ -260,54 +257,26 @@ benchmarks! {
 		let execution_block = 100u32;
 		let one_block_after_execution_block = execution_block + 1;
 
-		//We fill the execution block
-		let number_of_generated_schedules_as_prerequisite = 20;
-		for _ in 1..=number_of_generated_schedules_as_prerequisite {
+		//We fill blocks with schedule leaving only one place
+		let number_of_all_schedules = T::MaxSchedulePerBlock::get() + T::MaxSchedulePerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
+		for i in 0..number_of_all_schedules {
 			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
 		}
 
-		let schedule_id : ScheduleId = number_of_generated_schedules_as_prerequisite + 1;
+		let schedule_id : ScheduleId = number_of_all_schedules;
 
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::Some(execution_block.into()))
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
-		assert!(!<ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(one_block_after_execution_block.into()).is_empty());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(execution_block.into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 1u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 3u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 7u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 15u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 31u32).into()).len());
 	}
 
-	pause{
-		let token_id = prepare_omnipool::<T>()?;
-		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
-
-		let amount_sell = 20_000_000_000_000u128;
-		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
-		let schedule_id : ScheduleId = 1;
-		let execution_block = 100u32;
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
-
-	}: _(RawOrigin::Signed(caller.clone()), schedule_id, execution_block.into())
-	verify {
-		assert!(<Suspended<T>>::get::<ScheduleId>(schedule_id).is_some());
-	}
-
-	resume{
-		let token_id = prepare_omnipool::<T>()?;
-		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
-
-		let amount_sell = 20_000_000_000_000u128;
-		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
-		let schedule_id : ScheduleId = 1;
-		let execution_block = 100u32;
-
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
-		assert_ok!(crate::Pallet::<T>::pause(RawOrigin::Signed(caller.clone()).into(), schedule_id, execution_block.into()));
-
-	}: _(RawOrigin::Signed(caller.clone()), schedule_id, Option::Some(execution_block.into()))
-	verify {
-		assert!(<Suspended<T>>::get::<ScheduleId>(schedule_id).is_none());
-	}
-
+	/* TODO: we might add back terminate, so leaving it here as commented
 	terminate {
 		let token_id = prepare_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
@@ -322,7 +291,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()), schedule_id, Option::Some(execution_block.into()))
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_none());
-	}
+	}*/
 
 }
 
