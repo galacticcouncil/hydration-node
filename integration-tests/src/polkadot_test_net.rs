@@ -2,7 +2,10 @@
 use frame_support::{
 	assert_ok,
 	dispatch::{Dispatchable, GetCallMetadata},
-	sp_runtime::traits::{AccountIdConversion, Block as BlockT},
+	sp_runtime::{
+		traits::{AccountIdConversion, Block as BlockT},
+		FixedU128, Permill,
+	},
 	traits::GenesisBuild,
 	weights::Weight,
 };
@@ -395,4 +398,22 @@ pub fn hydra_live_ext(path_to_snapshot: &str) -> sp_io::TestExternalities {
 			builder.build().await.unwrap()
 		});
 	ext
+}
+
+pub fn init_omnipool() {
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+		hydradx_runtime::Origin::root(),
+		522_222_000_000_000_000_000_000,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+		hydradx_runtime::Origin::root(),
+		stable_price,
+		native_price,
+		Permill::from_percent(100),
+		Permill::from_percent(10)
+	));
 }

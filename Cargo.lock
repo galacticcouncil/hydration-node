@@ -8980,7 +8980,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
