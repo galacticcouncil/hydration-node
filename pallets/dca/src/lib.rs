@@ -150,49 +150,9 @@ pub mod pallet {
 
 				match trade_result {
 					Ok(_) => {
-						Self::deposit_event(Event::TradeExecuted {
-							id: schedule_id,
-							who: schedule.owner.clone(),
-						});
-
-						//TODO: extract these and the reror handling as well to have unexpected error handling globally
-
-						match Self::reset_retries(schedule_id) {
-							//TODO: inline reset and increment retries once they are extracted
-							Ok(()) => {}
-							Err(err) => {
-								Self::terminate_schedule(schedule_id, &schedule, err);
-								continue;
-							}
-						}
-
-						let remaining_amount_to_use = match RemainingAmounts::<T>::get(schedule_id) {
-							Some(remaining_amount_to_use) => remaining_amount_to_use,
-							None => {
-								Self::terminate_schedule(schedule_id, &schedule, Error::<T>::InvalidState.into());
-								continue;
-							}
-						};
-
-						let amount_to_unreserve = match Self::get_amount_to_sell(&schedule.order) {
-							Ok(amount_to_unreserve) => amount_to_unreserve,
-							Err(err) => {
-								Self::terminate_schedule(schedule_id, &schedule, err);
-								continue;
-							}
-						};
-
-						if remaining_amount_to_use < amount_to_unreserve {
-							Self::complete_schedule(schedule_id, &schedule);
+						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, next_execution_block) {
+							Self::terminate_schedule(schedule_id, &schedule, err);
 							continue;
-						}
-
-						match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
-							Ok(()) => {}
-							Err(err) => {
-								Self::terminate_schedule(schedule_id, &schedule, err);
-								continue;
-							}
 						}
 					}
 					Err(err) => {
@@ -203,37 +163,9 @@ pub mod pallet {
 						});
 
 						if T::ContinueOnErrors::contains(&err) {
-							let number_of_retries = match Self::retries_on_error(schedule_id) {
-								Some(number_of_retries) => number_of_retries,
-								None => {
-									Self::terminate_schedule(schedule_id, &schedule, Error::<T>::InvalidState.into());
-									continue;
-								}
-							};
-
-							if number_of_retries == T::MaxNumberOfRetriesOnError::get() {
+							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block, err) {
 								Self::terminate_schedule(schedule_id, &schedule, err);
 								continue;
-							}
-
-							match Self::increment_retries(schedule_id) {
-								Ok(()) => {}
-								Err(err) => {
-									Self::terminate_schedule(schedule_id, &schedule, err);
-									continue;
-								}
-							}
-
-							match Self::plan_schedule_for_block(
-								schedule.owner.clone(),
-								next_execution_block,
-								schedule_id,
-							) {
-								Ok(()) => {}
-								Err(err) => {
-									Self::terminate_schedule(schedule_id, &schedule, err);
-									continue;
-								}
 							}
 						} else {
 							Self::terminate_schedule(schedule_id, &schedule, err)
@@ -389,6 +321,8 @@ pub mod pallet {
 		NoFreeBlockFound,
 		///The DCA schedule has been manually terminated
 		ManuallyTerminated,
+		///Max number of retries reached for schedule
+		MaxRetryReached,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -606,6 +540,50 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Self::execute_trade(origin, &schedule.order, amount_to_sell)
+	}
+
+	fn replan_or_complete(
+		schedule_id: ScheduleId,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+		next_execution_block: T::BlockNumber,
+	) -> DispatchResult {
+		Self::deposit_event(Event::TradeExecuted {
+			id: schedule_id,
+			who: schedule.owner.clone(),
+		});
+
+		Self::reset_retries(schedule_id)?;
+
+		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
+		let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;
+
+		if remaining_amount_to_use < amount_to_unreserve {
+			Self::complete_schedule(schedule_id, &schedule);
+			return Ok(());
+		}
+
+		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
+
+		Ok(())
+	}
+
+	fn retry_schedule(
+		schedule_id: ScheduleId,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+		next_execution_block: T::BlockNumber,
+		err: DispatchError,
+	) -> DispatchResult {
+		let number_of_retries = Self::retries_on_error(schedule_id).ok_or(Error::<T>::InvalidState)?;
+
+		if number_of_retries == T::MaxNumberOfRetriesOnError::get() {
+			return Err(Error::<T>::MaxRetryReached.into());
+		}
+
+		Self::increment_retries(schedule_id)?;
+
+		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
+
+		Ok(())
 	}
 
 	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> bool {
