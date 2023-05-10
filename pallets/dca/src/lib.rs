@@ -38,14 +38,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/*
-TODO:
-- merge master
-- change benchmark remove the omnipool flag, and rather change the mock to send some money in case of successfull.
-then in prod benchmark, it should be fine as omnipool i used as amm trader
-- rebenchmark
-*/
-
 use codec::MaxEncodedLen;
 use frame_support::{
 	ensure,
