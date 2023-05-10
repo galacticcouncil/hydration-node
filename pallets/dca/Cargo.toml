@@ -29,6 +29,8 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df", default-features = false }
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df", default-features = false }
 pallet-omnipool = { path="../omnipool", default-features = false }
+pallet-circuit-breaker = { path="../circuit-breaker", default-features = false }
+pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "84632c3c7b71e16d53240e4bdc2adc693c941916", default-features = false }
 
@@ -67,6 +69,9 @@ std = [
   "hydradx-traits/std",
   "pallet-relaychain-info/std",
   "orml-tokens/std",
+  "pallet-ema-oracle/std",
+  "pallet-circuit-breaker/std",
+
 ]
 
 runtime-benchmarks = [
