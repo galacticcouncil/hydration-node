@@ -206,7 +206,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), DAI, 200 * UNITS),
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
-			(AccountId::from(BOB), BTC, 1 * 1_000_000),
+			(AccountId::from(BOB), BTC, 1_000_000),
 			(AccountId::from(CHARLIE), LRNA, 1_000 * UNITS),
 			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
