@@ -487,6 +487,7 @@ impl Config for Test {
 	type ContinueOnErrors = ContinueOnErrorsListMock;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 }
 
 pub struct ContinueOnErrorsListMock;

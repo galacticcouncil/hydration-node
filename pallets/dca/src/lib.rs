@@ -262,6 +262,9 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 
+		/// Origin able to terminate schedules
+		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
+
 		///For named-reserving user's assets
 		type Currency: NamedMultiReservableCurrency<
 			Self::AccountId,
@@ -385,6 +388,8 @@ pub mod pallet {
 		BudgetTooLow,
 		///There is no free block found to plan DCA execution
 		NoFreeBlockFound,
+		///The DCA schedule has been manually terminated
+		ManuallyTerminated,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -492,6 +497,47 @@ pub mod pallet {
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
 				who: who.clone(),
+			});
+
+			Ok(())
+		}
+
+		/// Admin endpoint to terminate a DCA schedule and remove it completely from the chain.
+		///
+		/// Parameters:
+		/// - `origin`: schedule owner
+		/// - `schedule_id`: schedule id
+		/// - `next_execution_block`: block number where the schedule is planned.
+		///
+		/// Emits `Terminated` event when successful.
+		///
+		#[pallet::weight(<T as Config>::WeightInfo::terminate())]
+		#[transactional]
+		pub fn terminate(
+			origin: OriginFor<T>,
+			schedule_id: ScheduleId,
+			next_execution_block: BlockNumberFor<T>,
+		) -> DispatchResult {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+			ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotFound);
+
+			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
+
+			Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner)?;
+
+			let schedule_ids_on_block = ScheduleIdsPerBlock::<T>::get(next_execution_block);
+			ensure!(
+				schedule_ids_on_block.contains(&schedule_id),
+				Error::<T>::ScheduleNotFound,
+			);
+
+			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
+			Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+
+			Self::deposit_event(Event::Terminated {
+				id: schedule_id,
+				who: schedule.owner,
+				error: Error::<T>::ManuallyTerminated.into(),
 			});
 
 			Ok(())
@@ -997,6 +1043,29 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Ok(amount)
+	}
+
+	fn remove_schedule_id_from_next_execution_block(
+		schedule_id: ScheduleId,
+		next_execution_block: T::BlockNumber,
+	) -> DispatchResult {
+		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
+			let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
+
+			let index = schedule_ids
+				.iter()
+				.position(|x| *x == schedule_id)
+				.ok_or(Error::<T>::ScheduleNotFound)?;
+
+			schedule_ids.remove(index);
+
+			if schedule_ids.is_empty() {
+				*maybe_schedule_ids = None;
+			}
+			Ok(())
+		})?;
+
+		Ok(())
 	}
 
 	fn remove_schedule_from_storages(owner: &T::AccountId, schedule_id: ScheduleId) {

@@ -975,6 +975,7 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 	type ContinueOnErrors = ContinueOnErrorsList;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
 }
 
 pub struct ContinueOnErrorsList;

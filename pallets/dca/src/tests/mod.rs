@@ -6,6 +6,7 @@ use sp_runtime::BoundedVec;
 pub mod mock;
 pub mod on_initialize;
 pub mod schedule;
+pub mod terminate;
 
 #[macro_export]
 macro_rules! assert_balance {
