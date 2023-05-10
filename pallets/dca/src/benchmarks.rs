@@ -117,80 +117,6 @@ type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 type FrameSystem<T> = frame_system::Pallet<T>;
 type EmaOracle<T> = pallet_ema_oracle::Pallet<T>;
 
-fn prepare_omnipool<T: pallet_omnipool::Config>() -> Result<T::AssetId, DispatchError>
-where
-	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: crate::pallet::Config,
-	<T as pallet_omnipool::Config>::AssetId: From<u32>,
-{
-	let units = 1_000_000_000_000u64;
-	let omnipool_account = OmnipoolPallet::<T>::protocol_account();
-	let stable_amount = 50_000 * units * 1_000_000;
-	let native_amount = 936_329_588_000_000_000u64;
-	let dot_amount = 87_719_298_250_000_u128;
-	let eth_amount = 63_750_000_000_000_000_000u128;
-	let btc_amount = 1_000_000_000u128;
-
-	let native_price = FixedU128::from_inner(1201500000000000);
-	let stable_price = FixedU128::from_inner(45_000_000_000);
-
-	<T as pallet_omnipool::Config>::Currency::update_balance(
-		T::StableCoinAssetId::get(),
-		&omnipool_account,
-		stable_amount as i128,
-	)?;
-	<T as pallet_omnipool::Config>::Currency::update_balance(
-		T::HdxAssetId::get(),
-		&omnipool_account,
-		native_amount as i128,
-	)?;
-
-	assert_ok!(OmnipoolPallet::<T>::set_tvl_cap(
-		RawOrigin::Root.into(),
-		522_222_000_000_000_000_000_000,
-	));
-
-	assert_ok!(OmnipoolPallet::<T>::initialize_pool(
-		RawOrigin::Root.into(),
-		stable_price,
-		native_price,
-		Permill::from_percent(100),
-		Permill::from_percent(10)
-	));
-
-	let token_id = T::AssetRegistry::create_asset(&b"DOT".to_vec(), 1u128)?;
-	let token_amount = 200_000_000_000_000u128;
-
-	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
-	let owner: T::AccountId = account("owner", 0, 1);
-	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
-
-	assert_ok!(OmnipoolPallet::<T>::add_token(
-		RawOrigin::Root.into(),
-		token_id,
-		token_price,
-		Permill::from_percent(100),
-		owner,
-	));
-
-	let token_id = T::AssetRegistry::create_asset(&b"DAI".to_vec(), 1u128)?;
-	let token_amount = 200_000_000_000_000u128;
-
-	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
-	let owner: T::AccountId = account("owner", 0, 1);
-	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
-
-	assert_ok!(OmnipoolPallet::<T>::add_token(
-		RawOrigin::Root.into(),
-		token_id,
-		token_price,
-		Permill::from_percent(100),
-		owner,
-	));
-
-	Ok(token_id)
-}
-
 fn initialize_omnipool<T: Config + pallet_omnipool::Config>() -> DispatchResult
 where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
@@ -217,44 +143,10 @@ where
 		Permill::from_percent(100),
 	)?;
 
-	// Register new asset in asset registry
-	T::AssetRegistry::create_asset(&b"BTC".to_vec(), Balance::one())?;
-
-	// Create account for token provider and set balance
-	let owner: T::AccountId = account("owner", 0, 1);
-
-	/*let token_price = FixedU128::from((1, 5));
-	let token_amount = 200_000_000_000_000u128;
-
-	<T as pallet_omnipool::Config>::Currency::update_balance(BTC.into(), &acc, token_amount as i128)?;
-
-	OmnipoolPallet::<T>::add_token(
-		RawOrigin::Root.into(),
-		BTC.into(),
-		token_price,
-		Permill::from_percent(100),
-		owner.clone(),
-	)?;*/
-
-	/*let token_id = T::AssetRegistry::create_asset(&b"NEW_TOKEN".to_vec(), 1u128)?;
-	let token_amount = 200_000_000_000_000u128;
-
-	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
-	let owner: T::AccountId = account("owner", 0, 1);
-	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &acc, token_amount as i128)?;
-
-	assert_ok!(OmnipoolPallet::<T>::add_token(
-		RawOrigin::Root.into(),
-		token_id,
-		token_price,
-		Permill::from_percent(100),
-		owner,
-	));*/
-	//do_trade_to_populate_oracle::<T>(DAI, HDX, ONE)?;
+	//NOTE: This is necessary for oracle to provide price.
 	do_lrna_hdx_trade::<T>()?;
 	do_lrna_dai_trade::<T>()?;
 
-	//NOTE: This is necessary for oracle to provide price.
 	set_period::<T>(10);
 
 	do_lrna_dai_trade::<T>()?;
@@ -312,33 +204,6 @@ where
 	fund::<T>(trader.clone(), LRNA.into(), 100 * ONE)?;
 
 	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), DAI.into(), ONE, 0)
-}
-
-//NOTE: This is necessary for oracle to provide price.
-fn do_trade_to_populate_oracle<T: Config + pallet_omnipool::Config>(
-	asset1: AssetId,
-	asset2: AssetId,
-	amount: Balance,
-) -> DispatchResult
-where
-	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T::Asset: From<u32>,
-	<T as pallet_omnipool::Config>::AssetId: From<u32>,
-{
-	let trader = create_funded_account::<T>("tmp_trader", 0, 10000 * ONE, HDX.into());
-
-	fund::<T>(trader.clone(), LRNA.into(), 10000 * ONE)?;
-
-	OmnipoolPallet::<T>::sell(
-		RawOrigin::Signed(trader.clone()).into(),
-		LRNA.into(),
-		asset1.into(),
-		amount,
-		0,
-	)?;
-	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), asset2.into(), amount, 0)?;
-
-	Ok(())
 }
 
 fn create_account_with_native_balance<T: Config + pallet_omnipool::Config>() -> Result<T::AccountId, DispatchError>
@@ -408,26 +273,20 @@ benchmarks! {
 	}
 
 
-	/*on_initialize_with_empty_block{
-		let token_id = prepare_omnipool::<T>()?;
+	on_initialize_with_empty_block{
+		initialize_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_sell = 1_000_000_000_000u128;
-		let sell_max_limit = 200_000_000_000_000u128;
-
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000_000_000_000i128)?;
-		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
-
 		let execution_block = 100u32;
-
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
+		assert_eq!(crate::Pallet::<T>::schedules::<ScheduleId>(execution_block.into()).len(), 0);
+		let mut weight = Weight::from_ref_time(0);
 	}: {
-		crate::Pallet::<T>::on_initialize(execution_block.into());
+		weight = crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller), 0);
-	}*/
+		assert!(weight.ref_time() > 0u64);
+	}
 
 	/*
 	on_initialize{
