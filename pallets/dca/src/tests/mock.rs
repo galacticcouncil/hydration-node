@@ -30,7 +30,7 @@ use frame_system::EnsureRoot;
 use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
-use primitive_types::{U128, U256};
+use primitive_types::U128;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
 use sp_runtime::Perbill;
@@ -57,8 +57,6 @@ type NamedReserveIdentifier = [u8; 8];
 
 pub const FEE_FOR_ONE_DCA_EXECUTION: Balance = 113493400;
 pub const FEE_FOR_ONE_DCA_EXECUTION_IN_DAI: Balance = 99874192;
-
-pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -509,7 +507,6 @@ use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
 use pallet_omnipool::traits::ExternalPriceProvider;
-use rand::distributions::uniform::SampleBorrow;
 use smallvec::smallvec;
 
 pub struct DummyNFT;
@@ -634,11 +631,6 @@ impl ExtBuilder {
 
 	pub fn with_max_price_difference(mut self, price_diff: Permill) -> Self {
 		self.max_price_difference = price_diff;
-		self
-	}
-
-	pub fn with_invalid_buy_amount(mut self, amount: Balance) -> Self {
-		self.invalid_buy_amount = amount;
 		self
 	}
 

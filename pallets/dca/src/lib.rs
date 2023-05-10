@@ -155,7 +155,7 @@ pub mod pallet {
 						});
 
 						if T::ContinueOnErrors::contains(&err) {
-							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block, err) {
+							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block) {
 								Self::terminate_schedule(schedule_id, &schedule, err);
 								continue;
 							}
@@ -563,7 +563,6 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 		next_execution_block: T::BlockNumber,
-		err: DispatchError,
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id).ok_or(Error::<T>::InvalidState)?;
 
@@ -704,7 +703,7 @@ impl<T: Config> Pallet<T> {
 
 	fn reset_retries(schedule_id: ScheduleId) -> DispatchResult {
 		RetriesOnError::<T>::try_mutate_exists(schedule_id, |maybe_retries| -> DispatchResult {
-			let mut retries = maybe_retries.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
+			let retries = maybe_retries.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
 			*retries = 0;
 
@@ -918,7 +917,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_next_block_number() -> Result<BlockNumberFor<T>, DispatchError> {
-		let mut current_block_number = frame_system::Pallet::<T>::current_block_number();
+		let current_block_number = frame_system::Pallet::<T>::current_block_number();
 		let next_block_number = current_block_number
 			.checked_add(&T::BlockNumber::one())
 			.ok_or(ArithmeticError::Overflow)?;

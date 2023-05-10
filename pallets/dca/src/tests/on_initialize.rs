@@ -32,7 +32,6 @@ use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
-use test_utils::last_events;
 
 #[test]
 fn successfull_dca_execution_should_emit_trade_executed_event() {

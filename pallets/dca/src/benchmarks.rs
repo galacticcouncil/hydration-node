@@ -14,8 +14,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #![cfg(feature = "runtime-benchmarks")]
+#![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the ACT block
 
 use super::*;
 
@@ -23,7 +23,6 @@ use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::assert_ok;
 use frame_system::{Pallet as System, RawOrigin};
-use hydradx_traits::Registry;
 use orml_traits::MultiCurrencyExtended;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::FixedU128;
@@ -36,7 +35,6 @@ pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
-pub const BTC: AssetId = 3;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -114,8 +112,6 @@ pub fn create_bounded_vec<T: Config>(trades: Vec<Trade<T::Asset>>) -> BoundedVec
 
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
-type FrameSystem<T> = frame_system::Pallet<T>;
-type EmaOracle<T> = pallet_ema_oracle::Pallet<T>;
 
 fn initialize_omnipool<T: Config + pallet_omnipool::Config>() -> DispatchResult
 where
