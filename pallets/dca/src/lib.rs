@@ -41,6 +41,8 @@
 /*
 TODO:
 - merge master
+- change benchmark remove the omnipool flag, and rather change the mock to send some money in case of successfull.
+then in prod benchmark, it should be fine as omnipool i used as amm trader
 - rebenchmark
 */
 
@@ -90,7 +92,7 @@ use crate::types::*;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
-const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
+pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
 
 #[frame_support::pallet]
 pub mod pallet {
