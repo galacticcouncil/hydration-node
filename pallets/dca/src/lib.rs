@@ -112,27 +112,18 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T>
-	where
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-			<T as frame_system::Config>::AccountId,
-		>>::CurrencyId: From<<T as pallet::Config>::Asset>,
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-			<T as frame_system::Config>::AccountId,
-		>>::Balance: From<u128>,
-	{
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			//TODO: If verified by Lumir, we add an admin endpoint
 			let mut weight = T::WeightInfo::on_initialize(); //TODO: do minimal weight
 
 			let mut random_generator = T::RandomnessProvider::generator();
 
-			let mut schedule_ids: Vec<ScheduleId> =
-				ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
+			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
 
 			if !schedule_ids.is_empty() {
 				Self::deposit_event(Event::ExecutionsStarted {
-					block: current_blocknumber
+					block: current_blocknumber,
 				});
 			}
 
@@ -143,17 +134,18 @@ pub mod pallet {
 					continue;
 				};
 
-				let next_execution_block = match Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
-					Ok(block) => {block},
-					Err(err) => {
-						if err == Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
-							//The schedule is replanned instead of terminated
-						} else {
-							Self::terminate_schedule(schedule_id, &schedule, err);
+				let next_execution_block =
+					match Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
+						Ok(block) => block,
+						Err(err) => {
+							if err == Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
+								//The schedule is replanned instead of terminated
+							} else {
+								Self::terminate_schedule(schedule_id, &schedule, err);
+							}
+							continue;
 						}
-						continue;
-					}
-				};
+					};
 
 				let trade_result = Self::execute_schedule(schedule_id, &schedule);
 
@@ -166,8 +158,9 @@ pub mod pallet {
 
 						//TODO: extract these and the reror handling as well to have unexpected error handling globally
 
-						match Self::reset_retries(schedule_id) {//TODO: inline reset and increment retries once they are extracted
-							Ok(()) => {},
+						match Self::reset_retries(schedule_id) {
+							//TODO: inline reset and increment retries once they are extracted
+							Ok(()) => {}
 							Err(err) => {
 								Self::terminate_schedule(schedule_id, &schedule, err);
 								continue;
@@ -196,18 +189,18 @@ pub mod pallet {
 						}
 
 						match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
-							Ok(()) => {},
+							Ok(()) => {}
 							Err(err) => {
 								Self::terminate_schedule(schedule_id, &schedule, err);
 								continue;
 							}
 						}
-					},
+					}
 					Err(err) => {
 						Self::deposit_event(Event::TradeFailed {
 							id: schedule_id,
 							who: schedule.owner.clone(),
-							error: err
+							error: err,
 						});
 
 						if T::ContinueOnErrors::contains(&err) {
@@ -225,15 +218,19 @@ pub mod pallet {
 							}
 
 							match Self::increment_retries(schedule_id) {
-								Ok(()) => {},
+								Ok(()) => {}
 								Err(err) => {
 									Self::terminate_schedule(schedule_id, &schedule, err);
 									continue;
 								}
 							}
 
-							match Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id) {
-								Ok(()) => {},
+							match Self::plan_schedule_for_block(
+								schedule.owner.clone(),
+								next_execution_block,
+								schedule_id,
+							) {
+								Ok(()) => {}
 								Err(err) => {
 									Self::terminate_schedule(schedule_id, &schedule, err);
 									continue;
@@ -247,7 +244,6 @@ pub mod pallet {
 			}
 
 			weight
-
 		}
 	}
 
@@ -267,7 +263,12 @@ pub mod pallet {
 			+ TypeInfo;
 
 		///For named-reserving user's assets
-		type Currency: NamedMultiReservableCurrency<Self::AccountId, ReserveIdentifier = NamedReserveIdentifier>;
+		type Currency: NamedMultiReservableCurrency<
+			Self::AccountId,
+			ReserveIdentifier = NamedReserveIdentifier,
+			CurrencyId = Self::Asset,
+			Balance = Balance,
+		>;
 
 		///AMMTrader for trade execution
 		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>;
@@ -422,15 +423,7 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, ValueQuery>;
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-			<T as frame_system::Config>::AccountId,
-		>>::CurrencyId: From<<T as pallet::Config>::Asset>,
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<
-			<T as frame_system::Config>::AccountId,
-		>>::Balance: From<u128>,
-	{
+	impl<T: Config> Pallet<T> {
 		/// Creates a new DCA schedule and plans the execution in the specified start execution block.
 		/// If start execution block number is not specified, then the schedule is planned in the consequent block.
 		///
@@ -455,38 +448,45 @@ pub mod pallet {
 			let storage_bond = Self::get_storage_bond(&schedule)?;
 			ensure!(
 				schedule.total_amount > storage_bond,
-				Error::<T>::TotalAmountShouldBeLargerThanStorageBond);
+				Error::<T>::TotalAmountShouldBeLargerThanStorageBond
+			);
 
 			let weight_for_single_execution = Self::get_weight_for_single_execution()?;
-			let transaction_fee = Self::get_transaction_fee_in_asset(weight_for_single_execution, schedule.order.get_asset_in())?;
+			let transaction_fee =
+				Self::get_transaction_fee_in_asset(weight_for_single_execution, schedule.order.get_asset_in())?;
 
 			let amount_in = match schedule.order {
-				Order::Sell {amount_in, ..} => {
+				Order::Sell { amount_in, .. } => {
 					//In sell the amount_in includes the transaction fee
 					ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 					Self::get_amount_to_sell(&schedule.order)?
-				},
-				Order::Buy {..} => {
+				}
+				Order::Buy { .. } => {
 					let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;
-					ensure!(amount_to_unreserve > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+					ensure!(
+						amount_to_unreserve > transaction_fee,
+						Error::<T>::TradeAmountIsLessThanFee
+					);
 					amount_to_unreserve
 				}
 			};
 
-			ensure!(amount_in + transaction_fee <= schedule.total_amount, Error::<T>::BudgetTooLow);
+			ensure!(
+				amount_in + transaction_fee <= schedule.total_amount,
+				Error::<T>::BudgetTooLow
+			);
 
 			let next_schedule_id = Self::get_next_schedule_id()?;
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
-			ScheduleOwnership::<T>::insert(who.clone(),next_schedule_id,());
-			RemainingAmounts::<T>::insert(next_schedule_id,schedule.total_amount);
-			RetriesOnError::<T>::insert(next_schedule_id,0);
+			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
+			RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
+			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
 			Self::reserve_asset_in(&schedule, &who)?;
 
 			let next_block_number = Self::get_next_block_number()?;
-			let blocknumber_for_first_schedule_execution =
-				start_execution_block.unwrap_or_else(|| next_block_number);
+			let blocknumber_for_first_schedule_execution = start_execution_block.unwrap_or_else(|| next_block_number);
 			Self::plan_schedule_for_block(who.clone(), blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			Self::deposit_event(Event::Scheduled {
@@ -496,18 +496,10 @@ pub mod pallet {
 
 			Ok(())
 		}
-
 	}
 }
 
-impl<T: Config> Pallet<T>
-where
-	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId:
-		From<<T as pallet::Config>::Asset>,
-
-	<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
-		From<u128>,
-{
+impl<T: Config> Pallet<T> {
 	fn prepare_schedule(
 		current_blocknumber: T::BlockNumber,
 		weight: &mut Weight,
@@ -562,10 +554,7 @@ where
 			&schedule.owner,
 			amount_to_sell.into(),
 		);
-		ensure!(
-			remaining_amount_if_insufficient_balance == 0.into(),
-			Error::<T>::InvalidState
-		);
+		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
 
 		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_sell) else {
 			return Err(Error::<T>::InvalidState.into());
@@ -747,10 +736,7 @@ where
 			&owner,
 			fee_amount_in_sold_asset.into(),
 		);
-		ensure!(
-			remaining_amount_if_insufficient_balance == 0.into(),
-			Error::<T>::InvalidState
-		);
+		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
 
 		Self::decrease_remaining_amount(schedule_id, fee_amount_in_sold_asset)?;
 
@@ -834,12 +820,7 @@ where
 
 		let remaining_amount = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 
-		T::Currency::unreserve_named(
-			&T::NamedReserveId::get(),
-			sold_currency.into(),
-			who,
-			remaining_amount.into(),
-		);
+		T::Currency::unreserve_named(&T::NamedReserveId::get(), sold_currency.into(), who, remaining_amount);
 
 		Ok(())
 	}
