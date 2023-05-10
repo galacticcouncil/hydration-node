@@ -23,7 +23,7 @@ pub mod weights;
 use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
-use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
+use frame_support::{parameter_types, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
 use hydradx_traits::oracle::{OraclePeriod, Source};
 pub use pallet_transaction_payment::Multiplier;
@@ -317,11 +317,6 @@ parameter_types! {
 // pallet claims
 parameter_types! {
 	pub ClaimMessagePrefix: &'static [u8] = b"I hereby claim all my HDX tokens to wallet:";
-}
-
-// pallet transaction multi payment
-parameter_types! {
-	pub const MultiPaymentCurrencySetFee: Pays = Pays::Yes;
 }
 
 // pallet asset registry
