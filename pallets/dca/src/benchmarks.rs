@@ -86,7 +86,7 @@ fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 	schedule1
 }
 
-fn set_period<T: Config + pallet_omnipool::Config + pallet_circuit_breaker::Config>(to: u32)
+fn set_period<T: Config + pallet_omnipool::Config>(to: u32)
 where
 	T: pallet_ema_oracle::Config,
 	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
@@ -99,11 +99,9 @@ where
 
 		System::<T>::on_finalize(b);
 		pallet_ema_oracle::Pallet::<T>::on_finalize(b);
-		pallet_circuit_breaker::Pallet::<T>::on_finalize(b);
 
 		System::<T>::on_initialize(b + 1_u32.into());
 		pallet_ema_oracle::Pallet::<T>::on_initialize(b + 1_u32.into());
-		pallet_circuit_breaker::Pallet::<T>::on_initialize(b + 1_u32.into());
 
 		System::<T>::set_block_number(b + 1_u32.into());
 	}
@@ -193,15 +191,15 @@ where
 	Ok(token_id)
 }
 
-fn initialize_omnipool<T: Config + pallet_omnipool::Config + pallet_circuit_breaker::Config>() -> DispatchResult
+fn initialize_omnipool<T: Config + pallet_omnipool::Config>() -> DispatchResult
 where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: pallet_ema_oracle::Config,
 	T::Asset: From<u32>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
-	let stable_amount: Balance = 1_000_000_000_000_000_u128;
-	let native_amount: Balance = 1_000_000_000_000_000_u128;
+	let stable_amount: Balance = 1_000_000_000_000_000_000_u128;
+	let native_amount: Balance = 1_000_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
 	let native_price: FixedU128 = FixedU128::from(1);
 	let acc = OmnipoolPallet::<T>::protocol_account();
@@ -252,13 +250,14 @@ where
 		Permill::from_percent(100),
 		owner,
 	));*/
-	do_trade_to_populate_oracle::<T>(DAI, HDX, ONE)?;
-
+	//do_trade_to_populate_oracle::<T>(DAI, HDX, ONE)?;
 	do_lrna_hdx_trade::<T>()?;
+	do_lrna_dai_trade::<T>()?;
 
 	//NOTE: This is necessary for oracle to provide price.
 	set_period::<T>(10);
 
+	do_lrna_dai_trade::<T>()?;
 	do_lrna_hdx_trade::<T>()
 }
 
@@ -299,6 +298,20 @@ where
 	fund::<T>(trader.clone(), LRNA.into(), 100 * ONE)?;
 
 	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), HDX.into(), ONE, 0)
+}
+
+//NOTE: This is necessary for oracle to provide price.
+fn do_lrna_dai_trade<T: Config + pallet_omnipool::Config>() -> DispatchResult
+where
+	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T::Asset: From<u32>,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+{
+	let trader = create_funded_account::<T>("tmp_trader", 0, 100 * ONE, DAI.into());
+
+	fund::<T>(trader.clone(), LRNA.into(), 100 * ONE)?;
+
+	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), DAI.into(), ONE, 0)
 }
 
 //NOTE: This is necessary for oracle to provide price.
@@ -344,7 +357,7 @@ where
 benchmarks! {
 	 where_clause {  where
 		CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_circuit_breaker::Config,
+		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as Config>::Asset: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<u32>,
@@ -355,32 +368,10 @@ benchmarks! {
 	on_initialize{
 		//Prepare omnipool
 		initialize_omnipool::<T>()?;
-		set_period::<T>(697);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
-
-		set_period::<T>(698);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
-
-				set_period::<T>(699);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 50 * ONE).unwrap();
-
-				set_period::<T>(700);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 50 * ONE).unwrap();
-
-
-		set_period::<T>(700);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
-		set_period::<T>(800);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
-		set_period::<T>(900);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
-		set_period::<T>(999);
-		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
 		set_period::<T>(1000);
-
 		let seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_sell = 1 *  ONE / 2;
+		let amount_sell = 20 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
