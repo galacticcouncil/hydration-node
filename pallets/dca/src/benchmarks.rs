@@ -61,6 +61,23 @@ where
 	schedule1
 }
 
+/*
+fn get_named_reseve_balance<T: Config + pallet_omnipool::Config>(token_id: T::Asset, seller: T::AccountId) -> Balance
+where
+	T: crate::pallet::Config,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+	<T as pallet_omnipool::Config>::AssetId: Into<u32>,
+	<T as crate::pallet::Config>::Asset: From<u32>,
+	<T as crate::pallet::Config>::Asset: Into<u32>,
+
+	<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
+	<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
+	<T as pallet::Config>::Currency:
+		NamedMultiReservableCurrency<T::AccountId, ReserveIdentifier = NamedReserveIdentifier>,
+{
+	<T as Config>::Currency::reserved_balance_named(&T::NamedReserveId::get(), token_id, &seller.clone())
+}*/
+
 fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
 	asset_in: T::Asset,
@@ -194,10 +211,12 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
 		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::CurrencyId: From<<T as pallet::Config>::Asset>,
-		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance: From<u128>
+		<<T as pallet::Config>::Currency as orml_traits::MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance: From<u128>,
+		<T as pallet::Config>::Currency: NamedMultiReservableCurrency<T::AccountId, ReserveIdentifier = NamedReserveIdentifier>,
+
 	}
 
-	/*on_initialize_with_empty_block{
+	on_initialize_with_empty_block{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
@@ -218,7 +237,145 @@ benchmarks! {
 	verify {
 		//TODO: Add assertion
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller), 0);
-	}*/
+	}
+
+	on_initialize{
+		//Prepare omnipool
+		let UNITS = 1_000_000_000_000u64;
+		let omnipool_account =OmnipoolPallet::<T>::protocol_account();
+		let stable_amount = 50_000 * UNITS * 1_000_000;
+		let native_amount = 936_329_588_000_000_000u64;
+		let dot_amount = 87_719_298_250_000_u128;
+		let eth_amount = 63_750_000_000_000_000_000u128;
+		let btc_amount = 1_000_000_000u128;
+
+		let native_price = FixedU128::from_inner(1201500000000000);
+		let stable_price = FixedU128::from_inner(45_000_000_000);
+
+		<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &omnipool_account, stable_amount as i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &omnipool_account, native_amount as i128)?;
+
+		assert_ok!(OmnipoolPallet::<T>::set_tvl_cap(
+			RawOrigin::Root.into(),
+			522_222_000_000_000_000_000_000,
+		));
+
+		assert_ok!(OmnipoolPallet::<T>::initialize_pool(
+			RawOrigin::Root.into(),
+			stable_price,
+			native_price,
+			Permill::from_percent(100),
+			Permill::from_percent(10)
+		));
+
+		let token_id = T::AssetRegistry::create_asset(&b"DOT".to_vec(), 1u128)?;
+		let token_amount = 200_000_000_000_000u128;
+
+		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+		let owner: T::AccountId = account("owner", 0, 1);
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
+
+		assert_ok!(OmnipoolPallet::<T>::add_token(
+			RawOrigin::Root.into(),
+			token_id,
+			token_price,
+			Permill::from_percent(100),
+			owner,
+		));
+
+		let token_id = T::AssetRegistry::create_asset(&b"DAI".to_vec(), 1u128)?;
+		let token_amount = 200_000_000_000_000u128;
+
+		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+		let owner: T::AccountId = account("owner", 0, 1);
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
+
+		assert_ok!(OmnipoolPallet::<T>::add_token(
+			RawOrigin::Root.into(),
+			token_id,
+			token_price,
+			Permill::from_percent(100),
+			owner,
+		));
+
+		/*let token_price = FixedU128::from_inner(71_145_071_145_071);
+
+		assert_ok!(OmnipoolPallet::<T>::add_token(
+			hydradx_runtime::Origin::root(),
+			ETH,
+			token_price,
+			Permill::from_percent(100),
+			owner,
+		));
+
+		let hdx_balance = <T as pallet_omnipool::Config>::Balances::free_balance(&omnipool_account);
+		let dai_balance = <T as pallet_omnipool::Config>::Tokens::free_balance(DAI, &omnipool_account);
+		let lrna_balance = <T as pallet_omnipool::Config>::Tokens::free_balance(LRNA, &omnipool_account);
+		let dot_balance = <T as pallet_omnipool::Config>::Tokens::free_balance(DOT, &omnipool_account);
+		let eth_balance = <T as pallet_omnipool::Config>::Tokens::free_balance(ETH, &omnipool_account);
+
+		assert_eq!(lrna_balance, 10160498285592776);
+		assert_eq!(dai_balance, stable_amount);
+		assert_eq!(hdx_balance, native_amount);
+		assert_eq!(dot_balance, dot_amount);
+		assert_eq!(eth_balance, eth_amount);
+
+		let charlie_dai_orig = <T as pallet_omnipool::Config>::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
+
+		assert_ok!(OmnipoolPallet::<T>::buy(
+			hydradx_runtime::Origin::signed(CHARLIE.into()),
+			ETH,
+			DAI,
+			1_000_000_000_000_000_000,
+			u128::MAX,
+		));
+
+		let expected = 1664733011875663575256u128;
+
+		let charlie_dai = <T as pallet_omnipool::Config>::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
+
+		let paid = charlie_dai_orig - charlie_dai;
+		assert_eq!(paid, expected);
+
+		let btc_price = FixedU128::from_inner(9_647_109_647_109_650_000_000_000);
+
+		assert_ok!(OmnipoolPallet::<T>::add_token(
+			hydradx_runtime::Origin::root(),
+			BTC,
+			btc_price,
+			Permill::from_percent(100),
+			owner,
+		));*/
+		//Setup end
+
+		let seller: T::AccountId = account("seller", 3, 1);
+
+		let amount_sell = 20_000_000_000_000u128;
+		let sell_max_limit = 200_000_000_000_000u128;
+
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 20_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+
+		let schedule1 = schedule_sell_fake::<T>(seller.clone(), token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
+		let execution_block = 100u32;
+
+		for _ in 0..T::MaxSchedulePerBlock::get() {
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
+		}
+
+		//TODO: CONTNIE FRO MHERE TO verify reserved balance
+		//assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(token_id.into(), &seller),0);
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
+		//let s = get_named_reseve_balance::<T>(token_id.into(), seller);
+		//let s  = <T as Config>::Currency::reserved_balance_named(&T::NamedReserveId::get(), token_id.into(), &seller.clone());
+		//let s = <T as Config>::Currency::reserved_balance_named(&<T as Config>::NamedReserveId::get(), token_id.into(), &seller.clone());
+	}: {
+		crate::Pallet::<T>::on_initialize(execution_block.into());
+	}
+	verify {
+		//TODO: Add assertion
+		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
+	}
 
 	/*on_initialize{
 		let token_id = prepare_omnipool::<T>()?;
