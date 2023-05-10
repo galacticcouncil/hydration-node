@@ -91,67 +91,70 @@ where
 	T: crate::pallet::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
-	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), u128::MAX)?;
+	let units = 1_000_000_000_000u64;
+	let omnipool_account = OmnipoolPallet::<T>::protocol_account();
+	let stable_amount = 50_000 * units * 1_000_000;
+	let native_amount = 936_329_588_000_000_000u64;
+	let dot_amount = 87_719_298_250_000_u128;
+	let eth_amount = 63_750_000_000_000_000_000u128;
+	let btc_amount = 1_000_000_000u128;
 
-	// Initialize pool
-	let stable_amount: Balance = 1_000_000_000_000_000u128;
-	let native_amount: Balance = 1_000_000_000_000_000u128;
-	let stable_price: FixedU128 = FixedU128::from((1, 2));
-	let native_price: FixedU128 = FixedU128::from(1);
-	let acc = OmnipoolPallet::<T>::protocol_account();
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
 
-	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
-	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(
+		T::StableCoinAssetId::get(),
+		&omnipool_account,
+		stable_amount as i128,
+	)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(
+		T::HdxAssetId::get(),
+		&omnipool_account,
+		native_amount as i128,
+	)?;
 
-	OmnipoolPallet::<T>::initialize_pool(
+	assert_ok!(OmnipoolPallet::<T>::set_tvl_cap(
+		RawOrigin::Root.into(),
+		522_222_000_000_000_000_000_000,
+	));
+
+	assert_ok!(OmnipoolPallet::<T>::initialize_pool(
 		RawOrigin::Root.into(),
 		stable_price,
 		native_price,
 		Permill::from_percent(100),
-		Permill::from_percent(100),
-	)?;
+		Permill::from_percent(10)
+	));
 
-	// Register new asset in asset registry
-	let token_id = T::AssetRegistry::create_asset(&b"FCK".to_vec(), 1u128)?;
-
-	// Create account for token provider and set balance
-	let owner: T::AccountId = account("owner", 0, 1);
-
-	let token_price = FixedU128::from((1, 5));
+	let token_id = T::AssetRegistry::create_asset(&b"DOT".to_vec(), 1u128)?;
 	let token_amount = 200_000_000_000_000u128;
 
-	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &acc, token_amount as i128)?;
+	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+	let owner: T::AccountId = account("owner", 0, 1);
+	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
 
-	// Add the token to the pool
-	OmnipoolPallet::<T>::add_token(
+	assert_ok!(OmnipoolPallet::<T>::add_token(
 		RawOrigin::Root.into(),
 		token_id,
 		token_price,
 		Permill::from_percent(100),
 		owner,
-	)?;
+	));
 
-	// Create LP provider account with correct balance aand add some liquidity
-	let lp_provider: T::AccountId = account("provider", 1, 1);
-	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &lp_provider, 500_000_000_000_000i128)?;
+	let token_id = T::AssetRegistry::create_asset(&b"DAI".to_vec(), 1u128)?;
+	let token_amount = 200_000_000_000_000u128;
 
-	let liquidity_added = 300_000_000_000_000u128;
+	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+	let owner: T::AccountId = account("owner", 0, 1);
+	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
 
-	OmnipoolPallet::<T>::add_liquidity(RawOrigin::Signed(lp_provider).into(), token_id, liquidity_added)?;
-
-	let buyer: T::AccountId = account("buyer", 2, 1);
-	<T as pallet_omnipool::Config>::Currency::update_balance(
-		T::StableCoinAssetId::get(),
-		&buyer,
-		500_000_000_000_000i128,
-	)?;
-	OmnipoolPallet::<T>::buy(
-		RawOrigin::Signed(buyer).into(),
+	assert_ok!(OmnipoolPallet::<T>::add_token(
+		RawOrigin::Root.into(),
 		token_id,
-		T::StableCoinAssetId::get(),
-		30_000_000_000_000u128,
-		100_000_000_000_000u128,
-	)?;
+		token_price,
+		Permill::from_percent(100),
+		owner,
+	));
 
 	Ok(token_id)
 }
@@ -195,71 +198,14 @@ benchmarks! {
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
-		//TODO: it fails with buy limit not reached, check out why, maybe the schedule is not correct
 	}
 	verify {
-		//TODO: Add assertion
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller), 0);
 	}
 
 	on_initialize{
 		//Prepare omnipool
-		let UNITS = 1_000_000_000_000u64;
-		let omnipool_account =OmnipoolPallet::<T>::protocol_account();
-		let stable_amount = 50_000 * UNITS * 1_000_000;
-		let native_amount = 936_329_588_000_000_000u64;
-		let dot_amount = 87_719_298_250_000_u128;
-		let eth_amount = 63_750_000_000_000_000_000u128;
-		let btc_amount = 1_000_000_000u128;
-
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let stable_price = FixedU128::from_inner(45_000_000_000);
-
-		<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &omnipool_account, stable_amount as i128)?;
-		<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &omnipool_account, native_amount as i128)?;
-
-		assert_ok!(OmnipoolPallet::<T>::set_tvl_cap(
-			RawOrigin::Root.into(),
-			522_222_000_000_000_000_000_000,
-		));
-
-		assert_ok!(OmnipoolPallet::<T>::initialize_pool(
-			RawOrigin::Root.into(),
-			stable_price,
-			native_price,
-			Permill::from_percent(100),
-			Permill::from_percent(10)
-		));
-
-		let token_id = T::AssetRegistry::create_asset(&b"DOT".to_vec(), 1u128)?;
-		let token_amount = 200_000_000_000_000u128;
-
-		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
-		let owner: T::AccountId = account("owner", 0, 1);
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
-
-		assert_ok!(OmnipoolPallet::<T>::add_token(
-			RawOrigin::Root.into(),
-			token_id,
-			token_price,
-			Permill::from_percent(100),
-			owner,
-		));
-
-		let token_id = T::AssetRegistry::create_asset(&b"DAI".to_vec(), 1u128)?;
-		let token_amount = 200_000_000_000_000u128;
-
-		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
-		let owner: T::AccountId = account("owner", 0, 1);
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &omnipool_account, token_amount as i128)?;
-
-		assert_ok!(OmnipoolPallet::<T>::add_token(
-			RawOrigin::Root.into(),
-			token_id,
-			token_price,
-			Permill::from_percent(100),
-			owner,
-		));
+		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
 
@@ -292,32 +238,6 @@ benchmarks! {
 		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades, reserved_balance);
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
 	}
-
-	/*on_initialize{
-		let token_id = prepare_omnipool::<T>()?;
-
-		let seller: T::AccountId = account("seller", 3, 1);
-
-		let amount_sell = 20_000_000_000_000u128;
-		let sell_max_limit = 200_000_000_000_000u128;
-
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &seller, 2_000_000_000_000_000_000_000_000i128)?;
-		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
-
-		let schedule1 = schedule_sell_fake::<T>(seller.clone(), token_id.into(),T::StableCoinAssetId::get().into(), amount_sell);
-		let execution_block = 100u32;
-
-		for _ in 0..T::MaxSchedulePerBlock::get() {
-			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
-		}
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
-	}: {
-		crate::Pallet::<T>::on_initialize(execution_block.into());
-	}
-	verify {
-		//TODO: Add assertion
-		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
-	}*/
 
 	schedule{
 		let token_id = prepare_omnipool::<T>()?;
