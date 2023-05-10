@@ -111,7 +111,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 140,
+	spec_version: 145,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -827,7 +827,8 @@ parameter_types! {
 	pub const OmnipoolCollectionId: CollectionId = 1337u128;
 	pub const EmaOracleSpotPriceLastBlock: OraclePeriod = OraclePeriod::LastBlock;
 	pub const EmaOracleSpotPriceShort: OraclePeriod = OraclePeriod::Short;
-	 pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
+	pub const OmnipoolMaxAllowedPriceDifference: Permill = Permill::from_percent(1);
+	pub MinimumWithdrawalFee: Permill = Permill::from_rational(1u32,10000);
 }
 
 impl pallet_omnipool::Config for Runtime {
@@ -842,6 +843,7 @@ impl pallet_omnipool::Config for Runtime {
 	type StableCoinAssetId = StableAssetId;
 	type ProtocolFee = ProtocolFee;
 	type AssetFee = AssetFee;
+	type MinWithdrawalFee = MinimumWithdrawalFee;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
 	type MaxInRatio = MaxInRatio;
@@ -868,6 +870,7 @@ impl pallet_omnipool::Config for Runtime {
 			CircuitBreakerWhitelist,
 		>,
 	);
+	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {

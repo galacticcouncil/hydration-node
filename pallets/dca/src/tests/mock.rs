@@ -19,8 +19,8 @@ use crate as dca;
 use crate::{AMMTrader, Config};
 use frame_support::traits::{Contains, Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
-use frame_support::weights::IdentityFee;
 use frame_support::weights::WeightToFeeCoefficient;
+use frame_support::weights::{IdentityFee, Weight};
 use frame_support::PalletId;
 
 use frame_support::{assert_ok, parameter_types};
@@ -29,6 +29,7 @@ use frame_system::EnsureRoot;
 use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
+use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
 use sp_runtime::Perbill;
@@ -39,9 +40,12 @@ use sp_runtime::{
 	DispatchError,
 };
 
+use hydra_dx_math::support::rational::{round_to_rational, Rounding};
+use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::cell::RefCell;
 use std::collections::HashMap;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
@@ -103,6 +107,8 @@ thread_local! {
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
 	pub static INVALID_BUY_AMOUNT: RefCell<Balance> = RefCell::new(INVALID_BUY_AMOUNT_VALUE);
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -223,6 +229,36 @@ impl pallet_omnipool::Config for Test {
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type OmnipoolHooks = ();
 	type PriceBarrier = ();
+	type MinWithdrawalFee = ();
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
+}
+
+pub struct WithdrawFeePriceOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+
+		let adjusted_price = WITHDRAWAL_ADJUSTMENT.with(|v| {
+			let (n, d, neg) = *v.borrow();
+			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
+			if neg {
+				saturating_sub(price, adjustment)
+			} else {
+				saturating_add(price, adjustment)
+			}
+		});
+
+		Ok(adjusted_price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
 }
 
 pub struct WeightToFee;
@@ -438,8 +474,12 @@ impl Contains<DispatchError> for ContinueOnErrorsListMock {
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
+use hydra_dx_math::ema::EmaPrice;
+use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
+use pallet_omnipool::traits::ExternalPriceProvider;
+use rand::distributions::uniform::SampleBorrow;
 use smallvec::smallvec;
 
 pub struct DummyNFT;
@@ -709,4 +749,28 @@ macro_rules! assert_number_of_executed_sell_trades {
 			assert_eq!(trades.len(), $number_of_trades);
 		});
 	}};
+}
+
+pub(super) fn saturating_add(l: EmaPrice, r: EmaPrice) -> EmaPrice {
+	if l.n.is_zero() || r.n.is_zero() {
+		return EmaPrice::new(l.n, l.d);
+	}
+	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
+	// n = l.n * r.d - r.n * l.d
+	let n = l_n.full_mul(r_d).saturating_add(r_n.full_mul(l_d));
+	// d = l.d * r.d
+	let d = l_d.full_mul(r_d);
+	round_to_rational((n, d), Rounding::Nearest).into()
+}
+
+pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
+	if l.n.is_zero() || r.n.is_zero() {
+		return EmaPrice::new(l.n, l.d);
+	}
+	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
+	// n = l.n * r.d - r.n * l.d
+	let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
+	// d = l.d * r.d
+	let d = l_d.full_mul(r_d);
+	round_to_rational((n, d), Rounding::Nearest).into()
 }

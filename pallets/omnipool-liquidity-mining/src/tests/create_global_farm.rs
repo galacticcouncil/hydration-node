@@ -40,6 +40,7 @@ fn create_global_farm_should_work_when_origin_is_allowed() {
 			let owner = GC;
 			let yield_per_period = Perquintill::from_float(0.000_000_15_f64); //APR ~= 80%
 			let min_deposit = 1_000;
+			let lrna_price_adjustment = FixedU128::from_float(0.65_f64);
 
 			assert_ok!(OmnipoolMining::create_global_farm(
 				Origin::root(),
@@ -50,6 +51,7 @@ fn create_global_farm_should_work_when_origin_is_allowed() {
 				owner,
 				yield_per_period,
 				min_deposit,
+				lrna_price_adjustment,
 			));
 
 			assert_last_event!(crate::Event::GlobalFarmCreated {
@@ -62,6 +64,7 @@ fn create_global_farm_should_work_when_origin_is_allowed() {
 				blocks_per_period,
 				max_reward_per_period: 30_441_400_304_414_u128,
 				min_deposit,
+				lrna_price_adjustment,
 			}
 			.into());
 		});
@@ -103,6 +106,7 @@ fn create_global_farm_should_fail_when_origin_is_not_allowed() {
 					owner,
 					yield_per_period,
 					min_deposit,
+					FixedU128::one(),
 				),
 				BadOrigin
 			);
@@ -149,6 +153,7 @@ fn create_global_farm_should_fail_when_origin_is_none() {
 					owner,
 					yield_per_period,
 					min_deposit,
+					FixedU128::one(),
 				),
 				BadOrigin
 			);

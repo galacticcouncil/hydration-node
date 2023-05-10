@@ -75,6 +75,8 @@ thread_local! {
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 }
 
 construct_runtime!(
@@ -167,6 +169,7 @@ parameter_types! {
 	pub const TVLCap: Balance = Balance::MAX;
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
+	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 }
 
 impl Config for Test {
@@ -195,6 +198,8 @@ impl Config for Test {
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
+	type MinWithdrawalFee = MinWithdrawFee;
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
 }
 
 pub struct ExtBuilder {
@@ -249,6 +254,12 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		EXT_PRICE_ADJUSTMENT.with(|v| {
+			*v.borrow_mut() = (0, 0, false);
+		});
+		WITHDRAWAL_FEE.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		WITHDRAWAL_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
 		});
 
@@ -342,6 +353,15 @@ impl ExtBuilder {
 		EXT_PRICE_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = price_adjustment;
 		});
+		self
+	}
+	pub fn with_min_withdrawal_fee(self, fee: Permill) -> Self {
+		WITHDRAWAL_FEE.with(|v| *v.borrow_mut() = fee);
+		self
+	}
+
+	pub fn with_withdrawal_adjustment(self, adjustment: (u32, u32, bool)) -> Self {
+		WITHDRAWAL_ADJUSTMENT.with(|v| *v.borrow_mut() = adjustment);
 		self
 	}
 
@@ -535,6 +555,34 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 		let asset_state = Omnipool::load_asset_state(asset_a)?;
 		let price = EmaPrice::new(asset_state.reserve, asset_state.hub_reserve);
 		let adjusted_price = EXT_PRICE_ADJUSTMENT.with(|v| {
+			let (n, d, neg) = *v.borrow();
+			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
+			if neg {
+				saturating_sub(price, adjustment)
+			} else {
+				saturating_add(price, adjustment)
+			}
+		});
+
+		Ok(adjusted_price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
+}
+
+pub struct WithdrawFeePriceOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+
+		let adjusted_price = WITHDRAWAL_ADJUSTMENT.with(|v| {
 			let (n, d, neg) = *v.borrow();
 			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
 			if neg {

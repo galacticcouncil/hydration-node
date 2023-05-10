@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.3.0"
+version = "102.3.4"
 dependencies = [
  "cumulus-pallet-xcmp-queue",
  "frame-support",
@@ -1052,7 +1052,7 @@ dependencies = [
  "pallet-claims",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef)",
+ "pallet-currencies 1.2.0",
  "pallet-dca",
  "pallet-democracy",
  "pallet-ema-oracle",
@@ -3302,8 +3302,8 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "6.0.0"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=bcb75f1c2b4f1d859ff133ca663539c59d1ed910#bcb75f1c2b4f1d859ff133ca663539c59d1ed910"
+version = "7.0.0"
+source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=84632c3c7b71e16d53240e4bdc2adc693c941916#84632c3c7b71e16d53240e4bdc2adc693c941916"
 dependencies = [
  "fixed",
  "num-traits",
@@ -3398,7 +3398,7 @@ dependencies = [
 [[package]]
 name = "hydradx-adapters"
 version = "0.2.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-support",
  "hydradx-traits",
@@ -3414,7 +3414,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "140.0.0"
+version = "145.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3453,7 +3453,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef)",
+ "pallet-currencies 1.2.0",
  "pallet-dca",
  "pallet-democracy",
  "pallet-duster",
@@ -3512,7 +3512,7 @@ dependencies = [
 [[package]]
 name = "hydradx-traits"
 version = "2.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5616,7 +5616,7 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "2.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5819,7 +5819,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.2"
+version = "1.1.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5839,7 +5839,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "test-case 3.0.0",
- "test-utils 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef)",
+ "test-utils 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df)",
 ]
 
 [[package]]
@@ -5870,7 +5870,7 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5942,8 +5942,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-currencies"
-version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+version = "1.2.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5971,11 +5971,12 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-currencies 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf)",
+ "pallet-currencies 1.1.0",
  "pallet-omnipool",
  "pallet-relaychain-info",
  "parity-scale-codec",
  "pretty_assertions",
+ "primitive-types 0.12.1",
  "proptest",
  "rand 0.8.5",
  "scale-info",
@@ -6009,7 +6010,7 @@ dependencies = [
 [[package]]
 name = "pallet-duster"
 version = "3.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6079,8 +6080,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+version = "1.0.3"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6206,8 +6207,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-liquidity-mining"
-version = "4.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+version = "4.2.0"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6374,7 +6375,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "1.6.9"
+version = "2.0.5"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6402,7 +6403,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool-liquidity-mining"
-version = "2.0.2"
+version = "2.0.4"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6426,13 +6427,13 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
- "test-utils 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef)",
+ "test-utils 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df)",
 ]
 
 [[package]]
 name = "pallet-otc"
-version = "1.0.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+version = "1.0.1"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6495,7 +6496,7 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.3.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6671,7 +6672,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "8.0.4"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6689,7 +6690,7 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.1.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9032,7 +9033,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -9068,7 +9069,7 @@ dependencies = [
  "pallet-circuit-breaker",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef)",
+ "pallet-currencies 1.2.0",
  "pallet-dca",
  "pallet-democracy",
  "pallet-duster",
@@ -11784,7 +11785,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df#5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df"
 dependencies = [
  "frame-system",
  "pretty_assertions",
@@ -11793,7 +11794,7 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "1.1.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef#8b4a7d9f09cbd16e1df1d1b806a56395517d63ef"
+source = "git+https://github.com/galacticcouncil/warehouse?rev=6b855e632e8f8179702b7c56d6be7535c394dbcf#6b855e632e8f8179702b7c56d6be7535c394dbcf"
 dependencies = [
  "frame-system",
  "pretty_assertions",
@@ -11801,7 +11802,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "140.0.0"
+version = "145.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -11840,7 +11841,7 @@ dependencies = [
  "pallet-collator-rewards",
  "pallet-collator-selection",
  "pallet-collective",
- "pallet-currencies 1.1.0 (git+https://github.com/galacticcouncil/warehouse?rev=8b4a7d9f09cbd16e1df1d1b806a56395517d63ef)",
+ "pallet-currencies 1.2.0",
  "pallet-dca",
  "pallet-democracy",
  "pallet-duster",

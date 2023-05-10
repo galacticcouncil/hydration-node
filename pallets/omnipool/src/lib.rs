@@ -78,7 +78,7 @@ use sp_std::ops::{Add, Sub};
 use sp_std::prelude::*;
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
-use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, HubTradeStateChange, TradeStateChange, I129};
+use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
@@ -90,7 +90,6 @@ mod benchmarks;
 #[cfg(test)]
 mod tests;
 
-pub mod migration;
 pub mod provider;
 pub mod traits;
 pub mod types;
@@ -108,10 +107,11 @@ pub type NFTCollectionIdOf<T> =
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use crate::traits::{AssetInfo, OmnipoolHooks, ShouldAllow};
+	use crate::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks, ShouldAllow};
 	use crate::types::{Position, Price, Tradability};
 	use codec::HasCompact;
 	use frame_support::pallet_prelude::*;
+	use frame_support::traits::DefensiveOption;
 	use frame_system::pallet_prelude::*;
 	use hydra_dx_math::ema::EmaPrice;
 	use hydra_dx_math::omnipool::types::{BalanceUpdate, I129};
@@ -191,6 +191,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type AssetFee: Get<Permill>;
 
+		/// Minimum withdrawal fee
+		#[pallet::constant]
+		type MinWithdrawalFee: Get<Permill>;
+
 		/// Minimum trading limit
 		#[pallet::constant]
 		type MinimumTradingLimit: Get<Balance>;
@@ -228,7 +232,9 @@ pub mod pallet {
 		/// Hooks are actions executed on add_liquidity, sell or buy.
 		type OmnipoolHooks: OmnipoolHooks<Self::Origin, Self::AssetId, Balance, Error = DispatchError>;
 
-		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, hydra_dx_math::ema::EmaPrice>;
+		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, EmaPrice>;
+
+		type ExternalPriceOracle: ExternalPriceProvider<Self::AssetId, EmaPrice, Error = DispatchError>;
 	}
 
 	#[pallet::storage]
@@ -280,6 +286,7 @@ pub mod pallet {
 			position_id: T::PositionItemId,
 			asset_id: T::AssetId,
 			shares_removed: Balance,
+			fee: FixedU128,
 		},
 		/// Sell trade executed.
 		SellExecuted {
@@ -394,6 +401,10 @@ pub mod pallet {
 		MaxInRatioExceeded,
 		/// Max allowed price difference has been exceeded.
 		PriceDifferenceTooHigh,
+		/// Invalid oracle price - division by zero.
+		InvalidOraclePrice,
+		/// Failed to calculate withdrawal fee.
+		InvalidWithdrawalFee,
 	}
 
 	#[pallet::call]
@@ -651,7 +662,8 @@ pub mod pallet {
 		/// Emits `LiquidityAdded` event when successful.
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
-			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
+			.saturating_add(T::ExternalPriceOracle::get_price_weight()))
 		)]
 		#[transactional]
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
@@ -838,10 +850,22 @@ pub mod pallet {
 			let current_hub_asset_liquidity =
 				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
 
+			let ext_asset_price = T::ExternalPriceOracle::get_price(T::HubAssetId::get(), asset_id)?;
+
+			if ext_asset_price.is_zero() {
+				return Err(Error::<T>::InvalidOraclePrice.into());
+			}
+
+			let withdrawal_fee = hydra_dx_math::omnipool::calculate_withdrawal_fee(
+				asset_state.price().ok_or(ArithmeticError::DivisionByZero)?,
+				FixedU128::checked_from_rational(ext_asset_price.n, ext_asset_price.d)
+					.defensive_ok_or(Error::<T>::InvalidOraclePrice)?,
+				T::MinWithdrawalFee::get(),
+			);
+
 			//
 			// calculate state changes of remove liquidity
 			//
-
 			let state_changes = hydra_dx_math::omnipool::calculate_remove_liquidity_state_changes(
 				&(&asset_state).into(),
 				amount,
@@ -851,6 +875,7 @@ pub mod pallet {
 					negative: current_imbalance.negative,
 				},
 				current_hub_asset_liquidity,
+				withdrawal_fee,
 			)
 			.ok_or(ArithmeticError::Overflow)?;
 
@@ -935,6 +960,7 @@ pub mod pallet {
 				position_id,
 				asset_id,
 				shares_removed: amount,
+				fee: withdrawal_fee,
 			});
 
 			T::OmnipoolHooks::on_liquidity_changed(origin, info)?;
@@ -1832,62 +1858,6 @@ impl<T: Config> Pallet<T> {
 
 		<Assets<T>>::insert(asset_id, state);
 
-		Ok(())
-	}
-
-	/// Updates states of 2 non-hub assets given calculated trade result.
-	#[require_transactional]
-	pub fn update_omnipool_state_given_trade_result(
-		origin: T::Origin,
-		asset_in: T::AssetId,
-		asset_out: T::AssetId,
-		trade: TradeStateChange<Balance>,
-	) -> DispatchResult {
-		let delta_hub_asset = trade
-			.asset_in
-			.delta_hub_reserve
-			.merge(
-				trade
-					.asset_out
-					.delta_hub_reserve
-					.merge(BalanceUpdate::Increase(trade.hdx_hub_amount))
-					.ok_or(ArithmeticError::Overflow)?,
-			)
-			.ok_or(ArithmeticError::Overflow)?;
-
-		match delta_hub_asset {
-			BalanceUpdate::Increase(val) if val == Balance::zero() => {
-				// nothing to do if zero.
-			}
-			BalanceUpdate::Increase(_) => {
-				// trade can only burn some.
-				return Err(Error::<T>::HubAssetUpdateError.into());
-			}
-			BalanceUpdate::Decrease(amount) => {
-				T::Currency::withdraw(T::HubAssetId::get(), &Self::protocol_account(), amount)?;
-			}
-		};
-
-		//TODO: call on_trade hook.
-
-		Self::update_imbalance(trade.delta_imbalance)?;
-
-		Self::update_asset_state(asset_in, trade.asset_in)?;
-		Self::update_asset_state(asset_out, trade.asset_out)?;
-
-		Self::update_hdx_subpool_hub_asset(origin, trade.hdx_hub_amount)?;
-
-		Ok(())
-	}
-
-	/// Updates states of an asset given calculated trade result where hub asset was traded.
-	#[require_transactional]
-	pub fn update_omnipool_state_given_hub_asset_trade(
-		asset: T::AssetId,
-		trade: HubTradeStateChange<Balance>,
-	) -> DispatchResult {
-		Self::update_imbalance(trade.delta_imbalance)?;
-		Self::update_asset_state(asset, trade.asset)?;
 		Ok(())
 	}
 
