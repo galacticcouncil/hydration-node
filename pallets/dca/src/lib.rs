@@ -114,8 +114,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
-			//TODO: If verified by Lumir, we add an admin endpoint
-			let mut weight = T::WeightInfo::on_initialize(); //TODO: do minimal weight
+			let mut weight = T::WeightInfo::on_initialize_with_empty_block();
 
 			let mut random_generator = T::RandomnessProvider::generator();
 

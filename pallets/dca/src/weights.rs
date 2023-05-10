@@ -51,6 +51,7 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn execute_schedule() -> Weight;
 	fn on_initialize() -> Weight;
+	fn on_initialize_with_empty_block() -> Weight;
 	fn schedule() -> Weight;
 	fn pause() -> Weight;
 	fn resume() -> Weight;
@@ -67,6 +68,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(15 as u64))
 	}
 	fn on_initialize() -> Weight {
+		Weight::from_ref_time(219_868_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(22 as u64))
+			.saturating_add(T::DbWeight::get().writes(15 as u64))
+	}
+
+	fn on_initialize_with_empty_block() -> Weight {
 		Weight::from_ref_time(219_868_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(22 as u64))
 			.saturating_add(T::DbWeight::get().writes(15 as u64))
@@ -101,6 +108,11 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(15 as u64))
 	}
 	fn on_initialize() -> Weight {
+		Weight::from_ref_time(219_868_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(22 as u64))
+			.saturating_add(RocksDbWeight::get().writes(15 as u64))
+	}
+	fn on_initialize_with_empty_block() -> Weight {
 		Weight::from_ref_time(219_868_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(22 as u64))
 			.saturating_add(RocksDbWeight::get().writes(15 as u64))

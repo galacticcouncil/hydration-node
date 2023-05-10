@@ -62,6 +62,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(22 as u64))
 			.saturating_add(T::DbWeight::get().writes(15 as u64))
 	}
+
+	fn on_initialize_with_empty_block() -> Weight {
+		Weight::from_ref_time(217_338_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(22 as u64))
+			.saturating_add(T::DbWeight::get().writes(15 as u64))
+	}
 	fn schedule() -> Weight {
 		Weight::from_ref_time(60_410_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
