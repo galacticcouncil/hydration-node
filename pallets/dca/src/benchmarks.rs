@@ -318,22 +318,21 @@ benchmarks! {
 		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 31u32).into()).len());
 	}
 
-	/* TODO: we might add back terminate, so leaving it here as commented
 	terminate {
-		let token_id = prepare_omnipool::<T>()?;
+		initialize_omnipool::<T>()?;
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
-		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &caller, 100_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &caller, 100_000_000_000_000_000i128)?;
 
 		let amount_sell = 20_000_000_000_000u128;
-		let schedule1 = schedule_fake::<T>(caller.clone(), token_id.into(), T::StableCoinAssetId::get().into(), amount_sell);
-		let schedule_id : ScheduleId = 1;
+		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
+		let schedule_id : ScheduleId = 0;
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
 
-	}: _(RawOrigin::Signed(caller.clone()), schedule_id, Option::Some(execution_block.into()))
+	}: _(RawOrigin::Root, schedule_id, execution_block.into())
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_none());
-	}*/
+	}
 
 }
 
