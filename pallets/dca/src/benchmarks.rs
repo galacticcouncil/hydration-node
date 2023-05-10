@@ -22,12 +22,21 @@ use super::*;
 use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::assert_ok;
-use frame_system::RawOrigin;
+use frame_system::{Pallet as System, RawOrigin};
 use hydradx_traits::Registry;
 use orml_traits::MultiCurrencyExtended;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::FixedU128;
 use sp_runtime::Permill;
+
+pub type AssetId = u32;
+
+pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
+
+pub const HDX: AssetId = 0;
+pub const LRNA: AssetId = 1;
+pub const DAI: AssetId = 2;
+pub const BTC: AssetId = 3;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -65,7 +74,7 @@ fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
 		owner,
 		period: 3u32.into(),
-		total_amount: 500 * ONE,
+		total_amount: 2000 * ONE,
 		order: Order::Sell {
 			asset_in,
 			asset_out,
@@ -77,6 +86,29 @@ fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 	schedule1
 }
 
+fn set_period<T: Config + pallet_omnipool::Config + pallet_circuit_breaker::Config>(to: u32)
+where
+	T: pallet_ema_oracle::Config,
+	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T: crate::pallet::Config,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+	<T as pallet::Config>::Asset: From<u32>,
+{
+	while System::<T>::block_number() < to.into() {
+		let b = System::<T>::block_number();
+
+		System::<T>::on_finalize(b);
+		pallet_ema_oracle::Pallet::<T>::on_finalize(b);
+		pallet_circuit_breaker::Pallet::<T>::on_finalize(b);
+
+		System::<T>::on_initialize(b + 1_u32.into());
+		pallet_ema_oracle::Pallet::<T>::on_initialize(b + 1_u32.into());
+		pallet_circuit_breaker::Pallet::<T>::on_initialize(b + 1_u32.into());
+
+		System::<T>::set_block_number(b + 1_u32.into());
+	}
+}
+
 pub fn create_bounded_vec<T: Config>(trades: Vec<Trade<T::Asset>>) -> BoundedVec<Trade<T::Asset>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<T::Asset>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec
@@ -84,6 +116,8 @@ pub fn create_bounded_vec<T: Config>(trades: Vec<Trade<T::Asset>>) -> BoundedVec
 
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
+type FrameSystem<T> = frame_system::Pallet<T>;
+type EmaOracle<T> = pallet_ema_oracle::Pallet<T>;
 
 fn prepare_omnipool<T: pallet_omnipool::Config>() -> Result<T::AssetId, DispatchError>
 where
@@ -159,6 +193,141 @@ where
 	Ok(token_id)
 }
 
+fn initialize_omnipool<T: Config + pallet_omnipool::Config + pallet_circuit_breaker::Config>() -> DispatchResult
+where
+	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T: pallet_ema_oracle::Config,
+	T::Asset: From<u32>,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+{
+	let stable_amount: Balance = 1_000_000_000_000_000_u128;
+	let native_amount: Balance = 1_000_000_000_000_000_u128;
+	let stable_price: FixedU128 = FixedU128::from((1, 2));
+	let native_price: FixedU128 = FixedU128::from(1);
+	let acc = OmnipoolPallet::<T>::protocol_account();
+
+	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
+
+	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
+	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
+
+	OmnipoolPallet::<T>::initialize_pool(
+		RawOrigin::Root.into(),
+		stable_price,
+		native_price,
+		Permill::from_percent(100),
+		Permill::from_percent(100),
+	)?;
+
+	// Register new asset in asset registry
+	T::AssetRegistry::create_asset(&b"BTC".to_vec(), Balance::one())?;
+
+	// Create account for token provider and set balance
+	let owner: T::AccountId = account("owner", 0, 1);
+
+	/*let token_price = FixedU128::from((1, 5));
+	let token_amount = 200_000_000_000_000u128;
+
+	<T as pallet_omnipool::Config>::Currency::update_balance(BTC.into(), &acc, token_amount as i128)?;
+
+	OmnipoolPallet::<T>::add_token(
+		RawOrigin::Root.into(),
+		BTC.into(),
+		token_price,
+		Permill::from_percent(100),
+		owner.clone(),
+	)?;*/
+
+	/*let token_id = T::AssetRegistry::create_asset(&b"NEW_TOKEN".to_vec(), 1u128)?;
+	let token_amount = 200_000_000_000_000u128;
+
+	let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
+	let owner: T::AccountId = account("owner", 0, 1);
+	<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &acc, token_amount as i128)?;
+
+	assert_ok!(OmnipoolPallet::<T>::add_token(
+		RawOrigin::Root.into(),
+		token_id,
+		token_price,
+		Permill::from_percent(100),
+		owner,
+	));*/
+	do_trade_to_populate_oracle::<T>(DAI, HDX, ONE)?;
+
+	do_lrna_hdx_trade::<T>()?;
+
+	//NOTE: This is necessary for oracle to provide price.
+	set_period::<T>(10);
+
+	do_lrna_hdx_trade::<T>()
+}
+
+const SEED: u32 = 0;
+fn create_funded_account<T: Config + pallet_omnipool::Config>(
+	name: &'static str,
+	index: u32,
+	amount: Balance,
+	currency: <T as pallet_omnipool::Config>::AssetId,
+) -> T::AccountId
+where
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+{
+	let caller: T::AccountId = account(name, index, SEED);
+
+	fund::<T>(caller.clone(), currency, amount).unwrap();
+
+	caller
+}
+
+fn fund<T: Config + pallet_omnipool::Config>(
+	to: T::AccountId,
+	currency: <T as pallet_omnipool::Config>::AssetId,
+	amount: Balance,
+) -> DispatchResult {
+	CurrencyOf::<T>::deposit(currency, &to, amount)
+}
+
+//NOTE: This is necessary for oracle to provide price.
+fn do_lrna_hdx_trade<T: Config + pallet_omnipool::Config>() -> DispatchResult
+where
+	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T::Asset: From<u32>,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+{
+	let trader = create_funded_account::<T>("tmp_trader", 0, 100 * ONE, HDX.into());
+
+	fund::<T>(trader.clone(), LRNA.into(), 100 * ONE)?;
+
+	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), HDX.into(), ONE, 0)
+}
+
+//NOTE: This is necessary for oracle to provide price.
+fn do_trade_to_populate_oracle<T: Config + pallet_omnipool::Config>(
+	asset1: AssetId,
+	asset2: AssetId,
+	amount: Balance,
+) -> DispatchResult
+where
+	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
+	T::Asset: From<u32>,
+	<T as pallet_omnipool::Config>::AssetId: From<u32>,
+{
+	let trader = create_funded_account::<T>("tmp_trader", 0, 10000 * ONE, HDX.into());
+
+	fund::<T>(trader.clone(), LRNA.into(), 10000 * ONE)?;
+
+	OmnipoolPallet::<T>::sell(
+		RawOrigin::Signed(trader.clone()).into(),
+		LRNA.into(),
+		asset1.into(),
+		amount,
+		0,
+	)?;
+	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), asset2.into(), amount, 0)?;
+
+	Ok(())
+}
+
 fn create_account_with_native_balance<T: Config + pallet_omnipool::Config>() -> Result<T::AccountId, DispatchError>
 where
 	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
@@ -175,14 +344,80 @@ where
 benchmarks! {
 	 where_clause {  where
 		CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-		T: crate::pallet::Config + pallet_omnipool::Config,
+		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_circuit_breaker::Config,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
+		<T as Config>::Asset: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
 	}
 
-	on_initialize_with_empty_block{
+	on_initialize{
+		//Prepare omnipool
+		initialize_omnipool::<T>()?;
+		set_period::<T>(697);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
+
+		set_period::<T>(698);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
+
+				set_period::<T>(699);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 50 * ONE).unwrap();
+
+				set_period::<T>(700);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 50 * ONE).unwrap();
+
+
+		set_period::<T>(700);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
+		set_period::<T>(800);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
+		set_period::<T>(900);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
+		set_period::<T>(999);
+		do_trade_to_populate_oracle::<T>(DAI, HDX, 100 * ONE).unwrap();
+		set_period::<T>(1000);
+
+		let seller: T::AccountId = account("seller", 3, 1);
+
+		let amount_sell = 1 *  ONE / 2;
+
+		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
+		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
+
+		let schedule1 = schedule_sell_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_sell);
+		let execution_block = 1001u32;
+
+		let max_schedules_per_block: u128 = T::MaxSchedulePerBlock::get().into();
+
+		for _ in 0..max_schedules_per_block {
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
+		}
+
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller.clone()),0);
+		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
+
+		let init_reserved_balance = 40000000000000000;
+		assert_eq!(init_reserved_balance, reserved_balance);
+
+		let init_native_balance = 0;
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller), init_native_balance);
+
+
+	}: {
+		crate::Pallet::<T>::on_initialize(execution_block.into());
+	}
+	verify {
+		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
+		let asset_in_spent_on_all_trades = max_schedules_per_block * amount_sell;
+		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades, reserved_balance);
+
+		let init_native_balance = 0;
+		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(HDX.into(), &seller) > init_native_balance);
+	}
+
+
+	/*on_initialize_with_empty_block{
 		let token_id = prepare_omnipool::<T>()?;
 
 		let seller: T::AccountId = account("seller", 3, 1);
@@ -201,11 +436,18 @@ benchmarks! {
 	}
 	verify {
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller), 0);
-	}
+	}*/
 
+	/*
 	on_initialize{
 		//Prepare omnipool
 		let token_id = prepare_omnipool::<T>()?;
+
+		let trader: T::AccountId = account("trader", 3, 1);
+		<T as pallet_omnipool::Config>::Currency::update_balance(token_id, &trader, 20_000_000_000_000_000_000i128)?;
+		assert_ok!(OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader.clone()).into(), token_id.into(), T::StableCoinAssetId::get().into(), 100_000_000u128, 0));
+
+		set_period::<T>(10);
 
 		let seller: T::AccountId = account("seller", 3, 1);
 
@@ -237,8 +479,8 @@ benchmarks! {
 		let asset_in_spent_on_all_trades = max_schedules_per_block * amount_sell;
 		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades, reserved_balance);
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller) > 0);
-	}
-
+	}*/
+/*
 	schedule{
 		let token_id = prepare_omnipool::<T>()?;
 
@@ -268,7 +510,7 @@ benchmarks! {
 		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 15u32).into()).len());
 		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 31u32).into()).len());
 	}
-
+*/
 	/* TODO: we might add back terminate, so leaving it here as commented
 	terminate {
 		let token_id = prepare_omnipool::<T>()?;

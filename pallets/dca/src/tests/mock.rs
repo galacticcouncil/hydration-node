@@ -23,6 +23,7 @@ use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};
 use frame_support::PalletId;
 
+use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
 use frame_system::EnsureRoot;
@@ -31,7 +32,7 @@ use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
 use primitive_types::{U128, U256};
 use sp_core::H256;
-use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider};
+use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
 use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
@@ -57,6 +58,8 @@ type NamedReserveIdentifier = [u8; 8];
 pub const FEE_FOR_ONE_DCA_EXECUTION: Balance = 113493400;
 pub const FEE_FOR_ONE_DCA_EXECUTION_IN_DAI: Balance = 99874192;
 
+pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
+
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
@@ -81,6 +84,8 @@ frame_support::construct_runtime!(
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
 		 RelaychainInfo: pallet_relaychain_info,
+		 EmaOracle: pallet_ema_oracle,
+		 CircuitBreaker: pallet_circuit_breaker,
 	 }
 );
 
@@ -125,6 +130,51 @@ pub struct SellExecution {
 	pub asset_out: AssetId,
 	pub amount_in: Balance,
 	pub min_buy_amount: Balance,
+}
+
+// pallet circuit breaker
+parameter_types! {
+	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
+	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
+	pub const OmnipoolHubAsset: AssetId = LRNA;
+
+}
+
+impl pallet_circuit_breaker::Config for Test {
+	type Event = Event;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type WhitelistedAccounts = ();
+	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
+	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
+	type OmnipoolHubAsset = OmnipoolHubAsset;
+	type WeightInfo = ();
+}
+
+use pallet_ema_oracle::MAX_PERIODS;
+
+parameter_types! {
+	pub static MockBlockNumberProvider: u64 = 0;
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+	OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+}
+
+impl pallet_ema_oracle::Config for Test {
+	type Event = Event;
+	type WeightInfo = ();
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type SupportedPeriods = SupportedPeriods;
+	type MaxUniqueEntries = ConstU32<20>;
+}
+
+impl BlockNumberProvider for MockBlockNumberProvider {
+	type BlockNumber = BlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		System::block_number()
+	}
 }
 
 parameter_types! {
