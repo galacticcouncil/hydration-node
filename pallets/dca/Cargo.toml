@@ -26,11 +26,11 @@ frame-support = { git = "https://github.com/paritytech/substrate", branch = "pol
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 # HydraDX dependencies
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df", default-features = false }
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "e45dddf08695c1ff92b01c1ae1af66c4412922ec", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "e45dddf08695c1ff92b01c1ae1af66c4412922ec", default-features = false }
 pallet-omnipool = { path="../omnipool", default-features = false }
 pallet-circuit-breaker = { path="../circuit-breaker", default-features = false }
-pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "5ae1fad6a44ee9f356f0fa1a3debb9d7e222f0df", default-features = false }
+pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "e45dddf08695c1ff92b01c1ae1af66c4412922ec", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "84632c3c7b71e16d53240e4bdc2adc693c941916", default-features = false }
 

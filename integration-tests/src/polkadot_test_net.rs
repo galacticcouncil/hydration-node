@@ -209,6 +209,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(BOB), BTC, 1_000_000),
 			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
 			(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
@@ -231,7 +232,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
-		currencies: vec![(1, Price::from(1)), (DAI, Price::from(1))],
+		currencies: vec![
+			(1, Price::from(1)),
+			(DAI, Price::from(1)),
+			(BTC, Price::from_inner(134000000)),
+		],
 		account_currencies: vec![],
 	}
 	.assimilate_storage(&mut t)

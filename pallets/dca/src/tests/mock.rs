@@ -85,7 +85,6 @@ frame_support::construct_runtime!(
 		 Currencies: pallet_currencies,
 		 RelaychainInfo: pallet_relaychain_info,
 		 EmaOracle: pallet_ema_oracle,
-		 CircuitBreaker: pallet_circuit_breaker,
 	 }
 );
 
@@ -132,27 +131,7 @@ pub struct SellExecution {
 	pub min_buy_amount: Balance,
 }
 
-// pallet circuit breaker
-parameter_types! {
-	pub const DefaultMaxNetTradeVolumeLimitPerBlock: (u32, u32) = (5_000, 10_000);	// 50%
-	pub const DefaultMaxLiquidityLimitPerBlock: Option<(u32, u32)> = Some((500, 10_000));	// 5%
-	pub const OmnipoolHubAsset: AssetId = LRNA;
-
-}
-
-impl pallet_circuit_breaker::Config for Test {
-	type Event = Event;
-	type AssetId = AssetId;
-	type Balance = Balance;
-	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-	type WhitelistedAccounts = ();
-	type DefaultMaxNetTradeVolumeLimitPerBlock = DefaultMaxNetTradeVolumeLimitPerBlock;
-	type DefaultMaxAddLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
-	type DefaultMaxRemoveLiquidityLimitPerBlock = DefaultMaxLiquidityLimitPerBlock;
-	type OmnipoolHubAsset = OmnipoolHubAsset;
-	type WeightInfo = ();
-}
-
+//NOTE: oracle is only used for benchmarking to have price from it
 use pallet_ema_oracle::MAX_PERIODS;
 
 parameter_types! {
