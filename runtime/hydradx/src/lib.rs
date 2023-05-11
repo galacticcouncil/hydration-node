@@ -206,9 +206,16 @@ impl Contains<Call> for CallFilter {
 		{
 			// Lookup::lookup() is not necessary thanks to IdentityLookup
 			if dest == &Omnipool::protocol_account()
-				&& *currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
-				|| Omnipool::exists(*currency_id)
+				&& (*currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
+					|| Omnipool::exists(*currency_id))
 			{
+				return false;
+			}
+		}
+		// filter transfers of HDX to the omnipool account
+		if let Call::Balances(pallet_balances::Call::transfer { dest, .. }) = call {
+			// Lookup::lookup() is not necessary thanks to IdentityLookup
+			if dest == &Omnipool::protocol_account() {
 				return false;
 			}
 		}

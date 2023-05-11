@@ -32,7 +32,28 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 
 		// Act & Assert
 
+		// Balances::transfer
+		// transfer to Alice should not be filtered
+		let successful_call = hydradx_runtime::Call::Balances(pallet_balances::Call::transfer {
+			dest: ALICE.into(),
+			value: 10 * UNITS,
+		});
+		let filtered_call = hydradx_runtime::Call::Balances(pallet_balances::Call::transfer {
+			dest: omnipool_account.clone(),
+			value: 10 * UNITS,
+		});
+
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
+		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call));
+
 		// Currencies::transfer
+		// transfer to Alice should not be filtered
+		let successful_call_alice = hydradx_runtime::Call::Currencies(pallet_currencies::Call::transfer {
+			dest: ALICE.into(),
+			currency_id: DOT,
+			amount: 10 * UNITS,
+		});
+		// transfer of a token that's not registered in omnipool should not be filtered
 		let successful_call = hydradx_runtime::Call::Currencies(pallet_currencies::Call::transfer {
 			dest: omnipool_account.clone(),
 			currency_id: ETH,
@@ -49,11 +70,18 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 			amount: 10 * UNITS,
 		});
 
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call_alice));
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_lrna));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_dot));
 
 		// Tokens::transfer
+		// transfer to Alice should not be filtered
+		let successful_call_alice = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer {
+			dest: ALICE.into(),
+			currency_id: DOT,
+			amount: 10 * UNITS,
+		});
 		let successful_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer {
 			dest: omnipool_account.clone(),
 			currency_id: ETH,
@@ -70,11 +98,18 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 			amount: 10 * UNITS,
 		});
 
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call_alice));
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_lrna));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_dot));
 
 		// Tokens::transfer_keep_alive
+		// transfer to Alice should not be filtered
+		let successful_call_alice = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_keep_alive {
+			dest: ALICE.into(),
+			currency_id: DOT,
+			amount: 10 * UNITS,
+		});
 		let successful_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_keep_alive {
 			dest: omnipool_account.clone(),
 			currency_id: ETH,
@@ -91,11 +126,18 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 			amount: 10 * UNITS,
 		});
 
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call_alice));
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_dot));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_lrna));
 
 		// Tokens::transfer_all
+		// transfer to Alice should not be filtered
+		let successful_call_alice = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_all {
+			dest: ALICE.into(),
+			currency_id: DOT,
+			keep_alive: true,
+		});
 		let successful_call = hydradx_runtime::Call::Tokens(orml_tokens::Call::transfer_all {
 			dest: omnipool_account.clone(),
 			currency_id: ETH,
@@ -112,6 +154,7 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 			keep_alive: true,
 		});
 
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call_alice));
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_lrna));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call_dot));
