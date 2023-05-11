@@ -13,8 +13,6 @@ use frame_support::dispatch::{DispatchInfo, Weight};
 use orml_traits::currency::MultiCurrency;
 use polkadot_primitives::v2::BlockNumber;
 use sp_runtime::traits::SignedExtension;
-use sp_runtime::FixedU128;
-use sp_runtime::Permill;
 use xcm_emulator::TestExt;
 
 pub fn hydra_run_to_block(to: BlockNumber) {
@@ -65,22 +63,8 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 			0,
 		));
 
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let stable_price = FixedU128::from_inner(45_000_000_000);
-		hydradx_runtime::Omnipool::protocol_account();
+		init_omnipool();
 
-		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-			hydradx_runtime::Origin::root(),
-			222_222_000_000_000_000_000_000,
-		));
-
-		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-			hydradx_runtime::Origin::root(),
-			stable_price,
-			native_price,
-			Permill::from_percent(100),
-			Permill::from_percent(10)
-		));
 		hydra_run_to_block(2);
 
 		let call =

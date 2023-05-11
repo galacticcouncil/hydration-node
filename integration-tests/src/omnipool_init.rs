@@ -23,21 +23,8 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let eth_amount = 63_750_000_000_000_000_000u128;
 		let btc_amount = 1_000_000_000u128;
 
-		let native_price = FixedU128::from_inner(1201500000000000);
-		let stable_price = FixedU128::from_inner(45_000_000_000);
+		init_omnipool();
 
-		assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
-			hydradx_runtime::Origin::root(),
-			522_222_000_000_000_000_000_000,
-		));
-
-		assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-			hydradx_runtime::Origin::root(),
-			stable_price,
-			native_price,
-			Permill::from_percent(100),
-			Permill::from_percent(10)
-		));
 		let hdx_balance = hydradx_runtime::Balances::free_balance(&omnipool_account);
 		let dai_balance = hydradx_runtime::Tokens::free_balance(DAI, &omnipool_account);
 		let lrna_balance = hydradx_runtime::Tokens::free_balance(LRNA, &omnipool_account);
