@@ -261,6 +261,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+			asset_fee: Permill,
 		},
 		/// Buy trade executed.
 		BuyExecuted {
@@ -269,6 +270,7 @@ pub mod pallet {
 			asset_out: T::AssetId,
 			amount_in: Balance,
 			amount_out: Balance,
+			asset_fee: Permill,
 		},
 		/// LP Position was created and NFT instance minted.
 		PositionCreated {
@@ -1133,6 +1135,7 @@ pub mod pallet {
 				asset_out,
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				asset_fee,
 			});
 
 			Ok(())
@@ -1314,6 +1317,7 @@ pub mod pallet {
 				asset_out,
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
+				asset_fee,
 			});
 
 			Ok(())
@@ -1670,6 +1674,7 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			asset_fee,
 		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
@@ -1767,6 +1772,7 @@ impl<T: Config> Pallet<T> {
 			asset_out,
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
+			asset_fee,
 		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
