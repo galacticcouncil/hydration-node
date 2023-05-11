@@ -64,8 +64,6 @@ fn non_native_fee_payment_works_with_omnipool_spot_price() {
 		));
 
 		init_omnipool();
-		//let spot_price = hydradx_runtime::Omnipool::spot_price(HDX, DAI);
-		//assert_eq!(spot_price, Some(Price::from_float(26699.999999999999999999)));
 
 		hydra_run_to_block(2);
 
