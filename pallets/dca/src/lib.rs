@@ -754,12 +754,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::decrease_remaining_amount(schedule_id, fee_amount_in_sold_asset)?;
 
-		T::Currency::transfer(
-			fee_currency,
-			owner,
-			&T::FeeReceiver::get(),
-			fee_amount_in_sold_asset,
-		)?;
+		T::Currency::transfer(fee_currency, owner, &T::FeeReceiver::get(), fee_amount_in_sold_asset)?;
 
 		Ok(())
 	}
