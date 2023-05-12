@@ -201,12 +201,12 @@ fn one_buy_dca_execution_should_use_slippage_limit() {
 			set_to_blocknumber(501);
 
 			//Assert
-			let max_sell_amount = 9_240_000_00_000;
+			let max_sell_amount = 924_000_000_000;
 			assert_executed_buy_trades!(vec![BuyExecution {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_out: ONE,
-				max_sell_amount: max_sell_amount,
+				max_sell_amount,
 			}]);
 
 			assert_eq!(
@@ -618,7 +618,7 @@ fn dca_schedule_should_terminate_when_error_is_not_configured_to_continue_on() {
 				.with_order(Order::Sell {
 					asset_in: FORBIDDEN_ASSET,
 					asset_out: BTC,
-					amount_in: 1 * ONE,
+					amount_in: ONE,
 					min_limit: 5 * ONE,
 					route: empty_vec(),
 				})
@@ -1087,7 +1087,7 @@ fn dca_shell_schedule_should_be_completed_after_one_trade_when_total_amount_is_e
 			proceed_to_blocknumber(1, 500);
 
 			//set up tests so the budget is equal amount to sell + fee, so one, but then we unreserve ONE, so it should fail at decreasing amount with invalid state error
-			let total_amount = 1 * ONE;
+			let total_amount = ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_total_amount(total_amount)
@@ -1100,7 +1100,7 @@ fn dca_shell_schedule_should_be_completed_after_one_trade_when_total_amount_is_e
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule.clone(), Option::None));
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);

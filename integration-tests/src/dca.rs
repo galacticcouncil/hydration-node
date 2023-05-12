@@ -428,31 +428,12 @@ pub fn init_omnipol() {
 		Permill::from_percent(60)
 	));
 
-	Balances::set_balance(
+	assert_ok!(Balances::set_balance(
 		RawOrigin::Root.into(),
 		hydradx_runtime::Treasury::account_id(),
 		TREASURY_ACCOUNT_INIT_BALANCE,
 		0,
-	);
-}
-
-pub fn expect_completed_dca_events(e: Vec<hydradx_runtime::Event>) {
-	let last_events: Vec<hydradx_runtime::Event> = get_last_completed_dca_events();
-	pretty_assertions::assert_eq!(last_events, e);
-}
-
-pub fn get_last_completed_dca_events() -> Vec<hydradx_runtime::Event> {
-	let last_events: Vec<hydradx_runtime::Event> = last_hydra_events(1000);
-	let mut suspended_events = vec![];
-
-	for event in last_events {
-		let e = event.clone();
-		if let hydradx_runtime::Event::DCA(pallet_dca::Event::Completed { .. }) = e {
-			suspended_events.push(event.clone());
-		}
-	}
-
-	suspended_events
+	));
 }
 
 fn init_omnipool_with_oracle_for_block_10() {
@@ -489,14 +470,6 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 }
 
 pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
-	for b in from..=to {
-		do_trade_to_populate_oracle(DAI, HDX, UNITS);
-		set_relaychain_block_number(b);
-		do_trade_to_populate_oracle(DAI, HDX, UNITS);
-	}
-}
-
-pub fn run_to_block2(from: BlockNumber, to: BlockNumber) {
 	for b in from..=to {
 		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 		set_relaychain_block_number(b);

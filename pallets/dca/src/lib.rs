@@ -416,12 +416,12 @@ pub mod pallet {
 			Self::reserve_asset_in(&schedule, &who)?;
 
 			let next_block_number = Self::get_next_block_number()?;
-			let blocknumber_for_first_schedule_execution = start_execution_block.unwrap_or_else(|| next_block_number);
+			let blocknumber_for_first_schedule_execution = start_execution_block.unwrap_or(next_block_number);
 			Self::plan_schedule_for_block(who.clone(), blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
-				who: who.clone(),
+				who,
 			});
 
 			Ok(())
@@ -521,9 +521,9 @@ impl<T: Config> Pallet<T> {
 
 		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
 			&T::NamedReserveId::get(),
-			sold_currency.into(),
+			sold_currency,
 			&schedule.owner,
-			amount_to_sell.into(),
+			amount_to_sell,
 		);
 		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
 
@@ -550,7 +550,7 @@ impl<T: Config> Pallet<T> {
 		let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;
 
 		if remaining_amount_to_use < amount_to_unreserve {
-			Self::complete_schedule(schedule_id, &schedule);
+			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
 
@@ -746,19 +746,19 @@ impl<T: Config> Pallet<T> {
 
 		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
 			&T::NamedReserveId::get(),
-			order.get_asset_in().into(),
-			&owner,
-			fee_amount_in_sold_asset.into(),
+			order.get_asset_in(),
+			owner,
+			fee_amount_in_sold_asset,
 		);
 		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
 
 		Self::decrease_remaining_amount(schedule_id, fee_amount_in_sold_asset)?;
 
 		T::Currency::transfer(
-			fee_currency.into(),
+			fee_currency,
 			owner,
 			&T::FeeReceiver::get(),
-			fee_amount_in_sold_asset.into(),
+			fee_amount_in_sold_asset,
 		)?;
 
 		Ok(())
@@ -775,9 +775,9 @@ impl<T: Config> Pallet<T> {
 
 		T::Currency::reserve_named(
 			&T::NamedReserveId::get(),
-			currency_for_reserve.into(),
+			currency_for_reserve,
 			who,
-			schedule.total_amount.into(),
+			schedule.total_amount,
 		)?;
 
 		Ok(())
@@ -834,7 +834,7 @@ impl<T: Config> Pallet<T> {
 
 		let remaining_amount = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 
-		T::Currency::unreserve_named(&T::NamedReserveId::get(), sold_currency.into(), who, remaining_amount);
+		T::Currency::unreserve_named(&T::NamedReserveId::get(), sold_currency, who, remaining_amount);
 
 		Ok(())
 	}

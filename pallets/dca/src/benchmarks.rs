@@ -60,7 +60,7 @@ fn schedule_fake<T: Config + pallet_omnipool::Config>(
 }
 
 fn get_named_reseve_balance<T: Config + pallet_omnipool::Config>(token_id: T::Asset, seller: T::AccountId) -> Balance {
-	<T as Config>::Currency::reserved_balance_named(&T::NamedReserveId::get(), token_id, &seller.clone())
+	<T as Config>::Currency::reserved_balance_named(&T::NamedReserveId::get(), token_id, &seller)
 }
 
 fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
@@ -246,7 +246,7 @@ benchmarks! {
 			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
 		}
 
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller.clone()),0);
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
 
 		let init_reserved_balance = 40000000000000000;
@@ -275,7 +275,7 @@ benchmarks! {
 		let seller: T::AccountId = account("seller", 3, 1);
 
 		let execution_block = 100u32;
-		assert_eq!(crate::Pallet::<T>::schedules::<ScheduleId>(execution_block.into()).len(), 0);
+		assert_eq!(crate::Pallet::<T>::schedules::<ScheduleId>(execution_block).len(), 0);
 		let mut weight = Weight::from_ref_time(0);
 	}: {
 		weight = crate::Pallet::<T>::on_initialize(execution_block.into());
@@ -323,7 +323,7 @@ benchmarks! {
 		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let schedule_id : ScheduleId = 0;
 		let execution_block = 100u32;
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller.clone()).into(), schedule1, Option::Some(execution_block.into())));
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller).into(), schedule1, Option::Some(execution_block.into())));
 
 	}: _(RawOrigin::Root, schedule_id, execution_block.into())
 	verify {

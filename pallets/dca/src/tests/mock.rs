@@ -391,7 +391,7 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 		INVALID_BUY_AMOUNT.with(|v| {
 			let invalid_buy_amount = *v.borrow_mut();
 			if amount == invalid_buy_amount {
-				return Err::<(), DispatchError>(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into());
+				Err::<(), DispatchError>(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into())
 			} else {
 				Ok(())
 			}

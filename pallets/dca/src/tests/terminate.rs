@@ -98,7 +98,7 @@ fn terminate_should_unreserve_all_named_reserved_only_for_single_dca_when_there_
 			let schedule_id = 0;
 			assert_eq!(
 				total_reserved,
-				Currencies::reserved_balance_named(&&NamedReserveId::get(), HDX, &ALICE)
+				Currencies::reserved_balance_named(&NamedReserveId::get(), HDX, &ALICE)
 			);
 
 			//Act

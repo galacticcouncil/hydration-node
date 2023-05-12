@@ -639,7 +639,7 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let total_amount = 1 * ONE;
+			let total_amount = ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Buy {
