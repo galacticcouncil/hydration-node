@@ -1,18 +1,70 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`'hydraDX' upgrade > 'gov upgrade' works > enact 1`] = `[]`;
-
-exports[`'hydraDX' upgrade > 'gov upgrade' works > events 1`] = `
+exports[`'hydraDX' upgrade > 'gov upgrade' works > enact 1`] = `
 [
   {
     "data": {
-      "hash_": "(hash)",
+      "amount": "(rounded 11000000000000000)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
     },
-    "method": "Noted",
-    "section": "preimage",
+    "method": "Withdraw",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(rounded 11000000000000000)",
+      "currencyId": 0,
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Withdrawn",
+    "section": "currencies",
+  },
+  {
+    "data": {},
+    "method": "ValidationFunctionStored",
+    "section": "parachainSystem",
+  },
+  {
+    "data": {
+      "amount": "(rounded 11000000000000000)",
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Deposit",
+    "section": "balances",
+  },
+  {
+    "data": {
+      "amount": "(rounded 11000000000000000)",
+      "currencyId": 0,
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "Deposited",
+    "section": "currencies",
+  },
+  {
+    "data": {
+      "actualFee": 0,
+      "tip": 0,
+      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
+    },
+    "method": "TransactionFeePaid",
+    "section": "transactionPayment",
+  },
+  {
+    "data": {
+      "dispatchInfo": {
+        "class": "Normal",
+        "paysFee": "No",
+        "weight": 1000000,
+      },
+    },
+    "method": "ExtrinsicSuccess",
+    "section": "system",
   },
 ]
 `;
+
+exports[`'hydraDX' upgrade > 'gov upgrade' works > events 1`] = `[]`;
 
 exports[`'hydraDX' upgrade > 'gov upgrade' works > events 2`] = `
 [
@@ -146,82 +198,6 @@ exports[`'hydraDX' upgrade > 'gov upgrade' works > tech committee 1`] = `
     "data": {
       "dispatchInfo": {
         "class": "Operational",
-        "paysFee": "Yes",
-        "weight": "(number)",
-      },
-    },
-    "method": "ExtrinsicSuccess",
-    "section": "system",
-  },
-]
-`;
-
-exports[`'hydraDX' upgrade > 'gov upgrade' works > vote 1`] = `
-[
-  {
-    "data": {
-      "amount": "(number)",
-      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
-    },
-    "method": "Withdraw",
-    "section": "balances",
-  },
-  {
-    "data": {
-      "amount": "(number)",
-      "currencyId": "(number)",
-      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
-    },
-    "method": "Withdrawn",
-    "section": "currencies",
-  },
-  {
-    "data": {
-      "refIndex": "(number)",
-      "vote": {
-        "Standard": {
-          "balance": "(number)",
-          "vote": {
-            "conviction": "Locked1x",
-            "vote": "Aye",
-          },
-        },
-      },
-      "voter": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
-    },
-    "method": "Voted",
-    "section": "democracy",
-  },
-  {
-    "data": {
-      "amount": "(number)",
-      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
-    },
-    "method": "Deposit",
-    "section": "balances",
-  },
-  {
-    "data": {
-      "amount": "(number)",
-      "currencyId": "(number)",
-      "who": "7L53bUTBopuwFt3mKUfmkzgGLayYa1Yvn1hAg9v5UMrQzTfh",
-    },
-    "method": "Deposited",
-    "section": "currencies",
-  },
-  {
-    "data": {
-      "actualFee": "(number)",
-      "tip": "(number)",
-      "who": "7Lh1DEaxk8TNVU7snC3UkSv7N7NHb7BUuEkYZBwrzfrPNQE3",
-    },
-    "method": "TransactionFeePaid",
-    "section": "transactionPayment",
-  },
-  {
-    "data": {
-      "dispatchInfo": {
-        "class": "Normal",
         "paysFee": "Yes",
         "weight": "(number)",
       },

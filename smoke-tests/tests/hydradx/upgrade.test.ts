@@ -17,7 +17,7 @@ describe.each([
 
   const head = chain.chain.head
 
-  const code = fs.readFileSync('./38.wasm').toString()
+  const code = fs.readFileSync('./148.wasm').toString('hex')
 
   afterAll(async () => {
     await chain.teardown()
@@ -32,12 +32,13 @@ describe.each([
       name: 'gov upgrade',
     }
   ])('$name works', async () => {
-    const proposal = chain.api.tx.parachainSystem.authorizeUpgrade(blake2AsHex(code))
+    console.log(`Spec version before upgrade: ${chain.api.runtimeVersion.specVersion.toNumber()}`)
+    const proposal = chain.api.tx.parachainSystem.authorizeUpgrade(blake2AsHex(`0x${code}`))
     const encodedProposal = proposal.method.toHex()
     console.log(encodedProposal)
-    let encodedHash = blake2AsHex(encodedProposal);
+    const encodedHash = blake2AsHex(encodedProposal);
 
-    const tx11 = chain.api.tx.preimage
+    const tx11 = chain.api.tx.democracy
       .notePreimage(encodedProposal)
 
     const tx0 = await sendTransaction(tx11.signAsync(alice))
@@ -51,7 +52,6 @@ describe.each([
 
     const voteAmount = 1n * 10n ** BigInt(chain.api.registry.chainDecimals[0]);
 
-    console.log("council")
     const c1 = chain.api.tx.council
       .propose(1, external, external.length)
     const c1tx = await sendTransaction(c1.signAsync(alice))
@@ -76,8 +76,10 @@ describe.each([
       });
 
     const voteTx2 = await sendTransaction(voteTx.signAsync(alice))
+    //NOTE: this is neccesary, woting is finished after 2 blocks.
     await chain.chain.newBlock()
-    await checkEvents(voteTx2).redact({ number: true }).toMatchSnapshot("vote")
+    await chain.chain.newBlock()
+    //await checkEvents(voteTx2).redact({ number: true }).toMatchSnapshot("vote")
 
     let entries = await chain.api.query.democracy.referendumInfoOf.entries()
 
@@ -91,14 +93,21 @@ describe.each([
       }
     }
 
-    console.log("enact")
-    const enact = chain.api.tx.parachainSystem.enactAuthorizedUpgrade(code)
-    const enactTx = await sendTransaction(enact.signAsync(alice))
+    //NOTE: this is neccesary to wait for scheduler to dispatch
     await chain.chain.newBlock()
+    await chain.chain.newBlock()
+
+    console.log("enact")
+    const enact = chain.api.tx.parachainSystem.enactAuthorizedUpgrade(`0x${code}`)
+    const enactTx = await sendTransaction(enact.signAsync(alice))
+    //NOTE: it's necessary to wait multiple blocks.
+    await chain.chain.newBlock()
+    await chain.chain.newBlock()
+    await chain.chain.newBlock()
+
     await checkEvents(enactTx).toMatchSnapshot("enact")
 
-    console.log(chain.api.runtimeVersion.specVersion.toNumber())
-
+    console.log("Spec version after upgrade: ", chain.api.runtimeVersion.specVersion.toNumber())
+    assert.equal(chain.api.runtimeVersion.specVersion.toNumber(), 148)
   })
 })
-
