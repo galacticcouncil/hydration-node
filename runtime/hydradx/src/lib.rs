@@ -101,7 +101,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 146,
+	spec_version: 148,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -199,7 +199,7 @@ impl Contains<Call> for CallFilter {
 			return false;
 		}
 
-		// filter transfers of LRNA to the omnipool account
+		// filter transfers of LRNA and omnipool assets to the omnipool account
 		if let Call::Tokens(orml_tokens::Call::transfer { dest, currency_id, .. })
 		| Call::Tokens(orml_tokens::Call::transfer_keep_alive { dest, currency_id, .. })
 		| Call::Tokens(orml_tokens::Call::transfer_all { dest, currency_id, .. })
@@ -207,8 +207,20 @@ impl Contains<Call> for CallFilter {
 		{
 			// Lookup::lookup() is not necessary thanks to IdentityLookup
 			if dest == &Omnipool::protocol_account()
-				&& *currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
+				&& (*currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
+					|| Omnipool::exists(*currency_id))
 			{
+				return false;
+			}
+		}
+		// filter transfers of HDX to the omnipool account
+		if let Call::Balances(pallet_balances::Call::transfer { dest, .. })
+		| Call::Balances(pallet_balances::Call::transfer_keep_alive { dest, .. })
+		| Call::Balances(pallet_balances::Call::transfer_all { dest, .. })
+		| Call::Currencies(pallet_currencies::Call::transfer_native_currency { dest, .. }) = call
+		{
+			// Lookup::lookup() is not necessary thanks to IdentityLookup
+			if dest == &Omnipool::protocol_account() {
 				return false;
 			}
 		}
