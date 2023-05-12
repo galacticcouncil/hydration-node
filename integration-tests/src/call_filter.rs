@@ -46,6 +46,48 @@ fn transfer_should_not_work_when_transfering_omnipool_assets_to_omnipool_account
 		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
 		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call));
 
+		// Balances::transfer_keep_alive
+		// transfer to Alice should not be filtered
+		let successful_call = hydradx_runtime::Call::Balances(pallet_balances::Call::transfer_keep_alive {
+			dest: ALICE.into(),
+			value: 10 * UNITS,
+		});
+		let filtered_call = hydradx_runtime::Call::Balances(pallet_balances::Call::transfer_keep_alive {
+			dest: omnipool_account.clone(),
+			value: 10 * UNITS,
+		});
+
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
+		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call));
+
+		// Balances::transfer_all
+		// transfer to Alice should not be filtered
+		let successful_call = hydradx_runtime::Call::Balances(pallet_balances::Call::transfer_all {
+			dest: ALICE.into(),
+			keep_alive: true,
+		});
+		let filtered_call = hydradx_runtime::Call::Balances(pallet_balances::Call::transfer_all {
+			dest: omnipool_account.clone(),
+			keep_alive: true,
+		});
+
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
+		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call));
+
+		// Currencies::transfer_native_currency
+		// transfer to Alice should not be filtered
+		let successful_call = hydradx_runtime::Call::Currencies(pallet_currencies::Call::transfer_native_currency {
+			dest: ALICE.into(),
+			amount: 10 * UNITS,
+		});
+		let filtered_call = hydradx_runtime::Call::Currencies(pallet_currencies::Call::transfer_native_currency {
+			dest: omnipool_account.clone(),
+			amount: 10 * UNITS,
+		});
+
+		assert!(hydradx_runtime::CallFilter::contains(&successful_call));
+		assert!(!hydradx_runtime::CallFilter::contains(&filtered_call));
+
 		// Currencies::transfer
 		// transfer to Alice should not be filtered
 		let successful_call_alice = hydradx_runtime::Call::Currencies(pallet_currencies::Call::transfer {
