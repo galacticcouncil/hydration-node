@@ -39,6 +39,7 @@ fn terminate_global_farm_should_work() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
+			FixedU128::one(),
 		)
 		.build()
 		.execute_with(|| {
@@ -83,6 +84,7 @@ fn terminate_global_farm_should_fail_when_origin_is_none() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
+			FixedU128::one(),
 		)
 		.build()
 		.execute_with(|| {

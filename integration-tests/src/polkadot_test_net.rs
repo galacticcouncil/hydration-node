@@ -2,7 +2,10 @@
 use frame_support::{
 	assert_ok,
 	dispatch::{Dispatchable, GetCallMetadata},
-	sp_runtime::traits::{AccountIdConversion, Block as BlockT},
+	sp_runtime::{
+		traits::{AccountIdConversion, Block as BlockT},
+		FixedU128, Permill,
+	},
 	traits::GenesisBuild,
 	weights::Weight,
 };
@@ -206,6 +209,7 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 			(AccountId::from(ALICE), DAI, 200 * UNITS),
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
+			(AccountId::from(BOB), BTC, 1_000_000),
 			(AccountId::from(CHARLIE), LRNA, 1_000 * UNITS),
 			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
@@ -228,7 +232,11 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
-		currencies: vec![(1, Price::from(1)), (DAI, Price::from(1))],
+		currencies: vec![
+			(LRNA, Price::from(1)),
+			(DAI, Price::from(1)),
+			(BTC, Price::from_inner(134_000_000)),
+		],
 		account_currencies: vec![],
 	}
 	.assimilate_storage(&mut t)
@@ -399,4 +407,22 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 			}
 		}
 	}
+}
+
+pub fn init_omnipool() {
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+		hydradx_runtime::RuntimeOrigin::root(),
+		522_222_000_000_000_000_000_000,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+		hydradx_runtime::RuntimeOrigin::root(),
+		stable_price,
+		native_price,
+		Permill::from_percent(100),
+		Permill::from_percent(10)
+	));
 }

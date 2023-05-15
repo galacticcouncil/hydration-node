@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "2.0.0"
+version = "2.1.0"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -29,7 +29,7 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "b100a9a31fdba7e960ad5158a9f32a74c7d078f0", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "c81eeb7eee40be9569f6f500a07c99e5fdb0a4da", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "35e5c0775a07e057ed5247ba96dfa254d691f034", default-features = false }
 
