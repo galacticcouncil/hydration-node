@@ -1047,8 +1047,6 @@ pub mod pallet {
 				Error::<T>::InsufficientTradingAmount
 			);
 
-			//let bal = T::Currency::free_balance(asset_in, &who);
-			//assert_eq!(0, amount);
 			ensure!(
 				T::Currency::ensure_can_withdraw(asset_in, &who, amount).is_ok(),
 				Error::<T>::InsufficientBalance
