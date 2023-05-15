@@ -26,6 +26,7 @@ use crate as pallet_omnipool;
 use crate::traits::ExternalPriceProvider;
 use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
+use frame_support::BoundedVec;
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -37,8 +38,10 @@ use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
 };
+
+use hydradx_traits::OraclePeriod;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -89,8 +92,23 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
+
+		//NOTE: Oracle is used in benchmarks.
+		EmaOracle: pallet_ema_oracle::{Pallet, Call, Storage, Event<T>},
 	}
 );
+
+parameter_types! {
+	pub static MockBlockNumberProvider: u64 = 0;
+}
+
+impl BlockNumberProvider for MockBlockNumberProvider {
+	type BlockNumber = u64;
+
+	fn current_block_number() -> Self::BlockNumber {
+		System::block_number()
+	}
+}
 
 impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
@@ -135,6 +153,20 @@ parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
 		0
 	};
+}
+
+//NOTE: oracle is not used in the unit tests. It's here to satify benchmarks bounds.
+use pallet_ema_oracle::MAX_PERIODS;
+parameter_types! {
+	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
+		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
+}
+impl pallet_ema_oracle::Config for Test {
+	type Event = Event;
+	type WeightInfo = ();
+	type BlockNumberProvider = MockBlockNumberProvider;
+	type SupportedPeriods = SupportedPeriods;
+	type MaxUniqueEntries = ConstU32<20>;
 }
 
 impl orml_tokens::Config for Test {
