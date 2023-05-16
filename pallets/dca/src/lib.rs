@@ -481,7 +481,6 @@ impl<T: Config> Pallet<T> {
 
 		weight.saturating_accrue(weight_for_single_execution);
 
-		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
 		Self::take_transaction_fee_from_user(
 			schedule_id,
 			&schedule.owner,
