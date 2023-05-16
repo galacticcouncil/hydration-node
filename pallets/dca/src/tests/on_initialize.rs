@@ -1056,6 +1056,50 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 }
 
 #[test]
+fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_buy = ONE;
+			let max_limit = 2 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit,
+					slippage: Some(Permill::from_percent(9)),
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_executed_buy_trades!(vec![]);
+			assert_eq!(
+				total_amount - FEE_FOR_ONE_DCA_EXECUTION,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
+
+			let schedule_id = 0;
+			assert_scheduled_ids!(601, vec![schedule_id]);
+		});
+}
+
+#[test]
 fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000000 * ONE)])

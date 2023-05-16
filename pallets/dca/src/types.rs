@@ -57,6 +57,14 @@ where
 		};
 		*asset_out
 	}
+
+	pub fn get_slippage(&self) -> Option<Permill> {
+		let slippage = match &self {
+			Order::Sell { slippage, .. } => slippage,
+			Order::Buy { slippage, .. } => slippage,
+		};
+		*slippage
+	}
 }
 
 ///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed

@@ -488,10 +488,7 @@ impl<T: Config> Pallet<T> {
 			.checked_add(&schedule.period)
 			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-		let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(
-			schedule.order.get_asset_in(),
-			schedule.order.get_asset_out(),
-		);
+		let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(schedule);
 
 		if is_price_change_bigger_than_max_allowed {
 			Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
@@ -572,7 +569,9 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn price_change_is_bigger_than_max_allowed(asset_a: T::Asset, asset_b: T::Asset) -> bool {
+	fn price_change_is_bigger_than_max_allowed(schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) -> bool {
+		let asset_a = schedule.order.get_asset_in();
+		let asset_b = schedule.order.get_asset_out();
 		let Some(current_price) = T::SpotPriceProvider::spot_price(asset_a, asset_b) else {
 			return true;
 		};
@@ -581,7 +580,12 @@ impl<T: Config> Pallet<T> {
    			return true;
 		};
 
-		let max_allowed = FixedU128::from(T::MaxPriceDifferenceBetweenBlocks::get());
+		let max_allowed_diff = schedule
+			.order
+			.get_slippage()
+			.unwrap_or(T::MaxPriceDifferenceBetweenBlocks::get());
+
+		let max_allowed = FixedU128::from(max_allowed_diff);
 
 		let Some(price_sum) = current_price
 			.checked_add(&price_from_short_oracle) else {
