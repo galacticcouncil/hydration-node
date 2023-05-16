@@ -106,7 +106,7 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		let alice_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::Origin::root(),
-			ALICE.clone().into(),
+			ALICE.into(),
 			alice_init_hdx_balance,
 			0,
 		));
@@ -192,7 +192,7 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		let alice_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::Origin::root(),
-			ALICE.clone().into(),
+			ALICE.into(),
 			alice_init_hdx_balance,
 			0,
 		));
@@ -239,7 +239,7 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		let alice_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::Origin::root(),
-			ALICE.clone().into(),
+			ALICE.into(),
 			alice_init_hdx_balance,
 			0,
 		));
@@ -247,7 +247,7 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		let bob_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
 			hydradx_runtime::Origin::root(),
-			BOB.clone().into(),
+			BOB.into(),
 			bob_init_hdx_balance,
 			0,
 		));
@@ -452,14 +452,14 @@ pub fn init_omnipol() {
 	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
-		acc.clone().into(),
+		acc.clone(),
 		DAI,
 		stable_amount,
 		0
 	));
 	assert_ok!(Currencies::update_balance(
 		hydradx_runtime::Origin::root(),
-		acc.clone().into(),
+		acc,
 		HDX,
 		native_amount as i128,
 	));

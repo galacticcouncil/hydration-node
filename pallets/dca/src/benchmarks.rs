@@ -53,6 +53,7 @@ fn schedule_fake<T: Config + pallet_omnipool::Config>(
 			asset_out,
 			amount_out: amount,
 			max_limit: Balance::MAX,
+			slippage: None,
 			route: create_bounded_vec::<T>(vec![]),
 		},
 	};
@@ -78,6 +79,7 @@ fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
+			slippage: None,
 			route: create_bounded_vec::<T>(vec![]),
 		},
 	};
