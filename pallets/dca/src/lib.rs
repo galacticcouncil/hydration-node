@@ -211,7 +211,7 @@ pub mod pallet {
 		///Errors on which we want to continue the schedule
 		type ContinueOnErrors: Contains<DispatchError>;
 
-		///Max price difference allowed between the last block and short oracle
+		///Max price difference allowed between blocks
 		#[pallet::constant]
 		type MaxPriceDifferenceBetweenBlocks: Get<Permill>;
 
@@ -234,10 +234,6 @@ pub mod pallet {
 		///The fee receiver for transaction fees
 		#[pallet::constant]
 		type FeeReceiver: Get<Self::AccountId>;
-
-		///Max slippage limit treshold percentage to be used for contstraining limits between blocks
-		#[pallet::constant]
-		type MaxSlippageTresholdBetweenBlocks: Get<Permill>;
 
 		/// Named reserve identifier to store named reserves for orders of each users
 		#[pallet::constant]
@@ -970,7 +966,7 @@ impl<T: Config> Pallet<T> {
 
 		let estimated_amount = price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
-		let slippage_amount = T::MaxSlippageTresholdBetweenBlocks::get().mul_floor(estimated_amount);
+		let slippage_amount = T::MaxPriceDifferenceBetweenBlocks::get().mul_floor(estimated_amount);
 
 		Ok((estimated_amount, slippage_amount))
 	}

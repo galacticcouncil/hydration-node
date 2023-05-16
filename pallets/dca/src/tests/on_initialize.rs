@@ -117,7 +117,7 @@ fn one_dca_execution_should_unreserve_amount_in() {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION,
-				min_buy_amount: 836000000000,
+				min_buy_amount: 792000000000,
 			}]);
 
 			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
@@ -201,7 +201,7 @@ fn one_buy_dca_execution_should_use_slippage_limit() {
 			set_to_blocknumber(501);
 
 			//Assert
-			let max_sell_amount = 924_000_000_000;
+			let max_sell_amount = 968_000_000_000;
 			assert_executed_buy_trades!(vec![BuyExecution {
 				asset_in: HDX,
 				asset_out: BTC,
@@ -447,7 +447,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_smaller_t
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = ONE;
-			let max_limit_calculated_from_spot_price = 924000000000;
+			let max_limit_calculated_from_spot_price = 968000000000;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -817,7 +817,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				asset_in: DAI,
 				asset_out: BTC,
 				amount_in: amount_in - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI,
-				min_buy_amount: 83600000000000,
+				min_buy_amount: 79200000000000,
 			}]);
 		});
 }
@@ -854,7 +854,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: sell_amount - FEE_FOR_ONE_DCA_EXECUTION,
-				min_buy_amount: 8_360_000_000_000,
+				min_buy_amount: 7_920_000_000_000,
 			}]);
 		});
 }
@@ -892,7 +892,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_out: buy_amount,
-				max_sell_amount: 9240000000000,
+				max_sell_amount: 9680000000000,
 			}]);
 		});
 }
@@ -1027,7 +1027,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION,
-				min_buy_amount: 836000000000,
+				min_buy_amount: 792000000000,
 			}]);
 
 			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::NoFreeBlockFound.into());

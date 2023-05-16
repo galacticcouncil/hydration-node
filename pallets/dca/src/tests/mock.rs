@@ -103,7 +103,6 @@ thread_local! {
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
 	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*ORIGINAL_STORAGE_BOND_IN_NATIVE);
-	pub static SLIPPAGE: RefCell<Permill> = RefCell::new(Permill::from_percent(5));
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
@@ -460,7 +459,6 @@ parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
 	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
-	pub SlippageLimitPercentage: Permill = SLIPPAGE.with(|v| *v.borrow());
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u32 = 3;
@@ -476,7 +474,6 @@ impl Config for Test {
 	type NativeAssetId = NativeCurrencyId;
 	type FeeReceiver = TreasuryAccount;
 	type WeightToFee = IdentityFee<Balance>;
-	type MaxSlippageTresholdBetweenBlocks = SlippageLimitPercentage;
 	type WeightInfo = ();
 	type AMMTrader = AmmTraderMock;
 	type OraclePriceProvider = PriceProviderMock;
