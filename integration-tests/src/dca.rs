@@ -386,6 +386,7 @@ fn schedule_fake_with_buy_order(
 			asset_out,
 			amount_out: amount,
 			max_limit: 2 * UNITS,
+			slippage: None,
 			route: create_bounded_vec(vec![]),
 		},
 	}
@@ -407,6 +408,7 @@ fn schedule_fake_with_sell_order(
 			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
+			slippage: None,
 			route: create_bounded_vec(vec![]),
 		},
 	}
@@ -428,6 +430,7 @@ fn schedule_fake_with_invalid_min_limit(
 			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MAX,
+			slippage: None,
 			route: create_bounded_vec(vec![]),
 		},
 	}

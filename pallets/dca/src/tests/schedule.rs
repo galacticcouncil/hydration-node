@@ -45,6 +45,7 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -76,6 +77,7 @@ fn schedule_should_store_total_amounts_in_storage() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -105,6 +107,7 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 100 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -117,6 +120,7 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 1000 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -344,6 +348,7 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 					asset_out: BTC,
 					amount_in: budget + FEE_FOR_ONE_DCA_EXECUTION,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -375,6 +380,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_s
 					asset_out: BTC,
 					amount_out: 10 * ONE,
 					max_limit: budget + FEE_FOR_ONE_DCA_EXECUTION,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -534,6 +540,7 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 100 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -563,6 +570,7 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 					asset_out: HDX,
 					amount_out: ONE,
 					max_limit: 100 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -592,6 +600,7 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 					asset_out: BTC,
 					amount_in: FEE_FOR_ONE_DCA_EXECUTION - 1,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -618,6 +627,7 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 					asset_out: BTC,
 					amount_out: 50,
 					max_limit: 50000,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -647,6 +657,7 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in() {
 					asset_out: BTC,
 					amount_out: total_amount,
 					max_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -672,6 +683,7 @@ fn schedule_should_init_retries_to_zero() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();

@@ -53,6 +53,7 @@ fn successfull_dca_execution_should_emit_trade_executed_event() {
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -101,6 +102,7 @@ fn one_dca_execution_should_unreserve_amount_in() {
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -145,6 +147,7 @@ fn one_buy_dca_execution_should_unreserve_user_specified_max_limit() {
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -171,7 +174,7 @@ fn one_buy_dca_execution_should_unreserve_user_specified_max_limit() {
 }
 
 #[test]
-fn one_buy_dca_execution_should_use_slippage_limit() {
+fn one_buy_dca_execution_should_use_max_price_diff_as_slippage_limit_when_not_specified_by_user() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -190,6 +193,7 @@ fn one_buy_dca_execution_should_use_slippage_limit() {
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit: Balance::MAX,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -217,6 +221,53 @@ fn one_buy_dca_execution_should_use_slippage_limit() {
 }
 
 #[test]
+fn one_buy_dca_execution_should_use_slippage_limit_when_specified_by_user() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_buy = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit: Balance::MAX,
+					slippage: Some(Permill::from_percent(15)),
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let max_sell_amount_calculated_by_slippage = 1012000000000;
+			assert_executed_buy_trades!(vec![BuyExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_out: ONE,
+				max_sell_amount: max_sell_amount_calculated_by_slippage,
+			}]);
+
+			assert_eq!(
+				total_amount - max_sell_amount_calculated_by_slippage - FEE_FOR_ONE_DCA_EXECUTION,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
+		});
+}
+
+#[test]
 fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happened_but_no_more_reserved_amount_left() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -236,6 +287,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -277,6 +329,7 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -290,6 +343,7 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -336,6 +390,7 @@ fn multiple_sell_dca_should_be_completed_for_one_user() {
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -379,6 +434,7 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -418,6 +474,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit: Balance::MAX,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -457,6 +514,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_smaller_t
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit: Balance::MAX,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -513,6 +571,7 @@ fn schedule_is_planned_for_next_block_when_user_one_execution_finished() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -572,6 +631,7 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 					asset_out: BTC,
 					amount_out: INVALID_BUY_AMOUNT_VALUE,
 					max_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -620,6 +680,7 @@ fn dca_schedule_should_terminate_when_error_is_not_configured_to_continue_on() {
 					asset_out: BTC,
 					amount_in: ONE,
 					min_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -654,6 +715,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 					asset_out: BTC,
 					amount_out: INVALID_BUY_AMOUNT_VALUE,
 					max_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -692,6 +754,7 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 					asset_out: BTC,
 					amount_out: INVALID_BUY_AMOUNT_VALUE,
 					max_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -733,6 +796,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -765,6 +829,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 					asset_out: BTC,
 					amount_out: INVALID_BUY_AMOUNT_VALUE,
 					max_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -800,6 +865,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 					asset_out: BTC,
 					amount_in,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -840,6 +906,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 					asset_out: DAI,
 					amount_in: sell_amount,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -878,6 +945,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 					asset_out: DAI,
 					amount_out: buy_amount,
 					max_limit: Balance::MAX,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -919,6 +987,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -963,6 +1032,7 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -1007,6 +1077,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -1056,6 +1127,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 					asset_out: BTC,
 					amount_in: amount_to_sell,
 					min_limit: Balance::MIN,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();
@@ -1096,6 +1168,7 @@ fn dca_shell_schedule_should_be_completed_after_one_trade_when_total_amount_is_e
 					asset_out: BTC,
 					amount_in: total_amount,
 					min_limit: 5 * ONE,
+					slippage: None,
 					route: empty_vec(),
 				})
 				.build();

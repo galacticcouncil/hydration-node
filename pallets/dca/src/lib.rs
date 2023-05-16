@@ -648,10 +648,11 @@ impl<T: Config> Pallet<T> {
 				asset_out,
 				amount_out,
 				max_limit,
+				slippage,
 				..
 			} => {
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out)?;
+					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out, *slippage)?;
 
 				let max_limit_from_oracle_price = estimated_amount_in
 					.checked_add(slippage_amount)
@@ -931,10 +932,11 @@ impl<T: Config> Pallet<T> {
 				asset_out,
 				amount_in,
 				min_limit,
+				slippage,
 				route: _,
 			} => {
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_in)?;
+					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_in, *slippage)?;
 
 				let min_limit_with_slippage = estimated_amount_out
 					.checked_sub(slippage_amount)
@@ -961,12 +963,14 @@ impl<T: Config> Pallet<T> {
 		asset_a: <T as Config>::Asset,
 		asset_b: <T as Config>::Asset,
 		amount: Balance,
+		slippage: Option<Permill>,
 	) -> Result<(Balance, Balance), DispatchError> {
 		let price = Self::get_price_from_last_block_oracle(asset_a, asset_b)?;
 
 		let estimated_amount = price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
-		let slippage_amount = T::MaxPriceDifferenceBetweenBlocks::get().mul_floor(estimated_amount);
+		let slippage_limit = slippage.unwrap_or(T::MaxPriceDifferenceBetweenBlocks::get());
+		let slippage_amount = slippage_limit.mul_floor(estimated_amount);
 
 		Ok((estimated_amount, slippage_amount))
 	}

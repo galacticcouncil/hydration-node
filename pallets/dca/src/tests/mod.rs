@@ -33,6 +33,7 @@ impl ScheduleBuilder {
 				asset_out: BTC,
 				amount_out: ONE,
 				max_limit: 2 * ONE,
+				slippage: None,
 				route: create_bounded_vec(vec![]),
 			}),
 		}
