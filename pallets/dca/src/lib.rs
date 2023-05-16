@@ -370,6 +370,7 @@ pub mod pallet {
 			start_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+			ensure!(who == schedule.owner, Error::<T>::Forbidden);
 
 			let storage_bond = Self::get_storage_bond(&schedule)?;
 			ensure!(
