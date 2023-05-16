@@ -383,7 +383,7 @@ pub mod pallet {
 
 			let weight_for_single_execution = Self::get_weight_for_single_execution()?;
 			let transaction_fee =
-				Self::get_transaction_fee_in_asset(weight_for_single_execution, schedule.order.get_asset_in())?;
+				Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
 
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => {
@@ -640,7 +640,7 @@ impl<T: Config> Pallet<T> {
 				asset_in, amount_in, ..
 			} => {
 				let weight_for_single_execution = Self::get_weight_for_single_execution()?;
-				let transaction_fee = Self::get_transaction_fee_in_asset(weight_for_single_execution, *asset_in)?;
+				let transaction_fee = Self::convert_weight_to_fee(weight_for_single_execution, *asset_in)?;
 
 				let amount_to_sell = amount_in
 					.checked_sub(transaction_fee)
@@ -741,7 +741,7 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let fee_currency = order.get_asset_in();
 
-		let fee_amount_in_sold_asset = Self::get_transaction_fee_in_asset(weight_to_charge, fee_currency)?;
+		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
 		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
 			&T::NamedReserveId::get(),
@@ -975,7 +975,7 @@ impl<T: Config> Pallet<T> {
 		Ok((estimated_amount, slippage_amount))
 	}
 
-	fn get_transaction_fee_in_asset(weight: Weight, fee_currency: T::Asset) -> Result<u128, DispatchError> {
+	fn convert_weight_to_fee(weight: Weight, fee_currency: T::Asset) -> Result<u128, DispatchError> {
 		let fee_amount_in_native = Self::weight_to_fee(weight);
 		let fee_amount_in_sold_asset =
 			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
