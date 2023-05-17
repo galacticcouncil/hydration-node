@@ -668,9 +668,9 @@ pub mod pallet {
 
 			T::PriceBarrier::ensure_price(
 				&who,
-				asset,
 				T::HubAssetId::get(),
-				EmaPrice::new(asset_state.reserve, asset_state.hub_reserve),
+				asset,
+				EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
 			)
 			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
 
@@ -817,9 +817,9 @@ pub mod pallet {
 
 			T::PriceBarrier::ensure_price(
 				&who,
-				asset_id,
 				T::HubAssetId::get(),
-				EmaPrice::new(asset_state.reserve, asset_state.hub_reserve),
+				asset_id,
+				EmaPrice::new(asset_state.hub_reserve, asset_state.reserve),
 			)
 			.map_err(|_| Error::<T>::PriceDifferenceTooHigh)?;
 
