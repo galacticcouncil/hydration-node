@@ -7,7 +7,6 @@ members = [
   'runtime/common',
   'runtime/hydradx',
   'pallets/omnipool',
-  'runtime/testing-hydradx',
   'primitives',
   'utils/build-script-utils',
   'integration-tests',

@@ -13,57 +13,10 @@ impl fmt::Display for RuntimeInstanceError {
 	}
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Parser)]
-pub enum RuntimeInstance {
-	HydraDX,
-	Testing,
-}
-
-impl RuntimeInstance {
-	pub fn is_testing_runtime(&self) -> bool {
-		match self {
-			Self::HydraDX => false,
-			Self::Testing => true,
-		}
-	}
-}
-
-impl clap::ValueEnum for RuntimeInstance {
-	fn value_variants<'a>() -> &'a [Self] {
-		&[Self::HydraDX, Self::Testing]
-	}
-
-	fn to_possible_value<'a>(&self) -> Option<clap::PossibleValue<'a>> {
-		match self {
-			Self::HydraDX => Some(clap::PossibleValue::new("hydradx")),
-			Self::Testing => Some(clap::PossibleValue::new("testing")),
-		}
-	}
-}
-
-impl fmt::Display for RuntimeInstance {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Self::HydraDX => write!(f, "hydradx"),
-			Self::Testing => write!(f, "testing"),
-		}
-	}
-}
-
-impl Default for RuntimeInstance {
-	fn default() -> Self {
-		RuntimeInstance::HydraDX
-	}
-}
-
 #[derive(Debug, Parser)]
 pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: cumulus_client_cli::RunCmd,
-
-	/// Specify the runtime used by the node.
-	#[clap(default_value_t, long, value_parser = clap::builder::EnumValueParser::<RuntimeInstance>::new(), ignore_case = true)]
-	pub runtime: RuntimeInstance,
 }
 
 #[derive(Debug, Parser)]
@@ -171,10 +124,6 @@ pub struct ExportGenesisStateCommand {
 	/// The name of the chain for that the genesis state should be exported.
 	#[clap(long)]
 	pub chain: Option<String>,
-
-	/// Specify the runtime used by the node.
-	#[clap(default_value_t, long, value_parser = clap::builder::EnumValueParser::<RuntimeInstance>::new(), ignore_case = true)]
-	pub runtime: RuntimeInstance,
 }
 
 /// Command for exporting the genesis wasm file.
@@ -191,8 +140,4 @@ pub struct ExportGenesisWasmCommand {
 	/// The name of the chain for that the genesis wasm file should be exported.
 	#[clap(long)]
 	pub chain: Option<String>,
-
-	/// Specify the runtime used by the node.
-	#[clap(default_value_t, long, value_parser = clap::builder::EnumValueParser::<RuntimeInstance>::new(), ignore_case = true)]
-	pub runtime: RuntimeInstance,
 }
