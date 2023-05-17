@@ -1096,6 +1096,9 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 
 			let schedule_id = 0;
 			assert_scheduled_ids!(601, vec![schedule_id]);
+
+			let retries = DCA::retries_on_error(schedule_id);
+			assert_eq!(1, retries.unwrap());
 		});
 }
 

@@ -492,7 +492,7 @@ impl<T: Config> Pallet<T> {
 		let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(schedule);
 
 		if is_price_change_bigger_than_max_allowed {
-			Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
+			Self::retry_schedule(schedule_id, &schedule, next_execution_block)?;
 			return Err(Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into());
 		}
 
