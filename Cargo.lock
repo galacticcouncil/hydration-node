@@ -3316,7 +3316,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "8.5.2"
+version = "9.0.0"
 dependencies = [
  "clap",
  "common-runtime",
