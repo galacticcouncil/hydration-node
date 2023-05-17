@@ -359,7 +359,7 @@ parameter_types! {
 parameter_types! {
 	pub StorageBondInNativeCurrency: Balance = 100 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 20;
-	pub MaxPriceDifference: Permill = Permill::from_percent(3);
+	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u32 = 3;
 }

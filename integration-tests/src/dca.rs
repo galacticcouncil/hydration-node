@@ -78,8 +78,8 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let over_reservation_left_over = 37789121938; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		let amount_to_unreserve_for_trade = 2112053882397;
+		let over_reservation_left_over = 16789121948; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		let amount_to_unreserve_for_trade = 2091053882407;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + UNITS);
 		assert_balance!(
