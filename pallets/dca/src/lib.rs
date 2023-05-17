@@ -98,6 +98,7 @@ pub mod pallet {
 	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::PriceOracle;
 	use orml_traits::NamedMultiReservableCurrency;
+	use sp_runtime::DispatchError::BadOrigin;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -440,10 +441,17 @@ pub mod pallet {
 			schedule_id: ScheduleId,
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
-			T::TechnicalOrigin::ensure_origin(origin)?;
-			ensure!(Schedules::<T>::contains_key(schedule_id), Error::<T>::ScheduleNotFound);
+			let ensure_technical_origin = T::TechnicalOrigin::ensure_origin(origin.clone());
+			let ensure_signed = ensure_signed(origin);
+			if ensure_technical_origin.is_err() && ensure_signed.is_err() {
+				return Err(BadOrigin);
+			}
 
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
+
+			if let Ok(who) = ensure_signed {
+				ensure!(who == schedule.owner, Error::<T>::Forbidden);
+			}
 
 			Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner)?;
 
@@ -492,7 +500,7 @@ impl<T: Config> Pallet<T> {
 		let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(schedule);
 
 		if is_price_change_bigger_than_max_allowed {
-			Self::retry_schedule(schedule_id, &schedule, next_execution_block)?;
+			Self::retry_schedule(schedule_id, schedule, next_execution_block)?;
 			return Err(Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into());
 		}
 

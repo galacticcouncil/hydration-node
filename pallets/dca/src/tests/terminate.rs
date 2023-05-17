@@ -157,7 +157,7 @@ fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_exe
 }
 
 #[test]
-fn terminate_should_fail_when_called_by_owner() {
+fn terminate_should_pass_when_called_by_owner() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -169,7 +169,7 @@ fn terminate_should_fail_when_called_by_owner() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_noop!(DCA::terminate(Origin::signed(ALICE), schedule_id, 501), BadOrigin);
+			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, 501));
 		});
 }
 
@@ -186,7 +186,10 @@ fn terminate_should_fail_when_called_by_non_owner() {
 			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_noop!(DCA::terminate(Origin::signed(BOB), schedule_id, 501), BadOrigin);
+			assert_noop!(
+				DCA::terminate(Origin::signed(BOB), schedule_id, 501),
+				Error::<Test>::Forbidden
+			);
 		});
 }
 
@@ -204,6 +207,23 @@ fn terminate_should_fail_when_called_by_non_signed() {
 
 			//Act and assert
 			assert_noop!(DCA::terminate(Origin::none(), schedule_id, 500), BadOrigin);
+		});
+}
+
+#[test]
+fn terminate_should_pass_when_called_by_technical_origin() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let schedule = ScheduleBuilder::new().build();
+			set_block_number(500);
+			let schedule_id = 0;
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			//Act and assert
+			assert_ok!(DCA::terminate(Origin::root(), schedule_id, 501));
 		});
 }
 
