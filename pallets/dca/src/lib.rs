@@ -550,7 +550,10 @@ impl<T: Config> Pallet<T> {
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 		let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;
 
-		if remaining_amount_to_use < amount_to_unreserve {
+		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
+		let transaction_fee = Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
+
+		if remaining_amount_to_use < transaction_fee || remaining_amount_to_use < amount_to_unreserve {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}

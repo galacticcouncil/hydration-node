@@ -15,10 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use frame_support::traits::OnInitialize;
-use std::borrow::Borrow;
-use std::ops::RangeInclusive;
-
 use crate::tests::*;
 use crate::{
 	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
@@ -26,12 +22,17 @@ use crate::{
 	Error, Event as DcaEvent, Order, Permill, ScheduleId,
 };
 use frame_support::assert_ok;
+use frame_support::traits::OnInitialize;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
+use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
+use sp_runtime::DispatchError::BadOrigin;
+use std::borrow::Borrow;
+use std::ops::RangeInclusive;
 
 #[test]
 fn successfull_dca_execution_should_emit_trade_executed_event() {
@@ -302,6 +303,47 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
 			assert_number_of_executed_sell_trades!(3);
+
+			let schedule_id = 0;
+			assert_that_dca_is_completed(ALICE, schedule_id);
+		});
+}
+
+#[test]
+fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happened_but_less_than_fee_left() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let amount_to_sell = FEE_FOR_ONE_DCA_EXECUTION * 11 / 10;
+			let total_amount = amount_to_sell + FEE_FOR_ONE_DCA_EXECUTION / 2;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			proceed_to_blocknumber(501, 801);
+
+			//Assert
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+
+			assert_number_of_executed_sell_trades!(1);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -1197,7 +1239,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 }
 
 #[test]
-fn dca_shell_schedule_should_be_completed_after_one_trade_when_total_amount_is_equal_to_amount_in() {
+fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_equal_to_amount_in() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
 		.build()
@@ -1205,7 +1247,6 @@ fn dca_shell_schedule_should_be_completed_after_one_trade_when_total_amount_is_e
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			//set up tests so the budget is equal amount to sell + fee, so one, but then we unreserve ONE, so it should fail at decreasing amount with invalid state error
 			let total_amount = ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -1229,6 +1270,43 @@ fn dca_shell_schedule_should_be_completed_after_one_trade_when_total_amount_is_e
 			let schedule_id = 0;
 			assert_number_of_executed_sell_trades!(1);
 			assert_that_dca_is_completed(ALICE, schedule_id);
+		});
+}
+
+#[test]
+fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_reserved_funds() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_total_amount(total_amount)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: total_amount,
+					min_limit: 5 * ONE,
+					slippage: None,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+
+			Currencies::unreserve_named(&NamedReserveId::get(), HDX, &ALICE, ONE / 2);
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let schedule_id = 0;
+			assert_number_of_executed_sell_trades!(0);
+			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::InvalidState.into());
 		});
 }
 
