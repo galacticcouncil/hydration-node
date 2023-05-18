@@ -453,7 +453,7 @@ pub mod pallet {
 				ensure!(who == schedule.owner, Error::<T>::Forbidden);
 			}
 
-			Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner)?;
+			Self::try_unreserve_all(schedule_id, &schedule);
 
 			let schedule_ids_on_block = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 			ensure!(
@@ -526,8 +526,11 @@ impl<T: Config> Pallet<T> {
 			&schedule.owner,
 			amount_to_sell,
 		);
+		//TODO: this check is good, but not for stealing from multiple DCA
+		//TODO: merge unresreve and decrease remaining amount together in one function
+		//TODO: first decrease then unreserve, it prevents from stealing
+		//TODO: add test if the rollback works!!!
 		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
-
 		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_sell) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
@@ -547,8 +550,9 @@ impl<T: Config> Pallet<T> {
 
 		Self::reset_retries(schedule_id)?;
 
+		//TODO: get the exacty amount for buy as well
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
-		let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;
+		let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?; //TODO: rename to ...amount_in
 
 		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
 		let transaction_fee = Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
@@ -795,55 +799,42 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 		error: DispatchError,
 	) {
-		let result = Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner);
+		Self::try_unreserve_all(schedule_id, &schedule);
 
-		match result {
-			Ok(()) => {
-				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
-				Self::deposit_event(Event::Terminated {
-					id: schedule_id,
-					who: schedule.owner.clone(),
-					error,
-				});
-			}
-			Err(error) => {
-				Self::deposit_event(Event::Terminated {
-					id: schedule_id,
-					who: schedule.owner.clone(),
-					error,
-				});
-			}
-		}
+		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+
+		Self::deposit_event(Event::Terminated {
+			id: schedule_id,
+			who: schedule.owner.clone(),
+			error,
+		});
 	}
 
 	fn complete_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
-		let result = Self::unreserve_remaining_named_reserve(schedule_id, &schedule.owner);
+		Self::try_unreserve_all(schedule_id, &schedule);
 
-		match result {
-			Ok(()) => {
-				Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
-				Self::deposit_event(Event::Completed {
-					id: schedule_id,
-					who: schedule.owner.clone(),
-				});
-			}
-			Err(error) => Self::deposit_event(Event::Terminated {
-				id: schedule_id,
-				who: schedule.owner.clone(),
-				error,
-			}),
-		}
+		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+
+		Self::deposit_event(Event::Completed {
+			id: schedule_id,
+			who: schedule.owner.clone(),
+		});
 	}
 
-	fn unreserve_remaining_named_reserve(schedule_id: ScheduleId, who: &T::AccountId) -> DispatchResult {
-		let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
+	fn try_unreserve_all(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
 		let sold_currency = schedule.order.get_asset_in();
 
-		let remaining_amount = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
+		let Some(remaining_amount) = RemainingAmounts::<T>::get(schedule_id) else {
+			//Invalid state, we ignore as we terminate the whole DCA anyway
+			return;
+		};
 
-		T::Currency::unreserve_named(&T::NamedReserveId::get(), sold_currency, who, remaining_amount);
-
-		Ok(())
+		T::Currency::unreserve_named(
+			&T::NamedReserveId::get(),
+			sold_currency,
+			&schedule.owner,
+			remaining_amount,
+		);
 	}
 
 	fn weight_to_fee(weight: Weight) -> Balance {
