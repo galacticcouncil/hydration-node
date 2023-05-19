@@ -716,9 +716,7 @@ impl<T: Config> Pallet<T> {
 
 	fn get_amount_in(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		match order {
-			Order::Sell {
-				asset_in, amount_in, ..
-			} => {
+			Order::Sell { amount_in, .. } => {
 				let transaction_fee = Self::get_transaction_fee(order)?;
 
 				let amount_to_sell = amount_in
