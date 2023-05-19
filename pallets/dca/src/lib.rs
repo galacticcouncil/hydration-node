@@ -407,7 +407,13 @@ pub mod pallet {
 				Error::<T>::BudgetTooLow
 			);
 
-			let next_schedule_id = Self::get_next_schedule_id()?;
+			let next_schedule_id = ScheduleIdSequencer::<T>::try_mutate(|current_id| {
+				let schedule_id = *current_id;
+
+				*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
+
+				Ok::<u32, ArithmeticError>(schedule_id)
+			})?;
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
@@ -521,6 +527,8 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Self::execute_trade(origin, &schedule.order, amount_to_sell)
+
+		//TODO: add baance check if it we spent only the allocated money - for that we need omnipool or better mock
 	}
 
 	fn replan_or_complete(
