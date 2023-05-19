@@ -1321,6 +1321,70 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 }
 
 #[test]
+fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consquent_blocks_are_planned_fully() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 3000 * ONE;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(1)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: empty_vec(),
+				})
+				.build();
+
+			for _ in RangeInclusive::new(1, 120) {
+				assert_ok!(DCA::schedule(
+					Origin::signed(ALICE),
+					schedule.clone(),
+					Option::Some(501)
+				));
+			}
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(504);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(508);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(516);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			let actual_schedule_ids = DCA::schedule_ids_per_block(532);
+			assert_eq!(20, actual_schedule_ids.len());
+
+			//Act
+			proceed_to_blocknumber(501, 600);
+
+			//Assert
+			assert_number_of_executed_sell_trades!(2000);
+
+			//Assert if none of the schedule is terminated
+			for schedule_id in RangeInclusive::new(0, 119) {
+				assert!(DCA::schedules(schedule_id).is_some());
+			}
+		});
+}
+
+#[test]
 fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_equal_to_amount_in() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
