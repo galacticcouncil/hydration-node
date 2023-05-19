@@ -485,7 +485,26 @@ pub mod pallet {
 				Error::<T>::ScheduleNotFound,
 			);
 
-			Self::remove_schedule_id_from_next_execution_block(schedule_id, next_execution_block)?;
+			//Remove schedule id from next execution block
+			ScheduleIdsPerBlock::<T>::try_mutate_exists(
+				next_execution_block,
+				|maybe_schedule_ids| -> DispatchResult {
+					let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
+
+					let index = schedule_ids
+						.iter()
+						.position(|x| *x == schedule_id)
+						.ok_or(Error::<T>::ScheduleNotFound)?;
+
+					schedule_ids.remove(index);
+
+					if schedule_ids.is_empty() {
+						*maybe_schedule_ids = None;
+					}
+					Ok(())
+				},
+			)?;
+
 			Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
 
 			Self::deposit_event(Event::Terminated {
@@ -973,29 +992,6 @@ impl<T: Config> Pallet<T> {
 		};
 
 		Ok(amount)
-	}
-
-	fn remove_schedule_id_from_next_execution_block(
-		schedule_id: ScheduleId,
-		next_execution_block: T::BlockNumber,
-	) -> DispatchResult {
-		ScheduleIdsPerBlock::<T>::try_mutate_exists(next_execution_block, |maybe_schedule_ids| -> DispatchResult {
-			let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
-
-			let index = schedule_ids
-				.iter()
-				.position(|x| *x == schedule_id)
-				.ok_or(Error::<T>::ScheduleNotFound)?;
-
-			schedule_ids.remove(index);
-
-			if schedule_ids.is_empty() {
-				*maybe_schedule_ids = None;
-			}
-			Ok(())
-		})?;
-
-		Ok(())
 	}
 
 	fn remove_schedule_from_storages(owner: &T::AccountId, schedule_id: ScheduleId) {
