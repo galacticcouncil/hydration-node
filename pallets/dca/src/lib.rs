@@ -611,10 +611,7 @@ impl<T: Config> Pallet<T> {
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 		let amount_to_unreserve = Self::get_amount_in(&schedule.order)?;
 
-		let transaction_fee = Self::convert_weight_to_fee(
-			<T as Config>::WeightInfo::on_initialize_with_one_trade(),
-			schedule.order.get_asset_in(),
-		)?;
+		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
 		if remaining_amount_to_use < transaction_fee || remaining_amount_to_use < amount_to_unreserve {
 			//Complete schedule
@@ -722,8 +719,7 @@ impl<T: Config> Pallet<T> {
 			Order::Sell {
 				asset_in, amount_in, ..
 			} => {
-				let transaction_fee =
-					Self::convert_weight_to_fee(<T as Config>::WeightInfo::on_initialize_with_one_trade(), *asset_in)?;
+				let transaction_fee = Self::get_transaction_fee(order)?;
 
 				let amount_to_sell = amount_in
 					.checked_sub(transaction_fee)
@@ -750,6 +746,15 @@ impl<T: Config> Pallet<T> {
 				Ok(estimated_amount_to_sell)
 			}
 		}
+	}
+
+	fn get_transaction_fee(order: &Order<<T as Config>::Asset>) -> Result<u128, DispatchError> {
+		let transaction_fee = Self::convert_weight_to_fee(
+			<T as Config>::WeightInfo::on_initialize_with_one_trade(),
+			order.get_asset_in(),
+		)?;
+
+		Ok(transaction_fee)
 	}
 
 	fn unallocate_amount(
