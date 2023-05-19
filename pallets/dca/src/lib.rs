@@ -379,7 +379,7 @@ pub mod pallet {
 				Error::<T>::TotalAmountShouldBeLargerThanStorageBond
 			);
 
-			let weight_for_single_execution = Self::get_weight_for_single_execution()?;
+			let weight_for_single_execution = <T as Config>::WeightInfo::on_initialize_with_one_trade();
 			let transaction_fee =
 				Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
 
@@ -525,7 +525,7 @@ impl<T: Config> Pallet<T> {
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> Result<T::BlockNumber, DispatchError> {
-		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
+		let weight_for_single_execution = <T as Config>::WeightInfo::on_initialize_with_one_trade();
 
 		weight.saturating_accrue(weight_for_single_execution);
 
@@ -611,8 +611,10 @@ impl<T: Config> Pallet<T> {
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 		let amount_to_unreserve = Self::get_amount_in(&schedule.order)?;
 
-		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
-		let transaction_fee = Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
+		let transaction_fee = Self::convert_weight_to_fee(
+			<T as Config>::WeightInfo::on_initialize_with_one_trade(),
+			schedule.order.get_asset_in(),
+		)?;
 
 		if remaining_amount_to_use < transaction_fee || remaining_amount_to_use < amount_to_unreserve {
 			//Complete schedule
@@ -720,8 +722,8 @@ impl<T: Config> Pallet<T> {
 			Order::Sell {
 				asset_in, amount_in, ..
 			} => {
-				let weight_for_single_execution = Self::get_weight_for_single_execution()?;
-				let transaction_fee = Self::convert_weight_to_fee(weight_for_single_execution, *asset_in)?;
+				let transaction_fee =
+					Self::convert_weight_to_fee(<T as Config>::WeightInfo::on_initialize_with_one_trade(), *asset_in)?;
 
 				let amount_to_sell = amount_in
 					.checked_sub(transaction_fee)
@@ -968,15 +970,6 @@ impl<T: Config> Pallet<T> {
 			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
 
 		Ok(fee_amount_in_sold_asset)
-	}
-
-	fn get_weight_for_single_execution() -> Result<Weight, DispatchError> {
-		let max_schedule_per_block = max(T::MaxSchedulePerBlock::get().into(), 1);
-		let weight = <T as Config>::WeightInfo::on_initialize()
-			.checked_div(max_schedule_per_block)
-			.ok_or(ArithmeticError::Underflow)?;
-
-		Ok(weight)
 	}
 
 	fn convert_to_currency_if_asset_is_not_native(

@@ -975,6 +975,44 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 }
 
 #[test]
+fn native_execution_fee_should_be_sent_to_treasury() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 15 * ONE;
+			let amount_to_sell = 5 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+			assert_balance!(TreasuryAccount::get(), HDX, 0);
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_balance!(TreasuryAccount::get(), HDX, FEE_FOR_ONE_DCA_EXECUTION);
+			assert_number_of_executed_sell_trades!(1);
+		});
+}
+
+#[test]
 fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_trade_min_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])

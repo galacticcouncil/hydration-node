@@ -228,7 +228,7 @@ benchmarks! {
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
 	}
 
-	on_initialize{
+	on_initialize_with_one_trade{
 		//Prepare omnipool
 		initialize_omnipool::<T>()?;
 		set_period::<T>(1000);
@@ -244,14 +244,12 @@ benchmarks! {
 
 		let max_schedules_per_block: u128 = T::MaxSchedulePerBlock::get().into();
 
-		for _ in 0..max_schedules_per_block {
-			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
-		}
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
 
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
 
-		let init_reserved_balance = 40000000000000000;
+		let init_reserved_balance = 2000 * ONE;
 		assert_eq!(init_reserved_balance, reserved_balance);
 
 		let init_native_balance = 0;
@@ -263,13 +261,12 @@ benchmarks! {
 	}
 	verify {
 		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
-		let asset_in_spent_on_all_trades = max_schedules_per_block * amount_sell;
+		let asset_in_spent_on_all_trades = amount_sell;
 		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades, reserved_balance);
 
 		let init_native_balance = 0;
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(HDX.into(), &seller) > init_native_balance);
 	}
-
 
 	on_initialize_with_empty_block{
 		initialize_omnipool::<T>()?;

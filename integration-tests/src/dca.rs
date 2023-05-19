@@ -24,7 +24,7 @@ use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
-const DCA_EXECUTION_FEE: Balance = 670_053_883_056;
+const DCA_EXECUTION_FEE: Balance = 3_140_161_996_800;
 
 #[test]
 fn create_schedule_should_work() {
@@ -36,7 +36,7 @@ fn create_schedule_should_work() {
 		let block_id = 11;
 		set_relaychain_block_number(block_id);
 
-		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, 100 * UNITS, 800 * UNITS);
 
 		//Act
 		assert_ok!(hydradx_runtime::DCA::schedule(
@@ -63,11 +63,12 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		//Arrange
 		init_omnipool_with_oracle_for_block_10();
 
-		let dca_budget = 110 * UNITS;
+		let dca_budget = 800 * UNITS;
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
-		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, dca_budget);
+		let amount_out = 100 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, amount_out, dca_budget);
 		create_schedule(ALICE, schedule1);
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -78,10 +79,10 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let over_reservation_left_over = 16789121948; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		let amount_to_unreserve_for_trade = 2091053882407;
+		let over_reservation_left_over = 6_578_905_501_807; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		let amount_to_unreserve_for_trade = 150140161929727;
 
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + UNITS);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(
 			ALICE.into(),
 			HDX,
@@ -124,7 +125,7 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_out = 70737197939033;
+		let amount_out = 68978126001490;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -145,8 +146,8 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		//Arrange
 		init_omnipool_with_oracle_for_block_10();
 
-		let dca_budget = 110 * UNITS;
-		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, UNITS, 110 * UNITS);
+		let dca_budget = 800 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, 100 * UNITS, dca_budget);
 		create_schedule(ALICE, schedule1);
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
@@ -159,11 +160,11 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
-		run_to_block(11, 150);
+		run_to_block(11, 30);
 
 		//Assert
-		let over_reservation_left_over = 2138232380497; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 52 * UNITS);
+		let over_reservation_left_over = 82_193_584_205_562; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 500 * UNITS);
 		assert_balance!(
 			ALICE.into(),
 			HDX,
@@ -172,7 +173,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let fees = 34842801918912;
+		let fees = 15700809984000;
 		assert_balance!(
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,
@@ -213,8 +214,8 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		run_to_block(11, 100);
 
 		//Assert
-		let amount_out = 778108918061801;
-		let fee = 7_370_592_713_616;
+		let amount_out = 758759139616705;
+		let fee = 34541781964800;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -274,19 +275,19 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		run_to_block(11, 100);
 
 		//Assert
-		let amount_out = 778108653291461;
+		let amount_out = 758758887851093;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let amount_out = 919582781844482;
+		let amount_out = 896714885714014;
 
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(BOB.into(), HDX, bob_init_hdx_balance - dca_budget_for_bob);
 		assert_reserved_balance!(&BOB.into(), HDX, 0);
 
-		let fee = 16081293193344;
+		let fee = 75363887923200;
 		assert_balance!(
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,
@@ -306,14 +307,22 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
+		let native_amount = 100000 * UNITS;
+		assert_ok!(Currencies::update_balance(
+			hydradx_runtime::Origin::root(),
+			ALICE.into(),
+			HDX,
+			native_amount as i128,
+		));
+
 		init_omnipool_with_oracle_for_block_10();
 
-		let schedule1 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
-		let schedule2 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
-		let schedule3 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
-		let schedule4 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
-		let schedule5 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
-		let schedule6 = schedule_fake_with_invalid_min_limit(ALICE, 110 * UNITS, HDX, DAI, UNITS);
+		let schedule1 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+		let schedule2 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+		let schedule3 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+		let schedule4 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+		let schedule5 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+		let schedule6 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
 
 		create_schedule(ALICE, schedule1);
 		create_schedule(ALICE, schedule2);
@@ -385,8 +394,8 @@ fn schedule_fake_with_buy_order(
 			asset_in,
 			asset_out,
 			amount_out: amount,
-			max_limit: 2 * UNITS,
-			slippage: None,
+			max_limit: Balance::MAX,
+			slippage: Some(Permill::from_percent(5)),
 			route: create_bounded_vec(vec![]),
 		},
 	}
@@ -408,7 +417,7 @@ fn schedule_fake_with_sell_order(
 			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
-			slippage: None,
+			slippage: Some(Permill::from_percent(5)),
 			route: create_bounded_vec(vec![]),
 		},
 	}
