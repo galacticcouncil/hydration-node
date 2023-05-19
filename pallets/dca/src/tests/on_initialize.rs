@@ -30,7 +30,6 @@ use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
 use std::borrow::Borrow;
 use std::ops::RangeInclusive;
 
@@ -703,6 +702,51 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 				}
 				.into(),
 			]);
+		});
+}
+
+#[test]
+fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 1000 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: INVALID_BUY_AMOUNT_VALUE,
+					max_limit: 5 * ONE,
+					slippage: None,
+					route: empty_vec(),
+				})
+				.build();
+
+			let schedule_id = 0;
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(Currencies::reserved_balance(HDX, &ALICE), total_amount);
+			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
+
+			set_to_blocknumber(501);
+
+			assert_number_of_executed_buy_trades!(0);
+			assert_scheduled_ids!(601, vec![schedule_id]);
+
+			assert_eq!(
+				Currencies::reserved_balance(HDX, &ALICE),
+				total_amount - FEE_FOR_ONE_DCA_EXECUTION
+			);
+			assert_eq!(
+				DCA::remaining_amounts(schedule_id).unwrap(),
+				total_amount - FEE_FOR_ONE_DCA_EXECUTION
+			);
 		});
 }
 
