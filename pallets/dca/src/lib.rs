@@ -399,8 +399,11 @@ pub mod pallet {
 				}
 			};
 
+			let amount_in_with_transaction_fee = amount_in
+				.checked_add(transaction_fee)
+				.ok_or(ArithmeticError::Overflow)?;
 			ensure!(
-				amount_in + transaction_fee <= schedule.total_amount,
+				amount_in_with_transaction_fee <= schedule.total_amount,
 				Error::<T>::BudgetTooLow
 			);
 
@@ -516,6 +519,7 @@ impl<T: Config> Pallet<T> {
 		let Ok(()) = Self::unallocate_amount(schedule_id, schedule, amount_to_sell) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
+		//TODO: CHECK IN THE CODE THAT THERE IS NOT MINUS SIGN
 
 		Self::execute_trade(origin, &schedule.order, amount_to_sell)
 	}
