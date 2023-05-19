@@ -596,7 +596,15 @@ impl<T: Config> Pallet<T> {
 		let transaction_fee = Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
 
 		if remaining_amount_to_use < transaction_fee || remaining_amount_to_use < amount_to_unreserve {
-			Self::complete_schedule(schedule_id, schedule);
+			//Complete schedule
+			Self::try_unreserve_all(schedule_id, &schedule);
+
+			Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+
+			Self::deposit_event(Event::Completed {
+				id: schedule_id,
+				who: schedule.owner.clone(),
+			});
 			return Ok(());
 		}
 
@@ -835,17 +843,6 @@ impl<T: Config> Pallet<T> {
 			id: schedule_id,
 			who: schedule.owner.clone(),
 			error,
-		});
-	}
-
-	fn complete_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
-		Self::try_unreserve_all(schedule_id, &schedule);
-
-		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
-
-		Self::deposit_event(Event::Completed {
-			id: schedule_id,
-			who: schedule.owner.clone(),
 		});
 	}
 
