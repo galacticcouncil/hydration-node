@@ -529,7 +529,7 @@ impl<T: Config> Pallet<T> {
 
 		weight.saturating_accrue(weight_for_single_execution);
 
-		Self::take_transaction_fee_from_user(schedule_id, &schedule, weight_for_single_execution)?;
+		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_single_execution)?;
 
 		let next_execution_block = current_blocknumber
 			.checked_add(&schedule.period)
@@ -615,7 +615,7 @@ impl<T: Config> Pallet<T> {
 
 		if remaining_amount_to_use < transaction_fee || remaining_amount_to_use < amount_to_unreserve {
 			//Complete schedule
-			Self::try_unreserve_all(schedule_id, &schedule);
+			Self::try_unreserve_all(schedule_id, schedule);
 
 			Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
 
@@ -859,7 +859,7 @@ impl<T: Config> Pallet<T> {
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 		error: DispatchError,
 	) {
-		Self::try_unreserve_all(schedule_id, &schedule);
+		Self::try_unreserve_all(schedule_id, schedule);
 
 		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
 
@@ -939,7 +939,7 @@ impl<T: Config> Pallet<T> {
 			next_execution_block = next_execution_block.saturating_add(delay_with.into());
 		}
 
-		return Err(Error::<T>::NoFreeBlockFound.into());
+		Err(Error::<T>::NoFreeBlockFound.into())
 	}
 
 	fn create_bounded_vec(

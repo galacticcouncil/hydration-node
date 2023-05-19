@@ -244,7 +244,7 @@ benchmarks! {
 
 		let max_schedules_per_block: u128 = T::MaxSchedulePerBlock::get().into();
 
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(execution_block.into())));
 
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
