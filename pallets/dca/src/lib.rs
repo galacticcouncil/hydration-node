@@ -387,10 +387,10 @@ pub mod pallet {
 				Order::Sell { amount_in, .. } => {
 					//In sell the amount_in includes the transaction fee
 					ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
-					Self::get_amount_to_sell(&schedule.order)?
+					Self::get_amount_in(&schedule.order)?
 				}
 				Order::Buy { .. } => {
-					let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?;
+					let amount_to_unreserve = Self::get_amount_in(&schedule.order)?;
 					ensure!(
 						amount_to_unreserve > transaction_fee,
 						Error::<T>::TradeAmountIsLessThanFee
@@ -512,14 +512,13 @@ impl<T: Config> Pallet<T> {
 	) -> DispatchResult {
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
-		let Ok(amount_to_sell)  = Self::get_amount_to_sell(&schedule.order) else {
+		let Ok(amount_to_sell)  = Self::get_amount_in(&schedule.order) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
 		let Ok(()) = Self::unallocate_amount(schedule_id, schedule, amount_to_sell) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
-		//TODO: CHECK IN THE CODE THAT THERE IS NOT MINUS SIGN
 
 		Self::execute_trade(origin, &schedule.order, amount_to_sell)
 	}
@@ -538,7 +537,7 @@ impl<T: Config> Pallet<T> {
 
 		//TODO: get the exacty amount for buy as well
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
-		let amount_to_unreserve = Self::get_amount_to_sell(&schedule.order)?; //TODO: rename to ...amount_in
+		let amount_to_unreserve = Self::get_amount_in(&schedule.order)?;
 
 		let weight_for_single_execution = Self::get_weight_for_single_execution()?;
 		let transaction_fee = Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
@@ -636,7 +635,7 @@ impl<T: Config> Pallet<T> {
 		Ok(price_from_rational)
 	}
 
-	fn get_amount_to_sell(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
+	fn get_amount_in(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		match order {
 			Order::Sell {
 				asset_in, amount_in, ..
