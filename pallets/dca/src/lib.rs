@@ -422,8 +422,18 @@ pub mod pallet {
 
 			Self::reserve_asset_in(&schedule, &who)?;
 
-			let next_block_number = Self::get_next_block_number()?;
-			let blocknumber_for_first_schedule_execution = start_execution_block.unwrap_or(next_block_number);
+			let blocknumber_for_first_schedule_execution = match start_execution_block {
+				Some(blocknumber) => Ok(blocknumber),
+				None => {
+					let current_block_number = frame_system::Pallet::<T>::current_block_number();
+					let next_block_number = current_block_number
+						.checked_add(&T::BlockNumber::one())
+						.ok_or(ArithmeticError::Overflow)?;
+
+					Ok::<T::BlockNumber, ArithmeticError>(next_block_number)
+				}
+			}?;
+
 			Self::plan_schedule_for_block(who.clone(), blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			Self::deposit_event(Event::Scheduled {
@@ -893,25 +903,6 @@ impl<T: Config> Pallet<T> {
 		}
 
 		return Err(Error::<T>::NoFreeBlockFound.into());
-	}
-
-	fn get_next_schedule_id() -> Result<ScheduleId, ArithmeticError> {
-		ScheduleIdSequencer::<T>::try_mutate(|current_id| {
-			let schedule_id = *current_id;
-
-			*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
-
-			Ok(schedule_id)
-		})
-	}
-
-	fn get_next_block_number() -> Result<BlockNumberFor<T>, DispatchError> {
-		let current_block_number = frame_system::Pallet::<T>::current_block_number();
-		let next_block_number = current_block_number
-			.checked_add(&T::BlockNumber::one())
-			.ok_or(ArithmeticError::Overflow)?;
-
-		Ok(next_block_number)
 	}
 
 	fn create_bounded_vec(
