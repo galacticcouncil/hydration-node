@@ -420,7 +420,12 @@ pub mod pallet {
 			RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
-			Self::reserve_asset_in(&schedule, &who)?;
+			T::Currency::reserve_named(
+				&T::NamedReserveId::get(),
+				schedule.order.get_asset_in(),
+				&who,
+				schedule.total_amount,
+			)?;
 
 			let blocknumber_for_first_schedule_execution = match start_execution_block {
 				Some(blocknumber) => Ok(blocknumber),
@@ -536,7 +541,37 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
-		Self::execute_trade(origin, &schedule.order, amount_to_sell)
+		match schedule.order {
+			Order::Sell {
+				asset_in,
+				asset_out,
+				amount_in,
+				min_limit,
+				slippage,
+				route: _,
+			} => {
+				let (estimated_amount_out, slippage_amount) =
+					Self::calculate_estimated_and_slippage_amounts(asset_out, asset_in, amount_in, slippage)?;
+
+				let min_limit_with_slippage = estimated_amount_out
+					.checked_sub(slippage_amount)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				T::AMMTrader::sell(
+					origin,
+					asset_in,
+					asset_out,
+					amount_to_sell,
+					max(min_limit, min_limit_with_slippage),
+				)
+			}
+			Order::Buy {
+				asset_in,
+				asset_out,
+				amount_out,
+				..
+			} => T::AMMTrader::buy(origin, asset_in, asset_out, amount_out, amount_to_sell),
+		}
 
 		//TODO: add baance check if it we spent only the allocated money - for that we need omnipool or better mock
 	}
@@ -787,25 +822,6 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn reserve_asset_in(
-		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
-		who: &T::AccountId,
-	) -> DispatchResult {
-		let currency_for_reserve = match schedule.order {
-			Order::Buy { asset_in, .. } => asset_in,
-			Order::Sell { asset_in, .. } => asset_in,
-		};
-
-		T::Currency::reserve_named(
-			&T::NamedReserveId::get(),
-			currency_for_reserve,
-			who,
-			schedule.total_amount,
-		)?;
-
-		Ok(())
-	}
-
 	fn terminate_schedule(
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
@@ -912,40 +928,6 @@ impl<T: Config> Pallet<T> {
 		let bounded_vec: BoundedVec<ScheduleId, T::MaxSchedulePerBlock> =
 			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?;
 		Ok(bounded_vec)
-	}
-
-	fn execute_trade(origin: T::Origin, order: &Order<T::Asset>, amount_to_sell: Balance) -> DispatchResult {
-		match order {
-			Order::Sell {
-				asset_in,
-				asset_out,
-				amount_in,
-				min_limit,
-				slippage,
-				route: _,
-			} => {
-				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_in, *slippage)?;
-
-				let min_limit_with_slippage = estimated_amount_out
-					.checked_sub(slippage_amount)
-					.ok_or(ArithmeticError::Overflow)?;
-
-				T::AMMTrader::sell(
-					origin,
-					*asset_in,
-					*asset_out,
-					amount_to_sell,
-					max(*min_limit, min_limit_with_slippage),
-				)
-			}
-			Order::Buy {
-				asset_in,
-				asset_out,
-				amount_out,
-				..
-			} => T::AMMTrader::buy(origin, *asset_in, *asset_out, *amount_out, amount_to_sell),
-		}
 	}
 
 	fn calculate_estimated_and_slippage_amounts(
