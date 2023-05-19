@@ -486,12 +486,7 @@ impl<T: Config> Pallet<T> {
 
 		weight.saturating_accrue(weight_for_single_execution);
 
-		Self::take_transaction_fee_from_user(
-			schedule_id,
-			&schedule.owner,
-			&schedule.order,
-			weight_for_single_execution,
-		)?;
+		Self::take_transaction_fee_from_user(schedule_id, &schedule, weight_for_single_execution)?;
 
 		let next_execution_block = current_blocknumber
 			.checked_add(&schedule.period)
@@ -518,20 +513,7 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
-		let sold_currency = schedule.order.get_asset_in();
-
-		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
-			&T::NamedReserveId::get(),
-			sold_currency,
-			&schedule.owner,
-			amount_to_sell,
-		);
-		//TODO: this check is good, but not for stealing from multiple DCA
-		//TODO: merge unresreve and decrease remaining amount together in one function
-		//TODO: first decrease then unreserve, it prevents from stealing
-		//TODO: add test if the rollback works!!!
-		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
-		let Ok(()) = Self::decrease_remaining_amount(schedule_id, amount_to_sell) else {
+		let Ok(()) = Self::unallocate_amount(schedule_id, schedule, amount_to_sell) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
@@ -685,7 +667,11 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn decrease_remaining_amount(schedule_id: ScheduleId, amount_to_unreserve: Balance) -> DispatchResult {
+	fn unallocate_amount(
+		schedule_id: ScheduleId,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
+		amount_to_unreserve: Balance,
+	) -> DispatchResult {
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
 			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
@@ -701,6 +687,16 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		})?;
+
+		let sold_currency = schedule.order.get_asset_in();
+
+		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
+			&T::NamedReserveId::get(),
+			sold_currency,
+			&schedule.owner,
+			amount_to_unreserve,
+		);
+		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
 
 		Ok(())
 	}
@@ -752,25 +748,20 @@ impl<T: Config> Pallet<T> {
 	#[transactional]
 	fn take_transaction_fee_from_user(
 		schedule_id: ScheduleId,
-		owner: &T::AccountId,
-		order: &Order<<T as Config>::Asset>,
+		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 		weight_to_charge: Weight,
 	) -> DispatchResult {
-		let fee_currency = order.get_asset_in();
-
+		let fee_currency = schedule.order.get_asset_in();
 		let fee_amount_in_sold_asset = Self::convert_weight_to_fee(weight_to_charge, fee_currency)?;
 
-		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
-			&T::NamedReserveId::get(),
-			order.get_asset_in(),
-			owner,
+		Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
+
+		T::Currency::transfer(
+			fee_currency,
+			&schedule.owner,
+			&T::FeeReceiver::get(),
 			fee_amount_in_sold_asset,
-		);
-		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
-
-		Self::decrease_remaining_amount(schedule_id, fee_amount_in_sold_asset)?;
-
-		T::Currency::transfer(fee_currency, owner, &T::FeeReceiver::get(), fee_amount_in_sold_asset)?;
+		)?;
 
 		Ok(())
 	}
