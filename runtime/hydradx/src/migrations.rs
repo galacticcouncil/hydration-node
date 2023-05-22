@@ -45,3 +45,31 @@ impl OnRuntimeUpgrade for OnRuntimeUpgradeMigration {
 		Ok(())
 	}
 }
+
+pub struct OracleInversionMigration;
+impl OnRuntimeUpgrade for OracleInversionMigration {
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<(), &'static str> {
+		frame_support::log::info!("PreMigrate EmaOracle Pallet start");
+		pallet_ema_oracle::migration::v1::pre_migrate::<Runtime>();
+		frame_support::log::info!("PreMigrate EmaOracle Pallet end");
+
+		Ok(())
+	}
+
+	fn on_runtime_upgrade() -> Weight {
+		frame_support::log::info!("Migrate EmaOracle Pallet start");
+		let weight = pallet_ema_oracle::migration::v1::migrate::<Runtime>();
+		frame_support::log::info!("Migrate EmaOracle Pallet end");
+
+		weight
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade() -> Result<(), &'static str> {
+		frame_support::log::info!("PostMigrate EmaOracle Pallet start");
+		pallet_ema_oracle::migration::v1::post_migrate::<Runtime>();
+		frame_support::log::info!("PostMigrate EmaOracle Pallet end");
+		Ok(())
+	}
+}
