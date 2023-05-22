@@ -365,13 +365,14 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 }
 
 #[test]
-fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_sell_plus_fee() {
-	let budget = 5 * ONE;
+fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_plus_fee() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
+			let budget = AMOUNT_IN_FOR_BUY + FEE_FOR_ONE_DCA_EXECUTION - 1;
+
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -393,6 +394,36 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_s
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::BudgetTooLow
 			);
+		});
+}
+
+#[test]
+fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_plus_fee() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let budget = AMOUNT_IN_FOR_BUY + FEE_FOR_ONE_DCA_EXECUTION;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(budget)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: 10 * ONE,
+					max_limit: budget + FEE_FOR_ONE_DCA_EXECUTION,
+					slippage: None,
+					route: empty_vec(),
+				})
+				.build();
+
+			//Act
+			set_block_number(500);
+
+			//Assert
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None),);
 		});
 }
 
@@ -622,11 +653,11 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
+				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: 50,
-					max_limit: 50000,
+					amount_in: 50,
+					min_limit: Balance::MIN,
 					slippage: None,
 					route: empty_vec(),
 				})
@@ -652,11 +683,11 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in() {
 			let total_amount = ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
-				.with_order(Order::Buy {
+				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: total_amount,
-					max_limit: 5 * ONE,
+					amount_in: total_amount,
+					min_limit: Balance::MIN,
 					slippage: None,
 					route: empty_vec(),
 				})

@@ -1,5 +1,6 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::dispatch::DispatchResult;
+use hydradx_traits::router::PoolType;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::{BoundedVec, Permill};
@@ -70,14 +71,9 @@ where
 ///A single trade for buy/sell, describing the asset pair and the pool type in which the trade is executed
 #[derive(Encode, Decode, Debug, Eq, PartialEq, Clone, TypeInfo, MaxEncodedLen)]
 pub struct Trade<AssetId> {
-	pub pool: PoolType,
+	pub pool: PoolType<AssetId>,
 	pub asset_in: AssetId,
 	pub asset_out: AssetId,
-}
-
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
-pub enum PoolType {
-	Omnipool,
 }
 
 /// AMM trader to define trading functionalities

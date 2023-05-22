@@ -36,6 +36,15 @@
 //! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number.
 //! Therefore they cannot be front-ran in the block they are executed.
 
+//TODO :
+// - use omnipool in tests? Or rather integration tests?
+// - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
+// - recheck the ensures of the schedule function
+// - adjust benchmarking with one trade with buy trade
+// - add integration test for router
+// - search for and process all todo
+// - implement other router execution functions
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::MaxEncodedLen;
@@ -48,6 +57,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::router::{PoolType, TradeExecution};
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
@@ -198,7 +208,8 @@ pub mod pallet {
 		>;
 
 		///AMMTrader for trade execution
-		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>;
+		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>
+			+ hydradx_traits::router::TradeExecution<Self::Origin, Self::AccountId, Self::Asset, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
@@ -312,6 +323,8 @@ pub mod pallet {
 		ManuallyTerminated,
 		///Max number of retries reached for schedule
 		MaxRetryReached,
+		///There was an unexpected error happened in the AMM where the trade is executed
+		AmmTradeError,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -588,8 +601,21 @@ impl<T: Config> Pallet<T> {
 				asset_in,
 				asset_out,
 				amount_out,
+				slippage,
+				max_limit,
 				..
-			} => T::AMMTrader::buy(origin, asset_in, asset_out, amount_out, amount_to_sell),
+			} => {
+				let (estimated_amount_in, slippage_amount) =
+					Self::calculate_estimated_and_slippage_amounts(asset_in, asset_out, amount_out, slippage)?;
+
+				let max_limit_with_slippage = estimated_amount_in
+					.checked_add(slippage_amount)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				let max_limit = min(max_limit, max_limit_with_slippage);
+
+				T::AMMTrader::buy(origin, asset_in, asset_out, amount_out, max_limit)
+			}
 		}
 
 		//TODO: add baance check if it we spent only the allocated money - for that we need omnipool or better mock
@@ -728,20 +754,12 @@ impl<T: Config> Pallet<T> {
 				asset_in,
 				asset_out,
 				amount_out,
-				max_limit,
-				slippage,
 				..
 			} => {
-				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out, *slippage)?;
-
-				let max_limit_from_oracle_price = estimated_amount_in
-					.checked_add(slippage_amount)
-					.ok_or(ArithmeticError::Overflow)?;
-
-				let estimated_amount_to_sell = min(*max_limit, max_limit_from_oracle_price);
-
-				Ok(estimated_amount_to_sell)
+				let exact_amount_in =
+					T::AMMTrader::calculate_buy(PoolType::<T::Asset>::Omnipool, *asset_in, *asset_out, *amount_out)
+						.map_err(|_| Error::<T>::AmmTradeError)?;
+				Ok(exact_amount_in)
 			}
 		}
 	}

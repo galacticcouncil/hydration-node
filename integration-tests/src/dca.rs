@@ -79,15 +79,10 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let over_reservation_left_over = 6_578_905_501_807; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
-		let amount_to_unreserve_for_trade = 150140161929727;
+		let amount_to_unreserve_for_trade = 143561256427920;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
-		assert_balance!(
-			ALICE.into(),
-			HDX,
-			ALICE_INITIAL_NATIVE_BALANCE - dca_budget + over_reservation_left_over
-		);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_unreserve_for_trade);
 
 		assert_balance!(
@@ -163,7 +158,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		run_to_block(11, 30);
 
 		//Assert
-		let over_reservation_left_over = 82_193_584_205_562; //In case of buy we always unreserve more than needed for each transaction, so there will be some positive leftover for the user
+		let over_reservation_left_over = 82_193_584_205_562; //Because the remaining budget for the last trade is not enough, so it is returned
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 500 * UNITS);
 		assert_balance!(
 			ALICE.into(),

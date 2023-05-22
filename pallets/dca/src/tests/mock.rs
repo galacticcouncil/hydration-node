@@ -410,6 +410,52 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 	}
 }
 
+pub const AMOUNT_IN_FOR_BUY: Balance = 2 * ONE;
+
+impl TradeExecution<Origin, AccountId, AssetId, Balance> for AmmTraderMock {
+	type Error = DispatchError;
+
+	fn calculate_sell(
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		todo!()
+	}
+
+	fn calculate_buy(
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		Ok(AMOUNT_IN_FOR_BUY)
+	}
+
+	fn execute_sell(
+		who: Origin,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		todo!()
+	}
+
+	fn execute_buy(
+		who: Origin,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		todo!()
+	}
+}
+
 impl AmmTraderMock {
 	fn execute_trade_in_omnipool(
 		origin: Origin,
@@ -503,6 +549,7 @@ use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
 use smallvec::smallvec;
 

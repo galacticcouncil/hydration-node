@@ -127,7 +127,7 @@ fn one_dca_execution_should_unreserve_amount_in() {
 }
 
 #[test]
-fn one_buy_dca_execution_should_unreserve_user_specified_max_limit() {
+fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -167,101 +167,7 @@ fn one_buy_dca_execution_should_unreserve_user_specified_max_limit() {
 			}]);
 
 			assert_eq!(
-				total_amount - max_limit - FEE_FOR_ONE_DCA_EXECUTION,
-				Currencies::reserved_balance(HDX, &ALICE)
-			);
-		});
-}
-
-#[test]
-fn one_buy_dca_execution_should_use_max_price_diff_as_slippage_limit_when_not_specified_by_user() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
-
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: amount_to_buy,
-					max_limit: Balance::MAX,
-					slippage: None,
-					route: empty_vec(),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
-
-			//Act
-			set_to_blocknumber(501);
-
-			//Assert
-			let max_sell_amount = 968_000_000_000;
-			assert_executed_buy_trades!(vec![BuyExecution {
-				asset_in: HDX,
-				asset_out: BTC,
-				amount_out: ONE,
-				max_sell_amount,
-			}]);
-
-			assert_eq!(
-				total_amount - max_sell_amount - FEE_FOR_ONE_DCA_EXECUTION,
-				Currencies::reserved_balance(HDX, &ALICE)
-			);
-		});
-}
-
-#[test]
-fn one_buy_dca_execution_should_use_slippage_limit_when_specified_by_user() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
-
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: amount_to_buy,
-					max_limit: Balance::MAX,
-					slippage: Some(Permill::from_percent(15)),
-					route: empty_vec(),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
-
-			//Act
-			set_to_blocknumber(501);
-
-			//Assert
-			let max_sell_amount_calculated_by_slippage = 1012000000000;
-			assert_executed_buy_trades!(vec![BuyExecution {
-				asset_in: HDX,
-				asset_out: BTC,
-				amount_out: ONE,
-				max_sell_amount: max_sell_amount_calculated_by_slippage,
-			}]);
-
-			assert_eq!(
-				total_amount - max_sell_amount_calculated_by_slippage - FEE_FOR_ONE_DCA_EXECUTION,
+				total_amount - AMOUNT_IN_FOR_BUY - FEE_FOR_ONE_DCA_EXECUTION,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
@@ -527,7 +433,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			proceed_to_blocknumber(501, 2001);
 
 			//Assert
-			assert_number_of_executed_buy_trades!(5);
+			assert_number_of_executed_buy_trades!(2);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -535,7 +441,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 }
 
 #[test]
-fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_smaller_than_specified_max_limit() {
+fn one_buy_dca_execution_should_use_default_max_price_diff_for_max_limit_calculation() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -545,7 +451,7 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_smaller_t
 
 			let total_amount = 5 * ONE;
 			let amount_to_buy = ONE;
-			let max_limit_calculated_from_spot_price = 968000000000;
+			let max_limit_calculated_from_oracle = 968000000000;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -571,11 +477,58 @@ fn one_buy_dca_execution_should_unreserve_max_limit_with_slippage_when_smaller_t
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_out: ONE,
-				max_sell_amount: max_limit_calculated_from_spot_price,
+				max_sell_amount: max_limit_calculated_from_oracle,
 			}]);
 
 			assert_eq!(
-				total_amount - max_limit_calculated_from_spot_price - FEE_FOR_ONE_DCA_EXECUTION,
+				total_amount - AMOUNT_IN_FOR_BUY - FEE_FOR_ONE_DCA_EXECUTION,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
+		});
+}
+
+#[test]
+fn one_buy_dca_execution_should_use_slippage_limit_for_max_limit_when_specified_by_user() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_buy = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit: Balance::MAX,
+					slippage: Some(Permill::from_percent(20)),
+					route: empty_vec(),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let max_sell_amount_calculated_by_slippage = 1056000000000;
+			assert_executed_buy_trades!(vec![BuyExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_out: ONE,
+				max_sell_amount: max_sell_amount_calculated_by_slippage,
+			}]);
+
+			assert_eq!(
+				total_amount - AMOUNT_IN_FOR_BUY - FEE_FOR_ONE_DCA_EXECUTION,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});

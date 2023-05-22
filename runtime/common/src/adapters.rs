@@ -1,10 +1,12 @@
 use core::marker::PhantomData;
 
+use crate::AccountId;
 use frame_support::{traits::Get, weights::Weight};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydra_dx_math::support::rational::round_to_rational;
 use hydra_dx_math::support::rational::Rounding;
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::AggregatedPriceOracle;
 use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
@@ -19,6 +21,7 @@ use primitives::{AssetId, Balance, BlockNumber};
 use sp_runtime::traits::Zero;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
 use warehouse_liquidity_mining::GlobalFarmData;
+
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
@@ -173,6 +176,66 @@ where
 		max_sell_amount: Balance,
 	) -> sp_runtime::DispatchResult {
 		pallet_omnipool::Pallet::<T>::buy(origin, asset_out, asset_in, amount.into(), max_sell_amount.into())
+	}
+}
+
+impl<T: pallet_omnipool::Config<AssetId = AssetId, Origin = Origin>, Origin, AssetId>
+	TradeExecution<Origin, AccountId, AssetId, Balance> for AmmTraderAdapter<T, Origin, AssetId, Balance>
+{
+	type Error = DispatchError;
+
+	fn calculate_sell(
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		pallet_omnipool::Pallet::<T>::calculate_sell(pool_type, asset_in, asset_out, amount_in.into())
+	}
+
+	fn calculate_buy(
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		pallet_omnipool::Pallet::<T>::calculate_buy(pool_type, asset_in, asset_out, amount_out.into())
+	}
+
+	fn execute_sell(
+		who: Origin,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		pallet_omnipool::Pallet::<T>::execute_sell(
+			who,
+			pool_type,
+			asset_in,
+			asset_out,
+			amount_in.into(),
+			min_limit.into(),
+		)
+	}
+
+	fn execute_buy(
+		who: Origin,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		pallet_omnipool::Pallet::<T>::execute_buy(
+			who,
+			pool_type,
+			asset_in,
+			asset_out,
+			amount_out.into(),
+			max_limit.into(),
+		)
 	}
 }
 

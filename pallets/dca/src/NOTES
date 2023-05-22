@@ -1,0 +1,52 @@
+- Comments to discuss
+- about new comments all is understandable
+-
+- weight is a bit off
+
+
+we make sure spend what we unreserve
+
+
+
+ -UI: always allocate more - the nudget you specify should include the fee
+ --sell
+
+
+ - omnipool should be able to calculate -
+
+
+TODO: check if balance did not decrease more than we unreserve
+
+
+
+inherent - fuzzy testing - it can not panic, double check - reduce lines of code
+
+
+execute trade 3 steps process:
+- calculate how much we unreserve
+- unreserve
+- trade
+- we check what we unreserved - rename to unallocate
+- check if we spend only allocated money
+
+for fee same, we check if we unreserve money for this fee, and only unreserving it from DCA
+
+
+
+on iniinitialize / 20 + add omnuipool bench mark
+
+or overhead
+
+estimate with Martin how we can overestimate the amount we spend in omnipool in unrelay
+
+there is aalso leaking in each buy trade
+
+it is safe if we overestimate, if we are sure, we can not really sway with oracle
+- even the leaking back
+
+maybe a function in omnipool would tell this to me -
+
+
+TODO : Tell Juraj (Jakub) about sell should be exact
+
+estimate the how much space we need  to a block then compare it to max weight
