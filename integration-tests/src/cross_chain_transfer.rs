@@ -224,6 +224,60 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 }
 
 #[test]
+fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
+	// Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::Origin::root(),
+			1,
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+	});
+
+	Acala::execute_with(|| {
+		// Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::Origin::signed(ALICE.into()),
+			0,
+			30 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 {
+							id: hydradx_runtime::Omnipool::protocol_account().into(),
+							network: NetworkId::Any,
+						}
+					)
+				)
+				.into()
+			),
+			399_600_000_000
+		));
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			200 * UNITS - 30 * UNITS
+		);
+	});
+
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
+			1_000 * UNITS
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
+			30 * UNITS // fee and tokens should go to treasury
+		);
+	});
+}
+
+#[test]
 fn assets_should_be_trapped_when_assets_are_unknown() {
 	TestNet::reset();
 

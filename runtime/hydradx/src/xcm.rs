@@ -1,5 +1,6 @@
 use super::{AssetId, *};
 
+use common_runtime::adapters::ReroutingMultiCurrencyAdapter;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	traits::{Everything, Nothing},
@@ -268,9 +269,17 @@ pub type LocationToAccountId = (
 parameter_types! {
 	// The account which receives multi-currency tokens from failed attempts to deposit them
 	pub Alternative: AccountId = PalletId(*b"xcm/alte").into_account_truncating();
+	pub AlternativeDestination: AccountId = Treasury::account_id();
 }
 
-pub type LocalAssetTransactor = MultiCurrencyAdapter<
+pub struct OmnipoolProtocolAccount;
+impl Contains<AccountId> for OmnipoolProtocolAccount {
+	fn contains(account_id: &AccountId) -> bool {
+		&Omnipool::protocol_account() == account_id
+	}
+}
+
+pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	Currencies,
 	UnknownTokens,
 	IsNativeConcrete<AssetId, CurrencyIdConvert>,
@@ -279,4 +288,6 @@ pub type LocalAssetTransactor = MultiCurrencyAdapter<
 	AssetId,
 	CurrencyIdConvert,
 	DepositToAlternative<Alternative, Currencies, AssetId, AccountId, Balance>,
+	OmnipoolProtocolAccount,
+	AlternativeDestination,
 >;
