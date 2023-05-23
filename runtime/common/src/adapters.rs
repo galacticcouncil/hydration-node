@@ -1,6 +1,10 @@
 use core::marker::PhantomData;
 
-use frame_support::{traits::Get, weights::Weight};
+use codec::FullCodec;
+use frame_support::{
+	traits::{Contains, Get},
+	weights::Weight,
+};
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydra_dx_math::support::rational::round_to_rational;
@@ -8,15 +12,26 @@ use hydra_dx_math::support::rational::Rounding;
 use hydradx_traits::AggregatedPriceOracle;
 use hydradx_traits::PriceOracle;
 use hydradx_traits::{liquidity_mining::PriceAdjustment, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod};
+use orml_xcm_support::OnDepositFail;
+use orml_xcm_support::UnknownAsset as UnknownAssetT;
 use pallet_circuit_breaker::WeightInfo;
 use pallet_ema_oracle::Price;
 use pallet_ema_oracle::{OnActivityHandler, OracleError};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 use primitive_types::U128;
 use primitives::{AssetId, Balance, BlockNumber};
-use sp_runtime::traits::Zero;
+use sp_runtime::traits::MaybeSerializeDeserialize;
+use sp_runtime::traits::{Convert, Zero};
+use sp_runtime::SaturatedConversion;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128};
+use sp_std::fmt::Debug;
 use warehouse_liquidity_mining::GlobalFarmData;
+use xcm::latest::prelude::*;
+use xcm_executor::{
+	traits::{Convert as MoreConvert, MatchesFungible, TransactAsset},
+	Assets,
+};
+
 /// Passes on trade and liquidity data from the omnipool to the oracle.
 pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna, Runtime)>);
 
@@ -230,5 +245,149 @@ where
 		.map_err(|_| pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
 
 		FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow.into())
+	}
+}
+
+/// Asset transaction errors.
+enum Error {
+	/// Failed to match fungible.
+	FailedToMatchFungible,
+	/// `MultiLocation` to `AccountId` Conversion failed.
+	AccountIdConversionFailed,
+	/// `CurrencyId` conversion failed.
+	CurrencyIdConversionFailed,
+}
+
+impl From<Error> for XcmError {
+	fn from(e: Error) -> Self {
+		match e {
+			Error::FailedToMatchFungible => XcmError::FailedToTransactAsset("FailedToMatchFungible"),
+			Error::AccountIdConversionFailed => XcmError::FailedToTransactAsset("AccountIdConversionFailed"),
+			Error::CurrencyIdConversionFailed => XcmError::FailedToTransactAsset("CurrencyIdConversionFailed"),
+		}
+	}
+}
+
+/// The `TransactAsset` implementation, to handle `MultiAsset` deposit/withdraw, but reroutes deposits and transfers
+/// to unsupported accounts to an alternative.
+///
+/// Note that teleport related functions are unimplemented.
+///
+/// Methods of `DepositFailureHandler` would be called on multi-currency deposit
+/// errors.
+///
+/// If the asset is known, deposit/withdraw will be handled by `MultiCurrency`,
+/// else by `UnknownAsset` if unknown.
+///
+/// Taken and modified from `orml_xcm_support`.
+/// https://github.com/open-web3-stack/open-runtime-module-library/blob/4ae0372e2c624e6acc98305564b9d395f70814c0/xcm-support/src/currency_adapter.rs#L96-L202
+#[allow(clippy::type_complexity)]
+pub struct ReroutingMultiCurrencyAdapter<
+	MultiCurrency,
+	UnknownAsset,
+	Match,
+	AccountId,
+	AccountIdConvert,
+	CurrencyId,
+	CurrencyIdConvert,
+	DepositFailureHandler,
+	RerouteFilter,
+	RerouteDestination,
+>(
+	PhantomData<(
+		MultiCurrency,
+		UnknownAsset,
+		Match,
+		AccountId,
+		AccountIdConvert,
+		CurrencyId,
+		CurrencyIdConvert,
+		DepositFailureHandler,
+		RerouteFilter,
+		RerouteDestination,
+	)>,
+);
+
+impl<
+		MultiCurrency: orml_traits::MultiCurrency<AccountId, CurrencyId = CurrencyId>,
+		UnknownAsset: UnknownAssetT,
+		Match: MatchesFungible<MultiCurrency::Balance>,
+		AccountId: sp_std::fmt::Debug + Clone,
+		AccountIdConvert: MoreConvert<MultiLocation, AccountId>,
+		CurrencyId: FullCodec + Eq + PartialEq + Copy + MaybeSerializeDeserialize + Debug,
+		CurrencyIdConvert: Convert<MultiAsset, Option<CurrencyId>>,
+		DepositFailureHandler: OnDepositFail<CurrencyId, AccountId, MultiCurrency::Balance>,
+		RerouteFilter: Contains<(CurrencyId, AccountId)>,
+		RerouteDestination: Get<AccountId>,
+	> TransactAsset
+	for ReroutingMultiCurrencyAdapter<
+		MultiCurrency,
+		UnknownAsset,
+		Match,
+		AccountId,
+		AccountIdConvert,
+		CurrencyId,
+		CurrencyIdConvert,
+		DepositFailureHandler,
+		RerouteFilter,
+		RerouteDestination,
+	>
+{
+	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation) -> Result<(), XcmError> {
+		match (
+			AccountIdConvert::convert_ref(location),
+			CurrencyIdConvert::convert(asset.clone()),
+			Match::matches_fungible(asset),
+		) {
+			// known asset
+			(Ok(who), Some(currency_id), Some(amount)) => {
+				if RerouteFilter::contains(&(currency_id, who.clone())) {
+					MultiCurrency::deposit(currency_id, &RerouteDestination::get(), amount)
+						.or_else(|err| DepositFailureHandler::on_deposit_currency_fail(err, currency_id, &who, amount))
+				} else {
+					MultiCurrency::deposit(currency_id, &who, amount)
+						.or_else(|err| DepositFailureHandler::on_deposit_currency_fail(err, currency_id, &who, amount))
+				}
+			}
+			// unknown asset
+			_ => UnknownAsset::deposit(asset, location)
+				.or_else(|err| DepositFailureHandler::on_deposit_unknown_asset_fail(err, asset, location)),
+		}
+	}
+
+	fn withdraw_asset(asset: &MultiAsset, location: &MultiLocation) -> Result<Assets, XcmError> {
+		UnknownAsset::withdraw(asset, location).or_else(|_| {
+			let who = AccountIdConvert::convert_ref(location)
+				.map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+			let currency_id = CurrencyIdConvert::convert(asset.clone())
+				.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
+			let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
+				.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
+				.saturated_into();
+			MultiCurrency::withdraw(currency_id, &who, amount).map_err(|e| XcmError::FailedToTransactAsset(e.into()))
+		})?;
+
+		Ok(asset.clone().into())
+	}
+
+	fn transfer_asset(asset: &MultiAsset, from: &MultiLocation, to: &MultiLocation) -> Result<Assets, XcmError> {
+		let from_account =
+			AccountIdConvert::convert_ref(from).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+		let to_account =
+			AccountIdConvert::convert_ref(to).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
+		let currency_id = CurrencyIdConvert::convert(asset.clone())
+			.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
+		let to_account = if RerouteFilter::contains(&(currency_id, to_account.clone())) {
+			RerouteDestination::get()
+		} else {
+			to_account
+		};
+		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
+			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
+			.saturated_into();
+		MultiCurrency::transfer(currency_id, &from_account, &to_account, amount)
+			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
+
+		Ok(asset.clone().into())
 	}
 }
