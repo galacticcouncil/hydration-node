@@ -269,8 +269,8 @@ impl From<Error> for XcmError {
 }
 
 /// The `TransactAsset` implementation, to handle `MultiAsset` deposit/withdraw, but reroutes deposits and transfers
-/// to unsupported accounts to an alternative
-/// .
+/// to unsupported accounts to an alternative.
+///
 /// Note that teleport related functions are unimplemented.
 ///
 /// Methods of `DepositFailureHandler` would be called on multi-currency deposit

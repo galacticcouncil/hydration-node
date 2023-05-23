@@ -269,7 +269,6 @@ pub type LocationToAccountId = (
 parameter_types! {
 	// The account which receives multi-currency tokens from failed attempts to deposit them
 	pub Alternative: AccountId = PalletId(*b"xcm/alte").into_account_truncating();
-	pub RerouteDestination: AccountId = Treasury::account_id();
 }
 
 pub struct OmnipoolProtocolAccount;
@@ -279,6 +278,7 @@ impl Contains<(AssetId, AccountId)> for OmnipoolProtocolAccount {
 	}
 }
 
+/// We use `orml::Currencies` for asset transacting. Transfers to active Omnipool accounts are rerouted to the treasury.
 pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	Currencies,
 	UnknownTokens,
@@ -289,5 +289,5 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	CurrencyIdConvert,
 	DepositToAlternative<Alternative, Currencies, AssetId, AccountId, Balance>,
 	OmnipoolProtocolAccount,
-	RerouteDestination,
+	TreasuryAccount,
 >;
