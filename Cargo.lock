@@ -1167,6 +1167,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-vesting",
+ "orml-xcm-support",
  "pallet-asset-registry",
  "pallet-balances",
  "pallet-circuit-breaker",
@@ -1200,6 +1201,8 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+ "xcm",
+ "xcm-executor",
 ]
 
 [[package]]

@@ -1,5 +1,6 @@
 use super::{AssetId, *};
 
+use common_runtime::adapters::ReroutingMultiCurrencyAdapter;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	traits::{Everything, Nothing},
@@ -288,7 +289,15 @@ parameter_types! {
 	pub Alternative: AccountId = PalletId(*b"xcm/alte").into_account_truncating();
 }
 
-pub type LocalAssetTransactor = MultiCurrencyAdapter<
+pub struct OmnipoolProtocolAccount;
+impl Contains<(AssetId, AccountId)> for OmnipoolProtocolAccount {
+	fn contains((c, account_id): &(AssetId, AccountId)) -> bool {
+		&Omnipool::protocol_account() == account_id && Omnipool::exists(*c)
+	}
+}
+
+/// We use `orml::Currencies` for asset transacting. Transfers to active Omnipool accounts are rerouted to the treasury.
+pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	Currencies,
 	UnknownTokens,
 	IsNativeConcrete<AssetId, CurrencyIdConvert>,
@@ -297,4 +306,6 @@ pub type LocalAssetTransactor = MultiCurrencyAdapter<
 	AssetId,
 	CurrencyIdConvert,
 	DepositToAlternative<Alternative, Currencies, AssetId, AccountId, Balance>,
+	OmnipoolProtocolAccount,
+	TreasuryAccount,
 >;

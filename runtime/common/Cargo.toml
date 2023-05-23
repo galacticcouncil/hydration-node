@@ -61,10 +61,15 @@ pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 orml-vesting = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
+orml-xcm-support = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 
 # Cumulus dependencies
 pallet-collator-selection = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38", default-features = false }
 cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38", default-features = false }
+
+# Polkadot dependencies
+xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
 
 [features]
 default = ["std"]
@@ -97,6 +102,9 @@ std = [
     "orml-tokens/std",
     "orml-vesting/std",
     "orml-traits/std",
+    "orml-xcm-support/std",
     "pallet-collator-selection/std",
     "cumulus-pallet-xcmp-queue/std",
+    "xcm/std",
+    "xcm-executor/std",
 ]

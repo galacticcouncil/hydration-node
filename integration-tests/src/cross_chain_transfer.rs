@@ -202,6 +202,68 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 }
 
 #[test]
+fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
+	// Arrange
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		// initialize the omnipool because we check whether assets are present there
+		init_omnipool();
+
+		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+			hydradx_runtime::RuntimeOrigin::root(),
+			DAI, // we pretend that the incoming tokens are DAI
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+		));
+
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(DAI, &hydradx_runtime::Omnipool::protocol_account()),
+			50_000_000_000 * UNITS
+		);
+	});
+
+	Acala::execute_with(|| {
+		// Act
+		assert_ok!(hydradx_runtime::XTokens::transfer(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			0,
+			30 * UNITS,
+			Box::new(
+				MultiLocation::new(
+					1,
+					X2(
+						Junction::Parachain(HYDRA_PARA_ID),
+						Junction::AccountId32 {
+							id: hydradx_runtime::Omnipool::protocol_account().into(),
+							network: None,
+						}
+					)
+				)
+				.into()
+			),
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
+		));
+
+		// Assert
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
+			200 * UNITS - 30 * UNITS
+		);
+	});
+
+	Hydra::execute_with(|| {
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(DAI, &hydradx_runtime::Omnipool::protocol_account()),
+			50_000_000_000 * UNITS
+		);
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(DAI, &hydradx_runtime::Treasury::account_id()),
+			30 * UNITS // fee and tokens should go to treasury
+		);
+	});
+}
+
+#[test]
 fn assets_should_be_trapped_when_assets_are_unknown() {
 	TestNet::reset();
 
