@@ -278,6 +278,9 @@ impl From<Error> for XcmError {
 ///
 /// If the asset is known, deposit/withdraw will be handled by `MultiCurrency`,
 /// else by `UnknownAsset` if unknown.
+///
+/// Taken and modified from `orml_xcm_support`.
+/// https://github.com/open-web3-stack/open-runtime-module-library/blob/4ae0372e2c624e6acc98305564b9d395f70814c0/xcm-support/src/currency_adapter.rs#L96-L202
 #[allow(clippy::type_complexity)]
 pub struct ReroutingMultiCurrencyAdapter<
 	MultiCurrency,
