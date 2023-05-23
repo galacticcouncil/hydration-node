@@ -229,11 +229,19 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
+		// initialize the omnipool because we check whether assets are present there
+		init_omnipool();
+
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::Origin::root(),
-			1,
+			DAI, // we pretend that the incoming tokens are DAI
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
+
+		assert_eq!(
+			hydradx_runtime::Tokens::free_balance(DAI, &hydradx_runtime::Omnipool::protocol_account()),
+			50_000_000_000 * UNITS
+		);
 	});
 
 	Acala::execute_with(|| {
@@ -267,11 +275,11 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 
 	Hydra::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1_000 * UNITS
+			hydradx_runtime::Tokens::free_balance(DAI, &hydradx_runtime::Omnipool::protocol_account()),
+			50_000_000_000 * UNITS
 		);
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
+			hydradx_runtime::Tokens::free_balance(DAI, &hydradx_runtime::Treasury::account_id()),
 			30 * UNITS // fee and tokens should go to treasury
 		);
 	});

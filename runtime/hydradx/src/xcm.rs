@@ -269,13 +269,13 @@ pub type LocationToAccountId = (
 parameter_types! {
 	// The account which receives multi-currency tokens from failed attempts to deposit them
 	pub Alternative: AccountId = PalletId(*b"xcm/alte").into_account_truncating();
-	pub AlternativeDestination: AccountId = Treasury::account_id();
+	pub RerouteDestination: AccountId = Treasury::account_id();
 }
 
 pub struct OmnipoolProtocolAccount;
-impl Contains<AccountId> for OmnipoolProtocolAccount {
-	fn contains(account_id: &AccountId) -> bool {
-		&Omnipool::protocol_account() == account_id
+impl Contains<(AssetId, AccountId)> for OmnipoolProtocolAccount {
+	fn contains((c, account_id): &(AssetId, AccountId)) -> bool {
+		&Omnipool::protocol_account() == account_id && Omnipool::exists(*c)
 	}
 }
 
@@ -289,5 +289,5 @@ pub type LocalAssetTransactor = ReroutingMultiCurrencyAdapter<
 	CurrencyIdConvert,
 	DepositToAlternative<Alternative, Currencies, AssetId, AccountId, Balance>,
 	OmnipoolProtocolAccount,
-	AlternativeDestination,
+	RerouteDestination,
 >;

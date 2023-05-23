@@ -289,7 +289,7 @@ pub struct ReroutingMultiCurrencyAdapter<
 	CurrencyIdConvert,
 	DepositFailureHandler,
 	RerouteFilter,
-	AlternativeDestination,
+	RerouteDestination,
 >(
 	PhantomData<(
 		MultiCurrency,
@@ -301,7 +301,7 @@ pub struct ReroutingMultiCurrencyAdapter<
 		CurrencyIdConvert,
 		DepositFailureHandler,
 		RerouteFilter,
-		AlternativeDestination,
+		RerouteDestination,
 	)>,
 );
 
@@ -314,8 +314,8 @@ impl<
 		CurrencyId: FullCodec + Eq + PartialEq + Copy + MaybeSerializeDeserialize + Debug,
 		CurrencyIdConvert: Convert<MultiAsset, Option<CurrencyId>>,
 		DepositFailureHandler: OnDepositFail<CurrencyId, AccountId, MultiCurrency::Balance>,
-		RerouteFilter: Contains<AccountId>,
-		AlternativeDestination: Get<AccountId>,
+		RerouteFilter: Contains<(CurrencyId, AccountId)>,
+		RerouteDestination: Get<AccountId>,
 	> TransactAsset
 	for ReroutingMultiCurrencyAdapter<
 		MultiCurrency,
@@ -327,7 +327,7 @@ impl<
 		CurrencyIdConvert,
 		DepositFailureHandler,
 		RerouteFilter,
-		AlternativeDestination,
+		RerouteDestination,
 	>
 {
 	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation) -> Result<(), XcmError> {
@@ -338,8 +338,8 @@ impl<
 		) {
 			// known asset
 			(Ok(who), Some(currency_id), Some(amount)) => {
-				if RerouteFilter::contains(&who) {
-					MultiCurrency::deposit(currency_id, &AlternativeDestination::get(), amount)
+				if RerouteFilter::contains(&(currency_id, who.clone())) {
+					MultiCurrency::deposit(currency_id, &RerouteDestination::get(), amount)
 						.or_else(|err| DepositFailureHandler::on_deposit_currency_fail(err, currency_id, &who, amount))
 				} else {
 					MultiCurrency::deposit(currency_id, &who, amount)
@@ -372,13 +372,13 @@ impl<
 			AccountIdConvert::convert_ref(from).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
 		let to_account =
 			AccountIdConvert::convert_ref(to).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
-		let to_account = if RerouteFilter::contains(&to_account) {
-			AlternativeDestination::get()
+		let currency_id = CurrencyIdConvert::convert(asset.clone())
+			.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
+		let to_account = if RerouteFilter::contains(&(currency_id, to_account.clone())) {
+			RerouteDestination::get()
 		} else {
 			to_account
 		};
-		let currency_id = CurrencyIdConvert::convert(asset.clone())
-			.ok_or_else(|| XcmError::from(Error::CurrencyIdConversionFailed))?;
 		let amount: MultiCurrency::Balance = Match::matches_fungible(asset)
 			.ok_or_else(|| XcmError::from(Error::FailedToMatchFungible))?
 			.saturated_into();
