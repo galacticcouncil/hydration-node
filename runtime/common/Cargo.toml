@@ -65,7 +65,6 @@ cumulus-pallet-xcmp-queue = { git = "https://github.com/paritytech/cumulus", bra
 
 # Polkadot dependencies
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1", default-features = false }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1", default-features = false }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29-1", default-features = false }
 
 [features]
@@ -106,6 +105,5 @@ std = [
     "pallet-collator-selection/std",
     "cumulus-pallet-xcmp-queue/std",
     "xcm/std",
-    "xcm-builder/std",
     "xcm-executor/std",
 ]
