@@ -57,8 +57,8 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const FEE_FOR_ONE_DCA_EXECUTION: Balance = 2699988000;
-pub const FEE_FOR_ONE_DCA_EXECUTION_IN_DAI: Balance = 2375989440;
+pub const FEE_FOR_ONE_DCA_EXECUTION: Balance = 2733868000;
+pub const FEE_FOR_ONE_DCA_EXECUTION_IN_DAI: Balance = 2405803840;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -69,7 +69,7 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const INVALID_BUY_AMOUNT_VALUE: Balance = ONE * 12 / 10;
+pub const INVALID_BUY_AMOUNT_VALUE: Balance = 10 * ONE * 12 / 10;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -360,7 +360,7 @@ impl pallet_route_executor::Config for Test {
 type OriginForRuntime = OriginFor<Test>;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
 pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 1 * ONE;
-pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = ONE / 2;
+pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 10 * ONE;
 
 pub struct OmniPool;
 pub struct XYK;

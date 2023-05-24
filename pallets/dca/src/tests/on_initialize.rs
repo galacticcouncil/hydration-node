@@ -146,9 +146,9 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
-			let max_limit = 5 * ONE;
+			let total_amount = 50 * ONE;
+			let amount_to_buy = 10 * ONE;
+			let max_limit = 50 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -158,7 +158,7 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit,
-					slippage: None,
+					slippage: Some(Permill::from_percent(20)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -177,7 +177,7 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 			assert_executed_buy_trades!(vec![BuyExecution {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_out: ONE,
+				amount_out: amount_to_buy,
 				max_sell_amount: OMNIPOOL_BUY_CALCULATION_RESULT,
 			}]);
 
@@ -197,9 +197,9 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
-			let max_limit = 5 * ONE;
+			let total_amount = 50 * ONE;
+			let amount_to_buy = 10 * ONE;
+			let max_limit = 50 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -209,7 +209,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit,
-					slippage: None,
+					slippage: Some(Permill::from_percent(20)),
 					route: create_bounded_vec(vec![
 						Trade {
 							pool: PoolType::Omnipool,
@@ -242,7 +242,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 				BuyExecution {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_out: ONE,
+					amount_out: amount_to_buy,
 					max_sell_amount: XYK_BUY_CALCULATION_RESULT,
 				}
 			]);
@@ -515,8 +515,8 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * ONE; //We spend 0.5 in each trade but also the fee is taken, so it won't be enough for 10th trade
-			let amount_to_buy = ONE;
+			let total_amount = 50 * ONE; //We spend 10 in each trade but also the fee is taken, so it won't be enough for 5th trade
+			let amount_to_buy = 10 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -526,7 +526,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 					asset_out: BTC,
 					amount_out: amount_to_buy,
 					max_limit: Balance::MAX,
-					slippage: None,
+					slippage: Some(Permill::from_percent(20)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -542,7 +542,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			proceed_to_blocknumber(501, 2001);
 
 			//Assert
-			assert_number_of_executed_buy_trades!(9);
+			assert_number_of_executed_buy_trades!(4);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -681,9 +681,9 @@ fn schedule_is_planned_for_next_block_when_one_execution_finished() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: ONE,
-					max_limit: ONE,
-					slippage: None,
+					amount_out: 10 * ONE,
+					max_limit: 10 * ONE,
+					slippage: Some(Permill::from_percent(20)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -746,8 +746,8 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: INVALID_BUY_AMOUNT_VALUE,
-					max_limit: 5 * ONE,
-					slippage: None,
+					max_limit: 50 * ONE,
+					slippage: Some(Permill::from_percent(20)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -930,8 +930,8 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: INVALID_BUY_AMOUNT_VALUE,
-					max_limit: 5 * ONE,
-					slippage: None,
+					max_limit: 50 * ONE,
+					slippage: Some(Permill::from_percent(20)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -975,9 +975,9 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_out: ONE,
-					max_limit: 5 * ONE,
-					slippage: None,
+					amount_out: 10 * ONE,
+					max_limit: 50 * ONE,
+					slippage: Some(Permill::from_percent(20)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: DAI,
@@ -1269,9 +1269,9 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
-			let max_limit = 2 * ONE;
+			let total_amount = 50 * ONE;
+			let amount_to_buy = 10 * ONE;
+			let max_limit = 20 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -1317,9 +1317,9 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
-			let max_limit = 2 * ONE;
+			let total_amount = 50 * ONE;
+			let amount_to_buy = 10 * ONE;
+			let max_limit = 20 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)

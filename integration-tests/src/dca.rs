@@ -24,8 +24,8 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
-const DCA_EXECUTION_FEE: Balance = 3_140_161_996_800;
-const DCA_EXECUTION_FEE_IN_LRNA: Balance = 6_280_323_983_565;
+const DCA_EXECUTION_FEE: Balance = 3_164_751_210_918;
+const DCA_EXECUTION_FEE_IN_LRNA: Balance = 6_329_502_411_723;
 
 #[test]
 fn create_schedule_should_work() {
@@ -80,7 +80,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 143561256427920;
+		let amount_to_unreserve_for_trade = 143585845642038;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -124,7 +124,7 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 76455764067183;
+		let amount_to_unreserve_for_trade = 76504942495341;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
@@ -165,7 +165,7 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_out = 68978126001490;
+		let amount_out = 68960614947492;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -207,7 +207,7 @@ fn sell_schedule_execution_should_work_when_hub_asset_is_sold() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_out = 133550534594891;
+		let amount_out = 133480455338598;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
@@ -245,7 +245,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		run_to_block(11, 30);
 
 		//Assert
-		let over_reservation_left_over = 82_193_584_205_562; //Because the remaining budget for the last trade is not enough, so it is returned
+		let over_reservation_left_over = 82_070_638_134_972; //Because the remaining budget for the last trade is not enough, so it is returned
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 500 * UNITS);
 		assert_balance!(
 			ALICE.into(),
@@ -255,7 +255,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let fees = 15700809984000;
+		let fees = 15823756054590;
 		assert_balance!(
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,
@@ -296,8 +296,8 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		run_to_block(11, 100);
 
 		//Assert
-		let amount_out = 758759139616705;
-		let fee = 34541781964800;
+		let amount_out = 758566518149196;
+		let fee = 34812263320098;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -357,19 +357,19 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		run_to_block(11, 100);
 
 		//Assert
-		let amount_out = 758758887851093;
+		let amount_out = 758566266511392;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let amount_out = 896714885714014;
+		let amount_out = 896487242395897;
 
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(BOB.into(), HDX, bob_init_hdx_balance - dca_budget_for_bob);
 		assert_reserved_balance!(&BOB.into(), HDX, 0);
 
-		let fee = 75363887923200;
+		let fee = 75954029062032;
 		assert_balance!(
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,

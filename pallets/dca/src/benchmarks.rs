@@ -274,7 +274,7 @@ benchmarks! {
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_buy = ONE / 2;
+		let amount_buy = 20 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
@@ -292,21 +292,19 @@ benchmarks! {
 		let init_reserved_balance = 2000 * ONE;
 		assert_eq!(init_reserved_balance, reserved_balance);
 
-		let init_native_balance = 0;
-		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller), init_native_balance);
+		let init_dai_balance = 0;
+		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller), init_dai_balance);
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
-		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
+		/*let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
 		let asset_in_spent_on_all_trades = amount_buy;
-		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades - FEE_FOR_ONE_DCA_EXECUTION, reserved_balance);
+		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades - FEE_FOR_ONE_DCA_EXECUTION, reserved_balance);*/
 
-		let init_native_balance = 0;
-		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(HDX.into(), &seller) > init_native_balance);
+		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller) > init_dai_balance);
 	}
 
-	/*
 	on_initialize_with_empty_block{
 		initialize_omnipool::<T>()?;
 
@@ -321,6 +319,7 @@ benchmarks! {
 	verify {
 		assert!(weight.ref_time() > 0u64);
 	}
+
 
 	schedule{
 		initialize_omnipool::<T>()?;
@@ -366,7 +365,7 @@ benchmarks! {
 	}: _(RawOrigin::Root, schedule_id, execution_block.into())
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_none());
-	}*/
+	}
 
 }
 

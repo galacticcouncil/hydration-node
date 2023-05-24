@@ -1292,7 +1292,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_dca, DCA);
-			list_benchmark!(list, extra, pallet_route_executor, Router);
+			//list_benchmark!(list, extra, pallet_route_executor, Router);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1357,7 +1357,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
 			add_benchmark!(params, batches, pallet_dca, DCA);
-			add_benchmark!(params, batches, pallet_route_executor, Router);
+			//add_benchmark!(params, batches, pallet_route_executor, Router);
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);

@@ -40,20 +40,20 @@
 
 // regenerate the bencmark for hydra of DCA, similarly like in DCA
 // - delete NOTES.rs
+// regenerate all benchmark on reference
 // WHAT HAPPENS IF TRANSACTIONAL CALLS TRANSACTIONAL? LIKE WE CALL ROUTER SELL IN ANOTHER TRANSACTIONAL
 // configure this TradingLimitReached.into() to runtime error exceptions because this is tnrown and not deep omnipool errors- NOT SURE OF THIS, RECEHCKEC, BECAUSE IN TESTS WE GET OMNIPOOL ERRORS
 // - check ignore on init tests - we can't really test those, maybe with failing situation?
 // - add integration test when multiple users have dca
 // - remove the omnipool hack in mocks in case of benchmark if it is really not needed
-// - involve lrna in integration tests
 // - use omnipool in tests? Or rather integration tests?
 // - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
 // - recheck the ensures of the schedule function
 // - we should not take fees in sell neither - https://discord.com/channels/882700370307067966/1054497240489676903/1110179998058434590
-// - adjust benchmarking with one trade with buy trade
 // - regenerate router common benchmark on reference machine
-// - add integration test for router
 // - search for and process all todo
+// - ask martin about the conversion issue - there is a stash with name "issue_with_convering_to_nonnative"
+// - remove omnipool flag logic locally from benchmark tests as we don't need it at all
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -181,8 +181,6 @@ pub mod pallet {
 							who: schedule.owner.clone(),
 							error: err,
 						});
-
-						assert_eq!(err, BadOrigin.into());
 
 						if T::ContinueOnErrors::contains(&err) {
 							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block) {
