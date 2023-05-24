@@ -996,6 +996,7 @@ impl Contains<DispatchError> for ContinueOnErrorsList {
 		vec![
 			pallet_omnipool::Error::<Runtime>::BuyLimitNotReached.into(),
 			pallet_omnipool::Error::<Runtime>::SellLimitExceeded.into(),
+			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
 		]
 		.contains(e)
 	}
