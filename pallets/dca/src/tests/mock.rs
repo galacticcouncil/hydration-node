@@ -115,7 +115,6 @@ thread_local! {
 
 }
 
-//TODO: add pool here and adjust tests
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BuyExecution {
 	pub asset_in: AssetId,
@@ -671,7 +670,7 @@ impl Contains<DispatchError> for ContinueOnErrorsListMock {
 		vec![
 			pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
 			pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
-			pallet_route_executor::Error::<Test>::TradingLimitReached.into(), //TODO: Danie - remove the rest of the errors, not relevant if all is fine?!
+			pallet_route_executor::Error::<Test>::TradingLimitReached.into(),
 		]
 		.contains(e)
 	}
