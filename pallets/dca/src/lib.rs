@@ -38,10 +38,6 @@
 
 //TODO :
 
-// regenerate the bencmark for hydra of DCA, similarly like in DCA
-// simplify the mock in benchmarking as much as we can
-// - delete NOTES.rs
-// let the team know that I added the math dependency to runtime
 // regenerate all benchmark on reference
 // WHAT HAPPENS IF TRANSACTIONAL CALLS TRANSACTIONAL? LIKE WE CALL ROUTER SELL IN ANOTHER TRANSACTIONAL
 // configure this TradingLimitReached.into() to runtime error exceptions because this is tnrown and not deep omnipool errors- NOT SURE OF THIS, RECEHCKEC, BECAUSE IN TESTS WE GET OMNIPOOL ERRORS
@@ -56,6 +52,10 @@
 // - search for and process all todo
 // - ask martin about the conversion issue - there is a stash with name "issue_with_convering_to_nonnative"
 // - remove omnipool flag logic locally from benchmark tests as we don't need it at all
+// check if balance did not decrease more than we unreserve - check if we spend only allocated money
+//estimate the how much space we need  to a block then compare it to max weight
+// regenerate the bencmark for hydra of DCA, similarly like in DCA
+// let the team know that I added the math dependency to runtime if we really use mock rout eexecutor
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

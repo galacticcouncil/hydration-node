@@ -375,9 +375,5 @@ mod tests {
 	use crate::tests::mock::*;
 	use frame_benchmarking::impl_benchmark_test_suite;
 
-	impl_benchmark_test_suite!(
-		Pallet,
-		super::ExtBuilder::default().with_omnipool_trade(true).build(),
-		super::Test
-	);
+	impl_benchmark_test_suite!(Pallet, super::ExtBuilder::default().build(), super::Test);
 }

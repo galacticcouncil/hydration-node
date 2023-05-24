@@ -428,7 +428,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
-		//TODO: Dani - use this in other tests
 		let Ok(who) =  ensure_signed(who) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
@@ -475,23 +474,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
-		/*let mut set_omnipool_on = true;
-		SET_OMNIPOOL_ON.with(|v| {
-			let omnipool_on = v.borrow_mut();
-			set_omnipool_on = *omnipool_on;
-		});
-		if set_omnipool_on {
-			Omnipool::buy(origin, asset_out, asset_in, amount_out, max_limit).map_err(|e| ExecutorError::Error(e))?;
-		} else {
-			let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
-
-			Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
-				.map_err(|e| ExecutorError::Error(e))?;
-			Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-				.map_err(|e| ExecutorError::Error(e))?;
-		}*/
-
-		//TODO: Dani - use this in other tests
 		let Ok(who) =  ensure_signed(origin) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
@@ -501,26 +483,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			.map_err(|e| ExecutorError::Error(e))?;
 		Currencies::transfer(Origin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
 			.map_err(|e| ExecutorError::Error(e))?;
-
-		Ok(())
-	}
-}
-impl OmniPool {
-	fn execute_trade_in_omnipool(
-		origin: Origin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount: Balance,
-		min_buy_amount: Balance,
-	) -> DispatchResult {
-		let mut set_omnipool_on = true;
-		SET_OMNIPOOL_ON.with(|v| {
-			let omnipool_on = v.borrow_mut();
-			set_omnipool_on = *omnipool_on;
-		});
-		if set_omnipool_on {
-			Omnipool::sell(origin, asset_in, asset_out, amount, min_buy_amount)?;
-		}
 
 		Ok(())
 	}
@@ -809,7 +771,6 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
-	omnipool_trade: bool,
 	max_price_difference: Permill,
 	invalid_buy_amount: Balance,
 }
@@ -833,7 +794,6 @@ impl Default for ExtBuilder {
 			init_pool: None,
 			register_stable_asset: true,
 			pool_tokens: vec![],
-			omnipool_trade: false,
 			max_price_difference: Permill::from_percent(10),
 			invalid_buy_amount: INVALID_BUY_AMOUNT_VALUE,
 		}
@@ -851,12 +811,6 @@ impl ExtBuilder {
 		self
 	}
 
-	#[allow(dead_code)] //This is used only in benchmark but it complains with warning
-	pub fn with_omnipool_trade(mut self, omnipool_is_on: bool) -> Self {
-		self.omnipool_trade = omnipool_is_on;
-		self
-	}
-
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		// Add DAi and HDX as pre-registered assets
@@ -869,10 +823,6 @@ impl ExtBuilder {
 			self.registered_assets.iter().for_each(|asset| {
 				v.borrow_mut().insert(*asset, *asset);
 			});
-		});
-
-		SET_OMNIPOOL_ON.with(|v| {
-			*v.borrow_mut() = self.omnipool_trade;
 		});
 
 		INVALID_BUY_AMOUNT.with(|v| {
