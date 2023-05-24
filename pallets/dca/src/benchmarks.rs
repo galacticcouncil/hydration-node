@@ -70,33 +70,6 @@ fn get_named_reseve_balance<T: Config + pallet_omnipool::Config>(token_id: T::As
 	<T as Config>::Currencies::reserved_balance_named(&T::NamedReserveId::get(), token_id, &seller)
 }
 
-//TODO: Dani - delete if not used
-fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
-	owner: T::AccountId,
-	asset_in: T::Asset,
-	asset_out: T::Asset,
-	amount: Balance,
-) -> Schedule<T::AccountId, T::Asset, T::BlockNumber> {
-	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
-		owner,
-		period: 3u32.into(),
-		total_amount: 2000 * ONE,
-		order: Order::Sell {
-			asset_in,
-			asset_out,
-			amount_in: amount,
-			min_limit: Balance::MIN,
-			slippage: Some(Permill::from_percent(10)),
-			route: create_bounded_vec::<T>(vec![Trade {
-				pool: PoolType::Omnipool,
-				asset_in,
-				asset_out,
-			}]),
-		},
-	};
-	schedule1
-}
-
 fn schedule_buy_fake<T: Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
 	asset_in: T::Asset,

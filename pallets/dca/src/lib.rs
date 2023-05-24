@@ -39,7 +39,6 @@
 //TODO :
 
 // regenerate all benchmark on reference - dca, common-dca, and route-executor
-// configure this TradingLimitReached.into() to runtime error exceptions because this is tnrown and not deep omnipool errors- NOT SURE OF THIS, RECEHCKEC, BECAUSE IN TESTS WE GET OMNIPOOL ERRORS
 // - check ignore on init tests - we can't really test those, maybe with failing situation?
 // - add integration test when multiple users have dca
 // - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
@@ -332,8 +331,6 @@ pub mod pallet {
 		ManuallyTerminated,
 		///Max number of retries reached for schedule
 		MaxRetryReached,
-		///There was an unexpected error happened in the AMM where the trade is executed
-		AmmTradeError,
 		///The route to execute the trade on is not specified
 		RouteNotSpecified,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
@@ -670,7 +667,6 @@ where
 
 		Self::reset_retries(schedule_id)?;
 
-		//TODO: get the exacty amount for buy as well
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 		let amount_to_unreserve = Self::get_amount_in(&schedule.order)?;
 
