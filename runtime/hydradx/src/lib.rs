@@ -1011,7 +1011,7 @@ impl pallet_route_executor::Config for Runtime {
 	type MaxNumberOfTrades = MaxNumberOfTrades;
 	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
 	type AMM = (Omnipool);
-	type WeightInfo = weights::route_executor::BasiliskWeight<Runtime>;
+	type WeightInfo = weights::route_executor::BasiliskWeight<Runtime>; //TODO: replace, this should be hydra weight
 }
 
 parameter_types! {

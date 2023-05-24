@@ -43,7 +43,7 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 			)
 			.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-			return Ok(*state_changes.asset.delta_hub_reserve);
+			return Ok(*state_changes.asset.delta_reserve);
 		}
 
 		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
@@ -73,7 +73,6 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 		if asset_out == T::HubAssetId::get() {
 			return Err(ExecutorError::Error(Error::<T>::NotAllowed.into()));
 		}
-		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
 		let current_imbalance = <HubAssetImbalance<T>>::get();
 
@@ -95,6 +94,8 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 
 			return Ok(*state_changes.asset.delta_hub_reserve);
 		}
+
+		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_state_changes(
 			&(&asset_in_state).into(),

@@ -1,9 +1,8 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use std::mem::size_of;
-
 use frame_support::assert_ok;
+use std::mem::size_of;
 
 use crate::{assert_balance, assert_reserved_balance};
 use frame_system::RawOrigin;
@@ -12,9 +11,11 @@ use hydradx_runtime::Currencies;
 use hydradx_runtime::Omnipool;
 use hydradx_runtime::Origin;
 use hydradx_runtime::Tokens;
+use hydradx_traits::router::PoolType;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
-use pallet_dca::types::{Order, Schedule, ScheduleId, Trade};
+use pallet_dca::types::{Order, Schedule, ScheduleId};
+use pallet_route_executor::Trade;
 use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
 use sp_core::MaxEncodedLen;
@@ -22,9 +23,9 @@ use sp_runtime::traits::ConstU32;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
-
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
 const DCA_EXECUTION_FEE: Balance = 3_140_161_996_800;
+const DCA_EXECUTION_FEE_IN_LRNA: Balance = 6_280_323_983_565;
 
 #[test]
 fn create_schedule_should_work() {
@@ -94,6 +95,50 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 }
 
 #[test]
+fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let alice_init_hub_balance = 5000 * UNITS;
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			LRNA,
+			alice_init_hub_balance,
+			0
+		));
+
+		let dca_budget = 800 * UNITS;
+
+		let amount_out = 100 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(LRNA, DAI, amount_out, dca_budget);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		let amount_to_unreserve_for_trade = 76455764067183;
+
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget - amount_to_unreserve_for_trade);
+
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			LRNA,
+			DCA_EXECUTION_FEE_IN_LRNA
+		);
+	});
+}
+
+#[test]
 fn sell_schedule_execution_should_work_when_block_is_initialized() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -130,6 +175,48 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,
 			TREASURY_ACCOUNT_INIT_BALANCE + DCA_EXECUTION_FEE
+		);
+	});
+}
+
+#[test]
+fn sell_schedule_execution_should_work_when_hub_asset_is_sold() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hub_balance = 5000 * UNITS;
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			LRNA,
+			alice_init_hub_balance,
+			0
+		));
+
+		let dca_budget = 1100 * UNITS;
+		let amount_to_sell = 100 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, LRNA, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		let amount_out = 133550534594891;
+
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget - amount_to_sell);
+
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			LRNA,
+			DCA_EXECUTION_FEE_IN_LRNA
 		);
 	});
 }
@@ -391,7 +478,11 @@ fn schedule_fake_with_buy_order(
 			amount_out: amount,
 			max_limit: Balance::MAX,
 			slippage: Some(Permill::from_percent(5)),
-			route: create_bounded_vec(vec![]),
+			route: create_bounded_vec(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in,
+				asset_out,
+			}]),
 		},
 	}
 }
@@ -412,8 +503,12 @@ fn schedule_fake_with_sell_order(
 			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
-			slippage: Some(Permill::from_percent(5)),
-			route: create_bounded_vec(vec![]),
+			slippage: Some(Permill::from_percent(10)),
+			route: create_bounded_vec(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in,
+				asset_out,
+			}]),
 		},
 	}
 }
@@ -435,7 +530,11 @@ fn schedule_fake_with_invalid_min_limit(
 			amount_in: amount,
 			min_limit: Balance::MAX,
 			slippage: None,
-			route: create_bounded_vec(vec![]),
+			route: create_bounded_vec(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in,
+				asset_out,
+			}]),
 		},
 	}
 }
