@@ -47,13 +47,13 @@ fn initialize_omnipool() -> DispatchResult {
 	let acc = Omnipool::protocol_account();
 
 	Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-	regi_asset(b"HDX".to_vec(), 1u128 * UNITS, HDX).map_err(|_| DispatchError::Other("Failed to register asset"))?;
-	regi_asset(b"LRNA".to_vec(), 1u128 * UNITS, LRNA).map_err(|_| DispatchError::Other("Failed to register asset"))?;
-	regi_asset(b"DAI".to_vec(), 1u128 * UNITS, DAI).map_err(|_| DispatchError::Other("Failed to register asset"))?;
+	regi_asset(b"HDX".to_vec(), 1u128 * UNITS, HDX);
+	regi_asset(b"LRNA".to_vec(), 1u128 * UNITS, LRNA);
+	regi_asset(b"DAI".to_vec(), 1u128 * UNITS, DAI);
 
-	update_balance(StableAssetId::get(), &acc, stable_amount);
-	update_balance(NativeAssetId::get(), &acc, native_amount);
-	/*
+	//update_balance(StableAssetId::get(), &acc, stable_amount);
+	//update_balance(NativeAssetId::get(), &acc, native_amount);
+	/**/
 
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
@@ -67,7 +67,7 @@ fn initialize_omnipool() -> DispatchResult {
 		acc,
 		HDX,
 		native_amount as i128,
-	));*/
+	));
 
 	Omnipool::initialize_pool(
 		RawOrigin::Root.into(),
@@ -103,9 +103,9 @@ where
 
 	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
-	reg_asset(b"HDX".to_vec(), 1u128, HDX).map_err(|_| DispatchError::Other("Failed to register asset"))?;
+	/*reg_asset(b"HDX".to_vec(), 1u128, HDX).map_err(|_| DispatchError::Other("Failed to register asset"))?;
 	reg_asset(b"LRNA".to_vec(), 1u128, LRNA).map_err(|_| DispatchError::Other("Failed to register asset"))?;
-	reg_asset(b"DAI".to_vec(), 1u128, DAI).map_err(|_| DispatchError::Other("Failed to register asset"))?;
+	reg_asset(b"DAI".to_vec(), 1u128, DAI).map_err(|_| DispatchError::Other("Failed to register asset"))?;*/
 
 	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
 	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
@@ -269,7 +269,7 @@ runtime_benchmarks! {
 		let n in 1..1;
 
 		initialize_omnipool()?;
-		//initialize_omnipool2::<Runtime>()?;
+		//initialize_omnipool2::<T>()?;
 
 		let asset_in = HDX;
 		let asset_out = DAI;
@@ -308,10 +308,13 @@ runtime_benchmarks! {
 		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
 	}*/
 
+
+
 }
 
 #[cfg(test)]
 mod tests {
+	use super::mock::Test;
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
 
@@ -322,5 +325,9 @@ mod tests {
 			.into()
 	}
 
-	impl_benchmark_test_suite!(new_test_ext(),);
+	/*fn new_test_ext_mock() -> sp_io::TestExternalities {
+		super::mock::ExtBuilder::default().build()
+	}*/
+
+	impl_benchmark_test_suite!(super::mock::ExtBuilder::default().build(),);
 }

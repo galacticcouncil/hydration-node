@@ -39,7 +39,9 @@
 //TODO :
 
 // regenerate the bencmark for hydra of DCA, similarly like in DCA
+// simplify the mock in benchmarking as much as we can
 // - delete NOTES.rs
+// let the team know that I added the math dependency to runtime
 // regenerate all benchmark on reference
 // WHAT HAPPENS IF TRANSACTIONAL CALLS TRANSACTIONAL? LIKE WE CALL ROUTER SELL IN ANOTHER TRANSACTIONAL
 // configure this TradingLimitReached.into() to runtime error exceptions because this is tnrown and not deep omnipool errors- NOT SURE OF THIS, RECEHCKEC, BECAUSE IN TESTS WE GET OMNIPOOL ERRORS
