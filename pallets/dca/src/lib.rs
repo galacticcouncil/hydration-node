@@ -39,7 +39,6 @@
 //TODO :
 
 // regenerate all benchmark on reference
-// WHAT HAPPENS IF TRANSACTIONAL CALLS TRANSACTIONAL? LIKE WE CALL ROUTER SELL IN ANOTHER TRANSACTIONAL
 // configure this TradingLimitReached.into() to runtime error exceptions because this is tnrown and not deep omnipool errors- NOT SURE OF THIS, RECEHCKEC, BECAUSE IN TESTS WE GET OMNIPOOL ERRORS
 // - check ignore on init tests - we can't really test those, maybe with failing situation?
 // - add integration test when multiple users have dca
@@ -622,16 +621,14 @@ where
 
 				let route = Self::convert_route_to_vec(route);
 
-				let res = pallet_route_executor::Pallet::<T>::sell(
+				pallet_route_executor::Pallet::<T>::sell(
 					origin.clone(),
 					(*asset_in).into(),
 					(*asset_out).into(),
 					(amount_to_sell).into(),
 					min_limit.into(),
 					route,
-				);
-
-				res
+				)
 			}
 			Order::Buy {
 				asset_in,
@@ -652,16 +649,14 @@ where
 
 				let route = Self::convert_route_to_vec(route);
 
-				let res = pallet_route_executor::Pallet::<T>::buy(
+				pallet_route_executor::Pallet::<T>::buy(
 					origin.clone(),
 					(*asset_in).into(),
 					(*asset_out).into(),
 					(*amount_out).into(),
 					max_limit.into(),
 					route,
-				);
-
-				res
+				)
 			}
 		}
 
