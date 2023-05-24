@@ -53,7 +53,7 @@ fn withdraw_shares_should_unlock_omnipool_position_when_last_entry_in_deposit() 
 
 			//Arrange: deposit shares
 			assert_ok!(OmnipoolMining::deposit_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				global_farm_id,
 				yield_farm_id,
 				omnipool_position_id
@@ -63,7 +63,7 @@ fn withdraw_shares_should_unlock_omnipool_position_when_last_entry_in_deposit() 
 
 			//Act
 			assert_ok!(OmnipoolMining::withdraw_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				deposit_id,
 				yield_farm_id,
 			));
@@ -159,14 +159,14 @@ fn withdraw_shares_should_not_unlock_omnipool_position_when_deposit_is_not_burne
 
 			//Arrange: deposit shares & redeposit
 			assert_ok!(OmnipoolMining::deposit_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				gc_g_farm_id,
 				gc_y_farm_id,
 				omnipool_position_id
 			));
 
 			assert_ok!(OmnipoolMining::redeposit_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				charlie_g_farm_id,
 				charlie_y_farm_id,
 				deposit_id
@@ -174,7 +174,7 @@ fn withdraw_shares_should_not_unlock_omnipool_position_when_deposit_is_not_burne
 
 			//Act
 			assert_ok!(OmnipoolMining::withdraw_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				deposit_id,
 				gc_y_farm_id,
 			));
@@ -246,7 +246,7 @@ fn withdraw_shares_should_fail_when_origin_is_none() {
 
 			//Arrange: deposit shares
 			assert_ok!(OmnipoolMining::deposit_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				global_farm_id,
 				yield_farm_id,
 				omnipool_position_id
@@ -254,7 +254,7 @@ fn withdraw_shares_should_fail_when_origin_is_none() {
 
 			//Act
 			assert_noop!(
-				OmnipoolMining::withdraw_shares(Origin::none(), deposit_id, yield_farm_id,),
+				OmnipoolMining::withdraw_shares(RuntimeOrigin::none(), deposit_id, yield_farm_id,),
 				BadOrigin
 			);
 		});
@@ -298,7 +298,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_account_is_not_owner(
 
 			//Arrange: deposit shares
 			assert_ok!(OmnipoolMining::deposit_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				global_farm_id,
 				yield_farm_id,
 				omnipool_position_id
@@ -306,7 +306,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_account_is_not_owner(
 
 			//Act
 			assert_noop!(
-				OmnipoolMining::withdraw_shares(Origin::signed(ALICE), deposit_id, yield_farm_id,),
+				OmnipoolMining::withdraw_shares(RuntimeOrigin::signed(ALICE), deposit_id, yield_farm_id,),
 				crate::Error::<Test>::Forbidden
 			);
 		});
@@ -350,7 +350,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_nft_is_missing() {
 
 			//Arrange: deposit shares
 			assert_ok!(OmnipoolMining::deposit_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				global_farm_id,
 				yield_farm_id,
 				omnipool_position_id
@@ -360,7 +360,7 @@ fn withdraw_shares_should_fail_with_not_deposit_owner_when_nft_is_missing() {
 
 			//Act
 			assert_noop!(
-				OmnipoolMining::withdraw_shares(Origin::signed(ALICE), deposit_id, yield_farm_id,),
+				OmnipoolMining::withdraw_shares(RuntimeOrigin::signed(ALICE), deposit_id, yield_farm_id,),
 				crate::Error::<Test>::Forbidden
 			);
 		});

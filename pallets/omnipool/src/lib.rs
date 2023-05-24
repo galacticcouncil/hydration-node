@@ -124,7 +124,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -140,10 +140,10 @@ pub mod pallet {
 		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
 
 		/// Origin that can add token, refund refused asset and  set tvl cap.
-		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
+		type AuthorityOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Origin to be able to suspend asset trades and initialize Omnipool.
-		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
+		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Asset Registry mechanism - used to check if asset is correctly registered in asset registry
 		type AssetRegistry: Registry<Self::AssetId, Vec<u8>, Balance, DispatchError>;
@@ -207,7 +207,7 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		/// Hooks are actions executed on add_liquidity, sell or buy.
-		type OmnipoolHooks: OmnipoolHooks<Self::Origin, Self::AssetId, Balance, Error = DispatchError>;
+		type OmnipoolHooks: OmnipoolHooks<Self::RuntimeOrigin, Self::AssetId, Balance, Error = DispatchError>;
 
 		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, EmaPrice>;
 
@@ -400,6 +400,7 @@ pub mod pallet {
 		///
 		/// Emits two `TokenAdded` events when successful.
 		///
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_pool())]
 		#[transactional]
 		pub fn initialize_pool(
@@ -519,6 +520,7 @@ pub mod pallet {
 		///
 		/// Emits `TokenAdded` event when successful.
 		///
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_token().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
 		pub fn add_token(
@@ -638,6 +640,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityAdded` event when successful.
 		///
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_liquidity()
 			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()
 			.saturating_add(T::ExternalPriceOracle::get_price_weight()))
@@ -783,6 +786,7 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		///
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
 		pub fn remove_liquidity(
@@ -952,6 +956,7 @@ pub mod pallet {
 		/// Only owner of position can perform this action.
 		///
 		/// Emits `PositionDestroyed`.
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::sacrifice_position())]
 		#[transactional]
 		pub fn sacrifice_position(origin: OriginFor<T>, position_id: T::PositionItemId) -> DispatchResult {
@@ -1003,6 +1008,7 @@ pub mod pallet {
 		///
 		/// Emits `SellExecuted` event when successful.
 		///
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
 			.saturating_add(T::OmnipoolHooks::on_trade_weight())
 			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
@@ -1182,6 +1188,7 @@ pub mod pallet {
 		///
 		/// Emits `BuyExecuted` event when successful.
 		///
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
 			.saturating_add(T::OmnipoolHooks::on_trade_weight())
 			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
@@ -1354,6 +1361,7 @@ pub mod pallet {
 		///
 		/// Emits `TradableStateUpdated` event when successful.
 		///
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_tradable_state())]
 		#[transactional]
 		pub fn set_asset_tradable_state(
@@ -1397,6 +1405,7 @@ pub mod pallet {
 		/// Only `AuthorityOrigin` can perform this operition -same as `add_token`o
 		///
 		/// Emits `AssetRefunded`
+		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::refund_refused_asset())]
 		#[transactional]
 		pub fn refund_refused_asset(
@@ -1437,6 +1446,7 @@ pub mod pallet {
 		///
 		/// Emits `AssetWeightCapUpdated` event when successful.
 		///
+		#[pallet::call_index(9)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
 		#[transactional]
 		pub fn set_asset_weight_cap(origin: OriginFor<T>, asset_id: T::AssetId, cap: Permill) -> DispatchResult {
@@ -1458,6 +1468,7 @@ pub mod pallet {
 		///
 		/// Emits `TVLCapUpdated` event when successful.
 		///
+		#[pallet::call_index(10)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_asset_weight_cap())]
 		#[transactional]
 		pub fn set_tvl_cap(origin: OriginFor<T>, cap: Balance) -> DispatchResult {
@@ -1536,7 +1547,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Update Hub asset side of HDX subpool and add given amount to hub_asset_reserve
-	fn update_hdx_subpool_hub_asset(origin: T::Origin, hub_asset_amount: Balance) -> DispatchResult {
+	fn update_hdx_subpool_hub_asset(origin: T::RuntimeOrigin, hub_asset_amount: Balance) -> DispatchResult {
 		if hub_asset_amount > Balance::zero() {
 			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
 
@@ -1610,7 +1621,7 @@ impl<T: Config> Pallet<T> {
 	/// Swap hub asset for asset_out.
 	/// Special handling of sell trade where asset in is Hub Asset.
 	fn sell_hub_asset(
-		origin: T::Origin,
+		origin: T::RuntimeOrigin,
 		who: &T::AccountId,
 		asset_out: T::AssetId,
 		amount: Balance,
@@ -1705,7 +1716,7 @@ impl<T: Config> Pallet<T> {
 	/// Swap asset for Hub Asset
 	/// Special handling of buy trade where asset in is Hub Asset.
 	fn buy_asset_for_hub_asset(
-		origin: T::Origin,
+		origin: T::RuntimeOrigin,
 		who: &T::AccountId,
 		asset_out: T::AssetId,
 		amount: Balance,

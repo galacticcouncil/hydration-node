@@ -41,7 +41,7 @@ pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<Origin = Origin>,
+	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<RuntimeOrigin = Origin>,
 {
 	type Error = DispatchError;
 
@@ -244,7 +244,7 @@ where
 		)
 		.map_err(|_| pallet_omnipool_liquidity_mining::Error::<Runtime>::PriceAdjustmentNotAvailable)?;
 
-		FixedU128::checked_from_rational(price.n, price.d).ok_or(ArithmeticError::Overflow.into())
+		FixedU128::checked_from_rational(price.n, price.d).ok_or_else(|| ArithmeticError::Overflow.into())
 	}
 }
 
@@ -333,7 +333,7 @@ impl<
 		RerouteDestination,
 	>
 {
-	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation) -> Result<(), XcmError> {
+	fn deposit_asset(asset: &MultiAsset, location: &MultiLocation, _context: &XcmContext) -> Result<(), XcmError> {
 		match (
 			AccountIdConvert::convert_ref(location),
 			CurrencyIdConvert::convert(asset.clone()),
@@ -355,7 +355,11 @@ impl<
 		}
 	}
 
-	fn withdraw_asset(asset: &MultiAsset, location: &MultiLocation) -> Result<Assets, XcmError> {
+	fn withdraw_asset(
+		asset: &MultiAsset,
+		location: &MultiLocation,
+		_maybe_context: Option<&XcmContext>,
+	) -> Result<Assets, XcmError> {
 		UnknownAsset::withdraw(asset, location).or_else(|_| {
 			let who = AccountIdConvert::convert_ref(location)
 				.map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
@@ -370,7 +374,12 @@ impl<
 		Ok(asset.clone().into())
 	}
 
-	fn transfer_asset(asset: &MultiAsset, from: &MultiLocation, to: &MultiLocation) -> Result<Assets, XcmError> {
+	fn transfer_asset(
+		asset: &MultiAsset,
+		from: &MultiLocation,
+		to: &MultiLocation,
+		_context: &XcmContext,
+	) -> Result<Assets, XcmError> {
 		let from_account =
 			AccountIdConvert::convert_ref(from).map_err(|_| XcmError::from(Error::AccountIdConversionFailed))?;
 		let to_account =

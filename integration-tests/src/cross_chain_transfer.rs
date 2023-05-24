@@ -3,7 +3,7 @@ use crate::polkadot_test_net::*;
 
 use frame_support::{assert_noop, assert_ok};
 
-use polkadot_xcm::{latest::prelude::*, VersionedMultiAssets, VersionedXcm};
+use polkadot_xcm::{latest::prelude::*, v3::WeightLimit, VersionedMultiAssets, VersionedXcm};
 
 use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
@@ -28,7 +28,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 	//Arrange
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
@@ -37,16 +37,9 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 	PolkadotRelay::execute_with(|| {
 		//Act
 		assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
-			polkadot_runtime::Origin::signed(ALICE.into()),
-			Box::new(Parachain(HYDRA_PARA_ID).into().into()),
-			Box::new(
-				Junction::AccountId32 {
-					id: BOB,
-					network: NetworkId::Any
-				}
-				.into()
-				.into()
-			),
+			polkadot_runtime::RuntimeOrigin::signed(ALICE.into()),
+			Box::new(Parachain(HYDRA_PARA_ID).into_versioned()),
+			Box::new(Junction::AccountId32 { id: BOB, network: None }.into()),
 			Box::new((Here, 300 * UNITS).into()),
 			0,
 		));
@@ -58,7 +51,7 @@ fn hydra_should_receive_asset_when_transferred_from_polkadot_relay_chain() {
 		);
 	});
 
-	let fees = 463510162460;
+	let fees = 400641025641;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
@@ -80,27 +73,18 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
 
 		//Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			1,
 			3 * UNITS,
-			Box::new(
-				MultiLocation::new(
-					1,
-					X1(Junction::AccountId32 {
-						id: BOB,
-						network: NetworkId::Any,
-					})
-				)
-				.into()
-			),
-			4_600_000_000
+			Box::new(MultiLocation::new(1, X1(Junction::AccountId32 { id: BOB, network: None })).into()),
+			WeightLimit::Unlimited,
 		));
 
 		//Assert
@@ -113,7 +97,7 @@ fn polkadot_should_receive_asset_when_sent_from_hydra() {
 	PolkadotRelay::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
-			2999530582548 // 3 * HDX - fee
+			2999637471000 // 3 * HDX - fee
 		);
 	});
 }
@@ -125,7 +109,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -134,7 +118,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 	Acala::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
 			30 * UNITS,
 			Box::new(
@@ -142,15 +126,12 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 					1,
 					X2(
 						Junction::Parachain(HYDRA_PARA_ID),
-						Junction::AccountId32 {
-							id: BOB,
-							network: NetworkId::Any,
-						}
+						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
 				.into()
 			),
-			399_600_000_000
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 		));
 
 		// Assert
@@ -160,7 +141,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		);
 	});
 
-	let fee = 463_510_162_460;
+	let fee = 400641025641;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
@@ -179,7 +160,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -188,7 +169,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 	Acala::execute_with(|| {
 		assert_noop!(
 			hydradx_runtime::XTokens::transfer(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				0,
 				1_000_000,
 				Box::new(
@@ -196,15 +177,12 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 						1,
 						X2(
 							Junction::Parachain(HYDRA_PARA_ID),
-							Junction::AccountId32 {
-								id: BOB,
-								network: NetworkId::Any,
-							}
+							Junction::AccountId32 { id: BOB, network: None }
 						)
 					)
 					.into()
 				),
-				399_600_000_000
+				WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 			),
 			orml_xtokens::Error::<hydradx_runtime::Runtime>::XcmExecutionFailed
 		);
@@ -233,7 +211,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 		init_omnipool();
 
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			DAI, // we pretend that the incoming tokens are DAI
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -247,7 +225,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 	Acala::execute_with(|| {
 		// Act
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
 			30 * UNITS,
 			Box::new(
@@ -257,13 +235,13 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 						Junction::Parachain(HYDRA_PARA_ID),
 						Junction::AccountId32 {
 							id: hydradx_runtime::Omnipool::protocol_account().into(),
-							network: NetworkId::Any,
+							network: None,
 						}
 					)
 				)
 				.into()
 			),
-			399_600_000_000
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 		));
 
 		// Assert
@@ -291,7 +269,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 
 	Acala::execute_with(|| {
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
 			30 * UNITS,
 			Box::new(
@@ -299,15 +277,12 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 					1,
 					X2(
 						Junction::Parachain(HYDRA_PARA_ID),
-						Junction::AccountId32 {
-							id: BOB,
-							network: NetworkId::Any,
-						}
+						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
 				.into()
 			),
-			399_600_000_000
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
@@ -318,7 +293,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: Some(hex!["4efbf4d7ba73f43d5bb4ebbec3189e132ccf2686aed37e97985af019e1cf62dc"].into()),
+				message_hash: Some(hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"]),
 				error: XcmError::AssetNotFound,
 				weight: Weight::from_ref_time(300_000_000),
 			}
@@ -347,7 +322,7 @@ fn claim_trapped_asset_should_work() {
 	// register the asset
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			1,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
@@ -358,7 +333,7 @@ fn claim_trapped_asset_should_work() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			1000 * UNITS + 29_652_367_378_155
+			1000 * UNITS + 29_699_519_230_769
 		);
 
 		let origin = MultiLocation::new(1, X1(Parachain(ACALA_PARA_ID)));
@@ -374,7 +349,7 @@ fn trap_asset() -> MultiAsset {
 			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN
 		);
 		assert_ok!(hydradx_runtime::XTokens::transfer(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			0,
 			30 * UNITS,
 			Box::new(
@@ -382,15 +357,12 @@ fn trap_asset() -> MultiAsset {
 					1,
 					X2(
 						Junction::Parachain(HYDRA_PARA_ID),
-						Junction::AccountId32 {
-							id: BOB,
-							network: NetworkId::Any,
-						}
+						Junction::AccountId32 { id: BOB, network: None }
 					)
 				)
 				.into()
 			),
-			399_600_000_000
+			WeightLimit::Limited(Weight::from_ref_time(399_600_000_000))
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
@@ -404,7 +376,7 @@ fn trap_asset() -> MultiAsset {
 	Hydra::execute_with(|| {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::Fail {
-				message_hash: Some(hex!["4efbf4d7ba73f43d5bb4ebbec3189e132ccf2686aed37e97985af019e1cf62dc"].into()),
+				message_hash: Some(hex!["30291d1dfb68ae6f66d4c841facb78f44e7611ab2a25c84f4fb7347f448d2944"]),
 				error: XcmError::AssetNotFound,
 				weight: Weight::from_ref_time(300_000_000),
 			}
@@ -430,7 +402,7 @@ fn claim_asset(asset: MultiAsset, recipient: [u8; 32]) {
 		let recipient = MultiLocation::new(
 			0,
 			X1(Junction::AccountId32 {
-				network: NetworkId::Any,
+				network: None,
 				id: recipient,
 			}),
 		);
@@ -445,12 +417,11 @@ fn claim_asset(asset: MultiAsset, recipient: [u8; 32]) {
 			},
 			DepositAsset {
 				assets: All.into(),
-				max_assets: 1,
 				beneficiary: recipient,
 			},
 		]);
 		assert_ok!(hydradx_runtime::PolkadotXcm::send(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			Box::new(MultiLocation::new(1, X1(Parachain(HYDRA_PARA_ID))).into()),
 			Box::new(VersionedXcm::from(xcm_msg))
 		));
