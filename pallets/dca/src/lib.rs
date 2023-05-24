@@ -38,22 +38,17 @@
 
 //TODO :
 
-// regenerate all benchmark on reference
+// regenerate all benchmark on reference - dca, common-dca, and route-executor
 // configure this TradingLimitReached.into() to runtime error exceptions because this is tnrown and not deep omnipool errors- NOT SURE OF THIS, RECEHCKEC, BECAUSE IN TESTS WE GET OMNIPOOL ERRORS
 // - check ignore on init tests - we can't really test those, maybe with failing situation?
 // - add integration test when multiple users have dca
-// - remove the omnipool hack in mocks in case of benchmark if it is really not needed
-// - use omnipool in tests? Or rather integration tests?
 // - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
 // - recheck the ensures of the schedule function
 // - we should not take fees in sell neither - https://discord.com/channels/882700370307067966/1054497240489676903/1110179998058434590
-// - regenerate router common benchmark on reference machine
 // - search for and process all todo
 // - ask martin about the conversion issue - there is a stash with name "issue_with_convering_to_nonnative"
-// - remove omnipool flag logic locally from benchmark tests as we don't need it at all
 // check if balance did not decrease more than we unreserve - check if we spend only allocated money
-//estimate the how much space we need  to a block then compare it to max weight
-// regenerate the bencmark for hydra of DCA, similarly like in DCA
+// estimate the how much space we need  to a block then compare it to max weight
 // let the team know that I added the math dependency to runtime if we really use mock rout eexecutor
 
 #![cfg_attr(not(feature = "std"), no_std)]
