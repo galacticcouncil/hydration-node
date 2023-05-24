@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{AMMTrader, Config};
+use crate::{Config, Error};
 use frame_support::traits::{Contains, Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
@@ -26,7 +26,7 @@ use frame_support::PalletId;
 use frame_support::BoundedVec;
 use frame_support::{assert_ok, parameter_types};
 use frame_system as system;
-use frame_system::EnsureRoot;
+use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -40,6 +40,8 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
+
+use hydradx_adapters::inspect::MultiInspectAdapter;
 
 use hydra_dx_math::support::rational::{round_to_rational, Rounding};
 use sp_runtime::traits::Zero;
@@ -67,7 +69,7 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const INVALID_BUY_AMOUNT_VALUE: Balance = ONE / 10;
+pub const INVALID_BUY_AMOUNT_VALUE: Balance = ONE * 12 / 10;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -78,6 +80,7 @@ frame_support::construct_runtime!(
 		 System: frame_system,
 		 DCA: dca,
 		 Tokens: orml_tokens,
+		 RouteExecutor: pallet_route_executor,
 		 Omnipool: pallet_omnipool,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
@@ -112,6 +115,7 @@ thread_local! {
 
 }
 
+//TODO: add pool here and adjust tests
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BuyExecution {
 	pub asset_in: AssetId,
@@ -335,62 +339,127 @@ impl pallet_currencies::Config for Test {
 	type WeightInfo = ();
 }
 
-pub struct BlockNumberProviderMock {}
+pub const ASSET_PAIR_ACCOUNT: AccountId = 12;
 
-impl BlockNumberProvider for BlockNumberProviderMock {
-	type BlockNumber = BlockNumber;
-
-	fn current_block_number() -> Self::BlockNumber {
-		todo!()
-	}
+parameter_types! {
+	pub MaxNumberOfTrades: u8 = 3;
 }
 
-impl pallet_relaychain_info::Config for Test {
+type Pools = (OmniPool, XYK);
+
+impl pallet_route_executor::Config for Test {
 	type Event = Event;
-	type RelaychainBlockNumberProvider = BlockNumberProviderMock;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type AMM = Pools;
+	type WeightInfo = ();
 }
 
-pub struct AmmTraderMock {}
+type OriginForRuntime = OriginFor<Test>;
+pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
+pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 1 * ONE;
+pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = ONE / 2;
 
-impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
-	fn sell(
-		origin: Origin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount: Balance,
-		min_buy_amount: Balance,
-	) -> DispatchResult {
-		if asset_in == FORBIDDEN_ASSET {
-			return Err(pallet_omnipool::Error::<Test>::NotAllowed.into());
+pub struct OmniPool;
+pub struct XYK;
+
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
+	type Error = DispatchError;
+
+	fn calculate_sell(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		amount_in: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Omnipool) {
+			return Err(ExecutorError::NotSupported);
 		}
 
-		//We only want to excecute omnipool trade in case of benchmarking
-		Self::execute_trade_in_omnipool(origin, asset_in, asset_out, amount, min_buy_amount)?;
+		if amount_in == INVALID_CALCULATION_AMOUNT {
+			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
+		}
+
+		Ok(OMNIPOOL_SELL_CALCULATION_RESULT)
+	}
+
+	fn calculate_buy(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		amount_out: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Omnipool) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		if amount_out == INVALID_CALCULATION_AMOUNT {
+			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
+		}
+
+		Ok(OMNIPOOL_BUY_CALCULATION_RESULT)
+	}
+
+	fn execute_sell(
+		who: OriginForRuntime,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Omnipool) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		if asset_in == FORBIDDEN_ASSET {
+			return Err(ExecutorError::Error(pallet_omnipool::Error::<Test>::NotAllowed.into()));
+		}
 
 		SELL_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.push(SellExecution {
 				asset_in,
 				asset_out,
-				amount_in: amount,
-				min_buy_amount,
+				amount_in,
+				min_buy_amount: min_limit,
 			});
 		});
+
+		//TODO: Dani - use this in other tests
+		let Ok(who) =  ensure_signed(who) else {
+			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
+		};
+		let amount_out = OMNIPOOL_SELL_CALCULATION_RESULT;
+
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(Origin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(|e| ExecutorError::Error(e))?;
 
 		Ok(())
 	}
 
-	fn buy(
-		_origin: Origin,
+	fn execute_buy(
+		origin: OriginForRuntime,
+		pool_type: PoolType<AssetId>,
 		asset_in: AssetId,
 		asset_out: AssetId,
-		amount: Balance,
-		max_sell_amount: Balance,
-	) -> DispatchResult {
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::Omnipool) {
+			return Err(ExecutorError::NotSupported);
+		}
+
 		INVALID_BUY_AMOUNT.with(|v| {
 			let invalid_buy_amount = *v.borrow_mut();
-			if amount == invalid_buy_amount {
-				Err::<(), DispatchError>(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into())
+			if amount_out == invalid_buy_amount {
+				Err::<(), ExecutorError<DispatchError>>(ExecutorError::Error(
+					pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
+				))
 			} else {
 				Ok(())
 			}
@@ -401,62 +470,42 @@ impl AMMTrader<Origin, AssetId, Balance> for AmmTraderMock {
 			m.push(BuyExecution {
 				asset_in,
 				asset_out,
-				amount_out: amount,
-				max_sell_amount,
+				amount_out,
+				max_sell_amount: max_limit,
 			});
 		});
+
+		/*let mut set_omnipool_on = true;
+		SET_OMNIPOOL_ON.with(|v| {
+			let omnipool_on = v.borrow_mut();
+			set_omnipool_on = *omnipool_on;
+		});
+		if set_omnipool_on {
+			Omnipool::buy(origin, asset_out, asset_in, amount_out, max_limit).map_err(|e| ExecutorError::Error(e))?;
+		} else {
+			let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
+
+			Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+				.map_err(|e| ExecutorError::Error(e))?;
+			Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+				.map_err(|e| ExecutorError::Error(e))?;
+		}*/
+
+		//TODO: Dani - use this in other tests
+		let Ok(who) =  ensure_signed(origin) else {
+			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
+		};
+		let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
+
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(Origin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(|e| ExecutorError::Error(e))?;
 
 		Ok(())
 	}
 }
-
-pub const AMOUNT_IN_FOR_BUY: Balance = 2 * ONE;
-
-impl TradeExecution<Origin, AccountId, AssetId, Balance> for AmmTraderMock {
-	type Error = DispatchError;
-
-	fn calculate_sell(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		todo!()
-	}
-
-	fn calculate_buy(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		Ok(AMOUNT_IN_FOR_BUY)
-	}
-
-	fn execute_sell(
-		who: Origin,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		min_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		todo!()
-	}
-
-	fn execute_buy(
-		who: Origin,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		max_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		todo!()
-	}
-}
-
-impl AmmTraderMock {
+impl OmniPool {
 	fn execute_trade_in_omnipool(
 		origin: Origin,
 		asset_in: AssetId,
@@ -475,6 +524,129 @@ impl AmmTraderMock {
 
 		Ok(())
 	}
+}
+
+pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
+pub const XYK_BUY_CALCULATION_RESULT: Balance = ONE / 3;
+
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
+	type Error = DispatchError;
+
+	fn calculate_sell(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		amount_in: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::XYK) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		Ok(XYK_SELL_CALCULATION_RESULT)
+	}
+
+	fn calculate_buy(
+		pool_type: PoolType<AssetId>,
+		_asset_in: AssetId,
+		_asset_out: AssetId,
+		amount_out: Balance,
+	) -> Result<Balance, ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::XYK) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		Ok(XYK_BUY_CALCULATION_RESULT)
+	}
+
+	fn execute_sell(
+		_who: OriginForRuntime,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_in: Balance,
+		min_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::XYK) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		SELL_EXECUTIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.push(SellExecution {
+				asset_in,
+				asset_out,
+				amount_in,
+				min_buy_amount: min_limit,
+			});
+		});
+
+		let amount_out = XYK_SELL_CALCULATION_RESULT;
+
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(|e| ExecutorError::Error(e))?;
+
+		Ok(())
+	}
+
+	fn execute_buy(
+		_who: OriginForRuntime,
+		pool_type: PoolType<AssetId>,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount_out: Balance,
+		max_limit: Balance,
+	) -> Result<(), ExecutorError<Self::Error>> {
+		if !matches!(pool_type, PoolType::XYK) {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		INVALID_BUY_AMOUNT
+			.with(|v| {
+				let invalid_buy_amount = *v.borrow_mut();
+				if amount_out == invalid_buy_amount {
+					Err::<(), DispatchError>(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into())
+				} else {
+					Ok(())
+				}
+			})
+			.map_err(|e| ExecutorError::Error(e))?;
+
+		BUY_EXECUTIONS.with(|v| {
+			let mut m = v.borrow_mut();
+			m.push(BuyExecution {
+				asset_in,
+				asset_out,
+				amount_out,
+				max_sell_amount: max_limit,
+			});
+		});
+
+		let amount_in = XYK_BUY_CALCULATION_RESULT;
+
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(|e| ExecutorError::Error(e))?;
+
+		Ok(())
+	}
+}
+
+pub struct BlockNumberProviderMock {}
+
+impl BlockNumberProvider for BlockNumberProviderMock {
+	type BlockNumber = BlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		todo!()
+	}
+}
+
+impl pallet_relaychain_info::Config for Test {
+	type Event = Event;
+	type RelaychainBlockNumberProvider = BlockNumberProviderMock;
 }
 
 pub struct PriceProviderMock {}
@@ -513,7 +685,7 @@ parameter_types! {
 impl Config for Test {
 	type Event = Event;
 	type Asset = AssetId;
-	type Currency = Currencies;
+	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
 	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
@@ -521,7 +693,6 @@ impl Config for Test {
 	type FeeReceiver = TreasuryAccount;
 	type WeightToFee = IdentityFee<Balance>;
 	type WeightInfo = ();
-	type AMMTrader = AmmTraderMock;
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
@@ -538,6 +709,7 @@ impl Contains<DispatchError> for ContinueOnErrorsListMock {
 		vec![
 			pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
 			pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
+			pallet_route_executor::Error::<Test>::TradingLimitReached.into(), //TODO: Danie - remove the rest of the errors, not relevant if all is fine?!
 		]
 		.contains(e)
 	}
@@ -545,6 +717,7 @@ impl Contains<DispatchError> for ContinueOnErrorsListMock {
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
+use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
@@ -710,23 +883,32 @@ impl ExtBuilder {
 			*v.borrow_mut() = self.max_price_difference;
 		});
 
+		let mut initial_native_accounts: Vec<(AccountId, Balance)> = vec![(ASSET_PAIR_ACCOUNT, 1000 * ONE)];
+		let additional_accounts: Vec<(AccountId, Balance)> = self
+			.endowed_accounts
+			.iter()
+			.filter(|a| a.1 == HDX)
+			.flat_map(|(x, _, amount)| vec![(*x, *amount)])
+			.collect::<_>();
+
+		initial_native_accounts.extend(additional_accounts);
+
 		pallet_balances::GenesisConfig::<Test> {
-			balances: self
-				.endowed_accounts
-				.iter()
-				.filter(|a| a.1 == HDX)
-				.flat_map(|(x, _, amount)| vec![(*x, *amount)])
-				.collect(),
+			balances: initial_native_accounts,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();
 
+		let mut initial_accounts = vec![
+			(ASSET_PAIR_ACCOUNT, LRNA, 1000 * ONE),
+			(ASSET_PAIR_ACCOUNT, DAI, 1000 * ONE),
+			(ASSET_PAIR_ACCOUNT, BTC, 100000000 * ONE),
+		];
+
+		initial_accounts.extend(self.endowed_accounts);
+
 		orml_tokens::GenesisConfig::<Test> {
-			balances: self
-				.endowed_accounts
-				.iter()
-				.flat_map(|(x, asset, amount)| vec![(*x, *asset, *amount)])
-				.collect(),
+			balances: initial_accounts,
 		}
 		.assimilate_storage(&mut t)
 		.unwrap();

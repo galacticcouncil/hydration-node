@@ -1,5 +1,7 @@
 use crate::tests::mock::*;
-use crate::{Balance, Order, Schedule, ScheduleId, Trade};
+use crate::{Balance, Order, Schedule, ScheduleId};
+use hydradx_traits::router::PoolType;
+use pallet_route_executor::Trade;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 
@@ -34,7 +36,11 @@ impl ScheduleBuilder {
 				amount_out: ONE,
 				max_limit: 2 * ONE,
 				slippage: None,
-				route: create_bounded_vec(vec![]),
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: BTC,
+				}]),
 			}),
 		}
 	}

@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "256"]
+#![recursion_limit = "512"] //TODO: Dani- ask team about it
 #![allow(clippy::match_like_matches_macro)]
 
 // Make the WASM binary available.
@@ -25,7 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
-use common_runtime::adapters::{AmmTraderAdapter, OmnipoolPriceProviderAdapter};
+use common_runtime::adapters::OmnipoolPriceProviderAdapter;
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
@@ -70,6 +70,7 @@ mod migrations;
 mod xcm;
 
 pub use hex_literal::hex;
+use hydradx_adapters::inspect::MultiInspectAdapter;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
@@ -970,8 +971,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 impl pallet_dca::Config for Runtime {
 	type Event = Event;
 	type Asset = AssetId;
-	type Currency = Currencies;
-	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
+	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
 	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, EmaOracle, LRNA>;
 	type SpotPriceProvider = Omnipool;
@@ -998,6 +998,20 @@ impl Contains<DispatchError> for ContinueOnErrorsList {
 		]
 		.contains(e)
 	}
+}
+
+parameter_types! {
+	pub const MaxNumberOfTrades: u8 = 5;
+}
+
+impl pallet_route_executor::Config for Runtime {
+	type Event = Event;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
+	type AMM = (Omnipool);
+	type WeightInfo = weights::route_executor::BasiliskWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1051,7 +1065,8 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
-		DCA: pallet_dca= 66,
+		DCA: pallet_dca = 66,
+		Router: pallet_route_executor = 67,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1277,6 +1292,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 			list_benchmark!(list, extra, pallet_dca, DCA);
+			list_benchmark!(list, extra, pallet_route_executor, Router);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1341,7 +1357,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
 			add_benchmark!(params, batches, pallet_dca, DCA);
-
+			add_benchmark!(params, batches, pallet_route_executor, Router);
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);

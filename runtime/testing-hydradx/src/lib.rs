@@ -56,6 +56,7 @@ use frame_support::{
 	},
 	BoundedVec,
 };
+use hydradx_adapters::inspect::MultiInspectAdapter;
 use hydradx_traits::OraclePeriod;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
@@ -127,7 +128,7 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
-use common_runtime::adapters::{AmmTraderAdapter, OmnipoolPriceProviderAdapter};
+use common_runtime::adapters::OmnipoolPriceProviderAdapter;
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -971,8 +972,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 impl pallet_dca::Config for Runtime {
 	type Event = Event;
 	type Asset = AssetId;
-	type Currency = Currencies;
-	type AMMTrader = AmmTraderAdapter<Runtime, Origin, AssetId, Balance>;
+	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
 	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, EmaOracle, LRNA>;
 	type SpotPriceProvider = Omnipool;
@@ -999,6 +999,20 @@ impl Contains<DispatchError> for ContinueOnErrorsList {
 		]
 		.contains(e)
 	}
+}
+
+parameter_types! {
+	pub const MaxNumberOfTrades: u8 = 5;
+}
+
+impl pallet_route_executor::Config for Runtime {
+	type Event = Event;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
+	type AMM = (Omnipool);
+	type WeightInfo = weights::route_executor::BasiliskWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1053,6 +1067,7 @@ construct_runtime!(
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
 		DCA: pallet_dca = 66,
+		Router: pallet_route_executor = 67,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

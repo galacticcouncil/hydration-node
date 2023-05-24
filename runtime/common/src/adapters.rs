@@ -12,7 +12,6 @@ use hydradx_traits::{
 	liquidity_mining::PriceAdjustment, OnLiquidityChangedHandler, OnTradeHandler, OraclePeriod, PriceOracle,
 };
 use pallet_circuit_breaker::WeightInfo;
-use pallet_dca::types::AMMTrader;
 use pallet_ema_oracle::Price;
 use pallet_ema_oracle::{OnActivityHandler, OracleError};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
@@ -148,94 +147,6 @@ where
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
 		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_trade_limit_entry benchmark
 		w1.saturating_add(w2).saturating_add(w3)
-	}
-}
-
-pub struct AmmTraderAdapter<T, Origin, AssetId, Balance>(PhantomData<(T, Origin, AssetId, Balance)>);
-
-impl<T: pallet_omnipool::Config<AssetId = AssetId, Origin = Origin>, Origin, AssetId, Balance>
-	AMMTrader<Origin, AssetId, Balance> for AmmTraderAdapter<T, Origin, AssetId, Balance>
-where
-	u128: core::convert::From<Balance>,
-{
-	fn sell(
-		origin: Origin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount: Balance,
-		min_buy_amount: Balance,
-	) -> sp_runtime::DispatchResult {
-		pallet_omnipool::Pallet::<T>::sell(origin, asset_in, asset_out, amount.into(), min_buy_amount.into())
-	}
-
-	fn buy(
-		origin: Origin,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount: Balance,
-		max_sell_amount: Balance,
-	) -> sp_runtime::DispatchResult {
-		pallet_omnipool::Pallet::<T>::buy(origin, asset_out, asset_in, amount.into(), max_sell_amount.into())
-	}
-}
-
-impl<T: pallet_omnipool::Config<AssetId = AssetId, Origin = Origin>, Origin, AssetId>
-	TradeExecution<Origin, AccountId, AssetId, Balance> for AmmTraderAdapter<T, Origin, AssetId, Balance>
-{
-	type Error = DispatchError;
-
-	fn calculate_sell(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		pallet_omnipool::Pallet::<T>::calculate_sell(pool_type, asset_in, asset_out, amount_in.into())
-	}
-
-	fn calculate_buy(
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-	) -> Result<Balance, ExecutorError<Self::Error>> {
-		pallet_omnipool::Pallet::<T>::calculate_buy(pool_type, asset_in, asset_out, amount_out.into())
-	}
-
-	fn execute_sell(
-		who: Origin,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_in: Balance,
-		min_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		pallet_omnipool::Pallet::<T>::execute_sell(
-			who,
-			pool_type,
-			asset_in,
-			asset_out,
-			amount_in.into(),
-			min_limit.into(),
-		)
-	}
-
-	fn execute_buy(
-		who: Origin,
-		pool_type: PoolType<AssetId>,
-		asset_in: AssetId,
-		asset_out: AssetId,
-		amount_out: Balance,
-		max_limit: Balance,
-	) -> Result<(), ExecutorError<Self::Error>> {
-		pallet_omnipool::Pallet::<T>::execute_buy(
-			who,
-			pool_type,
-			asset_in,
-			asset_out,
-			amount_out.into(),
-			max_limit.into(),
-		)
 	}
 }
 

@@ -37,13 +37,23 @@
 //! Therefore they cannot be front-ran in the block they are executed.
 
 //TODO :
+
+// regenerate the bencmark for hydra of DCA, similarly like in DCA
+// - delete NOTES.rs
+// WHAT HAPPENS IF TRANSACTIONAL CALLS TRANSACTIONAL? LIKE WE CALL ROUTER SELL IN ANOTHER TRANSACTIONAL
+// configure this TradingLimitReached.into() to runtime error exceptions because this is tnrown and not deep omnipool errors- NOT SURE OF THIS, RECEHCKEC, BECAUSE IN TESTS WE GET OMNIPOOL ERRORS
+// - check ignore on init tests - we can't really test those, maybe with failing situation?
+// - add integration test when multiple users have dca
+// - remove the omnipool hack in mocks in case of benchmark if it is really not needed
+// - involve lrna in integration tests
 // - use omnipool in tests? Or rather integration tests?
 // - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
 // - recheck the ensures of the schedule function
+// - we should not take fees in sell neither - https://discord.com/channels/882700370307067966/1054497240489676903/1110179998058434590
 // - adjust benchmarking with one trade with buy trade
+// - regenerate router common benchmark on reference machine
 // - add integration test for router
 // - search for and process all todo
-// - implement other router execution functions
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -57,11 +67,13 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::router::{PoolType, TradeExecution};
+use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
 use orml_traits::NamedMultiReservableCurrency;
+use pallet_route_executor::Trade;
+use pallet_route_executor::TradeAmountsCalculator;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use scale_info::TypeInfo;
@@ -115,9 +127,14 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T>
+	where
+		<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+		<T as pallet_route_executor::Config>::Balance: From<u128>,
+		u128: From<<T as pallet_route_executor::Config>::Balance>,
+	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
-			let mut weight = T::WeightInfo::on_initialize_with_empty_block();
+			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
 			let mut random_generator = T::RandomnessProvider::generator();
 
@@ -165,6 +182,8 @@ pub mod pallet {
 							error: err,
 						});
 
+						assert_eq!(err, BadOrigin.into());
+
 						if T::ContinueOnErrors::contains(&err) {
 							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block) {
 								Self::terminate_schedule(schedule_id, &schedule, err);
@@ -182,7 +201,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_relaychain_info::Config {
+	pub trait Config: frame_system::Config + pallet_relaychain_info::Config + pallet_route_executor::Config {
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -200,16 +219,12 @@ pub mod pallet {
 		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
 
 		///For named-reserving user's assets
-		type Currency: NamedMultiReservableCurrency<
+		type Currencies: NamedMultiReservableCurrency<
 			Self::AccountId,
 			ReserveIdentifier = NamedReserveIdentifier,
 			CurrencyId = Self::Asset,
 			Balance = Balance,
 		>;
-
-		///AMMTrader for trade execution
-		type AMMTrader: AMMTrader<Self::Origin, Self::Asset, Balance>
-			+ hydradx_traits::router::TradeExecution<Self::Origin, Self::AccountId, Self::Asset, Balance>;
 
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
@@ -325,6 +340,8 @@ pub mod pallet {
 		MaxRetryReached,
 		///There was an unexpected error happened in the AMM where the trade is executed
 		AmmTradeError,
+		///The route to execute the trade on is not specified
+		RouteNotSpecified,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -363,7 +380,12 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, BlockNumberFor<T>, BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, ValueQuery>;
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+		<T as pallet_route_executor::Config>::Balance: From<u128>,
+		u128: From<<T as pallet_route_executor::Config>::Balance>,
+	{
 		/// Creates a new DCA schedule and plans the execution in the specified start execution block.
 		/// If start execution block number is not specified, then the schedule is planned in the consequent block.
 		///
@@ -385,6 +407,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(who == schedule.owner, Error::<T>::Forbidden);
+
+			ensure!(schedule.order.get_route_length() > 0, Error::<T>::RouteNotSpecified);
 
 			let storage_bond = Self::get_storage_bond(&schedule)?;
 			ensure!(
@@ -433,7 +457,7 @@ pub mod pallet {
 			RemainingAmounts::<T>::insert(next_schedule_id, schedule.total_amount);
 			RetriesOnError::<T>::insert(next_schedule_id, 0);
 
-			T::Currency::reserve_named(
+			T::Currencies::reserve_named(
 				&T::NamedReserveId::get(),
 				schedule.order.get_asset_in(),
 				&who,
@@ -531,7 +555,12 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
+impl<T: Config> Pallet<T>
+where
+	<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+	<T as pallet_route_executor::Config>::Balance: From<u128>,
+	u128: From<<T as pallet_route_executor::Config>::Balance>,
+{
 	fn prepare_schedule(
 		current_blocknumber: T::BlockNumber,
 		weight: &mut Weight,
@@ -573,29 +602,36 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
-		match schedule.order {
+		match &schedule.order {
 			Order::Sell {
 				asset_in,
 				asset_out,
 				amount_in,
 				min_limit,
 				slippage,
-				route: _,
+				route,
 			} => {
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(asset_out, asset_in, amount_in, slippage)?;
+					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_in, *slippage)?;
 
 				let min_limit_with_slippage = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				T::AMMTrader::sell(
-					origin,
-					asset_in,
-					asset_out,
-					amount_to_sell,
-					max(min_limit, min_limit_with_slippage),
-				)
+				let min_limit = max(*min_limit, min_limit_with_slippage);
+
+				let route = Self::convert_route_to_vec(route);
+
+				let res = pallet_route_executor::Pallet::<T>::sell(
+					origin.clone(),
+					(*asset_in).into(),
+					(*asset_out).into(),
+					(amount_to_sell).into(),
+					min_limit.into(),
+					route,
+				);
+
+				res
 			}
 			Order::Buy {
 				asset_in,
@@ -603,18 +639,29 @@ impl<T: Config> Pallet<T> {
 				amount_out,
 				slippage,
 				max_limit,
-				..
+				route,
 			} => {
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(asset_in, asset_out, amount_out, slippage)?;
+					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out, *slippage)?;
 
 				let max_limit_with_slippage = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				let max_limit = min(max_limit, max_limit_with_slippage);
+				let max_limit = min(*max_limit, max_limit_with_slippage);
 
-				T::AMMTrader::buy(origin, asset_in, asset_out, amount_out, max_limit)
+				let route = Self::convert_route_to_vec(route);
+
+				let res = pallet_route_executor::Pallet::<T>::buy(
+					origin.clone(),
+					(*asset_in).into(),
+					(*asset_out).into(),
+					(*amount_out).into(),
+					max_limit.into(),
+					route,
+				);
+
+				res
 			}
 		}
 
@@ -754,12 +801,16 @@ impl<T: Config> Pallet<T> {
 				asset_in,
 				asset_out,
 				amount_out,
+				route,
 				..
 			} => {
-				let exact_amount_in =
-					T::AMMTrader::calculate_buy(PoolType::<T::Asset>::Omnipool, *asset_in, *asset_out, *amount_out)
-						.map_err(|_| Error::<T>::AmmTradeError)?;
-				Ok(exact_amount_in)
+				let route = Self::convert_route_to_vec(route);
+
+				let trade_amounts =
+					pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route, (*amount_out).into())?;
+
+				let first_trade = trade_amounts.last().ok_or(Error::<T>::InvalidState)?;
+				Ok(first_trade.amount_in.into())
 			}
 		}
 	}
@@ -796,7 +847,7 @@ impl<T: Config> Pallet<T> {
 
 		let sold_currency = schedule.order.get_asset_in();
 
-		let remaining_amount_if_insufficient_balance = T::Currency::unreserve_named(
+		let remaining_amount_if_insufficient_balance = T::Currencies::unreserve_named(
 			&T::NamedReserveId::get(),
 			sold_currency,
 			&schedule.owner,
@@ -862,7 +913,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::unallocate_amount(schedule_id, schedule, fee_amount_in_sold_asset)?;
 
-		T::Currency::transfer(
+		T::Currencies::transfer(
 			fee_currency,
 			&schedule.owner,
 			&T::FeeReceiver::get(),
@@ -896,7 +947,7 @@ impl<T: Config> Pallet<T> {
 			return;
 		};
 
-		T::Currency::unreserve_named(
+		T::Currencies::unreserve_named(
 			&T::NamedReserveId::get(),
 			sold_currency,
 			&schedule.owner,
@@ -1013,6 +1064,29 @@ impl<T: Config> Pallet<T> {
 		ScheduleOwnership::<T>::remove(owner, schedule_id);
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
+	}
+
+	fn convert_route_to_vec(route: &BoundedVec<Trade<T::Asset>, ConstU32<5>>) -> Vec<Trade<T::AssetId>> {
+		route
+			.clone()
+			.into_inner()
+			.into_iter()
+			.map(|x| {
+				let pool_type: PoolType<<T as pallet_route_executor::Config>::AssetId> = match x.pool {
+					PoolType::XYK => PoolType::XYK,
+					PoolType::LBP => PoolType::LBP,
+					PoolType::Stableswap(asset_id) => PoolType::Stableswap(asset_id.into()),
+					PoolType::Omnipool => PoolType::Omnipool,
+				};
+
+				let trade: Trade<<T as pallet_route_executor::Config>::AssetId> = Trade {
+					pool: pool_type,
+					asset_in: x.asset_in.into(),
+					asset_out: x.asset_out.into(),
+				};
+				trade
+			})
+			.collect::<Vec<_>>()
 	}
 }
 

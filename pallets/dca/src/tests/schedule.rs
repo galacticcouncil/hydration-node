@@ -17,11 +17,13 @@
 
 use crate::assert_scheduled_ids;
 use crate::tests::mock::*;
-use crate::tests::{empty_vec, ScheduleBuilder};
+use crate::tests::{create_bounded_vec, empty_vec, ScheduleBuilder};
 use crate::{Error, Event, Order, ScheduleId};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
+use hydradx_traits::router::PoolType;
 use orml_traits::NamedMultiReservableCurrency;
+use pallet_route_executor::Trade;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
@@ -46,7 +48,11 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 					amount_out: ONE,
 					max_limit: 10 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 			//Act
@@ -78,7 +84,11 @@ fn schedule_should_store_total_amounts_in_storage() {
 					amount_out: ONE,
 					max_limit: 10 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 			//Act
@@ -108,7 +118,11 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 					amount_out: ONE,
 					max_limit: 100 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -121,7 +135,11 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 					amount_out: ONE,
 					max_limit: 1000 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -349,7 +367,11 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 					amount_in: budget + FEE_FOR_ONE_DCA_EXECUTION,
 					min_limit: Balance::MIN,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -371,7 +393,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = AMOUNT_IN_FOR_BUY + FEE_FOR_ONE_DCA_EXECUTION - 1;
+			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + FEE_FOR_ONE_DCA_EXECUTION - 1;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
@@ -382,7 +404,11 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 					amount_out: 10 * ONE,
 					max_limit: budget + FEE_FOR_ONE_DCA_EXECUTION,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -404,7 +430,7 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = AMOUNT_IN_FOR_BUY + FEE_FOR_ONE_DCA_EXECUTION;
+			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + FEE_FOR_ONE_DCA_EXECUTION;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
@@ -415,7 +441,11 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 					amount_out: 10 * ONE,
 					max_limit: budget + FEE_FOR_ONE_DCA_EXECUTION,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -572,7 +602,11 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 					amount_out: ONE,
 					max_limit: 100 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -602,7 +636,11 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 					amount_out: ONE,
 					max_limit: 100 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -632,7 +670,11 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 					amount_in: FEE_FOR_ONE_DCA_EXECUTION - 1,
 					min_limit: Balance::MIN,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 			//Act
@@ -659,7 +701,11 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 					amount_in: 50,
 					min_limit: Balance::MIN,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 			//Act
@@ -689,7 +735,11 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in() {
 					amount_in: total_amount,
 					min_limit: Balance::MIN,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -715,7 +765,11 @@ fn schedule_should_init_retries_to_zero() {
 					amount_out: ONE,
 					max_limit: 10 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 			//Act
@@ -746,7 +800,11 @@ fn schedule_should_fail_when_wrong_user_is_specified_in_schedule() {
 					amount_out: ONE,
 					max_limit: 10 * ONE,
 					slippage: None,
-					route: empty_vec(),
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
 				})
 				.build();
 
@@ -756,6 +814,36 @@ fn schedule_should_fail_when_wrong_user_is_specified_in_schedule() {
 			assert_noop!(
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::Forbidden
+			);
+		});
+}
+
+#[test]
+fn schedule_should_fail_when_no_routes_specified() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_limit: 10 * ONE,
+					slippage: None,
+					route: create_bounded_vec(vec![]),
+				})
+				.build();
+
+			//Act
+			set_block_number(500);
+			assert_noop!(
+				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				Error::<Test>::RouteNotSpecified
 			);
 		});
 }

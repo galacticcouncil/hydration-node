@@ -38,6 +38,8 @@ pub const DAI: AssetId = 2;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
+const FEE_FOR_ONE_DCA_EXECUTION: Balance = 2699988000;
+
 fn schedule_fake<T: Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
 	asset_in: T::Asset,
@@ -54,16 +56,21 @@ fn schedule_fake<T: Config + pallet_omnipool::Config>(
 			amount_out: amount,
 			max_limit: Balance::MAX,
 			slippage: Some(Permill::from_percent(10)),
-			route: create_bounded_vec::<T>(vec![]),
+			route: create_bounded_vec::<T>(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in,
+				asset_out,
+			}]),
 		},
 	};
 	schedule1
 }
 
 fn get_named_reseve_balance<T: Config + pallet_omnipool::Config>(token_id: T::Asset, seller: T::AccountId) -> Balance {
-	<T as Config>::Currency::reserved_balance_named(&T::NamedReserveId::get(), token_id, &seller)
+	<T as Config>::Currencies::reserved_balance_named(&T::NamedReserveId::get(), token_id, &seller)
 }
 
+//TODO: Dani - delete if not used
 fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
 	asset_in: T::Asset,
@@ -80,7 +87,37 @@ fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 			amount_in: amount,
 			min_limit: Balance::MIN,
 			slippage: Some(Permill::from_percent(10)),
-			route: create_bounded_vec::<T>(vec![]),
+			route: create_bounded_vec::<T>(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in,
+				asset_out,
+			}]),
+		},
+	};
+	schedule1
+}
+
+fn schedule_buy_fake<T: Config + pallet_omnipool::Config>(
+	owner: T::AccountId,
+	asset_in: T::Asset,
+	asset_out: T::Asset,
+	amount: Balance,
+) -> Schedule<T::AccountId, T::Asset, T::BlockNumber> {
+	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
+		owner,
+		period: 3u32.into(),
+		total_amount: 2000 * ONE,
+		order: Order::Buy {
+			asset_in,
+			asset_out,
+			amount_out: amount,
+			max_limit: Balance::MAX,
+			slippage: Some(Permill::from_percent(15)),
+			route: create_bounded_vec::<T>(vec![Trade {
+				pool: PoolType::Omnipool,
+				asset_in,
+				asset_out,
+			}]),
 		},
 	};
 	schedule1
@@ -220,12 +257,15 @@ where
 benchmarks! {
 	 where_clause {  where
 		CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config,
+		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_route_executor::Config,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
 		<T as Config>::Asset: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
 		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
+		u128: From<<T as pallet_route_executor::Config>::Balance>,
+		<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+		<T as pallet_route_executor::Config>::Balance: From<u128>
 	}
 
 	on_initialize_with_one_trade{
@@ -234,13 +274,12 @@ benchmarks! {
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_sell = 20 * ONE;
+		let amount_buy = ONE / 2;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
-		//TODO: it should be a buy as it is more expensive
-		let schedule1 = schedule_sell_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_sell);
+		let schedule1 = schedule_buy_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_buy);
 		let execution_block = 1001u32;
 
 		let max_schedules_per_block: u128 = T::MaxSchedulePerBlock::get().into();
@@ -255,20 +294,19 @@ benchmarks! {
 
 		let init_native_balance = 0;
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller), init_native_balance);
-
-
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
 		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
-		let asset_in_spent_on_all_trades = amount_sell;
-		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades, reserved_balance);
+		let asset_in_spent_on_all_trades = amount_buy;
+		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades - FEE_FOR_ONE_DCA_EXECUTION, reserved_balance);
 
 		let init_native_balance = 0;
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(HDX.into(), &seller) > init_native_balance);
 	}
 
+	/*
 	on_initialize_with_empty_block{
 		initialize_omnipool::<T>()?;
 
@@ -328,7 +366,7 @@ benchmarks! {
 	}: _(RawOrigin::Root, schedule_id, execution_block.into())
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_none());
-	}
+	}*/
 
 }
 

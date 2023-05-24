@@ -16,7 +16,48 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 		asset_out: T::AssetId,
 		amount_in: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
-		todo!()
+		if pool_type != PoolType::Omnipool {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		if asset_out == T::HubAssetId::get() {
+			return Err(ExecutorError::Error(Error::<T>::NotAllowed.into()));
+		}
+
+		let asset_out_state = Self::load_asset_state(asset_out).map_err(ExecutorError::Error)?;
+		let current_imbalance = <HubAssetImbalance<T>>::get();
+
+		if asset_in == T::HubAssetId::get() {
+			let current_hub_asset_liquidity =
+				T::Currency::free_balance(T::HubAssetId::get(), &Self::protocol_account());
+
+			let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
+				&(&asset_out_state).into(),
+				amount_in,
+				T::AssetFee::get(),
+				I129 {
+					value: current_imbalance.value,
+					negative: current_imbalance.negative,
+				},
+				current_hub_asset_liquidity,
+			)
+			.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+
+			return Ok(*state_changes.asset.delta_hub_reserve);
+		}
+
+		let asset_in_state = Self::load_asset_state(asset_in).map_err(ExecutorError::Error)?;
+		let state_changes = hydra_dx_math::omnipool::calculate_sell_state_changes(
+			&(&asset_in_state).into(),
+			&(&asset_out_state).into(),
+			amount_in,
+			T::AssetFee::get(),
+			T::ProtocolFee::get(),
+			current_imbalance.value,
+		)
+		.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+
+		Ok(*state_changes.asset_out.delta_reserve)
 	}
 
 	fn calculate_buy(
@@ -65,8 +106,6 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 		)
 		.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
-		//TODO: we should return amount in + fee
-
 		Ok(*state_changes.asset_in.delta_reserve)
 	}
 
@@ -78,7 +117,11 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 		amount_in: Balance,
 		min_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>> {
-		todo!()
+		if pool_type != PoolType::Omnipool {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		Self::sell(who, asset_in, asset_out, amount_in, min_limit).map_err(ExecutorError::Error)
 	}
 
 	fn execute_buy(
@@ -89,6 +132,10 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 		amount_out: Balance,
 		max_limit: Balance,
 	) -> Result<(), ExecutorError<Self::Error>> {
-		todo!()
+		if pool_type != PoolType::Omnipool {
+			return Err(ExecutorError::NotSupported);
+		}
+
+		Self::buy(who, asset_out, asset_in, amount_out, max_limit).map_err(ExecutorError::Error)
 	}
 }

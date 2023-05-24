@@ -26,11 +26,13 @@ frame-support = { git = "https://github.com/paritytech/substrate", branch = "pol
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 
 # HydraDX dependencies
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "00bd896ab36dcaf99f021f1f4241a36ef29cd020", default-features = false }
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "00bd896ab36dcaf99f021f1f4241a36ef29cd020", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
+hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
 pallet-omnipool = { path="../omnipool", default-features = false }
 pallet-circuit-breaker = { path="../circuit-breaker", default-features = false }
-pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "00bd896ab36dcaf99f021f1f4241a36ef29cd020", default-features = false }
+pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
+pallet-route-executor =  { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "84632c3c7b71e16d53240e4bdc2adc693c941916", default-features = false }
 
@@ -39,6 +41,7 @@ orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-li
 
 # Optional imports for benchmarking
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
 
 [dev-dependencies]
 smallvec = "1.9.0"
@@ -71,11 +74,11 @@ std = [
   "orml-tokens/std",
   "pallet-ema-oracle/std",
   "pallet-circuit-breaker/std",
-
+  "pallet-route-executor/std",
 ]
 
 runtime-benchmarks = [
-  "frame-benchmarking",
+  "frame-benchmarking/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
 ]
