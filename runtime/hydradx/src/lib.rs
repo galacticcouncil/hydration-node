@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "512"] //TODO: Dani- ask team about it
+#![recursion_limit = "512"]
 #![allow(clippy::match_like_matches_macro)]
 
 // Make the WASM binary available.
