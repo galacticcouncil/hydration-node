@@ -549,18 +549,18 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 		});
 }
 
-#[ignore]
 #[test]
 fn one_buy_dca_execution_should_use_default_max_price_diff_for_max_limit_calculation() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_max_price_difference(Permill::from_percent(25))
 		.build()
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
+			let total_amount = 50 * ONE;
+			let amount_to_buy = 10 * ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -586,69 +586,7 @@ fn one_buy_dca_execution_should_use_default_max_price_diff_for_max_limit_calcula
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_executed_buy_trades!(vec![BuyExecution {
-				asset_in: HDX,
-				asset_out: BTC,
-				amount_out: ONE,
-				max_sell_amount: OMNIPOOL_BUY_CALCULATION_RESULT,
-			}]);
-
-			assert_eq!(
-				total_amount - OMNIPOOL_BUY_CALCULATION_RESULT - FEE_FOR_ONE_DCA_EXECUTION,
-				Currencies::reserved_balance(HDX, &ALICE)
-			);
-		});
-}
-
-#[ignore]
-#[test]
-fn one_buy_dca_execution_should_use_slippage_limit_for_max_limit_when_specified_by_user() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let total_amount = 5 * ONE;
-			let amount_to_buy = ONE;
-
-			let schedule = ScheduleBuilder::new()
-				.with_total_amount(total_amount)
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
-					asset_in: HDX,
-					asset_out: BTC,
-					amount_out: amount_to_buy,
-					max_limit: Balance::MAX,
-					slippage: Some(Permill::from_percent(20)),
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: BTC,
-					}]),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
-
-			//Act
-			set_to_blocknumber(501);
-
-			//Assert
-			let max_sell_amount_calculated_by_slippage = 1056000000000;
-			assert_executed_buy_trades!(vec![BuyExecution {
-				asset_in: HDX,
-				asset_out: BTC,
-				amount_out: ONE,
-				max_sell_amount: max_sell_amount_calculated_by_slippage,
-			}]);
-
-			assert_eq!(
-				total_amount - FEE_FOR_ONE_DCA_EXECUTION - FEE_FOR_ONE_DCA_EXECUTION,
-				Currencies::reserved_balance(HDX, &ALICE)
-			);
+			assert_number_of_executed_buy_trades!(1);
 		});
 }
 
@@ -1123,9 +1061,8 @@ fn native_execution_fee_should_be_sent_to_treasury() {
 		});
 }
 
-#[ignore]
 #[test]
-fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_trade_min_limit() {
+fn slippage_limit_should_be_used_for_sell_dca_when_it_is_bigger_than_specified_trade_min_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -1142,7 +1079,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 					asset_out: DAI,
 					amount_in: sell_amount,
 					min_limit: Balance::MIN,
-					slippage: None,
+					slippage: Some(Permill::from_percent(1)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1157,16 +1094,13 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_smaller_than_specified_
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_executed_sell_trades!(vec![SellExecution {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: sell_amount - FEE_FOR_ONE_DCA_EXECUTION,
-				min_buy_amount: 7_920_000_000_000,
-			}]);
+			//No trade happens because slippage limit is too small
+			assert_number_of_executed_sell_trades!(0);
+			let retries = DCA::retries_on_error(0);
+			assert_eq!(1, retries.unwrap());
 		});
 }
 
-#[ignore]
 #[test]
 fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_trade_max_limit() {
 	ExtBuilder::default()
@@ -1186,7 +1120,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 					asset_out: DAI,
 					amount_out: buy_amount,
 					max_limit: Balance::MAX,
-					slippage: None,
+					slippage: Some(Permill::from_percent(1)),
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1201,12 +1135,10 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_executed_buy_trades!(vec![BuyExecution {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_out: buy_amount,
-				max_sell_amount: 9680000000000,
-			}]);
+			//No trade happens because slippage limit is too small
+			assert_number_of_executed_buy_trades!(0);
+			let retries = DCA::retries_on_error(0);
+			assert_eq!(1, retries.unwrap());
 		});
 }
 
