@@ -955,7 +955,7 @@ where
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
-			let price = Self::get_price_from_last_block_oracle(T::NativeAssetId::get(), asset_id)?;
+			let price = Self::get_price_from_last_block_oracle(asset_id, T::NativeAssetId::get())?;
 
 			price.checked_mul_int(asset_amount).ok_or(ArithmeticError::Overflow)?
 		};

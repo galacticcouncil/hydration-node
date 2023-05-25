@@ -24,8 +24,8 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
-const DCA_EXECUTION_FEE: Balance = 2735493790063;
-const DCA_EXECUTION_FEE_IN_LRNA: Balance = 5_470_987_571_384;
+const DCA_EXECUTION_FEE: Balance = 2_735_493_790_063;
+const DCA_EXECUTION_FEE_IN_LRNA: Balance = 1_367_746_897_216;
 
 #[test]
 fn create_schedule_should_work() {
@@ -125,7 +125,7 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 75646427655002;
+		let amount_to_unreserve_for_trade = 71543186980834;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
