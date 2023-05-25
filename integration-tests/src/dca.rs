@@ -37,7 +37,8 @@ fn create_schedule_should_work() {
 		let block_id = 11;
 		set_relaychain_block_number(block_id);
 
-		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, 100 * UNITS, 800 * UNITS);
+		let budget = 1000 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, 100 * UNITS, budget);
 
 		//Act
 		assert_ok!(hydradx_runtime::DCA::schedule(
@@ -64,7 +65,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		//Arrange
 		init_omnipool_with_oracle_for_block_10();
 
-		let dca_budget = 800 * UNITS;
+		let dca_budget = 1000 * UNITS;
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 
@@ -110,7 +111,7 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 			0
 		));
 
-		let dca_budget = 800 * UNITS;
+		let dca_budget = 2500 * UNITS;
 
 		let amount_out = 100 * UNITS;
 		let schedule1 = schedule_fake_with_buy_order(LRNA, DAI, amount_out, dca_budget);
@@ -165,7 +166,7 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_out = 68960614947492;
+		let amount_out = 68_960_614_947_492;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
@@ -194,7 +195,7 @@ fn sell_schedule_execution_should_work_when_hub_asset_is_sold() {
 			0
 		));
 
-		let dca_budget = 1100 * UNITS;
+		let dca_budget = 2500 * UNITS;
 		let amount_to_sell = 100 * UNITS;
 		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, LRNA, DAI, amount_to_sell);
 		create_schedule(ALICE, schedule1);
@@ -228,7 +229,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		//Arrange
 		init_omnipool_with_oracle_for_block_10();
 
-		let dca_budget = 800 * UNITS;
+		let dca_budget = 1000 * UNITS;
 		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, 100 * UNITS, dca_budget);
 		create_schedule(ALICE, schedule1);
 
@@ -242,11 +243,11 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
-		run_to_block(11, 30);
+		run_to_block(11, 40);
 
 		//Assert
-		let over_reservation_left_over = 82_070_638_134_972; //Because the remaining budget for the last trade is not enough, so it is returned
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 500 * UNITS);
+		let over_reservation_left_over = 138_484_725_617_453; //Because the remaining budget for the last trade is not enough, so it is returned
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
 		assert_balance!(
 			ALICE.into(),
 			HDX,
@@ -255,7 +256,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let fees = 15823756054590;
+		let fees = 18988507265508;
 		assert_balance!(
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,
