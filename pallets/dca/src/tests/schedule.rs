@@ -17,7 +17,7 @@
 
 use crate::assert_scheduled_ids;
 use crate::tests::mock::*;
-use crate::tests::{create_bounded_vec, empty_vec, ScheduleBuilder};
+use crate::tests::{create_bounded_vec, ScheduleBuilder};
 use crate::{Error, Event, Order, ScheduleId};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -25,6 +25,7 @@ use hydradx_traits::router::PoolType;
 use orml_traits::NamedMultiReservableCurrency;
 use pallet_route_executor::Trade;
 use pretty_assertions::assert_eq;
+use primitives::constants::chain::MAXIMUM_BLOCK_WEIGHT;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError::BadOrigin;
@@ -521,6 +522,18 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 
 			assert_scheduled_ids!(502, vec![schedule_id]);
 		});
+}
+
+//TODO: delete this test once we are at the end
+use crate::weights::WeightInfo;
+
+#[ignore]
+#[test]
+fn asd() {
+	let weight1 = <Test as crate::Config>::WeightInfo::on_initialize_with_one_trade() * 20;
+	let weight2 = <Test as crate::Config>::WeightInfo::on_initialize_with_one_trade();
+
+	assert_eq!(weight1 + weight2, MAXIMUM_BLOCK_WEIGHT);
 }
 
 #[test]

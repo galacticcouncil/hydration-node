@@ -38,8 +38,6 @@ pub const DAI: AssetId = 2;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-const FEE_FOR_ONE_DCA_EXECUTION: Balance = 2699988000;
-
 fn schedule_fake<T: Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
 	asset_in: T::Asset,
@@ -271,10 +269,6 @@ benchmarks! {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
-		/*let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
-		let asset_in_spent_on_all_trades = amount_buy;
-		assert_eq!(init_reserved_balance - asset_in_spent_on_all_trades - FEE_FOR_ONE_DCA_EXECUTION, reserved_balance);*/
-
 		assert!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller) > init_dai_balance);
 	}
 

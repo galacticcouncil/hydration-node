@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(dead_code)]
+
 use frame_support::traits::{Contains, Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
@@ -30,18 +32,16 @@ use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
+use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
-use sp_runtime::{Perbill, Rounding};
 
 use hydradx_adapters::inspect::MultiInspectAdapter;
 
-use hydra_dx_math::support::rational::round_to_rational;
-use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -133,7 +133,7 @@ parameter_types! {
 }
 
 impl pallet_ema_oracle::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
@@ -157,8 +157,8 @@ impl system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -166,7 +166,7 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
@@ -189,19 +189,17 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Nothing;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 	type ReserveIdentifier = NamedReserveIdentifier;
 	type MaxReserves = MaxReserves;
+	type CurrencyHooks = ();
 }
 
 parameter_types! {
@@ -228,7 +226,7 @@ parameter_types! {
 }
 
 impl pallet_omnipool::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
@@ -303,7 +301,7 @@ impl WeightToFeePolynomial for WeightToFee {
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
@@ -313,7 +311,7 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type GetNativeCurrencyId = NativeCurrencyId;
@@ -326,10 +324,10 @@ parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
 }
 
-type Pools = (OmniPool, XYK);
+type Pools = (OmniPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
@@ -340,11 +338,11 @@ impl pallet_route_executor::Config for Test {
 
 type OriginForRuntime = OriginFor<Test>;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
-pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 1 * ONE;
+pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = ONE;
 pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 10 * ONE;
 
 pub struct OmniPool;
-pub struct XYK;
+pub struct Xyk;
 
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
 	type Error = DispatchError;
@@ -414,10 +412,10 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		};
 		let amount_out = OMNIPOOL_SELL_CALCULATION_RESULT;
 
-		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(Origin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+			.map_err(ExecutorError::Error)?;
+		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}
@@ -455,39 +453,22 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
-		/*let mut set_omnipool_on = true;
-		SET_OMNIPOOL_ON.with(|v| {
-			let omnipool_on = v.borrow_mut();
-			set_omnipool_on = *omnipool_on;
-		});
-		if set_omnipool_on {
-			Omnipool::buy(origin, asset_out, asset_in, amount_out, max_limit).map_err(|e| ExecutorError::Error(e))?;
-		} else {
-			let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
-
-			Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
-				.map_err(|e| ExecutorError::Error(e))?;
-			Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-				.map_err(|e| ExecutorError::Error(e))?;
-		}*/
-
-		let Ok(who) =  ensure_signed(origin) else {
 		let Ok(who) =  ensure_signed(origin) else {
 			return Err(ExecutorError::Error(pallet_dca::Error::<Test>::InvalidState.into()));
 		};
 		let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
 
-		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(Origin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+			.map_err(ExecutorError::Error)?;
+		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}
 }
 impl OmniPool {
 	fn execute_trade_in_omnipool(
-		origin: Origin,
+		origin: RuntimeOrigin,
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount: Balance,
@@ -509,14 +490,14 @@ impl OmniPool {
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
 pub const XYK_BUY_CALCULATION_RESULT: Balance = ONE / 3;
 
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 	type Error = DispatchError;
 
 	fn calculate_sell(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
-		amount_in: Balance,
+		_: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);
@@ -529,7 +510,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
-		amount_out: Balance,
+		_: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);
@@ -562,10 +543,10 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 
 		let amount_out = XYK_SELL_CALCULATION_RESULT;
 
-		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+			.map_err(ExecutorError::Error)?;
+		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}
@@ -591,7 +572,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 					Ok(())
 				}
 			})
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 
 		BUY_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
@@ -605,10 +586,10 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 
 		let amount_in = XYK_BUY_CALCULATION_RESULT;
 
-		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+			.map_err(ExecutorError::Error)?;
+		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}
@@ -625,7 +606,7 @@ impl BlockNumberProvider for BlockNumberProviderMock {
 }
 
 impl pallet_relaychain_info::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type RelaychainBlockNumberProvider = BlockNumberProviderMock;
 }
 
@@ -663,7 +644,7 @@ parameter_types! {
 }
 
 impl pallet_dca::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Asset = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
@@ -699,11 +680,9 @@ use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::{WeightToFeeCoefficients, WeightToFeePolynomial};
 use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::ema::EmaPrice;
-use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
-use pallet_dca::pallet;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use smallvec::smallvec;
 
@@ -827,17 +806,6 @@ impl ExtBuilder {
 		self
 	}
 
-	pub fn with_max_price_difference(mut self, price_diff: Permill) -> Self {
-		self.max_price_difference = price_diff;
-		self
-	}
-
-	#[allow(dead_code)] //This is used only in benchmark but it complains with warning
-	pub fn with_omnipool_trade(mut self, omnipool_is_on: bool) -> Self {
-		self.omnipool_trade = omnipool_is_on;
-		self
-	}
-
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		// Add DAi and HDX as pre-registered assets
@@ -898,10 +866,10 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
+				assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
 
 				assert_ok!(Omnipool::initialize_pool(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
@@ -910,13 +878,13 @@ impl ExtBuilder {
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
-						Origin::signed(owner),
+						RuntimeOrigin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
 					assert_ok!(Omnipool::add_token(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						asset_id,
 						price,
 						self.asset_weight_cap,

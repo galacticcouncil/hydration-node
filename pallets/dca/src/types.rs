@@ -1,6 +1,4 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::dispatch::DispatchResult;
-use hydradx_traits::router::PoolType;
 use pallet_route_executor::Trade;
 use scale_info::TypeInfo;
 use sp_runtime::traits::ConstU32;

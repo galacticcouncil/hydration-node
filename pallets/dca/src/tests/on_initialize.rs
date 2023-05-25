@@ -19,7 +19,7 @@ use crate::tests::*;
 use crate::{
 	assert_balance, assert_executed_buy_trades, assert_executed_sell_trades, assert_number_of_executed_buy_trades,
 	assert_number_of_executed_sell_trades, assert_scheduled_ids, assert_that_schedule_has_been_removed_from_storages,
-	pallet, Error, Event as DcaEvent, Order, Permill, ScheduleId,
+	Error, Event as DcaEvent, Order, Permill, ScheduleId,
 };
 use frame_support::assert_ok;
 use frame_support::traits::OnInitialize;
@@ -32,7 +32,6 @@ use pretty_assertions::assert_eq;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
-use sp_runtime::DispatchError::BadOrigin;
 use std::borrow::Borrow;
 use std::ops::RangeInclusive;
 
@@ -264,7 +263,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 3 * ONE + ONE / 2;
-			let amount_to_sell = 1 * ONE;
+			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -308,7 +307,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let amount_to_sell = 1 * ONE;
+			let amount_to_sell = ONE;
 			let total_amount = amount_to_sell + FEE_FOR_ONE_DCA_EXECUTION + FEE_FOR_ONE_DCA_EXECUTION / 2;
 
 			let schedule = ScheduleBuilder::new()
@@ -355,7 +354,7 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 3 * ONE + ONE / 2;
-			let amount_to_sell = 1 * ONE;
+			let amount_to_sell = ONE;
 
 			let schedule_for_alice = ScheduleBuilder::new()
 				.with_owner(ALICE)
@@ -1060,7 +1059,7 @@ fn native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 3 * ONE;
-			let amount_to_sell = 1 * ONE;
+			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)

@@ -48,7 +48,7 @@ use frame_support::{
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
 use hydradx_traits::pools::SpotPriceProvider;
-use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use hydradx_traits::router::PoolType;
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
@@ -595,7 +595,7 @@ where
 				let route = Self::convert_to_vec(route);
 
 				pallet_route_executor::Pallet::<T>::sell(
-					origin.clone(),
+					origin,
 					(*asset_in).into(),
 					(*asset_out).into(),
 					(amount_to_sell).into(),
@@ -623,7 +623,7 @@ where
 				let route = Self::convert_to_vec(route);
 
 				pallet_route_executor::Pallet::<T>::buy(
-					origin.clone(),
+					origin,
 					(*asset_in).into(),
 					(*asset_out).into(),
 					(*amount_out).into(),
@@ -701,7 +701,7 @@ where
 		let max_allowed_diff = schedule
 			.order
 			.get_slippage()
-			.unwrap_or(T::MaxPriceDifferenceBetweenBlocks::get());
+			.unwrap_or_else(T::MaxPriceDifferenceBetweenBlocks::get);
 
 		let max_allowed = FixedU128::from(max_allowed_diff);
 
@@ -942,7 +942,7 @@ where
 
 		let estimated_amount = price.checked_mul_int(amount).ok_or(ArithmeticError::Overflow)?;
 
-		let slippage_limit = slippage.unwrap_or(T::MaxPriceDifferenceBetweenBlocks::get());
+		let slippage_limit = slippage.unwrap_or_else(T::MaxPriceDifferenceBetweenBlocks::get);
 		let slippage_amount = slippage_limit.mul_floor(estimated_amount);
 
 		Ok((estimated_amount, slippage_amount))

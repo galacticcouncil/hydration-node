@@ -15,8 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![allow(clippy::result_large_err)]
+#![allow(dead_code)] //TODO: temp allow, remove before merging this PR
 
-use crate::{AccountId, AssetId, Balance, Currencies, Omnipool, Runtime, StableAssetId, Tokens};
+use crate::{AccountId, AssetId, Balance, Currencies, Omnipool, Runtime, Tokens};
 
 use super::*;
 
@@ -47,9 +48,9 @@ fn initialize_omnipool() -> DispatchResult {
 	let acc = Omnipool::protocol_account();
 
 	Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-	regi_asset(b"HDX".to_vec(), 1u128 * UNITS, HDX);
-	regi_asset(b"LRNA".to_vec(), 1u128 * UNITS, LRNA);
-	regi_asset(b"DAI".to_vec(), 1u128 * UNITS, DAI);
+	regi_asset(b"HDX".to_vec(), UNITS, HDX).map_err(|_| DispatchError::Other("Failed to register asset"))?;
+	regi_asset(b"LRNA".to_vec(), UNITS, LRNA).map_err(|_| DispatchError::Other("Failed to register asset"))?;
+	regi_asset(b"DAI".to_vec(), UNITS, DAI).map_err(|_| DispatchError::Other("Failed to register asset"))?;
 
 	//update_balance(StableAssetId::get(), &acc, stable_amount);
 	//update_balance(NativeAssetId::get(), &acc, native_amount);
@@ -204,8 +205,6 @@ where
 	Ok(caller)
 }
 
-use codec::alloc::string::ToString;
-use common_runtime::NativeAssetId;
 use frame_support::assert_ok;
 use frame_support::traits::Hooks;
 use hydradx_traits::router::PoolType;
@@ -213,7 +212,6 @@ use pallet_route_executor::Trade;
 use sp_runtime::traits::Get;
 use sp_runtime::{DispatchError, DispatchResult, FixedU128, Permill};
 use sp_std::vec;
-use xcm_builder::NativeAsset;
 
 const SEED: u32 = 1;
 pub const UNITS: Balance = 100_000_000_000;
@@ -279,7 +277,7 @@ runtime_benchmarks! {
 			asset_out: DAI
 		}];
 
-		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, HDX.into());
+		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, HDX);
 
 		let amount_to_sell = 10 * UNITS;
 	}: {
@@ -314,7 +312,7 @@ runtime_benchmarks! {
 
 #[cfg(test)]
 mod tests {
-	use super::mock::Test;
+	//use super::mock::Test;
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
 
@@ -329,5 +327,6 @@ mod tests {
 		super::mock::ExtBuilder::default().build()
 	}*/
 
-	impl_benchmark_test_suite!(super::mock::ExtBuilder::default().build(),);
+	impl_benchmark_test_suite!(new_test_ext(),);
+	//impl_benchmark_test_suite!(super::mock::ExtBuilder::default().build(),);
 }

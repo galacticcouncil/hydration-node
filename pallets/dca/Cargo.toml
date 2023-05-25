@@ -44,6 +44,9 @@ frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", b
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true}
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
 
+primitives = { path="../../primitives", default-features = false }
+
+
 [dev-dependencies]
 smallvec = "1.9.0"
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }

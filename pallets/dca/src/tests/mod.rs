@@ -74,9 +74,6 @@ impl ScheduleBuilder {
 		}
 	}
 }
-pub fn empty_vec() -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
-	create_bounded_vec(vec![])
-}
 
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();

@@ -342,7 +342,7 @@ parameter_types! {
 	pub MaxNumberOfTrades: u8 = 3;
 }
 
-type Pools = (OmniPool, XYK);
+type Pools = (OmniPool, Xyk);
 
 impl pallet_route_executor::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -356,11 +356,11 @@ impl pallet_route_executor::Config for Test {
 
 type OriginForRuntime = OriginFor<Test>;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
-pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 1 * ONE;
+pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = ONE;
 pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 10 * ONE;
 
 pub struct OmniPool;
-pub struct XYK;
+pub struct Xyk;
 
 impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool {
 	type Error = DispatchError;
@@ -431,9 +431,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		let amount_out = OMNIPOOL_SELL_CALCULATION_RESULT;
 
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}
@@ -477,9 +477,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
 
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}
@@ -488,14 +488,14 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 pub const XYK_SELL_CALCULATION_RESULT: Balance = ONE * 5 / 4;
 pub const XYK_BUY_CALCULATION_RESULT: Balance = ONE / 3;
 
-impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
+impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 	type Error = DispatchError;
 
 	fn calculate_sell(
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
-		amount_in: Balance,
+		_: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);
@@ -508,7 +508,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 		pool_type: PoolType<AssetId>,
 		_asset_in: AssetId,
 		_asset_out: AssetId,
-		amount_out: Balance,
+		_: Balance,
 	) -> Result<Balance, ExecutorError<Self::Error>> {
 		if !matches!(pool_type, PoolType::XYK) {
 			return Err(ExecutorError::NotSupported);
@@ -542,9 +542,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 		let amount_out = XYK_SELL_CALCULATION_RESULT;
 
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}
@@ -570,7 +570,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 					Ok(())
 				}
 			})
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 
 		BUY_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
@@ -585,9 +585,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 		let amount_in = XYK_BUY_CALCULATION_RESULT;
 
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
-			.map_err(|e| ExecutorError::Error(e))?;
+			.map_err(ExecutorError::Error)?;
 
 		Ok(())
 	}

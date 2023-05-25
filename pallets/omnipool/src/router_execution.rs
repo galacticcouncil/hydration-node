@@ -42,7 +42,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				},
 				current_hub_asset_liquidity,
 			)
-			.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 			return Ok(*state_changes.asset.delta_reserve);
 		}
@@ -56,7 +56,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			T::ProtocolFee::get(),
 			current_imbalance.value,
 		)
-		.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 		Ok(*state_changes.asset_out.delta_reserve)
 	}
@@ -91,7 +91,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 				},
 				current_hub_asset_liquidity,
 			)
-			.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+			.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 			return Ok(*state_changes.asset.delta_hub_reserve);
 		}
@@ -106,7 +106,7 @@ impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> 
 			T::ProtocolFee::get(),
 			current_imbalance.value,
 		)
-		.ok_or(ExecutorError::Error(ArithmeticError::Overflow.into()))?;
+		.ok_or_else(|| ExecutorError::Error(ArithmeticError::Overflow.into()))?;
 
 		Ok(*state_changes.asset_in.delta_reserve)
 	}

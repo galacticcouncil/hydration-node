@@ -2,7 +2,6 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use std::mem::size_of;
 
 use crate::{assert_balance, assert_reserved_balance};
 use frame_system::RawOrigin;
@@ -14,11 +13,10 @@ use hydradx_runtime::Tokens;
 use hydradx_traits::router::PoolType;
 use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
-use pallet_dca::types::{Order, Schedule, ScheduleId};
+use pallet_dca::types::{Order, Schedule};
 use pallet_route_executor::Trade;
 use polkadot_primitives::v2::BlockNumber;
 use primitives::{AssetId, Balance};
-use sp_core::MaxEncodedLen;
 use sp_runtime::traits::ConstU32;
 use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
