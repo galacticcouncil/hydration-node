@@ -357,7 +357,7 @@ parameter_types! {
 
 // pallet dca
 parameter_types! {
-	pub StorageBondInNativeCurrency: Balance = 100 * UNITS;
+	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
 	pub MaxSchedulesPerBlock: u32 = 20;
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
