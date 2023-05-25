@@ -179,6 +179,75 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 }
 
 #[test]
+fn sell_schedule_should_be_terminated_after_retries() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		let dca_budget = 1100 * UNITS;
+		let amount_to_sell = 100 * UNITS;
+		let schedule1 = Schedule {
+			owner: AccountId::from(ALICE),
+			period: 1u32,
+			total_amount: dca_budget,
+			order: Order::Sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: amount_to_sell,
+				min_limit: Balance::MAX,
+				slippage: Some(Permill::from_percent(1)),
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				}]),
+			},
+		};
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+
+		//Act and Assert
+		set_relaychain_block_number(11);
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - DCA_EXECUTION_FEE);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(0).unwrap(), 1);
+
+		set_relaychain_block_number(12);
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * DCA_EXECUTION_FEE);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(0).unwrap(), 2);
+
+		set_relaychain_block_number(13);
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * DCA_EXECUTION_FEE);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(0).unwrap(), 3);
+
+		//At this point, the schedule will be terminated as retries max number of times
+		set_relaychain_block_number(14);
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * DCA_EXECUTION_FEE);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
+		let schedule = hydradx_runtime::DCA::schedules(0);
+		assert!(schedule.is_none());
+	});
+}
+
+#[test]
 fn sell_schedule_execution_should_completed_after_one_trade_when_total_amount_is_amount_in_plus_fee() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
