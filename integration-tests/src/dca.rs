@@ -94,6 +94,71 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 }
 
 #[test]
+fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let dca_budget = 1000 * UNITS;
+
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+		let amount_out = 100 * UNITS;
+		let schedule1 = Schedule {
+			owner: AccountId::from(ALICE),
+			period: 1u32,
+			total_amount: dca_budget,
+			order: Order::Buy {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_out,
+				max_limit: Balance::MIN,
+				slippage: Some(Permill::from_percent(5)),
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				}]),
+			},
+		};
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+
+		//Act and assert
+		let schedule_id = 0;
+		set_relaychain_block_number(11);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - DCA_EXECUTION_FEE);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 1);
+
+		set_relaychain_block_number(12);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * DCA_EXECUTION_FEE);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 2);
+
+		set_relaychain_block_number(13);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * DCA_EXECUTION_FEE);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 3);
+
+		//After this retry we terminate
+		set_relaychain_block_number(14);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 4 * DCA_EXECUTION_FEE);
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
+		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
+		assert!(schedule.is_none());
+	});
+}
+
+#[test]
 fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -218,31 +283,33 @@ fn sell_schedule_should_be_terminated_after_retries() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act and Assert
+		let schedule_id = 0;
+
 		set_relaychain_block_number(11);
 
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - DCA_EXECUTION_FEE);
-		assert_eq!(hydradx_runtime::DCA::retries_on_error(0).unwrap(), 1);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 1);
 
 		set_relaychain_block_number(12);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * DCA_EXECUTION_FEE);
-		assert_eq!(hydradx_runtime::DCA::retries_on_error(0).unwrap(), 2);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 2);
 
 		set_relaychain_block_number(13);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * DCA_EXECUTION_FEE);
-		assert_eq!(hydradx_runtime::DCA::retries_on_error(0).unwrap(), 3);
+		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 3);
 
 		//At this point, the schedule will be terminated as retries max number of times
 		set_relaychain_block_number(14);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * DCA_EXECUTION_FEE);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
-		let schedule = hydradx_runtime::DCA::schedules(0);
+		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
 		assert!(schedule.is_none());
 	});
 }
