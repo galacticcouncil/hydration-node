@@ -32,10 +32,10 @@ fn terminate_should_remove_schedule_from_storage() {
 			set_block_number(500);
 			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
 
 			//Assert
 			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
@@ -60,7 +60,7 @@ fn terminate_should_unreserve_all_named_reserved() {
 			let total_amount = 100 * ONE;
 			let schedule = ScheduleBuilder::new().with_total_amount(total_amount).build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
 
 			let schedule_id = 0;
 			assert_eq!(
@@ -69,7 +69,7 @@ fn terminate_should_unreserve_all_named_reserved() {
 			);
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
 
 			//Assert
 			assert_eq!(
@@ -92,8 +92,12 @@ fn terminate_should_unreserve_all_named_reserved_only_for_single_dca_when_there_
 			let schedule2 = ScheduleBuilder::new().with_total_amount(total_amount).build();
 			let total_reserved = total_amount * 2;
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(700)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule2,
+				Option::Some(700)
+			));
 
 			let schedule_id = 0;
 			assert_eq!(
@@ -102,7 +106,7 @@ fn terminate_should_unreserve_all_named_reserved_only_for_single_dca_when_there_
 			);
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
 
 			//Assert
 			assert_eq!(
@@ -122,10 +126,10 @@ fn terminate_should_remove_planned_execution_when_there_is_only_single_execution
 			set_block_number(500);
 			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(600)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
 
 			//Assert
 			assert!(DCA::schedule_ids_per_block(600).is_empty());
@@ -145,11 +149,19 @@ fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_exe
 			let schedule_id = 0;
 			let block = 600;
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(block)));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(block)));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule,
+				Option::Some(block)
+			));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule2,
+				Option::Some(block)
+			));
 
 			//Act
-			assert_ok!(DCA::terminate(Origin::root(), schedule_id, block));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, block));
 
 			//Assert
 			assert_scheduled_ids!(block, vec![1]);
@@ -166,10 +178,10 @@ fn terminate_should_pass_when_called_by_owner() {
 			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_ok!(DCA::terminate(Origin::signed(ALICE), schedule_id, 501));
+			assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE), schedule_id, 501));
 		});
 }
 
@@ -183,11 +195,11 @@ fn terminate_should_fail_when_called_by_non_owner() {
 			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(Origin::signed(BOB), schedule_id, 501),
+				DCA::terminate(RuntimeOrigin::signed(BOB), schedule_id, 501),
 				Error::<Test>::Forbidden
 			);
 		});
@@ -203,10 +215,10 @@ fn terminate_should_fail_when_called_by_non_signed() {
 			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_noop!(DCA::terminate(Origin::none(), schedule_id, 500), BadOrigin);
+			assert_noop!(DCA::terminate(RuntimeOrigin::none(), schedule_id, 500), BadOrigin);
 		});
 }
 
@@ -220,10 +232,10 @@ fn terminate_should_pass_when_called_by_technical_origin() {
 			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_ok!(DCA::terminate(Origin::root(), schedule_id, 501));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 501));
 		});
 }
 
@@ -237,11 +249,11 @@ fn terminate_should_fail_when_no_planned_execution_in_block() {
 			let schedule = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(Origin::root(), schedule_id, 9999),
+				DCA::terminate(RuntimeOrigin::root(), schedule_id, 9999),
 				Error::<Test>::ScheduleNotFound
 			);
 		});
@@ -258,12 +270,16 @@ fn terminate_should_fail_when_there_is_planned_execution_in_block_not_not_for_sc
 			let schedule2 = ScheduleBuilder::new().build();
 			set_block_number(500);
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(1000)));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule,
+				Option::Some(1000)
+			));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule2, Option::None));
 
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(Origin::root(), schedule_id, 501),
+				DCA::terminate(RuntimeOrigin::root(), schedule_id, 501),
 				Error::<Test>::ScheduleNotFound
 			);
 		});
@@ -277,7 +293,7 @@ fn terminate_should_fail_when_with_nonexisting_schedule() {
 		.execute_with(|| {
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(Origin::root(), 999, 501),
+				DCA::terminate(RuntimeOrigin::root(), 999, 501),
 				Error::<Test>::ScheduleNotFound
 			);
 		});

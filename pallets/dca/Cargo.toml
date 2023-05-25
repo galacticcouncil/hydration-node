@@ -8,52 +8,53 @@ license = 'Apache 2.0'
 repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-executor"
 
 [dependencies]
+
 log = { version = "0.4.17", default-features = false }
 rand = { version = "0.8.4", default-features = false }
 
 # parity
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.1.5" }
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 
 # primitives
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false}
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false, optional = true }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
 # FRAME
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
 # HydraDX dependencies
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
-hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
-pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
 pallet-omnipool = { path="../omnipool", default-features = false }
 pallet-circuit-breaker = { path="../circuit-breaker", default-features = false }
-pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
-pallet-route-executor =  { git = "https://github.com/galacticcouncil/warehouse", rev = "e69d9d262ba07bbb508729ebdeba73455d50d12f", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
+hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
+pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
+pallet-ema-oracle =  { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
+pallet-route-executor =  { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "84632c3c7b71e16d53240e4bdc2adc693c941916", default-features = false }
+hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "35e5c0775a07e057ed5247ba96dfa254d691f034", default-features = false }
 
 # ORML dependencies
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", default-features = false }
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 
 # Optional imports for benchmarking
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
-frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false , optional = true}
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true}
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
 
 [dev-dependencies]
 smallvec = "1.9.0"
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
-pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "6b855e632e8f8179702b7c56d6be7535c394dbcf" }
-lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
-sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29"}
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.29", features=["std"]}
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+pallet-currencies = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
+lazy_static = { features = ["spin_no_std"], version = "1.4.0", default-features = false }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false}
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false, features=["std"]}
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "6b855e632e8f8179702b7c56d6be7535c394dbcf" }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
 test-case = "2.2.2"
 primitive-types = { version = "0.12.0", default-features = false }
 
@@ -64,14 +65,20 @@ std = [
   'frame-support/std',
   'frame-system/std',
   'sp-runtime/std',
+  'sp-std/std',
   'sp-core/std',
   'sp-io/std',
-  'sp-std/std',
   "scale-info/std",
   "orml-tokens/std",
+  "frame-benchmarking/std",
+  "frame-system-benchmarking/std",
   "hydradx-traits/std",
+  "hydra-dx-math/std",
+  "hydradx-adapters/std",
+  "orml-traits/std",
   "pallet-relaychain-info/std",
   "orml-tokens/std",
+  "pallet-omnipool/std",
   "pallet-ema-oracle/std",
   "pallet-circuit-breaker/std",
   "pallet-route-executor/std",

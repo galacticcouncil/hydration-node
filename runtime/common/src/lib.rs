@@ -32,7 +32,7 @@ pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
-	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
+	traits::{AccountIdConversion, BlakeTwo256, Bounded, IdentifyAccount, Verify},
 	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
@@ -118,14 +118,6 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	]
 }
 
-pub struct DustRemovalWhitelist;
-
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-	}
-}
-
 pub struct CircuitBreakerWhitelist;
 
 impl Contains<AccountId> for CircuitBreakerWhitelist {
@@ -173,6 +165,8 @@ parameter_types! {
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+	/// The maximum amount of the multiplier.
+	pub MaximumMultiplier: Multiplier = Bounded::max_value();
 }
 
 // pallet treasury
@@ -207,7 +201,6 @@ parameter_types! {
 
 // pallet preimage
 parameter_types! {
-	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub PreimageByteDeposit: Balance = deposit(0, 1);
 }
@@ -362,4 +355,15 @@ parameter_types! {
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u32 = 3;
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn democracy_periods() {
+		// Make sure VoteLockingPeriod > EnactmentPeriod
+		assert!(VoteLockingPeriod::get() > EnactmentPeriod::get());
+	}
 }

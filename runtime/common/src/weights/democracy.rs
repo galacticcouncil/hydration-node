@@ -55,21 +55,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
-	fn second(s: u32) -> Weight {
-		Weight::from_ref_time(49_173_000 as u64) // Standard Error: 4_000
-			.saturating_add(Weight::from_ref_time(139_000 as u64).saturating_mul(s as u64))
+	fn second() -> Weight {
+		Weight::from_ref_time(49_764_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
-	fn vote_new(r: u32) -> Weight {
-		Weight::from_ref_time(61_685_000 as u64) // Standard Error: 4_000
-			.saturating_add(Weight::from_ref_time(198_000 as u64).saturating_mul(r as u64))
+	fn vote_new() -> Weight {
+		Weight::from_ref_time(61_389_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
-	fn vote_existing(r: u32) -> Weight {
-		Weight::from_ref_time(61_711_000 as u64) // Standard Error: 4_000
-			.saturating_add(Weight::from_ref_time(199_000 as u64).saturating_mul(r as u64))
+	fn vote_existing() -> Weight {
+		Weight::from_ref_time(61_282_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -78,15 +75,13 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn blacklist(p: u32) -> Weight {
-		Weight::from_ref_time(60_874_000 as u64) // Standard Error: 54_000
-			.saturating_add(Weight::from_ref_time(636_000 as u64).saturating_mul(p as u64))
-			.saturating_add(T::DbWeight::get().reads(4 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	fn blacklist() -> Weight {
+		Weight::from_ref_time(91_733_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
-	fn external_propose(v: u32) -> Weight {
-		Weight::from_ref_time(21_692_000 as u64) // Standard Error: 1_000
-			.saturating_add(Weight::from_ref_time(19_000 as u64).saturating_mul(v as u64))
+	fn external_propose() -> Weight {
+		Weight::from_ref_time(19_914_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -101,26 +96,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
-	fn veto_external(v: u32) -> Weight {
-		Weight::from_ref_time(33_211_000 as u64) // Standard Error: 1_000
-			.saturating_add(Weight::from_ref_time(42_000 as u64).saturating_mul(v as u64))
+	fn veto_external() -> Weight {
+		Weight::from_ref_time(31_770_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn cancel_proposal(p: u32) -> Weight {
-		Weight::from_ref_time(68_386_000 as u64) // Standard Error: 7_000
-			.saturating_add(Weight::from_ref_time(300_000 as u64).saturating_mul(p as u64))
-			.saturating_add(T::DbWeight::get().reads(4 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	fn cancel_proposal() -> Weight {
+		Weight::from_ref_time(78_943_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	fn cancel_referendum() -> Weight {
 		Weight::from_ref_time(22_625_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	fn cancel_queued(r: u32) -> Weight {
-		Weight::from_ref_time(37_548_000 as u64) // Standard Error: 7_000
-			.saturating_add(Weight::from_ref_time(2_128_000 as u64).saturating_mul(r as u64))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn on_initialize_base(r: u32) -> Weight {
 		Weight::from_ref_time(12_636_000 as u64) // Standard Error: 10_000
@@ -154,24 +141,6 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	}
 	fn clear_public_proposals() -> Weight {
 		Weight::from_ref_time(10_628_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	fn note_preimage(b: u32) -> Weight {
-		Weight::from_ref_time(37_906_000 as u64) // Standard Error: 0
-			.saturating_add(Weight::from_ref_time(3_000 as u64).saturating_mul(b as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	fn note_imminent_preimage(b: u32) -> Weight {
-		Weight::from_ref_time(34_891_000 as u64) // Standard Error: 0
-			.saturating_add(Weight::from_ref_time(2_000 as u64).saturating_mul(b as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	fn reap_preimage(b: u32) -> Weight {
-		Weight::from_ref_time(45_519_000 as u64) // Standard Error: 0
-			.saturating_add(Weight::from_ref_time(2_000 as u64).saturating_mul(b as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn unlock_remove(r: u32) -> Weight {
 		Weight::from_ref_time(46_945_000 as u64) // Standard Error: 1_000

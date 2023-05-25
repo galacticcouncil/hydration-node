@@ -15,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate as dca;
-use crate::{Config, Error};
 use frame_support::traits::{Contains, Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
@@ -30,20 +28,19 @@ use frame_system::{ensure_signed, EnsureRoot};
 use hydradx_traits::{OraclePeriod, PriceOracle, Registry};
 use orml_traits::parameter_type_with_key;
 use pallet_currencies::BasicCurrencyAdapter;
-use primitive_types::U128;
 use sp_core::H256;
 use sp_runtime::traits::{AccountIdConversion, BlockNumberProvider, ConstU32};
-use sp_runtime::Perbill;
 use sp_runtime::Permill;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, One},
 	DispatchError,
 };
+use sp_runtime::{Perbill, Rounding};
 
 use hydradx_adapters::inspect::MultiInspectAdapter;
 
-use hydra_dx_math::support::rational::{round_to_rational, Rounding};
+use hydra_dx_math::support::rational::round_to_rational;
 use sp_runtime::traits::Zero;
 use sp_runtime::{DispatchResult, FixedU128};
 use std::cell::RefCell;
@@ -78,7 +75,7 @@ frame_support::construct_runtime!(
 	 UncheckedExtrinsic = UncheckedExtrinsic,
 	 {
 		 System: frame_system,
-		 DCA: dca,
+		 DCA: pallet_dca,
 		 Tokens: orml_tokens,
 		 RouteExecutor: pallet_route_executor,
 		 Omnipool: pallet_omnipool,
@@ -88,11 +85,6 @@ frame_support::construct_runtime!(
 		 EmaOracle: pallet_ema_oracle,
 	 }
 );
-
-lazy_static::lazy_static! {
-	pub static ref ORIGINAL_MIN_BUDGET_IN_NATIVE: Balance = 2_000_000;
-	pub static ref ORIGINAL_MAX_PRICE_DIFFERENCE: Permill = Permill::from_percent(10);
-}
 
 thread_local! {
 	pub static POSITIONS: RefCell<HashMap<u32, u64>> = RefCell::new(HashMap::default());
@@ -105,11 +97,11 @@ thread_local! {
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
-	pub static MIN_BUDGET: RefCell<Balance> = RefCell::new(*ORIGINAL_MIN_BUDGET_IN_NATIVE);
+	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(2_000_000);
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
-	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
+	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(Permill::from_percent(10));
 	pub static INVALID_BUY_AMOUNT: RefCell<Balance> = RefCell::new(INVALID_BUY_AMOUNT_VALUE);
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 
@@ -141,7 +133,7 @@ parameter_types! {
 }
 
 impl pallet_ema_oracle::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type WeightInfo = ();
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
@@ -165,8 +157,8 @@ impl system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
+	type Origin = Origin;
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -174,7 +166,7 @@ impl system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = ();
 	type Version = ();
@@ -197,17 +189,19 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type Balance = Balance;
 	type Amount = Amount;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Nothing;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
 	type ReserveIdentifier = NamedReserveIdentifier;
 	type MaxReserves = MaxReserves;
-	type CurrencyHooks = ();
 }
 
 parameter_types! {
@@ -234,7 +228,7 @@ parameter_types! {
 }
 
 impl pallet_omnipool::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Currencies;
@@ -270,17 +264,7 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 		let asset_state = Omnipool::load_asset_state(asset_b)?;
 		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
 
-		let adjusted_price = WITHDRAWAL_ADJUSTMENT.with(|v| {
-			let (n, d, neg) = *v.borrow();
-			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
-			if neg {
-				saturating_sub(price, adjustment)
-			} else {
-				saturating_add(price, adjustment)
-			}
-		});
-
-		Ok(adjusted_price)
+		Ok(price)
 	}
 
 	fn get_price_weight() -> Weight {
@@ -319,7 +303,7 @@ impl WeightToFeePolynomial for WeightToFee {
 impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type Balance = Balance;
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Pallet<Test>;
@@ -329,7 +313,7 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_currencies::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
 	type GetNativeCurrencyId = NativeCurrencyId;
@@ -345,7 +329,7 @@ parameter_types! {
 type Pools = (OmniPool, XYK);
 
 impl pallet_route_executor::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type MaxNumberOfTrades = MaxNumberOfTrades;
@@ -426,13 +410,13 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		});
 
 		let Ok(who) =  ensure_signed(who) else {
-			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
+			return Err(ExecutorError::Error(pallet_dca::Error::<Test>::InvalidState.into()));
 		};
 		let amount_out = OMNIPOOL_SELL_CALCULATION_RESULT;
 
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+		Currencies::transfer(Origin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
 			.map_err(|e| ExecutorError::Error(e))?;
 
 		Ok(())
@@ -471,15 +455,52 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			});
 		});
 
+		/*let mut set_omnipool_on = true;
+		SET_OMNIPOOL_ON.with(|v| {
+			let omnipool_on = v.borrow_mut();
+			set_omnipool_on = *omnipool_on;
+		});
+		if set_omnipool_on {
+			Omnipool::buy(origin, asset_out, asset_in, amount_out, max_limit).map_err(|e| ExecutorError::Error(e))?;
+		} else {
+			let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
+
+			Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+				.map_err(|e| ExecutorError::Error(e))?;
+			Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+				.map_err(|e| ExecutorError::Error(e))?;
+		}*/
+
 		let Ok(who) =  ensure_signed(origin) else {
-			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
+		let Ok(who) =  ensure_signed(origin) else {
+			return Err(ExecutorError::Error(pallet_dca::Error::<Test>::InvalidState.into()));
 		};
 		let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
 
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(RuntimeOrigin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+		Currencies::transfer(Origin::signed(who), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
 			.map_err(|e| ExecutorError::Error(e))?;
+
+		Ok(())
+	}
+}
+impl OmniPool {
+	fn execute_trade_in_omnipool(
+		origin: Origin,
+		asset_in: AssetId,
+		asset_out: AssetId,
+		amount: Balance,
+		min_buy_amount: Balance,
+	) -> DispatchResult {
+		let mut set_omnipool_on = true;
+		SET_OMNIPOOL_ON.with(|v| {
+			let omnipool_on = v.borrow_mut();
+			set_omnipool_on = *omnipool_on;
+		});
+		if set_omnipool_on {
+			Omnipool::sell(origin, asset_in, asset_out, amount, min_buy_amount)?;
+		}
 
 		Ok(())
 	}
@@ -541,9 +562,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 
 		let amount_out = XYK_SELL_CALCULATION_RESULT;
 
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
 			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+		Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
 			.map_err(|e| ExecutorError::Error(e))?;
 
 		Ok(())
@@ -584,9 +605,9 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for XYK {
 
 		let amount_in = XYK_BUY_CALCULATION_RESULT;
 
-		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
+		Currencies::transfer(Origin::signed(ASSET_PAIR_ACCOUNT), ALICE, asset_out, amount_out)
 			.map_err(|e| ExecutorError::Error(e))?;
-		Currencies::transfer(RuntimeOrigin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
+		Currencies::transfer(Origin::signed(ALICE), ASSET_PAIR_ACCOUNT, asset_in, amount_in)
 			.map_err(|e| ExecutorError::Error(e))?;
 
 		Ok(())
@@ -604,7 +625,7 @@ impl BlockNumberProvider for BlockNumberProviderMock {
 }
 
 impl pallet_relaychain_info::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type Event = Event;
 	type RelaychainBlockNumberProvider = BlockNumberProviderMock;
 }
 
@@ -634,19 +655,19 @@ impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
-	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
+	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
 	pub MaxNumberOfRetriesOnError: u32 = 3;
 }
 
-impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+impl pallet_dca::Config for Test {
+	type Event = Event;
 	type Asset = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
-	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
+	type MinBudgetInNativeCurrency = StorageBondInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
 	type FeeReceiver = TreasuryAccount;
@@ -668,7 +689,7 @@ impl Contains<DispatchError> for ContinueOnErrorsListMock {
 		vec![
 			pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
 			pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
-			pallet_route_executor::Error::<Test>::TradingLimitReached.into(),
+			pallet_route_executor::Error::<Test>::TradingLimitReached.into(), //TODO: Danie - remove the rest of the errors, not relevant if all is fine?!
 		]
 		.contains(e)
 	}
@@ -682,6 +703,7 @@ use hydra_dx_math::to_u128_wrapper;
 use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
+use pallet_dca::pallet;
 use pallet_omnipool::traits::ExternalPriceProvider;
 use smallvec::smallvec;
 
@@ -733,26 +755,26 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
-impl<T: Config> Registry<T::AssetId, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
+impl<T: pallet_dca::Config> Registry<T::Asset, Vec<u8>, Balance, DispatchError> for DummyRegistry<T>
 where
-	T::AssetId: Into<AssetId> + From<u32>,
+	T::Asset: Into<AssetId> + From<u32>,
 {
-	fn exists(asset_id: T::AssetId) -> bool {
+	fn exists(asset_id: T::Asset) -> bool {
 		let asset = REGISTERED_ASSETS.with(|v| v.borrow().get(&(asset_id.into())).copied());
 		matches!(asset, Some(_))
 	}
 
-	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::AssetId, DispatchError> {
-		Ok(1.into())
+	fn retrieve_asset(_name: &Vec<u8>) -> Result<T::Asset, DispatchError> {
+		Ok(T::Asset::default())
 	}
 
-	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::AssetId, DispatchError> {
+	fn create_asset(_name: &Vec<u8>, _existential_deposit: Balance) -> Result<T::Asset, DispatchError> {
 		let assigned = REGISTERED_ASSETS.with(|v| {
 			let l = v.borrow().len();
 			v.borrow_mut().insert(l as u32, l as u32);
 			l as u32
 		});
-		Ok(T::AssetId::from(assigned))
+		Ok(T::Asset::from(assigned))
 	}
 }
 
@@ -768,6 +790,7 @@ pub struct ExtBuilder {
 	register_stable_asset: bool,
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
+	omnipool_trade: bool,
 	max_price_difference: Permill,
 	invalid_buy_amount: Balance,
 }
@@ -791,6 +814,7 @@ impl Default for ExtBuilder {
 			init_pool: None,
 			register_stable_asset: true,
 			pool_tokens: vec![],
+			omnipool_trade: false,
 			max_price_difference: Permill::from_percent(10),
 			invalid_buy_amount: INVALID_BUY_AMOUNT_VALUE,
 		}
@@ -808,6 +832,12 @@ impl ExtBuilder {
 		self
 	}
 
+	#[allow(dead_code)] //This is used only in benchmark but it complains with warning
+	pub fn with_omnipool_trade(mut self, omnipool_is_on: bool) -> Self {
+		self.omnipool_trade = omnipool_is_on;
+		self
+	}
+
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		// Add DAi and HDX as pre-registered assets
@@ -820,6 +850,10 @@ impl ExtBuilder {
 			self.registered_assets.iter().for_each(|asset| {
 				v.borrow_mut().insert(*asset, *asset);
 			});
+		});
+
+		SET_OMNIPOOL_ON.with(|v| {
+			*v.borrow_mut() = self.omnipool_trade;
 		});
 
 		INVALID_BUY_AMOUNT.with(|v| {
@@ -864,10 +898,10 @@ impl ExtBuilder {
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
-				assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
+				assert_ok!(Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
 
 				assert_ok!(Omnipool::initialize_pool(
-					RuntimeOrigin::root(),
+					Origin::root(),
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
@@ -876,13 +910,13 @@ impl ExtBuilder {
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
-						RuntimeOrigin::signed(owner),
+						Origin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
 					assert_ok!(Omnipool::add_token(
-						RuntimeOrigin::root(),
+						Origin::root(),
 						asset_id,
 						price,
 						self.asset_weight_cap,
@@ -900,72 +934,4 @@ pub fn set_invalid_buy_amount(amount: Balance) {
 	INVALID_BUY_AMOUNT.with(|v| {
 		*v.borrow_mut() = amount;
 	});
-}
-
-pub fn expect_events(e: Vec<RuntimeEvent>) {
-	test_utils::expect_events::<RuntimeEvent, Test>(e);
-}
-
-#[macro_export]
-macro_rules! assert_executed_sell_trades {
-	($expected_trades:expr) => {{
-		SELL_EXECUTIONS.borrow().with(|v| {
-			let trades = v.borrow().clone();
-			assert_eq!(trades, $expected_trades);
-		});
-	}};
-}
-
-#[macro_export]
-macro_rules! assert_executed_buy_trades {
-	($expected_trades:expr) => {{
-		BUY_EXECUTIONS.borrow().with(|v| {
-			let trades = v.borrow().clone();
-			assert_eq!(trades, $expected_trades);
-		});
-	}};
-}
-
-#[macro_export]
-macro_rules! assert_number_of_executed_buy_trades {
-	($number_of_trades:expr) => {{
-		BUY_EXECUTIONS.borrow().with(|v| {
-			let trades = v.borrow().clone();
-			assert_eq!(trades.len(), $number_of_trades);
-		});
-	}};
-}
-
-#[macro_export]
-macro_rules! assert_number_of_executed_sell_trades {
-	($number_of_trades:expr) => {{
-		SELL_EXECUTIONS.borrow().with(|v| {
-			let trades = v.borrow().clone();
-			assert_eq!(trades.len(), $number_of_trades);
-		});
-	}};
-}
-
-pub(super) fn saturating_add(l: EmaPrice, r: EmaPrice) -> EmaPrice {
-	if l.n.is_zero() || r.n.is_zero() {
-		return EmaPrice::new(l.n, l.d);
-	}
-	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
-	// n = l.n * r.d - r.n * l.d
-	let n = l_n.full_mul(r_d).saturating_add(r_n.full_mul(l_d));
-	// d = l.d * r.d
-	let d = l_d.full_mul(r_d);
-	round_to_rational((n, d), Rounding::Nearest).into()
-}
-
-pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> EmaPrice {
-	if l.n.is_zero() || r.n.is_zero() {
-		return EmaPrice::new(l.n, l.d);
-	}
-	let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
-	// n = l.n * r.d - r.n * l.d
-	let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
-	// d = l.d * r.d
-	let d = l_d.full_mul(r_d);
-	round_to_rational((n, d), Rounding::Nearest).into()
 }

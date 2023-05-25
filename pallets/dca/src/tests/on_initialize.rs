@@ -65,7 +65,7 @@ fn successfull_dca_execution_should_emit_trade_executed_event() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -118,7 +118,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -167,7 +167,7 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -225,7 +225,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -283,7 +283,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -328,7 +328,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -393,8 +393,16 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_for_alice, Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(BOB), schedule_for_bob, Option::None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule_for_alice,
+				Option::None
+			));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(BOB),
+				schedule_for_bob,
+				Option::None
+			));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &BOB));
 
@@ -444,8 +452,12 @@ fn multiple_sell_dca_should_be_completed_for_one_user() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule.clone(), Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount + total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -492,7 +504,7 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -536,7 +548,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -580,7 +592,7 @@ fn one_buy_dca_execution_should_use_default_max_price_diff_for_max_limit_calcula
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -631,7 +643,7 @@ fn schedule_is_planned_for_next_block_when_one_execution_finished() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -654,13 +666,13 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 			let schedule_id = 0;
 			let schedule = ScheduleBuilder::new().with_period(ONE_HUNDRED_BLOCKS).build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(601)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(601)));
 
 			proceed_to_blocknumber(1, 500);
 			let schedule_id_2 = 1;
 			let schedule_2 = ScheduleBuilder::new().with_period(ONE_HUNDRED_BLOCKS).build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule_2, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -695,7 +707,7 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			set_to_blocknumber(501);
 
@@ -752,7 +764,7 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 
 			let schedule_id = 0;
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(Currencies::reserved_balance(HDX, &ALICE), total_amount);
 			assert_eq!(DCA::remaining_amounts(schedule_id).unwrap(), total_amount);
 
@@ -797,7 +809,7 @@ fn dca_schedule_should_terminate_when_error_is_not_configured_to_continue_on() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -836,7 +848,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
 			let schedule_id = 0;
@@ -879,7 +891,7 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
 			let schedule_id = 0;
@@ -927,7 +939,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
@@ -972,7 +984,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
@@ -1020,7 +1032,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			assert_balance!(TreasuryAccount::get(), DAI, 0);
@@ -1067,7 +1079,7 @@ fn native_execution_fee_should_be_taken_and_sent_to_treasury() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 			assert_balance!(TreasuryAccount::get(), HDX, 0);
 
@@ -1112,7 +1124,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_bigger_than_specified_t
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -1153,7 +1165,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -1197,7 +1209,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(501)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(501)));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -1246,7 +1258,7 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -1294,7 +1306,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -1346,12 +1358,12 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			for _ in RangeInclusive::new(1, 120) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(502)));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(502)));
 			}
 
 			//Act
@@ -1400,12 +1412,12 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(501)));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(501)));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			for _ in RangeInclusive::new(1, 120) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(502)));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(502)));
 			}
 
 			//Act
@@ -1448,7 +1460,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 
 			for _ in RangeInclusive::new(1, 120) {
 				assert_ok!(DCA::schedule(
-					Origin::signed(ALICE),
+					RuntimeOrigin::signed(ALICE),
 					schedule.clone(),
 					Option::Some(501)
 				));
@@ -1513,7 +1525,7 @@ fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_eq
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -1553,7 +1565,7 @@ fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_
 				})
 				.build();
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			Currencies::unreserve_named(&NamedReserveId::get(), HDX, &ALICE, ONE / 2);
 

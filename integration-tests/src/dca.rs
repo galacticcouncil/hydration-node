@@ -9,7 +9,7 @@ use frame_system::RawOrigin;
 use hydradx_runtime::Balances;
 use hydradx_runtime::Currencies;
 use hydradx_runtime::Omnipool;
-use hydradx_runtime::Origin;
+use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::Tokens;
 use hydradx_traits::router::PoolType;
 use orml_traits::MultiCurrency;
@@ -24,8 +24,8 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
-const DCA_EXECUTION_FEE: Balance = 3_164_751_210_918;
-const DCA_EXECUTION_FEE_IN_LRNA: Balance = 6_329_502_411_723;
+const DCA_EXECUTION_FEE: Balance = 2735493790063;
+const DCA_EXECUTION_FEE_IN_LRNA: Balance = 5_470_987_571_384;
 
 #[test]
 fn create_schedule_should_work() {
@@ -42,7 +42,7 @@ fn create_schedule_should_work() {
 
 		//Act
 		assert_ok!(hydradx_runtime::DCA::schedule(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			schedule1,
 			None
 		));
@@ -81,7 +81,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 143585845642038;
+		let amount_to_unreserve_for_trade = 143156588221183;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -125,7 +125,7 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 76504942495341;
+		let amount_to_unreserve_for_trade = 75646427655002;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
@@ -147,7 +147,7 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 		init_omnipool_with_oracle_for_block_10();
 		let alice_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			alice_init_hdx_balance,
 			0,
@@ -188,7 +188,7 @@ fn sell_schedule_execution_should_completed_after_one_trade_when_total_amount_is
 		init_omnipool_with_oracle_for_block_10();
 		let alice_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			alice_init_hdx_balance,
 			0,
@@ -297,7 +297,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		run_to_block(11, 40);
 
 		//Assert
-		let over_reservation_left_over = 138_484_725_617_453; //Because the remaining budget for the last trade is not enough, so it is returned
+		let over_reservation_left_over = 138324776352520; //Because the remaining budget for the last trade is not enough, so it is returned
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
 		assert_balance!(
 			ALICE.into(),
@@ -307,7 +307,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let fees = 18988507265508;
+		let fees = 19148456530441;
 		assert_balance!(
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,
@@ -326,7 +326,7 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		//Arrange
 		let alice_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			alice_init_hdx_balance,
 			0,
@@ -373,7 +373,7 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		//Arrange
 		let alice_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			alice_init_hdx_balance,
 			0,
@@ -381,7 +381,7 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 
 		let bob_init_hdx_balance = 5000 * UNITS;
 		assert_ok!(hydradx_runtime::Balances::set_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			BOB.into(),
 			bob_init_hdx_balance,
 			0,
@@ -445,7 +445,7 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		//Arrange
 		let native_amount = 100000 * UNITS;
 		assert_ok!(Currencies::update_balance(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
 			HDX,
 			native_amount as i128,
@@ -510,7 +510,7 @@ fn calculate_storage_bond() {
 
 fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(hydradx_runtime::DCA::schedule(
-		hydradx_runtime::Origin::signed(owner.into()),
+		hydradx_runtime::RuntimeOrigin::signed(owner.into()),
 		schedule1,
 		None
 	));
@@ -603,7 +603,7 @@ pub fn init_omnipol() {
 	let stable_price = FixedU128::from_float(0.7);
 	let acc = hydradx_runtime::Omnipool::protocol_account();
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
 
 	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
 	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
@@ -615,14 +615,14 @@ pub fn init_omnipol() {
 		0
 	));
 	assert_ok!(Currencies::update_balance(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		acc,
 		HDX,
 		native_amount as i128,
 	));
 
 	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		stable_price,
 		native_price,
 		Permill::from_percent(60),
@@ -654,7 +654,7 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 	));
 
 	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
+		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 		LRNA,
 		asset_1,
 		amount,
@@ -662,7 +662,7 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 	));
 
 	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
+		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 		LRNA,
 		asset_2,
 		amount,
@@ -684,12 +684,12 @@ pub fn expect_schedule_ids_from_events(e: Vec<u32>) {
 }
 
 pub fn get_last_schedule_ids_from_trade_failed_events() -> Vec<u32> {
-	let last_events: Vec<hydradx_runtime::Event> = last_hydra_events(1000);
+	let last_events: Vec<hydradx_runtime::RuntimeEvent> = last_hydra_events(1000);
 	let mut schedule_ids = vec![];
 
 	for event in last_events {
 		let e = event.clone();
-		if let hydradx_runtime::Event::DCA(pallet_dca::Event::TradeFailed { id, .. }) = e {
+		if let hydradx_runtime::RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, .. }) = e {
 			schedule_ids.push(id);
 		}
 	}

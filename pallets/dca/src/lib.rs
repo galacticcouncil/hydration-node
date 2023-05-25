@@ -182,7 +182,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_relaychain_info::Config + pallet_route_executor::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Identifier for the class of asset.
 		type Asset: Member
@@ -195,7 +195,7 @@ pub mod pallet {
 			+ TypeInfo;
 
 		/// Origin able to terminate schedules
-		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
+		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		///For named-reserving user's assets
 		type Currencies: NamedMultiReservableCurrency<

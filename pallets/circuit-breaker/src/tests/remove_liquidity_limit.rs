@@ -155,7 +155,11 @@ fn ensure_and_update_liquidity_limit_should_work_when_liquidity_is_within_limit(
 fn ensure_and_update_liquidity_limit_should_not_throw_error_when_turned_off() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
-		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(Origin::root(), HDX, None,));
+		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			None,
+		));
 
 		assert_ok!(CircuitBreaker::calculate_and_store_liquidity_limits(
 			HDX,
@@ -184,7 +188,11 @@ fn ensure_and_update_liquidity_limit_should_not_throw_error_when_turned_off_afte
 			Error::<Test>::MaxLiquidityLimitPerBlockReached
 		);
 
-		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(Origin::root(), HDX, None,));
+		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			None,
+		));
 
 		// the struct is in the storage, but is ignored
 		assert!(CircuitBreaker::allowed_remove_liquidity_limit_per_asset(HDX).is_some());
@@ -276,7 +284,7 @@ fn set_liquidity_limit_should_work_when_signed_by_technical_origin() {
 		let new_limit = Some((7, 100));
 
 		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			HDX,
 			new_limit
 		));
@@ -296,7 +304,7 @@ fn set_liquidity_limit_should_fail_when_not_signed_by_technical_origin() {
 		let new_limit = Some((7, 100));
 
 		assert_noop!(
-			CircuitBreaker::set_remove_liquidity_limit(Origin::signed(ALICE), HDX, new_limit),
+			CircuitBreaker::set_remove_liquidity_limit(RuntimeOrigin::signed(ALICE), HDX, new_limit),
 			sp_runtime::DispatchError::BadOrigin
 		);
 	});
@@ -313,7 +321,7 @@ fn set_liquidity_limit_should_store_new_trade_volume_limit() {
 		let new_limit = Some((7, 100));
 
 		assert_ok!(CircuitBreaker::set_remove_liquidity_limit(
-			Origin::root(),
+			RuntimeOrigin::root(),
 			HDX,
 			new_limit
 		));
@@ -337,7 +345,7 @@ fn set_liquidity_limit_should_fail_when_setting_limit_for_omnipool_hub_asset() {
 
 		// Assert
 		assert_noop!(
-			CircuitBreaker::set_remove_liquidity_limit(Origin::root(), LRNA, Some(new_limit)),
+			CircuitBreaker::set_remove_liquidity_limit(RuntimeOrigin::root(), LRNA, Some(new_limit)),
 			Error::<Test>::NotAllowed
 		);
 	});
@@ -351,17 +359,17 @@ fn set_liquidity_limit_should_fail_if_limit_is_not_valid() {
 
 		// Assert
 		assert_noop!(
-			CircuitBreaker::set_remove_liquidity_limit(Origin::root(), HDX, Some(new_limit)),
+			CircuitBreaker::set_remove_liquidity_limit(RuntimeOrigin::root(), HDX, Some(new_limit)),
 			Error::<Test>::InvalidLimitValue
 		);
 
 		assert_noop!(
-			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (0, 100)),
+			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), HDX, (0, 100)),
 			Error::<Test>::InvalidLimitValue
 		);
 
 		assert_noop!(
-			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (100, 0)),
+			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), HDX, (100, 0)),
 			Error::<Test>::InvalidLimitValue
 		);
 	});

@@ -268,7 +268,11 @@ fn set_trade_volume_limit_should_work_when_signed_by_technical_origin() {
 		// Arrange & Act
 		let new_limit = (7, 100);
 
-		assert_ok!(CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, new_limit));
+		assert_ok!(CircuitBreaker::set_trade_volume_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			new_limit
+		));
 
 		expect_events(vec![crate::Event::TradeVolumeLimitChanged {
 			asset_id: HDX,
@@ -285,7 +289,7 @@ fn set_trade_volume_limit_should_fail_when_not_signed_by_technical_origin() {
 		let new_limit = (7, 100);
 
 		assert_noop!(
-			CircuitBreaker::set_trade_volume_limit(Origin::signed(ALICE), HDX, new_limit),
+			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::signed(ALICE), HDX, new_limit),
 			sp_runtime::DispatchError::BadOrigin
 		);
 	});
@@ -301,7 +305,11 @@ fn set_trade_volume_limit_should_store_new_trade_volume_limit() {
 		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), default_limit);
 		let new_limit = (7, 100);
 
-		assert_ok!(CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, new_limit));
+		assert_ok!(CircuitBreaker::set_trade_volume_limit(
+			RuntimeOrigin::root(),
+			HDX,
+			new_limit
+		));
 
 		// Assert
 		assert_eq!(CircuitBreaker::trade_volume_limit_per_asset(HDX), new_limit);
@@ -322,7 +330,7 @@ fn set_trade_volume_limit_should_fail_when_setting_limit_for_omnipool_hub_asset(
 
 		// Assert
 		assert_noop!(
-			CircuitBreaker::set_trade_volume_limit(Origin::root(), LRNA, new_limit),
+			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), LRNA, new_limit),
 			Error::<Test>::NotAllowed
 		);
 	});
@@ -336,17 +344,17 @@ fn set_trade_volume_limit_should_fail_if_limit_is_not_valid() {
 
 		// Assert
 		assert_noop!(
-			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, new_limit),
+			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), HDX, new_limit),
 			Error::<Test>::InvalidLimitValue
 		);
 
 		assert_noop!(
-			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (0, 100)),
+			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), HDX, (0, 100)),
 			Error::<Test>::InvalidLimitValue
 		);
 
 		assert_noop!(
-			CircuitBreaker::set_trade_volume_limit(Origin::root(), HDX, (100, 0)),
+			CircuitBreaker::set_trade_volume_limit(RuntimeOrigin::root(), HDX, (100, 0)),
 			Error::<Test>::InvalidLimitValue
 		);
 	});

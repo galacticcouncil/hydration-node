@@ -1,5 +1,6 @@
 use crate::types::Balance;
 use crate::{Config, Error, HubAssetImbalance, Pallet};
+use frame_system::pallet_prelude::OriginFor;
 use hydra_dx_math::omnipool::types::I129;
 
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
@@ -7,7 +8,7 @@ use orml_traits::MultiCurrency;
 use sp_runtime::traits::Get;
 use sp_runtime::{ArithmeticError, DispatchError};
 
-impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for Pallet<T> {
+impl<T: Config> TradeExecution<OriginFor<T>, T::AccountId, T::AssetId, Balance> for Pallet<T> {
 	type Error = DispatchError;
 
 	fn calculate_sell(
@@ -111,7 +112,7 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 	}
 
 	fn execute_sell(
-		who: T::Origin,
+		who: OriginFor<T>,
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,
@@ -126,7 +127,7 @@ impl<T: Config> TradeExecution<T::Origin, T::AccountId, T::AssetId, Balance> for
 	}
 
 	fn execute_buy(
-		who: T::Origin,
+		who: OriginFor<T>,
 		pool_type: PoolType<T::AssetId>,
 		asset_in: T::AssetId,
 		asset_out: T::AssetId,

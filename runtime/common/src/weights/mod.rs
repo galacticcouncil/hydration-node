@@ -24,4 +24,5 @@ pub mod transaction_pause;
 pub mod treasury;
 pub mod utility;
 pub mod vesting;
+pub mod xcm;
 pub mod xcmp_queue;

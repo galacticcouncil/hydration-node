@@ -57,7 +57,7 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 				.build();
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			assert_eq!(
@@ -93,7 +93,7 @@ fn schedule_should_store_total_amounts_in_storage() {
 				.build();
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			let schedule_id = 0;
@@ -145,8 +145,8 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule_2, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule_2, Option::None));
 
 			//Assert
 			assert_eq!(
@@ -172,7 +172,7 @@ fn schedule_should_store_schedule_for_next_block_when_no_blocknumber_specified()
 
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			let schedule_id = 0;
@@ -202,8 +202,12 @@ fn schedule_should_work_when_multiple_schedules_stored() {
 			//Act
 			set_block_number(500);
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule.clone(), Option::None));
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			let schedule_id = 0;
@@ -231,7 +235,7 @@ fn schedule_should_work_when_block_is_specified_by_user() {
 			//Act
 			set_block_number(500);
 			assert_ok!(DCA::schedule(
-				Origin::signed(ALICE),
+				RuntimeOrigin::signed(ALICE),
 				schedule.clone(),
 				Option::Some(600)
 			));
@@ -263,7 +267,7 @@ fn schedule_should_emit_necessary_events() {
 
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			let schedule_id = 0;
@@ -297,7 +301,7 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 			set_block_number(500);
 
 			let schedule_id = 0;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			expect_events(vec![
 				Event::ExecutionPlanned {
 					id: schedule_id,
@@ -314,7 +318,11 @@ fn schedule_should_emit_necessary_events_when_multiple_schedules_are_created() {
 
 			let schedule_id2 = 1;
 
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule2, Option::Some(1000)));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule2,
+				Option::Some(1000)
+			));
 			expect_events(vec![
 				Event::ExecutionPlanned {
 					id: schedule_id2,
@@ -344,7 +352,7 @@ fn schedule_should_throw_error_when_user_has_not_enough_balance() {
 			//Act
 			set_block_number(500);
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				pallet_balances::Error::<Test>::InsufficientBalance
 			);
 		});
@@ -380,7 +388,7 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 
 			//Assert
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::BudgetTooLow
 			);
 		});
@@ -417,7 +425,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 
 			//Assert
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::BudgetTooLow
 			);
 		});
@@ -453,7 +461,7 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 			set_block_number(500);
 
 			//Assert
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None),);
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),);
 		});
 }
 
@@ -464,7 +472,7 @@ fn schedule_should_fail_when_not_called_by_user() {
 		let schedule = ScheduleBuilder::new().build();
 
 		//Act and assert
-		assert_noop!(DCA::schedule(Origin::none(), schedule, Option::None), BadOrigin);
+		assert_noop!(DCA::schedule(RuntimeOrigin::none(), schedule, Option::None), BadOrigin);
 	});
 }
 
@@ -482,7 +490,7 @@ fn schedule_should_fail_when_specified_next_block_is_not_greater_than_current_bl
 
 			//Act and assert
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::Some(block)),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(block)),
 				Error::<Test>::BlockNumberIsNotInFuture
 			);
 		});
@@ -499,13 +507,13 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 
 			for _ in RangeInclusive::new(1, 20) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			}
 
 			//Act
 			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 20;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
@@ -526,13 +534,13 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 
 			for _ in RangeInclusive::new(1, 40) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			}
 
 			//Act
 			let schedule = ScheduleBuilder::new().build();
 			let schedule_id = 40;
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
@@ -556,7 +564,7 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 
 			for _ in RangeInclusive::new(1, 120) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			}
 
 			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
@@ -580,7 +588,7 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 			//Act and assert
 			let schedule = ScheduleBuilder::new().build();
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::NoFreeBlockFound
 			);
 		});
@@ -614,7 +622,7 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_min_budget_and_sold_cu
 			set_block_number(500);
 
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::TotalAmountIsSmallerThanMinBudget
 			);
 		});
@@ -648,7 +656,7 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 			set_block_number(500);
 
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::TotalAmountIsSmallerThanMinBudget
 			);
 		});
@@ -680,7 +688,7 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 			//Act
 			set_block_number(500);
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::TradeAmountIsLessThanFee
 			);
 		});
@@ -713,7 +721,7 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 
 			//Assert
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::TradeAmountIsLessThanFee
 			);
 		});
@@ -745,7 +753,7 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in_plus_fee() 
 				.build();
 
 			//Act and Assert
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 		});
 }
 
@@ -775,7 +783,7 @@ fn schedule_should_init_retries_to_zero() {
 				.build();
 			//Act
 			set_block_number(500);
-			assert_ok!(DCA::schedule(Origin::signed(ALICE), schedule, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
 			let schedule_id = 0;
@@ -813,7 +821,7 @@ fn schedule_should_fail_when_wrong_user_is_specified_in_schedule() {
 
 			//Act and assert
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::Forbidden
 			);
 		});
@@ -843,7 +851,7 @@ fn schedule_should_fail_when_no_routes_specified() {
 			//Act
 			set_block_number(500);
 			assert_noop!(
-				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
+				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
 				Error::<Test>::RouteNotSpecified
 			);
 		});

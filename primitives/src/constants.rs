@@ -75,7 +75,7 @@ pub mod time {
 
 pub mod chain {
 	pub use crate::{AssetId, Balance};
-	pub use frame_support::weights::{constants::WEIGHT_PER_SECOND, Weight};
+	pub use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
 
 	/// Core asset id
 	pub const CORE_ASSET_ID: AssetId = 0;
@@ -92,8 +92,11 @@ pub mod chain {
 	/// Minimum pool liquidity
 	pub const MIN_POOL_LIQUIDITY: Balance = 1000;
 
-	/// We allow for
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_ref_time(WEIGHT_PER_SECOND.ref_time() / 2);
+	/// We allow for 0.5 seconds of compute
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
+		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
+		polkadot_primitives::v2::MAX_POV_SIZE as u64,
+	);
 }
 
 #[cfg(test)]

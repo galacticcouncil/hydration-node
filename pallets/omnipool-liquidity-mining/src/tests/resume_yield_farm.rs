@@ -51,14 +51,14 @@ fn resume_yield_farm_should_work() {
 
 			//Arrange: stop yield-farm
 			assert_ok!(OmnipoolMining::stop_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				asset,
 			));
 
 			//Act & assert
 			assert_ok!(OmnipoolMining::resume_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				yield_farm_id,
 				asset,
@@ -112,7 +112,7 @@ fn resume_yield_farm_should_fail_when_omnipool_doesnt_exists() {
 
 			//Arrange: stop yield-farm & remove asset from omnipool
 			assert_ok!(OmnipoolMining::stop_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				asset,
 			));
@@ -122,7 +122,7 @@ fn resume_yield_farm_should_fail_when_omnipool_doesnt_exists() {
 			//Act & assert
 			assert_noop!(
 				OmnipoolMining::resume_yield_farm(
-					Origin::signed(GC),
+					RuntimeOrigin::signed(GC),
 					global_farm_id,
 					yield_farm_id,
 					asset,
@@ -169,14 +169,20 @@ fn resume_yield_farm_should_fail_when_origin_is_none() {
 
 			//Arrange: stop yield-farm
 			assert_ok!(OmnipoolMining::stop_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				asset,
 			));
 
 			//Act & assert
 			assert_noop!(
-				OmnipoolMining::resume_yield_farm(Origin::none(), global_farm_id, yield_farm_id, asset, new_multiplier),
+				OmnipoolMining::resume_yield_farm(
+					RuntimeOrigin::none(),
+					global_farm_id,
+					yield_farm_id,
+					asset,
+					new_multiplier
+				),
 				BadOrigin
 			);
 		});
