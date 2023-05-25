@@ -587,7 +587,7 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 }
 
 #[test]
-fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_currency_is_native() {
+fn schedule_should_fail_when_total_amount_is_smaller_than_min_budget_and_sold_currency_is_native() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -595,7 +595,7 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 			//Arrange
 
 			let schedule = ScheduleBuilder::new()
-				.with_total_amount(*ORIGINAL_MIN_BUDGET_IN_NATIVE)
+				.with_total_amount(*ORIGINAL_MIN_BUDGET_IN_NATIVE - 1)
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
@@ -615,13 +615,13 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 
 			assert_noop!(
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::TotalAmountShouldBeLargerThanStorageBond
+				Error::<Test>::TotalAmountIsSmallerThanMinBudget
 			);
 		});
 }
 
 #[test]
-fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than_storage_bond_in_native() {
+fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than_min_budget_in_native() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE), (ALICE, DAI, 10000 * ONE)])
 		.build()
@@ -649,7 +649,7 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 
 			assert_noop!(
 				DCA::schedule(Origin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::TotalAmountShouldBeLargerThanStorageBond
+				Error::<Test>::TotalAmountIsSmallerThanMinBudget
 			);
 		});
 }

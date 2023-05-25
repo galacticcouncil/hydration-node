@@ -333,8 +333,8 @@ pub mod pallet {
 		PriceChangeIsBiggerThanMaxAllowed,
 		///Error occurred when calculating price
 		CalculatingPriceError,
-		///The total amount to be reserved should be larger than storage bond
-		TotalAmountShouldBeLargerThanStorageBond,
+		///The total amount to be reserved is smaller than min budget
+		TotalAmountIsSmallerThanMinBudget,
 		///The budget is too low for executing one DCA
 		BudgetTooLow,
 		///There is no free block found to plan DCA execution
@@ -419,8 +419,8 @@ pub mod pallet {
 				Self::convert_to_currency(schedule.order.get_asset_in(), T::MinBudgetInNativeCurrency::get())?
 			};
 			ensure!(
-				schedule.total_amount > min_budget,
-				Error::<T>::TotalAmountShouldBeLargerThanStorageBond
+				schedule.total_amount >= min_budget,
+				Error::<T>::TotalAmountIsSmallerThanMinBudget
 			);
 
 			let weight_for_single_execution = <T as Config>::WeightInfo::on_initialize_with_one_trade();
