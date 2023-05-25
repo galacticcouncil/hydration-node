@@ -390,7 +390,10 @@ pub mod pallet {
 			let min_budget = if schedule.order.get_asset_in() == T::NativeAssetId::get() {
 				T::MinBudgetInNativeCurrency::get()
 			} else {
-				Self::convert_native_to_currency(schedule.order.get_asset_in(), T::MinBudgetInNativeCurrency::get())?
+				Self::convert_native_amount_to_currency(
+					schedule.order.get_asset_in(),
+					T::MinBudgetInNativeCurrency::get(),
+				)?
 			};
 			ensure!(
 				schedule.total_amount >= min_budget,
@@ -946,12 +949,12 @@ where
 
 	fn convert_weight_to_fee(weight: Weight, fee_currency: T::Asset) -> Result<u128, DispatchError> {
 		let fee_amount_in_native = Self::weight_to_fee(weight);
-		let fee_amount_in_sold_asset = Self::convert_native_to_currency(fee_currency, fee_amount_in_native)?;
+		let fee_amount_in_sold_asset = Self::convert_native_amount_to_currency(fee_currency, fee_amount_in_native)?;
 
 		Ok(fee_amount_in_sold_asset)
 	}
 
-	fn convert_native_to_currency(asset_id: T::Asset, asset_amount: u128) -> Result<u128, DispatchError> {
+	fn convert_native_amount_to_currency(asset_id: T::Asset, asset_amount: u128) -> Result<u128, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
