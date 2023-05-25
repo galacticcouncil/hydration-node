@@ -546,37 +546,6 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 		expect_schedule_ids_from_events(vec![2, 5, 0, 4, 3, 1]);
 	});
 }
-#[test]
-#[ignore] //This test is ignored as only used for estimating the storage bond size
-fn calculate_storage_bond() {
-	let schedule_key_size = size_of::<ScheduleId>();
-	let schedule_value_size = Schedule::<AccountId, ScheduleId, BlockNumber>::max_encoded_len();
-
-	let schedule_ownership_key_size = size_of::<ScheduleId>();
-	let schedule_ownership_value_size = size_of::<common_runtime::AccountId>();
-
-	let suspended_key_size = size_of::<ScheduleId>();
-
-	let remaining_reccurrencies_key_size = size_of::<ScheduleId>();
-	let remaining_reccurrencies_value_size = size_of::<u32>();
-
-	let schedule_ids_per_block_entry_size = size_of::<ScheduleId>();
-
-	let storage_bond_size: usize = vec![
-		schedule_key_size,
-		schedule_value_size,
-		schedule_ownership_key_size,
-		schedule_ownership_value_size,
-		suspended_key_size,
-		remaining_reccurrencies_key_size,
-		remaining_reccurrencies_value_size,
-		schedule_ids_per_block_entry_size,
-	]
-	.iter()
-	.sum();
-
-	let _ = primitives::constants::currency::bytes_to_balance(storage_bond_size as u32);
-}
 
 fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(hydradx_runtime::DCA::schedule(

@@ -29,10 +29,6 @@ pub mod currency {
 		items as Balance * 2 * DOLLARS + (bytes as Balance) * 30 * MILLICENTS
 	}
 
-	pub fn bytes_to_balance(bytes: u32) -> Balance {
-		(bytes as Balance) * 30 * MILLICENTS
-	}
-
 	// Value on the right side of this condition represents balance deposited to liquidity mining's pot
 	// account in native currency to prevent dusting of the pot. Pot exists for every instance of warehouse
 	// liq. mining and this value has to be deposited to all pot's instances.
