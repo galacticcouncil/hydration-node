@@ -979,7 +979,7 @@ impl pallet_dca::Config for Runtime {
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
-	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
+	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
 	type FeeReceiver = TreasuryAccount;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
