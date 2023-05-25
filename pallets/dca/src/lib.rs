@@ -588,7 +588,7 @@ where
 
 				let min_limit = max(*min_limit, min_limit_with_slippage);
 
-				let route = Self::convert_route_to_vec(route);
+				let route = Self::convert_to_vec(route);
 
 				pallet_route_executor::Pallet::<T>::sell(
 					origin.clone(),
@@ -616,7 +616,7 @@ where
 
 				let max_limit = min(*max_limit, max_limit_with_slippage);
 
-				let route = Self::convert_route_to_vec(route);
+				let route = Self::convert_to_vec(route);
 
 				pallet_route_executor::Pallet::<T>::buy(
 					origin.clone(),
@@ -628,8 +628,6 @@ where
 				)
 			}
 		}
-
-		//TODO: add baance check if it we spent only the allocated money - for that we need omnipool or better mock
 	}
 
 	fn replan_or_complete(
@@ -754,7 +752,7 @@ where
 		match order {
 			Order::Sell { amount_in, .. } => Ok(*amount_in),
 			Order::Buy { amount_out, route, .. } => {
-				let route = Self::convert_route_to_vec(route);
+				let route = Self::convert_to_vec(route);
 
 				let trade_amounts =
 					pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route, (*amount_out).into())?;
@@ -992,27 +990,23 @@ where
 		RetriesOnError::<T>::remove(schedule_id);
 	}
 
-	fn convert_route_to_vec(route: &BoundedVec<Trade<T::Asset>, ConstU32<5>>) -> Vec<Trade<T::AssetId>> {
+	fn convert_to_vec(route: &BoundedVec<Trade<T::Asset>, ConstU32<5>>) -> Vec<Trade<T::AssetId>> {
 		route
-			.clone()
-			.into_inner()
-			.into_iter()
-			.map(|x| {
-				let pool_type: PoolType<<T as pallet_route_executor::Config>::AssetId> = match x.pool {
-					PoolType::XYK => PoolType::XYK,
-					PoolType::LBP => PoolType::LBP,
-					PoolType::Stableswap(asset_id) => PoolType::Stableswap(asset_id.into()),
-					PoolType::Omnipool => PoolType::Omnipool,
-				};
-
+			.iter()
+			.map(|t| {
 				let trade: Trade<<T as pallet_route_executor::Config>::AssetId> = Trade {
-					pool: pool_type,
-					asset_in: x.asset_in.into(),
-					asset_out: x.asset_out.into(),
+					pool: match t.pool {
+						PoolType::XYK => PoolType::XYK,
+						PoolType::LBP => PoolType::LBP,
+						PoolType::Stableswap(asset_id) => PoolType::Stableswap(asset_id.into()),
+						PoolType::Omnipool => PoolType::Omnipool,
+					},
+					asset_in: t.asset_in.into(),
+					asset_out: t.asset_out.into(),
 				};
 				trade
 			})
-			.collect::<Vec<_>>()
+			.collect()
 	}
 }
 
