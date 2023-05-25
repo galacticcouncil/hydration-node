@@ -125,11 +125,11 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 			set_to_blocknumber(501);
 
 			//Assert
-			let remaining_named_reserve = total_amount - amount_to_sell;
+			let remaining_named_reserve = total_amount - amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION;
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_in: amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION,
+				amount_in: amount_to_sell,
 				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
 			}]);
 
@@ -308,8 +308,8 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let amount_to_sell = FEE_FOR_ONE_DCA_EXECUTION * 11 / 10;
-			let total_amount = amount_to_sell + FEE_FOR_ONE_DCA_EXECUTION / 2;
+			let amount_to_sell = 1 * ONE;
+			let total_amount = amount_to_sell + FEE_FOR_ONE_DCA_EXECUTION + FEE_FOR_ONE_DCA_EXECUTION / 2;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -338,6 +338,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
 			assert_number_of_executed_sell_trades!(1);
+			assert_balance!(ALICE, BTC, OMNIPOOL_SELL_CALCULATION_RESULT);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -908,8 +909,10 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
+			let budget = 1000 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_total_amount(budget)
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: BTC,
@@ -931,8 +934,14 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
-			assert_balance!(TreasuryAccount::get(), DAI, FEE_FOR_ONE_DCA_EXECUTION_IN_DAI);
 			assert_number_of_executed_buy_trades!(1);
+			assert_eq!(
+				Currencies::reserved_balance(DAI, &ALICE),
+				budget - OMNIPOOL_BUY_CALCULATION_RESULT - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI
+			);
+			assert_balance!(ALICE, BTC, OMNIPOOL_BUY_CALCULATION_RESULT);
+
+			assert_balance!(TreasuryAccount::get(), DAI, FEE_FOR_ONE_DCA_EXECUTION_IN_DAI);
 		});
 }
 
@@ -945,8 +954,10 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
+			let budget = 1000 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_total_amount(budget)
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: BTC,
@@ -970,14 +981,20 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 			set_to_blocknumber(501);
 
 			//Assert
+			assert_number_of_executed_buy_trades!(0);
+			assert_eq!(
+				Currencies::reserved_balance(DAI, &ALICE),
+				budget - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI
+			);
 			assert_balance!(TreasuryAccount::get(), DAI, FEE_FOR_ONE_DCA_EXECUTION_IN_DAI);
 		});
 }
 
 #[test]
 fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successful_sell_trade() {
+	let alice_init_native_balance = 5000 * ONE;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE), (ALICE, DAI, 5000 * ONE)])
+		.with_endowed_accounts(vec![(ALICE, HDX, alice_init_native_balance), (ALICE, DAI, 5000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -985,8 +1002,10 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 
 			let amount_in = ONE;
 
+			let budget = 1000 * ONE;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_total_amount(budget)
 				.with_order(Order::Sell {
 					asset_in: DAI,
 					asset_out: BTC,
@@ -1009,18 +1028,18 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			set_to_blocknumber(501);
 
 			//Assert
+			assert_eq!(
+				Currencies::reserved_balance(DAI, &ALICE),
+				budget - amount_in - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI
+			);
+			assert_balance!(ALICE, BTC, OMNIPOOL_SELL_CALCULATION_RESULT);
 			assert_balance!(TreasuryAccount::get(), DAI, FEE_FOR_ONE_DCA_EXECUTION_IN_DAI);
-			assert_executed_sell_trades!(vec![SellExecution {
-				asset_in: DAI,
-				asset_out: BTC,
-				amount_in: amount_in - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI,
-				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
-			}]);
+			assert_number_of_executed_sell_trades!(1);
 		});
 }
 
 #[test]
-fn native_execution_fee_should_be_sent_to_treasury() {
+fn native_execution_fee_should_be_taken_and_sent_to_treasury() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -1056,6 +1075,11 @@ fn native_execution_fee_should_be_sent_to_treasury() {
 			set_to_blocknumber(501);
 
 			//Assert
+			assert_eq!(
+				Currencies::reserved_balance(HDX, &ALICE),
+				total_amount - OMNIPOOL_SELL_CALCULATION_RESULT - FEE_FOR_ONE_DCA_EXECUTION
+			);
+			assert_balance!(ALICE, BTC, OMNIPOOL_SELL_CALCULATION_RESULT);
 			assert_balance!(TreasuryAccount::get(), HDX, FEE_FOR_ONE_DCA_EXECUTION);
 			assert_number_of_executed_sell_trades!(1);
 		});
@@ -1337,7 +1361,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_in: amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION,
+				amount_in: amount_to_sell,
 				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
 			}]);
 
@@ -1462,7 +1486,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 }
 
 #[test]
-fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_equal_to_amount_in() {
+fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_equal_to_amount_in_plus_fee() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
 		.build()
@@ -1470,14 +1494,15 @@ fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_eq
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = ONE;
+			let amount_in = ONE;
+			let total_amount = amount_in + FEE_FOR_ONE_DCA_EXECUTION;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: total_amount,
+					amount_in,
 					min_limit: Balance::MIN,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1509,14 +1534,15 @@ fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = ONE;
+			let amount_in = ONE;
+			let total_amount = amount_in + FEE_FOR_ONE_DCA_EXECUTION;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: total_amount,
+					amount_in,
 					min_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {

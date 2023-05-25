@@ -720,19 +720,20 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 }
 
 #[test]
-fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in() {
+fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in_plus_fee() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let total_amount = ONE;
+			let amount_in = ONE;
+			let total_amount = amount_in + FEE_FOR_ONE_DCA_EXECUTION;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: total_amount,
+					amount_in,
 					min_limit: Balance::MIN,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {

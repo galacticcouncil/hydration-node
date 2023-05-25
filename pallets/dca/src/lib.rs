@@ -49,11 +49,9 @@ target/release/hydradx benchmark pallet --pallet=pallet-dca --chain=local --step
 Command for custom router
 target/release/hydradx benchmark pallet --chain=dev --steps=5 --repeat=20 --execution=wasm --wasm-execution=compiled --heap-pages=4096 --template=.maintain/pallet-weight-template-no-back.hbs --pallet=pallet_route_executor --output=route_executor.rs --extrinsic="*"
  */
-// rename to mind budget, and change to 1000HDX
 // regenerate all benchmark on reference - dca, common-dca, and route-executor
-// - add integration test when multiple users have dca
 // - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
-// - recheck the ensures of the schedule function
+// - add integration test when trade fails with expected error
 // - we should not take fees in sell neither - https://discord.com/channels/882700370307067966/1054497240489676903/1110179998058434590
 // - search for and process all todo
 // - refactor convert route if possible
@@ -427,21 +425,8 @@ pub mod pallet {
 			let transaction_fee =
 				Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
 
-			let amount_in = match schedule.order {
-				Order::Sell { amount_in, .. } => {
-					//In sell the amount_in includes the transaction fee
-					ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
-					Self::get_amount_in(&schedule.order)?
-				}
-				Order::Buy { .. } => {
-					let amount_to_unreserve = Self::get_amount_in(&schedule.order)?;
-					ensure!(
-						amount_to_unreserve > transaction_fee,
-						Error::<T>::TradeAmountIsLessThanFee
-					);
-					amount_to_unreserve
-				}
-			};
+			let amount_in = Self::get_amount_in(&schedule.order)?;
+			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 
 			let amount_in_with_transaction_fee = amount_in
 				.checked_add(transaction_fee)
@@ -791,21 +776,8 @@ where
 
 	fn get_amount_in(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		match order {
-			Order::Sell { amount_in, .. } => {
-				let transaction_fee = Self::get_transaction_fee(order)?;
-
-				let amount_to_sell = amount_in
-					.checked_sub(transaction_fee)
-					.ok_or(Error::<T>::TradeAmountIsLessThanFee)?;
-				Ok(amount_to_sell)
-			}
-			Order::Buy {
-				asset_in,
-				asset_out,
-				amount_out,
-				route,
-				..
-			} => {
+			Order::Sell { amount_in, .. } => Ok(*amount_in),
+			Order::Buy { amount_out, route, .. } => {
 				let route = Self::convert_route_to_vec(route);
 
 				let trade_amounts =
