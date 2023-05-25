@@ -36,30 +36,6 @@
 //! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number.
 //! Therefore they cannot be front-ran in the block they are executed.
 
-//TODO :
-
-/*
-Command:
-target/release/hydradx benchmark pallet --pallet=pallet-dca --chain=local --steps=5 --repeat=50 --extrinsic="*" --execution=wasm --wasm-execution=compiled --heap-pages=4096 --output weights-pallet.rs --template .maintain/pallet-weight-template.hbs
-
-
-Command for common
-target/release/hydradx benchmark pallet --pallet=pallet-dca --chain=local --steps=5 --repeat=20 --extrinsic="*" --execution=wasm --wasm-execution=compiled --heap-pages=4096 --output weights.rs --template .maintain/pallet-weight-template-no-back.hbs
-
-Command for custom router
-target/release/hydradx benchmark pallet --chain=dev --steps=5 --repeat=20 --execution=wasm --wasm-execution=compiled --heap-pages=4096 --template=.maintain/pallet-weight-template-no-back.hbs --pallet=pallet_route_executor --output=route_executor.rs --extrinsic="*"
- */
-// regenerate all benchmark on reference - dca, common-dca, and route-executor
-// - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
-// - add integration test when trade fails with expected error
-// - we should not take fees in sell neither - https://discord.com/channels/882700370307067966/1054497240489676903/1110179998058434590
-// - search for and process all todo
-// - refactor convert route if possible
-// - ask martin about the conversion issue - there is a stash with name "issue_with_convering_to_nonnative"
-// check if balance did not decrease more than we unreserve - check if we spend only allocated money
-// estimate the how much space we need  to a block then compare it to max weight
-// let the team know that I added the math dependency to runtime if we really use mock rout eexecutor
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::MaxEncodedLen;
