@@ -77,6 +77,7 @@ impl sp_std::fmt::Debug for EcdsaSignature {
 	}
 }
 
+// SBP-M3+ review: I would look for existing libraries for doing Ethereum stuff...
 impl EcdsaSignature {
 	// Constructs the message that Ethereum RPC's `personal_sign` and `eth_sign` would sign.
 	fn ethereum_signable_message(what: &[u8], prefix: &'static [u8]) -> Vec<u8> {

@@ -100,6 +100,7 @@ pub mod pallet {
 				&pallet_account,
 				&pallet_account,
 			)
+            // SBP-M3+ review: expect would be better -> you can provide some message.
 			.unwrap()
 		}
 	}
@@ -342,6 +343,10 @@ pub mod pallet {
 		///
 		/// Emits `GlobalFarmCreated` when successful.
 		///
+        // SBP-M3+ review: Make sure Weight depends on T::LiquidityMiningHandler Weight,
+        // Not just hardcoded implementation for benchmarks.
+        // The trait implementation can change without change the pallet itself,
+        // so that Weight can be totally different.
 		#[pallet::weight(<T as Config>::WeightInfo::create_global_farm())]
 		pub fn create_global_farm(
 			origin: OriginFor<T>,
@@ -399,7 +404,8 @@ pub mod pallet {
 		///
 		/// Emits `GlobalFarmTerminated` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::terminate_global_farm())]
+		// SBP-M3+ review: same as above about Weights.
+        #[pallet::weight(<T as Config>::WeightInfo::terminate_global_farm())]
 		pub fn terminate_global_farm(origin: OriginFor<T>, global_farm_id: GlobalFarmId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -434,6 +440,8 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmCreated` event when successful.
 		///
+
+		// SBP-M3+ review: same as above about Weights.
 		#[pallet::weight(<T as Config>::WeightInfo::create_yield_farm())]
 		pub fn create_yield_farm(
 			origin: OriginFor<T>,
@@ -478,7 +486,8 @@ pub mod pallet {
 		///
 		/// Emits `YieldFarmUpdated` event when successful.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::update_yield_farm())]
+		// SBP-M3+ review: same as above about Weights.
+        #[pallet::weight(<T as Config>::WeightInfo::update_yield_farm())]
 		pub fn update_yield_farm(
 			origin: OriginFor<T>,
 			global_farm_id: GlobalFarmId,
@@ -804,7 +813,10 @@ pub mod pallet {
 		/// * `DepositDestroyed` event when this was last withdraw from the deposit and deposit was
 		/// destroyed.
 		///
-		#[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]
+		// SBP-M3+ review: make sure that multiple execution paths (`if` statements) are covered in Weights & Benchmarks.
+        // Same as in pallet-omnipool
+        // SBP-M3+ review: Comment about of Weight for T::LiquidityMiningHandler applies to each extrinsic.
+        #[pallet::weight(<T as Config>::WeightInfo::withdraw_shares())]
 		pub fn withdraw_shares(
 			origin: OriginFor<T>,
 			deposit_id: DepositId,

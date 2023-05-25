@@ -184,6 +184,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
+// SBP-M3+ review: I would check if there is any existing library for doing that.
 /// Converts the given binary data into ASCII-encoded hex. It will be twice the length.
 fn to_ascii_hex(data: &[u8]) -> Vec<u8> {
 	let mut r = Vec::with_capacity(data.len() * 2);

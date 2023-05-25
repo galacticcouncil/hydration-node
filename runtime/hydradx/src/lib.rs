@@ -186,6 +186,7 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 
 pub struct CallFilter;
 impl Contains<Call> for CallFilter {
+    // SBP-M3+ review: you should be able to handle the whole function in a single pattern matching.
 	fn contains(call: &Call) -> bool {
 		if matches!(call, Call::System(_) | Call::Timestamp(_) | Call::ParachainSystem(_)) {
 			// always allow

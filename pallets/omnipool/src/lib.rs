@@ -402,7 +402,8 @@ pub mod pallet {
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_pool())]
 		#[transactional]
-		pub fn initialize_pool(
+		// SBP-M3+ review: too long function, refactor suggested.
+        pub fn initialize_pool(
 			origin: OriginFor<T>,
 			stable_asset_price: Price,
 			native_asset_price: Price,
@@ -521,7 +522,8 @@ pub mod pallet {
 		///
 		#[pallet::weight(<T as Config>::WeightInfo::add_token().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
-		pub fn add_token(
+		// SBP-M3+ review: same as above
+        pub fn add_token(
 			origin: OriginFor<T>,
 			asset: T::AssetId,
 			initial_price: Price,
@@ -643,6 +645,7 @@ pub mod pallet {
 			.saturating_add(T::ExternalPriceOracle::get_price_weight()))
 		)]
 		#[transactional]
+        // SBP-M3+ review: same as above
 		pub fn add_liquidity(origin: OriginFor<T>, asset: T::AssetId, amount: Balance) -> DispatchResult {
 			//
 			// Preconditions
@@ -783,9 +786,11 @@ pub mod pallet {
 		///
 		/// Emits `LiquidityRemoved` event when successful.
 		///
+        // SBP-M3+ review: missing T::ExternalPriceOracle::get_price_weight() in weight spec
 		#[pallet::weight(<T as Config>::WeightInfo::remove_liquidity().saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight()))]
 		#[transactional]
-		pub fn remove_liquidity(
+		// SBP-M3+ review: too long function, refactor needed...
+        pub fn remove_liquidity(
 			origin: OriginFor<T>,
 			position_id: T::PositionItemId,
 			amount: Balance,
@@ -893,7 +898,12 @@ pub mod pallet {
 
 			// LP receives some hub asset
 			if state_changes.lp_hub_amount > Balance::zero() {
-				T::Currency::transfer(
+				// SBP-M3+ review: make sure if this execution path is included in benchmarks.
+                // Transfer consumes some resources, but is not always executed.
+                // Make sure if it is covered 
+                // or assume every time higher Weight and return the difference if there was no transfer.
+                // Check `DispatchResultWithPostInfo`
+                T::Currency::transfer(
 					T::HubAssetId::get(),
 					&Self::protocol_account(),
 					&who,
@@ -901,6 +911,7 @@ pub mod pallet {
 				)?;
 			}
 
+            // SBP-M3+ review: same as previous comment about T::Currency::transfer 
 			if updated_position.shares == Balance::zero() {
 				// All liquidity removed, remove position and burn NFT instance
 
@@ -1006,9 +1017,11 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::sell()
 			.saturating_add(T::OmnipoolHooks::on_trade_weight())
 			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+            // SBP-M3+ review: maybe needed `on_hub_asset_trade` hook's weight for Self::sell_hub_asset
 		)]
 		#[transactional]
-		pub fn sell(
+		// SBP-M3+ review: too long function...
+        pub fn sell(
 			origin: OriginFor<T>,
 			asset_in: T::AssetId,
 			asset_out: T::AssetId,
@@ -1028,6 +1041,9 @@ pub mod pallet {
 				T::Currency::ensure_can_withdraw(asset_in, &who, amount).is_ok(),
 				Error::<T>::InsufficientBalance
 			);
+
+            // SBP-M3+ review: make sure these execution paths are included in weight.
+            // See previous review comment about Weights.
 
 			// Special handling when one of the asset is Hub Asset
 			// Math is simplified and asset_in is actually part of asset_out state in this case
@@ -1122,7 +1138,8 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			match delta_hub_asset {
+			// SBP-M3+ review: different execution paths to be covered in Weights & Benchmarking
+            match delta_hub_asset {
 				BalanceUpdate::Increase(val) if val == Balance::zero() => {
 					// nothing to do if zero.
 				}
@@ -1185,8 +1202,10 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::buy()
 			.saturating_add(T::OmnipoolHooks::on_trade_weight())
 			.saturating_add(T::OmnipoolHooks::on_liquidity_changed_weight())
+            // SBP-M3+ review: maybe needed `on_hub_asset_trade` hook's weight for Self::buy_asset_for_hub_asset
 		)]
 		#[transactional]
+        // SBP-M3+ review: too long function...
 		pub fn buy(
 			origin: OriginFor<T>,
 			asset_out: T::AssetId,
@@ -1202,6 +1221,9 @@ pub mod pallet {
 				amount >= T::MinimumTradingLimit::get(),
 				Error::<T>::InsufficientTradingAmount
 			);
+
+            // SBP-M3+ review: make sure if these execution paths are covered in Weights & Benchmarks
+            // See previous comments.
 
 			// Special handling when one of the asset is Hub Asset
 			if asset_out == T::HubAssetId::get() {
@@ -1302,6 +1324,7 @@ pub mod pallet {
 				)
 				.ok_or(ArithmeticError::Overflow)?;
 
+            // SBP-M3 review: make sure if these execution paths are covered in Weights & Benchmarks
 			match delta_hub_asset {
 				BalanceUpdate::Increase(val) if val == Balance::zero() => {
 					// nothing to do if zero.
@@ -1363,7 +1386,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::TechnicalOrigin::ensure_origin(origin)?;
 
-			if asset_id == T::HubAssetId::get() {
+			// SBP-M3+ review: many execution paths
+            // Make sure they are covered in Weights & Benchmarking
+            if asset_id == T::HubAssetId::get() {
 				// current omnipool does not allow liquidity add or remove of hub asset.
 				// Although BUY is not supported yet, we can allow the new state to be set to SELL/BUY.
 				ensure!(
@@ -1537,7 +1562,9 @@ impl<T: Config> Pallet<T> {
 
 	/// Update Hub asset side of HDX subpool and add given amount to hub_asset_reserve
 	fn update_hdx_subpool_hub_asset(origin: T::Origin, hub_asset_amount: Balance) -> DispatchResult {
-		if hub_asset_amount > Balance::zero() {
+		// SBP-M3+ review: many execution paths
+        // Make sure they are covered in Weights & Benchmarks
+        if hub_asset_amount > Balance::zero() {
 			let hdx_state = Self::load_asset_state(T::HdxAssetId::get())?;
 
 			let mut native_subpool = Assets::<T>::get(T::HdxAssetId::get()).ok_or(Error::<T>::AssetNotFound)?;

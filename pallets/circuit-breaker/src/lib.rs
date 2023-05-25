@@ -133,7 +133,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
-		fn on_initialize(_n: T::BlockNumber) -> Weight {
+		// SBP-M3+ review: you do not need to implement a hook that does nothing.
+        fn on_initialize(_n: T::BlockNumber) -> Weight {
 			T::WeightInfo::on_finalize(0, 0)
 		}
 

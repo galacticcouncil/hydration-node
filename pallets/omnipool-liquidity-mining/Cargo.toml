@@ -1,3 +1,5 @@
+# SBP-M3+ review: missing README file for the pallet.
+
 [package]
 name = "pallet-omnipool-liquidity-mining"
 version = "2.0.6"

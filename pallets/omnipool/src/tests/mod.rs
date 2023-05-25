@@ -3,6 +3,8 @@ use crate::*;
 use frame_support::assert_ok;
 use sp_runtime::{FixedPointNumber, FixedU128};
 
+// SBP-M3+ review: make sure all of possible execution paths are covered in tests.
+
 mod add_liquidity;
 mod add_token;
 mod buy;

@@ -29,6 +29,11 @@ pallet-omnipool = {path = '../../pallets/omnipool', default-features = false}
 pallet-circuit-breaker = {path = '../../pallets/circuit-breaker', default-features = false}
 pallet-omnipool-liquidity-mining = {path = '../../pallets/omnipool-liquidity-mining', default-features = false}
 
+# SBP-M3+ review: outdated Polkadot/Substrate/Cumulus version
+# The current is v0.9.42
+# At least bump to version with XCMv3 support
+
+
 # pallets
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29", default-features = false }

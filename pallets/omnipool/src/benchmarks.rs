@@ -15,6 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+// SBP-M3+ review: benchmarks do not cover many possible execution paths 
+// that can be found in pallet's implementation.
+
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
