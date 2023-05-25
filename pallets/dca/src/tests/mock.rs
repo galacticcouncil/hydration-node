@@ -90,7 +90,7 @@ frame_support::construct_runtime!(
 );
 
 lazy_static::lazy_static! {
-	pub static ref ORIGINAL_STORAGE_BOND_IN_NATIVE: Balance = 2_000_000;
+	pub static ref ORIGINAL_MIN_BUDGET_IN_NATIVE: Balance = 2_000_000;
 	pub static ref ORIGINAL_MAX_PRICE_DIFFERENCE: Permill = Permill::from_percent(10);
 }
 
@@ -105,7 +105,7 @@ thread_local! {
 	pub static MAX_IN_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static FEE_ASSET: RefCell<Vec<(u64,AssetId)>> = RefCell::new(vec![(ALICE,HDX)]);
-	pub static STORAGE_BOND: RefCell<Balance> = RefCell::new(*ORIGINAL_STORAGE_BOND_IN_NATIVE);
+	pub static MIN_BUDGET: RefCell<Balance> = RefCell::new(*ORIGINAL_MIN_BUDGET_IN_NATIVE);
 	pub static BUY_EXECUTIONS: RefCell<Vec<BuyExecution>> = RefCell::new(vec![]);
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
@@ -636,7 +636,7 @@ impl SpotPriceProvider<AssetId> for SpotPriceProviderMock {
 
 parameter_types! {
 	pub NativeCurrencyId: AssetId = HDX;
-	pub StorageBondInNativeCurrency: Balance= STORAGE_BOND.with(|v| *v.borrow());
+	pub MinBudgetInNativeCurrency: Balance= MIN_BUDGET.with(|v| *v.borrow());
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
@@ -648,7 +648,7 @@ impl Config for Test {
 	type Asset = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
-	type StorageBondInNativeCurrency = StorageBondInNativeCurrency;
+	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
 	type FeeReceiver = TreasuryAccount;

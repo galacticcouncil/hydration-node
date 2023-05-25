@@ -595,7 +595,7 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_storage_bond_and_sold_
 			//Arrange
 
 			let schedule = ScheduleBuilder::new()
-				.with_total_amount(*ORIGINAL_STORAGE_BOND_IN_NATIVE)
+				.with_total_amount(*ORIGINAL_MIN_BUDGET_IN_NATIVE)
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
@@ -629,7 +629,7 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 			//Arrange
 
 			let schedule = ScheduleBuilder::new()
-				.with_total_amount(*ORIGINAL_STORAGE_BOND_IN_NATIVE / 3)
+				.with_total_amount(*ORIGINAL_MIN_BUDGET_IN_NATIVE / 3)
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: HDX,

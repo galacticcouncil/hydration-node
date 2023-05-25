@@ -38,13 +38,25 @@
 
 //TODO :
 
+/*
+Command:
+target/release/hydradx benchmark pallet --pallet=pallet-dca --chain=local --steps=5 --repeat=50 --extrinsic="*" --execution=wasm --wasm-execution=compiled --heap-pages=4096 --output weights-pallet.rs --template .maintain/pallet-weight-template.hbs
+
+
+Command for common
+target/release/hydradx benchmark pallet --pallet=pallet-dca --chain=local --steps=5 --repeat=20 --extrinsic="*" --execution=wasm --wasm-execution=compiled --heap-pages=4096 --output weights.rs --template .maintain/pallet-weight-template-no-back.hbs
+
+Command for custom router
+target/release/hydradx benchmark pallet --chain=dev --steps=5 --repeat=20 --execution=wasm --wasm-execution=compiled --heap-pages=4096 --template=.maintain/pallet-weight-template-no-back.hbs --pallet=pallet_route_executor --output=route_executor.rs --extrinsic="*"
+ */
+// rename to mind budget, and change to 1000HDX
 // regenerate all benchmark on reference - dca, common-dca, and route-executor
-// - check ignore on init tests - we can't really test those, maybe with failing situation?
 // - add integration test when multiple users have dca
 // - add integration test full_buy_dca_should_be_executed_then_completed with multiple orders
 // - recheck the ensures of the schedule function
 // - we should not take fees in sell neither - https://discord.com/channels/882700370307067966/1054497240489676903/1110179998058434590
 // - search for and process all todo
+// - refactor convert route if possible
 // - ask martin about the conversion issue - there is a stash with name "issue_with_convering_to_nonnative"
 // check if balance did not decrease more than we unreserve - check if we spend only allocated money
 // estimate the how much space we need  to a block then compare it to max weight
@@ -247,9 +259,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type NativeAssetId: Get<Self::Asset>;
 
-		///Storage bond in native currency
+		///Minimum budget to be able to schedule a DCA, specified in native currency
 		#[pallet::constant]
-		type StorageBondInNativeCurrency: Get<Balance>;
+		type MinBudgetInNativeCurrency: Get<Balance>;
 
 		///The fee receiver for transaction fees
 		#[pallet::constant]
@@ -401,9 +413,13 @@ pub mod pallet {
 
 			ensure!(schedule.order.get_route_length() > 0, Error::<T>::RouteNotSpecified);
 
-			let storage_bond = Self::get_storage_bond(&schedule)?;
+			let min_budget = if schedule.order.get_asset_in() == T::NativeAssetId::get() {
+				T::MinBudgetInNativeCurrency::get()
+			} else {
+				Self::convert_to_currency(schedule.order.get_asset_in(), T::MinBudgetInNativeCurrency::get())?
+			};
 			ensure!(
-				schedule.total_amount > storage_bond,
+				schedule.total_amount > min_budget,
 				Error::<T>::TotalAmountShouldBeLargerThanStorageBond
 			);
 
@@ -780,7 +796,7 @@ where
 
 				let amount_to_sell = amount_in
 					.checked_sub(transaction_fee)
-					.ok_or(ArithmeticError::Underflow)?;
+					.ok_or(Error::<T>::TradeAmountIsLessThanFee)?;
 				Ok(amount_to_sell)
 			}
 			Order::Buy {
@@ -866,26 +882,6 @@ where
 		})?;
 
 		Ok(())
-	}
-
-	fn get_storage_bond(schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) -> Result<Balance, DispatchError> {
-		let storage_bond = if schedule.order.get_asset_in() == T::NativeAssetId::get() {
-			T::StorageBondInNativeCurrency::get()
-		} else {
-			Self::get_storage_bond_in_sold_currency(&schedule.order)?
-		};
-
-		Ok(storage_bond)
-	}
-
-	fn get_storage_bond_in_sold_currency(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
-		let sold_currency = order.get_asset_in();
-		let storage_bond_in_native_currency = T::StorageBondInNativeCurrency::get();
-
-		let storage_bond_in_user_currency =
-			Self::convert_to_currency_if_asset_is_not_native(sold_currency, storage_bond_in_native_currency)?;
-
-		Ok(storage_bond_in_user_currency)
 	}
 
 	#[transactional]
@@ -1024,16 +1020,12 @@ where
 
 	fn convert_weight_to_fee(weight: Weight, fee_currency: T::Asset) -> Result<u128, DispatchError> {
 		let fee_amount_in_native = Self::weight_to_fee(weight);
-		let fee_amount_in_sold_asset =
-			Self::convert_to_currency_if_asset_is_not_native(fee_currency, fee_amount_in_native)?;
+		let fee_amount_in_sold_asset = Self::convert_to_currency(fee_currency, fee_amount_in_native)?;
 
 		Ok(fee_amount_in_sold_asset)
 	}
 
-	fn convert_to_currency_if_asset_is_not_native(
-		asset_id: T::Asset,
-		asset_amount: u128,
-	) -> Result<u128, DispatchError> {
+	fn convert_to_currency(asset_id: T::Asset, asset_amount: u128) -> Result<u128, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
