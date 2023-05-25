@@ -203,6 +203,96 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 }
 
 #[test]
+fn buy_schedule_execution_should_yield_same_result_as_direct_buy() {
+	let amount_out = 100 * UNITS;
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let dca_budget = 1000 * UNITS;
+
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, amount_out, dca_budget);
+		create_schedule(ALICE, schedule1);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+
+		//Act
+		assert_ok!(hydradx_runtime::Omnipool::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DAI,
+			HDX,
+			amount_out,
+			Balance::MAX,
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+}
+
+#[test]
+fn full_buy_dca_should_be_executed_then_completed() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let dca_budget = 1000 * UNITS;
+		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, 100 * UNITS, dca_budget);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE
+		);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+
+		//Act
+		run_to_block(11, 40);
+
+		//Assert
+		let over_reservation_left_over = 138324776352520; //Because the remaining budget for the last trade is not enough, so it is returned
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
+		assert_balance!(
+			ALICE.into(),
+			HDX,
+			ALICE_INITIAL_NATIVE_BALANCE - dca_budget + over_reservation_left_over
+		);
+
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
+
+		let fees = 19148456530441;
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE + fees
+		);
+
+		let schedule = hydradx_runtime::DCA::schedules(0);
+		assert!(schedule.is_none());
+	});
+}
+
+#[test]
 fn sell_schedule_execution_should_work_when_block_is_initialized() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
@@ -408,48 +498,60 @@ fn sell_schedule_execution_should_work_when_hub_asset_is_sold() {
 }
 
 #[test]
-fn full_buy_dca_should_be_executed_then_completed() {
+fn sell_schedule_execution_should_yield_same_as_direct_omnipool_sell() {
+	let amount_out = 71_214_372_591_631;
+	let amount_to_sell = 100 * UNITS;
+
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
 
-		let dca_budget = 1000 * UNITS;
-		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, 100 * UNITS, dca_budget);
+		let dca_budget = 1100 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
 		create_schedule(ALICE, schedule1);
 
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
-		assert_balance!(
-			&hydradx_runtime::Treasury::account_id(),
-			HDX,
-			TREASURY_ACCOUNT_INIT_BALANCE
-		);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
 
 		//Act
-		run_to_block(11, 40);
+		set_relaychain_block_number(11);
 
 		//Assert
-		let over_reservation_left_over = 138324776352520; //Because the remaining budget for the last trade is not enough, so it is returned
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
-		assert_balance!(
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
 			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		//Act
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			HDX,
-			ALICE_INITIAL_NATIVE_BALANCE - dca_budget + over_reservation_left_over
-		);
+			DAI,
+			amount_to_sell,
+			0,
+		));
 
-		assert_reserved_balance!(&ALICE.into(), HDX, 0);
-
-		let fees = 19148456530441;
-		assert_balance!(
-			&hydradx_runtime::Treasury::account_id(),
-			HDX,
-			TREASURY_ACCOUNT_INIT_BALANCE + fees
-		);
-
-		let schedule = hydradx_runtime::DCA::schedules(0);
-		assert!(schedule.is_none());
+		//Assert
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 	});
 }
 
