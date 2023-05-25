@@ -375,6 +375,7 @@ pub mod pallet {
 		///
 		/// Emits `Scheduled` and `ExecutionPlanned` event when successful.
 		///
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule())]
 		#[transactional]
 		pub fn schedule(
@@ -465,7 +466,7 @@ pub mod pallet {
 		/// - `next_execution_block`: block number where the schedule is planned.
 		///
 		/// Emits `Terminated` event when successful.
-		///
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::terminate())]
 		#[transactional]
 		pub fn terminate(
