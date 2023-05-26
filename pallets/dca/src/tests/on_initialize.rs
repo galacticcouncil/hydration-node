@@ -777,16 +777,36 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let schedule_id = 0;
-			let schedule = ScheduleBuilder::new().with_period(ONE_HUNDRED_BLOCKS).build();
+			let total_amount = 3 * ONE;
+			let amount_to_sell = ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(601)));
+			let schedule_id = 0;
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::Some(601)
+			));
 
 			proceed_to_blocknumber(1, 500);
 			let schedule_id_2 = 1;
-			let schedule_2 = ScheduleBuilder::new().with_period(ONE_HUNDRED_BLOCKS).build();
 
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule_2, Option::None));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);
@@ -829,7 +849,7 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 
 			let schedule_id = 0;
 
-			assert_scheduled_ids!(601, vec![schedule_id]);
+			assert_scheduled_ids!(511, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries.unwrap());
 			expect_events(vec![
@@ -842,7 +862,7 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
-					block: 601,
+					block: 511,
 				}
 				.into(),
 			]);
@@ -885,7 +905,7 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 			set_to_blocknumber(501);
 
 			assert_number_of_executed_buy_trades!(0);
-			assert_scheduled_ids!(601, vec![schedule_id]);
+			assert_scheduled_ids!(511, vec![schedule_id]);
 
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
@@ -967,15 +987,15 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 			//Act and assert
 			let schedule_id = 0;
 			set_to_blocknumber(501);
-			assert_scheduled_ids!(601, vec![schedule_id]);
+			assert_scheduled_ids!(511, vec![schedule_id]);
 
-			set_to_blocknumber(601);
-			assert_scheduled_ids!(701, vec![schedule_id]);
+			set_to_blocknumber(511);
+			assert_scheduled_ids!(521, vec![schedule_id]);
 
-			set_to_blocknumber(701);
-			assert_scheduled_ids!(701, vec![schedule_id]);
+			set_to_blocknumber(521);
+			assert_scheduled_ids!(531, vec![schedule_id]);
 
-			set_to_blocknumber(801);
+			set_to_blocknumber(531);
 			assert!(DCA::schedules(schedule_id).is_none());
 		});
 }
@@ -1010,15 +1030,15 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 			//Act and assert
 			let schedule_id = 0;
 			set_to_blocknumber(501);
-			assert_scheduled_ids!(601, vec![schedule_id]);
+			assert_scheduled_ids!(511, vec![schedule_id]);
 
-			set_to_blocknumber(601);
-			assert_scheduled_ids!(701, vec![schedule_id]);
+			set_to_blocknumber(511);
+			assert_scheduled_ids!(521, vec![schedule_id]);
 
 			set_invalid_buy_amount(INVALID_BUY_AMOUNT_VALUE + ONE);
 
-			set_to_blocknumber(701);
-			assert_scheduled_ids!(701, vec![schedule_id]);
+			set_to_blocknumber(521);
+			assert_scheduled_ids!(521 + ONE_HUNDRED_BLOCKS, vec![schedule_id]);
 			assert_number_of_executed_buy_trades!(1);
 
 			let retries = DCA::retries_on_error(schedule_id);
@@ -1337,7 +1357,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 			);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(601, vec![schedule_id]);
+			assert_scheduled_ids!(511, vec![schedule_id]);
 		});
 }
 
@@ -1386,7 +1406,7 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 			);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(601, vec![schedule_id]);
+			assert_scheduled_ids!(511, vec![schedule_id]);
 		});
 }
 
@@ -1434,7 +1454,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 			);
 
 			let schedule_id = 0;
-			assert_scheduled_ids!(601, vec![schedule_id]);
+			assert_scheduled_ids!(511, vec![schedule_id]);
 
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries.unwrap());
@@ -1531,7 +1551,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 
 			for _ in RangeInclusive::new(1, 120) {
 				let schedule = ScheduleBuilder::new().build();
-				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(502)));
+				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(511)));
 			}
 
 			//Act

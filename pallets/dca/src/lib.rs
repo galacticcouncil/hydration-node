@@ -132,22 +132,21 @@ pub mod pallet {
 					continue;
 				};
 
-				let next_execution_block =
-					match Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
-						Ok(block) => block,
-						Err(err) => {
-							if err != Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
-								Self::terminate_schedule(schedule_id, &schedule, err);
-							};
-							continue;
-						}
-					};
+				match Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
+					Ok(block) => block,
+					Err(err) => {
+						if err != Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
+							Self::terminate_schedule(schedule_id, &schedule, err);
+						};
+						continue;
+					}
+				}
 
 				let trade_result = Self::execute_schedule(schedule_id, &schedule);
 
 				match trade_result {
 					Ok(_) => {
-						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, next_execution_block) {
+						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, current_blocknumber) {
 							Self::terminate_schedule(schedule_id, &schedule, err);
 						}
 					}
@@ -159,7 +158,7 @@ pub mod pallet {
 						});
 
 						if T::ContinueOnErrors::contains(&error) {
-							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block) {
+							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, current_blocknumber) {
 								Self::terminate_schedule(schedule_id, &schedule, err);
 							}
 						} else {
@@ -541,23 +540,20 @@ where
 		weight: &mut Weight,
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
-	) -> Result<T::BlockNumber, DispatchError> {
+	) -> DispatchResult {
 		let weight_for_single_execution = <T as Config>::WeightInfo::on_initialize_with_one_trade();
 
 		weight.saturating_accrue(weight_for_single_execution);
 
 		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_single_execution)?;
 
-		let next_execution_block = current_blocknumber
-			.checked_add(&schedule.period)
-			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
-
 		if Self::price_change_is_bigger_than_max_allowed(schedule) {
-			Self::retry_schedule(schedule_id, schedule, next_execution_block)?;
+			Self::retry_schedule(schedule_id, schedule, current_blocknumber)?;
+
 			return Err(Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into());
 		}
 
-		Ok(next_execution_block)
+		Ok(())
 	}
 
 	#[transactional]
@@ -638,7 +634,7 @@ where
 	fn replan_or_complete(
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
-		next_execution_block: T::BlockNumber,
+		current_blocknumber: T::BlockNumber,
 	) -> DispatchResult {
 		Self::deposit_event(Event::TradeExecuted {
 			id: schedule_id,
@@ -666,6 +662,10 @@ where
 			}
 		}
 
+		let next_execution_block = current_blocknumber
+			.checked_add(&schedule.period)
+			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
+
 		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
 
 		Ok(())
@@ -674,7 +674,7 @@ where
 	fn retry_schedule(
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
-		next_execution_block: T::BlockNumber,
+		current_blocknumber: T::BlockNumber,
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id).ok_or(Error::<T>::InvalidState)?;
 
@@ -684,6 +684,10 @@ where
 
 		Self::increment_retries(schedule_id)?;
 
+		let short_oracle_block_period = 10u32.into();
+		let next_execution_block = current_blocknumber
+			.checked_add(&short_oracle_block_period)
+			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
 
 		Ok(())
