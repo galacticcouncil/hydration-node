@@ -121,14 +121,13 @@ pub mod pallet {
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
 
-			if !schedule_ids.is_empty() {
-				Self::deposit_event(Event::ExecutionsStarted {
-					block: current_blocknumber,
-				});
-			}
-
 			schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
 			for schedule_id in schedule_ids {
+				Self::deposit_event(Event::ExecutionStarted {
+					id: schedule_id,
+					block: current_blocknumber,
+				});
+
 				let Some(schedule) = Schedules::<T>::get(schedule_id) else {
 					//We cant terminate here as there is no schedule information to do so
 					continue;
@@ -256,7 +255,8 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///The DCA is scheduled
-		ExecutionsStarted {
+		ExecutionStarted {
+			id: ScheduleId,
 			block: BlockNumberFor<T>,
 		},
 		Scheduled {
@@ -557,9 +557,7 @@ where
 			.checked_add(&schedule.period)
 			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-		let is_price_change_bigger_than_max_allowed = Self::price_change_is_bigger_than_max_allowed(schedule);
-
-		if is_price_change_bigger_than_max_allowed {
+		if Self::price_change_is_bigger_than_max_allowed(schedule) {
 			Self::retry_schedule(schedule_id, schedule, next_execution_block)?;
 			return Err(Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into());
 		}
