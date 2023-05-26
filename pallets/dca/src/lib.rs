@@ -152,19 +152,19 @@ pub mod pallet {
 							Self::terminate_schedule(schedule_id, &schedule, err);
 						}
 					}
-					Err(err) => {
+					Err(error) => {
 						Self::deposit_event(Event::TradeFailed {
 							id: schedule_id,
 							who: schedule.owner.clone(),
-							error: err,
+							error,
 						});
 
-						if T::ContinueOnErrors::contains(&err) {
+						if T::ContinueOnErrors::contains(&error) {
 							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block) {
 								Self::terminate_schedule(schedule_id, &schedule, err);
 							}
 						} else {
-							Self::terminate_schedule(schedule_id, &schedule, err)
+							Self::terminate_schedule(schedule_id, &schedule, error)
 						}
 					}
 				}
