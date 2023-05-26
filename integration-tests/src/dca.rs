@@ -335,6 +335,86 @@ fn sell_schedule_execution_should_work_when_block_is_initialized() {
 }
 
 #[test]
+fn sell_schedule_should_sell_remaining_when_there_is_not_enugh_left() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		let dca_budget = 1000 * UNITS;
+		let amount_to_sell = 300 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+
+		//Act
+		run_to_block(11, 30);
+
+		//Assert
+		let schedule_id = 0;
+		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
+		assert!(schedule.is_none());
+		let amount_out = 706299317108815;
+
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
+
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE + DCA_EXECUTION_FEE * 3
+		);
+	});
+}
+
+#[test]
+fn sell_schedule_should_sell_continue_when_there_is_whole_amount_left_for_next_trade() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		let dca_budget = 1000 * UNITS + DCA_EXECUTION_FEE;
+		let amount_to_sell = 500 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		let schedule_id = 0;
+		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
+		assert!(schedule.is_some());
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, amount_to_sell);
+	});
+}
+
+#[test]
 fn sell_schedule_should_be_terminated_after_retries() {
 	TestNet::reset();
 	Hydra::execute_with(|| {

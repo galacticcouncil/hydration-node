@@ -137,6 +137,103 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 }
 
 #[test]
+fn sell_schedule_should_sell_remaining_when_there_is_not_enugh_left() {
+	let initial_alice_hdx_balance = 10000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, initial_alice_hdx_balance)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = ONE * 3 / 2;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_executed_sell_trades!(vec![SellExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_in: total_amount - FEE_FOR_ONE_DCA_EXECUTION,
+				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+			}]);
+
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+			assert_that_dca_is_completed(ALICE, 0);
+		});
+}
+
+#[test]
+fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining() {
+	let initial_alice_hdx_balance = 10000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, initial_alice_hdx_balance)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = ONE * 2 + FEE_FOR_ONE_DCA_EXECUTION;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(1)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_executed_sell_trades!(vec![SellExecution {
+				asset_in: HDX,
+				asset_out: BTC,
+				amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
+				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+			}]);
+
+			assert!(DCA::schedules(0).is_some());
+		});
+}
+
+#[test]
 fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])

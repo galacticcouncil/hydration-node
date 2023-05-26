@@ -405,7 +405,15 @@ pub mod pallet {
 			let transaction_fee =
 				Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
 
-			let amount_in = Self::get_amount_in(&schedule.order)?;
+			let amount_in = match schedule.order {
+				Order::Sell { amount_in, .. } => amount_in,
+				Order::Buy {
+					amount_out, ref route, ..
+				} => {
+					let amount_in = Self::get_amount_in_for_buy(&amount_out, &route)?;
+					amount_in.into()
+				}
+			};
 			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 
 			let amount_in_with_transaction_fee = amount_in
@@ -566,7 +574,7 @@ where
 	) -> DispatchResult {
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
-		let Ok(amount_to_sell)  = Self::get_amount_in(&schedule.order) else {
+		let Ok(amount_to_sell)  = Self::get_amount_in(schedule_id, &schedule.order) else {
 			return Err(Error::<T>::InvalidState.into());
 		};
 
@@ -647,7 +655,7 @@ where
 		Self::reset_retries(schedule_id)?;
 
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
-		let amount_to_unreserve = Self::get_amount_in(&schedule.order)?;
+		let amount_to_unreserve = Self::get_amount_in(schedule_id, &schedule.order)?;
 
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
@@ -732,19 +740,42 @@ where
 		diff > max_allowed_difference
 	}
 
-	fn get_amount_in(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
+	fn get_amount_in(schedule_id: ScheduleId, order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		match order {
-			Order::Sell { amount_in, .. } => Ok(*amount_in),
+			Order::Sell { amount_in, .. } => {
+				let remaining_amount_to_use =
+					RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
+
+				let is_trade_amount_enough_for_next_trade =
+					amount_in.checked_mul(&2).ok_or(ArithmeticError::Overflow)? <= remaining_amount_to_use;
+
+				let trade_amount = if is_trade_amount_enough_for_next_trade {
+					*amount_in
+				} else {
+					remaining_amount_to_use
+				};
+
+				Ok(trade_amount)
+			}
 			Order::Buy { amount_out, route, .. } => {
-				let route = Self::convert_to_vec(route);
-
-				let trade_amounts =
-					pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route, (*amount_out).into())?;
-
-				let first_trade = trade_amounts.last().ok_or(Error::<T>::InvalidState)?;
-				Ok(first_trade.amount_in.into())
+				let amount_in = Self::get_amount_in_for_buy(amount_out, route)?;
+				Ok(amount_in.into())
 			}
 		}
+	}
+
+	fn get_amount_in_for_buy(
+		amount_out: &Balance,
+		route: &BoundedVec<Trade<<T as Config>::Asset>, ConstU32<5>>,
+	) -> Result<T::Balance, DispatchError> {
+		let route = Self::convert_to_vec(&route);
+
+		let trade_amounts =
+			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route, (*amount_out).into())?;
+
+		let first_trade = trade_amounts.last().ok_or(Error::<T>::InvalidState)?;
+
+		Ok(first_trade.amount_in.into())
 	}
 
 	fn get_transaction_fee(order: &Order<<T as Config>::Asset>) -> Result<u128, DispatchError> {
