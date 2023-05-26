@@ -579,10 +579,10 @@ where
 			Order::Sell {
 				asset_in,
 				asset_out,
-				amount_in,
 				min_limit,
 				slippage,
 				route,
+				..
 			} => {
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, amount_to_sell, *slippage)?;
@@ -652,22 +652,18 @@ where
 
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
-		let is_buy = matches!(schedule.order, Order::Buy { .. });
-		if remaining_amount_to_use < transaction_fee
-			|| (remaining_amount_to_use < amount_to_unreserve + transaction_fee && is_buy)
-		//In sell we do not unreserve if there is remaining, only sell the rest in the next trade
-		//If the remaining is zero (so smaller than fee) then we complete
-		{
-			//Complete schedule
-			Self::try_unreserve_all(schedule_id, schedule);
-
-			Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
-
-			Self::deposit_event(Event::Completed {
-				id: schedule_id,
-				who: schedule.owner.clone(),
-			});
+		if remaining_amount_to_use < transaction_fee {
+			Self::complete_schedule(schedule_id, &schedule);
 			return Ok(());
+		}
+
+		//In sell we don't complete in case of low leftover
+		//as we leave the leftover for the next trade
+		if matches!(schedule.order, Order::Buy { .. }) {
+			if remaining_amount_to_use < amount_to_unreserve + transaction_fee {
+				Self::complete_schedule(schedule_id, &schedule);
+				return Ok(());
+			}
 		}
 
 		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
@@ -874,6 +870,17 @@ where
 			id: schedule_id,
 			who: schedule.owner.clone(),
 			error,
+		});
+	}
+
+	fn complete_schedule(schedule_id: ScheduleId, schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>) {
+		Self::try_unreserve_all(schedule_id, schedule);
+
+		Self::remove_schedule_from_storages(&schedule.owner, schedule_id);
+
+		Self::deposit_event(Event::Completed {
+			id: schedule_id,
+			who: schedule.owner.clone(),
 		});
 	}
 
