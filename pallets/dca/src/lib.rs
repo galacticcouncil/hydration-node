@@ -162,7 +162,6 @@ pub mod pallet {
 						if T::ContinueOnErrors::contains(&err) {
 							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, next_execution_block) {
 								Self::terminate_schedule(schedule_id, &schedule, err);
-								continue;
 							}
 						} else {
 							Self::terminate_schedule(schedule_id, &schedule, err)
