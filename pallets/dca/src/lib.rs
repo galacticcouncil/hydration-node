@@ -33,7 +33,7 @@
 //!
 //! If a trade fails due to other kind of errors, the order is terminated permanently without any retry logic.
 //!
-//! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number.
+//! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block hash.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
