@@ -48,9 +48,6 @@ fn initialize_omnipool() -> DispatchResult {
 	let acc = Omnipool::protocol_account();
 
 	Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-	regi_asset(b"HDX".to_vec(), UNITS, HDX).map_err(|_| DispatchError::Other("Failed to register asset"))?;
-	regi_asset(b"LRNA".to_vec(), UNITS, LRNA).map_err(|_| DispatchError::Other("Failed to register asset"))?;
-	regi_asset(b"DAI".to_vec(), UNITS, DAI).map_err(|_| DispatchError::Other("Failed to register asset"))?;
 
 	//update_balance(StableAssetId::get(), &acc, stable_amount);
 	//update_balance(NativeAssetId::get(), &acc, native_amount);
@@ -138,15 +135,13 @@ pub fn reg_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<A
 	)
 	.map_err(|_| ())
 }
-pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> DispatchResult {
-	AssetRegistry::register(
-		RawOrigin::Root.into(),
+pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<AssetId, DispatchError> {
+	let name = AssetRegistry::to_bounded_name(name)?;
+	AssetRegistry::register_asset(
 		name,
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		deposit,
 		Some(asset_id),
-		None,
-		None,
 	)
 }
 
@@ -264,7 +259,7 @@ runtime_benchmarks! {
 	{ Runtime, pallet_route_executor}
 
 	sell {
-		let n in 1..1;
+		let n in 1..2;
 
 		initialize_omnipool()?;
 		//initialize_omnipool2::<T>()?;
@@ -317,10 +312,21 @@ mod tests {
 	use orml_benchmarking::impl_benchmark_test_suite;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default()
+		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
 			.build_storage::<crate::Runtime>()
 			.unwrap()
-			.into()
+			.into();
+
+		t.execute_with(|| {
+			let id = regi_asset(b"HDX".to_vec(), UNITS, HDX).unwrap();
+			assert_eq!(id, HDX);
+			let id = regi_asset(b"LRNA".to_vec(), UNITS, LRNA).unwrap();
+			assert_eq!(id, LRNA);
+			let id = regi_asset(b"DAI".to_vec(), UNITS, DAI).unwrap();
+			assert_eq!(id, DAI);
+		});
+
+		t
 	}
 
 	/*fn new_test_ext_mock() -> sp_io::TestExternalities {
