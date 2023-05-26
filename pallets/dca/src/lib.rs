@@ -150,7 +150,6 @@ pub mod pallet {
 					Ok(_) => {
 						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, next_execution_block) {
 							Self::terminate_schedule(schedule_id, &schedule, err);
-							continue;
 						}
 					}
 					Err(err) => {
