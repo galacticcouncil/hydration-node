@@ -137,11 +137,9 @@ pub mod pallet {
 					match Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
 						Ok(block) => block,
 						Err(err) => {
-							if err == Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
-								//The schedule is replanned instead of terminated
-							} else {
+							if err != Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
 								Self::terminate_schedule(schedule_id, &schedule, err);
-							}
+							};
 							continue;
 						}
 					};
