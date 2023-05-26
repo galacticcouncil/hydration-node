@@ -266,7 +266,6 @@ runtime_benchmarks! {
 		let n in 1..2;
 
 		initialize_omnipool()?;
-		//initialize_omnipool2::<T>()?;
 
 		let asset_in = HDX;
 		let asset_out = DAI;
@@ -287,23 +286,29 @@ runtime_benchmarks! {
 		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
 	}
 
-	/*buy {
-		let n in 1..MAX_NUMBER_OF_TRADES;
-		let (asset_in, asset_out, trades) = generate_trades(n).unwrap();
+	buy {
+		let n in 1..2;
 
-		let caller: AccountId = create_account("caller");
+		initialize_omnipool()?;
 
-		let amount_to_buy = UNITS;
-		let caller_asset_in_balance = 2000 * UNITS;
+		let asset_in = HDX;
+		let asset_out = DAI;
+		let trades = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI
+		}];
 
-		update_balance(asset_in, &caller, caller_asset_in_balance);
+		let caller: AccountId = create_funded_account::<Runtime>("caller", 0, 100 * UNITS, HDX);
+
+		let amount_to_buy = 10 * UNITS;
 	}: {
-		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_buy, 10000u128 * UNITS, trades)?
+		RouteExecutor::<Runtime>::buy(RawOrigin::Signed(caller.clone()).into(), asset_in, asset_out, amount_to_buy, u128::MAX, trades)?
 	}
 	verify{
-		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_in, &caller) < caller_asset_in_balance);
-		assert_eq!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller), amount_to_buy);
-	}*/
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) < 100 * UNITS);
+		assert!(<Currencies as MultiCurrency<_>>::total_balance(asset_out, &caller) > 0);
+	}
 
 
 
