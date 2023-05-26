@@ -176,9 +176,27 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enugh_left() {
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_in: total_amount - FEE_FOR_ONE_DCA_EXECUTION,
+				amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
 				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
 			}]);
+
+			set_to_blocknumber(601);
+
+			//Assert
+			assert_executed_sell_trades!(vec![
+				SellExecution {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
+					min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+				},
+				SellExecution {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: total_amount - amount_to_sell - FEE_FOR_ONE_DCA_EXECUTION - FEE_FOR_ONE_DCA_EXECUTION,
+					min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+				}
+			]);
 
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			assert_that_dca_is_completed(ALICE, 0);
@@ -388,7 +406,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
-			assert_number_of_executed_sell_trades!(3);
+			assert_number_of_executed_sell_trades!(4);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -509,7 +527,7 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 			assert_eq!(0, Currencies::reserved_balance(HDX, &BOB));
 
-			assert_number_of_executed_sell_trades!(6);
+			assert_number_of_executed_sell_trades!(8);
 
 			let schedule_id = 0;
 			let schedule_id_2 = 1;
@@ -562,7 +580,7 @@ fn multiple_sell_dca_should_be_completed_for_one_user() {
 			//Assert
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
-			assert_number_of_executed_sell_trades!(6);
+			assert_number_of_executed_sell_trades!(8);
 
 			let schedule_id = 0;
 			let schedule_id_2 = 1;

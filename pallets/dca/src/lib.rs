@@ -585,7 +585,7 @@ where
 				route,
 			} => {
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, *amount_in, *slippage)?;
+					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, amount_to_sell, *slippage)?;
 
 				let min_limit_with_slippage = estimated_amount_out
 					.checked_sub(slippage_amount)
@@ -652,7 +652,12 @@ where
 
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
-		if remaining_amount_to_use < transaction_fee || remaining_amount_to_use < amount_to_unreserve {
+		let is_buy = matches!(schedule.order, Order::Buy { .. });
+		if remaining_amount_to_use < transaction_fee
+			|| (remaining_amount_to_use < amount_to_unreserve + transaction_fee && is_buy)
+		//In sell we do not unreserve if there is remaining, only sell the rest in the next trade
+		//If the remaining is zero (so smaller than fee) then we complete
+		{
 			//Complete schedule
 			Self::try_unreserve_all(schedule_id, schedule);
 
@@ -739,13 +744,10 @@ where
 				let remaining_amount_to_use =
 					RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
 
-				let is_trade_amount_enough_for_next_trade =
-					amount_in.checked_mul(&2).ok_or(ArithmeticError::Overflow)? <= remaining_amount_to_use;
-
-				let trade_amount = if is_trade_amount_enough_for_next_trade {
-					*amount_in
-				} else {
+				let trade_amount = if remaining_amount_to_use < *amount_in {
 					remaining_amount_to_use
+				} else {
+					*amount_in
 				};
 
 				Ok(trade_amount)
