@@ -16,5 +16,4 @@ Once the max number of retries reached, the order is terminated permanently.
 
 If a trade fails due to other kind of errors, the order is terminated permanently without any retry logic.
 
-Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number. 
-Therefore they cannot be front-ran in the block they are executed.
+Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block number.
