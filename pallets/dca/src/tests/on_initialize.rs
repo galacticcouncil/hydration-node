@@ -1142,11 +1142,11 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 
 			//Assert
 			assert_number_of_executed_buy_trades!(1);
-			/*	assert_eq!(
+			assert_eq!(
 				Currencies::reserved_balance(DAI, &ALICE),
-				budget - OMNIPOOL_BUY_CALCULATION_RESULT - FEE_FOR_ONE_DCA_EXECUTION_IN_DAI
+				budget - OMNIPOOL_BUY_CALCULATION_RESULT - BUY_DCA_FEE_IN_DAI
 			);
-			assert_balance!(ALICE, BTC, OMNIPOOL_BUY_CALCULATION_RESULT);*/
+			assert_balance!(ALICE, BTC, OMNIPOOL_BUY_CALCULATION_RESULT);
 
 			assert_balance!(TreasuryAccount::get(), DAI, BUY_DCA_FEE_IN_DAI);
 		});
