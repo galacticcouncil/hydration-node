@@ -32,9 +32,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 
 # Warehouse
-pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
-pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
+pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "739cd4298bd62bf4f0a6416e2c7502d889b24fb0", default-features = false }
+pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "739cd4298bd62bf4f0a6416e2c7502d889b24fb0", default-features = false }
+hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "739cd4298bd62bf4f0a6416e2c7502d889b24fb0", default-features = false }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "35e5c0775a07e057ed5247ba96dfa254d691f034", default-features = false }
 
@@ -54,7 +54,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "56685af53268e09f6c92b5ee053368a87114cfe0", default-features = false }
+test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "739cd4298bd62bf4f0a6416e2c7502d889b24fb0", default-features = false }
 
 [features]
 default = ["std"]
