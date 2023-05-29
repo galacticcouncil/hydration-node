@@ -642,8 +642,6 @@ where
 		Self::reset_retries(schedule_id)?;
 
 		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
-		let amount_to_unreserve = Self::get_amount_in(schedule_id, &schedule.order)?;
-
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
 		if remaining_amount_to_use < transaction_fee {
@@ -651,10 +649,15 @@ where
 			return Ok(());
 		}
 
-		//In sell we don't complete in case of low leftover
-		//as we leave the leftover for the next trade
-		if matches!(schedule.order, Order::Buy { .. }) {
-			if remaining_amount_to_use < amount_to_unreserve + transaction_fee {
+		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
+		if let Order::Buy { .. } = schedule.order {
+			let amount_to_unreserve = Self::get_amount_in(schedule_id, &schedule.order)?;
+
+			let amount_for_next_trade = amount_to_unreserve
+				.checked_add(transaction_fee)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			if remaining_amount_to_use < amount_for_next_trade {
 				Self::complete_schedule(schedule_id, &schedule);
 				return Ok(());
 			}
