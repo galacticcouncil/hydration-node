@@ -148,14 +148,14 @@ fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * DCA_EXECUTION_FEE);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 2);
 
-		set_relaychain_block_number(31);
+		set_relaychain_block_number(41);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * DCA_EXECUTION_FEE);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 3);
 
 		//After this retry we terminate
-		set_relaychain_block_number(41);
+		set_relaychain_block_number(81);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - 4 * DCA_EXECUTION_FEE);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -474,14 +474,14 @@ fn sell_schedule_should_be_terminated_after_retries() {
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * DCA_EXECUTION_FEE);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 2);
 
-		set_relaychain_block_number(31);
+		set_relaychain_block_number(41);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * DCA_EXECUTION_FEE);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id).unwrap(), 3);
 
 		//At this point, the schedule will be terminated as retries max number of times
-		set_relaychain_block_number(41);
+		set_relaychain_block_number(81);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * DCA_EXECUTION_FEE);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);

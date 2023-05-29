@@ -86,6 +86,7 @@ use crate::types::*;
 
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
+pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
 
 #[frame_support::pallet]
@@ -685,10 +686,14 @@ where
 
 		Self::increment_retries(schedule_id)?;
 
-		let short_oracle_block_period = 10u32.into();
+		let retry_multiplier = 2u32.checked_pow(number_of_retries).ok_or(ArithmeticError::Overflow)?;
+		let retry_delay = SHORT_ORACLE_BLOCK_PERIOD
+			.checked_mul(retry_multiplier)
+			.ok_or(ArithmeticError::Overflow)?;
 		let next_execution_block = current_blocknumber
-			.checked_add(&short_oracle_block_period)
+			.checked_add(&retry_delay.into())
 			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
+
 		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
 
 		Ok(())

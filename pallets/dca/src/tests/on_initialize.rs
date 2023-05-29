@@ -990,12 +990,12 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 			assert_scheduled_ids!(511, vec![schedule_id]);
 
 			set_to_blocknumber(511);
-			assert_scheduled_ids!(521, vec![schedule_id]);
-
-			set_to_blocknumber(521);
 			assert_scheduled_ids!(531, vec![schedule_id]);
 
 			set_to_blocknumber(531);
+			assert_scheduled_ids!(571, vec![schedule_id]);
+
+			set_to_blocknumber(571);
 			assert!(DCA::schedules(schedule_id).is_none());
 		});
 }
@@ -1033,12 +1033,12 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 			assert_scheduled_ids!(511, vec![schedule_id]);
 
 			set_to_blocknumber(511);
-			assert_scheduled_ids!(521, vec![schedule_id]);
+			assert_scheduled_ids!(531, vec![schedule_id]);
 
 			set_invalid_buy_amount(INVALID_BUY_AMOUNT_VALUE + ONE);
 
-			set_to_blocknumber(521);
-			assert_scheduled_ids!(521 + ONE_HUNDRED_BLOCKS, vec![schedule_id]);
+			set_to_blocknumber(531);
+			assert_scheduled_ids!(531 + ONE_HUNDRED_BLOCKS, vec![schedule_id]);
 			assert_number_of_executed_buy_trades!(1);
 
 			let retries = DCA::retries_on_error(schedule_id);
