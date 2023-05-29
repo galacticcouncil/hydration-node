@@ -57,8 +57,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const FEE_FOR_ONE_DCA_EXECUTION: Balance = 2733868000;
-pub const FEE_FOR_ONE_DCA_EXECUTION_IN_DAI: Balance = 2405803840;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 2747319000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 2417640720;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 2735279000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 2407045520;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -356,7 +358,7 @@ impl pallet_route_executor::Config for Test {
 
 type OriginForRuntime = OriginFor<Test>;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
-pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = ONE;
+pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 20 * ONE;
 pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 10 * ONE;
 
 pub struct OmniPool;
@@ -830,7 +832,7 @@ impl ExtBuilder {
 			*v.borrow_mut() = self.max_price_difference;
 		});
 
-		let mut initial_native_accounts: Vec<(AccountId, Balance)> = vec![(ASSET_PAIR_ACCOUNT, 1000 * ONE)];
+		let mut initial_native_accounts: Vec<(AccountId, Balance)> = vec![(ASSET_PAIR_ACCOUNT, 10000 * ONE)];
 		let additional_accounts: Vec<(AccountId, Balance)> = self
 			.endowed_accounts
 			.iter()
@@ -847,8 +849,8 @@ impl ExtBuilder {
 		.unwrap();
 
 		let mut initial_accounts = vec![
-			(ASSET_PAIR_ACCOUNT, LRNA, 1000 * ONE),
-			(ASSET_PAIR_ACCOUNT, DAI, 1000 * ONE),
+			(ASSET_PAIR_ACCOUNT, LRNA, 10000 * ONE),
+			(ASSET_PAIR_ACCOUNT, DAI, 10000 * ONE),
 			(ASSET_PAIR_ACCOUNT, BTC, 100000000 * ONE),
 		];
 

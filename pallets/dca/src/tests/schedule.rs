@@ -373,7 +373,7 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: budget + FEE_FOR_ONE_DCA_EXECUTION,
+					amount_in: budget + BUY_DCA_FEE_IN_NATIVE,
 					min_limit: Balance::MIN,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -402,7 +402,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + FEE_FOR_ONE_DCA_EXECUTION - 1;
+			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + BUY_DCA_FEE_IN_NATIVE - 1;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
@@ -411,7 +411,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_limit: budget + FEE_FOR_ONE_DCA_EXECUTION,
+					max_limit: budget + BUY_DCA_FEE_IN_NATIVE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
@@ -439,7 +439,7 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + FEE_FOR_ONE_DCA_EXECUTION;
+			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + BUY_DCA_FEE_IN_NATIVE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
@@ -448,7 +448,7 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_limit: budget + FEE_FOR_ONE_DCA_EXECUTION,
+					max_limit: budget + BUY_DCA_FEE_IN_NATIVE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
@@ -530,8 +530,8 @@ use crate::weights::WeightInfo;
 #[ignore]
 #[test]
 fn asd() {
-	let weight1 = <Test as crate::Config>::WeightInfo::on_initialize_with_one_trade() * 20;
-	let weight2 = <Test as crate::Config>::WeightInfo::on_initialize_with_one_trade();
+	let weight1 = <Test as crate::Config>::WeightInfo::on_initialize_with_buy_trade() * 20;
+	let weight2 = <Test as crate::Config>::WeightInfo::on_initialize_with_buy_trade();
 
 	assert_eq!(weight1 + weight2, MAXIMUM_BLOCK_WEIGHT);
 }
@@ -688,7 +688,7 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: FEE_FOR_ONE_DCA_EXECUTION - 1,
+					amount_in: SELL_DCA_FEE_IN_NATIVE - 1,
 					min_limit: Balance::MIN,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -748,7 +748,7 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in_plus_fee() 
 		.execute_with(|| {
 			//Arrange
 			let amount_in = ONE;
-			let total_amount = amount_in + FEE_FOR_ONE_DCA_EXECUTION;
+			let total_amount = amount_in + BUY_DCA_FEE_IN_NATIVE;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_order(Order::Sell {

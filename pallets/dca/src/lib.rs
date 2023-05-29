@@ -394,9 +394,7 @@ pub mod pallet {
 				Error::<T>::TotalAmountIsSmallerThanMinBudget
 			);
 
-			let weight_for_single_execution = <T as Config>::WeightInfo::on_initialize_with_one_trade();
-			let transaction_fee =
-				Self::convert_weight_to_fee(weight_for_single_execution, schedule.order.get_asset_in())?;
+			let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
 			let amount_in = match schedule.order {
 				Order::Sell { amount_in, .. } => amount_in,
@@ -540,7 +538,7 @@ where
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
-		let weight_for_single_execution = <T as Config>::WeightInfo::on_initialize_with_one_trade();
+		let weight_for_single_execution = Self::get_trade_weight(&schedule.order);
 
 		weight.saturating_accrue(weight_for_single_execution);
 
@@ -780,10 +778,7 @@ where
 	}
 
 	fn get_transaction_fee(order: &Order<<T as Config>::Asset>) -> Result<u128, DispatchError> {
-		let transaction_fee = Self::convert_weight_to_fee(
-			<T as Config>::WeightInfo::on_initialize_with_one_trade(),
-			order.get_asset_in(),
-		)?;
+		let transaction_fee = Self::convert_weight_to_fee(Self::get_trade_weight(order), order.get_asset_in())?;
 
 		Ok(transaction_fee)
 	}
@@ -996,6 +991,13 @@ where
 		let fee_amount_in_sold_asset = Self::convert_native_amount_to_currency(fee_currency, fee_amount_in_native)?;
 
 		Ok(fee_amount_in_sold_asset)
+	}
+
+	fn get_trade_weight(order: &Order<<T as Config>::Asset>) -> Weight {
+		match order {
+			Order::Sell { .. } => <T as Config>::WeightInfo::on_initialize_with_sell_trade(),
+			Order::Buy { .. } => <T as Config>::WeightInfo::on_initialize_with_buy_trade(),
+		}
 	}
 
 	fn convert_native_amount_to_currency(asset_id: T::Asset, asset_amount: u128) -> Result<u128, DispatchError> {
