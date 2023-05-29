@@ -16,7 +16,8 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Error};
+use crate::{Config, Error, RelayChainBlockHashProvider};
+use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::traits::{Contains, Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
@@ -636,6 +637,15 @@ impl Config for Test {
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
+	type RelayChainBlockHashProvider = ParentHashGetterMock;
+}
+
+pub struct ParentHashGetterMock {}
+
+impl RelayChainBlockHashProvider for ParentHashGetterMock {
+	fn parent_hash() -> Option<Hash> {
+		Some(Hash::default())
+	}
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};

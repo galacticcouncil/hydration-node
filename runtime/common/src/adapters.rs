@@ -1,10 +1,13 @@
 use core::marker::PhantomData;
 
 use codec::FullCodec;
+use cumulus_primitives_core::relay_chain::Hash;
+use cumulus_primitives_core::PersistedValidationData;
 use frame_support::{
 	traits::{Contains, Get},
 	weights::Weight,
 };
+
 use hydra_dx_math::ema::EmaPrice;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
 use hydra_dx_math::support::rational::round_to_rational;
@@ -15,6 +18,7 @@ use hydradx_traits::{liquidity_mining::PriceAdjustment, OnLiquidityChangedHandle
 use orml_xcm_support::OnDepositFail;
 use orml_xcm_support::UnknownAsset as UnknownAssetT;
 use pallet_circuit_breaker::WeightInfo;
+use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::Price;
 use pallet_ema_oracle::{OnActivityHandler, OracleError};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
@@ -398,5 +402,20 @@ impl<
 			.map_err(|e| XcmError::FailedToTransactAsset(e.into()))?;
 
 		Ok(asset.clone().into())
+	}
+}
+
+pub struct RelayChainBlockHashProviderAdapter<Runtime>(PhantomData<Runtime>);
+
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		match validation_data {
+			Some(data) => Some(data.parent_head.hash()),
+			None => None,
+		}
 	}
 }

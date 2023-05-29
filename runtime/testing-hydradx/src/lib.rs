@@ -66,6 +66,7 @@ use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 
+use common_runtime::adapters::RelayChainBlockHashProviderAdapter;
 use common_runtime::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter};
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -994,6 +995,7 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 }
 
 parameter_types! {

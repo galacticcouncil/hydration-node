@@ -25,7 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
-use common_runtime::adapters::OmnipoolPriceProviderAdapter;
+use common_runtime::adapters::{OmnipoolPriceProviderAdapter, RelayChainBlockHashProviderAdapter};
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
@@ -997,6 +997,7 @@ impl pallet_dca::Config for Runtime {
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
 }
 
 parameter_types! {

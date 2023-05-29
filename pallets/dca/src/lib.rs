@@ -38,6 +38,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::MaxEncodedLen;
+use cumulus_primitives_core::PersistedValidationData;
+
+use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -93,6 +96,8 @@ pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
 pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
+	use cumulus_primitives_core::relay_chain::Hash;
+
 	use frame_support::traits::Contains;
 	use frame_support::weights::WeightToFee;
 
@@ -117,7 +122,12 @@ pub mod pallet {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
-			let mut random_generator = T::RandomnessProvider::generator();
+			let Ok(mut random_generator) = T::RandomnessProvider::generator() else {
+				Self::deposit_event(Event::RandomnessGenerationFailed {
+					block: current_blocknumber,
+				});
+				return weight;
+			};
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
 
@@ -198,6 +208,9 @@ pub mod pallet {
 			Balance = Balance,
 		>;
 
+		///Relay chain block hash provider for randomness
+		type RelayChainBlockHashProvider: RelayChainBlockHashProvider;
+
 		///Randomness provider to be used to sort the DCA schedules when they are executed in a block
 		type RandomnessProvider: RandomnessProvider;
 
@@ -246,14 +259,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		///The DCA is scheduled
-		ExecutionStarted {
-			id: ScheduleId,
-			block: BlockNumberFor<T>,
-		},
-		Scheduled {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
+		ExecutionStarted { id: ScheduleId, block: BlockNumberFor<T> },
+		///The DCA has been scheduled
+		Scheduled { id: ScheduleId, who: T::AccountId },
 		///The DCA is planned for blocknumber
 		ExecutionPlanned {
 			id: ScheduleId,
@@ -261,10 +269,7 @@ pub mod pallet {
 			block: BlockNumberFor<T>,
 		},
 		///The DCA trade has been successfully executed
-		TradeExecuted {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
+		TradeExecuted { id: ScheduleId, who: T::AccountId },
 		///The DCA trade execution has been failed
 		TradeFailed {
 			id: ScheduleId,
@@ -278,10 +283,9 @@ pub mod pallet {
 			error: DispatchError,
 		},
 		///The DCA is completed and completely removed from the chain
-		Completed {
-			id: ScheduleId,
-			who: T::AccountId,
-		},
+		Completed { id: ScheduleId, who: T::AccountId },
+		///Randomness generation failed possibly coming from missing data about relay chain
+		RandomnessGenerationFailed { block: BlockNumberFor<T> },
 	}
 
 	#[pallet::error]
@@ -312,6 +316,8 @@ pub mod pallet {
 		TradeLimitReached,
 		///The route to execute the trade on is not specified
 		RouteNotSpecified,
+		///No parent hash has been found from relay chain
+		NoParentHashFound,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
 		InvalidState,
 	}
@@ -1048,16 +1054,25 @@ where
 	}
 }
 
+pub trait RelayChainBlockHashProvider {
+	fn parent_hash() -> Option<Hash>;
+}
+
 pub trait RandomnessProvider {
-	fn generator() -> StdRng;
+	type Error;
+	fn generator() -> Result<StdRng, Self::Error>;
 }
 
 impl<T: Config> RandomnessProvider for Pallet<T> {
-	fn generator() -> StdRng {
-		let hash_value = pallet_relaychain_info::Pallet::<T>::parent_hash();
+	type Error = DispatchError;
+
+	fn generator() -> Result<StdRng, Self::Error> {
+		let hash_value = T::RelayChainBlockHashProvider::parent_hash().ok_or(Error::<T>::NoParentHashFound)?;
+		let hash_bytes = hash_value.as_fixed_bytes();
 		let mut seed_arr = [0u8; 8];
-		seed_arr.copy_from_slice(&hash_value.as_fixed_bytes()[0..8]);
+		let max_len = hash_bytes.len().min(seed_arr.len()); //We ensure that we don't copy more bytes, preventing potential panics
+		seed_arr[..max_len].copy_from_slice(&hash_bytes[..max_len]);
 		let seed = u64::from_le_bytes(seed_arr);
-		rand::rngs::StdRng::seed_from_u64(seed)
+		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
 }

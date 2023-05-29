@@ -1159,7 +1159,9 @@ dependencies = [
 name = "common-runtime"
 version = "102.3.9"
 dependencies = [
+ "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
@@ -6453,6 +6455,8 @@ dependencies = [
 name = "pallet-dca"
 version = "1.0.0"
 dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
