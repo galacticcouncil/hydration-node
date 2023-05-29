@@ -1,8 +1,6 @@
 use core::marker::PhantomData;
 
 use codec::FullCodec;
-use cumulus_primitives_core::relay_chain::Hash;
-use cumulus_primitives_core::PersistedValidationData;
 use frame_support::{
 	traits::{Contains, Get},
 	weights::Weight,

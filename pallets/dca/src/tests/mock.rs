@@ -18,7 +18,7 @@
 use crate as dca;
 use crate::{Config, Error, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
-use frame_support::traits::{Contains, Everything, GenesisBuild, Nothing};
+use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
 use frame_support::weights::WeightToFeeCoefficient;
 use frame_support::weights::{IdentityFee, Weight};

@@ -38,7 +38,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::MaxEncodedLen;
-use cumulus_primitives_core::PersistedValidationData;
 
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::{
@@ -96,9 +95,7 @@ pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
 pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
-	use cumulus_primitives_core::relay_chain::Hash;
 
-	use frame_support::traits::Contains;
 	use frame_support::weights::WeightToFee;
 
 	use frame_system::pallet_prelude::OriginFor;
@@ -168,12 +165,11 @@ pub mod pallet {
 
 						if error != Error::<T>::TradeLimitReached.into() {
 							Self::terminate_schedule(schedule_id, &schedule, error);
-						} else {
-							if let Err(retry_error) = Self::retry_schedule(schedule_id, &schedule, current_blocknumber)
-							{
-								Self::terminate_schedule(schedule_id, &schedule, retry_error);
-							}
-						};
+						} else if let Err(retry_error) =
+							Self::retry_schedule(schedule_id, &schedule, current_blocknumber)
+						{
+							Self::terminate_schedule(schedule_id, &schedule, retry_error);
+						}
 					}
 				}
 			}
@@ -407,7 +403,7 @@ pub mod pallet {
 				Order::Buy {
 					amount_out, ref route, ..
 				} => {
-					let amount_in = Self::get_amount_in_for_buy(&amount_out, &route)?;
+					let amount_in = Self::get_amount_in_for_buy(&amount_out, route)?;
 					amount_in.into()
 				}
 			};
@@ -660,20 +656,20 @@ where
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
 		if remaining_amount_to_use < transaction_fee.into() {
-			Self::complete_schedule(schedule_id, &schedule);
+			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
 
 		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
 		if let Order::Buy { amount_out, route, .. } = &schedule.order {
-			let amount_to_unreserve: T::Balance = Self::get_amount_in_for_buy(&amount_out, &route)?;
+			let amount_to_unreserve: T::Balance = Self::get_amount_in_for_buy(amount_out, route)?;
 
 			let amount_for_next_trade: T::Balance = amount_to_unreserve
 				.checked_add(&(transaction_fee.into()))
 				.ok_or(ArithmeticError::Overflow)?;
 
-			if remaining_amount_to_use < amount_for_next_trade.into() {
-				Self::complete_schedule(schedule_id, &schedule);
+			if remaining_amount_to_use < amount_for_next_trade {
+				Self::complete_schedule(schedule_id, schedule);
 				return Ok(());
 			}
 		}
@@ -762,14 +758,14 @@ where
 		amount_out: &Balance,
 		route: &BoundedVec<Trade<<T as Config>::Asset>, ConstU32<5>>,
 	) -> Result<T::Balance, DispatchError> {
-		let route = Self::convert_to_vec(&route);
+		let route = Self::convert_to_vec(route);
 
 		let trade_amounts =
 			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route, (*amount_out).into())?;
 
 		let first_trade = trade_amounts.last().ok_or(Error::<T>::InvalidState)?;
 
-		Ok(first_trade.amount_in.into())
+		Ok(first_trade.amount_in)
 	}
 
 	fn get_transaction_fee(order: &Order<<T as Config>::Asset>) -> Result<u128, DispatchError> {

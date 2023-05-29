@@ -1022,32 +1022,6 @@ fn schedule_fake_with_sell_order(
 	}
 }
 
-fn schedule_fake_with_invalid_min_limit(
-	owner: [u8; 32],
-	total_amount: Balance,
-	asset_in: AssetId,
-	asset_out: AssetId,
-	amount: Balance,
-) -> Schedule<AccountId, AssetId, u32> {
-	Schedule {
-		owner: AccountId::from(owner),
-		period: 3u32,
-		total_amount,
-		order: Order::Sell {
-			asset_in,
-			asset_out,
-			amount_in: amount,
-			min_limit: Balance::MAX,
-			slippage: None,
-			route: create_bounded_vec(vec![Trade {
-				pool: PoolType::Omnipool,
-				asset_in,
-				asset_out,
-			}]),
-		},
-	}
-}
-
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
 	let bounded_vec: BoundedVec<Trade<AssetId>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
 	bounded_vec

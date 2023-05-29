@@ -49,9 +49,9 @@ fn initialize_omnipool() -> DispatchResult {
 
 	Omnipool::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
 
-	regi_asset(b"HDX".to_vec(), UNITS, HDX);
-	regi_asset(b"LRNA".to_vec(), UNITS, LRNA);
-	regi_asset(b"DAI".to_vec(), UNITS, DAI);
+	let _ = regi_asset(b"HDX".to_vec(), UNITS, HDX);
+	let _ = regi_asset(b"LRNA".to_vec(), UNITS, LRNA);
+	let _ = regi_asset(b"DAI".to_vec(), UNITS, DAI);
 
 	//update_balance(StableAssetId::get(), &acc, stable_amount);
 	//update_balance(NativeAssetId::get(), &acc, native_amount);

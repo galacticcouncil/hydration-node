@@ -23,7 +23,6 @@ use crate::{
 };
 use frame_support::assert_ok;
 use frame_support::traits::OnInitialize;
-use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::PoolType::Omnipool;
 use orml_traits::MultiCurrency;
