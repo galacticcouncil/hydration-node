@@ -322,7 +322,7 @@ mod tests {
 	use orml_benchmarking::impl_benchmark_test_suite;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
+		let t: sp_io::TestExternalities = frame_system::GenesisConfig::default()
 			.build_storage::<crate::Runtime>()
 			.unwrap()
 			.into();
