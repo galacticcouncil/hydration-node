@@ -266,6 +266,7 @@ benchmarks! {
 	}
 
 	on_initialize_with_buy_trade{
+		//TODO: Rebenchmark it with dynamic length of route once we have other AMMs in hydra
 		initialize_omnipool::<T>()?;
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
@@ -296,6 +297,7 @@ benchmarks! {
 	}
 
 	on_initialize_with_sell_trade{
+		//TODO: Rebenchmark it with dynamic length of route once we have other AMMs in hydra
 		initialize_omnipool::<T>()?;
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
