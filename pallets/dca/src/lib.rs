@@ -142,9 +142,7 @@ pub mod pallet {
 					}
 				}
 
-				let trade_result = Self::execute_schedule(schedule_id, &schedule);
-
-				match trade_result {
+				match Self::execute_trade(schedule_id, &schedule) {
 					Ok(_) => {
 						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, current_blocknumber) {
 							Self::terminate_schedule(schedule_id, &schedule, err);
@@ -557,7 +555,7 @@ where
 	}
 
 	#[transactional]
-	pub fn execute_schedule(
+	pub fn execute_trade(
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 	) -> DispatchResult {
