@@ -318,7 +318,6 @@ runtime_benchmarks! {
 
 #[cfg(test)]
 mod tests {
-	//use super::mock::Test;
 	use super::*;
 	use orml_benchmarking::impl_benchmark_test_suite;
 
@@ -327,23 +326,8 @@ mod tests {
 			.build_storage::<crate::Runtime>()
 			.unwrap()
 			.into();
-
-		t.execute_with(|| {
-			let id = regi_asset(b"HDX".to_vec(), UNITS, HDX).unwrap();
-			assert_eq!(id, HDX);
-			let id = regi_asset(b"LRNA".to_vec(), UNITS, LRNA).unwrap();
-			assert_eq!(id, LRNA);
-			let id = regi_asset(b"DAI".to_vec(), UNITS, DAI).unwrap();
-			assert_eq!(id, DAI);
-		});
-
 		t
 	}
 
-	/*fn new_test_ext_mock() -> sp_io::TestExternalities {
-		super::mock::ExtBuilder::default().build()
-	}*/
-
 	impl_benchmark_test_suite!(new_test_ext(),);
-	//impl_benchmark_test_suite!(super::mock::ExtBuilder::default().build(),);
 }

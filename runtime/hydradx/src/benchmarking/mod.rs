@@ -7,9 +7,6 @@ pub mod route_executor;
 pub mod tokens;
 pub mod vesting;
 
-#[cfg(test)]
-pub mod mock;
-
 use crate::AssetRegistry;
 use frame_system::RawOrigin;
 
