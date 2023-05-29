@@ -71,7 +71,6 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const INVALID_BUY_AMOUNT_VALUE: Balance = 10 * ONE * 12 / 10;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -112,7 +111,6 @@ thread_local! {
 	pub static SELL_EXECUTIONS: RefCell<Vec<SellExecution>> = RefCell::new(vec![]);
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
-	pub static INVALID_BUY_AMOUNT: RefCell<Balance> = RefCell::new(INVALID_BUY_AMOUNT_VALUE);
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 
 }
@@ -452,17 +450,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			return Err(ExecutorError::NotSupported);
 		}
 
-		INVALID_BUY_AMOUNT.with(|v| {
-			let invalid_buy_amount = *v.borrow_mut();
-			if amount_out == invalid_buy_amount {
-				Err::<(), ExecutorError<DispatchError>>(ExecutorError::Error(
-					pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
-				))
-			} else {
-				Ok(())
-			}
-		})?;
-
 		BUY_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.push(BuyExecution {
@@ -563,17 +550,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 			return Err(ExecutorError::NotSupported);
 		}
 
-		INVALID_BUY_AMOUNT
-			.with(|v| {
-				let invalid_buy_amount = *v.borrow_mut();
-				if amount_out == invalid_buy_amount {
-					Err::<(), DispatchError>(pallet_omnipool::Error::<Test>::BuyLimitNotReached.into())
-				} else {
-					Ok(())
-				}
-			})
-			.map_err(ExecutorError::Error)?;
-
 		BUY_EXECUTIONS.with(|v| {
 			let mut m = v.borrow_mut();
 			m.push(BuyExecution {
@@ -657,23 +633,9 @@ impl Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
-	type ContinueOnErrors = ContinueOnErrorsListMock;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-}
-
-pub struct ContinueOnErrorsListMock;
-
-impl Contains<DispatchError> for ContinueOnErrorsListMock {
-	fn contains(e: &DispatchError) -> bool {
-		vec![
-			pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
-			pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
-			pallet_route_executor::Error::<Test>::TradingLimitReached.into(),
-		]
-		.contains(e)
-	}
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
@@ -771,7 +733,6 @@ pub struct ExtBuilder {
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	max_price_difference: Permill,
-	invalid_buy_amount: Balance,
 }
 
 impl Default for ExtBuilder {
@@ -794,7 +755,6 @@ impl Default for ExtBuilder {
 			register_stable_asset: true,
 			pool_tokens: vec![],
 			max_price_difference: Permill::from_percent(10),
-			invalid_buy_amount: INVALID_BUY_AMOUNT_VALUE,
 		}
 	}
 }
@@ -822,10 +782,6 @@ impl ExtBuilder {
 			self.registered_assets.iter().for_each(|asset| {
 				v.borrow_mut().insert(*asset, *asset);
 			});
-		});
-
-		INVALID_BUY_AMOUNT.with(|v| {
-			*v.borrow_mut() = self.invalid_buy_amount;
 		});
 
 		MAX_PRICE_DIFFERENCE.with(|v| {
@@ -898,14 +854,38 @@ impl ExtBuilder {
 	}
 }
 
-pub fn set_invalid_buy_amount(amount: Balance) {
-	INVALID_BUY_AMOUNT.with(|v| {
-		*v.borrow_mut() = amount;
+pub fn set_max_price_diff(diff: Permill) {
+	MAX_PRICE_DIFFERENCE.with(|v| {
+		*v.borrow_mut() = diff;
 	});
 }
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
 	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
+pub fn expect_dca_events(e: Vec<RuntimeEvent>) {
+	let last_events = test_utils::last_events::<RuntimeEvent, Test>(e.len());
+
+	let mut dca_events = vec![];
+
+	for event in &last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			RuntimeEvent::DCA(crate::Event::<Test>::ExecutionStarted { .. })
+				| RuntimeEvent::DCA(crate::Event::<Test>::Scheduled { .. })
+				| RuntimeEvent::DCA(crate::Event::<Test>::ExecutionPlanned { .. })
+				| RuntimeEvent::DCA(crate::Event::<Test>::TradeExecuted { .. })
+				| RuntimeEvent::DCA(crate::Event::<Test>::TradeFailed { .. })
+				| RuntimeEvent::DCA(crate::Event::<Test>::Terminated { .. })
+				| RuntimeEvent::DCA(crate::Event::<Test>::Completed { .. })
+		) {
+			dca_events.push(e);
+		}
+	}
+
+	pretty_assertions::assert_eq!(dca_events, e);
 }
 
 #[macro_export]

@@ -156,13 +156,14 @@ pub mod pallet {
 							error,
 						});
 
-						if T::ContinueOnErrors::contains(&error) {
-							if let Err(err) = Self::retry_schedule(schedule_id, &schedule, current_blocknumber) {
-								Self::terminate_schedule(schedule_id, &schedule, err);
-							}
+						if error != Error::<T>::TradeLimitReached.into() {
+							Self::terminate_schedule(schedule_id, &schedule, error);
 						} else {
-							Self::terminate_schedule(schedule_id, &schedule, error)
-						}
+							if let Err(retry_error) = Self::retry_schedule(schedule_id, &schedule, current_blocknumber)
+							{
+								Self::terminate_schedule(schedule_id, &schedule, retry_error);
+							}
+						};
 					}
 				}
 			}
@@ -206,9 +207,6 @@ pub mod pallet {
 		///Spot price provider to get the current price between two asset
 		type SpotPriceProvider: SpotPriceProvider<Self::Asset, Price = FixedU128>;
 
-		///Errors on which we want to continue the schedule
-		type ContinueOnErrors: Contains<DispatchError>;
-
 		///Max price difference allowed between blocks
 		#[pallet::constant]
 		type MaxPriceDifferenceBetweenBlocks: Get<Permill>;
@@ -217,7 +215,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxSchedulePerBlock: Get<u32>;
 
-		///The number of max retries on errors specified in `ContinueOnErrors`
+		///The number of max retries in case of trade limit error
 		#[pallet::constant]
 		type MaxNumberOfRetriesOnError: Get<u32>;
 
@@ -310,6 +308,8 @@ pub mod pallet {
 		ManuallyTerminated,
 		///Max number of retries reached for schedule
 		MaxRetryReached,
+		///The trade limit has been reached, leading to retry
+		TradeLimitReached,
 		///The route to execute the trade on is not specified
 		RouteNotSpecified,
 		///Error that should not really happen only in case of invalid state of the schedule storage entries
@@ -560,33 +560,37 @@ where
 	) -> DispatchResult {
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
-		let Ok(amount_to_sell)  = Self::get_amount_in(schedule_id, &schedule.order) else {
-			return Err(Error::<T>::InvalidState.into());
-		};
-
-		let Ok(()) = Self::unallocate_amount(schedule_id, schedule, amount_to_sell) else {
-			return Err(Error::<T>::InvalidState.into());
-		};
-
 		match &schedule.order {
 			Order::Sell {
 				asset_in,
 				asset_out,
+				amount_in,
 				min_limit,
 				slippage,
 				route,
-				..
 			} => {
+				let remaining_amount_to_use =
+					RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
+				let amount_to_sell = min(remaining_amount_to_use, *amount_in);
+
+				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
+
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, amount_to_sell, *slippage)?;
-
 				let min_limit_with_slippage = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
-
 				let min_limit = max(*min_limit, min_limit_with_slippage);
 
 				let route = Self::convert_to_vec(route);
+				let trade_amounts =
+					pallet_route_executor::Pallet::<T>::calculate_sell_trade_amounts(&route, amount_to_sell.into())?;
+				let last_trade = trade_amounts.last().ok_or(Error::<T>::InvalidState)?;
+				let amount_out = last_trade.amount_out;
+
+				if amount_out < min_limit.into() {
+					return Err(Error::<T>::TradeLimitReached.into());
+				}
 
 				pallet_route_executor::Pallet::<T>::sell(
 					origin,
@@ -605,16 +609,20 @@ where
 				max_limit,
 				route,
 			} => {
+				let amount_in = Self::get_amount_in_for_buy(amount_out, route)?;
+
+				Self::unallocate_amount(schedule_id, schedule, amount_in.into())?;
+
 				let (estimated_amount_in, slippage_amount) =
 					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out, *slippage)?;
-
 				let max_limit_with_slippage = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
 				let max_limit = min(*max_limit, max_limit_with_slippage);
-
-				let route = Self::convert_to_vec(route);
+				if amount_in > max_limit.into() {
+					return Err(Error::<T>::TradeLimitReached.into());
+				}
 
 				pallet_route_executor::Pallet::<T>::buy(
 					origin,
@@ -622,7 +630,7 @@ where
 					(*asset_out).into(),
 					(*amount_out).into(),
 					max_limit.into(),
-					route,
+					Self::convert_to_vec(route),
 				)
 			}
 		}
@@ -640,23 +648,25 @@ where
 
 		Self::reset_retries(schedule_id)?;
 
-		let remaining_amount_to_use = RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
+		let remaining_amount_to_use: T::Balance = RemainingAmounts::<T>::get(schedule_id)
+			.ok_or(Error::<T>::InvalidState)?
+			.into();
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
-		if remaining_amount_to_use < transaction_fee {
+		if remaining_amount_to_use < transaction_fee.into() {
 			Self::complete_schedule(schedule_id, &schedule);
 			return Ok(());
 		}
 
 		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
-		if let Order::Buy { .. } = schedule.order {
-			let amount_to_unreserve = Self::get_amount_in(schedule_id, &schedule.order)?;
+		if let Order::Buy { amount_out, route, .. } = &schedule.order {
+			let amount_to_unreserve: T::Balance = Self::get_amount_in_for_buy(&amount_out, &route)?;
 
-			let amount_for_next_trade = amount_to_unreserve
-				.checked_add(transaction_fee)
+			let amount_for_next_trade: T::Balance = amount_to_unreserve
+				.checked_add(&(transaction_fee.into()))
 				.ok_or(ArithmeticError::Overflow)?;
 
-			if remaining_amount_to_use < amount_for_next_trade {
+			if remaining_amount_to_use < amount_for_next_trade.into() {
 				Self::complete_schedule(schedule_id, &schedule);
 				return Ok(());
 			}
@@ -742,27 +752,6 @@ where
 		diff > max_allowed_difference
 	}
 
-	fn get_amount_in(schedule_id: ScheduleId, order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
-		match order {
-			Order::Sell { amount_in, .. } => {
-				let remaining_amount_to_use =
-					RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
-
-				let trade_amount = if remaining_amount_to_use < *amount_in {
-					remaining_amount_to_use
-				} else {
-					*amount_in
-				};
-
-				Ok(trade_amount)
-			}
-			Order::Buy { amount_out, route, .. } => {
-				let amount_in = Self::get_amount_in_for_buy(amount_out, route)?;
-				Ok(amount_in.into())
-			}
-		}
-	}
-
 	fn get_amount_in_for_buy(
 		amount_out: &Balance,
 		route: &BoundedVec<Trade<<T as Config>::Asset>, ConstU32<5>>,
@@ -789,7 +778,7 @@ where
 		amount_to_unreserve: Balance,
 	) -> DispatchResult {
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
-			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
+			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::InvalidState)?;
 
 			if amount_to_unreserve > *remaining_amount {
 				return Err(Error::<T>::InvalidState.into());

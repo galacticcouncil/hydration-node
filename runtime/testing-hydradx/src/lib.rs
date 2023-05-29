@@ -992,22 +992,8 @@ impl pallet_dca::Config for Runtime {
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
 	type WeightInfo = weights::dca::HydraWeight<Runtime>;
-	type ContinueOnErrors = ContinueOnErrorsList;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = SuperMajorityTechCommittee;
-}
-
-pub struct ContinueOnErrorsList;
-
-impl Contains<DispatchError> for ContinueOnErrorsList {
-	fn contains(e: &DispatchError) -> bool {
-		vec![
-			pallet_omnipool::Error::<Runtime>::BuyLimitNotReached.into(),
-			pallet_omnipool::Error::<Runtime>::SellLimitExceeded.into(),
-			pallet_route_executor::Error::<Runtime>::TradingLimitReached.into(),
-		]
-		.contains(e)
-	}
 }
 
 parameter_types! {

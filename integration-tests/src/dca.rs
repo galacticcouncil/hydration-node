@@ -937,12 +937,15 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 
 		init_omnipool_with_oracle_for_block_10();
 
-		let schedule1 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
-		let schedule2 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
-		let schedule3 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
-		let schedule4 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
-		let schedule5 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
-		let schedule6 = schedule_fake_with_invalid_min_limit(ALICE, 1000 * UNITS, HDX, DAI, 100 * UNITS);
+		let dca_budget = 1100 * UNITS;
+		let amount_to_sell = 100 * UNITS;
+
+		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		let schedule2 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		let schedule3 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		let schedule4 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		let schedule5 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		let schedule6 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
 
 		create_schedule(ALICE, schedule1);
 		create_schedule(ALICE, schedule2);
@@ -956,7 +959,6 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 
 		//Assert
 		//We check the random ordering based on the the emitted events.
-		//The orders should fail due to invalid min limit.
 		expect_schedule_ids_from_events(vec![2, 5, 0, 4, 3, 1]);
 	});
 }
@@ -1132,17 +1134,17 @@ pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 }
 
 pub fn expect_schedule_ids_from_events(e: Vec<u32>) {
-	let last_schedule_ids_from_events: Vec<u32> = get_last_schedule_ids_from_trade_failed_events();
+	let last_schedule_ids_from_events: Vec<u32> = get_last_schedule_ids_from_trade_executed_events();
 	pretty_assertions::assert_eq!(last_schedule_ids_from_events, e);
 }
 
-pub fn get_last_schedule_ids_from_trade_failed_events() -> Vec<u32> {
+pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 	let last_events: Vec<hydradx_runtime::RuntimeEvent> = last_hydra_events(1000);
 	let mut schedule_ids = vec![];
 
 	for event in last_events {
 		let e = event.clone();
-		if let hydradx_runtime::RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { id, .. }) = e {
+		if let hydradx_runtime::RuntimeEvent::DCA(pallet_dca::Event::TradeExecuted { id, .. }) = e {
 			schedule_ids.push(id);
 		}
 	}

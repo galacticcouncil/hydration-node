@@ -23,6 +23,7 @@ use crate::{
 };
 use frame_support::assert_ok;
 use frame_support::traits::OnInitialize;
+use hydra_dx_math::types::Ratio;
 use hydradx_traits::router::PoolType;
 use hydradx_traits::router::PoolType::Omnipool;
 use orml_traits::MultiCurrency;
@@ -152,7 +153,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 }
 
 #[test]
-fn sell_schedule_should_sell_remaining_when_there_is_not_enugh_left() {
+fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 	let initial_alice_hdx_balance = 10000 * ONE;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, initial_alice_hdx_balance)])
@@ -878,7 +879,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 }
 
 #[test]
-fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
+fn buy_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
 		.build()
@@ -886,16 +887,18 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
+			let total_amount = 1000 * ONE;
 			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: INVALID_BUY_AMOUNT_VALUE,
-					max_limit: 50 * ONE,
-					slippage: Some(Permill::from_percent(20)),
+					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
+					max_limit: 5 * ONE,
+					slippage: None,
 					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
+						pool: PoolType::Omnipool,
 						asset_in: HDX,
 						asset_out: BTC,
 					}]),
@@ -913,11 +916,65 @@ fn dca_schedule_should_continue_when_error_is_configured_to_continue_on() {
 			assert_scheduled_ids!(511, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(1, retries.unwrap());
-			expect_events(vec![
+			expect_dca_events(vec![
 				DcaEvent::TradeFailed {
 					id: schedule_id,
 					who: ALICE,
-					error: pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
+					error: Error::<Test>::TradeLimitReached.into(),
+				}
+				.into(),
+				DcaEvent::ExecutionPlanned {
+					id: schedule_id,
+					who: ALICE,
+					block: 511,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
+fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 1000 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
+					min_limit: Balance::MAX,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			set_to_blocknumber(501);
+
+			assert_number_of_executed_sell_trades!(0);
+
+			let schedule_id = 0;
+			assert_scheduled_ids!(511, vec![schedule_id]);
+			let retries = DCA::retries_on_error(schedule_id);
+			assert_eq!(1, retries.unwrap());
+			expect_dca_events(vec![
+				DcaEvent::TradeFailed {
+					id: schedule_id,
+					who: ALICE,
+					error: Error::<Test>::TradeLimitReached.into(),
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
@@ -946,7 +1003,7 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: INVALID_BUY_AMOUNT_VALUE,
+					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
 					max_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1032,7 +1089,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: INVALID_BUY_AMOUNT_VALUE,
+					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
 					max_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1058,6 +1115,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 
 			set_to_blocknumber(571);
 			assert!(DCA::schedules(schedule_id).is_none());
+			assert_number_of_executed_buy_trades!(0);
 		});
 }
 
@@ -1065,19 +1123,24 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.with_max_price_difference(Permill::from_percent(9))
 		.build()
 		.execute_with(|| {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
+			let total_amount = 5 * ONE;
+			let amount_to_sell = ONE;
+
 			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Buy {
+				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: INVALID_BUY_AMOUNT_VALUE,
-					max_limit: 50 * ONE,
-					slippage: Some(Permill::from_percent(20)),
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1096,11 +1159,11 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 			set_to_blocknumber(511);
 			assert_scheduled_ids!(531, vec![schedule_id]);
 
-			set_invalid_buy_amount(INVALID_BUY_AMOUNT_VALUE + ONE);
+			set_max_price_diff(Permill::from_percent(10));
 
 			set_to_blocknumber(531);
 			assert_scheduled_ids!(531 + ONE_HUNDRED_BLOCKS, vec![schedule_id]);
-			assert_number_of_executed_buy_trades!(1);
+			assert_number_of_executed_sell_trades!(1);
 
 			let retries = DCA::retries_on_error(schedule_id);
 			assert_eq!(0, retries.unwrap());
@@ -1168,7 +1231,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_out: INVALID_BUY_AMOUNT_VALUE,
+					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
 					max_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {

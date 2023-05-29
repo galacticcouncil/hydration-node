@@ -657,23 +657,9 @@ impl pallet_dca::Config for Test {
 	type OraclePriceProvider = PriceProviderMock;
 	type SpotPriceProvider = SpotPriceProviderMock;
 	type MaxPriceDifferenceBetweenBlocks = OmnipoolMaxAllowedPriceDifference;
-	type ContinueOnErrors = ContinueOnErrorsListMock;
 	type NamedReserveId = NamedReserveId;
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
-}
-
-pub struct ContinueOnErrorsListMock;
-
-impl Contains<DispatchError> for ContinueOnErrorsListMock {
-	fn contains(e: &DispatchError) -> bool {
-		vec![
-			pallet_omnipool::Error::<Test>::SellLimitExceeded.into(),
-			pallet_omnipool::Error::<Test>::BuyLimitNotReached.into(),
-			pallet_route_executor::Error::<Test>::TradingLimitReached.into(), //TODO: Danie - remove the rest of the errors, not relevant if all is fine?!
-		]
-		.contains(e)
-	}
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
