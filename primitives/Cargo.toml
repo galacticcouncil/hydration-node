@@ -16,7 +16,7 @@ static_assertions = "1.1.0"
 frame-support = { workspace = true }
 
 # Polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
+polkadot-primitives = { workspace = true }
 
 [features]
 default = ["std"]

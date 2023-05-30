@@ -65,11 +65,11 @@ parachain-info = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
 
 # Polkadot dependencies
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false, features = ["wasm-api"] }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
-pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
-polkadot-xcm = { package = "xcm", git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
+polkadot-parachain = { workspace = true, features = ["wasm-api"] }
+xcm-builder = { workspace = true }
+pallet-xcm = { workspace = true }
+xcm-executor = { workspace = true }
+polkadot-xcm = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true }
@@ -104,9 +104,9 @@ sp-staking = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
 
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
-polkadot-runtime-parachains = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
-polkadot-runtime = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
+polkadot-primitives = { workspace = true }
+polkadot-runtime-parachains = { workspace = true }
+polkadot-runtime = { workspace = true }
 
 [dev-dependencies]
 hex-literal = "0.4.1"

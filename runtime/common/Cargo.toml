@@ -55,7 +55,7 @@ pallet-timestamp = { workspace = true }
 pallet-balances = { workspace = true }
 
 # Polkadot dependencies
-pallet-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
+pallet-xcm = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -68,8 +68,8 @@ pallet-collator-selection = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
 
 # Polkadot dependencies
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
+xcm = { workspace = true }
+xcm-executor = { workspace = true }
 
 [features]
 default = ["std"]
