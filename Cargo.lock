@@ -6469,7 +6469,6 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
- "pallet-circuit-breaker",
  "pallet-currencies",
  "pallet-ema-oracle",
  "pallet-omnipool",

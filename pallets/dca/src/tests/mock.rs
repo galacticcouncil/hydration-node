@@ -86,7 +86,6 @@ frame_support::construct_runtime!(
 		 Omnipool: pallet_omnipool,
 		 Balances: pallet_balances,
 		 Currencies: pallet_currencies,
-		 RelaychainInfo: pallet_relaychain_info,
 		 EmaOracle: pallet_ema_oracle,
 	 }
 );
@@ -570,21 +569,6 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for Xyk {
 
 		Ok(())
 	}
-}
-
-pub struct BlockNumberProviderMock {}
-
-impl BlockNumberProvider for BlockNumberProviderMock {
-	type BlockNumber = BlockNumber;
-
-	fn current_block_number() -> Self::BlockNumber {
-		todo!()
-	}
-}
-
-impl pallet_relaychain_info::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type RelaychainBlockNumberProvider = BlockNumberProviderMock;
 }
 
 pub struct PriceProviderMock {}

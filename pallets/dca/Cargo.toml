@@ -30,7 +30,6 @@ cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus
 
 # HydraDX dependencies
 pallet-omnipool = { path="../omnipool", default-features = false }
-pallet-circuit-breaker = { path="../circuit-breaker", default-features = false }
 hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "a7a8d8d3741b27a85814d438a1bce69da3e9f0cf", default-features = false }
 hydradx-adapters = { git = "https://github.com/galacticcouncil/warehouse", rev = "a7a8d8d3741b27a85814d438a1bce69da3e9f0cf", default-features = false }
 pallet-relaychain-info = { git = "https://github.com/galacticcouncil/warehouse", rev = "a7a8d8d3741b27a85814d438a1bce69da3e9f0cf", default-features = false }
@@ -83,7 +82,6 @@ std = [
   "orml-tokens/std",
   "pallet-omnipool/std",
   "pallet-ema-oracle/std",
-  "pallet-circuit-breaker/std",
   "pallet-route-executor/std",
 ]
 
