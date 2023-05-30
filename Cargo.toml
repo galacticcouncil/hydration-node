@@ -34,12 +34,14 @@ members = [
   'pallets/nft',
   'pallets/ema-oracle',
   'pallets/otc',
+  'math',
 ]
 
 [workspace.dependencies]
 hydradx = { path = "node", default-features = false }
 primitives = { path = "primitives", default-features = false }
 hydradx-traits = { path = "traits", default-features = false }
+hydra-dx-math = { path = "math", default-features = false }
 
 common-runtime = { path = "runtime/common", default-features = false }
 hydradx-adapters = { path = "runtime/adapters", default-features = false }

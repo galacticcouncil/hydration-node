@@ -34,7 +34,7 @@ pallet-omnipool = { workspace = true }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
+hydra-dx-math = { workspace = true }
 test-utils = { workspace = true }
 pretty_assertions = "1.2.1"
 test-case = "3.0.0"

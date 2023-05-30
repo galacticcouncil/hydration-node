@@ -15,7 +15,7 @@ serde = { features = ["derive"], optional = true, version = "1.0.137" }
 # HydraDX dependencies
 hydradx-traits = { workspace = true }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
+hydra-dx-math = { workspace = true }
 
 # ORML dependencies
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }

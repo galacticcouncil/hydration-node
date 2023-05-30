@@ -23,7 +23,7 @@ pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-claims = { workspace = true }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
+hydra-dx-math = { workspace = true }
 
 # Warehouse dependencies
 hydradx-traits = { workspace = true }
