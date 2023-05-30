@@ -32,7 +32,6 @@ members = [
   'pallets/dynamic-fees',
   'pallets/duster',
   'pallets/nft',
-  'pallets/ema-oracle',
   'pallets/otc',
   'math',
 ]
