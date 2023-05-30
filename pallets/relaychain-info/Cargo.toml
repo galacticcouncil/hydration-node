@@ -12,13 +12,13 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 
 # Substrate dependencies
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-std = { workspace = true }
+sp-api = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
 
-cumulus-primitives-core = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38", default-features = false }
-cumulus-pallet-parachain-system = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38", default-features = false }
+cumulus-primitives-core = { workspace = true }
+cumulus-pallet-parachain-system = { workspace = true }
 
 [features]
 default = ["std"]

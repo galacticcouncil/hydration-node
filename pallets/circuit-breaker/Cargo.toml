@@ -17,13 +17,13 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-benchmarking = { workspace = true, optional = true}
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
 
 
 # Warehouse
@@ -31,9 +31,9 @@ hydradx-traits = { workspace = true }
 
 [dev-dependencies]
 pallet-omnipool = { workspace = true }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
+pallet-balances = { workspace = true }
+orml-tokens = { workspace = true }
+orml-traits = { workspace = true }
 hydra-dx-math = { workspace = true }
 test-utils = { workspace = true }
 pretty_assertions = "1.2.1"
