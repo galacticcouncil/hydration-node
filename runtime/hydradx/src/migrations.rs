@@ -82,3 +82,32 @@ where
 		weight
 	}
 }
+
+pub struct XcmRateLimitMigration;
+impl OnRuntimeUpgrade for XcmRateLimitMigration {
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<Vec<u8>, &'static str> {
+		frame_support::log::info!("PreMigrate Asset Registry Pallet start");
+		pallet_asset_registry::migration::v1::pre_migrate::<Runtime>();
+		frame_support::log::info!("PreMigrate Asset Registry Pallet end");
+
+		Ok(vec![])
+	}
+
+	fn on_runtime_upgrade() -> Weight {
+		log::info!(
+			target: "runtime::asset-registry",
+			"XcmRateLimitMigration::on_runtime_upgrade: migrating asset details to include xcm rate limit"
+		);
+
+		pallet_asset_registry::migration::v1::migrate::<Runtime>()
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade(_state: Vec<u8>) -> Result<(), &'static str> {
+		frame_support::log::info!("PostMigrate Asset Registry Pallet start");
+		pallet_asset_registry::migration::v1::post_migrate::<Runtime>();
+		frame_support::log::info!("PostMigrate Asset Registry Pallet end");
+		Ok(())
+	}
+}

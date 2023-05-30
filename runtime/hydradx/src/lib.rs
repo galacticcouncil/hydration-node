@@ -1183,6 +1183,7 @@ pub type Executive = frame_executive::Executive<
 		ParachainSystem,
 		migrations::OnRuntimeUpgradeMigration,
 		migrations::MigrateRegistryLocationToV3<Runtime>,
+		migrations::XcmRateLimitMigration,
 	),
 >;
 
