@@ -191,6 +191,9 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 	}
 }
 
+// The reason why there is difference between PROD and benchmark is that it is not possible
+// to set validation data in parachain system pallet in the benchmarks.
+// So for benchmarking, we mock it out and return some hardcoded parent hash
 pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
 
 #[cfg(not(feature = "runtime-benchmarks"))]
