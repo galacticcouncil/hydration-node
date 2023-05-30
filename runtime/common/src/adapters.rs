@@ -16,7 +16,6 @@ use hydradx_traits::{liquidity_mining::PriceAdjustment, OnLiquidityChangedHandle
 use orml_xcm_support::OnDepositFail;
 use orml_xcm_support::UnknownAsset as UnknownAssetT;
 use pallet_circuit_breaker::WeightInfo;
-use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::Price;
 use pallet_ema_oracle::{OnActivityHandler, OracleError};
 use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
