@@ -23,10 +23,10 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
-const BUY_DCA_EXECUTION_FEE: Balance = 2_748_175_080_127;
-const BUY_DCA_EXECUTION_FEE_IN_LRNA: Balance = 1_374_087_542_258;
-const SELL_DCA_EXECUTION_FEE: Balance = 2732690304486;
-const SELL_DCA_EXECUTION_FEE_IN_LRNA: Balance = 1366345154426;
+const BUY_DCA_EXECUTION_FEE: Balance = 2_803_633_814_101;
+const BUY_DCA_EXECUTION_FEE_IN_LRNA: Balance = 1_401_816_909_290;
+const SELL_DCA_EXECUTION_FEE: Balance = 2_793_477_564_101;
+const SELL_DCA_EXECUTION_FEE_IN_LRNA: Balance = 1_396_738_784_282;
 
 #[test]
 fn create_schedule_should_work() {
@@ -87,7 +87,7 @@ fn buy_schedule_execution_should_work_when_block_is_initialized() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 143169269511247;
+		let amount_to_unreserve_for_trade = 143224728245221;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
@@ -200,7 +200,7 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 		set_relaychain_block_number(11);
 
 		//Assert
-		let amount_to_unreserve_for_trade = 71549527625876;
+		let amount_to_unreserve_for_trade = 71577256992908;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), LRNA, alice_init_hub_balance - dca_budget);
@@ -282,7 +282,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		run_to_block(11, 40);
 
 		//Assert
-		let over_reservation_left_over = 140984182402199; //Because the remaining budget for the last trade is not enough, so it is returned
+		let over_reservation_left_over = 140651429998355; //Because the remaining budget for the last trade is not enough, so it is returned
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
 		assert_balance!(
 			ALICE.into(),
@@ -292,7 +292,7 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let fees = 16489050480762;
+		let fees = 16821802884606;
 		assert_balance!(
 			&hydradx_runtime::Treasury::account_id(),
 			HDX,
@@ -375,7 +375,7 @@ fn sell_schedule_should_sell_remaining_in_next_trade_when_there_is_not_enough_le
 		let schedule_id = 0;
 		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
 		assert!(schedule.is_none());
-		let amount_out = 708251372757004;
+		let amount_out = 708164794281797;
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
