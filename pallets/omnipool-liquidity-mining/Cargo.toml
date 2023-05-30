@@ -17,8 +17,8 @@ scale-info = { version = "2.3.1", default-features = false, features = ["derive"
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 
 # local
-primitives = { path = "../../primitives", default-features = false }
-pallet-omnipool = { path = "../omnipool", default-features = false }
+primitives = { workspace = true }
+pallet-omnipool = { workspace = true }
 
 # primitives
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
@@ -32,9 +32,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "polk
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 
 # Warehouse
-pallet-liquidity-mining = { git = "https://github.com/galacticcouncil/warehouse", rev = "d6a78b5d51bc8af525d2b8f856efcfce2159e334", default-features = false }
-pallet-ema-oracle = { git = "https://github.com/galacticcouncil/warehouse", rev = "d6a78b5d51bc8af525d2b8f856efcfce2159e334", default-features = false }
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "d6a78b5d51bc8af525d2b8f856efcfce2159e334", default-features = false }
+pallet-liquidity-mining = { workspace = true }
+pallet-ema-oracle = { workspace = true }
+hydradx-traits = { workspace = true }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
 
@@ -54,7 +54,7 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
-test-utils = { path = "../../utils/test-utils", default-features = false }
+test-utils = { workspace = true }
 
 [features]
 default = ["std"]

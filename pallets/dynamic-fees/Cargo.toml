@@ -13,7 +13,7 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 serde = { features = ["derive"], optional = true, version = "1.0.137" }
 
 # HydraDX dependencies
-hydradx-traits = { path = "../../traits", default-features = false }
+hydradx-traits = { workspace = true }
 
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
 

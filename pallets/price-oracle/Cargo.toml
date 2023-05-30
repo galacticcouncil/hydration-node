@@ -16,7 +16,7 @@ serde = {features = ['derive'], optional = true, version = '1.0.137'}
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 
 # HydraDX dependencies
-hydradx-traits = { path = "../../traits", default-features = false }
+hydradx-traits = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true }
@@ -28,7 +28,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-test-utils = { path = "../../utils/test-utils", default-features = false }
+test-utils = { workspace = true }
 
 [features]
 default = ['std']

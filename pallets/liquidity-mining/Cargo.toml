@@ -20,7 +20,7 @@ sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "pol
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 
 # HydraDX dependencies
-hydradx-traits = { path = "../../traits", default-features = false }
+hydradx-traits = { workspace = true }
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
 
 # Substrate dependencies
@@ -30,7 +30,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 
 [dev-dependencies]
-test-utils = { path="../../utils/test-utils" }
+test-utils = { workspace = true }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }

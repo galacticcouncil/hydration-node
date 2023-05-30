@@ -16,7 +16,7 @@ clap = { version = "3.2.11", features = [ "derive" ] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 # local dependencies
-hydradx-runtime = { path = "../runtime/hydradx" }
+hydradx-runtime = { workspace = true }
 
 # Substrate dependencies
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }

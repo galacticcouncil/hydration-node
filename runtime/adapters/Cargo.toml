@@ -12,8 +12,8 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 log = { version = "0.4.17", default-features = false }
 
 # HydraDX dependencies
-hydradx-traits = { path="../../traits", default-features = false }
-pallet-transaction-multi-payment = { path = "../../pallets/transaction-multi-payment", default-features = false }
+hydradx-traits = { workspace = true }
+pallet-transaction-multi-payment = { workspace = true }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }

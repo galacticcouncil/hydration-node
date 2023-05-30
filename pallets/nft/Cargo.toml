@@ -29,7 +29,7 @@ pallet-uniques = { git = "https://github.com/paritytech/substrate", branch = "po
 orml-utilities = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
 
 # HydraDX traits
-hydradx-traits = { path = "../../traits", default-features = false }
+hydradx-traits = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }

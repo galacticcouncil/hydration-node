@@ -13,7 +13,7 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 serde = { features = ["derive"], optional = true, version = "1.0.137" }
 
 # HydraDX dependencies
-hydradx-traits = { path = "../../traits", default-features = false }
+hydradx-traits = { workspace = true }
 
 # ORML dependencies
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
@@ -32,9 +32,9 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 pretty_assertions = "1.2.1"
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
-pallet-currencies = { path = "../currencies", default-features = false }
-hydradx-adapters = { path = "../../runtime/adapters", default-features = false }
-test-utils = { path = "../../utils/test-utils", default-features = false }
+pallet-currencies = { workspace = true }
+hydradx-adapters = { workspace = true }
+test-utils = { workspace = true }
 
 [features]
 default = ['std']

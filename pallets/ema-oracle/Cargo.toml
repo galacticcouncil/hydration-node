@@ -16,7 +16,7 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 codec = { package = 'parity-scale-codec', version = '3.4.0', default-features = false, features = ['derive', "max-encoded-len"] }
 
 # HydraDX dependencies
-hydradx-traits = { path = "../../traits", default-features = false }
+hydradx-traits = { workspace = true }
 hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
 
 # Substrate dependencies

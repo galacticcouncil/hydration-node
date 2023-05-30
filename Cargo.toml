@@ -36,6 +36,45 @@ members = [
   'pallets/otc',
 ]
 
+[workspace.dependencies]
+hydradx = { path = "node", default-features = false }
+primitives = { path = "primitives", default-features = false }
+hydradx-traits = { path = "traits", default-features = false }
+
+common-runtime = { path = "runtime/common", default-features = false }
+hydradx-adapters = { path = "runtime/adapters", default-features = false }
+hydradx-runtime = { path = "runtime/hydradx", default-features = false }
+testing-hydradx-runtime = { path = "runtime/testing-hydradx", default-features = false }
+
+pallet-asset-registry = { path = "pallets/asset-registry", default-features = false }
+pallet-circuit-breaker = { path = "pallets/circuit-breaker", default-features = false }
+pallet-claims = { path = "pallets/claims", default-features = false }
+pallet-collator-rewards = { path = "pallets/collator-rewards", default-features = false}
+pallet-currencies = { path = "pallets/currencies", default-features = false}
+pallet-duster = { path = "pallets/duster", default-features = false }
+pallet-dynamic-fees = { path = "pallets/dynamic-fees", default-features = false }
+pallet-ema-oracle = { path = "pallets/ema-oracle", default-features = false}
+pallet-faucet = { path = "pallets/faucet", default-features = false }
+pallet-genesis-history = { path = "pallets/genesis-history", default-features = false }
+pallet-liquidity-mining = { path = "pallets/liquidity-mining", default-features = false }
+warehouse-liquidity-mining = { package="pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
+pallet-nft = { path = "pallets/nft", default-features = false }
+pallet-omnipool = { path = "pallets/omnipool", default-features = false }
+pallet-omnipool-liquidity-mining = { path = "pallets/omnipool-liquidity-mining", default-features = false }
+pallet-otc = { path = "pallets/otc", default-features = false}
+pallet-price-oracle = { path = "pallets/price-oracle", default-features = false }
+pallet-relaychain-info = { path = "pallets/relaychain-info", default-features = false }
+pallet-route-executor = { path = "pallets/route-executor", default-features = false }
+pallet-stableswap = { path = "pallets/stableswap", default-features = false }
+pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment", default-features = false}
+pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
+
+hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
+test-utils = { path = "utils/test-utils", default-features = false }
+scraper = { path = "scraper", default-features = false }
+
+integration-tests = { path = "integration-tests", default-features = false }
+
 [patch."https://github.com/paritytech/polkadot"]
 kusama-runtime = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-38" }
 pallet-xcm = { git = "https://github.com/galacticcouncil/polkadot", branch = "fix-xcm-executor-atomicity-9-38" }
