@@ -402,18 +402,3 @@ impl<
 		Ok(asset.clone().into())
 	}
 }
-
-pub struct RelayChainBlockHashProviderAdapter<Runtime>(PhantomData<Runtime>);
-
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
-		match validation_data {
-			Some(data) => Some(data.parent_head.hash()),
-			None => None,
-		}
-	}
-}

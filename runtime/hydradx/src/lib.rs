@@ -25,7 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
-use common_runtime::adapters::{OmnipoolPriceProviderAdapter, RelayChainBlockHashProviderAdapter};
+use common_runtime::adapters::OmnipoolPriceProviderAdapter;
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
@@ -188,6 +188,32 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 
 	fn current_block_number() -> Self::BlockNumber {
 		frame_system::Pallet::<T>::current_block_number()
+	}
+}
+
+pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		match validation_data {
+			Some(data) => Some(data.parent_head.hash()),
+			None => None,
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		Some(cumulus_primitives_core::relay_chain::Hash::default())
 	}
 }
 
@@ -915,6 +941,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 }
 
 // constants need to be in scope to use as types
+use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
 

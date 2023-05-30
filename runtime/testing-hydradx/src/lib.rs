@@ -66,7 +66,6 @@ use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::traits::{BlockNumberProvider, ConstU32};
 
-use common_runtime::adapters::RelayChainBlockHashProviderAdapter;
 use common_runtime::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter};
 pub use common_runtime::*;
 use pallet_currencies::BasicCurrencyAdapter;
@@ -196,6 +195,32 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 
 	fn current_block_number() -> Self::BlockNumber {
 		frame_system::Pallet::<T>::current_block_number()
+	}
+}
+
+pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		match validation_data {
+			Some(data) => Some(data.parent_head.hash()),
+			None => None,
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		Some(cumulus_primitives_core::relay_chain::Hash::default())
 	}
 }
 
@@ -913,6 +938,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 }
 
 // constants need to be in scope to use as types
+use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
 
