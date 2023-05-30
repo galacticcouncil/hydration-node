@@ -78,7 +78,7 @@ jobs:
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.12
       - name: Remove lockable file
-        run: sudo rm /var/lib/dpkg/lock-frontend
+        run: sudo rm /var/lib/dpkg/lock-frontend && sudo rm /var/lib/dpkg/lock
       - name: Install protobuf
         run: sudo apt-get install -y protobuf-compiler
       - name: Install Rust
