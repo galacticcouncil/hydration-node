@@ -23,8 +23,8 @@ use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
 use sp_runtime::traits::Get;
 use sp_runtime::{
-    traits::{AtLeast32BitUnsigned, Convert, Saturating, Zero},
-    FixedPointNumber, FixedPointOperand, SaturatedConversion,
+	traits::{AtLeast32BitUnsigned, Convert, Saturating, Zero},
+	FixedPointNumber, FixedPointOperand, SaturatedConversion,
 };
 use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData};
 use xcm_builder::TakeRevenue;
@@ -42,161 +42,144 @@ mod tests;
 /// allows returning one asset per refund). Will pass any remaining assets on `Drop` to
 /// `TakeRevenue`.
 pub struct MultiCurrencyTrader<
-    AssetId,
-    Balance: FixedPointOperand + TryInto<u128>,
-    Price: FixedPointNumber,
-    ConvertWeightToFee: WeightToFee<Balance = Balance>,
-    AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-    ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
-    Revenue: TakeRevenue,
+	AssetId,
+	Balance: FixedPointOperand + TryInto<u128>,
+	Price: FixedPointNumber,
+	ConvertWeightToFee: WeightToFee<Balance = Balance>,
+	AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
+	ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+	Revenue: TakeRevenue,
 > {
-    weight: Weight,
-    paid_assets: BTreeMap<(MultiLocation, Price), u128>,
-    _phantom: PhantomData<(
-        AssetId,
-        Balance,
-        Price,
-        ConvertWeightToFee,
-        AcceptedCurrencyPrices,
-        ConvertCurrency,
-        Revenue,
-    )>,
+	weight: Weight,
+	paid_assets: BTreeMap<(MultiLocation, Price), u128>,
+	_phantom: PhantomData<(
+		AssetId,
+		Balance,
+		Price,
+		ConvertWeightToFee,
+		AcceptedCurrencyPrices,
+		ConvertCurrency,
+		Revenue,
+	)>,
 }
 
 impl<
-        AssetId,
-        Balance: FixedPointOperand + TryInto<u128>,
-        Price: FixedPointNumber,
-        ConvertWeightToFee: WeightToFee<Balance = Balance>,
-        AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-        ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
-        Revenue: TakeRevenue,
-    >
-    MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
+		AssetId,
+		Balance: FixedPointOperand + TryInto<u128>,
+		Price: FixedPointNumber,
+		ConvertWeightToFee: WeightToFee<Balance = Balance>,
+		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
+		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+		Revenue: TakeRevenue,
+	> MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
 {
-    /// Get the asset id of the first asset in `payment` and try to determine its price via the
-    /// price oracle.
-    fn get_asset_and_price(&mut self, payment: &Assets) -> Option<(MultiLocation, Price)> {
-        if let Some(asset) = payment.fungible_assets_iter().next() {
-            ConvertCurrency::convert(asset.clone())
-                .and_then(|currency| AcceptedCurrencyPrices::price(currency))
-                .and_then(|price| match asset.id {
-                    Concrete(location) => Some((location, price)),
-                    _ => None,
-                })
-        } else {
-            None
-        }
-    }
+	/// Get the asset id of the first asset in `payment` and try to determine its price via the
+	/// price oracle.
+	fn get_asset_and_price(&mut self, payment: &Assets) -> Option<(MultiLocation, Price)> {
+		if let Some(asset) = payment.fungible_assets_iter().next() {
+			ConvertCurrency::convert(asset.clone())
+				.and_then(|currency| AcceptedCurrencyPrices::price(currency))
+				.and_then(|price| match asset.id {
+					Concrete(location) => Some((location, price)),
+					_ => None,
+				})
+		} else {
+			None
+		}
+	}
 }
 
 impl<
-        AssetId,
-        Balance: FixedPointOperand + TryInto<u128>,
-        Price: FixedPointNumber,
-        ConvertWeightToFee: WeightToFee<Balance = Balance>,
-        AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-        ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
-        Revenue: TakeRevenue,
-    > WeightTrader
-    for MultiCurrencyTrader<
-        AssetId,
-        Balance,
-        Price,
-        ConvertWeightToFee,
-        AcceptedCurrencyPrices,
-        ConvertCurrency,
-        Revenue,
-    >
+		AssetId,
+		Balance: FixedPointOperand + TryInto<u128>,
+		Price: FixedPointNumber,
+		ConvertWeightToFee: WeightToFee<Balance = Balance>,
+		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
+		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+		Revenue: TakeRevenue,
+	> WeightTrader
+	for MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
 {
-    fn new() -> Self {
-        Self {
-            weight: Default::default(),
-            paid_assets: Default::default(),
-            _phantom: PhantomData,
-        }
-    }
+	fn new() -> Self {
+		Self {
+			weight: Default::default(),
+			paid_assets: Default::default(),
+			_phantom: PhantomData,
+		}
+	}
 
-    /// Will try to buy weight with the first asset in `payment`.
-    ///
-    /// This is a reasonable strategy as the `BuyExecution` XCM instruction only passes one asset
-    /// per buy.
-    /// The fee is determined by `ConvertWeightToFee` in combination with the price determined by
-    /// `AcceptedCurrencyPrices`.
-    fn buy_weight(&mut self, weight: Weight, payment: Assets) -> Result<Assets, XcmError> {
-        log::trace!(
-            target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
-            weight, payment
-        );
-        let (asset_loc, price) = self.get_asset_and_price(&payment).ok_or(XcmError::AssetNotFound)?;
-        let fee = ConvertWeightToFee::weight_to_fee(&weight);
-        let converted_fee = price.checked_mul_int(fee).ok_or(XcmError::Overflow)?;
-        let amount: u128 = converted_fee.try_into().map_err(|_| XcmError::Overflow)?;
-        let required = (Concrete(asset_loc), amount).into();
-        let unused = payment.checked_sub(required).map_err(|_| XcmError::TooExpensive)?;
-        self.weight = self.weight.saturating_add(weight);
-        let key = (asset_loc, price);
-        match self.paid_assets.get_mut(&key) {
-            Some(v) => v.saturating_accrue(amount),
-            None => {
-                self.paid_assets.insert(key, amount);
-            }
-        }
-        Ok(unused)
-    }
+	/// Will try to buy weight with the first asset in `payment`.
+	///
+	/// This is a reasonable strategy as the `BuyExecution` XCM instruction only passes one asset
+	/// per buy.
+	/// The fee is determined by `ConvertWeightToFee` in combination with the price determined by
+	/// `AcceptedCurrencyPrices`.
+	fn buy_weight(&mut self, weight: Weight, payment: Assets) -> Result<Assets, XcmError> {
+		log::trace!(
+			target: "xcm::weight", "MultiCurrencyTrader::buy_weight weight: {:?}, payment: {:?}",
+			weight, payment
+		);
+		let (asset_loc, price) = self.get_asset_and_price(&payment).ok_or(XcmError::AssetNotFound)?;
+		let fee = ConvertWeightToFee::weight_to_fee(&weight);
+		let converted_fee = price.checked_mul_int(fee).ok_or(XcmError::Overflow)?;
+		let amount: u128 = converted_fee.try_into().map_err(|_| XcmError::Overflow)?;
+		let required = (Concrete(asset_loc), amount).into();
+		let unused = payment.checked_sub(required).map_err(|_| XcmError::TooExpensive)?;
+		self.weight = self.weight.saturating_add(weight);
+		let key = (asset_loc, price);
+		match self.paid_assets.get_mut(&key) {
+			Some(v) => v.saturating_accrue(amount),
+			None => {
+				self.paid_assets.insert(key, amount);
+			}
+		}
+		Ok(unused)
+	}
 
-    /// Will refund up to `weight` from the first asset tracked by the trader.
-    fn refund_weight(&mut self, weight: Weight) -> Option<MultiAsset> {
-        log::trace!(
-            target: "xcm::weight", "MultiCurrencyTrader::refund_weight weight: {:?}, paid_assets: {:?}",
-            weight, self.paid_assets
-        );
-        let weight = weight.min(self.weight);
-        self.weight -= weight; // Will not underflow because of `min()` above.
-        let fee = ConvertWeightToFee::weight_to_fee(&weight);
-        if let Some(((asset_loc, price), amount)) = self.paid_assets.iter_mut().next() {
-            let converted_fee: u128 = price.saturating_mul_int(fee).saturated_into();
-            let refund = converted_fee.min(*amount);
-            *amount -= refund; // Will not underflow because of `min()` above.
+	/// Will refund up to `weight` from the first asset tracked by the trader.
+	fn refund_weight(&mut self, weight: Weight) -> Option<MultiAsset> {
+		log::trace!(
+			target: "xcm::weight", "MultiCurrencyTrader::refund_weight weight: {:?}, paid_assets: {:?}",
+			weight, self.paid_assets
+		);
+		let weight = weight.min(self.weight);
+		self.weight -= weight; // Will not underflow because of `min()` above.
+		let fee = ConvertWeightToFee::weight_to_fee(&weight);
+		if let Some(((asset_loc, price), amount)) = self.paid_assets.iter_mut().next() {
+			let converted_fee: u128 = price.saturating_mul_int(fee).saturated_into();
+			let refund = converted_fee.min(*amount);
+			*amount -= refund; // Will not underflow because of `min()` above.
 
-            let refund_asset = *asset_loc;
-            if amount.is_zero() {
-                let key = (*asset_loc, *price);
-                self.paid_assets.remove(&key);
-            }
-            Some((Concrete(refund_asset), refund).into())
-        } else {
-            None
-        }
-    }
+			let refund_asset = *asset_loc;
+			if amount.is_zero() {
+				let key = (*asset_loc, *price);
+				self.paid_assets.remove(&key);
+			}
+			Some((Concrete(refund_asset), refund).into())
+		} else {
+			None
+		}
+	}
 }
 
 /// We implement `Drop` so that when the weight trader is dropped at the end of XCM execution, the
 /// generated revenue is stored on-chain. This is configurable via the `Revenue` generic.
 impl<
-        AssetId,
-        Balance: FixedPointOperand + TryInto<u128>,
-        Price: FixedPointNumber,
-        ConvertWeightToFee: WeightToFee<Balance = Balance>,
-        AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
-        ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
-        Revenue: TakeRevenue,
-    > Drop
-    for MultiCurrencyTrader<
-        AssetId,
-        Balance,
-        Price,
-        ConvertWeightToFee,
-        AcceptedCurrencyPrices,
-        ConvertCurrency,
-        Revenue,
-    >
+		AssetId,
+		Balance: FixedPointOperand + TryInto<u128>,
+		Price: FixedPointNumber,
+		ConvertWeightToFee: WeightToFee<Balance = Balance>,
+		AcceptedCurrencyPrices: NativePriceOracle<AssetId, Price>,
+		ConvertCurrency: Convert<MultiAsset, Option<AssetId>>,
+		Revenue: TakeRevenue,
+	> Drop
+	for MultiCurrencyTrader<AssetId, Balance, Price, ConvertWeightToFee, AcceptedCurrencyPrices, ConvertCurrency, Revenue>
 {
-    fn drop(&mut self) {
-        for ((asset_loc, _), amount) in self.paid_assets.iter() {
-            Revenue::take_revenue((*asset_loc, *amount).into());
-        }
-    }
+	fn drop(&mut self) {
+		for ((asset_loc, _), amount) in self.paid_assets.iter() {
+			Revenue::take_revenue((*asset_loc, *amount).into());
+		}
+	}
 }
 
 /// Implements `TakeRevenue` by sending the assets to the fee receiver, using an implementor of
@@ -204,35 +187,35 @@ impl<
 ///
 /// Note: Only supports concrete fungible assets.
 pub struct ToFeeReceiver<AccountId, AssetId, Balance, Price, C, D, F>(
-    PhantomData<(AccountId, AssetId, Balance, Price, C, D, F)>,
+	PhantomData<(AccountId, AssetId, Balance, Price, C, D, F)>,
 );
 impl<
-        AccountId,
-        AssetId,
-        Balance: AtLeast32BitUnsigned,
-        Price,
-        C: Convert<MultiLocation, Option<AssetId>>,
-        D: DepositFee<AccountId, AssetId, Balance>,
-        F: Get<AccountId>,
-    > TakeRevenue for ToFeeReceiver<AccountId, AssetId, Balance, Price, C, D, F>
+		AccountId,
+		AssetId,
+		Balance: AtLeast32BitUnsigned,
+		Price,
+		C: Convert<MultiLocation, Option<AssetId>>,
+		D: DepositFee<AccountId, AssetId, Balance>,
+		F: Get<AccountId>,
+	> TakeRevenue for ToFeeReceiver<AccountId, AssetId, Balance, Price, C, D, F>
 {
-    fn take_revenue(asset: MultiAsset) {
-        match asset {
-            MultiAsset {
-                id: Concrete(loc),
-                fun: Fungibility::Fungible(amount),
-            } => {
-                C::convert(loc).and_then(|id| {
-                    let receiver = F::get();
-                    D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
-                        .map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {:?}", e))
-                        .ok()
-                });
-            }
-            _ => {
-                debug_assert!(false, "Can only accept concrete fungible tokens as revenue.");
-                log::trace!(target: "xcm::take_revenue", "Can only accept concrete fungible tokens as revenue.");
-            }
-        }
-    }
+	fn take_revenue(asset: MultiAsset) {
+		match asset {
+			MultiAsset {
+				id: Concrete(loc),
+				fun: Fungibility::Fungible(amount),
+			} => {
+				C::convert(loc).and_then(|id| {
+					let receiver = F::get();
+					D::deposit_fee(&receiver, id, amount.saturated_into::<Balance>())
+						.map_err(|e| log::trace!(target: "xcm::take_revenue", "Could not deposit fee: {:?}", e))
+						.ok()
+				});
+			}
+			_ => {
+				debug_assert!(false, "Can only accept concrete fungible tokens as revenue.");
+				log::trace!(target: "xcm::take_revenue", "Can only accept concrete fungible tokens as revenue.");
+			}
+		}
+	}
 }

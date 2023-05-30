@@ -22,72 +22,72 @@ use frame_support::{assert_noop, assert_ok};
 
 #[test]
 fn rampage_mints() {
-    ExtBuilder::default().build_rampage().execute_with(|| {
-        //Arrange
-        System::set_block_number(1); //For event emitting
+	ExtBuilder::default().build_rampage().execute_with(|| {
+		//Arrange
+		System::set_block_number(1); //For event emitting
 
-        //Act
-        assert_ok!(Faucet::rampage_mint(RuntimeOrigin::signed(ALICE), HDX, 1000));
+		//Act
+		assert_ok!(Faucet::rampage_mint(RuntimeOrigin::signed(ALICE), HDX, 1000));
 
-        //Assert
-        assert_eq!(Currency::free_balance(HDX, &ALICE), 2000);
-        expect_events(vec![Event::RampageMint {
-            account_id: ALICE,
-            asset_id: HDX,
-            amount: 1000,
-        }
-        .into()]);
-    });
+		//Assert
+		assert_eq!(Currency::free_balance(HDX, &ALICE), 2000);
+		expect_events(vec![Event::RampageMint {
+			account_id: ALICE,
+			asset_id: HDX,
+			amount: 1000,
+		}
+		.into()]);
+	});
 }
 
 #[test]
 fn mints() {
-    ExtBuilder::default().build_live().execute_with(|| {
-        //Arrange
-        System::set_block_number(1); //For event emitting
+	ExtBuilder::default().build_live().execute_with(|| {
+		//Arrange
+		System::set_block_number(1); //For event emitting
 
-        assert_eq!(Currency::free_balance(2000, &ALICE), 0);
+		assert_eq!(Currency::free_balance(2000, &ALICE), 0);
 
-        //Act
-        assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
+		//Act
+		assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
 
-        //Assert
-        assert_eq!(Currency::free_balance(2000, &ALICE), 1_000_000_000_000_000);
-        assert_eq!(Currency::free_balance(3000, &ALICE), 1_000_000_000_000_000);
-        assert_eq!(Currency::free_balance(4000, &ALICE), 0);
+		//Assert
+		assert_eq!(Currency::free_balance(2000, &ALICE), 1_000_000_000_000_000);
+		assert_eq!(Currency::free_balance(3000, &ALICE), 1_000_000_000_000_000);
+		assert_eq!(Currency::free_balance(4000, &ALICE), 0);
 
-        expect_events(vec![Event::Mint { account_id: ALICE }.into()]);
-    });
+		expect_events(vec![Event::Mint { account_id: ALICE }.into()]);
+	});
 }
 
 #[test]
 fn rampage_disabled() {
-    ExtBuilder::default().build_live().execute_with(|| {
-        assert_noop!(
-            Faucet::rampage_mint(RuntimeOrigin::signed(ALICE), HDX, 1000),
-            Error::<Test>::RampageMintNotAllowed
-        );
-    });
+	ExtBuilder::default().build_live().execute_with(|| {
+		assert_noop!(
+			Faucet::rampage_mint(RuntimeOrigin::signed(ALICE), HDX, 1000),
+			Error::<Test>::RampageMintNotAllowed
+		);
+	});
 }
 
 #[test]
 fn mint_limit() {
-    ExtBuilder::default().build_live().execute_with(|| {
-        assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
-        assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
-        assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
-        assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
-        assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
+	ExtBuilder::default().build_live().execute_with(|| {
+		assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
+		assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
+		assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
+		assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
+		assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
 
-        assert_noop!(
-            Faucet::mint(RuntimeOrigin::signed(ALICE)),
-            Error::<Test>::MaximumMintLimitReached
-        );
+		assert_noop!(
+			Faucet::mint(RuntimeOrigin::signed(ALICE)),
+			Error::<Test>::MaximumMintLimitReached
+		);
 
-        <Faucet as OnFinalize<u64>>::on_finalize(1);
+		<Faucet as OnFinalize<u64>>::on_finalize(1);
 
-        assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
+		assert_ok!(Faucet::mint(RuntimeOrigin::signed(ALICE)));
 
-        assert_eq!(Currency::free_balance(2000, &ALICE), 6_000_000_000_000_000);
-    });
+		assert_eq!(Currency::free_balance(2000, &ALICE), 6_000_000_000_000_000);
+	});
 }

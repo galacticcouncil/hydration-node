@@ -28,9 +28,9 @@ use pallet_currencies::BasicCurrencyAdapter;
 use pretty_assertions::assert_eq;
 use sp_core::H256;
 use sp_runtime::{
-    testing::Header,
-    traits::{BlakeTwo256, IdentityLookup, One},
-    DispatchError,
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup, One},
+	DispatchError,
 };
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -43,113 +43,113 @@ pub type AssetId = u32;
 pub type Balance = u128;
 
 frame_support::construct_runtime!(
-    pub enum Test where
-     Block = Block,
-     NodeBlock = Block,
-     UncheckedExtrinsic = UncheckedExtrinsic,
-     {
-         System: frame_system,
-         Router: router,
-         Tokens: orml_tokens,
-         Balances: pallet_balances,
-         Currencies: pallet_currencies,
-     }
+	pub enum Test where
+	 Block = Block,
+	 NodeBlock = Block,
+	 UncheckedExtrinsic = UncheckedExtrinsic,
+	 {
+		 System: frame_system,
+		 Router: router,
+		 Tokens: orml_tokens,
+		 Balances: pallet_balances,
+		 Currencies: pallet_currencies,
+	 }
 );
 
 parameter_types! {
-    pub const BlockHashCount: u64 = 250;
-    pub const SS58Prefix: u8 = 63;
+	pub const BlockHashCount: u64 = 250;
+	pub const SS58Prefix: u8 = 63;
 }
 
 impl system::Config for Test {
-    type BaseCallFilter = Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type RuntimeOrigin = RuntimeOrigin;
-    type RuntimeCall = RuntimeCall;
-    type Index = u64;
-    type BlockNumber = u64;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
-    type AccountId = u64;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = BlockHashCount;
-    type DbWeight = ();
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<Balance>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = SS58Prefix;
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type BaseCallFilter = Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Index = u64;
+	type BlockNumber = u64;
+	type Hash = H256;
+	type Hashing = BlakeTwo256;
+	type AccountId = u64;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type Header = Header;
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = BlockHashCount;
+	type DbWeight = ();
+	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 pub type Amount = i128;
 
 parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
-        One::one()
-    };
+	pub ExistentialDeposits: |_currency_id: AssetId| -> Balance {
+		One::one()
+	};
 }
 
 impl orml_tokens::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type Balance = Balance;
-    type Amount = Amount;
-    type CurrencyId = AssetId;
-    type WeightInfo = ();
-    type ExistentialDeposits = ExistentialDeposits;
-    type MaxLocks = ();
-    type DustRemovalWhitelist = Nothing;
-    type ReserveIdentifier = ();
-    type MaxReserves = ();
-    type CurrencyHooks = ();
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = AssetId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type MaxLocks = ();
+	type DustRemovalWhitelist = Nothing;
+	type ReserveIdentifier = ();
+	type MaxReserves = ();
+	type CurrencyHooks = ();
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 500;
-    pub const MaxReserves: u32 = 50;
+	pub const ExistentialDeposit: u128 = 500;
+	pub const MaxReserves: u32 = 50;
 }
 
 impl pallet_balances::Config for Test {
-    type MaxLocks = ();
-    type Balance = Balance;
-    type RuntimeEvent = RuntimeEvent;
-    type DustRemoval = ();
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = frame_system::Pallet<Test>;
-    type WeightInfo = ();
-    type MaxReserves = ();
-    type ReserveIdentifier = ();
+	type MaxLocks = ();
+	type Balance = Balance;
+	type RuntimeEvent = RuntimeEvent;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = frame_system::Pallet<Test>;
+	type WeightInfo = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = ();
 }
 
 impl pallet_currencies::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type MultiCurrency = Tokens;
-    type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
-    type GetNativeCurrencyId = NativeCurrencyId;
-    type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, u32>;
+	type GetNativeCurrencyId = NativeCurrencyId;
+	type WeightInfo = ();
 }
 
 type Pools = (XYK, StableSwap, OmniPool);
 
 parameter_types! {
-    pub NativeCurrencyId: AssetId = 1000;
-    pub MaxNumberOfTrades: u8 = MAX_LIMIT_FOR_TRADES;
+	pub NativeCurrencyId: AssetId = 1000;
+	pub MaxNumberOfTrades: u8 = MAX_LIMIT_FOR_TRADES;
 }
 
 impl Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type AssetId = AssetId;
-    type Balance = Balance;
-    type MaxNumberOfTrades = MaxNumberOfTrades;
-    type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
-    type AMM = Pools;
-    type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeCurrencyId>;
+	type AMM = Pools;
+	type WeightInfo = ();
 }
 
 pub type AccountId = u64;
@@ -176,187 +176,187 @@ pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 1;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
 
 pub const BSX_AUSD_TRADE_IN_XYK: Trade<AssetId> = Trade {
-    pool: PoolType::XYK,
-    asset_in: BSX,
-    asset_out: AUSD,
+	pool: PoolType::XYK,
+	asset_in: BSX,
+	asset_out: AUSD,
 };
 
 pub const MAX_LIMIT_FOR_TRADES: u8 = 3;
 
 pub struct ExtBuilder {
-    endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
+	endowed_accounts: Vec<(AccountId, AssetId, Balance)>,
 }
 
 // Returns default values for genesis config
 impl Default for ExtBuilder {
-    fn default() -> Self {
-        Self {
-            endowed_accounts: vec![(ALICE, BSX, 1000u128)],
-        }
-    }
+	fn default() -> Self {
+		Self {
+			endowed_accounts: vec![(ALICE, BSX, 1000u128)],
+		}
+	}
 }
 
 impl ExtBuilder {
-    pub fn with_endowed_accounts(mut self, accounts: Vec<(AccountId, AssetId, Balance)>) -> Self {
-        self.endowed_accounts = accounts;
-        self
-    }
+	pub fn with_endowed_accounts(mut self, accounts: Vec<(AccountId, AssetId, Balance)>) -> Self {
+		self.endowed_accounts = accounts;
+		self
+	}
 
-    pub fn build(self) -> sp_io::TestExternalities {
-        let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	pub fn build(self) -> sp_io::TestExternalities {
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-        pallet_balances::GenesisConfig::<Test> {
-            balances: vec![
-                (ALICE, ALICE_INITIAL_NATIVE_BALANCE),
-                (ASSET_PAIR_ACCOUNT, ALICE_INITIAL_NATIVE_BALANCE),
-            ],
-        }
-        .assimilate_storage(&mut t)
-        .unwrap();
+		pallet_balances::GenesisConfig::<Test> {
+			balances: vec![
+				(ALICE, ALICE_INITIAL_NATIVE_BALANCE),
+				(ASSET_PAIR_ACCOUNT, ALICE_INITIAL_NATIVE_BALANCE),
+			],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
-        let mut initial_accounts = vec![
-            (ASSET_PAIR_ACCOUNT, AUSD, 1000u128),
-            (ASSET_PAIR_ACCOUNT, MOVR, 1000u128),
-            (ASSET_PAIR_ACCOUNT, KSM, 1000u128),
-            (ASSET_PAIR_ACCOUNT, RMRK, 1000u128),
-            (ASSET_PAIR_ACCOUNT, SDN, 1000u128),
-        ];
+		let mut initial_accounts = vec![
+			(ASSET_PAIR_ACCOUNT, AUSD, 1000u128),
+			(ASSET_PAIR_ACCOUNT, MOVR, 1000u128),
+			(ASSET_PAIR_ACCOUNT, KSM, 1000u128),
+			(ASSET_PAIR_ACCOUNT, RMRK, 1000u128),
+			(ASSET_PAIR_ACCOUNT, SDN, 1000u128),
+		];
 
-        initial_accounts.extend(self.endowed_accounts);
+		initial_accounts.extend(self.endowed_accounts);
 
-        orml_tokens::GenesisConfig::<Test> {
-            balances: initial_accounts,
-        }
-        .assimilate_storage(&mut t)
-        .unwrap();
+		orml_tokens::GenesisConfig::<Test> {
+			balances: initial_accounts,
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
-        let mut ext = sp_io::TestExternalities::new(t);
-        ext.execute_with(|| System::set_block_number(1));
-        ext
-    }
+		let mut ext = sp_io::TestExternalities::new(t);
+		ext.execute_with(|| System::set_block_number(1));
+		ext
+	}
 }
 
 type ExecutedTradeInfo = (PoolType<AssetId>, Balance, AssetId, AssetId);
 thread_local! {
-    pub static EXECUTED_SELLS: RefCell<Vec<ExecutedTradeInfo>> = RefCell::new(Vec::default());
-    pub static EXECUTED_BUYS: RefCell<Vec<ExecutedTradeInfo>> = RefCell::new(Vec::default());
+	pub static EXECUTED_SELLS: RefCell<Vec<ExecutedTradeInfo>> = RefCell::new(Vec::default());
+	pub static EXECUTED_BUYS: RefCell<Vec<ExecutedTradeInfo>> = RefCell::new(Vec::default());
 }
 
 type OriginForRuntime = OriginFor<Test>;
 
 macro_rules! impl_fake_executor {
-    ($pool_struct:ident, $pool_type: pat, $sell_calculation_result: expr, $buy_calculation_result: expr) => {
-        impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for $pool_struct {
-            type Error = DispatchError;
+	($pool_struct:ident, $pool_type: pat, $sell_calculation_result: expr, $buy_calculation_result: expr) => {
+		impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for $pool_struct {
+			type Error = DispatchError;
 
-            fn calculate_sell(
-                pool_type: PoolType<AssetId>,
-                _asset_in: AssetId,
-                _asset_out: AssetId,
-                amount_in: Balance,
-            ) -> Result<Balance, ExecutorError<Self::Error>> {
-                if !matches!(pool_type, $pool_type) {
-                    return Err(ExecutorError::NotSupported);
-                }
+			fn calculate_sell(
+				pool_type: PoolType<AssetId>,
+				_asset_in: AssetId,
+				_asset_out: AssetId,
+				amount_in: Balance,
+			) -> Result<Balance, ExecutorError<Self::Error>> {
+				if !matches!(pool_type, $pool_type) {
+					return Err(ExecutorError::NotSupported);
+				}
 
-                if amount_in == INVALID_CALCULATION_AMOUNT {
-                    return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
-                }
+				if amount_in == INVALID_CALCULATION_AMOUNT {
+					return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
+				}
 
-                Ok($sell_calculation_result)
-            }
+				Ok($sell_calculation_result)
+			}
 
-            fn calculate_buy(
-                pool_type: PoolType<AssetId>,
-                _asset_in: AssetId,
-                _asset_out: AssetId,
-                amount_out: Balance,
-            ) -> Result<Balance, ExecutorError<Self::Error>> {
-                if !matches!(pool_type, $pool_type) {
-                    return Err(ExecutorError::NotSupported);
-                }
+			fn calculate_buy(
+				pool_type: PoolType<AssetId>,
+				_asset_in: AssetId,
+				_asset_out: AssetId,
+				amount_out: Balance,
+			) -> Result<Balance, ExecutorError<Self::Error>> {
+				if !matches!(pool_type, $pool_type) {
+					return Err(ExecutorError::NotSupported);
+				}
 
-                if amount_out == INVALID_CALCULATION_AMOUNT {
-                    return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
-                }
+				if amount_out == INVALID_CALCULATION_AMOUNT {
+					return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
+				}
 
-                Ok($buy_calculation_result)
-            }
+				Ok($buy_calculation_result)
+			}
 
-            fn execute_sell(
-                _who: OriginForRuntime,
-                pool_type: PoolType<AssetId>,
-                asset_in: AssetId,
-                asset_out: AssetId,
-                amount_in: Balance,
-                _min_limit: Balance,
-            ) -> Result<(), ExecutorError<Self::Error>> {
-                if !matches!(pool_type, $pool_type) {
-                    return Err(ExecutorError::NotSupported);
-                }
+			fn execute_sell(
+				_who: OriginForRuntime,
+				pool_type: PoolType<AssetId>,
+				asset_in: AssetId,
+				asset_out: AssetId,
+				amount_in: Balance,
+				_min_limit: Balance,
+			) -> Result<(), ExecutorError<Self::Error>> {
+				if !matches!(pool_type, $pool_type) {
+					return Err(ExecutorError::NotSupported);
+				}
 
-                EXECUTED_SELLS.with(|v| {
-                    let mut m = v.borrow_mut();
-                    m.push((pool_type, amount_in, asset_in, asset_out));
-                });
+				EXECUTED_SELLS.with(|v| {
+					let mut m = v.borrow_mut();
+					m.push((pool_type, amount_in, asset_in, asset_out));
+				});
 
-                let amount_out = $sell_calculation_result;
+				let amount_out = $sell_calculation_result;
 
-                Currencies::transfer(
-                    RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
-                    ALICE,
-                    asset_out,
-                    amount_out,
-                )
-                .map_err(|e| ExecutorError::Error(e))?;
-                Currencies::transfer(
-                    RuntimeOrigin::signed(ALICE),
-                    ASSET_PAIR_ACCOUNT,
-                    asset_in,
-                    amount_in,
-                )
-                .map_err(|e| ExecutorError::Error(e))?;
+				Currencies::transfer(
+					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
+					ALICE,
+					asset_out,
+					amount_out,
+				)
+				.map_err(|e| ExecutorError::Error(e))?;
+				Currencies::transfer(
+					RuntimeOrigin::signed(ALICE),
+					ASSET_PAIR_ACCOUNT,
+					asset_in,
+					amount_in,
+				)
+				.map_err(|e| ExecutorError::Error(e))?;
 
-                Ok(())
-            }
+				Ok(())
+			}
 
-            fn execute_buy(
-                _who: OriginForRuntime,
-                pool_type: PoolType<AssetId>,
-                asset_in: AssetId,
-                asset_out: AssetId,
-                amount_out: Balance,
-                _max_limit: Balance,
-            ) -> Result<(), ExecutorError<Self::Error>> {
-                if !matches!(pool_type, $pool_type) {
-                    return Err(ExecutorError::NotSupported);
-                }
-                EXECUTED_BUYS.with(|v| {
-                    let mut m = v.borrow_mut();
-                    m.push((pool_type, amount_out, asset_in, asset_out));
-                });
+			fn execute_buy(
+				_who: OriginForRuntime,
+				pool_type: PoolType<AssetId>,
+				asset_in: AssetId,
+				asset_out: AssetId,
+				amount_out: Balance,
+				_max_limit: Balance,
+			) -> Result<(), ExecutorError<Self::Error>> {
+				if !matches!(pool_type, $pool_type) {
+					return Err(ExecutorError::NotSupported);
+				}
+				EXECUTED_BUYS.with(|v| {
+					let mut m = v.borrow_mut();
+					m.push((pool_type, amount_out, asset_in, asset_out));
+				});
 
-                let amount_in = $buy_calculation_result;
+				let amount_in = $buy_calculation_result;
 
-                Currencies::transfer(
-                    RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
-                    ALICE,
-                    asset_out,
-                    amount_out,
-                )
-                .map_err(|e| ExecutorError::Error(e))?;
-                Currencies::transfer(
-                    RuntimeOrigin::signed(ALICE),
-                    ASSET_PAIR_ACCOUNT,
-                    asset_in,
-                    amount_in,
-                )
-                .map_err(|e| ExecutorError::Error(e))?;
+				Currencies::transfer(
+					RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT),
+					ALICE,
+					asset_out,
+					amount_out,
+				)
+				.map_err(|e| ExecutorError::Error(e))?;
+				Currencies::transfer(
+					RuntimeOrigin::signed(ALICE),
+					ASSET_PAIR_ACCOUNT,
+					asset_in,
+					amount_in,
+				)
+				.map_err(|e| ExecutorError::Error(e))?;
 
-                Ok(())
-            }
-        }
-    };
+				Ok(())
+			}
+		}
+	};
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -365,38 +365,38 @@ pub struct StableSwap;
 pub struct OmniPool;
 
 impl_fake_executor!(
-    XYK,
-    PoolType::XYK,
-    XYK_SELL_CALCULATION_RESULT,
-    XYK_BUY_CALCULATION_RESULT
+	XYK,
+	PoolType::XYK,
+	XYK_SELL_CALCULATION_RESULT,
+	XYK_BUY_CALCULATION_RESULT
 );
 impl_fake_executor!(
-    StableSwap,
-    PoolType::Stableswap(_),
-    STABLESWAP_SELL_CALCULATION_RESULT,
-    STABLESWAP_BUY_CALCULATION_RESULT
+	StableSwap,
+	PoolType::Stableswap(_),
+	STABLESWAP_SELL_CALCULATION_RESULT,
+	STABLESWAP_BUY_CALCULATION_RESULT
 );
 impl_fake_executor!(
-    OmniPool,
-    PoolType::Omnipool,
-    OMNIPOOL_SELL_CALCULATION_RESULT,
-    OMNIPOOL_BUY_CALCULATION_RESULT
+	OmniPool,
+	PoolType::Omnipool,
+	OMNIPOOL_SELL_CALCULATION_RESULT,
+	OMNIPOOL_BUY_CALCULATION_RESULT
 );
 
 pub fn assert_executed_sell_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {
-    EXECUTED_SELLS.borrow().with(|v| {
-        let trades = v.borrow().deref().clone();
-        assert_eq!(trades, expected_trades);
-    });
+	EXECUTED_SELLS.borrow().with(|v| {
+		let trades = v.borrow().deref().clone();
+		assert_eq!(trades, expected_trades);
+	});
 }
 
 pub fn assert_executed_buy_trades(expected_trades: Vec<(PoolType<AssetId>, Balance, AssetId, AssetId)>) {
-    EXECUTED_BUYS.borrow().with(|v| {
-        let trades = v.borrow().deref().clone();
-        assert_eq!(trades, expected_trades);
-    });
+	EXECUTED_BUYS.borrow().with(|v| {
+		let trades = v.borrow().deref().clone();
+		assert_eq!(trades, expected_trades);
+	});
 }
 
 pub fn expect_events(e: Vec<RuntimeEvent>) {
-    test_utils::expect_events::<RuntimeEvent, Test>(e);
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
 }

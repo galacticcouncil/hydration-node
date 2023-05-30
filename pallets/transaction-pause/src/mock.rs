@@ -22,8 +22,8 @@
 
 use super::*;
 use frame_support::{
-    construct_runtime, ord_parameter_types, parameter_types,
-    traits::{ConstU128, ConstU32, ConstU64, Everything, Nothing},
+	construct_runtime, ord_parameter_types, parameter_types,
+	traits::{ConstU128, ConstU32, ConstU64, Everything, Nothing},
 };
 use frame_system::EnsureSignedBy;
 use orml_traits::parameter_type_with_key;
@@ -39,112 +39,112 @@ pub type Balance = u128;
 pub type CurrencyId = u32;
 
 mod transaction_pause {
-    pub use super::super::*;
+	pub use super::super::*;
 }
 
 impl frame_system::Config for Runtime {
-    type RuntimeOrigin = RuntimeOrigin;
-    type Index = u64;
-    type BlockNumber = u64;
-    type RuntimeCall = RuntimeCall;
-    type Hash = H256;
-    type Hashing = ::sp_runtime::traits::BlakeTwo256;
-    type AccountId = AccountId;
-    type Lookup = IdentityLookup<AccountId>;
-    type Header = Header;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = ConstU64<250>;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = pallet_balances::AccountData<Balance>;
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type DbWeight = ();
-    type BaseCallFilter = Everything;
-    type SystemWeightInfo = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = ConstU32<16>;
+	type RuntimeOrigin = RuntimeOrigin;
+	type Index = u64;
+	type BlockNumber = u64;
+	type RuntimeCall = RuntimeCall;
+	type Hash = H256;
+	type Hashing = ::sp_runtime::traits::BlakeTwo256;
+	type AccountId = AccountId;
+	type Lookup = IdentityLookup<AccountId>;
+	type Header = Header;
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = ConstU64<250>;
+	type BlockWeights = ();
+	type BlockLength = ();
+	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<Balance>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type DbWeight = ();
+	type BaseCallFilter = Everything;
+	type SystemWeightInfo = ();
+	type SS58Prefix = ();
+	type OnSetCode = ();
+	type MaxConsumers = ConstU32<16>;
 }
 
 impl pallet_balances::Config for Runtime {
-    type Balance = Balance;
-    type DustRemoval = ();
-    type RuntimeEvent = RuntimeEvent;
-    type ExistentialDeposit = ConstU128<10>;
-    type AccountStore = System;
-    type MaxLocks = ();
-    type MaxReserves = ConstU32<50>;
-    type ReserveIdentifier = ();
-    type WeightInfo = ();
+	type Balance = Balance;
+	type DustRemoval = ();
+	type RuntimeEvent = RuntimeEvent;
+	type ExistentialDeposit = ConstU128<10>;
+	type AccountStore = System;
+	type MaxLocks = ();
+	type MaxReserves = ConstU32<50>;
+	type ReserveIdentifier = ();
+	type WeightInfo = ();
 }
 
 parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-        Default::default()
-    };
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		Default::default()
+	};
 }
 
 parameter_types! {
-    pub const MaxReserves: u32 = 50;
+	pub const MaxReserves: u32 = 50;
 }
 
 impl orml_tokens::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Balance = Balance;
-    type Amount = Amount;
-    type CurrencyId = CurrencyId;
-    type WeightInfo = ();
-    type ExistentialDeposits = ExistentialDeposits;
-    type MaxLocks = ();
-    type DustRemovalWhitelist = Nothing;
-    type ReserveIdentifier = ();
-    type MaxReserves = MaxReserves;
-    type CurrencyHooks = ();
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type MaxLocks = ();
+	type DustRemovalWhitelist = Nothing;
+	type ReserveIdentifier = ();
+	type MaxReserves = MaxReserves;
+	type CurrencyHooks = ();
 }
 
 ord_parameter_types! {
-    pub const One: AccountId = 1;
+	pub const One: AccountId = 1;
 }
 
 impl Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type UpdateOrigin = EnsureSignedBy<One, AccountId>;
-    type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type UpdateOrigin = EnsureSignedBy<One, AccountId>;
+	type WeightInfo = ();
 }
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Runtime>;
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
 construct_runtime!(
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        TransactionPause: transaction_pause::{Pallet, Storage, Call, Event<T>},
-        Balances: pallet_balances::{Pallet, Storage, Call, Event<T>},
-        Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>},
-    }
+	pub enum Runtime where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic
+	{
+		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		TransactionPause: transaction_pause::{Pallet, Storage, Call, Event<T>},
+		Balances: pallet_balances::{Pallet, Storage, Call, Event<T>},
+		Tokens: orml_tokens::{Pallet, Storage, Call, Event<T>},
+	}
 );
 
 pub struct ExtBuilder;
 
 impl Default for ExtBuilder {
-    fn default() -> Self {
-        ExtBuilder
-    }
+	fn default() -> Self {
+		ExtBuilder
+	}
 }
 
 impl ExtBuilder {
-    pub fn build(self) -> sp_io::TestExternalities {
-        let t = frame_system::GenesisConfig::default()
-            .build_storage::<Runtime>()
-            .unwrap();
+	pub fn build(self) -> sp_io::TestExternalities {
+		let t = frame_system::GenesisConfig::default()
+			.build_storage::<Runtime>()
+			.unwrap();
 
-        t.into()
-    }
+		t.into()
+	}
 }

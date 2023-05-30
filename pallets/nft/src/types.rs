@@ -31,38 +31,38 @@ pub type ItemId = u128;
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct CollectionInfo<CollectionType, BoundedVec> {
-    /// A collection type that implies permissions, e.g. for transfer and other operations
-    pub collection_type: CollectionType,
-    /// Arbitrary data about a collection, e.g. IPFS hash
-    pub metadata: BoundedVec,
+	/// A collection type that implies permissions, e.g. for transfer and other operations
+	pub collection_type: CollectionType,
+	/// Arbitrary data about a collection, e.g. IPFS hash
+	pub metadata: BoundedVec,
 }
 
 #[derive(Encode, Decode, Eq, Copy, PartialEq, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ItemInfo<BoundedVec> {
-    pub metadata: BoundedVec,
+	pub metadata: BoundedVec,
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CollectionType {
-    Marketplace = 0_isize,
-    LiquidityMining = 1_isize,
+	Marketplace = 0_isize,
+	LiquidityMining = 1_isize,
 }
 
 impl Default for CollectionType {
-    fn default() -> Self {
-        CollectionType::Marketplace
-    }
+	fn default() -> Self {
+		CollectionType::Marketplace
+	}
 }
 
 pub trait NftPermission<InnerCollectionType> {
-    fn can_create(collection_type: &InnerCollectionType) -> bool;
-    fn can_mint(collection_type: &InnerCollectionType) -> bool;
-    fn can_transfer(collection_type: &InnerCollectionType) -> bool;
-    fn can_burn(collection_type: &InnerCollectionType) -> bool;
-    fn can_destroy(collection_type: &InnerCollectionType) -> bool;
-    fn has_deposit(collection_type: &InnerCollectionType) -> bool;
+	fn can_create(collection_type: &InnerCollectionType) -> bool;
+	fn can_mint(collection_type: &InnerCollectionType) -> bool;
+	fn can_transfer(collection_type: &InnerCollectionType) -> bool;
+	fn can_burn(collection_type: &InnerCollectionType) -> bool;
+	fn can_destroy(collection_type: &InnerCollectionType) -> bool;
+	fn has_deposit(collection_type: &InnerCollectionType) -> bool;
 }
 
 #[derive(Encode, Decode, Eq, Copy, PartialEq, Clone, RuntimeDebug, TypeInfo)]
@@ -70,30 +70,30 @@ pub trait NftPermission<InnerCollectionType> {
 pub struct NftPermissions;
 
 impl NftPermission<CollectionType> for NftPermissions {
-    fn can_create(collection_type: &CollectionType) -> bool {
-        matches!(*collection_type, CollectionType::Marketplace)
-    }
+	fn can_create(collection_type: &CollectionType) -> bool {
+		matches!(*collection_type, CollectionType::Marketplace)
+	}
 
-    fn can_mint(collection_type: &CollectionType) -> bool {
-        matches!(*collection_type, CollectionType::Marketplace)
-    }
+	fn can_mint(collection_type: &CollectionType) -> bool {
+		matches!(*collection_type, CollectionType::Marketplace)
+	}
 
-    fn can_transfer(collection_type: &CollectionType) -> bool {
-        matches!(
-            *collection_type,
-            CollectionType::Marketplace | CollectionType::LiquidityMining
-        )
-    }
+	fn can_transfer(collection_type: &CollectionType) -> bool {
+		matches!(
+			*collection_type,
+			CollectionType::Marketplace | CollectionType::LiquidityMining
+		)
+	}
 
-    fn can_burn(collection_type: &CollectionType) -> bool {
-        matches!(*collection_type, CollectionType::Marketplace)
-    }
+	fn can_burn(collection_type: &CollectionType) -> bool {
+		matches!(*collection_type, CollectionType::Marketplace)
+	}
 
-    fn can_destroy(collection_type: &CollectionType) -> bool {
-        matches!(*collection_type, CollectionType::Marketplace)
-    }
+	fn can_destroy(collection_type: &CollectionType) -> bool {
+		matches!(*collection_type, CollectionType::Marketplace)
+	}
 
-    fn has_deposit(collection_type: &CollectionType) -> bool {
-        matches!(*collection_type, CollectionType::Marketplace)
-    }
+	fn has_deposit(collection_type: &CollectionType) -> bool {
+		matches!(*collection_type, CollectionType::Marketplace)
+	}
 }

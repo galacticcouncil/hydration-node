@@ -40,77 +40,77 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_ema_oracle.
 pub trait WeightInfo {
-    fn on_finalize_no_entry() -> Weight;
-    fn on_finalize_multiple_tokens(b: u32) -> Weight;
-    fn on_trade_multiple_tokens(b: u32) -> Weight;
-    fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight;
-    fn get_entry() -> Weight;
+	fn on_finalize_no_entry() -> Weight;
+	fn on_finalize_multiple_tokens(b: u32) -> Weight;
+	fn on_trade_multiple_tokens(b: u32) -> Weight;
+	fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight;
+	fn get_entry() -> Weight;
 }
 
 pub struct BasiliskWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
-    fn on_finalize_no_entry() -> Weight {
-        Weight::from_ref_time(4_150_000 as u64).saturating_add(T::DbWeight::get().reads(1 as u64))
-    }
-    fn on_finalize_multiple_tokens(b: u32) -> Weight {
-        Weight::from_ref_time(12_487_000 as u64) // Standard Error: 24_000
-            .saturating_add(Weight::from_ref_time(39_930_000 as u64).saturating_mul(b as u64))
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().reads((4 as u64).saturating_mul(b as u64)))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-            .saturating_add(T::DbWeight::get().writes((4 as u64).saturating_mul(b as u64)))
-    }
-    fn on_trade_multiple_tokens(b: u32) -> Weight {
-        Weight::from_ref_time(19_042_000 as u64) // Standard Error: 4_000
-            .saturating_add(Weight::from_ref_time(507_000 as u64).saturating_mul(b as u64))
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
-    fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight {
-        Weight::from_ref_time(19_385_000 as u64) // Standard Error: 4_000
-            .saturating_add(Weight::from_ref_time(506_000 as u64).saturating_mul(b as u64))
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
-    fn get_entry() -> Weight {
-        Weight::from_ref_time(23_575_000 as u64).saturating_add(T::DbWeight::get().reads(2 as u64))
-    }
+	fn on_finalize_no_entry() -> Weight {
+		Weight::from_ref_time(4_150_000 as u64).saturating_add(T::DbWeight::get().reads(1 as u64))
+	}
+	fn on_finalize_multiple_tokens(b: u32) -> Weight {
+		Weight::from_ref_time(12_487_000 as u64) // Standard Error: 24_000
+			.saturating_add(Weight::from_ref_time(39_930_000 as u64).saturating_mul(b as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().reads((4 as u64).saturating_mul(b as u64)))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+			.saturating_add(T::DbWeight::get().writes((4 as u64).saturating_mul(b as u64)))
+	}
+	fn on_trade_multiple_tokens(b: u32) -> Weight {
+		Weight::from_ref_time(19_042_000 as u64) // Standard Error: 4_000
+			.saturating_add(Weight::from_ref_time(507_000 as u64).saturating_mul(b as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight {
+		Weight::from_ref_time(19_385_000 as u64) // Standard Error: 4_000
+			.saturating_add(Weight::from_ref_time(506_000 as u64).saturating_mul(b as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	fn get_entry() -> Weight {
+		Weight::from_ref_time(23_575_000 as u64).saturating_add(T::DbWeight::get().reads(2 as u64))
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    fn on_finalize_no_entry() -> Weight {
-        Weight::from_ref_time(4_150_000 as u64).saturating_add(RocksDbWeight::get().reads(1 as u64))
-    }
-    fn on_finalize_multiple_tokens(b: u32) -> Weight {
-        Weight::from_ref_time(12_487_000 as u64) // Standard Error: 24_000
-            .saturating_add(Weight::from_ref_time(39_930_000 as u64).saturating_mul(b as u64))
-            .saturating_add(RocksDbWeight::get().reads(1 as u64))
-            .saturating_add(RocksDbWeight::get().reads((4 as u64).saturating_mul(b as u64)))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
-            .saturating_add(RocksDbWeight::get().writes((4 as u64).saturating_mul(b as u64)))
-    }
-    fn on_trade_multiple_tokens(b: u32) -> Weight {
-        Weight::from_ref_time(19_042_000 as u64) // Standard Error: 4_000
-            .saturating_add(Weight::from_ref_time(507_000 as u64).saturating_mul(b as u64))
-            .saturating_add(RocksDbWeight::get().reads(1 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
-    }
-    fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight {
-        Weight::from_ref_time(19_385_000 as u64) // Standard Error: 4_000
-            .saturating_add(Weight::from_ref_time(506_000 as u64).saturating_mul(b as u64))
-            .saturating_add(RocksDbWeight::get().reads(1 as u64))
-            .saturating_add(RocksDbWeight::get().writes(1 as u64))
-    }
-    fn get_entry() -> Weight {
-        Weight::from_ref_time(23_575_000 as u64).saturating_add(RocksDbWeight::get().reads(2 as u64))
-    }
+	fn on_finalize_no_entry() -> Weight {
+		Weight::from_ref_time(4_150_000 as u64).saturating_add(RocksDbWeight::get().reads(1 as u64))
+	}
+	fn on_finalize_multiple_tokens(b: u32) -> Weight {
+		Weight::from_ref_time(12_487_000 as u64) // Standard Error: 24_000
+			.saturating_add(Weight::from_ref_time(39_930_000 as u64).saturating_mul(b as u64))
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().reads((4 as u64).saturating_mul(b as u64)))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes((4 as u64).saturating_mul(b as u64)))
+	}
+	fn on_trade_multiple_tokens(b: u32) -> Weight {
+		Weight::from_ref_time(19_042_000 as u64) // Standard Error: 4_000
+			.saturating_add(Weight::from_ref_time(507_000 as u64).saturating_mul(b as u64))
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	}
+	fn on_liquidity_changed_multiple_tokens(b: u32) -> Weight {
+		Weight::from_ref_time(19_385_000 as u64) // Standard Error: 4_000
+			.saturating_add(Weight::from_ref_time(506_000 as u64).saturating_mul(b as u64))
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	}
+	fn get_entry() -> Weight {
+		Weight::from_ref_time(23_575_000 as u64).saturating_add(RocksDbWeight::get().reads(2 as u64))
+	}
 }

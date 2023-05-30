@@ -17,75 +17,75 @@
 
 use crate::{AssetDetails, AssetType, Assets, Config, Pallet};
 use frame_support::{
-    log,
-    traits::{Get, StorageVersion},
-    weights::Weight,
+	log,
+	traits::{Get, StorageVersion},
+	weights::Weight,
 };
 
 ///
 pub mod v1 {
-    use super::*;
-    use codec::{Decode, Encode};
-    use scale_info::TypeInfo;
-    use sp_core::RuntimeDebug;
+	use super::*;
+	use codec::{Decode, Encode};
+	use scale_info::TypeInfo;
+	use sp_core::RuntimeDebug;
 
-    #[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
-    pub struct OldAssetDetails<AssetId, Balance, BoundedString> {
-        /// The name of this asset. Limited in length by `StringLimit`.
-        pub(super) name: BoundedString,
+	#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, TypeInfo)]
+	pub struct OldAssetDetails<AssetId, Balance, BoundedString> {
+		/// The name of this asset. Limited in length by `StringLimit`.
+		pub(super) name: BoundedString,
 
-        pub(super) asset_type: AssetType<AssetId>,
+		pub(super) asset_type: AssetType<AssetId>,
 
-        pub(super) existential_deposit: Balance,
+		pub(super) existential_deposit: Balance,
 
-        pub(super) locked: bool,
-    }
+		pub(super) locked: bool,
+	}
 
-    pub fn pre_migrate<T: Config>() {
-        assert_eq!(StorageVersion::get::<Pallet<T>>(), 0, "Storage version too high.");
+	pub fn pre_migrate<T: Config>() {
+		assert_eq!(StorageVersion::get::<Pallet<T>>(), 0, "Storage version too high.");
 
-        log::info!(
-            target: "runtime::asset-registry",
-            "Asset Registry migration: PRE checks successful!"
-        );
-    }
+		log::info!(
+			target: "runtime::asset-registry",
+			"Asset Registry migration: PRE checks successful!"
+		);
+	}
 
-    pub fn migrate<T: Config>() -> Weight {
-        log::info!(
-            target: "runtime::asset-registry",
-            "Running migration to v1 for Asset Registry"
-        );
+	pub fn migrate<T: Config>() -> Weight {
+		log::info!(
+			target: "runtime::asset-registry",
+			"Running migration to v1 for Asset Registry"
+		);
 
-        let mut i = 0;
-        Assets::<T>::translate(
-            |_key,
-             OldAssetDetails {
-                 name,
-                 asset_type,
-                 existential_deposit,
-                 locked: _,
-             }| {
-                i += 1;
-                Some(AssetDetails {
-                    name,
-                    asset_type,
-                    existential_deposit,
-                    xcm_rate_limit: None,
-                })
-            },
-        );
+		let mut i = 0;
+		Assets::<T>::translate(
+			|_key,
+			 OldAssetDetails {
+			     name,
+			     asset_type,
+			     existential_deposit,
+			     locked: _,
+			 }| {
+				i += 1;
+				Some(AssetDetails {
+					name,
+					asset_type,
+					existential_deposit,
+					xcm_rate_limit: None,
+				})
+			},
+		);
 
-        StorageVersion::new(1).put::<Pallet<T>>();
+		StorageVersion::new(1).put::<Pallet<T>>();
 
-        T::DbWeight::get().reads_writes(i, i)
-    }
+		T::DbWeight::get().reads_writes(i, i)
+	}
 
-    pub fn post_migrate<T: Config>() {
-        assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Unexpected storage version.");
+	pub fn post_migrate<T: Config>() {
+		assert_eq!(StorageVersion::get::<Pallet<T>>(), 1, "Unexpected storage version.");
 
-        log::info!(
-            target: "runtime::asset-registry",
-            "Asset Registry migration: POST checks successful!"
-        );
-    }
+		log::info!(
+			target: "runtime::asset-registry",
+			"Asset Registry migration: POST checks successful!"
+		);
+	}
 }

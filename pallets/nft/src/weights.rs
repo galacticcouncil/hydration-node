@@ -40,75 +40,75 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_nft.
 pub trait WeightInfo {
-    fn create_collection() -> Weight;
-    fn mint() -> Weight;
-    fn transfer() -> Weight;
-    fn destroy_collection() -> Weight;
-    fn burn() -> Weight;
+	fn create_collection() -> Weight;
+	fn mint() -> Weight;
+	fn transfer() -> Weight;
+	fn destroy_collection() -> Weight;
+	fn burn() -> Weight;
 }
 
 pub struct BasiliskWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for BasiliskWeight<T> {
-    fn create_collection() -> Weight {
-        Weight::from_ref_time(26_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
-    fn mint() -> Weight {
-        Weight::from_ref_time(34_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
-    fn transfer() -> Weight {
-        Weight::from_ref_time(29_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
-    fn destroy_collection() -> Weight {
-        Weight::from_ref_time(40_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
-    fn burn() -> Weight {
-        Weight::from_ref_time(36_000_000 as u64)
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(5 as u64))
-    }
+	fn create_collection() -> Weight {
+		Weight::from_ref_time(26_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
+	fn mint() -> Weight {
+		Weight::from_ref_time(34_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	fn transfer() -> Weight {
+		Weight::from_ref_time(29_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
+	fn destroy_collection() -> Weight {
+		Weight::from_ref_time(40_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
+	fn burn() -> Weight {
+		Weight::from_ref_time(36_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(5 as u64))
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    fn create_collection() -> Weight {
-        Weight::from_ref_time(26_000_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(2 as u64))
-            .saturating_add(RocksDbWeight::get().writes(4 as u64))
-    }
-    fn mint() -> Weight {
-        Weight::from_ref_time(34_000_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(4 as u64))
-            .saturating_add(RocksDbWeight::get().writes(5 as u64))
-    }
-    fn transfer() -> Weight {
-        Weight::from_ref_time(29_000_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(3 as u64))
-            .saturating_add(RocksDbWeight::get().writes(3 as u64))
-    }
-    fn destroy_collection() -> Weight {
-        Weight::from_ref_time(40_000_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(4 as u64))
-            .saturating_add(RocksDbWeight::get().writes(5 as u64))
-    }
-    fn burn() -> Weight {
-        Weight::from_ref_time(36_000_000 as u64)
-            .saturating_add(RocksDbWeight::get().reads(4 as u64))
-            .saturating_add(RocksDbWeight::get().writes(5 as u64))
-    }
+	fn create_collection() -> Weight {
+		Weight::from_ref_time(26_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
+	}
+	fn mint() -> Weight {
+		Weight::from_ref_time(34_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+	}
+	fn transfer() -> Weight {
+		Weight::from_ref_time(29_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+	}
+	fn destroy_collection() -> Weight {
+		Weight::from_ref_time(40_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+	}
+	fn burn() -> Weight {
+		Weight::from_ref_time(36_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+	}
 }

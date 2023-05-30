@@ -18,16 +18,16 @@
 use frame_support::dispatch::DispatchResult;
 
 pub trait CreateTypedCollection<AccountId, CollectionId, CollectionType, Metadata> {
-    /// This function create an NFT collection of `collection_type` type.
-    fn create_typed_collection(
-        owner: AccountId,
-        collection_id: CollectionId,
-        collection_type: CollectionType,
-        metadata: Option<Metadata>,
-    ) -> DispatchResult;
+	/// This function create an NFT collection of `collection_type` type.
+	fn create_typed_collection(
+		owner: AccountId,
+		collection_id: CollectionId,
+		collection_type: CollectionType,
+		metadata: Option<Metadata>,
+	) -> DispatchResult;
 }
 
 pub trait ReserveCollectionId<CollectionId> {
-    /// This function returns `true` if collection id is from the reserved range, `false` otherwise.
-    fn is_id_reserved(id: CollectionId) -> bool;
+	/// This function returns `true` if collection id is from the reserved range, `false` otherwise.
+	fn is_id_reserved(id: CollectionId) -> bool;
 }

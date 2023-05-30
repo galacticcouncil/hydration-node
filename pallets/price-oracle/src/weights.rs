@@ -45,48 +45,48 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_price_oracle.
 pub trait WeightInfo {
-    fn on_finalize_no_entry() -> Weight;
-    fn on_finalize_one_token() -> Weight;
-    fn on_finalize_multiple_tokens_all_bucket_levels(a: u32) -> Weight;
-    fn on_finalize_multiple_tokens(b: u32) -> Weight;
+	fn on_finalize_no_entry() -> Weight;
+	fn on_finalize_one_token() -> Weight;
+	fn on_finalize_multiple_tokens_all_bucket_levels(a: u32) -> Weight;
+	fn on_finalize_multiple_tokens(b: u32) -> Weight;
 }
 
 /// Weights for pallet_price_oracle using the hack.hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-    fn on_finalize_no_entry() -> Weight {
-        Weight::zero()
-    }
-    fn on_finalize_one_token() -> Weight {
-        Weight::zero()
-    }
-    fn on_finalize_multiple_tokens_all_bucket_levels(_a: u32) -> Weight {
-        Weight::zero()
-    }
-    fn on_finalize_multiple_tokens(_b: u32) -> Weight {
-        Weight::zero()
-    }
+	fn on_finalize_no_entry() -> Weight {
+		Weight::zero()
+	}
+	fn on_finalize_one_token() -> Weight {
+		Weight::zero()
+	}
+	fn on_finalize_multiple_tokens_all_bucket_levels(_a: u32) -> Weight {
+		Weight::zero()
+	}
+	fn on_finalize_multiple_tokens(_b: u32) -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    fn on_finalize_no_entry() -> Weight {
-        Weight::zero()
-    }
-    fn on_finalize_one_token() -> Weight {
-        Weight::zero()
-    }
-    fn on_finalize_multiple_tokens_all_bucket_levels(_a: u32) -> Weight {
-        Weight::zero()
-    }
-    fn on_finalize_multiple_tokens(_b: u32) -> Weight {
-        Weight::zero()
-    }
+	fn on_finalize_no_entry() -> Weight {
+		Weight::zero()
+	}
+	fn on_finalize_one_token() -> Weight {
+		Weight::zero()
+	}
+	fn on_finalize_multiple_tokens_all_bucket_levels(_a: u32) -> Weight {
+		Weight::zero()
+	}
+	fn on_finalize_multiple_tokens(_b: u32) -> Weight {
+		Weight::zero()
+	}
 }

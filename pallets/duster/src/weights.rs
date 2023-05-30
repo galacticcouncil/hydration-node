@@ -40,45 +40,45 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for duster.
 pub trait WeightInfo {
-    fn dust_account() -> Weight;
-    fn add_nondustable_account() -> Weight;
-    fn remove_nondustable_account() -> Weight;
+	fn dust_account() -> Weight;
+	fn add_nondustable_account() -> Weight;
+	fn remove_nondustable_account() -> Weight;
 }
 
 /// Weights for claims using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-    fn dust_account() -> Weight {
-        Weight::zero()
-    }
+	fn dust_account() -> Weight {
+		Weight::zero()
+	}
 
-    fn add_nondustable_account() -> Weight {
-        Weight::zero()
-    }
+	fn add_nondustable_account() -> Weight {
+		Weight::zero()
+	}
 
-    fn remove_nondustable_account() -> Weight {
-        Weight::zero()
-    }
+	fn remove_nondustable_account() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    fn dust_account() -> Weight {
-        Weight::zero()
-    }
+	fn dust_account() -> Weight {
+		Weight::zero()
+	}
 
-    fn add_nondustable_account() -> Weight {
-        Weight::zero()
-    }
+	fn add_nondustable_account() -> Weight {
+		Weight::zero()
+	}
 
-    fn remove_nondustable_account() -> Weight {
-        Weight::zero()
-    }
+	fn remove_nondustable_account() -> Weight {
+		Weight::zero()
+	}
 }

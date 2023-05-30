@@ -76,153 +76,153 @@ type Balance = u128;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use super::*;
-    use crate::traits::VolumeProvider;
-    use crate::types::FeeEntry;
-    use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::BlockNumberFor;
-    use sp_runtime::traits::{BlockNumberProvider, Zero};
+	use super::*;
+	use crate::traits::VolumeProvider;
+	use crate::types::FeeEntry;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::BlockNumberFor;
+	use sp_runtime::traits::{BlockNumberProvider, Zero};
 
-    #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
-    pub struct Pallet<T>(_);
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	pub struct Pallet<T>(_);
 
-    #[pallet::storage]
-    #[pallet::getter(fn current_fees)]
-    /// Stores last calculated fee of an asset and block number in which it was changed..
-    /// Stored as (Asset fee, Protocol fee, Block number)
-    pub type AssetFee<T: Config> =
-        StorageMap<_, Twox64Concat, T::AssetId, FeeEntry<T::Fee, T::BlockNumber>, OptionQuery>;
+	#[pallet::storage]
+	#[pallet::getter(fn current_fees)]
+	/// Stores last calculated fee of an asset and block number in which it was changed..
+	/// Stored as (Asset fee, Protocol fee, Block number)
+	pub type AssetFee<T: Config> =
+		StorageMap<_, Twox64Concat, T::AssetId, FeeEntry<T::Fee, T::BlockNumber>, OptionQuery>;
 
-    #[pallet::config]
-    pub trait Config: frame_system::Config {
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// Provider for the current block number.
-        type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+		/// Provider for the current block number.
+		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
-        /// Fee PerThing type
-        type Fee: Parameter + MaybeSerializeDeserialize + MaxEncodedLen + PerThing;
+		/// Fee PerThing type
+		type Fee: Parameter + MaybeSerializeDeserialize + MaxEncodedLen + PerThing;
 
-        /// Asset id type
-        type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
+		/// Asset id type
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
-        /// Volume provider implementation
-        type Oracle: VolumeProvider<Self::AssetId, Balance>;
+		/// Volume provider implementation
+		type Oracle: VolumeProvider<Self::AssetId, Balance>;
 
-        #[pallet::constant]
-        type AssetFeeParameters: Get<FeeParams<Self::Fee>>;
+		#[pallet::constant]
+		type AssetFeeParameters: Get<FeeParams<Self::Fee>>;
 
-        #[pallet::constant]
-        type ProtocolFeeParameters: Get<FeeParams<Self::Fee>>;
-    }
+		#[pallet::constant]
+		type ProtocolFeeParameters: Get<FeeParams<Self::Fee>>;
+	}
 
-    #[pallet::event]
-    pub enum Event<T: Config> {}
+	#[pallet::event]
+	pub enum Event<T: Config> {}
 
-    #[pallet::error]
-    pub enum Error<T> {}
+	#[pallet::error]
+	pub enum Error<T> {}
 
-    #[pallet::call]
-    impl<T: Config> Pallet<T> {}
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {}
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn integrity_test() {
-            let asset_fee_params = T::AssetFeeParameters::get();
-            let protocol_fee_params = T::ProtocolFeeParameters::get();
-            assert!(
-                asset_fee_params.min_fee <= asset_fee_params.max_fee,
-                "Asset fee min > asset fee max."
-            );
-            assert!(
-                !asset_fee_params.amplification.is_zero(),
-                "Asset fee amplification is 0."
-            );
-            assert!(
-                protocol_fee_params.min_fee <= protocol_fee_params.max_fee,
-                "Protocol fee min > protocol fee max."
-            );
-            assert!(
-                !protocol_fee_params.amplification.is_zero(),
-                "Protocol fee amplification is 0."
-            );
-        }
-    }
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn integrity_test() {
+			let asset_fee_params = T::AssetFeeParameters::get();
+			let protocol_fee_params = T::ProtocolFeeParameters::get();
+			assert!(
+				asset_fee_params.min_fee <= asset_fee_params.max_fee,
+				"Asset fee min > asset fee max."
+			);
+			assert!(
+				!asset_fee_params.amplification.is_zero(),
+				"Asset fee amplification is 0."
+			);
+			assert!(
+				protocol_fee_params.min_fee <= protocol_fee_params.max_fee,
+				"Protocol fee min > protocol fee max."
+			);
+			assert!(
+				!protocol_fee_params.amplification.is_zero(),
+				"Protocol fee amplification is 0."
+			);
+		}
+	}
 }
 
 impl<T: Config> Pallet<T>
 where
-    <T::Fee as PerThing>::Inner: FixedPointOperand,
+	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
-    fn update_fee(asset_id: T::AssetId) -> (T::Fee, T::Fee) {
-        let block_number = T::BlockNumberProvider::current_block_number();
+	fn update_fee(asset_id: T::AssetId) -> (T::Fee, T::Fee) {
+		let block_number = T::BlockNumberProvider::current_block_number();
 
-        let asset_fee_params = T::AssetFeeParameters::get();
-        let protocol_fee_params = T::ProtocolFeeParameters::get();
+		let asset_fee_params = T::AssetFeeParameters::get();
+		let protocol_fee_params = T::ProtocolFeeParameters::get();
 
-        let current_fee_entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
-            asset_fee: asset_fee_params.min_fee,
-            protocol_fee: protocol_fee_params.min_fee,
-            timestamp: block_number,
-        });
+		let current_fee_entry = Self::current_fees(asset_id).unwrap_or(FeeEntry {
+			asset_fee: asset_fee_params.min_fee,
+			protocol_fee: protocol_fee_params.min_fee,
+			timestamp: block_number,
+		});
 
-        // Update only if it has not yet been updated this block
-        if block_number == current_fee_entry.timestamp {
-            return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
-        }
+		// Update only if it has not yet been updated this block
+		if block_number == current_fee_entry.timestamp {
+			return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
+		}
 
-        let delta_blocks: u128 = block_number
-            .saturating_sub(current_fee_entry.timestamp)
-            .saturated_into();
+		let delta_blocks: u128 = block_number
+			.saturating_sub(current_fee_entry.timestamp)
+			.saturated_into();
 
-        let Some(volume) = T::Oracle::asset_volume(asset_id) else {
-            return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
-        };
-        let Some(liquidity) = T::Oracle::asset_liquidity(asset_id) else {
+		let Some(volume) = T::Oracle::asset_volume(asset_id) else {
             return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
         };
+		let Some(liquidity) = T::Oracle::asset_liquidity(asset_id) else {
+            return (current_fee_entry.asset_fee, current_fee_entry.protocol_fee);
+        };
 
-        let asset_fee = recalculate_asset_fee(
-            OracleEntry {
-                amount_in: volume.amount_in(),
-                amount_out: volume.amount_out(),
-                liquidity,
-            },
-            current_fee_entry.asset_fee,
-            delta_blocks,
-            asset_fee_params.into(),
-        );
-        let protocol_fee = recalculate_protocol_fee(
-            OracleEntry {
-                amount_in: volume.amount_in(),
-                amount_out: volume.amount_out(),
-                liquidity,
-            },
-            current_fee_entry.protocol_fee,
-            delta_blocks,
-            protocol_fee_params.into(),
-        );
+		let asset_fee = recalculate_asset_fee(
+			OracleEntry {
+				amount_in: volume.amount_in(),
+				amount_out: volume.amount_out(),
+				liquidity,
+			},
+			current_fee_entry.asset_fee,
+			delta_blocks,
+			asset_fee_params.into(),
+		);
+		let protocol_fee = recalculate_protocol_fee(
+			OracleEntry {
+				amount_in: volume.amount_in(),
+				amount_out: volume.amount_out(),
+				liquidity,
+			},
+			current_fee_entry.protocol_fee,
+			delta_blocks,
+			protocol_fee_params.into(),
+		);
 
-        AssetFee::<T>::insert(
-            asset_id,
-            FeeEntry {
-                asset_fee,
-                protocol_fee,
-                timestamp: block_number,
-            },
-        );
-        (asset_fee, protocol_fee)
-    }
+		AssetFee::<T>::insert(
+			asset_id,
+			FeeEntry {
+				asset_fee,
+				protocol_fee,
+				timestamp: block_number,
+			},
+		);
+		(asset_fee, protocol_fee)
+	}
 }
 
 pub struct UpdateAndRetrieveFees<T: Config>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> GetByKey<T::AssetId, (T::Fee, T::Fee)> for UpdateAndRetrieveFees<T>
 where
-    <T::Fee as PerThing>::Inner: FixedPointOperand,
+	<T::Fee as PerThing>::Inner: FixedPointOperand,
 {
-    fn get(k: &T::AssetId) -> (T::Fee, T::Fee) {
-        Pallet::<T>::update_fee(*k)
-    }
+	fn get(k: &T::AssetId) -> (T::Fee, T::Fee) {
+		Pallet::<T>::update_fee(*k)
+	}
 }

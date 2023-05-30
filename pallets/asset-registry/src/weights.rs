@@ -39,55 +39,55 @@
 #![allow(unused_imports)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for lbp.
 pub trait WeightInfo {
-    fn register() -> Weight;
-    fn update() -> Weight;
-    fn set_metadata() -> Weight;
-    fn set_location() -> Weight;
+	fn register() -> Weight;
+	fn update() -> Weight;
+	fn set_metadata() -> Weight;
+	fn set_location() -> Weight;
 }
 
 /// Weights for lbp using the hack.hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-    fn register() -> Weight {
-        Weight::zero()
-    }
+	fn register() -> Weight {
+		Weight::zero()
+	}
 
-    fn update() -> Weight {
-        Weight::zero()
-    }
+	fn update() -> Weight {
+		Weight::zero()
+	}
 
-    fn set_metadata() -> Weight {
-        Weight::zero()
-    }
+	fn set_metadata() -> Weight {
+		Weight::zero()
+	}
 
-    fn set_location() -> Weight {
-        Weight::zero()
-    }
+	fn set_location() -> Weight {
+		Weight::zero()
+	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-    fn register() -> Weight {
-        Weight::zero()
-    }
+	fn register() -> Weight {
+		Weight::zero()
+	}
 
-    fn update() -> Weight {
-        Weight::zero()
-    }
+	fn update() -> Weight {
+		Weight::zero()
+	}
 
-    fn set_metadata() -> Weight {
-        Weight::zero()
-    }
+	fn set_metadata() -> Weight {
+		Weight::zero()
+	}
 
-    fn set_location() -> Weight {
-        Weight::zero()
-    }
+	fn set_location() -> Weight {
+		Weight::zero()
+	}
 }

@@ -25,51 +25,51 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::pallet_prelude::*;
-    use frame_support::sp_runtime::traits::BlockNumberProvider;
+	use frame_support::pallet_prelude::*;
+	use frame_support::sp_runtime::traits::BlockNumberProvider;
 
-    #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
-    pub struct Pallet<T>(_);
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	pub struct Pallet<T>(_);
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+	#[pallet::hooks]
+	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
-    #[pallet::config]
-    pub trait Config: frame_system::Config {
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// Provider of relay chain block number
-        type RelaychainBlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
-    }
+		/// Provider of relay chain block number
+		type RelaychainBlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
+	}
 
-    #[pallet::error]
-    pub enum Error<T> {}
+	#[pallet::error]
+	pub enum Error<T> {}
 
-    #[pallet::event]
-    #[pallet::generate_deposit(pub(crate) fn deposit_event)]
-    pub enum Event<T: Config> {
-        /// Current block numbers
-        /// [ Parachain block number, Relaychain Block number ]
-        CurrentBlockNumbers {
-            parachain_block_number: T::BlockNumber,
-            relaychain_block_number: T::BlockNumber,
-        },
-    }
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// Current block numbers
+		/// [ Parachain block number, Relaychain Block number ]
+		CurrentBlockNumbers {
+			parachain_block_number: T::BlockNumber,
+			relaychain_block_number: T::BlockNumber,
+		},
+	}
 
-    #[pallet::call]
-    impl<T: Config> Pallet<T> {}
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {}
 }
 
 pub struct OnValidationDataHandler<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> cumulus_pallet_parachain_system::OnSystemEvent for OnValidationDataHandler<T> {
-    fn on_validation_data(data: &PersistedValidationData) {
-        crate::Pallet::<T>::deposit_event(crate::Event::CurrentBlockNumbers {
-            parachain_block_number: frame_system::Pallet::<T>::current_block_number(),
-            relaychain_block_number: data.relay_parent_number.into(),
-        });
-    }
+	fn on_validation_data(data: &PersistedValidationData) {
+		crate::Pallet::<T>::deposit_event(crate::Event::CurrentBlockNumbers {
+			parachain_block_number: frame_system::Pallet::<T>::current_block_number(),
+			relaychain_block_number: data.relay_parent_number.into(),
+		});
+	}
 
-    fn on_validation_code_applied() {}
+	fn on_validation_code_applied() {}
 }

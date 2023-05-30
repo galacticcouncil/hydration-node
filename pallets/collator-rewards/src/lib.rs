@@ -36,101 +36,101 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use super::*;
-    use frame_support::pallet_prelude::*;
-    use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
-    use frame_system::pallet_prelude::BlockNumberFor;
+	use super::*;
+	use frame_support::pallet_prelude::*;
+	use frame_support::sp_runtime::traits::AtLeast32BitUnsigned;
+	use frame_system::pallet_prelude::BlockNumberFor;
 
-    #[pallet::pallet]
-    #[pallet::without_storage_info]
-    pub struct Pallet<T>(_);
+	#[pallet::pallet]
+	#[pallet::without_storage_info]
+	pub struct Pallet<T>(_);
 
-    #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    #[pallet::config]
-    pub trait Config: frame_system::Config {
-        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// Balance type
-        type Balance: Parameter
-            + Member
-            + AtLeast32BitUnsigned
-            + Default
-            + Copy
-            + MaybeSerializeDeserialize
-            + MaxEncodedLen;
+		/// Balance type
+		type Balance: Parameter
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen;
 
-        type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
+		type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
 
-        /// Currency for transfers
-        type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::CurrencyId, Balance = Self::Balance>;
+		/// Currency for transfers
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::CurrencyId, Balance = Self::Balance>;
 
-        /// Reward amount per one collator.
-        #[pallet::constant]
-        type RewardPerCollator: Get<Self::Balance>;
+		/// Reward amount per one collator.
+		#[pallet::constant]
+		type RewardPerCollator: Get<Self::Balance>;
 
-        /// Reward Asset Id
-        #[pallet::constant]
-        type RewardCurrencyId: Get<Self::CurrencyId>;
+		/// Reward Asset Id
+		#[pallet::constant]
+		type RewardCurrencyId: Get<Self::CurrencyId>;
 
-        /// List of collator which will not be rewarded.
-        type ExcludedCollators: Get<Vec<Self::AccountId>>;
+		/// List of collator which will not be rewarded.
+		type ExcludedCollators: Get<Vec<Self::AccountId>>;
 
-        /// The session manager this pallet will wrap that provides the collator account list on
-        /// `new_session`.
-        type SessionManager: SessionManager<Self::AccountId>;
-    }
+		/// The session manager this pallet will wrap that provides the collator account list on
+		/// `new_session`.
+		type SessionManager: SessionManager<Self::AccountId>;
+	}
 
-    #[pallet::error]
-    pub enum Error<T> {}
+	#[pallet::error]
+	pub enum Error<T> {}
 
-    #[pallet::event]
-    #[pallet::generate_deposit(pub(crate) fn deposit_event)]
-    pub enum Event<T: Config> {
-        /// Collator was rewarded.
-        CollatorRewarded {
-            who: T::AccountId,
-            amount: T::Balance,
-            currency: T::CurrencyId,
-        },
-    }
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// Collator was rewarded.
+		CollatorRewarded {
+			who: T::AccountId,
+			amount: T::Balance,
+			currency: T::CurrencyId,
+		},
+	}
 
-    #[pallet::storage]
-    #[pallet::getter(fn collators)]
-    /// Stores the collators per session (index).
-    pub type Collators<T: Config> = StorageMap<_, Twox64Concat, SessionIndex, Vec<T::AccountId>, ValueQuery>;
+	#[pallet::storage]
+	#[pallet::getter(fn collators)]
+	/// Stores the collators per session (index).
+	pub type Collators<T: Config> = StorageMap<_, Twox64Concat, SessionIndex, Vec<T::AccountId>, ValueQuery>;
 }
 
 impl<T: Config> SessionManager<T::AccountId> for Pallet<T> {
-    fn new_session(index: SessionIndex) -> Option<Vec<T::AccountId>> {
-        let maybe_collators = T::SessionManager::new_session(index);
-        if let Some(ref collators) = maybe_collators {
-            Collators::<T>::insert(index, collators)
-        }
-        maybe_collators
-    }
+	fn new_session(index: SessionIndex) -> Option<Vec<T::AccountId>> {
+		let maybe_collators = T::SessionManager::new_session(index);
+		if let Some(ref collators) = maybe_collators {
+			Collators::<T>::insert(index, collators)
+		}
+		maybe_collators
+	}
 
-    fn start_session(index: SessionIndex) {
-        T::SessionManager::start_session(index)
-    }
+	fn start_session(index: SessionIndex) {
+		T::SessionManager::start_session(index)
+	}
 
-    fn end_session(index: SessionIndex) {
-        T::SessionManager::end_session(index);
-        let excluded = T::ExcludedCollators::get();
-        // remove the collators so we don't pile up storage
-        for collator in Collators::<T>::take(index) {
-            if !excluded.contains(&collator) {
-                let (currency, amount) = (T::RewardCurrencyId::get(), T::RewardPerCollator::get());
-                match T::Currency::deposit(currency, &collator, amount) {
-                    Ok(_) => Self::deposit_event(Event::CollatorRewarded {
-                        who: collator,
-                        amount,
-                        currency,
-                    }),
-                    Err(err) => log::warn!(target: "runtime::collator-rewards", "Error reward collators: {:?}", err),
-                }
-            }
-        }
-    }
+	fn end_session(index: SessionIndex) {
+		T::SessionManager::end_session(index);
+		let excluded = T::ExcludedCollators::get();
+		// remove the collators so we don't pile up storage
+		for collator in Collators::<T>::take(index) {
+			if !excluded.contains(&collator) {
+				let (currency, amount) = (T::RewardCurrencyId::get(), T::RewardPerCollator::get());
+				match T::Currency::deposit(currency, &collator, amount) {
+					Ok(_) => Self::deposit_event(Event::CollatorRewarded {
+						who: collator,
+						amount,
+						currency,
+					}),
+					Err(err) => log::warn!(target: "runtime::collator-rewards", "Error reward collators: {:?}", err),
+				}
+			}
+		}
+	}
 }

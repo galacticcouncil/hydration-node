@@ -20,72 +20,72 @@ use frame_support::weights::Weight;
 use sp_std::vec::Vec;
 
 pub mod v1 {
-    use super::*;
-    use frame_support::log;
-    use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion};
+	use super::*;
+	use frame_support::log;
+	use frame_support::traits::{Get, GetStorageVersion, PalletInfoAccess, StorageVersion};
 
-    pub fn pre_migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() {
-        let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
-        assert_eq!(on_chain_storage_version, 0, "Storage version too high.");
+	pub fn pre_migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() {
+		let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
+		assert_eq!(on_chain_storage_version, 0, "Storage version too high.");
 
-        log::info!(
-            target: "runtime::duster",
-            "Duster migration: PRE checks successful!"
-        );
-    }
+		log::info!(
+			target: "runtime::duster",
+			"Duster migration: PRE checks successful!"
+		);
+	}
 
-    pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>(
-        account_blacklist: Vec<T::AccountId>,
-        reward_account: T::AccountId,
-        dust_account: T::AccountId,
-    ) -> Weight {
-        //offset of storage version updated
-        let mut reads: u64 = 1;
-        let mut writes: u64 = 1;
+	pub fn migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>(
+		account_blacklist: Vec<T::AccountId>,
+		reward_account: T::AccountId,
+		dust_account: T::AccountId,
+	) -> Weight {
+		//offset of storage version updated
+		let mut reads: u64 = 1;
+		let mut writes: u64 = 1;
 
-        log::info!(
-            target: "runtime::duster",
-            "Running migration to v1 for Duster"
-        );
+		log::info!(
+			target: "runtime::duster",
+			"Running migration to v1 for Duster"
+		);
 
-        log::info!(
-            target: "runtime::duster",
-            "Updating AccountBlacklist"
-        );
-        reads += 1;
-        account_blacklist.iter().for_each(|account_id| {
-            crate::AccountBlacklist::<T>::insert(account_id, ());
-            writes += 1;
-        });
+		log::info!(
+			target: "runtime::duster",
+			"Updating AccountBlacklist"
+		);
+		reads += 1;
+		account_blacklist.iter().for_each(|account_id| {
+			crate::AccountBlacklist::<T>::insert(account_id, ());
+			writes += 1;
+		});
 
-        log::info!(
-            target: "runtime::duster",
-            "Updating RewardAccount"
-        );
-        reads += 1;
-        writes += 1;
-        crate::RewardAccount::<T>::put(reward_account);
+		log::info!(
+			target: "runtime::duster",
+			"Updating RewardAccount"
+		);
+		reads += 1;
+		writes += 1;
+		crate::RewardAccount::<T>::put(reward_account);
 
-        log::info!(
-            target: "runtime::duster",
-            "Updating DustAccount"
-        );
-        reads += 1;
-        writes += 1;
-        crate::DustAccount::<T>::put(dust_account);
+		log::info!(
+			target: "runtime::duster",
+			"Updating DustAccount"
+		);
+		reads += 1;
+		writes += 1;
+		crate::DustAccount::<T>::put(dust_account);
 
-        StorageVersion::new(1).put::<P>();
+		StorageVersion::new(1).put::<P>();
 
-        T::DbWeight::get().reads_writes(reads, writes)
-    }
+		T::DbWeight::get().reads_writes(reads, writes)
+	}
 
-    pub fn post_migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() {
-        let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
-        assert_eq!(on_chain_storage_version, 1, "Unexpected storage version.");
+	pub fn post_migrate<T: Config, P: GetStorageVersion + PalletInfoAccess>() {
+		let on_chain_storage_version = <P as GetStorageVersion>::on_chain_storage_version();
+		assert_eq!(on_chain_storage_version, 1, "Unexpected storage version.");
 
-        log::info!(
-            target: "runtime::duster",
-            "Duster migration: POST checks successful!"
-        );
-    }
+		log::info!(
+			target: "runtime::duster",
+			"Duster migration: POST checks successful!"
+		);
+	}
 }

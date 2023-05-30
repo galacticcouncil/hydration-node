@@ -19,9 +19,9 @@ use crate as price_oracle;
 use crate::Config;
 use frame_support::parameter_types;
 use frame_support::sp_runtime::{
-    testing::Header,
-    traits::{BlakeTwo256, IdentityLookup},
-    FixedU128,
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
+	FixedU128,
 };
 use frame_support::traits::{Everything, GenesisBuild, Get};
 use hydradx_traits::AssetPairAccountIdFor;
@@ -41,106 +41,106 @@ pub const ACA: AssetId = 3_000;
 pub const ETH: AssetId = 4_000;
 
 pub const ORACLE_ENTRY_1: PriceEntry = PriceEntry {
-    price: Price::from_inner(2000000000000000000),
-    trade_amount: 1_000,
-    liquidity_amount: 2_000,
+	price: Price::from_inner(2000000000000000000),
+	trade_amount: 1_000,
+	liquidity_amount: 2_000,
 };
 pub const ORACLE_ENTRY_2: PriceEntry = PriceEntry {
-    price: Price::from_inner(5000000000000000000),
-    trade_amount: 3_000,
-    liquidity_amount: 4_000,
+	price: Price::from_inner(5000000000000000000),
+	trade_amount: 3_000,
+	liquidity_amount: 4_000,
 };
 
 frame_support::construct_runtime!(
-    pub enum Test where
-     Block = Block,
-     NodeBlock = Block,
-     UncheckedExtrinsic = UncheckedExtrinsic,
-     {
-         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-         PriceOracle: price_oracle::{Pallet, Call, Storage, Event<T>},
-     }
+	pub enum Test where
+	 Block = Block,
+	 NodeBlock = Block,
+	 UncheckedExtrinsic = UncheckedExtrinsic,
+	 {
+		 System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		 PriceOracle: price_oracle::{Pallet, Call, Storage, Event<T>},
+	 }
 
 );
 
 parameter_types! {
-    pub const BlockHashCount: u64 = 250;
+	pub const BlockHashCount: u64 = 250;
 }
 
 impl frame_system::Config for Test {
-    type BaseCallFilter = Everything;
-    type BlockWeights = ();
-    type BlockLength = ();
-    type RuntimeOrigin = RuntimeOrigin;
-    type RuntimeCall = RuntimeCall;
-    type Index = u64;
-    type BlockNumber = u64;
-    type Hash = H256;
-    type Hashing = BlakeTwo256;
-    type AccountId = u64;
-    type Lookup = IdentityLookup<Self::AccountId>;
-    type Header = Header;
-    type RuntimeEvent = RuntimeEvent;
-    type BlockHashCount = BlockHashCount;
-    type DbWeight = ();
-    type Version = ();
-    type PalletInfo = PalletInfo;
-    type AccountData = ();
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type SystemWeightInfo = ();
-    type SS58Prefix = ();
-    type OnSetCode = ();
-    type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type BaseCallFilter = Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Index = u64;
+	type BlockNumber = u64;
+	type Hash = H256;
+	type Hashing = BlakeTwo256;
+	type AccountId = u64;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type Header = Header;
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = BlockHashCount;
+	type DbWeight = ();
+	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = ();
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
+	type SS58Prefix = ();
+	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 pub struct AssetPairAccountIdTest();
 
 impl AssetPairAccountIdFor<AssetId, u64> for AssetPairAccountIdTest {
-    fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
-        let mut a = asset_a as u128;
-        let mut b = asset_b as u128;
-        if a > b {
-            std::mem::swap(&mut a, &mut b);
-        }
-        (a * 1000 + b) as u64
-    }
+	fn from_assets(asset_a: AssetId, asset_b: AssetId, _: &str) -> u64 {
+		let mut a = asset_a as u128;
+		let mut b = asset_b as u128;
+		if a > b {
+			std::mem::swap(&mut a, &mut b);
+		}
+		(a * 1000 + b) as u64
+	}
 }
 
 pub const EXCHANGE_FEE: (u32, u32) = (2, 1_000);
 
 struct ExchangeFee;
 impl Get<(u32, u32)> for ExchangeFee {
-    fn get() -> (u32, u32) {
-        EXCHANGE_FEE
-    }
+	fn get() -> (u32, u32) {
+		EXCHANGE_FEE
+	}
 }
 
 impl Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 #[derive(Default)]
 pub struct ExtBuilder {
-    pub price_data: Vec<((AssetId, AssetId), Price, Balance)>,
+	pub price_data: Vec<((AssetId, AssetId), Price, Balance)>,
 }
 
 impl ExtBuilder {
-    pub fn with_price_data(mut self, data: Vec<((AssetId, AssetId), Price, Balance)>) -> Self {
-        self.price_data = data;
-        self
-    }
+	pub fn with_price_data(mut self, data: Vec<((AssetId, AssetId), Price, Balance)>) -> Self {
+		self.price_data = data;
+		self
+	}
 
-    pub fn build(self) -> sp_io::TestExternalities {
-        let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-        GenesisBuild::<Test>::assimilate_storage(
-            &crate::GenesisConfig {
-                price_data: self.price_data,
-            },
-            &mut t,
-        )
-        .unwrap();
-        t.into()
-    }
+	pub fn build(self) -> sp_io::TestExternalities {
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		GenesisBuild::<Test>::assimilate_storage(
+			&crate::GenesisConfig {
+				price_data: self.price_data,
+			},
+			&mut t,
+		)
+		.unwrap();
+		t.into()
+	}
 }
