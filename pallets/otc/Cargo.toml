@@ -1,0 +1,61 @@
+[package]
+name = 'pallet-otc'
+version = '1.0.1'
+description = 'A pallet for trustless over-the-counter trading'
+authors = ['GalacticCouncil']
+edition = '2021'
+license = 'Apache 2.0'
+repository = "https://github.com/galacticcouncil/Hydradx-node"
+
+[dependencies]
+# parity
+codec = { package = "parity-scale-codec", version = "3.4.0", features = ["derive", "max-encoded-len"], default-features = false }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+
+# primitives
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false}
+
+# FRAME
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+
+# HydraDX dependencies
+hydradx-traits = { path = "../../traits", default-features = false }
+
+# ORML dependencies
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
+
+# Optional imports for benchmarking
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
+
+[dev-dependencies]
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false, features=["std"]}
+proptest = "1.0.0"
+pretty_assertions = "1.2.1"
+test-utils = { path = "../../utils/test-utils", default-features = false }
+
+[features]
+default = ['std']
+std = [
+  'codec/std',
+  'frame-support/std',
+  'frame-system/std',
+  'sp-runtime/std',
+  'sp-core/std',
+  'sp-io/std',
+  'sp-std/std',
+  "scale-info/std",
+  "orml-tokens/std",
+  "hydradx-traits/std",
+]
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-system/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]
