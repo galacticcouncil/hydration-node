@@ -15,18 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![allow(clippy::result_large_err)]
-#![allow(dead_code)] //TODO: temp allow, remove before merging this PR
 
 use crate::{AccountId, AssetId, Balance, Currencies, Omnipool, Runtime, Tokens};
 
 use super::*;
 
 use frame_benchmarking::account;
-use frame_benchmarking::BenchmarkError;
 use frame_system::{Pallet as System, RawOrigin};
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::{MultiCurrency, MultiCurrencyExtended};
-use sp_runtime::SaturatedConversion;
 
 pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
 
@@ -52,10 +49,6 @@ fn initialize_omnipool() -> DispatchResult {
 	let _ = regi_asset(b"HDX".to_vec(), UNITS, HDX);
 	let _ = regi_asset(b"LRNA".to_vec(), UNITS, LRNA);
 	let _ = regi_asset(b"DAI".to_vec(), UNITS, DAI);
-
-	//update_balance(StableAssetId::get(), &acc, stable_amount);
-	//update_balance(NativeAssetId::get(), &acc, native_amount);
-	/**/
 
 	assert_ok!(Tokens::set_balance(
 		RawOrigin::Root.into(),
@@ -91,54 +84,6 @@ fn initialize_omnipool() -> DispatchResult {
 	Ok(())
 }
 
-fn initialize_omnipool2<T: pallet_omnipool::Config>() -> DispatchResult
-where
-	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: pallet_ema_oracle::Config,
-	<T as pallet_omnipool::Config>::AssetId: From<u32>,
-{
-	let stable_amount: Balance = 1_000_000_000_000_000_000_u128;
-	let native_amount: Balance = 1_000_000_000_000_000_000u128;
-	let stable_price: FixedU128 = FixedU128::from((1, 2));
-	let native_price: FixedU128 = FixedU128::from(1);
-	let acc = OmnipoolPallet::<T>::protocol_account();
-
-	OmnipoolPallet::<T>::set_tvl_cap(RawOrigin::Root.into(), TVL_CAP)?;
-
-	/*reg_asset(b"HDX".to_vec(), 1u128, HDX).map_err(|_| DispatchError::Other("Failed to register asset"))?;
-	reg_asset(b"LRNA".to_vec(), 1u128, LRNA).map_err(|_| DispatchError::Other("Failed to register asset"))?;
-	reg_asset(b"DAI".to_vec(), 1u128, DAI).map_err(|_| DispatchError::Other("Failed to register asset"))?;*/
-
-	<T as pallet_omnipool::Config>::Currency::update_balance(T::StableCoinAssetId::get(), &acc, stable_amount as i128)?;
-	<T as pallet_omnipool::Config>::Currency::update_balance(T::HdxAssetId::get(), &acc, native_amount as i128)?;
-
-	OmnipoolPallet::<T>::initialize_pool(
-		RawOrigin::Root.into(),
-		stable_price,
-		native_price,
-		Permill::from_percent(100),
-		Permill::from_percent(100),
-	)?;
-
-	//NOTE: This is necessary for oracle to provide price.
-	do_lrna_hdx_trade::<T>()?;
-	do_lrna_dai_trade::<T>()?;
-
-	set_period::<T>(10);
-
-	do_lrna_dai_trade::<T>()?;
-	do_lrna_hdx_trade::<T>()
-}
-
-pub fn reg_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<AssetId, ()> {
-	AssetRegistry::register_asset(
-		AssetRegistry::to_bounded_name(name).map_err(|_| ())?,
-		pallet_asset_registry::AssetType::<AssetId>::Token,
-		deposit,
-		Some(asset_id),
-	)
-	.map_err(|_| ())
-}
 pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<AssetId, DispatchError> {
 	let name = AssetRegistry::to_bounded_name(name)?;
 	AssetRegistry::register_asset(
@@ -147,14 +92,6 @@ pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<
 		deposit,
 		Some(asset_id),
 	)
-}
-
-pub fn update_balance(currency_id: AssetId, who: &AccountId, balance: Balance) {
-	assert_ok!(<Currencies as MultiCurrencyExtended<_>>::update_balance(
-		currency_id,
-		who,
-		balance.saturated_into()
-	));
 }
 
 //NOTE: This is necessary for oracle to provide price.
@@ -191,38 +128,15 @@ fn fund<T: pallet_omnipool::Config>(
 	CurrencyOf::<T>::deposit(currency, &to, amount)
 }
 
-fn create_account_with_native_balance<T: pallet_omnipool::Config>() -> Result<T::AccountId, DispatchError>
-where
-	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T: pallet_omnipool::Config,
-	<T as pallet_omnipool::Config>::AssetId: From<u32>,
-{
-	let caller: T::AccountId = account("provider", 1, 1);
-	let token_amount = 200 * ONE;
-	<T as pallet_omnipool::Config>::Currency::update_balance(0.into(), &caller, token_amount as i128)?;
-
-	Ok(caller)
-}
-
 use frame_support::assert_ok;
 use frame_support::traits::Hooks;
 use hydradx_traits::router::PoolType;
 use pallet_route_executor::Trade;
-use sp_runtime::traits::Get;
 use sp_runtime::{DispatchError, DispatchResult, FixedU128, Permill};
 use sp_std::vec;
 
 const SEED: u32 = 1;
 pub const UNITS: Balance = 100_000_000_000;
-const MAX_NUMBER_OF_TRADES: u32 = 5;
-
-pub fn register_asset_with_name(name_as_bye_string: &[u8]) -> Result<AssetId, BenchmarkError> {
-	register_asset(name_as_bye_string.to_vec(), 0u128).map_err(|_| BenchmarkError::Stop("Failed to register asset"))
-}
-
-pub fn create_account(name: &'static str) -> AccountId {
-	account(name, 0, SEED)
-}
 
 fn create_funded_account<T: pallet_omnipool::Config>(
 	name: &'static str,
