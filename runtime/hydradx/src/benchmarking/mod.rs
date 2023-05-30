@@ -21,6 +21,7 @@ pub fn register_asset(name: Vec<u8>, deposit: Balance) -> Result<AssetId, ()> {
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		deposit,
 		None,
+		None,
 	)
 	.map_err(|_| ())
 }
@@ -33,6 +34,7 @@ pub fn update_asset(asset_id: AssetId, name: Vec<u8>, deposit: Balance) -> Resul
 		name,
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		Some(deposit),
+		None,
 	)
 	.map_err(|_| ())
 }
