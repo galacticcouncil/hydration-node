@@ -22,9 +22,9 @@ orml-traits = { workspace = true }
 orml-utilities = { workspace = true }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
+sp-core = { workspace = true }
+pallet-balances = { workspace = true }
+orml-tokens = { workspace = true }
 
 [features]
 default = ["std"]

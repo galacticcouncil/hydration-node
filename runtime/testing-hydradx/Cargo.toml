@@ -10,8 +10,8 @@ repository = "https://github.com/galacticcouncil/HydraDX-node"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+substrate-build-script-utils = { workspace = true }
+substrate-wasm-builder = { workspace = true }
 
 [dependencies]
 hex-literal = "0.3.4"
@@ -68,7 +68,7 @@ pallet-otc = { workspace = true }
 orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
 orml-vesting = { workspace = true }
-orml-benchmarking = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false, optional = true }
+orml-benchmarking = { workspace = true, optional = true }
 
 # orml XCM support
 orml-xtokens = { workspace = true }

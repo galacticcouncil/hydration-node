@@ -9,7 +9,7 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-frame-remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+frame-remote-externalities = { workspace = true }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 scraper = { workspace = true }
 primitives = { workspace = true }

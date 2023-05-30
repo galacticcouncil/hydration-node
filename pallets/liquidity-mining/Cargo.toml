@@ -31,11 +31,11 @@ sp-std = { workspace = true }
 
 [dev-dependencies]
 test-utils = { workspace = true }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+sp-io = { workspace = true }
+sp-core = { workspace = true }
+orml-currencies = { workspace = true }
+orml-tokens = { workspace = true }
+pallet-balances = { workspace = true }
 # This can be updated to lates after rust update(>=1.61)
 fixed = { version = "=1.15.0", default-features = false }
 proptest = "1.0.0"

@@ -23,7 +23,7 @@ frame-benchmarking = { workspace = true, optional = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-system-benchmarking = { workspace = true, optional = true }
-sp-core = { git = 'https://github.com/paritytech/substrate', branch = "polkadot-v0.9.38", default-features = false }
+sp-core = { workspace = true }
 sp-std = { workspace = true }
 
 [dev-dependencies]

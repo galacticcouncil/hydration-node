@@ -11,7 +11,7 @@ repository = "https://github.com/galacticcouncil/warehouse"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+substrate-wasm-builder = { workspace = true }
 
 [dependencies]
 codec = { default-features = false, features = ["derive", "max-encoded-len"], package = "parity-scale-codec", version = "3.4.0" }

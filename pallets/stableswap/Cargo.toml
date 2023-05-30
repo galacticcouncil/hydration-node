@@ -41,9 +41,9 @@ orml-traits = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+sp-api = { workspace = true }
 sp-tracing = { workspace = true }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false, features=["std"]}
+orml-tokens = { workspace = true, features=["std"] }
 proptest = "1.0.0"
 
 [features]

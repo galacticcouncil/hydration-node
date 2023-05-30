@@ -31,8 +31,8 @@ pallet-transaction-payment = { workspace = true }
 
 [dev-dependencies]
 pallet-currencies = { workspace = true }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false, features=["std"]}
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, features=["std"] }
+orml-tokens = { workspace = true, features=["std"] }
+pallet-balances = { workspace = true, features=["std"] }
 sp-io = { workspace = true }
 test-utils = { workspace = true }
 

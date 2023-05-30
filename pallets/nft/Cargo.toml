@@ -32,7 +32,7 @@ orml-utilities = { workspace = true }
 hydradx-traits = { workspace = true }
 
 [dev-dependencies]
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+pallet-balances = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 

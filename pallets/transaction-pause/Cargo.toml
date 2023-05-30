@@ -18,11 +18,11 @@ frame-benchmarking = { workspace = true, optional = true }
 sp-api = { workspace = true, optional = true }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false, features=["std"]}
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false, features=["std"]}
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+pallet-balances = { workspace = true }
+orml-tokens = { workspace = true, features=["std"] }
+orml-traits = { workspace = true, features=["std"] }
 smallvec = "1.9.0"
 
 [features]
