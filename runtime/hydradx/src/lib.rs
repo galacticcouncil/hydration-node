@@ -216,7 +216,14 @@ where
 	Runtime: cumulus_pallet_parachain_system::Config,
 {
 	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		Some(cumulus_primitives_core::relay_chain::Hash::default())
+		// We use the same hash as for integration tests
+		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
+		let hash = [
+			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
+			135, 250, 171, 69, 205, 241, 47, 227, 168,
+		]
+		.into();
+		Some(hash)
 	}
 }
 

@@ -628,7 +628,12 @@ pub struct ParentHashGetterMock {}
 
 impl RelayChainBlockHashProvider for ParentHashGetterMock {
 	fn parent_hash() -> Option<Hash> {
-		Some(Hash::default())
+		let hash = [
+			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
+			135, 250, 171, 69, 205, 241, 47, 227, 168,
+		]
+		.into();
+		Some(hash)
 	}
 }
 
