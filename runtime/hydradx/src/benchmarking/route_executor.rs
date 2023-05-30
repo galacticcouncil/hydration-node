@@ -91,6 +91,7 @@ pub fn regi_asset(name: Vec<u8>, deposit: Balance, asset_id: AssetId) -> Result<
 		pallet_asset_registry::AssetType::<AssetId>::Token,
 		deposit,
 		Some(asset_id),
+		None,
 	)
 }
 
