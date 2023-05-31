@@ -451,15 +451,10 @@ pub mod pallet {
 			schedule_id: ScheduleId,
 			next_execution_block: BlockNumberFor<T>,
 		) -> DispatchResult {
-			let ensure_technical_origin = T::TechnicalOrigin::ensure_origin(origin.clone());
-			let ensure_signed = ensure_signed(origin);
-			if ensure_technical_origin.is_err() && ensure_signed.is_err() {
-				return Err(BadOrigin);
-			}
-
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 
-			if let Ok(who) = ensure_signed {
+			if T::TechnicalOrigin::ensure_origin(origin.clone()).is_err() {
+				let who = ensure_signed(origin)?;
 				ensure!(who == schedule.owner, Error::<T>::Forbidden);
 			}
 
