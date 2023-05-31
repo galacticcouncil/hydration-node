@@ -383,14 +383,10 @@ pub mod pallet {
 
 			ensure!(schedule.order.get_route_length() > 0, Error::<T>::RouteNotSpecified);
 
-			let min_budget = if schedule.order.get_asset_in() == T::NativeAssetId::get() {
-				T::MinBudgetInNativeCurrency::get()
-			} else {
-				Self::convert_native_amount_to_currency(
-					schedule.order.get_asset_in(),
-					T::MinBudgetInNativeCurrency::get(),
-				)?
-			};
+			let min_budget = Self::convert_native_amount_to_currency(
+				schedule.order.get_asset_in(),
+				T::MinBudgetInNativeCurrency::get(),
+			)?;
 			ensure!(
 				schedule.total_amount >= min_budget,
 				Error::<T>::TotalAmountIsSmallerThanMinBudget
