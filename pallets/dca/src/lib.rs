@@ -753,9 +753,7 @@ where
 				.as_mut()
 				.defensive_ok_or(Error::<T>::InvalidState)?;
 
-			if amount_to_unreserve > *remaining_amount {
-				return Err(Error::<T>::InvalidState.into());
-			};
+			ensure!(amount_to_unreserve <= *remaining_amount, Error::<T>::InvalidState);
 
 			let new_amount = remaining_amount
 				.checked_sub(amount_to_unreserve)
