@@ -658,9 +658,10 @@ where
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id);
 
-		if number_of_retries == T::MaxNumberOfRetriesOnError::get() {
-			return Err(Error::<T>::MaxRetryReached.into());
-		}
+		ensure!(
+			number_of_retries < T::MaxNumberOfRetriesOnError::get(),
+			Error::<T>::MaxRetryReached
+		);
 
 		RetriesOnError::<T>::mutate(schedule_id, |retry| -> DispatchResult {
 			retry.saturating_inc();
