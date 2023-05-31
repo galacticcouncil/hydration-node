@@ -1877,6 +1877,65 @@ fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_
 		});
 }
 
+#[test]
+fn schedules_are_purged_when_the_block_is_over() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
+			assert_ok!(DCA::schedule(
+				RuntimeOrigin::signed(ALICE),
+				schedule.clone(),
+				Option::None
+			));
+
+			//Act
+			set_to_blocknumber(501);
+			assert_number_of_executed_sell_trades!(3);
+			set_to_blocknumber(502);
+
+			//Assert
+			let scheduled_ids_for_next_block = DCA::schedule_ids_per_block(501);
+			assert_eq!(
+				scheduled_ids_for_next_block,
+				create_bounded_vec_with_schedule_ids(vec![])
+			);
+		});
+}
+
 fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
 	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
 	bounded_vec

@@ -121,7 +121,7 @@ pub mod pallet {
 				return weight;
 			};
 
-			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::get(current_blocknumber).to_vec();
+			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
 			schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
 			for schedule_id in schedule_ids {
@@ -886,15 +886,6 @@ where
 		}
 
 		Err(Error::<T>::NoFreeBlockFound.into())
-	}
-
-	fn create_bounded_vec(
-		next_schedule_id: ScheduleId,
-	) -> Result<BoundedVec<ScheduleId, T::MaxSchedulePerBlock>, DispatchError> {
-		let schedule_id = vec![next_schedule_id];
-		let bounded_vec: BoundedVec<ScheduleId, T::MaxSchedulePerBlock> =
-			schedule_id.try_into().map_err(|_| Error::<T>::InvalidState)?;
-		Ok(bounded_vec)
 	}
 
 	fn calculate_estimated_and_slippage_amounts(
