@@ -558,9 +558,7 @@ where
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
-				if amount_out < min_limit.into() {
-					return Err(Error::<T>::TradeLimitReached.into());
-				}
+				ensure!(amount_out >= min_limit.into(), Error::<T>::TradeLimitReached);
 
 				pallet_route_executor::Pallet::<T>::sell(
 					origin,
@@ -590,9 +588,7 @@ where
 					.ok_or(ArithmeticError::Overflow)?;
 
 				let max_limit = min(*max_limit, max_limit_with_slippage);
-				if amount_in > max_limit.into() {
-					return Err(Error::<T>::TradeLimitReached.into());
-				}
+				ensure!(amount_in <= max_limit.into(), Error::<T>::TradeLimitReached);
 
 				pallet_route_executor::Pallet::<T>::buy(
 					origin,
