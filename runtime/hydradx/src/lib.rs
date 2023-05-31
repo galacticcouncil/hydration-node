@@ -1102,7 +1102,6 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
-		DCA: pallet_dca = 66,
 		Router: pallet_route_executor = 67,
 
 		// ORML related modules
@@ -1117,6 +1116,10 @@ construct_runtime!(
 		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
 		//will return 0 as current block number when used with Scheduler(democracy).
 		Scheduler: pallet_scheduler = 5,
+
+		//NOTE: DCA pallet should be declared after ParachainSystem pallet,
+		//otherwise there is no data about relay chain parent hash
+		DCA: pallet_dca = 66,
 
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
