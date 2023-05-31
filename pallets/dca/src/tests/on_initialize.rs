@@ -29,8 +29,6 @@ use orml_traits::MultiCurrency;
 use orml_traits::MultiReservableCurrency;
 use orml_traits::NamedMultiReservableCurrency;
 use pretty_assertions::assert_eq;
-use sp_runtime::traits::ConstU32;
-use sp_runtime::BoundedVec;
 use sp_runtime::DispatchError;
 use std::borrow::Borrow;
 use std::ops::RangeInclusive;
