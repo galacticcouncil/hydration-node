@@ -588,7 +588,7 @@ where
 					.ok_or(ArithmeticError::Overflow)?;
 
 				let max_limit = min(*max_limit, max_limit_with_slippage);
-				ensure!(amount_in <= max_limit.into(), Error::<T>::TradeLimitReached);
+				ensure!(amount_in <= max_limit, Error::<T>::TradeLimitReached);
 
 				pallet_route_executor::Pallet::<T>::buy(
 					origin,
@@ -614,22 +614,21 @@ where
 
 		RetriesOnError::<T>::remove(schedule_id);
 
-		let remaining_amount_to_use: T::Balance = RemainingAmounts::<T>::get(schedule_id)
+		let remaining_amount_to_use: Balance = RemainingAmounts::<T>::get(schedule_id)
 			.defensive_ok_or(Error::<T>::InvalidState)?
 			.into();
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
-
-		if remaining_amount_to_use <= transaction_fee.into() {
+		if remaining_amount_to_use <= transaction_fee {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
 
 		//In buy we complete with returning leftover, in sell we sell the leftover in the next trade
 		if let Order::Buy { amount_out, route, .. } = &schedule.order {
-			let amount_to_unreserve: T::Balance = Self::get_amount_in_for_buy(amount_out, route)?;
+			let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, route)?;
 
-			let amount_for_next_trade: T::Balance = amount_to_unreserve
-				.checked_add(&(transaction_fee.into()))
+			let amount_for_next_trade: Balance = amount_to_unreserve
+				.checked_add(transaction_fee.into())
 				.ok_or(ArithmeticError::Overflow)?;
 
 			if remaining_amount_to_use < amount_for_next_trade {
@@ -727,13 +726,13 @@ where
 	fn get_amount_in_for_buy(
 		amount_out: &Balance,
 		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
-	) -> Result<T::Balance, DispatchError> {
+	) -> Result<Balance, DispatchError> {
 		let trade_amounts =
 			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route.to_vec(), (*amount_out).into())?;
 
 		let first_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 
-		Ok(first_trade.amount_in)
+		Ok(first_trade.amount_in.into())
 	}
 
 	fn get_transaction_fee(order: &Order<T::AssetId>) -> Result<Balance, DispatchError> {
