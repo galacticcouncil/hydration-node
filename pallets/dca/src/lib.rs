@@ -857,20 +857,12 @@ where
 
 		let next_free_block = Self::find_next_free_block(blocknumber)?;
 
-		if ScheduleIdsPerBlock::<T>::contains_key(next_free_block) {
-			ScheduleIdsPerBlock::<T>::try_mutate_exists(next_free_block, |schedule_ids| -> DispatchResult {
-				let schedule_ids = schedule_ids.as_mut().defensive_ok_or(Error::<T>::InvalidState)?;
-
-				schedule_ids
-					.try_push(schedule_id)
-					.map_err(|_| Error::<T>::InvalidState)?;
-				Ok(())
-			})?;
-			return Ok(());
-		} else {
-			let vec_with_first_schedule_id = Self::create_bounded_vec(schedule_id)?;
-			ScheduleIdsPerBlock::<T>::insert(next_free_block, vec_with_first_schedule_id);
-		}
+		ScheduleIdsPerBlock::<T>::try_mutate(next_free_block, |schedule_ids| -> DispatchResult {
+			schedule_ids
+				.try_push(schedule_id)
+				.map_err(|_| Error::<T>::InvalidState)?;
+			Ok(())
+		})?;
 
 		Self::deposit_event(Event::ExecutionPlanned {
 			id: schedule_id,
