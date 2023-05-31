@@ -619,7 +619,7 @@ where
 			.into();
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
-		if remaining_amount_to_use < transaction_fee.into() {
+		if remaining_amount_to_use <= transaction_fee.into() {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
