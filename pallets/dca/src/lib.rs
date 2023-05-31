@@ -99,7 +99,6 @@ pub mod pallet {
 	use hydradx_traits::pools::SpotPriceProvider;
 	use hydradx_traits::PriceOracle;
 	use orml_traits::NamedMultiReservableCurrency;
-	use sp_runtime::DispatchError::BadOrigin;
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
