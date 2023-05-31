@@ -468,12 +468,6 @@ pub mod pallet {
 
 			Self::try_unreserve_all(schedule_id, &schedule);
 
-			let schedule_ids_on_block = ScheduleIdsPerBlock::<T>::get(next_execution_block);
-			ensure!(
-				schedule_ids_on_block.contains(&schedule_id),
-				Error::<T>::ScheduleNotFound,
-			);
-
 			//Remove schedule id from next execution block
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(
 				next_execution_block,
