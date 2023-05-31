@@ -767,9 +767,7 @@ where
 	}
 
 	fn get_transaction_fee(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
-		let transaction_fee = Self::convert_weight_to_fee(Self::get_trade_weight(order), order.get_asset_in())?;
-
-		Ok(transaction_fee)
+		Self::convert_weight_to_fee(Self::get_trade_weight(order), order.get_asset_in())
 	}
 
 	fn unallocate_amount(
