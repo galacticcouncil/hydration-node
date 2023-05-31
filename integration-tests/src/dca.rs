@@ -178,13 +178,7 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 		init_omnipool_with_oracle_for_block_10();
 
 		let alice_init_hub_balance = 5000 * UNITS;
-		assert_ok!(Tokens::set_balance(
-			RawOrigin::Root.into(),
-			ALICE.into(),
-			LRNA,
-			alice_init_hub_balance,
-			0
-		));
+		set_alice_lrna_balance(alice_init_hub_balance);
 
 		let dca_budget = 2500 * UNITS;
 
@@ -215,9 +209,11 @@ fn buy_schedule_execution_should_work_when_asset_in_is_hub_asset() {
 }
 
 #[test]
-fn buy_schedule_execution_should_yield_same_result_as_direct_buy() {
+fn buy_schedule_and_direct_buy_and_router_should_yield_same_result_when_selling_native_asset() {
+	let amount_in = 140_421_094_431_120;
 	let amount_out = 100 * UNITS;
 
+	//DCA
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
@@ -225,6 +221,7 @@ fn buy_schedule_execution_should_yield_same_result_as_direct_buy() {
 
 		let dca_budget = 1000 * UNITS;
 
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 
 		let schedule1 = schedule_fake_with_buy_order(HDX, DAI, amount_out, dca_budget);
@@ -234,15 +231,18 @@ fn buy_schedule_execution_should_yield_same_result_as_direct_buy() {
 		set_relaychain_block_number(11);
 
 		//Assert
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_in - BUY_DCA_EXECUTION_FEE);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 	});
 
+	//Direct Omnipool
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool_with_oracle_for_block_10();
 
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 
 		//Act
 		assert_ok!(hydradx_runtime::Omnipool::buy(
@@ -254,6 +254,129 @@ fn buy_schedule_execution_should_yield_same_result_as_direct_buy() {
 		));
 
 		//Assert
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_in);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	//Router
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+
+		//Act
+		let trade = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI,
+		}];
+		assert_ok!(hydradx_runtime::Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			DAI,
+			amount_out,
+			Balance::MAX,
+			trade
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - amount_in);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+}
+
+#[test]
+fn buy_schedule_and_direct_buy_and_router_should_yield_same_result_when_asset_in_is_hub_asset() {
+	let amount_in = 70_175_440_083_618;
+	let amount_out = 100 * UNITS;
+
+	//DCA
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		let alice_init_lrna_balance = 5000 * UNITS;
+		set_alice_lrna_balance(alice_init_lrna_balance);
+
+		init_omnipool_with_oracle_for_block_10();
+
+		let dca_budget = 1000 * UNITS;
+
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+
+		let schedule1 = schedule_fake_with_buy_order(LRNA, DAI, amount_out, dca_budget);
+		create_schedule(ALICE, schedule1);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		assert_reserved_balance!(
+			&ALICE.into(),
+			LRNA,
+			dca_budget - amount_in - BUY_DCA_EXECUTION_FEE_IN_LRNA
+		);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	//Direct Omnipool
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		let alice_init_lrna_balance = 5000 * UNITS;
+		set_alice_lrna_balance(alice_init_lrna_balance);
+
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+
+		//Act
+		assert_ok!(hydradx_runtime::Omnipool::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			DAI,
+			LRNA,
+			amount_out,
+			Balance::MAX,
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_in);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	//Router
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		let alice_init_lrna_balance = 5000 * UNITS;
+		set_alice_lrna_balance(alice_init_lrna_balance);
+
+		init_omnipool_with_oracle_for_block_10();
+
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+
+		//Act
+		let trade = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: LRNA,
+			asset_out: DAI,
+		}];
+		assert_ok!(hydradx_runtime::Router::buy(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			LRNA,
+			DAI,
+			amount_out,
+			Balance::MAX,
+			trade
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_in);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 	});
 }
@@ -549,14 +672,9 @@ fn sell_schedule_execution_should_work_when_hub_asset_is_sold() {
 	Hydra::execute_with(|| {
 		//Arrange
 		init_omnipool_with_oracle_for_block_10();
+
 		let alice_init_hub_balance = 5000 * UNITS;
-		assert_ok!(Tokens::set_balance(
-			RawOrigin::Root.into(),
-			ALICE.into(),
-			LRNA,
-			alice_init_hub_balance,
-			0
-		));
+		set_alice_lrna_balance(alice_init_hub_balance);
 
 		let dca_budget = 2500 * UNITS;
 		let amount_to_sell = 100 * UNITS;
@@ -590,10 +708,11 @@ fn sell_schedule_execution_should_work_when_hub_asset_is_sold() {
 }
 
 #[test]
-fn sell_schedule_execution_should_yield_same_as_direct_omnipool_sell() {
+fn sell_schedule_and_direct_omnipool_sell_and_router_should_yield_same_result_when_native_asset_sold() {
 	let amount_out = 71_214_372_591_631;
 	let amount_to_sell = 100 * UNITS;
 
+	//DCA
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
@@ -618,9 +737,11 @@ fn sell_schedule_execution_should_yield_same_as_direct_omnipool_sell() {
 		set_relaychain_block_number(11);
 
 		//Assert
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - amount_to_sell - SELL_DCA_EXECUTION_FEE);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 	});
 
+	//Direct Omnipool
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
@@ -643,6 +764,128 @@ fn sell_schedule_execution_should_yield_same_as_direct_omnipool_sell() {
 		));
 
 		//Assert
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - amount_to_sell);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	//Router
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hdx_balance = 5000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		//Act
+		let trade = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: HDX,
+			asset_out: DAI,
+		}];
+		assert_ok!(hydradx_runtime::Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			HDX,
+			DAI,
+			amount_to_sell,
+			0,
+			trade
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - amount_to_sell);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+}
+
+#[test]
+fn sell_schedule_and_direct_omnipool_sell_and_router_should_yield_same_result_when_hub_asset_sold() {
+	let amount_out = 142_499_995_765_917;
+	let amount_to_sell = 100 * UNITS;
+
+	//DCA
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_lrna_balance = 5000 * UNITS;
+		set_alice_lrna_balance(alice_init_lrna_balance);
+
+		let dca_budget = 1100 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, LRNA, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), LRNA, dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		assert_reserved_balance!(
+			&ALICE.into(),
+			LRNA,
+			dca_budget - amount_to_sell - SELL_DCA_EXECUTION_FEE_IN_LRNA
+		);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	//Direct omnipool
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+
+		let alice_init_lrna_balance = 5000 * UNITS;
+		set_alice_lrna_balance(alice_init_lrna_balance);
+
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+
+		//Act
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			LRNA,
+			DAI,
+			amount_to_sell,
+			0,
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_to_sell);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
+	});
+
+	//Router
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_lrna_balance = 5000 * UNITS;
+		set_alice_lrna_balance(alice_init_lrna_balance);
+
+		//Act
+		let trade = vec![Trade {
+			pool: PoolType::Omnipool,
+			asset_in: LRNA,
+			asset_out: DAI,
+		}];
+		assert_ok!(hydradx_runtime::Router::sell(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			LRNA,
+			DAI,
+			amount_to_sell,
+			0,
+			trade
+		));
+
+		//Assert
+		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_to_sell);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 	});
 }
@@ -1020,6 +1263,16 @@ fn schedule_fake_with_sell_order(
 			}]),
 		},
 	}
+}
+
+fn set_alice_lrna_balance(alice_init_lrna_balance: Balance) {
+	assert_ok!(Tokens::set_balance(
+		RawOrigin::Root.into(),
+		ALICE.into(),
+		LRNA,
+		alice_init_lrna_balance,
+		0
+	));
 }
 
 pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<AssetId>, ConstU32<5>> {
