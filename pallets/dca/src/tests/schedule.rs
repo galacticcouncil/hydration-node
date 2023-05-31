@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use crate::assert_scheduled_ids;
+use crate::tests::create_bounded_vec_with_schedule_ids;
 use crate::tests::mock::*;
 use crate::tests::{create_bounded_vec, ScheduleBuilder};
 use crate::{Error, Event, Order, ScheduleId};
@@ -868,11 +869,6 @@ fn schedule_should_fail_when_no_routes_specified() {
 				Error::<Test>::RouteNotSpecified
 			);
 		});
-}
-
-fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
-	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
-	bounded_vec
 }
 
 pub fn set_block_number(n: u64) {

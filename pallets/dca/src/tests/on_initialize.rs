@@ -1980,11 +1980,6 @@ fn successfull_should_be_terminated_when_only_transaction_fee_left() {
 		});
 }
 
-fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
-	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
-	bounded_vec
-}
-
 pub fn proceed_to_blocknumber(from: u64, to: u64) {
 	for block_number in RangeInclusive::new(from, to) {
 		System::set_block_number(block_number);

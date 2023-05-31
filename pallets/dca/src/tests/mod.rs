@@ -80,6 +80,10 @@ pub fn create_bounded_vec(trades: Vec<Trade<AssetId>>) -> BoundedVec<Trade<Asset
 	bounded_vec
 }
 
+pub fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
+	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
+	bounded_vec
+}
 #[macro_export]
 macro_rules! assert_scheduled_ids {
 	($block:expr, $expected_schedule_ids:expr) => {
@@ -88,11 +92,6 @@ macro_rules! assert_scheduled_ids {
 		let expected_scheduled_ids_for_next_block = create_bounded_vec_with_schedule_ids($expected_schedule_ids);
 		assert_eq!(actual_schedule_ids, expected_scheduled_ids_for_next_block);
 	};
-}
-
-fn create_bounded_vec_with_schedule_ids(schedule_ids: Vec<ScheduleId>) -> BoundedVec<ScheduleId, ConstU32<5>> {
-	let bounded_vec: BoundedVec<ScheduleId, sp_runtime::traits::ConstU32<5>> = schedule_ids.try_into().unwrap();
-	bounded_vec
 }
 
 #[macro_export]
