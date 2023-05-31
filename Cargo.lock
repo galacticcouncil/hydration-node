@@ -3769,7 +3769,6 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "hex-literal 0.3.4",
- "hydra-dx-math",
  "hydradx-adapters",
  "hydradx-traits",
  "orml-benchmarking",

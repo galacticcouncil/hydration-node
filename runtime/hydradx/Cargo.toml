@@ -65,9 +65,6 @@ warehouse-liquidity-mining = { package="pallet-liquidity-mining", git = "https:/
 pallet-otc = { git = "https://github.com/galacticcouncil/warehouse", rev = "1e0e2cce5d35ff04569b23df1fffb69ffaddf19d", default-features = false}
 pallet-route-executor = { git = "https://github.com/galacticcouncil/warehouse", rev = "1e0e2cce5d35ff04569b23df1fffb69ffaddf19d", default-features = false}
 
-# Math dependency
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
-
 
 # ORML dependencies
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
