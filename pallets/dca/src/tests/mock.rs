@@ -601,7 +601,7 @@ parameter_types! {
 	pub MaxSchedulePerBlock: u32 = 20;
 	pub OmnipoolMaxAllowedPriceDifference: Permill = MAX_PRICE_DIFFERENCE.with(|v| *v.borrow());
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
-	pub MaxNumberOfRetriesOnError: u32 = 3;
+	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
 
 impl Config for Test {

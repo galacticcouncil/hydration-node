@@ -354,7 +354,7 @@ parameter_types! {
 	pub MaxSchedulesPerBlock: u32 = 20;
 	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
 	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
-	pub MaxNumberOfRetriesOnError: u32 = 3;
+	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
 
 #[cfg(test)]

@@ -226,7 +226,7 @@ pub mod pallet {
 
 		///The number of max retries in case of trade limit error
 		#[pallet::constant]
-		type MaxNumberOfRetriesOnError: Get<u32>;
+		type MaxNumberOfRetriesOnError: Get<u8>;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -343,7 +343,7 @@ pub mod pallet {
 	/// Keep tracking the retry on error flag for DCA schedules
 	#[pallet::storage]
 	#[pallet::getter(fn retries_on_error)]
-	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u32, OptionQuery>;
+	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u8, OptionQuery>;
 
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
@@ -696,7 +696,9 @@ where
 
 		Self::increment_retries(schedule_id)?;
 
-		let retry_multiplier = 2u32.checked_pow(number_of_retries).ok_or(ArithmeticError::Overflow)?;
+		let retry_multiplier = 2u32
+			.checked_pow(number_of_retries.into())
+			.ok_or(ArithmeticError::Overflow)?;
 		let retry_delay = SHORT_ORACLE_BLOCK_PERIOD
 			.checked_mul(retry_multiplier)
 			.ok_or(ArithmeticError::Overflow)?;
