@@ -113,8 +113,8 @@ pub mod pallet {
 	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T>
 	where
 		<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
-		<T as pallet_route_executor::Config>::Balance: From<u128>,
-		u128: From<<T as pallet_route_executor::Config>::Balance>,
+		<T as pallet_route_executor::Config>::Balance: From<Balance>,
+		Balance: From<<T as pallet_route_executor::Config>::Balance>,
 	{
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
@@ -355,8 +355,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T>
 	where
 		<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
-		<T as pallet_route_executor::Config>::Balance: From<u128>,
-		u128: From<<T as pallet_route_executor::Config>::Balance>,
+		<T as pallet_route_executor::Config>::Balance: From<Balance>,
+		Balance: From<<T as pallet_route_executor::Config>::Balance>,
 	{
 		/// Creates a new DCA schedule and plans the execution in the specified start execution block.
 		/// If start execution block number is not specified, then the schedule is planned in the consequent block.
@@ -527,8 +527,8 @@ pub mod pallet {
 impl<T: Config> Pallet<T>
 where
 	<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
-	<T as pallet_route_executor::Config>::Balance: From<u128>,
-	u128: From<<T as pallet_route_executor::Config>::Balance>,
+	<T as pallet_route_executor::Config>::Balance: From<Balance>,
+	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
 	fn prepare_schedule(
 		current_blocknumber: T::BlockNumber,
@@ -766,7 +766,7 @@ where
 		Ok(first_trade.amount_in)
 	}
 
-	fn get_transaction_fee(order: &Order<<T as Config>::Asset>) -> Result<u128, DispatchError> {
+	fn get_transaction_fee(order: &Order<<T as Config>::Asset>) -> Result<Balance, DispatchError> {
 		let transaction_fee = Self::convert_weight_to_fee(Self::get_trade_weight(order), order.get_asset_in())?;
 
 		Ok(transaction_fee)
@@ -975,7 +975,7 @@ where
 		Ok((estimated_amount, slippage_amount))
 	}
 
-	fn convert_weight_to_fee(weight: Weight, fee_currency: T::Asset) -> Result<u128, DispatchError> {
+	fn convert_weight_to_fee(weight: Weight, fee_currency: T::Asset) -> Result<Balance, DispatchError> {
 		let fee_amount_in_native = Self::weight_to_fee(weight);
 		let fee_amount_in_sold_asset = Self::convert_native_amount_to_currency(fee_currency, fee_amount_in_native)?;
 
@@ -989,7 +989,7 @@ where
 		}
 	}
 
-	fn convert_native_amount_to_currency(asset_id: T::Asset, asset_amount: u128) -> Result<u128, DispatchError> {
+	fn convert_native_amount_to_currency(asset_id: T::Asset, asset_amount: Balance) -> Result<Balance, DispatchError> {
 		let amount = if asset_id == T::NativeAssetId::get() {
 			asset_amount
 		} else {
