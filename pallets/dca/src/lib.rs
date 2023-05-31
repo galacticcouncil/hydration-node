@@ -475,9 +475,8 @@ pub mod pallet {
 					let schedule_ids = maybe_schedule_ids.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
 
 					let index = schedule_ids
-						.iter()
-						.position(|x| *x == schedule_id)
-						.ok_or(Error::<T>::ScheduleNotFound)?;
+						.binary_search(&schedule_id)
+						.map_err(|_| Error::<T>::ScheduleNotFound)?;
 
 					schedule_ids.remove(index);
 
