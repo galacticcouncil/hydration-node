@@ -270,16 +270,19 @@ benchmarks! {
 		initialize_omnipool::<T>()?;
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
+		let other_seller: T::AccountId = account("seller", 3, 1);
 
 		let amount_buy = 20 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
 
+		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &other_seller, 20_000_000_000_000_000_000_000i128)?;
+
 		let schedule1 = schedule_buy_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_buy);
 		let execution_block = 1001u32;
 
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(execution_block.into())));
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
 
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
@@ -288,12 +291,24 @@ benchmarks! {
 		assert_eq!(init_reserved_balance, reserved_balance);
 
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller), 0);
+
+		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
+		//We leave only one slot
+		let schedule_period = 3;
+		let next_block_to_replan = execution_block + schedule_period;
+		let number_of_all_schedules = T::MaxSchedulePerBlock::get() + T::MaxSchedulePerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
+		for i in 0..number_of_all_schedules {
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan.into())));
+		}
+		let delay_with = 2u32.pow(RETRY_TO_SEARCH_FOR_FREE_BLOCK) - 1;
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
 		let new_dai_balance = <T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller);
 		assert_eq!(new_dai_balance, amount_buy);
+		assert_eq!(T::MaxSchedulePerBlock::get() as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
 	}
 
 	on_initialize_with_sell_trade{
@@ -301,15 +316,18 @@ benchmarks! {
 		initialize_omnipool::<T>()?;
 		set_period::<T>(1000);
 		let seller: T::AccountId = account("seller", 3, 1);
+		let other_seller: T::AccountId = account("seller", 3, 1);
 
 		let amount_sell = 10 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000i128)?;
 
+		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &other_seller, 20_000_000_000_000_000_000_000i128)?;
+
 		let schedule1 = schedule_sell_fake::<T>(seller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let execution_block = 1001u32;
 
-		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1, Option::Some(execution_block.into())));
+		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(seller.clone()).into(), schedule1.clone(), Option::Some(execution_block.into())));
 
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller),0);
 		let reserved_balance = get_named_reseve_balance::<T>(HDX.into(), seller.clone());
@@ -318,12 +336,24 @@ benchmarks! {
 		assert_eq!(init_reserved_balance, reserved_balance);
 
 		assert_eq!(<T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller), 0);
+
+		//Make sure that we have other schedules planned in the block where the benchmark schedule is planned, leading to worst case
+		//We leave only one slot
+		let schedule_period = 3;
+		let next_block_to_replan = execution_block + schedule_period;
+		let number_of_all_schedules = T::MaxSchedulePerBlock::get() + T::MaxSchedulePerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
+		for i in 0..number_of_all_schedules {
+			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan.into())));
+		}
+		let delay_with = 2u32.pow(RETRY_TO_SEARCH_FOR_FREE_BLOCK) - 1 ;
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
 		let new_dai_balance = <T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller);
 		assert!(new_dai_balance > 0);
+		assert_eq!(T::MaxSchedulePerBlock::get() as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
 	}
 
 	on_initialize_with_empty_block{
