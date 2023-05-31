@@ -640,7 +640,7 @@ where
 
 		let next_execution_block = current_blocknumber
 			.checked_add(&schedule.period)
-			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id)?;
 
