@@ -204,6 +204,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anes"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
+
+[[package]]
 name = "ansi_term"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -885,6 +891,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -972,6 +984,33 @@ dependencies = [
  "time 0.1.45",
  "wasm-bindgen",
  "winapi",
+]
+
+[[package]]
+name = "ciborium"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "effd91f6c78e5a4ace8a5d3c0b6bfaec9e2baaef55f3efc00e45fb2e477ee926"
+dependencies = [
+ "ciborium-io",
+ "ciborium-ll",
+ "serde",
+]
+
+[[package]]
+name = "ciborium-io"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdf919175532b369853f5d5e20b26b43112613fd6fe7aee757e35f7a44642656"
+
+[[package]]
+name = "ciborium-ll"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "defaa24ecc093c77630e6c15e17c51f5e187bf35ee514f4e2d67baaa96dae22b"
+dependencies = [
+ "ciborium-io",
+ "half",
 ]
 
 [[package]]
@@ -1409,6 +1448,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b540bd8bc810d3885c6ea91e2018302f68baba2129ab3e88f32389ee9370880d"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "criterion"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
+dependencies = [
+ "anes",
+ "atty",
+ "cast",
+ "ciborium",
+ "clap 3.2.25",
+ "criterion-plot",
+ "itertools",
+ "lazy_static",
+ "num-traits",
+ "oorandom",
+ "plotters",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tinytemplate",
+ "walkdir",
+]
+
+[[package]]
+name = "criterion-plot"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
+dependencies = [
+ "cast",
+ "itertools",
 ]
 
 [[package]]
@@ -3370,6 +3445,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gmp-mpfr-sys"
+version = "1.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13eabc29d16e4a621b495e3919c71ebb7caaed24380955671e7d417370fea95d"
+dependencies = [
+ "libc",
+ "windows-sys 0.42.0",
+]
+
+[[package]]
 name = "group"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3637,21 +3722,27 @@ dependencies = [
 [[package]]
 name = "hydra-dx-math"
 version = "7.1.0"
-source = "git+https://github.com/galacticcouncil/HydraDX-math?rev=380b80b59bbf62abb8848fb8a10bb206861eab41#380b80b59bbf62abb8848fb8a10bb206861eab41"
 dependencies = [
+ "approx",
+ "criterion",
  "fixed",
  "num-traits",
  "parity-scale-codec",
  "primitive-types",
+ "proptest",
+ "rand 0.8.5",
+ "rand_xoshiro",
+ "rug",
  "scale-info",
  "serde",
  "sp-arithmetic",
  "sp-std",
+ "test-case 2.2.2",
 ]
 
 [[package]]
 name = "hydradx"
-version = "9.0.0"
+version = "9.0.1"
 dependencies = [
  "clap 4.3.0",
  "common-runtime",
@@ -3677,7 +3768,6 @@ dependencies = [
  "hydradx-runtime",
  "jsonrpsee 0.16.2",
  "log",
- "pallet-grandpa",
  "pallet-transaction-payment-rpc",
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
@@ -3693,7 +3783,6 @@ dependencies = [
  "sc-consensus",
  "sc-consensus-aura",
  "sc-executor",
- "sc-finality-grandpa",
  "sc-keystore",
  "sc-network",
  "sc-network-common",
@@ -3713,7 +3802,6 @@ dependencies = [
  "sp-consensus",
  "sp-consensus-aura",
  "sp-core",
- "sp-finality-grandpa",
  "sp-inherents",
  "sp-io",
  "sp-keystore",
@@ -3733,10 +3821,10 @@ dependencies = [
 [[package]]
 name = "hydradx-adapters"
 version = "0.3.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-support",
  "hydradx-traits",
+ "lazy_static",
  "log",
  "pallet-transaction-multi-payment",
  "parity-scale-codec",
@@ -3848,7 +3936,6 @@ dependencies = [
 [[package]]
 name = "hydradx-traits"
 version = "2.3.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5856,6 +5943,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
+name = "oorandom"
+version = "11.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
+
+[[package]]
 name = "opaque-debug"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5932,6 +6025,22 @@ dependencies = [
  "sp-runtime-interface",
  "sp-std",
  "sp-storage",
+]
+
+[[package]]
+name = "orml-currencies"
+version = "0.4.1-dev"
+source = "git+https://github.com/open-web3-stack/open-runtime-module-library?branch=polkadot-v0.9.38#241d5cdc98cca53b8cf990853943c9ae1193a70e"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "orml-utilities",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -6111,11 +6220,11 @@ dependencies = [
 [[package]]
 name = "pallet-asset-registry"
 version = "2.2.0"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
  "hydradx-traits",
  "orml-traits",
  "parity-scale-codec",
@@ -6125,9 +6234,12 @@ dependencies = [
  "sp-api",
  "sp-arithmetic",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+ "test-utils",
+ "xcm",
 ]
 
 [[package]]
@@ -6338,7 +6450,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-claims"
-version = "3.4.5"
+version = "3.4.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6364,16 +6476,24 @@ dependencies = [
 [[package]]
 name = "pallet-collator-rewards"
 version = "1.0.4"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
  "log",
+ "orml-tokens",
  "orml-traits",
+ "pallet-aura",
+ "pallet-balances",
  "pallet-session",
  "parity-scale-codec",
  "scale-info",
+ "serde",
  "sp-arithmetic",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-staking",
  "sp-std",
@@ -6436,15 +6556,17 @@ dependencies = [
 [[package]]
 name = "pallet-currencies"
 version = "1.2.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-support",
  "frame-system",
+ "orml-tokens",
  "orml-traits",
  "orml-utilities",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -6512,18 +6634,47 @@ dependencies = [
 [[package]]
 name = "pallet-duster"
 version = "3.2.2"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
  "hydradx-traits",
+ "lazy_static",
+ "orml-tokens",
  "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-dynamic-fees"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-traits",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "proptest",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -6583,19 +6734,23 @@ dependencies = [
 [[package]]
 name = "pallet-ema-oracle"
 version = "1.0.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
  "hydra-dx-math",
  "hydradx-traits",
  "log",
  "parity-scale-codec",
+ "pretty_assertions",
+ "proptest",
+ "rug",
  "scale-info",
  "serde",
  "sp-arithmetic",
  "sp-core",
+ "sp-io",
  "sp-std",
 ]
 
@@ -6618,8 +6773,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-faucet"
+version = "0.2.3"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-genesis-history"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "derive_more",
  "frame-support",
@@ -6713,18 +6886,27 @@ dependencies = [
 [[package]]
 name = "pallet-liquidity-mining"
 version = "4.2.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
+ "fixed",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
  "hydradx-traits",
+ "orml-currencies",
+ "orml-tokens",
  "orml-traits",
+ "pallet-balances",
  "parity-scale-codec",
+ "pretty_assertions",
+ "proptest",
+ "rand 0.8.5",
  "scale-info",
  "sp-arithmetic",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -6772,6 +6954,26 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-nft"
+version = "7.1.1"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydradx-traits",
+ "orml-utilities",
+ "pallet-balances",
+ "pallet-uniques",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -6883,7 +7085,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "2.1.0"
+version = "2.0.9"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -6940,18 +7142,23 @@ dependencies = [
 [[package]]
 name = "pallet-otc"
 version = "1.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "orml-tokens",
  "orml-traits",
  "parity-scale-codec",
+ "pretty_assertions",
+ "proptest",
  "scale-info",
+ "sp-api",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -6969,6 +7176,24 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-price-oracle"
+version = "0.3.3"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "hydradx-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -7041,7 +7266,6 @@ dependencies = [
 [[package]]
 name = "pallet-relaychain-info"
 version = "0.3.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7055,20 +7279,27 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.4"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
+version = "1.0.3"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
+ "hydradx-adapters",
  "hydradx-traits",
+ "orml-tokens",
  "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
  "parity-scale-codec",
+ "pretty_assertions",
  "scale-info",
  "serde",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
@@ -7137,6 +7368,29 @@ dependencies = [
  "scale-info",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-stableswap"
+version = "1.3.0"
+dependencies = [
+ "bitflags",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "hydra-dx-math",
+ "hydradx-traits",
+ "orml-tokens",
+ "orml-traits",
+ "parity-scale-codec",
+ "proptest",
+ "scale-info",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-tracing",
 ]
 
 [[package]]
@@ -7253,31 +7507,42 @@ dependencies = [
 [[package]]
 name = "pallet-transaction-multi-payment"
 version = "9.0.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-support",
  "frame-system",
  "hydradx-traits",
+ "orml-tokens",
  "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "scale-info",
  "sp-api",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
+ "test-utils",
 ]
 
 [[package]]
 name = "pallet-transaction-pause"
 version = "0.1.3"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "frame-system-benchmarking",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
+ "smallvec",
+ "sp-api",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -7757,6 +8022,34 @@ name = "platforms"
 version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3d7ddaed09e0eb771a79ab0fd64609ba0afb0a8366421957936ad14cbd13630"
+
+[[package]]
+name = "plotters"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2538b639e642295546c50fcd545198c9d64ee2a38620a628724a3b266d5fbf97"
+dependencies = [
+ "num-traits",
+ "plotters-backend",
+ "plotters-svg",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "plotters-backend"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "193228616381fecdc1224c62e96946dfbc73ff4384fba576e052ff8c1bea8142"
+
+[[package]]
+name = "plotters-svg"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9a81d2759aae1dae668f783c308bc5c8ebd191ff4184aaa1b37f65a6ae5a56f"
+dependencies = [
+ "plotters-backend",
+]
 
 [[package]]
 name = "polkadot-approval-distribution"
@@ -9078,7 +9371,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.1"
+version = "5.7.2"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -9447,6 +9740,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_xoshiro"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
+dependencies = [
+ "rand_core 0.6.4",
+]
+
+[[package]]
 name = "rawpointer"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9810,6 +10112,19 @@ dependencies = [
  "serde",
  "thiserror",
  "webrtc-util",
+]
+
+[[package]]
+name = "rug"
+version = "1.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "555e8b44763d034526db899c88cd56ccc4486cd38b444c8aa0e79d4e70ae5a34"
+dependencies = [
+ "az",
+ "gmp-mpfr-sys",
+ "libc",
+ "num-integer",
+ "num-traits",
 ]
 
 [[package]]
@@ -11199,7 +11514,7 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "scraper"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "clap 3.2.25",
  "frame-remote-externalities",
@@ -12722,7 +13037,6 @@ dependencies = [
 [[package]]
 name = "test-utils"
 version = "1.1.1"
-source = "git+https://github.com/galacticcouncil/warehouse?rev=1e0e2cce5d35ff04569b23df1fffb69ffaddf19d#1e0e2cce5d35ff04569b23df1fffb69ffaddf19d"
 dependencies = [
  "frame-system",
  "pretty_assertions",

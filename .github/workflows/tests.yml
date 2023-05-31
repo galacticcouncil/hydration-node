@@ -77,14 +77,12 @@ jobs:
       - run: git describe --tags --abbrev=0
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.12
+      - name: Install misc dependencies
+        run: sudo rm /var/lib/dpkg/lock-frontend && sudo rm /var/lib/dpkg/lock && sudo apt-get install -y protobuf-compiler m4
       - name: Install Rust
         uses: codota/toolchain@00a8bf2bdcfe93aefd70422d3dec07337959d3a4
         with:
           profile: minimal
-      - name: Remove lock files for installing protobuf
-        run: sudo rm /var/lib/dpkg/lock-frontend && sudo rm /var/lib/dpkg/lock
-      - name: Install protobuf
-        run: sudo apt-get install -y protobuf-compiler
       - name: Run clippy
         run: make clippy
       - name: Install tarpaulin
@@ -266,49 +264,6 @@ jobs:
       - run: npm install && npm start
         name: Launch rococo local & wait for inclusion
         working-directory: scripts/wait-for-inclusion
-
-  test-upgrade-runtime:
-    needs: [build, version-check]
-    runs-on: ubuntu-latest
-    if: ${{ needs.version-check.outputs.runtime-upgraded == 'true' }}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/download-artifact@v2
-        name: Download testing runtime wasm from pipeline
-        with:
-          name: testing_hydradx_runtime.compact.compressed.wasm
-          path: scripts/upgrade-runtime
-      - uses: dawidd6/action-download-artifact@v2
-        name: Download node binary from base
-        with:
-          workflow: tests.yml
-          branch: ${{ github.event.pull_request.base.ref }}
-          name: hydradx
-          path: target/release
-      - uses: robinraju/release-downloader@v1.2
-        name: Download relay chain binary release
-        with:
-          repository: paritytech/polkadot
-          latest: true
-          fileName: polkadot
-          out-file-path: ../polkadot/target/release
-      - run: chmod +x ./hydradx && mv ./hydradx ./testing-hydradx && ./testing-hydradx --version
-        name: HydraDX version
-        working-directory: target/release
-      - run: chmod +x ./polkadot && ./polkadot --version
-        name: Polkadot version
-        working-directory: ../polkadot/target/release
-      - uses: actions/setup-node@v2
-        name: Setup node.js
-        with:
-          node-version: '14'
-          check-latest: true
-      - run: npm install && npm run start
-        name: Test runtime upgrade
-        working-directory: scripts/upgrade-runtime
 
   version-check:
     runs-on: ubuntu-latest
