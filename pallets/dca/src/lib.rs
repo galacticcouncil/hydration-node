@@ -40,6 +40,7 @@
 use codec::MaxEncodedLen;
 
 use cumulus_primitives_core::relay_chain::Hash;
+use frame_support::traits::DefensiveOption;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -568,7 +569,7 @@ where
 				route,
 			} => {
 				let remaining_amount_to_use =
-					RemainingAmounts::<T>::get(schedule_id).ok_or(Error::<T>::InvalidState)?;
+					RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_to_sell = min(remaining_amount_to_use, *amount_in);
 
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
@@ -583,7 +584,7 @@ where
 				let route = Self::convert_to_vec(route);
 				let trade_amounts =
 					pallet_route_executor::Pallet::<T>::calculate_sell_trade_amounts(&route, amount_to_sell.into())?;
-				let last_trade = trade_amounts.last().ok_or(Error::<T>::InvalidState)?;
+				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
 				if amount_out < min_limit.into() {
@@ -647,7 +648,7 @@ where
 		Self::reset_retries(schedule_id)?;
 
 		let remaining_amount_to_use: T::Balance = RemainingAmounts::<T>::get(schedule_id)
-			.ok_or(Error::<T>::InvalidState)?
+			.defensive_ok_or(Error::<T>::InvalidState)?
 			.into();
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 
@@ -684,7 +685,7 @@ where
 		schedule: &Schedule<T::AccountId, T::Asset, T::BlockNumber>,
 		current_blocknumber: T::BlockNumber,
 	) -> DispatchResult {
-		let number_of_retries = Self::retries_on_error(schedule_id).ok_or(Error::<T>::InvalidState)?;
+		let number_of_retries = Self::retries_on_error(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 
 		if number_of_retries == T::MaxNumberOfRetriesOnError::get() {
 			return Err(Error::<T>::MaxRetryReached.into());
@@ -761,7 +762,7 @@ where
 		let trade_amounts =
 			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route, (*amount_out).into())?;
 
-		let first_trade = trade_amounts.last().ok_or(Error::<T>::InvalidState)?;
+		let first_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 
 		Ok(first_trade.amount_in)
 	}
@@ -776,7 +777,9 @@ where
 		amount_to_unreserve: Balance,
 	) -> DispatchResult {
 		RemainingAmounts::<T>::try_mutate_exists(schedule_id, |maybe_remaining_amount| -> DispatchResult {
-			let remaining_amount = maybe_remaining_amount.as_mut().ok_or(Error::<T>::InvalidState)?;
+			let remaining_amount = maybe_remaining_amount
+				.as_mut()
+				.defensive_ok_or(Error::<T>::InvalidState)?;
 
 			if amount_to_unreserve > *remaining_amount {
 				return Err(Error::<T>::InvalidState.into());
@@ -911,7 +914,7 @@ where
 
 		if ScheduleIdsPerBlock::<T>::contains_key(next_free_block) {
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(next_free_block, |schedule_ids| -> DispatchResult {
-				let schedule_ids = schedule_ids.as_mut().ok_or(Error::<T>::InvalidState)?;
+				let schedule_ids = schedule_ids.as_mut().defensive_ok_or(Error::<T>::InvalidState)?;
 
 				schedule_ids
 					.try_push(schedule_id)
