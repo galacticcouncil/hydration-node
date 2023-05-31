@@ -1,4 +1,4 @@
-// This file is part of pallet-dca.
+// This file is part of HydraDX-node
 
 // Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
