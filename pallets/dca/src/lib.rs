@@ -135,15 +135,12 @@ pub mod pallet {
 					continue;
 				};
 
-				match Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
-					Ok(block) => block,
-					Err(err) => {
-						if err != Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
-							Self::terminate_schedule(schedule_id, &schedule, err);
-						};
-						continue;
-					}
-				}
+				if let Err(e) = Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
+					if e != Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
+						Self::terminate_schedule(schedule_id, &schedule, e);
+					};
+					continue;
+				};
 
 				match Self::execute_trade(schedule_id, &schedule) {
 					Ok(_) => {
