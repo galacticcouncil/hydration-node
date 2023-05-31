@@ -1914,11 +1914,7 @@ fn schedules_are_purged_when_the_block_is_over() {
 				schedule.clone(),
 				Option::None
 			));
-			assert_ok!(DCA::schedule(
-				RuntimeOrigin::signed(ALICE),
-				schedule.clone(),
-				Option::None
-			));
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act
 			set_to_blocknumber(501);

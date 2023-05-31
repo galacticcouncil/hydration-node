@@ -383,10 +383,7 @@ pub mod pallet {
 				Order::Sell { amount_in, .. } => amount_in,
 				Order::Buy {
 					amount_out, ref route, ..
-				} => {
-					let amount_in = Self::get_amount_in_for_buy(&amount_out, route)?;
-					amount_in.into()
-				}
+				} => Self::get_amount_in_for_buy(&amount_out, route)?,
 			};
 			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
 
@@ -557,8 +554,8 @@ where
 
 				pallet_route_executor::Pallet::<T>::sell(
 					origin,
-					(*asset_in).into(),
-					(*asset_out).into(),
+					*asset_in,
+					*asset_out,
 					(amount_to_sell).into(),
 					min_limit.into(),
 					route,
@@ -574,7 +571,7 @@ where
 			} => {
 				let amount_in = Self::get_amount_in_for_buy(amount_out, route)?;
 
-				Self::unallocate_amount(schedule_id, schedule, amount_in.into())?;
+				Self::unallocate_amount(schedule_id, schedule, amount_in)?;
 
 				let (estimated_amount_in, slippage_amount) =
 					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out, *slippage)?;
@@ -587,8 +584,8 @@ where
 
 				pallet_route_executor::Pallet::<T>::buy(
 					origin,
-					(*asset_in).into(),
-					(*asset_out).into(),
+					*asset_in,
+					*asset_out,
 					(*amount_out).into(),
 					max_limit.into(),
 					route.to_vec(),
@@ -609,9 +606,8 @@ where
 
 		RetriesOnError::<T>::remove(schedule_id);
 
-		let remaining_amount_to_use: Balance = RemainingAmounts::<T>::get(schedule_id)
-			.defensive_ok_or(Error::<T>::InvalidState)?
-			.into();
+		let remaining_amount_to_use: Balance =
+			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
 		if remaining_amount_to_use <= transaction_fee {
 			Self::complete_schedule(schedule_id, schedule);
@@ -623,7 +619,7 @@ where
 			let amount_to_unreserve: Balance = Self::get_amount_in_for_buy(amount_out, route)?;
 
 			let amount_for_next_trade: Balance = amount_to_unreserve
-				.checked_add(transaction_fee.into())
+				.checked_add(transaction_fee)
 				.ok_or(ArithmeticError::Overflow)?;
 
 			if remaining_amount_to_use < amount_for_next_trade {
@@ -723,7 +719,7 @@ where
 		route: &BoundedVec<Trade<T::AssetId>, ConstU32<5>>,
 	) -> Result<Balance, DispatchError> {
 		let trade_amounts =
-			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(&route.to_vec(), (*amount_out).into())?;
+			pallet_route_executor::Pallet::<T>::calculate_buy_trade_amounts(route.as_ref(), (*amount_out).into())?;
 
 		let first_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 
