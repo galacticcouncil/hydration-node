@@ -25,7 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
-use common_runtime::adapters::OmnipoolPriceProviderAdapter;
+use common_runtime::adapters::OraclePriceProviderAdapterForOmnipool;
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
@@ -1022,7 +1022,7 @@ impl pallet_dca::Config for Runtime {
 	type Asset = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
-	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, EmaOracle, LRNA>;
+	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
 	type SpotPriceProvider = Omnipool;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;

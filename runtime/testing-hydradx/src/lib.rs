@@ -130,7 +130,7 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
-use common_runtime::adapters::OmnipoolPriceProviderAdapter;
+use common_runtime::adapters::OraclePriceProviderAdapterForOmnipool;
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -1019,7 +1019,7 @@ impl pallet_dca::Config for Runtime {
 	type Asset = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
-	type OraclePriceProvider = OmnipoolPriceProviderAdapter<AssetId, EmaOracle, LRNA>;
+	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
 	type SpotPriceProvider = Omnipool;
 	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;

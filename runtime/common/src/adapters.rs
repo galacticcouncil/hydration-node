@@ -183,12 +183,12 @@ where
 	}
 }
 
-pub struct OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>(
+pub struct OraclePriceProviderAdapterForOmnipool<AssetId, AggregatedPriceGetter, Lrna>(
 	PhantomData<(AssetId, AggregatedPriceGetter, Lrna)>,
 );
 
 impl<AssetId, AggregatedPriceGetter, Lrna> PriceOracle<AssetId>
-	for OmnipoolPriceProviderAdapter<AssetId, AggregatedPriceGetter, Lrna>
+	for OraclePriceProviderAdapterForOmnipool<AssetId, AggregatedPriceGetter, Lrna>
 where
 	u32: From<AssetId>,
 	AggregatedPriceGetter: AggregatedPriceOracle<AssetId, BlockNumber, EmaPrice, Error = OracleError>,
