@@ -23,6 +23,7 @@ use frame_benchmarking::account;
 use frame_benchmarking::benchmarks;
 use frame_support::assert_ok;
 use frame_system::{Pallet as System, RawOrigin};
+use hydradx_traits::router::PoolType;
 use orml_traits::MultiCurrencyExtended;
 use scale_info::prelude::vec::Vec;
 use sp_runtime::FixedU128;
@@ -38,13 +39,13 @@ pub const DAI: AssetId = 2;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
-fn schedule_fake<T: Config + pallet_omnipool::Config>(
+fn schedule_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
-	asset_in: T::Asset,
-	asset_out: T::Asset,
+	asset_in: <T as pallet_route_executor::Config>::AssetId,
+	asset_out: <T as pallet_route_executor::Config>::AssetId,
 	amount: Balance,
-) -> Schedule<T::AccountId, T::Asset, T::BlockNumber> {
-	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
+) -> Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> {
+	let schedule1: Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> = Schedule {
 		owner,
 		period: 3u32.into(),
 		total_amount: 1100 * ONE,
@@ -64,17 +65,20 @@ fn schedule_fake<T: Config + pallet_omnipool::Config>(
 	schedule1
 }
 
-fn get_named_reseve_balance<T: Config + pallet_omnipool::Config>(token_id: T::Asset, seller: T::AccountId) -> Balance {
+fn get_named_reseve_balance<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
+	token_id: <T as pallet_route_executor::Config>::AssetId,
+	seller: T::AccountId,
+) -> Balance {
 	<T as Config>::Currencies::reserved_balance_named(&T::NamedReserveId::get(), token_id, &seller)
 }
 
-fn schedule_buy_fake<T: Config + pallet_omnipool::Config>(
+fn schedule_buy_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
-	asset_in: T::Asset,
-	asset_out: T::Asset,
+	asset_in: <T as pallet_route_executor::Config>::AssetId,
+	asset_out: <T as pallet_route_executor::Config>::AssetId,
 	amount: Balance,
-) -> Schedule<T::AccountId, T::Asset, T::BlockNumber> {
-	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
+) -> Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> {
+	let schedule1: Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> = Schedule {
 		owner,
 		period: 3u32.into(),
 		total_amount: 2000 * ONE,
@@ -94,13 +98,13 @@ fn schedule_buy_fake<T: Config + pallet_omnipool::Config>(
 	schedule1
 }
 
-fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
+fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
-	asset_in: T::Asset,
-	asset_out: T::Asset,
+	asset_in: <T as pallet_route_executor::Config>::AssetId,
+	asset_out: <T as pallet_route_executor::Config>::AssetId,
 	amount: Balance,
-) -> Schedule<T::AccountId, T::Asset, T::BlockNumber> {
-	let schedule1: Schedule<T::AccountId, T::Asset, T::BlockNumber> = Schedule {
+) -> Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> {
+	let schedule1: Schedule<T::AccountId, <T as pallet_route_executor::Config>::AssetId, T::BlockNumber> = Schedule {
 		owner,
 		period: 3u32.into(),
 		total_amount: 2000 * ONE,
@@ -120,13 +124,13 @@ fn schedule_sell_fake<T: Config + pallet_omnipool::Config>(
 	schedule1
 }
 
-fn set_period<T: Config + pallet_omnipool::Config>(to: u32)
+fn set_period<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(to: u32)
 where
 	T: pallet_ema_oracle::Config,
 	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: crate::pallet::Config,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
-	<T as pallet::Config>::Asset: From<u32>,
+	<T as pallet_route_executor::Config>::AssetId: From<u32>,
 {
 	while System::<T>::block_number() < to.into() {
 		let b = System::<T>::block_number();
@@ -141,19 +145,22 @@ where
 	}
 }
 
-pub fn create_bounded_vec<T: Config>(trades: Vec<Trade<T::Asset>>) -> BoundedVec<Trade<T::Asset>, ConstU32<5>> {
-	let bounded_vec: BoundedVec<Trade<T::Asset>, sp_runtime::traits::ConstU32<5>> = trades.try_into().unwrap();
+pub fn create_bounded_vec<T: Config>(
+	trades: Vec<Trade<<T as pallet_route_executor::Config>::AssetId>>,
+) -> BoundedVec<Trade<<T as pallet_route_executor::Config>::AssetId>, ConstU32<5>> {
+	let bounded_vec: BoundedVec<Trade<<T as pallet_route_executor::Config>::AssetId>, sp_runtime::traits::ConstU32<5>> =
+		trades.try_into().unwrap();
 	bounded_vec
 }
 
 type CurrencyOf<T> = <T as pallet_omnipool::Config>::Currency;
 type OmnipoolPallet<T> = pallet_omnipool::Pallet<T>;
 
-fn initialize_omnipool<T: Config + pallet_omnipool::Config>() -> DispatchResult
+fn initialize_omnipool<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>() -> DispatchResult
 where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: pallet_ema_oracle::Config,
-	T::Asset: From<u32>,
+	<T as pallet_route_executor::Config>::AssetId: From<u32>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
 	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
@@ -186,7 +193,7 @@ where
 }
 
 const SEED: u32 = 0;
-fn create_funded_account<T: Config + pallet_omnipool::Config>(
+fn create_funded_account<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 	name: &'static str,
 	index: u32,
 	amount: Balance,
@@ -211,10 +218,10 @@ fn fund<T: Config + pallet_omnipool::Config>(
 }
 
 //NOTE: This is necessary for oracle to provide price.
-fn do_lrna_hdx_trade<T: Config + pallet_omnipool::Config>() -> DispatchResult
+fn do_lrna_hdx_trade<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>() -> DispatchResult
 where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T::Asset: From<u32>,
+	<T as pallet_route_executor::Config>::AssetId: From<u32>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
 	let trader = create_funded_account::<T>("tmp_trader", 0, 100 * ONE, HDX.into());
@@ -225,10 +232,10 @@ where
 }
 
 //NOTE: This is necessary for oracle to provide price.
-fn do_lrna_dai_trade<T: Config + pallet_omnipool::Config>() -> DispatchResult
+fn do_lrna_dai_trade<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>() -> DispatchResult
 where
 	<T as pallet_omnipool::Config>::Currency: MultiCurrencyExtended<T::AccountId, Amount = i128>,
-	T::Asset: From<u32>,
+	<T as pallet_route_executor::Config>::AssetId: From<u32>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
 	let trader = create_funded_account::<T>("tmp_trader", 0, 100 * ONE, DAI.into());
@@ -238,7 +245,8 @@ where
 	OmnipoolPallet::<T>::sell(RawOrigin::Signed(trader).into(), LRNA.into(), DAI.into(), ONE, 0)
 }
 
-fn create_account_with_native_balance<T: Config + pallet_omnipool::Config>() -> Result<T::AccountId, DispatchError>
+fn create_account_with_native_balance<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
+) -> Result<T::AccountId, DispatchError>
 where
 	CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 	T: crate::pallet::Config + pallet_omnipool::Config,
@@ -256,12 +264,12 @@ benchmarks! {
 		CurrencyOf<T>: MultiCurrencyExtended<T::AccountId, Amount = i128>,
 		T: crate::pallet::Config + pallet_omnipool::Config + pallet_ema_oracle::Config + pallet_route_executor::Config,
 		<T as pallet_omnipool::Config>::AssetId: From<u32>,
-		<T as Config>::Asset: From<u32>,
+		<T as pallet_route_executor::Config>::AssetId: From<u32>,
 		<T as pallet_omnipool::Config>::AssetId: Into<u32>,
-		<T as pallet_omnipool::Config>::AssetId: Into<<T as crate::pallet::Config>::Asset>,
-		<T as pallet_omnipool::Config>::AssetId: From<<T as crate::pallet::Config>::Asset>,
+		<T as pallet_omnipool::Config>::AssetId: Into<<T as pallet_route_executor::Config>::AssetId>,
+		<T as pallet_omnipool::Config>::AssetId: From<<T as pallet_route_executor::Config>::AssetId>,
 		u128: From<<T as pallet_route_executor::Config>::Balance>,
-		<T as pallet_route_executor::Config>::AssetId: From<<T as pallet::Config>::Asset>,
+		<T as pallet_route_executor::Config>::AssetId: From<<T as pallet_route_executor::Config>::AssetId>,
 		<T as pallet_route_executor::Config>::Balance: From<u128>
 	}
 
