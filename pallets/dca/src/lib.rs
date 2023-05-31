@@ -428,7 +428,7 @@ pub mod pallet {
 				}
 			}?;
 
-			Self::plan_schedule_for_block(who.clone(), blocknumber_for_first_schedule_execution, next_schedule_id)?;
+			Self::plan_schedule_for_block(&who, blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
@@ -656,7 +656,7 @@ where
 			.checked_add(&schedule.period)
 			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
+		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id)?;
 
 		Ok(())
 	}
@@ -687,7 +687,7 @@ where
 			.checked_add(&retry_delay.into())
 			.ok_or(DispatchError::Arithmetic(ArithmeticError::Overflow))?;
 
-		Self::plan_schedule_for_block(schedule.owner.clone(), next_execution_block, schedule_id)?;
+		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id)?;
 
 		Ok(())
 	}
@@ -861,7 +861,7 @@ where
 	}
 
 	fn plan_schedule_for_block(
-		who: T::AccountId,
+		who: &T::AccountId,
 		blocknumber: T::BlockNumber,
 		schedule_id: ScheduleId,
 	) -> DispatchResult {
@@ -887,7 +887,7 @@ where
 
 		Self::deposit_event(Event::ExecutionPlanned {
 			id: schedule_id,
-			who,
+			who: who.clone(),
 			block: next_free_block,
 		});
 		Ok(())
