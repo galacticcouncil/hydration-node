@@ -328,7 +328,7 @@ pub mod pallet {
 	/// Keep tracking the retry on error flag for DCA schedules
 	#[pallet::storage]
 	#[pallet::getter(fn retries_on_error)]
-	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u8, OptionQuery>;
+	pub type RetriesOnError<T: Config> = StorageMap<_, Blake2_128Concat, ScheduleId, u8, ValueQuery>;
 
 	/// Keep tracking of the schedule ids to be executed in the block
 	#[pallet::storage]
@@ -626,7 +626,7 @@ where
 			who: schedule.owner.clone(),
 		});
 
-		Self::reset_retries(schedule_id)?;
+		RetriesOnError::<T>::remove(schedule_id);
 
 		let remaining_amount_to_use: T::Balance = RemainingAmounts::<T>::get(schedule_id)
 			.defensive_ok_or(Error::<T>::InvalidState)?
@@ -666,13 +666,16 @@ where
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
 		current_blocknumber: T::BlockNumber,
 	) -> DispatchResult {
-		let number_of_retries = Self::retries_on_error(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
+		let number_of_retries = Self::retries_on_error(schedule_id);
 
 		if number_of_retries == T::MaxNumberOfRetriesOnError::get() {
 			return Err(Error::<T>::MaxRetryReached.into());
 		}
 
-		Self::increment_retries(schedule_id)?;
+		RetriesOnError::<T>::mutate(schedule_id, |retry| -> DispatchResult {
+			retry.saturating_inc();
+			Ok(())
+		})?;
 
 		let retry_multiplier = 2u32
 			.checked_pow(number_of_retries.into())
@@ -782,30 +785,6 @@ where
 			amount_to_unreserve,
 		);
 		ensure!(remaining_amount_if_insufficient_balance == 0, Error::<T>::InvalidState);
-
-		Ok(())
-	}
-
-	fn increment_retries(schedule_id: ScheduleId) -> DispatchResult {
-		RetriesOnError::<T>::try_mutate_exists(schedule_id, |maybe_retries| -> DispatchResult {
-			let retries = maybe_retries.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
-
-			retries.saturating_inc();
-
-			Ok(())
-		})?;
-
-		Ok(())
-	}
-
-	fn reset_retries(schedule_id: ScheduleId) -> DispatchResult {
-		RetriesOnError::<T>::try_mutate_exists(schedule_id, |maybe_retries| -> DispatchResult {
-			let retries = maybe_retries.as_mut().ok_or(Error::<T>::ScheduleNotFound)?;
-
-			*retries = 0;
-
-			Ok(())
-		})?;
 
 		Ok(())
 	}

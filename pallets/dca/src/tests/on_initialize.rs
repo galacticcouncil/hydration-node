@@ -914,7 +914,7 @@ fn buy_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 
 			assert_scheduled_ids!(511, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
-			assert_eq!(1, retries.unwrap());
+			assert_eq!(1, retries);
 			expect_dca_events(vec![
 				DcaEvent::TradeFailed {
 					id: schedule_id,
@@ -968,7 +968,7 @@ fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 			let schedule_id = 0;
 			assert_scheduled_ids!(511, vec![schedule_id]);
 			let retries = DCA::retries_on_error(schedule_id);
-			assert_eq!(1, retries.unwrap());
+			assert_eq!(1, retries);
 			expect_dca_events(vec![
 				DcaEvent::TradeFailed {
 					id: schedule_id,
@@ -1165,7 +1165,7 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 			assert_number_of_executed_sell_trades!(1);
 
 			let retries = DCA::retries_on_error(schedule_id);
-			assert_eq!(0, retries.unwrap());
+			assert_eq!(0, retries);
 		});
 }
 
@@ -1431,7 +1431,7 @@ fn slippage_limit_should_be_used_for_sell_dca_when_it_is_bigger_than_specified_t
 			//No trade happens because slippage limit is too small
 			assert_number_of_executed_sell_trades!(0);
 			let retries = DCA::retries_on_error(0);
-			assert_eq!(1, retries.unwrap());
+			assert_eq!(1, retries);
 		});
 }
 
@@ -1472,7 +1472,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 			//No trade happens because slippage limit is too small
 			assert_number_of_executed_buy_trades!(0);
 			let retries = DCA::retries_on_error(0);
-			assert_eq!(1, retries.unwrap());
+			assert_eq!(1, retries);
 		});
 }
 
@@ -1621,7 +1621,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 			assert_scheduled_ids!(511, vec![schedule_id]);
 
 			let retries = DCA::retries_on_error(schedule_id);
-			assert_eq!(1, retries.unwrap());
+			assert_eq!(1, retries);
 		});
 }
 

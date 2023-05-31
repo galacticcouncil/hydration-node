@@ -801,7 +801,7 @@ fn schedule_should_init_retries_to_zero() {
 			//Assert
 			let schedule_id = 0;
 			let retries = DCA::retries_on_error(schedule_id);
-			assert_eq!(0, retries.unwrap());
+			assert_eq!(0, retries);
 		});
 }
 

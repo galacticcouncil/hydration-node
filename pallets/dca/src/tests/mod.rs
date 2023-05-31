@@ -101,6 +101,6 @@ macro_rules! assert_that_schedule_has_been_removed_from_storages {
 		assert!(DCA::schedules($schedule_id).is_none());
 		assert!(DCA::owner_of($owner, $schedule_id).is_none());
 		assert!(DCA::remaining_amounts($schedule_id).is_none());
-		assert!(DCA::retries_on_error($schedule_id).is_none());
+		assert_eq!(DCA::retries_on_error($schedule_id), 0);
 	};
 }
