@@ -80,7 +80,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Asset id type
-		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize;
+		type AssetId: Parameter + Member + Copy + MaybeSerializeDeserialize + MaxEncodedLen;
 
 		/// Balance type
 		type Balance: Parameter

@@ -1019,7 +1019,6 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 
 impl pallet_dca::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Asset = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
 	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;

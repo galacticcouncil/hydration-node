@@ -606,7 +606,6 @@ parameter_types! {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Asset = AssetId;
 	type Currencies = Currencies;
 	type RandomnessProvider = DCA;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
