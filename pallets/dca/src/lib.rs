@@ -397,13 +397,12 @@ pub mod pallet {
 				Error::<T>::BudgetTooLow
 			);
 
-			let next_schedule_id = ScheduleIdSequencer::<T>::try_mutate(|current_id| {
-				let schedule_id = *current_id;
-
-				*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
-
-				Ok::<u32, ArithmeticError>(schedule_id)
-			})?;
+			let next_schedule_id =
+				ScheduleIdSequencer::<T>::try_mutate(|current_id| -> Result<ScheduleId, DispatchError> {
+					let schedule_id = *current_id;
+					*current_id = current_id.checked_add(1).ok_or(ArithmeticError::Overflow)?;
+					Ok(schedule_id)
+				})?;
 
 			Schedules::<T>::insert(next_schedule_id, &schedule);
 			ScheduleOwnership::<T>::insert(who.clone(), next_schedule_id, ());
