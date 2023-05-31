@@ -135,7 +135,12 @@ pub mod pallet {
 					continue;
 				};
 
-				if let Err(e) = Self::prepare_schedule(current_blocknumber, &mut weight, schedule_id, &schedule) {
+				let weight_for_single_execution = Self::get_trade_weight(&schedule.order);
+				weight.saturating_accrue(weight_for_single_execution);
+
+				if let Err(e) =
+					Self::prepare_schedule(current_blocknumber, weight_for_single_execution, schedule_id, &schedule)
+				{
 					if e != Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
 						Self::terminate_schedule(schedule_id, &schedule, e);
 					};
@@ -499,15 +504,11 @@ where
 {
 	fn prepare_schedule(
 		current_blocknumber: T::BlockNumber,
-		weight: &mut Weight,
+		weight_for_dca_execution: Weight,
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
 	) -> DispatchResult {
-		let weight_for_single_execution = Self::get_trade_weight(&schedule.order);
-
-		weight.saturating_accrue(weight_for_single_execution);
-
-		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_single_execution)?;
+		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
 
 		if Self::price_change_is_bigger_than_max_allowed(schedule) {
 			Self::retry_schedule(schedule_id, schedule, current_blocknumber)?;
