@@ -254,9 +254,9 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		///The DCA is scheduled
+		///The DCA execution has been started
 		ExecutionStarted { id: ScheduleId, block: BlockNumberFor<T> },
-		///The DCA has been scheduled
+		///The DCA has been scheduled for next execution
 		Scheduled { id: ScheduleId, who: T::AccountId },
 		///The DCA is planned for blocknumber
 		ExecutionPlanned {
