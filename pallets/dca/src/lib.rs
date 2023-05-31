@@ -755,11 +755,9 @@ where
 
 			ensure!(amount_to_unreserve <= *remaining_amount, Error::<T>::InvalidState);
 
-			let new_amount = remaining_amount
+			*remaining_amount = remaining_amount
 				.checked_sub(amount_to_unreserve)
 				.ok_or(ArithmeticError::Underflow)?;
-
-			*remaining_amount = new_amount;
 
 			Ok(())
 		})?;
