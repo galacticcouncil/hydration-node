@@ -1,0 +1,67 @@
+[package]
+name = "pallet-asset-registry"
+version = "2.2.0"
+description = "Pallet for asset registry management"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/warehouse"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[build-dependencies]
+substrate-wasm-builder = { workspace = true }
+
+[dependencies]
+codec = { default-features = false, features = ["derive", "max-encoded-len"], package = "parity-scale-codec", version = "3.4.0" }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+primitive-types = { default-features = false, version = "0.12.0" }
+serde = { features = ["derive"], optional = true, version = "1.0.137" }
+
+# ORML dependencies
+orml-traits = { workspace = true }
+
+# Substrate dependencies
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-core = { workspace = true }
+sp-arithmetic = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+
+# Optionals
+frame-system-benchmarking = { workspace = true, optional = true }
+frame-benchmarking = { workspace = true, optional = true }
+sp-api = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-io = { workspace = true }
+polkadot-xcm = { workspace = true }
+test-utils = { workspace = true }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-system/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+]
+std = [
+  "serde/std",
+  "codec/std",
+  "frame-support/std",
+  "frame-system/std",
+  "sp-runtime/std",
+  "sp-core/std",
+  "sp-std/std",
+  "hydradx-traits/std",
+  "sp-api/std",
+  "frame-benchmarking/std",
+  "scale-info/std",
+]
+try-runtime = ["frame-support/try-runtime"]
+

@@ -1,6 +1,6 @@
 [package]
 name = "primitives"
-version = "5.7.1"
+version = "5.7.2"
 authors = ["GalacticCouncil"]
 edition = "2021"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
@@ -13,10 +13,10 @@ hex-literal = {version = '0.3.4'}
 static_assertions = "1.1.0"
 
 # Substrate dependencies
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-support = { workspace = true }
 
 # Polkadot dependencies
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38", default-features = false }
+polkadot-primitives = { workspace = true }
 
 [features]
 default = ["std"]

@@ -1,0 +1,28 @@
+[package]
+name = "hydradx-traits"
+version = "2.3.0"
+description = "Shared traits"
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/warehouse/tree/master/traits"
+
+[dependencies]
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+serde = { features = ["derive"], optional = true, version = "1.0.137" }
+impl-trait-for-tuples = "0.2.2"
+sp-arithmetic = { workspace = true }
+
+# Substrate dependencies
+frame-support = { workspace = true }
+sp-std = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "serde",
+    "codec/std",
+    "frame-support/std",
+    "sp-std/std",
+]

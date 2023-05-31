@@ -1,6 +1,6 @@
 [package]
 name = "pallet-omnipool"
-version = "2.0.9"
+version = "2.0.10"
 authors = ['GalacticCouncil']
 edition = "2021"
 license = "Apache-2.0"
@@ -18,20 +18,20 @@ scale-info = { version = "2.3.1", default-features = false, features = ["derive"
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 
 # primitives
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
 
 # FRAME
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
 
 # ORML
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
+orml-traits = { workspace = true }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "d6a78b5d51bc8af525d2b8f856efcfce2159e334", default-features = false }
+hydradx-traits = { workspace = true }
 
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "380b80b59bbf62abb8848fb8a10bb206861eab41", default-features = false }
+hydra-dx-math = { workspace = true }
 
 # third party
 primitive-types = { version = "0.12.0", default-features = false }
@@ -40,18 +40,18 @@ impl-trait-for-tuples = "0.2.2"
 log = { version = "0.4.17", default-features = false }
 
 # Optional imports for benchmarking
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true}
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true}
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false , optional = true}
+frame-benchmarking = { workspace = true, optional = true }
+pallet-balances = { workspace = true, optional = true }
+sp-core = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false}
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false}
-sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false}
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false}
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false}
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-tracing = { workspace = true }
+pallet-balances = { workspace = true }
+frame-benchmarking = { workspace = true }
+orml-tokens = { workspace = true }
 proptest = "1.0.0"
 pretty_assertions = "1.2.1"
 

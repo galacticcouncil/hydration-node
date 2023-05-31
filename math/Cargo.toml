@@ -1,0 +1,40 @@
+[package]
+authors = ['GalacticCouncil']
+edition = '2021'
+homepage = 'https://github.com/galacticcouncil/hydradx-math'
+license = 'Apache-2.0'
+name = "hydra-dx-math"
+description = "A collection of utilities to make performing liquidity pool calculations more convenient."
+repository = 'https://github.com/galacticcouncil/hydradx-math'
+version = "7.1.0"
+
+[dependencies]
+primitive-types = {default-features = false, version = '0.12.0'}
+num-traits = {default-features = false, version = "0.2.14"}
+fixed = { version = "=1.15.0", features = ["num-traits"] }
+# Added because of use of the FixedU128, used to implement `Ratio`
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+sp-arithmetic = { workspace = true }
+sp-std = { workspace = true }
+
+# Added optional serde support for (de-)serializing `Ratio`
+serde = { version = "1.0.136", optional = true }
+
+[dev-dependencies]
+approx = "0.5.1"
+criterion = "0.4.0"
+proptest = "1.0.0"
+rand = { version = "0.8.5", default-features = false, features= ["std_rng"] }
+rand_xoshiro = "0.6.0"
+rug = { version = "1.17.0", features = ["num-traits"] }
+test-case = "2.2.1"
+
+[features]
+default = ["std"]
+std = ["codec/std", "serde", "sp-arithmetic/std", "sp-std/std"]
+runtime-benchmarks = []
+
+[[bench]]
+name = "benchmarks"
+harness = false
