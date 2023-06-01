@@ -144,7 +144,7 @@ pub mod pallet {
 				if let Err(e) =
 					Self::prepare_schedule(current_blocknumber, weight_for_single_execution, schedule_id, &schedule)
 				{
-					if e != Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into() {
+					if e != Error::<T>::PriceUnstable.into() {
 						Self::terminate_schedule(schedule_id, &schedule, e);
 					};
 					continue;
@@ -293,8 +293,8 @@ pub mod pallet {
 		Forbidden,
 		///The next execution block number is not in the future
 		BlockNumberIsNotInFuture,
-		///Price change from oracle data is bigger than max allowed
-		PriceChangeIsBiggerThanMaxAllowed,
+		///Price is unstable as price change from oracle data is bigger than max allowed
+		PriceUnstable,
 		///Error occurred when calculating price
 		CalculatingPriceError,
 		///The total amount to be reserved is smaller than min budget
@@ -519,10 +519,10 @@ where
 	) -> DispatchResult {
 		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
 
-		if Self::price_change_is_bigger_than_max_allowed(schedule) {
+		if Self::is_price_unstable(schedule) {
 			Self::retry_schedule(schedule_id, schedule, current_blocknumber)?;
 
-			return Err(Error::<T>::PriceChangeIsBiggerThanMaxAllowed.into());
+			return Err(Error::<T>::PriceUnstable.into());
 		}
 
 		Ok(())
@@ -695,7 +695,7 @@ where
 		Ok(())
 	}
 
-	fn price_change_is_bigger_than_max_allowed(schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) -> bool {
+	fn is_price_unstable(schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>) -> bool {
 		let asset_a = schedule.order.get_asset_in();
 		let asset_b = schedule.order.get_asset_out();
 		let Some(current_price) = T::SpotPriceProvider::spot_price(asset_a, asset_b) else {
