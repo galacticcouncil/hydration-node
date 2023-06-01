@@ -1,0 +1,61 @@
+[package]
+name = 'pallet-otc'
+version = '1.0.1'
+description = 'A pallet for trustless over-the-counter trading'
+authors = ['GalacticCouncil']
+edition = '2021'
+license = 'Apache 2.0'
+repository = "https://github.com/galacticcouncil/Hydradx-node"
+
+[dependencies]
+# parity
+codec = { package = "parity-scale-codec", version = "3.4.0", features = ["derive", "max-encoded-len"], default-features = false }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+
+# ORML dependencies
+orml-traits = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-api = { workspace = true }
+sp-io = { workspace = true }
+orml-tokens = { workspace = true, features=["std"] }
+proptest = "1.0.0"
+pretty_assertions = "1.2.1"
+test-utils = { workspace = true }
+
+[features]
+default = ['std']
+std = [
+  'codec/std',
+  'frame-support/std',
+  'frame-system/std',
+  'sp-runtime/std',
+  'sp-core/std',
+  'sp-io/std',
+  'sp-std/std',
+  "scale-info/std",
+  "orml-tokens/std",
+  "hydradx-traits/std",
+]
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-system/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

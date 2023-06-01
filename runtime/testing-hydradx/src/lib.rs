@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -57,6 +57,7 @@ use frame_support::{
 	},
 	BoundedVec,
 };
+use hydradx_adapters::inspect::MultiInspectAdapter;
 use hydradx_traits::OraclePeriod;
 use orml_traits::currency::MutationHooks;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
@@ -113,7 +114,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 142,
+	spec_version: 155,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -129,6 +130,7 @@ pub fn native_version() -> NativeVersion {
 	}
 }
 
+use common_runtime::adapters::OraclePriceProviderAdapterForOmnipool;
 use smallvec::smallvec;
 
 pub struct WeightToFee;
@@ -196,6 +198,42 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 	}
 }
 
+// The reason why there is difference between PROD and benchmark is that it is not possible
+// to set validation data in parachain system pallet in the benchmarks.
+// So for benchmarking, we mock it out and return some hardcoded parent hash
+pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		match validation_data {
+			Some(data) => Some(data.parent_head.hash()),
+			None => None,
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		// We use the same hash as for integration tests
+		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
+		let hash = [
+			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
+			135, 250, 171, 69, 205, 241, 47, 227, 168,
+		]
+		.into();
+		Some(hash)
+	}
+}
+
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 	/// Block weights base values and limits.
@@ -237,7 +275,7 @@ impl Contains<RuntimeCall> for BaseFilter {
 			return false;
 		}
 
-		// filter transfers of LRNA to the omnipool account
+		// filter transfers of LRNA and omnipool assets to the omnipool account
 		if let RuntimeCall::Tokens(orml_tokens::Call::transfer { dest, currency_id, .. })
 		| RuntimeCall::Tokens(orml_tokens::Call::transfer_keep_alive { dest, currency_id, .. })
 		| RuntimeCall::Tokens(orml_tokens::Call::transfer_all { dest, currency_id, .. })
@@ -245,8 +283,20 @@ impl Contains<RuntimeCall> for BaseFilter {
 		{
 			// Lookup::lookup() is not necessary thanks to IdentityLookup
 			if dest == &Omnipool::protocol_account()
-				&& *currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
+				&& (*currency_id == <Runtime as pallet_omnipool::Config>::HubAssetId::get()
+					|| Omnipool::exists(*currency_id))
 			{
+				return false;
+			}
+		}
+		// filter transfers of HDX to the omnipool account
+		if let RuntimeCall::Balances(pallet_balances::Call::transfer { dest, .. })
+		| RuntimeCall::Balances(pallet_balances::Call::transfer_keep_alive { dest, .. })
+		| RuntimeCall::Balances(pallet_balances::Call::transfer_all { dest, .. })
+		| RuntimeCall::Currencies(pallet_currencies::Call::transfer_native_currency { dest, .. }) = call
+		{
+			// Lookup::lookup() is not necessary thanks to IdentityLookup
+			if dest == &Omnipool::protocol_account() {
 				return false;
 			}
 		}
@@ -336,7 +386,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = TransferFees<Currencies, MultiTransactionPayment, DepositAll<Runtime>>;
+	type OnChargeTransaction = TransferFees<Currencies, DepositAll<Runtime>, TreasuryAccount>;
 	type OperationalFeeMultiplier = ();
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
@@ -731,10 +781,8 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type Currencies = Currencies;
 	type SpotPriceProvider = Omnipool;
 	type WeightInfo = weights::transaction_multi_payment::HydraWeight<Runtime>;
-	type WithdrawFeeForSetCurrency = MultiPaymentCurrencySetFee;
 	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
-	type FeeReceiver = TreasuryAccount;
 }
 
 #[derive(Debug, Default, Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
@@ -900,6 +948,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 }
 
 // constants need to be in scope to use as types
+use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
 
@@ -965,6 +1014,39 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_dca::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currencies = Currencies;
+	type RandomnessProvider = DCA;
+	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
+	type SpotPriceProvider = Omnipool;
+	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
+	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
+	type NativeAssetId = NativeAssetId;
+	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
+	type FeeReceiver = TreasuryAccount;
+	type NamedReserveId = NamedReserveId;
+	type WeightToFee = WeightToFee;
+	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxNumberOfTrades: u8 = 5;
+}
+
+impl pallet_route_executor::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
+	type AMM = Omnipool;
+	type WeightInfo = weights::route_executor::HydraWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
 }
@@ -1016,6 +1098,7 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
+		Router: pallet_route_executor = 67,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1028,6 +1111,10 @@ construct_runtime!(
 		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
 		//will return 0 as current block number when used with Scheduler(democracy).
 		Scheduler: pallet_scheduler = 5,
+
+		//NOTE: DCA pallet should be declared after ParachainSystem pallet,
+		//otherwise there is no data about relay chain parent hash
+		DCA: pallet_dca = 66,
 
 		ParachainInfo: parachain_info = 105,
 		PolkadotXcm: pallet_xcm = 107,
@@ -1076,7 +1163,7 @@ pub type SignedExtra = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	pallet_transaction_multi_payment::CurrencyBalanceCheck<Runtime>,
+	pallet_claims::ValidateClaim<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;

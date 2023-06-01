@@ -319,6 +319,7 @@ pub struct ExtBuilder {
 		AccountId,
 		Perquintill,
 		Balance,
+		FixedU128,
 	)>,
 	lm_yield_farms: Vec<(AccountId, GlobalFarmId, AssetId, FarmMultiplier, Option<LoyaltyCurve>)>,
 }
@@ -424,6 +425,7 @@ impl ExtBuilder {
 		owner: AccountId,
 		yield_per_period: Perquintill,
 		min_deposit: Balance,
+		lrna_price_adjustment: FixedU128,
 	) -> Self {
 		self.lm_global_farms.push((
 			total_rewards,
@@ -433,6 +435,7 @@ impl ExtBuilder {
 			owner,
 			yield_per_period,
 			min_deposit,
+			lrna_price_adjustment,
 		));
 		self
 	}
@@ -547,6 +550,7 @@ impl ExtBuilder {
 						gf.4,
 						gf.5,
 						gf.6,
+						gf.7,
 					));
 				}
 

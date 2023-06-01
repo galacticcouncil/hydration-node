@@ -1,6 +1,7 @@
 mod call_filter;
 mod circuit_breaker;
 mod cross_chain_transfer;
+mod dca;
 mod dust;
 mod dust_removal_whitelist;
 mod non_native_fee;
@@ -12,3 +13,17 @@ mod otc;
 mod polkadot_test_net;
 mod vesting;
 mod xcm_rate_limiter;
+
+#[macro_export]
+macro_rules! assert_balance {
+	( $who:expr, $asset:expr, $amount:expr) => {{
+		assert_eq!(Currencies::free_balance($asset, &$who), $amount);
+	}};
+}
+
+#[macro_export]
+macro_rules! assert_reserved_balance {
+	( $who:expr, $asset:expr, $amount:expr) => {{
+		assert_eq!(Currencies::reserved_balance($asset, &$who), $amount);
+	}};
+}

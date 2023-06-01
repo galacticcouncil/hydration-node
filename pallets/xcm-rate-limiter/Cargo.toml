@@ -17,35 +17,35 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false, optional = true}
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
+frame-benchmarking = { workspace = true, optional = true}
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
 
 # Polkadot
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
-polkadot-core-primitives = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.38" }
+xcm = { workspace = true }
+polkadot-core-primitives = { workspace = true }
+polkadot-parachain = { workspace = true }
 
 # Cumulus
-cumulus-pallet-xcmp-queue = { git = "https://github.com/galacticcouncil/cumulus.git", branch = "feat/xcmp-defer-xcm-v9-38", default-features = false }
+cumulus-pallet-xcmp-queue = { workspace = true }
 
-pallet-omnipool = { path = "../omnipool", default-features = false }
+pallet-omnipool = { workspace = true }
 
 # Warehouse
-hydradx-traits = { git = "https://github.com/galacticcouncil/warehouse", rev = "8363e9d3bb5db76794200fa0fca4412c40e9d932", default-features = false }
+hydradx-traits = { workspace = true }
 
 # orml
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38", default-features = false }
+orml-traits = { workspace = true }
 
 [dev-dependencies]
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", branch = "polkadot-v0.9.38" }
-hydra-dx-math = { git = "https://github.com/galacticcouncil/HydraDX-math", rev = "3a4e017ad42c297fbe7928dc72ea6499a9260f10", default-features = false }
-test-utils = { git = "https://github.com/galacticcouncil/warehouse", rev = "8363e9d3bb5db76794200fa0fca4412c40e9d932", default-features = false }
+pallet-balances = { workspace = true, features = ["std"] }
+orml-tokens = { workspace = true, features = ["std"] }
+hydra-dx-math = { workspace = true, features = ["std"] }
+test-utils = { workspace = true }
 pretty_assertions = "1.2.1"
 test-case = "3.0.0"
 

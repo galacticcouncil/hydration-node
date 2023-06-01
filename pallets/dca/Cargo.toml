@@ -1,0 +1,93 @@
+[package]
+name = 'pallet-dca'
+version = '1.0.0'
+description = 'A pallet to manage DCA scheduling'
+authors = ['GalacticCouncil']
+edition = '2021'
+license = 'Apache 2.0'
+repository = "https://github.com/galacticcouncil/warehouse/tree/master/route-executor"
+
+[dependencies]
+
+log = { version = "0.4.17", default-features = false }
+rand = { version = "0.8.4", default-features = false }
+
+# parity
+scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+#cumumlus
+cumulus-primitives-core = { workspace = true }
+cumulus-pallet-parachain-system ={ workspace = true }
+
+# HydraDX dependencies
+pallet-omnipool = { workspace = true }
+hydradx-traits = { workspace = true }
+hydradx-adapters = { workspace = true }
+pallet-relaychain-info = { workspace = true }
+pallet-ema-oracle =  { workspace = true }
+pallet-route-executor =  { workspace = true }
+
+hydra-dx-math = { workspace = true }
+
+# ORML dependencies
+orml-traits = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+frame-system-benchmarking = { workspace = true, optional = true }
+sp-core = { workspace = true, optional = true }
+sp-io = { workspace = true, optional = true }
+
+primitives = { path="../../primitives", default-features = false }
+
+
+[dev-dependencies]
+smallvec = "1.9.0"
+pallet-balances = { workspace = true }
+pallet-currencies = { workspace = true }
+lazy_static = { features = ["spin_no_std"], version = "1.4.0", default-features = false }
+sp-api = { workspace = true }
+sp-tracing = { workspace = true }
+orml-tokens = { workspace = true }
+proptest = "1.0.0"
+pretty_assertions = "1.2.1"
+test-utils = { workspace = true }
+test-case = "2.2.2"
+primitive-types = { version = "0.12.0", default-features = false }
+
+[features]
+default = ['std']
+std = [
+  'codec/std',
+  'frame-support/std',
+  'frame-system/std',
+  'sp-runtime/std',
+  'sp-std/std',
+  'sp-core/std',
+  'sp-io/std',
+  "scale-info/std",
+  "orml-tokens/std",
+  "hydradx-traits/std",
+  "hydradx-adapters/std",
+  "pallet-relaychain-info/std",
+  "orml-tokens/std",
+  "pallet-omnipool/std",
+  "pallet-ema-oracle/std",
+  "pallet-route-executor/std",
+]
+
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

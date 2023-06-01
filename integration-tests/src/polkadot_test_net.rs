@@ -2,7 +2,10 @@
 use frame_support::{
 	assert_ok,
 	dispatch::{Dispatchable, GetCallMetadata},
-	sp_runtime::traits::{AccountIdConversion, Block as BlockT},
+	sp_runtime::{
+		traits::{AccountIdConversion, Block as BlockT},
+		FixedU128, Permill,
+	},
 	traits::GenesisBuild,
 	weights::Weight,
 };
@@ -28,8 +31,11 @@ pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
-pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1000 * UNITS;
+pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
+pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000 * UNITS * 1_000_000;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -205,11 +211,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
 			(AccountId::from(ALICE), LRNA, 200 * UNITS),
-			(AccountId::from(ALICE), DAI, 200 * UNITS),
+			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
-			(AccountId::from(CHARLIE), LRNA, 1_000 * UNITS),
+			(AccountId::from(BOB), BTC, 1_000_000),
 			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
+			(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
 			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
 			(omnipool_account.clone(), DAI, stable_amount),
@@ -230,7 +237,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
-		currencies: vec![(LRNA, Price::from(1)), (DAI, Price::from(1)), (ACA, Price::from(1))],
+		currencies: vec![(
+			LRNA, Price::from(1)),
+			(DAI, Price::from(1)),
+			(ACA, Price::from(1)),
+			(BTC, Price::from_inner(134_000_000)),
+		],
 		account_currencies: vec![],
 	}
 	.assimilate_storage(&mut t)
@@ -339,7 +351,6 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 		}
 	));
 }
-
 pub fn polkadot_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
 	while hydradx_runtime::System::block_number() < to {
@@ -348,11 +359,13 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 		hydradx_runtime::EmaOracle::on_finalize(b);
+		hydradx_runtime::DCA::on_finalize(b);
 		hydradx_runtime::CircuitBreaker::on_finalize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 		hydradx_runtime::EmaOracle::on_initialize(b + 1);
+		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
@@ -401,4 +414,22 @@ pub fn apply_blocks_from_file(pallet_whitelist: Vec<&str>) {
 			}
 		}
 	}
+}
+
+pub fn init_omnipool() {
+	let native_price = FixedU128::from_inner(1201500000000000);
+	let stable_price = FixedU128::from_inner(45_000_000_000);
+
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(
+		hydradx_runtime::RuntimeOrigin::root(),
+		522_222_000_000_000_000_000_000,
+	));
+
+	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
+		hydradx_runtime::RuntimeOrigin::root(),
+		stable_price,
+		native_price,
+		Permill::from_percent(100),
+		Permill::from_percent(10)
+	));
 }
