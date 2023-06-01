@@ -418,10 +418,12 @@ benchmarks! {
 		let amount_sell = 20_000_000_000_000u128;
 		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let schedule_id : ScheduleId = 0;
+
+		set_period::<T>(99);
 		let execution_block = 100u32;
 		assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(caller).into(), schedule1, Option::Some(execution_block.into())));
 
-	}: _(RawOrigin::Root, schedule_id, Some(execution_block.into()))
+	}: _(RawOrigin::Root, schedule_id, None)
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_none());
 	}
