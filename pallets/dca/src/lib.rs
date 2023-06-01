@@ -566,15 +566,13 @@ where
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
-				let min_limit = if *min_limit > last_block_slippage_min_limit {
+				if *min_limit > last_block_slippage_min_limit {
 					ensure!(amount_out >= (*min_limit).into(), Error::<T>::TradeLimitReached);
-					*min_limit
 				} else {
 					ensure!(
 						amount_out >= last_block_slippage_min_limit.into(),
 						Error::<T>::SlippageLimitReached
 					);
-					last_block_slippage_min_limit.into()
 				};
 
 				pallet_route_executor::Pallet::<T>::sell(
@@ -582,7 +580,7 @@ where
 					*asset_in,
 					*asset_out,
 					(amount_to_sell).into(),
-					min_limit.into(),
+					amount_out,
 					route,
 				)?;
 
@@ -609,15 +607,13 @@ where
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				let max_limit = if *max_limit < last_block_slippage_max_limit {
+				if *max_limit < last_block_slippage_max_limit {
 					ensure!(amount_in <= *max_limit, Error::<T>::TradeLimitReached);
-					*max_limit
 				} else {
 					ensure!(
 						amount_in <= last_block_slippage_max_limit,
 						Error::<T>::SlippageLimitReached
 					);
-					last_block_slippage_max_limit
 				};
 
 				pallet_route_executor::Pallet::<T>::buy(
@@ -625,7 +621,7 @@ where
 					*asset_in,
 					*asset_out,
 					(*amount_out).into(),
-					max_limit.into(),
+					amount_in.into(),
 					route.to_vec(),
 				)?;
 
