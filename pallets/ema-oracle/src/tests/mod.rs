@@ -96,22 +96,22 @@ fn genesis_config_works() {
 			for period in supported_periods() {
 				assert_eq!(
 					get_oracle_entry(HDX, DOT, period),
-					Some(OracleEntry {
-						price: Price::new(1_000_000, 1),
-						volume: Volume::default(),
-						liquidity: Liquidity::new(2_000_000, 2_000_000_000),
-						timestamp: 0,
-					})
+					Some(OracleEntry::new(
+						Price::new(1_000_000, 1),
+						Volume::default(),
+						Liquidity::new(2_000_000, 2_000_000_000),
+						0
+					))
 				);
 
 				assert_eq!(
 					get_oracle_entry(HDX, ACA, period),
-					Some(OracleEntry {
-						price: Price::new(3_000_000, 1),
-						volume: Volume::default(),
-						liquidity: Liquidity::new(4_000_000, 4_000_000_000),
-						timestamp: 0,
-					})
+					Some(OracleEntry::new(
+						Price::new(3_000_000, 1),
+						Volume::default(),
+						Liquidity::new(4_000_000, 4_000_000_000),
+						0
+					))
 				);
 			}
 		});
@@ -136,12 +136,12 @@ fn on_trade_handler_should_work() {
 		assert_ok!(OnActivityHandler::<Test>::on_trade(
 			SOURCE, HDX, DOT, 1_000, 500, 2_000, 1_000
 		));
-		let expected = OracleEntry {
-			price: Price::new(2_000, 1_000),
-			volume: Volume::from_a_in_b_out(1_000, 500),
-			liquidity: Liquidity::new(2_000, 1_000),
-			timestamp: 5,
-		};
+		let expected = OracleEntry::new(
+			Price::new(2_000, 1_000),
+			Volume::from_a_in_b_out(1_000, 500),
+			Liquidity::new(2_000, 1_000),
+			5,
+		);
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(expected));
 	});
 }
@@ -149,14 +149,14 @@ fn on_trade_handler_should_work() {
 #[test]
 fn on_liquidity_changed_handler_should_work() {
 	new_test_ext().execute_with(|| {
-		let timestamp = 5;
-		System::set_block_number(timestamp);
-		let no_volume_entry = OracleEntry {
-			price: Price::new(2_000, 1_000),
-			volume: Volume::default(),
-			liquidity: Liquidity::new(2_000, 1_000),
-			timestamp,
-		};
+		let updated_at = 5;
+		System::set_block_number(updated_at);
+		let no_volume_entry = OracleEntry::new(
+			Price::new(2_000, 1_000),
+			Volume::default(),
+			Liquidity::new(2_000, 1_000),
+			updated_at,
+		);
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), None);
 		assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(
 			SOURCE, HDX, DOT, 1_000, 500, 2_000, 1_000
@@ -186,12 +186,12 @@ fn price_should_be_determined_from_liquidity() {
 
 #[test]
 fn on_liquidity_changed_should_allow_zero_values() {
-	let timestamp = 5;
+	let updated_at = 5;
 	let (liquidity_a, liquidity_b) = (2_000, 1_000);
 	let amount = 1_000;
 
 	new_test_ext().execute_with(|| {
-		System::set_block_number(timestamp);
+		System::set_block_number(updated_at);
 		assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(
 			SOURCE,
 			HDX,
@@ -201,17 +201,17 @@ fn on_liquidity_changed_should_allow_zero_values() {
 			liquidity_a,
 			liquidity_b,
 		));
-		let only_liquidity_entry = OracleEntry {
-			price: Price::new(liquidity_a, liquidity_b),
-			volume: Volume::default(),
-			liquidity: (liquidity_a, liquidity_b).into(),
-			timestamp,
-		};
+		let only_liquidity_entry = OracleEntry::new(
+			Price::new(liquidity_a, liquidity_b),
+			Volume::default(),
+			(liquidity_a, liquidity_b).into(),
+			updated_at,
+		);
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(only_liquidity_entry));
 	});
 
 	new_test_ext().execute_with(|| {
-		System::set_block_number(timestamp);
+		System::set_block_number(updated_at);
 		assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(
 			SOURCE,
 			HDX,
@@ -221,17 +221,17 @@ fn on_liquidity_changed_should_allow_zero_values() {
 			liquidity_a,
 			liquidity_b,
 		));
-		let only_liquidity_entry = OracleEntry {
-			price: Price::new(liquidity_a, liquidity_b),
-			volume: Volume::default(),
-			liquidity: (liquidity_a, liquidity_b).into(),
-			timestamp,
-		};
+		let only_liquidity_entry = OracleEntry::new(
+			Price::new(liquidity_a, liquidity_b),
+			Volume::default(),
+			(liquidity_a, liquidity_b).into(),
+			updated_at,
+		);
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(only_liquidity_entry));
 	});
 
 	new_test_ext().execute_with(|| {
-		System::set_block_number(timestamp);
+		System::set_block_number(updated_at);
 		assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(
 			SOURCE,
 			HDX,
@@ -241,12 +241,12 @@ fn on_liquidity_changed_should_allow_zero_values() {
 			Balance::zero(),
 			Balance::zero(),
 		));
-		let only_price_entry = OracleEntry {
-			price: Price::zero(),
-			volume: Volume::default(),
-			liquidity: (Balance::zero(), Balance::zero()).into(),
-			timestamp,
-		};
+		let only_price_entry = OracleEntry::new(
+			Price::zero(),
+			Volume::default(),
+			(Balance::zero(), Balance::zero()).into(),
+			updated_at,
+		);
 		assert_eq!(get_accumulator_entry(SOURCE, (HDX, DOT)), Some(only_price_entry));
 	});
 }
@@ -343,18 +343,18 @@ fn oracle_volume_should_factor_in_asset_order() {
 		));
 
 		let price_entry = get_accumulator_entry(SOURCE, (HDX, DOT)).unwrap();
-		let first_entry = OracleEntry {
-			price: Price::new(2_000, 1),
-			volume: Volume::from_a_in_b_out(2_000_000, 1_000),
-			liquidity: (2_000, 1).into(),
-			timestamp: 0,
-		};
-		let second_entry = OracleEntry {
-			price: Price::new(2_000, 1),
-			volume: Volume::from_a_out_b_in(2_000_000, 1_000),
-			liquidity: (2_000, 1).into(),
-			timestamp: 0,
-		};
+		let first_entry = OracleEntry::new(
+			Price::new(2_000, 1),
+			Volume::from_a_in_b_out(2_000_000, 1_000),
+			(2_000, 1).into(),
+			0,
+		);
+		let second_entry = OracleEntry::new(
+			Price::new(2_000, 1),
+			Volume::from_a_out_b_in(2_000_000, 1_000),
+			(2_000, 1).into(),
+			0,
+		);
 
 		let result = second_entry.with_added_volume_from(&first_entry);
 		assert_eq!(price_entry, result);
@@ -397,7 +397,7 @@ fn update_data_should_use_old_last_block_oracle_to_update_to_parent() {
 		EmaOracle::on_initialize(6);
 		let second_entry = OracleEntry {
 			liquidity: Liquidity::new(3_000, 1_500),
-			timestamp: 6,
+			updated_at: 6,
 			..ORACLE_ENTRY_1
 		};
 		assert_ok!(EmaOracle::on_trade(
@@ -411,7 +411,7 @@ fn update_data_should_use_old_last_block_oracle_to_update_to_parent() {
 		EmaOracle::on_initialize(50);
 		let third_entry = OracleEntry {
 			liquidity: Liquidity::new(10, 5),
-			timestamp: 50,
+			updated_at: 50,
 			..ORACLE_ENTRY_1
 		};
 		assert_ok!(EmaOracle::on_trade(SOURCE, ordered_pair(HDX, DOT), third_entry.clone()));
@@ -419,7 +419,7 @@ fn update_data_should_use_old_last_block_oracle_to_update_to_parent() {
 
 		for period in supported_periods() {
 			let second_at_50 = OracleEntry {
-				timestamp: 49,
+				updated_at: 49,
 				volume: Volume::default(),
 				..second_entry.clone()
 			};
@@ -444,14 +444,14 @@ fn update_data_should_use_old_last_block_oracle_to_update_to_parent() {
 #[test]
 fn calculate_new_by_integrating_incoming_only_updates_timestamp_on_stable_values() {
 	let period = TenMinutes;
-	let start_oracle = OracleEntry {
-		price: Price::new(4, 1),
-		volume: Volume::from_a_in_b_out(1, 4),
-		liquidity: Liquidity::new(4, 1),
-		timestamp: 5_u32,
-	};
+	let start_oracle = OracleEntry::new(
+		Price::new(4, 1),
+		Volume::from_a_in_b_out(1, 4),
+		Liquidity::new(4, 1),
+		5_u32,
+	);
 	let next_value = OracleEntry {
-		timestamp: 6,
+		updated_at: 6,
 		..start_oracle.clone()
 	};
 	let next_oracle = start_oracle.calculate_new_by_integrating_incoming(period, &next_value);
@@ -460,53 +460,53 @@ fn calculate_new_by_integrating_incoming_only_updates_timestamp_on_stable_values
 
 #[test]
 fn calculate_new_by_integrating_incoming_with_works() {
-	let start_oracle = OracleEntry {
-		price: Price::new(50, 1),
-		volume: Volume::from_a_in_b_out(1, 50),
-		liquidity: Liquidity::new(50, 1),
-		timestamp: 5_u32,
-	};
+	let start_oracle = OracleEntry::new(
+		Price::new(50, 1),
+		Volume::from_a_in_b_out(1, 50),
+		Liquidity::new(50, 1),
+		5_u32,
+	);
 
-	let next_value = OracleEntry {
-		price: Price::new(151, 1),
-		volume: Volume::from_a_in_b_out(1, 151),
-		liquidity: Liquidity::new(151, 1),
-		timestamp: 6,
-	};
+	let next_value = OracleEntry::new(
+		Price::new(151, 1),
+		Volume::from_a_in_b_out(1, 151),
+		Liquidity::new(151, 1),
+		6,
+	);
 	let next_oracle = start_oracle
 		.calculate_new_by_integrating_incoming(TenMinutes, &next_value)
 		.unwrap();
 	// ten minutes corresponds to 100 blocks which corresponds to a smoothing factor of
 	// `2 / 101 ≈ 1 / 50` which means that for an update from 50 to 151 we expect an update of
 	// about 2
-	let expected_oracle = OracleEntry {
-		price: Price::new(52, 1),
-		volume: Volume::from_a_in_b_out(1, 52),
-		liquidity: Liquidity::new(52, 1),
-		timestamp: 6,
-	};
+	let expected_oracle = OracleEntry::new(
+		Price::new(52, 1),
+		Volume::from_a_in_b_out(1, 52),
+		Liquidity::new(52, 1),
+		6,
+	);
 	let tolerance = Price::new(1, 1e10 as u128);
 	assert_price_approx_eq!(next_oracle.price, expected_oracle.price, tolerance);
 	assert_eq!(next_oracle.volume, expected_oracle.volume);
 	assert_eq!(next_oracle.liquidity, expected_oracle.liquidity);
-	assert_eq!(next_oracle.timestamp, expected_oracle.timestamp);
+	assert_eq!(next_oracle.updated_at, expected_oracle.updated_at);
 }
 
 #[test]
 fn calculate_new_by_integrating_incoming_last_block_period_returns_new_value() {
-	let start_oracle = OracleEntry {
-		price: Price::new(4, 1),
-		volume: Volume::from_a_in_b_out(1_u128, 4_u128),
-		liquidity: Liquidity::new(4_u128, 1_u128),
-		timestamp: 5_u32,
-	};
+	let start_oracle = OracleEntry::new(
+		Price::new(4, 1),
+		Volume::from_a_in_b_out(1_u128, 4_u128),
+		Liquidity::new(4_u128, 1_u128),
+		5_u32,
+	);
 
-	let next_value = OracleEntry {
-		price: Price::new(8, 1),
-		volume: Volume::from_a_in_b_out(1_u128, 8_u128),
-		liquidity: Liquidity::new(8_u128, 1_u128),
-		timestamp: 6,
-	};
+	let next_value = OracleEntry::new(
+		Price::new(8, 1),
+		Volume::from_a_in_b_out(1_u128, 8_u128),
+		Liquidity::new(8_u128, 1_u128),
+		6,
+	);
 	let next_oracle = start_oracle.calculate_new_by_integrating_incoming(LastBlock, &next_value);
 	let expected_oracle = next_value;
 	assert_eq!(next_oracle, Some(expected_oracle));
@@ -515,18 +515,18 @@ fn calculate_new_by_integrating_incoming_last_block_period_returns_new_value() {
 #[test]
 fn calculate_current_from_outdated_should_incorporate_longer_time_deltas() {
 	let period = TenMinutes;
-	let start_oracle = OracleEntry {
-		price: Price::new(4_000, 1),
-		volume: Volume::from_a_in_b_out(1, 4_000),
-		liquidity: Liquidity::new(4_000, 1),
-		timestamp: 5_u32,
-	};
-	let next_value = OracleEntry {
-		price: Price::new(8_000, 1),
-		volume: Volume::from_a_in_b_out(1, 8_000),
-		liquidity: Liquidity::new(8_000, 1),
-		timestamp: 1_000,
-	};
+	let start_oracle = OracleEntry::new(
+		Price::new(4_000, 1),
+		Volume::from_a_in_b_out(1, 4_000),
+		Liquidity::new(4_000, 1),
+		5_u32,
+	);
+	let next_value = OracleEntry::new(
+		Price::new(8_000, 1),
+		Volume::from_a_in_b_out(1, 8_000),
+		Liquidity::new(8_000, 1),
+		1_000,
+	);
 	let next_oracle = start_oracle
 		.calculate_current_from_outdated(period, &next_value)
 		.unwrap();
@@ -631,12 +631,12 @@ fn get_price_returns_updated_price() {
 		)])
 		.build()
 		.execute_with(|| {
-			let on_trade_entry = OracleEntry {
-				price: Price::new(500_000, 1),
-				volume: Volume::default(),
-				liquidity: Liquidity::new(2_000_000, 2),
-				timestamp: 1,
-			};
+			let on_trade_entry = OracleEntry::new(
+				Price::new(500_000, 1),
+				Volume::default(),
+				Liquidity::new(2_000_000, 2),
+				1,
+			);
 			System::set_block_number(1);
 			assert_ok!(EmaOracle::on_trade(SOURCE, ordered_pair(HDX, DOT), on_trade_entry));
 			EmaOracle::on_finalize(1);
@@ -685,13 +685,13 @@ fn get_price_returns_updated_price() {
 #[test]
 fn ema_update_should_return_none_if_new_entry_is_older() {
 	let mut entry = OracleEntry {
-		timestamp: 10,
+		updated_at: 10,
 		..ORACLE_ENTRY_1
 	};
 	let original = entry.clone();
 	// older than current
 	let outdated_entry = OracleEntry {
-		timestamp: 9,
+		updated_at: 9,
 		..ORACLE_ENTRY_2
 	};
 	assert_eq!(entry.calculate_current_from_outdated(TenMinutes, &outdated_entry), None);
@@ -704,9 +704,9 @@ fn ema_update_should_return_none_if_new_entry_is_older() {
 		entry.calculate_new_by_integrating_incoming(LastBlock, &outdated_entry),
 		None
 	);
-	// same timestamp as current
+	// same updated_at as current
 	let outdated_entry = OracleEntry {
-		timestamp: 10,
+		updated_at: 10,
 		..ORACLE_ENTRY_2
 	};
 	assert_eq!(entry.calculate_current_from_outdated(TenMinutes, &outdated_entry), None);

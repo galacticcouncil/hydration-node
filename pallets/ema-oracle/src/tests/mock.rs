@@ -45,28 +45,28 @@ pub const HDX: AssetId = 1_000;
 pub const DOT: AssetId = 2_000;
 pub const ACA: AssetId = 3_000;
 
-pub const ORACLE_ENTRY_1: OracleEntry<BlockNumber> = OracleEntry {
-	price: Price::new(2_000, 1_000),
-	volume: Volume {
+pub const ORACLE_ENTRY_1: OracleEntry<BlockNumber> = OracleEntry::new(
+	Price::new(2_000, 1_000),
+	Volume {
 		a_in: 1_000,
 		b_out: 500,
 		a_out: 0,
 		b_in: 0,
 	},
-	liquidity: Liquidity::new(2_000, 1_000),
-	timestamp: 5,
-};
-pub const ORACLE_ENTRY_2: OracleEntry<BlockNumber> = OracleEntry {
-	price: Price::new(4_000, 4_000),
-	volume: Volume {
+	Liquidity::new(2_000, 1_000),
+	5,
+);
+pub const ORACLE_ENTRY_2: OracleEntry<BlockNumber> = OracleEntry::new(
+	Price::new(4_000, 4_000),
+	Volume {
 		a_in: 0,
 		b_out: 0,
 		a_out: 2_000,
 		b_in: 2_000,
 	},
-	liquidity: Liquidity::new(4_000, 4_000),
-	timestamp: 5,
-};
+	Liquidity::new(4_000, 4_000),
+	5,
+);
 
 frame_support::construct_runtime!(
 	pub enum Test where

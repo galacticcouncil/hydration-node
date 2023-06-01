@@ -89,6 +89,7 @@ pub mod weights;
 use weights::WeightInfo;
 
 mod benchmarking;
+pub mod migration;
 
 /// Maximum number of unique oracle entries expected in one block. Empirically determined by running
 /// `trades_estimation.py` and rounding up from 212 to 300. Not necessarily representative for all
@@ -175,12 +176,7 @@ pub mod pallet {
 		fn build(&self) {
 			for &(source, (asset_a, asset_b), price, liquidity) in self.initial_data.iter() {
 				let entry: OracleEntry<T::BlockNumber> = {
-					let e = OracleEntry {
-						price,
-						volume: Volume::default(),
-						liquidity,
-						timestamp: T::BlockNumber::zero(),
-					};
+					let e = OracleEntry::new(price, Volume::default(), liquidity, T::BlockNumber::zero());
 					if ordered_pair(asset_a, asset_b) == (asset_a, asset_b) {
 						e
 					} else {
@@ -274,7 +270,7 @@ impl<T: Config> Pallet<T> {
 		Self::oracle((source, assets, LastBlock)).map(|(mut last_block, init)| {
 			// update the `LastBlock` oracle to the last block if it hasn't been updated for a while
 			// price and liquidity stay constant, volume becomes zero
-			if last_block.timestamp != block {
+			if last_block.updated_at != block {
 				last_block.fast_forward_to(block);
 			}
 			(last_block, init)
@@ -310,7 +306,7 @@ impl<T: Config> Pallet<T> {
 			if let Some((prev_entry, _)) = oracle.as_mut() {
 				let parent = T::BlockNumberProvider::current_block_number().saturating_sub(One::one());
 				// update the entry to the parent block if it hasn't been updated for a while
-				if parent > prev_entry.timestamp {
+				if parent > prev_entry.updated_at {
 					Self::last_block_oracle(src, assets, parent)
                         .and_then(|(last_block, _)| {
                             prev_entry.update_outdated_to_current(period, &last_block).map(|_| ())
@@ -354,7 +350,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let (entry, init) = Self::oracle((src, assets, period))?;
-		if entry.timestamp < parent {
+		if entry.updated_at < parent {
 			entry.calculate_current_from_outdated(period, &last_block)
 		} else {
 			Some(entry)
@@ -400,13 +396,8 @@ impl<T: Config> OnTradeHandler<AssetId, Balance> for OnActivityHandler<T> {
 		let volume = determine_normalized_volume(asset_a, asset_b, amount_a, amount_b);
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
 
-		let timestamp = T::BlockNumberProvider::current_block_number();
-		let entry = OracleEntry {
-			price,
-			volume,
-			liquidity,
-			timestamp,
-		};
+		let updated_at = T::BlockNumberProvider::current_block_number();
+		let entry = OracleEntry::new(price, volume, liquidity, updated_at);
 		Pallet::<T>::on_trade(source, ordered_pair(asset_a, asset_b), entry)
 	}
 
@@ -440,14 +431,9 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance> for OnActivityHandle
 			determine_normalized_price(asset_a, asset_b, liquidity_a, liquidity_b)
 		};
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
-		let timestamp = T::BlockNumberProvider::current_block_number();
-		let entry = OracleEntry {
-			price,
-			// liquidity provision does not count as trade volume
-			volume: Volume::default(),
-			liquidity,
-			timestamp,
-		};
+		let volume = Volume::default(); // liquidity provision does not count as trade volume
+		let updated_at = T::BlockNumberProvider::current_block_number();
+		let entry = OracleEntry::new(price, volume, liquidity, updated_at);
 		Pallet::<T>::on_liquidity_changed(source, ordered_pair(asset_a, asset_b), entry)
 	}
 
@@ -557,6 +543,10 @@ impl<T: Config> AggregatedOracle<AssetId, Balance, T::BlockNumber, Price> for Pa
 impl<T: Config> AggregatedPriceOracle<AssetId, T::BlockNumber, Price> for Pallet<T> {
 	type Error = OracleError;
 
+	/// Returns the price of `asset_a/asset_b` aggregated over `period` for `source`.
+	///
+	/// NOTE: `get_price(asset_one, asset_two, period, source).inverted()` is not guaranteed to be (and in fact will often in
+	/// practice not be) the same as `get_price(asset_two, asset_one, period, source)`.
 	fn get_price(
 		asset_a: AssetId,
 		asset_b: AssetId,

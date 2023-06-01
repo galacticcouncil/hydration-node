@@ -6745,7 +6745,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-genesis-history"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "derive_more",
  "frame-support",
@@ -9324,7 +9324,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.1"
+version = "5.7.2"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",

@@ -1109,6 +1109,7 @@ pub type Executive = frame_executive::Executive<
 		migrations::OnRuntimeUpgradeMigration,
 		migrations::MigrateRegistryLocationToV3<Runtime>,
 		migrations::XcmRateLimitMigration,
+		migrations::OracleInversionMigration,
 	),
 >;
 

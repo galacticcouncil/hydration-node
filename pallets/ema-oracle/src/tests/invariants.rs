@@ -52,27 +52,15 @@ fn any_liquidity() -> impl Strategy<Value = Liquidity<Balance>> {
 }
 
 fn oracle_entry_with_timestamp(timestamp: BlockNumber) -> impl Strategy<Value = OracleEntry<BlockNumber>> {
-	(any_price(), any_volume(), any_liquidity(), Just(timestamp)).prop_map(|(price, volume, liquidity, timestamp)| {
-		OracleEntry {
-			price,
-			volume,
-			liquidity,
-			timestamp,
-		}
-	})
+	(any_price(), any_volume(), any_liquidity(), Just(timestamp))
+		.prop_map(|(price, volume, liquidity, timestamp)| OracleEntry::new(price, volume, liquidity, timestamp))
 }
 
 fn oracle_entry_within_timestamp_range(
 	(timestamp_min, timestamp_max): (BlockNumber, BlockNumber),
 ) -> impl Strategy<Value = OracleEntry<BlockNumber>> {
-	(any_price(), any_volume(), any_liquidity(), timestamp_min..timestamp_max).prop_map(
-		|(price, volume, liquidity, timestamp)| OracleEntry {
-			price,
-			volume,
-			liquidity,
-			timestamp,
-		},
-	)
+	(any_price(), any_volume(), any_liquidity(), timestamp_min..timestamp_max)
+		.prop_map(|(price, volume, liquidity, timestamp)| OracleEntry::new(price, volume, liquidity, timestamp))
 }
 
 // Tests

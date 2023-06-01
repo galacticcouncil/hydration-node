@@ -55,12 +55,12 @@ benchmarks! {
 		let (amount_in, amount_out) = (1_000_000_000_000, 2_000_000_000_000);
 		let (liquidity_asset_in, liquidity_asset_out) = (1_000_000_000_000_000, 2_000_000_000_000_000);
 		assert_ok!(OnActivityHandler::<T>::on_trade(SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out));
-		let entry = OracleEntry {
-			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
-			volume: Volume::from_a_in_b_out(amount_in, amount_out),
-			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
-		};
+		let entry = OracleEntry::new(
+			Price::from((liquidity_asset_in, liquidity_asset_out)),
+			Volume::from_a_in_b_out(amount_in, amount_out),
+			Liquidity::new(liquidity_asset_in, liquidity_asset_out),
+			block_num
+		);
 
 		assert_eq!(Accumulator::<T>::get().into_inner(), [((SOURCE, ordered_pair(HDX, DOT)), entry.clone())].into_iter().collect());
 
@@ -87,12 +87,12 @@ benchmarks! {
 		EmaOracle::<T>::on_initialize(block_num);
 
 		assert_ok!(OnActivityHandler::<T>::on_trade(SOURCE, HDX, DOT, amount_in, amount_out, liquidity_asset_in, liquidity_asset_out));
-		let entry = OracleEntry {
-			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
-			volume: Volume::from_a_in_b_out(amount_in, amount_out),
-			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
-		};
+		let entry = OracleEntry::new(
+			Price::from((liquidity_asset_in, liquidity_asset_out)),
+			Volume::from_a_in_b_out(amount_in, amount_out),
+			Liquidity::new(liquidity_asset_in, liquidity_asset_out),
+			block_num
+		);
 
 		assert_eq!(Accumulator::<T>::get().into_inner(), [((SOURCE, ordered_pair(HDX, DOT)), entry.clone())].into_iter().collect());
 
@@ -128,12 +128,12 @@ benchmarks! {
 		}
 	}: { EmaOracle::<T>::on_finalize(block_num); }
 	verify {
-		let entry = OracleEntry {
-			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
-			volume: Volume::from_a_in_b_out(amount_in, amount_out),
-			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
-		};
+		let entry = OracleEntry::new(
+			Price::from((liquidity_asset_in, liquidity_asset_out)),
+			Volume::from_a_in_b_out(amount_in, amount_out),
+			Liquidity::new(liquidity_asset_in, liquidity_asset_out),
+			block_num
+		);
 
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
@@ -163,12 +163,12 @@ benchmarks! {
 
 		frame_system::Pallet::<T>::set_block_number(block_num);
 		EmaOracle::<T>::on_initialize(block_num);
-		let entry = OracleEntry {
-			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
-			volume: Volume::from_a_in_b_out(amount_in, amount_out),
-			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
-		};
+		let entry = OracleEntry::new(
+			Price::from((liquidity_asset_in, liquidity_asset_out)),
+			Volume::from_a_in_b_out(amount_in, amount_out),
+			Liquidity::new(liquidity_asset_in, liquidity_asset_out),
+			block_num
+		);
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
 			let asset_b = asset_a + 500;
@@ -213,12 +213,12 @@ benchmarks! {
 
 		frame_system::Pallet::<T>::set_block_number(block_num);
 		EmaOracle::<T>::on_initialize(block_num);
-		let entry = OracleEntry {
-			price: Price::from((liquidity_asset_a, liquidity_asset_b)),
-			volume: Volume::from_a_in_b_out(amount_a, amount_b),
-			liquidity: Liquidity::new(liquidity_asset_a, liquidity_asset_b),
-			timestamp: block_num,
-		};
+		let entry = OracleEntry::new(
+			Price::from((liquidity_asset_a, liquidity_asset_b)),
+			Volume::from_a_in_b_out(amount_a, amount_b),
+			Liquidity::new(liquidity_asset_a, liquidity_asset_b),
+			block_num,
+		);
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
 			let asset_b = asset_a + 500;
@@ -237,12 +237,12 @@ benchmarks! {
 	}
 	verify {
 		assert_ok!(*res.borrow());
-		let liquidity_entry = OracleEntry {
-			price: Price::from((liquidity_asset_a, liquidity_asset_b)),
-			volume: Volume::default(),
-			liquidity: Liquidity::new(liquidity_asset_a, liquidity_asset_b),
-			timestamp: block_num,
-		};
+		let liquidity_entry = OracleEntry::new(
+			Price::from((liquidity_asset_a, liquidity_asset_b)),
+			Volume::default(),
+			Liquidity::new(liquidity_asset_a, liquidity_asset_b),
+			block_num
+		);
 		entries.push(((SOURCE, ordered_pair(asset_a, asset_b)), liquidity_entry));
 
 		assert_eq!(Accumulator::<T>::get().into_inner(), entries.into_iter().collect());

@@ -271,6 +271,11 @@ impl<AssetId, Balance, BlockNumber, Price> AggregatedOracle<AssetId, Balance, Bl
 /// judging whether the oracle had a chance to settle yet).
 pub trait AggregatedPriceOracle<AssetId, BlockNumber, Price> {
 	type Error;
+
+	/// Returns the price of `asset_a/asset_b` aggregated over `period` for `source`.
+	///
+	/// NOTE: `get_price(asset_one, asset_two, period, source).inverted()` is not guaranteed to be the same as
+	/// `get_price(asset_two, asset_one, period, source)`.
 	fn get_price(
 		asset_a: AssetId,
 		asset_b: AssetId,
