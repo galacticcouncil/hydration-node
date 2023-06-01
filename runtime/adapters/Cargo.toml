@@ -1,0 +1,47 @@
+[package]
+name = "hydradx-adapters"
+version = "0.3.0"
+description = "Structs and other generic types for building runtimes."
+authors = ["GalacticCouncil"]
+edition = "2021"
+license = "Apache 2.0"
+repository = "https://github.com/galacticcouncil/warehouse/tree/master/adapters"
+
+[dependencies]
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+log = { version = "0.4.17", default-features = false }
+
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+pallet-transaction-multi-payment = { workspace = true }
+
+# Substrate dependencies
+frame-support = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
+# Polkadot dependencies
+polkadot-xcm = { workspace = true }
+xcm-builder = { workspace = true }
+xcm-executor = { workspace = true }
+
+[dev-dependencies]
+lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+    "xcm-builder/runtime-benchmarks",
+    "xcm-executor/runtime-benchmarks",
+]
+std = [
+    "codec/std",
+    "frame-support/std",
+    "hydradx-traits/std",
+    "pallet-transaction-multi-payment/std",
+    "polkadot-xcm/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "xcm-builder/std",
+    "xcm-executor/std",
+]

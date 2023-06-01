@@ -1,8 +1,8 @@
 use crate::traits::{EnsurePriceWithin, ExternalPriceProvider, ShouldAllow};
 use frame_support::dispatch::Weight;
-use frame_support::{assert_err, assert_ok};
+use frame_support::{assert_err, assert_ok, parameter_types};
 use hydra_dx_math::ema::EmaPrice;
-use sp_runtime::{parameter_types, Permill};
+use sp_runtime::Permill;
 use std::cell::RefCell;
 
 thread_local! {

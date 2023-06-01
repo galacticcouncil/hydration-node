@@ -22,13 +22,13 @@ fn remove_liquidity_works() {
 
 			let current_position_id = <NextPositionId<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
 			let liq_removed = 200 * ONE;
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
 				liq_removed
 			));
@@ -80,7 +80,7 @@ fn full_liquidity_removal_works() {
 			let liq_added = 400 * ONE;
 			let lp1_position_id = <NextPositionId<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			assert!(
 				get_mock_minted_position(lp1_position_id).is_some(),
@@ -90,7 +90,7 @@ fn full_liquidity_removal_works() {
 			let liq_removed = 400 * ONE;
 
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				lp1_position_id,
 				liq_removed
 			));
@@ -140,7 +140,7 @@ fn partial_liquidity_removal_works() {
 			let liq_added = 400 * ONE;
 			let current_position_id = <NextPositionId<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			assert!(
 				get_mock_minted_position(current_position_id).is_some(),
@@ -150,7 +150,7 @@ fn partial_liquidity_removal_works() {
 			let liq_removed = 200 * ONE;
 
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
 				liq_removed
 			));
@@ -211,9 +211,15 @@ fn lp_receives_lrna_when_price_is_higher() {
 
 			let current_position_id = <NextPositionId<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
-			assert_ok!(Omnipool::buy(Origin::signed(LP2), 1_000, DAI, 200 * ONE, 500000 * ONE));
+			assert_ok!(Omnipool::buy(
+				RuntimeOrigin::signed(LP2),
+				1_000,
+				DAI,
+				200 * ONE,
+				500000 * ONE
+			));
 
 			assert_balance!(Omnipool::protocol_account(), 1000, 300 * ONE);
 			let expected_state = AssetReserveState {
@@ -227,7 +233,7 @@ fn lp_receives_lrna_when_price_is_higher() {
 			assert_asset_state!(1_000, expected_state);
 
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
 				liq_added
 			));
@@ -263,7 +269,7 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			let liq_added = 400 * ONE;
 			let current_position_id = <NextPositionId<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), asset_a, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), asset_a, liq_added));
 
 			let expected_state = AssetReserveState::<Balance> {
 				reserve: 500000000000000,
@@ -275,11 +281,17 @@ fn protocol_shares_should_update_when_removing_asset_liquidity_after_price_chang
 			};
 			assert_asset_state!(asset_a, expected_state);
 
-			assert_ok!(Omnipool::sell(Origin::signed(LP2), asset_a, HDX, 100 * ONE, 10 * ONE));
+			assert_ok!(Omnipool::sell(
+				RuntimeOrigin::signed(LP2),
+				asset_a,
+				HDX,
+				100 * ONE,
+				10 * ONE
+			));
 
 			// ACT
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
 				400 * ONE
 			));
@@ -318,10 +330,10 @@ fn remove_liquidity_by_non_owner_fails() {
 		.build()
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 500 * ONE));
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP3), current_position_id, 100 * ONE),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP3), current_position_id, 100 * ONE),
 				Error::<Test>::Forbidden
 			);
 		});
@@ -340,10 +352,10 @@ fn remove_liquidity_from_non_existing_position_fails() {
 		.with_token(1_000, FixedU128::one(), LP2, 2000 * ONE)
 		.build()
 		.execute_with(|| {
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 500 * ONE));
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), 1_000_000, 100 * ONE),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), 1_000_000, 100 * ONE),
 				Error::<Test>::Forbidden
 			);
 		});
@@ -363,10 +375,10 @@ fn remove_liquidity_cannot_exceed_position_shares() {
 		.build()
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 500 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 500 * ONE));
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 500 * ONE + 1),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), current_position_id, 500 * ONE + 1),
 				Error::<Test>::InsufficientShares
 			);
 		});
@@ -386,16 +398,16 @@ fn remove_liquidity_should_fail_when_asset_is_not_allowed_to_remove() {
 		.build()
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE));
 
 			assert_ok!(Omnipool::set_asset_tradable_state(
-				Origin::root(),
+				RuntimeOrigin::root(),
 				1000,
 				Tradability::BUY | Tradability::ADD_LIQUIDITY
 			));
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 400 * ONE),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), current_position_id, 400 * ONE),
 				Error::<Test>::NotAllowed
 			);
 		});
@@ -416,7 +428,7 @@ fn remove_liquidity_should_fail_when_shares_amount_is_zero() {
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 0u128),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), current_position_id, 0u128),
 				Error::<Test>::InvalidSharesAmount
 			);
 		});
@@ -437,14 +449,14 @@ fn remove_liquidity_should_when_prices_differ_and_is_higher() {
 		.build()
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE));
 
 			EXT_PRICE_ADJUSTMENT.with(|v| {
 				*v.borrow_mut() = (3, 100, false);
 			});
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 200 * ONE,),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), current_position_id, 200 * ONE,),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});
@@ -464,14 +476,14 @@ fn remove_liquidity_should_when_prices_differ_and_is_lower() {
 		.build()
 		.execute_with(|| {
 			let current_position_id = <NextPositionId<Test>>::get();
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, 400 * ONE));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, 400 * ONE));
 
 			EXT_PRICE_ADJUSTMENT.with(|v| {
 				*v.borrow_mut() = (3, 100, true);
 			});
 
 			assert_noop!(
-				Omnipool::remove_liquidity(Origin::signed(LP1), current_position_id, 200 * ONE,),
+				Omnipool::remove_liquidity(RuntimeOrigin::signed(LP1), current_position_id, 200 * ONE,),
 				Error::<Test>::PriceDifferenceTooHigh
 			);
 		});
@@ -495,13 +507,13 @@ fn remove_liquidity_should_apply_min_fee_when_price_is_the_same() {
 
 			let current_position_id = <NextPositionId<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
 			let liq_removed = 200 * ONE;
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
 				liq_removed
 			));
@@ -554,13 +566,13 @@ fn remove_liquidity_should_apply_correct_fee_when_price_is_different() {
 
 			let current_position_id = <NextPositionId<Test>>::get();
 
-			assert_ok!(Omnipool::add_liquidity(Origin::signed(LP1), 1_000, liq_added));
+			assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(LP1), 1_000, liq_added));
 
 			assert_balance!(LP1, 1_000, 4600 * ONE);
 
 			let liq_removed = 200 * ONE;
 			assert_ok!(Omnipool::remove_liquidity(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				current_position_id,
 				liq_removed
 			));

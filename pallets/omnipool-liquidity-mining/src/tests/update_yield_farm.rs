@@ -50,7 +50,7 @@ fn update_yield_farm_should_work() {
 			let new_multiplier = One::one();
 
 			assert_ok!(OmnipoolMining::update_yield_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 				asset,
 				new_multiplier
@@ -104,7 +104,7 @@ fn update_yield_farm_should_fail_with_asset_not_found_when_omnipool_doesnt_exist
 			let new_multiplier = One::one();
 
 			assert_noop!(
-				OmnipoolMining::update_yield_farm(Origin::signed(GC), global_farm_id, asset, new_multiplier),
+				OmnipoolMining::update_yield_farm(RuntimeOrigin::signed(GC), global_farm_id, asset, new_multiplier),
 				Error::<Test>::AssetNotFound
 			);
 		});
@@ -144,7 +144,7 @@ fn update_yield_farm_should_fail_when_origin_is_none() {
 			let new_multiplier = One::one();
 
 			assert_noop!(
-				OmnipoolMining::update_yield_farm(Origin::none(), global_farm_id, asset, new_multiplier),
+				OmnipoolMining::update_yield_farm(RuntimeOrigin::none(), global_farm_id, asset, new_multiplier),
 				BadOrigin
 			);
 		});

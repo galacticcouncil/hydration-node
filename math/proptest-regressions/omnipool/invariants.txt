@@ -1,0 +1,1 @@
+cc 22ef4648bbc715696260418b2fb3790628c7788f9258b8b9a4f704dc424ee536 # shrinks to asset_out = AssetReserveState { reserve: 190635865358630188, hub_reserve: 1430674154905521092, shares: 100000000000000000, protocol_shares: 100000000000000000 }, amount = 5307728205712486, asset_fee = Permill(300), imbalance = I129 { value: 8936367638875155, negative: true }

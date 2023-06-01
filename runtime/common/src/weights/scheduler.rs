@@ -50,81 +50,37 @@ use pallet_scheduler::weights::WeightInfo;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	fn on_initialize_periodic_named_resolved(s: u32) -> Weight {
-		Weight::from_ref_time(25_135_000 as u64) // Standard Error: 81_000
-			.saturating_add(Weight::from_ref_time(31_900_000 as u64).saturating_mul(s as u64))
+	fn service_agendas_base() -> Weight {
+		Weight::from_ref_time(5_286_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().reads((3 as u64).saturating_mul(s as u64)))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((4 as u64).saturating_mul(s as u64)))
 	}
-	fn on_initialize_named_resolved(s: u32) -> Weight {
-		Weight::from_ref_time(25_886_000 as u64) // Standard Error: 55_000
-			.saturating_add(Weight::from_ref_time(25_863_000 as u64).saturating_mul(s as u64))
+	fn service_agenda_base(s: u32) -> Weight {
+		Weight::from_ref_time(8_763_440 as u64)
+			.saturating_add(Weight::from_ref_time(372_339 as u64).saturating_mul(s as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().reads((2 as u64).saturating_mul(s as u64)))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(s as u64)))
 	}
-	fn on_initialize_periodic_resolved(s: u32) -> Weight {
-		Weight::from_ref_time(23_165_000 as u64) // Standard Error: 57_000
-			.saturating_add(Weight::from_ref_time(27_442_000 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().reads((3 as u64).saturating_mul(s as u64)))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(s as u64)))
+	fn service_task_base() -> Weight {
+		Weight::from_ref_time(11_194_000 as u64)
 	}
-	fn on_initialize_resolved(s: u32) -> Weight {
-		Weight::from_ref_time(26_059_000 as u64) // Standard Error: 65_000
-			.saturating_add(Weight::from_ref_time(23_922_000 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().reads((2 as u64).saturating_mul(s as u64)))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((2 as u64).saturating_mul(s as u64)))
-	}
-	fn on_initialize_named_aborted(s: u32) -> Weight {
-		Weight::from_ref_time(12_044_000 as u64) // Standard Error: 20_000
-			.saturating_add(Weight::from_ref_time(10_368_000 as u64).saturating_mul(s as u64))
+	fn service_task_fetched(s: u32) -> Weight {
+		Weight::from_ref_time(25_717_000 as u64)
+			.saturating_add(Weight::from_ref_time(1_128 as u64).saturating_mul(s as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(s as u64)))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
-	}
-	fn on_initialize_aborted(s: u32) -> Weight {
-		Weight::from_ref_time(14_220_000 as u64) // Standard Error: 24_000
-			.saturating_add(Weight::from_ref_time(6_294_000 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(s as u64)))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn on_initialize_periodic_named(s: u32) -> Weight {
-		Weight::from_ref_time(23_482_000 as u64) // Standard Error: 52_000
-			.saturating_add(Weight::from_ref_time(17_956_000 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(s as u64)))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((2 as u64).saturating_mul(s as u64)))
+	fn service_task_named() -> Weight {
+		Weight::from_ref_time(13_108_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
-	fn on_initialize_periodic(s: u32) -> Weight {
-		Weight::from_ref_time(21_624_000 as u64) // Standard Error: 35_000
-			.saturating_add(Weight::from_ref_time(13_732_000 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(s as u64)))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
+	fn service_task_periodic() -> Weight {
+		Weight::from_ref_time(10_908_000 as u64)
 	}
-	fn on_initialize_named(s: u32) -> Weight {
-		Weight::from_ref_time(21_832_000 as u64) // Standard Error: 34_000
-			.saturating_add(Weight::from_ref_time(12_583_000 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
+	fn execute_dispatch_signed() -> Weight {
+		Weight::from_ref_time(4_680_000 as u64)
 	}
-	fn on_initialize(s: u32) -> Weight {
-		Weight::from_ref_time(21_039_000 as u64) // Standard Error: 18_000
-			.saturating_add(Weight::from_ref_time(10_734_000 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	fn execute_dispatch_unsigned() -> Weight {
+		Weight::from_ref_time(4_361_000 as u64)
 	}
 	fn schedule(s: u32) -> Weight {
 		Weight::from_ref_time(30_807_000 as u64) // Standard Error: 7_000

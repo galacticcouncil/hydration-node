@@ -27,10 +27,13 @@ coverage:
 clippy:
 	cargo clippy --release --all-targets --all-features -- -D warnings -A deprecated
 
-
 .PHONY: format
 format:
 	cargo fmt
+
+.PHONY: try-runtime
+try-runtime:
+	cargo run --release --features=try-runtime --bin hydradx try-runtime --runtime ./target/release/wbuild/hydradx-runtime/hydradx_runtime.wasm on-runtime-upgrade --checks live --uri wss://rpc.hydradx.cloud:443
 
 .PHONY: build-docs
 build-docs:
@@ -49,3 +52,6 @@ checksum:
 	cp target/release/wbuild/hydradx-runtime/hydradx_runtime.compact.compressed.wasm target/release/
 	sha256sum target/release/hydradx_runtime.compact.compressed.wasm > target/release/hydradx_runtime.compact.compressed.wasm.sha256
 
+release: build checksum
+
+all: clippy build-benchmarks test-benchmarks test build checksum

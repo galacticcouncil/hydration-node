@@ -26,7 +26,6 @@ use crate as pallet_omnipool;
 use crate::traits::ExternalPriceProvider;
 use frame_support::dispatch::Weight;
 use frame_support::traits::{ConstU128, Everything, GenesisBuild};
-use frame_support::BoundedVec;
 use frame_support::{
 	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -38,10 +37,8 @@ use primitive_types::{U128, U256};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, BlockNumberProvider, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup},
 };
-
-use hydradx_traits::OraclePeriod;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -92,30 +89,15 @@ construct_runtime!(
 		Balances: pallet_balances,
 		Omnipool: pallet_omnipool,
 		Tokens: orml_tokens,
-
-		//NOTE: Oracle is used in benchmarks.
-		EmaOracle: pallet_ema_oracle::{Pallet, Call, Storage, Event<T>},
 	}
 );
-
-parameter_types! {
-	pub static MockBlockNumberProvider: u64 = 0;
-}
-
-impl BlockNumberProvider for MockBlockNumberProvider {
-	type BlockNumber = u64;
-
-	fn current_block_number() -> Self::BlockNumber {
-		System::block_number()
-	}
-}
 
 impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -123,7 +105,7 @@ impl frame_system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
@@ -140,7 +122,7 @@ impl frame_system::Config for Test {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -155,34 +137,18 @@ parameter_type_with_key! {
 	};
 }
 
-//NOTE: oracle is not used in the unit tests. It's here to satify benchmarks bounds.
-use pallet_ema_oracle::MAX_PERIODS;
-parameter_types! {
-	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
-		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
-}
-impl pallet_ema_oracle::Config for Test {
-	type Event = Event;
-	type WeightInfo = ();
-	type BlockNumberProvider = MockBlockNumberProvider;
-	type SupportedPeriods = SupportedPeriods;
-	type MaxUniqueEntries = ConstU32<20>;
-}
-
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
 }
 
 parameter_types! {
@@ -205,7 +171,7 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Tokens;
@@ -461,13 +427,13 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
 		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
 				assert_ok!(Omnipool::initialize_pool(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
@@ -476,13 +442,13 @@ impl ExtBuilder {
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
-						Origin::signed(owner),
+						RuntimeOrigin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
 					assert_ok!(Omnipool::add_token(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						asset_id,
 						price,
 						self.asset_weight_cap,
@@ -583,9 +549,9 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 	type Error = DispatchError;
 
 	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
-		assert_eq!(asset_b, LRNA);
-		let asset_state = Omnipool::load_asset_state(asset_a)?;
-		let price = EmaPrice::new(asset_state.reserve, asset_state.hub_reserve);
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
 		let adjusted_price = EXT_PRICE_ADJUSTMENT.with(|v| {
 			let (n, d, neg) = *v.borrow();
 			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
@@ -636,7 +602,7 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 pub(super) fn round_to_rational((n, d): (U256, U256), rounding: Rounding) -> EmaPrice {
 	let shift = n.bits().max(d.bits()).saturating_sub(128);
 	let (n, d) = if shift > 0 {
-		let min_n = if n.is_zero() { 0 } else { 1 };
+		let min_n = u128::from(!n.is_zero());
 		let (bias_n, bias_d) = rounding.to_bias(1);
 		let shifted_n = (n >> shift).low_u128();
 		let shifted_d = (d >> shift).low_u128();

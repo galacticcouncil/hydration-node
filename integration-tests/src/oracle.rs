@@ -7,7 +7,7 @@ use frame_support::{
 	assert_ok,
 	traits::{OnFinalize, OnInitialize},
 };
-use hydradx_runtime::{EmaOracle, Origin};
+use hydradx_runtime::{EmaOracle, RuntimeOrigin};
 use hydradx_traits::{
 	AggregatedPriceOracle,
 	OraclePeriod::{self, *},
@@ -54,7 +54,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			DOT,
 			token_price,
 			Permill::from_percent(100),
@@ -62,7 +62,7 @@ fn omnipool_trades_are_ingested_into_oracle() {
 		));
 
 		assert_ok!(hydradx_runtime::Omnipool::sell(
-			Origin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			asset_a,
 			asset_b,
 			5 * UNITS,
@@ -112,7 +112,7 @@ fn omnipool_hub_asset_trades_are_ingested_into_oracle() {
 		assert_ok!(hydradx_runtime::Tokens::mint_into(LRNA, &ALICE.into(), 5 * UNITS,));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			Origin::signed(ALICE.into()),
+			RuntimeOrigin::signed(ALICE.into()),
 			HDX,
 			LRNA,
 			5 * UNITS,
