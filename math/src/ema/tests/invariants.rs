@@ -202,8 +202,13 @@ proptest! {
 		let simple_price = price_weighted_average(prev_price, incoming_price, smoothing);
 		let simple_volume = volume_weighted_average(prev_volume, incoming_volume, smoothing);
 		let simple_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-		let new_oracle = calculate_new_by_integrating_incoming((prev_price, prev_volume, prev_liquidity), (incoming_price, incoming_volume, incoming_liquidity), smoothing);
-		prop_assert_eq!(new_oracle, (simple_price, simple_volume, simple_liquidity));
+		let simple_inverted_price = price_weighted_average(prev_price.inverted(), incoming_price.inverted(), smoothing);
+		let new_oracle = calculate_new_by_integrating_incoming(
+			(prev_price, prev_volume, prev_liquidity, prev_price.inverted()),
+			(incoming_price, incoming_volume, incoming_liquidity, incoming_price.inverted()),
+			smoothing
+		);
+		prop_assert_eq!(new_oracle, (simple_price, simple_volume, simple_liquidity, simple_inverted_price));
 	}
 }
 
@@ -219,8 +224,14 @@ proptest! {
 		let iterated_price = iterated_price_ema(iterations, prev_price, incoming_price, smoothing);
 		let iterated_volume = iterated_volume_ema(iterations, prev_volume, smoothing);
 		let iterated_liquidity = iterated_liquidity_ema(iterations, prev_liquidity, incoming_liquidity, smoothing);
-		let current_oracle = update_outdated_to_current(iterations, (prev_price, prev_volume, prev_liquidity), (incoming_price, incoming_liquidity), smoothing);
-		prop_assert_eq!(current_oracle, (iterated_price, iterated_volume, iterated_liquidity));
+		let iterated_inverted_price = iterated_price_ema(iterations, prev_price.inverted(), incoming_price.inverted(), smoothing);
+		let current_oracle = update_outdated_to_current(
+			iterations,
+			(prev_price, prev_volume, prev_liquidity, prev_price.inverted()),
+			(incoming_price, incoming_liquidity, incoming_price.inverted()),
+			smoothing
+		);
+		prop_assert_eq!(current_oracle, (iterated_price, iterated_volume, iterated_liquidity, iterated_inverted_price));
 	}
 }
 
@@ -417,7 +428,11 @@ proptest! {
 	) {
 		let smoothing = smoothing_from_period(period);
 
-		let expected = high_precision::precise_balance_weighted_average(start_balance, incoming_balance, high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations));
+		let expected = high_precision::precise_balance_weighted_average(
+			start_balance,
+			incoming_balance,
+			high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations)
+		);
 		let new_oracle = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
 
 		let tolerance = 1;

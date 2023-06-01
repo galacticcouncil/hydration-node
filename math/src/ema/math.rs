@@ -15,16 +15,17 @@ pub type EmaLiquidity = (Balance, Balance);
 /// Calculate the new oracle values by integrating `incoming` values with the `previous` oracle.
 /// Uses a weighted average based on the `smoothing` factor.
 pub fn calculate_new_by_integrating_incoming(
-	previous: (EmaPrice, EmaVolume, EmaLiquidity),
-	incoming: (EmaPrice, EmaVolume, EmaLiquidity),
+	previous: (EmaPrice, EmaVolume, EmaLiquidity, EmaPrice),
+	incoming: (EmaPrice, EmaVolume, EmaLiquidity, EmaPrice),
 	smoothing: Fraction,
-) -> (EmaPrice, EmaVolume, EmaLiquidity) {
-	let (prev_price, prev_volume, prev_liquidity) = previous;
-	let (incoming_price, incoming_volume, incoming_liquidity) = incoming;
+) -> (EmaPrice, EmaVolume, EmaLiquidity, EmaPrice) {
+	let (prev_price, prev_volume, prev_liquidity, prev_inverted_price) = previous;
+	let (incoming_price, incoming_volume, incoming_liquidity, incoming_inverted_price) = incoming;
 	let new_price = price_weighted_average(prev_price, incoming_price, smoothing);
 	let new_volume = volume_weighted_average(prev_volume, incoming_volume, smoothing);
 	let new_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-	(new_price, new_volume, new_liquidity)
+	let new_inverted_price = price_weighted_average(prev_inverted_price, incoming_inverted_price, smoothing);
+	(new_price, new_volume, new_liquidity, new_inverted_price)
 }
 
 /// Calculate the current oracle values from the `outdated` and `update_with` values using the `smoothing` factor with the old values being `iterations` out of date.
@@ -32,17 +33,18 @@ pub fn calculate_new_by_integrating_incoming(
 /// Note: The volume is always updated with zero values so it is not a parameter.
 pub fn update_outdated_to_current(
 	iterations: u32,
-	outdated: (EmaPrice, EmaVolume, EmaLiquidity),
-	update_with: (EmaPrice, EmaLiquidity),
+	outdated: (EmaPrice, EmaVolume, EmaLiquidity, EmaPrice),
+	update_with: (EmaPrice, EmaLiquidity, EmaPrice),
 	smoothing: Fraction,
-) -> (EmaPrice, EmaVolume, EmaLiquidity) {
-	let (prev_price, prev_volume, prev_liquidity) = outdated;
-	let (incoming_price, incoming_liquidity) = update_with;
+) -> (EmaPrice, EmaVolume, EmaLiquidity, EmaPrice) {
+	let (prev_price, prev_volume, prev_liquidity, prev_inverted_price) = outdated;
+	let (incoming_price, incoming_liquidity, incoming_inverted_price) = update_with;
 	let smoothing = exp_smoothing(smoothing, iterations);
 	let new_price = price_weighted_average(prev_price, incoming_price, smoothing);
 	let new_volume = volume_weighted_average(prev_volume, (0, 0, 0, 0), smoothing);
 	let new_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
-	(new_price, new_volume, new_liquidity)
+	let new_inverted_price = price_weighted_average(prev_inverted_price, incoming_inverted_price, smoothing);
+	(new_price, new_volume, new_liquidity, new_inverted_price)
 }
 
 /// Calculate the iterated exponential moving average for the given prices.
