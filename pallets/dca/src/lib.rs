@@ -552,10 +552,10 @@ where
 
 				let (estimated_amount_out, slippage_amount) =
 					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, *slippage)?;
-				let min_limit_with_slippage = estimated_amount_out
+				let last_block_slippage_min_limit = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
-				let min_limit = max(*min_limit, min_limit_with_slippage);
+				let min_limit = max(*min_limit, last_block_slippage_min_limit);
 
 				let route = route.to_vec();
 				let trade_amounts =
@@ -593,11 +593,11 @@ where
 
 				let (estimated_amount_in, slippage_amount) =
 					Self::calculate_last_block_slippage(*asset_in, *asset_out, *amount_out, *slippage)?;
-				let max_limit_with_slippage = estimated_amount_in
+				let last_block_slippage_max_limit = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				let max_limit = min(*max_limit, max_limit_with_slippage);
+				let max_limit = min(*max_limit, last_block_slippage_max_limit);
 				ensure!(amount_in <= max_limit, Error::<T>::TradeLimitReached);
 
 				pallet_route_executor::Pallet::<T>::buy(
