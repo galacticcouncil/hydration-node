@@ -431,17 +431,7 @@ pub mod pallet {
 				schedule.total_amount,
 			)?;
 
-			let blocknumber_for_first_schedule_execution = match start_execution_block {
-				Some(blocknumber) => Ok(blocknumber),
-				None => {
-					let current_block_number = frame_system::Pallet::<T>::current_block_number();
-					let next_block_number = current_block_number
-						.checked_add(&T::BlockNumber::one())
-						.ok_or(ArithmeticError::Overflow)?;
-
-					Ok::<T::BlockNumber, ArithmeticError>(next_block_number)
-				}
-			}?;
+			let blocknumber_for_first_schedule_execution = Self::get_next_execution_block(start_execution_block)?;
 
 			Self::plan_schedule_for_block(&who, blocknumber_for_first_schedule_execution, next_schedule_id)?;
 
@@ -467,7 +457,7 @@ pub mod pallet {
 		pub fn terminate(
 			origin: OriginFor<T>,
 			schedule_id: ScheduleId,
-			next_execution_block: BlockNumberFor<T>,
+			next_execution_block: Option<BlockNumberFor<T>>,
 		) -> DispatchResult {
 			let schedule = Schedules::<T>::get(schedule_id).ok_or(Error::<T>::ScheduleNotFound)?;
 
@@ -477,6 +467,8 @@ pub mod pallet {
 			}
 
 			Self::try_unreserve_all(schedule_id, &schedule);
+
+			let next_execution_block = Self::get_next_execution_block(next_execution_block)?;
 
 			//Remove schedule id from next execution block
 			ScheduleIdsPerBlock::<T>::try_mutate_exists(
@@ -515,6 +507,24 @@ where
 	<T as pallet_route_executor::Config>::Balance: From<Balance>,
 	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
+	fn get_next_execution_block(
+		start_execution_block: Option<BlockNumberFor<T>>,
+	) -> Result<BlockNumberFor<T>, DispatchError> {
+		let blocknumber_for_first_schedule_execution = match start_execution_block {
+			Some(blocknumber) => Ok(blocknumber),
+			None => {
+				let current_block_number = frame_system::Pallet::<T>::current_block_number();
+				let next_block_number = current_block_number
+					.checked_add(&T::BlockNumber::one())
+					.ok_or(ArithmeticError::Overflow)?;
+
+				Ok::<T::BlockNumber, ArithmeticError>(next_block_number)
+			}
+		}?;
+
+		Ok(blocknumber_for_first_schedule_execution)
+	}
+
 	fn prepare_schedule(
 		current_blocknumber: T::BlockNumber,
 		weight_for_dca_execution: Weight,

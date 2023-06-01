@@ -35,11 +35,36 @@ fn terminate_should_remove_schedule_from_storage() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
 
 			//Act
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(600)));
 
 			//Assert
 			assert_that_schedule_has_been_removed_from_storages!(ALICE, schedule_id);
 
+			expect_events(vec![Event::Terminated {
+				id: 0,
+				who: ALICE,
+				error: Error::<Test>::ManuallyTerminated.into(),
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn terminate_should_terminate_schedule_planned_in_next_block_when_no_block_specified() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_block_number(500);
+			let schedule = ScheduleBuilder::new().build();
+			let schedule_id = 0;
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Option::None));
+
+			//Assert
 			expect_events(vec![Event::Terminated {
 				id: 0,
 				who: ALICE,
@@ -69,7 +94,7 @@ fn terminate_should_unreserve_all_named_reserved() {
 			);
 
 			//Act
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(600)));
 
 			//Assert
 			assert_eq!(
@@ -106,7 +131,7 @@ fn terminate_should_unreserve_all_named_reserved_only_for_single_dca_when_there_
 			);
 
 			//Act
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(600)));
 
 			//Assert
 			assert_eq!(
@@ -129,7 +154,7 @@ fn terminate_should_remove_planned_execution_when_there_is_only_single_execution
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(600)));
 
 			//Act
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 600));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(600)));
 
 			//Assert
 			assert!(DCA::schedule_ids_per_block(600).is_empty());
@@ -161,7 +186,7 @@ fn terminate_should_remove_planned_execution_when_there_are_multiple_planned_exe
 			));
 
 			//Act
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, block));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(block)));
 
 			//Assert
 			assert_scheduled_ids!(block, vec![1]);
@@ -181,7 +206,7 @@ fn terminate_should_pass_when_called_by_owner() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE), schedule_id, 501));
+			assert_ok!(DCA::terminate(RuntimeOrigin::signed(ALICE), schedule_id, Some(501)));
 		});
 }
 
@@ -199,7 +224,7 @@ fn terminate_should_fail_when_called_by_non_owner() {
 
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(RuntimeOrigin::signed(BOB), schedule_id, 501),
+				DCA::terminate(RuntimeOrigin::signed(BOB), schedule_id, Some(501)),
 				Error::<Test>::Forbidden
 			);
 		});
@@ -218,7 +243,7 @@ fn terminate_should_fail_when_called_by_non_signed() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_noop!(DCA::terminate(RuntimeOrigin::none(), schedule_id, 500), BadOrigin);
+			assert_noop!(DCA::terminate(RuntimeOrigin::none(), schedule_id, Some(501)), BadOrigin);
 		});
 }
 
@@ -235,7 +260,7 @@ fn terminate_should_pass_when_called_by_technical_origin() {
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Act and assert
-			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, 501));
+			assert_ok!(DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(501)));
 		});
 }
 
@@ -253,7 +278,7 @@ fn terminate_should_fail_when_no_planned_execution_in_block() {
 
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(RuntimeOrigin::root(), schedule_id, 9999),
+				DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(9999)),
 				Error::<Test>::ScheduleNotFound
 			);
 		});
@@ -279,7 +304,7 @@ fn terminate_should_fail_when_there_is_planned_execution_in_block_not_not_for_sc
 
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(RuntimeOrigin::root(), schedule_id, 501),
+				DCA::terminate(RuntimeOrigin::root(), schedule_id, Some(501)),
 				Error::<Test>::ScheduleNotFound
 			);
 		});
@@ -293,7 +318,7 @@ fn terminate_should_fail_when_with_nonexisting_schedule() {
 		.execute_with(|| {
 			//Act and assert
 			assert_noop!(
-				DCA::terminate(RuntimeOrigin::root(), 999, 501),
+				DCA::terminate(RuntimeOrigin::root(), 999, Some(501)),
 				Error::<Test>::ScheduleNotFound
 			);
 		});
