@@ -551,7 +551,7 @@ where
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_out, *asset_in, amount_to_sell, *slippage)?;
+					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, *slippage)?;
 				let min_limit_with_slippage = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
@@ -592,7 +592,7 @@ where
 				Self::unallocate_amount(schedule_id, schedule, amount_in)?;
 
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_estimated_and_slippage_amounts(*asset_in, *asset_out, *amount_out, *slippage)?;
+					Self::calculate_last_block_slippage(*asset_in, *asset_out, *amount_out, *slippage)?;
 				let max_limit_with_slippage = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
@@ -900,7 +900,7 @@ where
 		Err(Error::<T>::NoFreeBlockFound.into())
 	}
 
-	fn calculate_estimated_and_slippage_amounts(
+	fn calculate_last_block_slippage(
 		asset_a: T::AssetId,
 		asset_b: T::AssetId,
 		amount: Balance,
