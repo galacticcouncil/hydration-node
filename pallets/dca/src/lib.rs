@@ -544,9 +544,9 @@ where
 				slippage,
 				route,
 			} => {
-				let remaining_amount_to_use =
+				let remaining_amount =
 					RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
-				let amount_to_sell = min(remaining_amount_to_use, *amount_in);
+				let amount_to_sell = min(remaining_amount, *amount_in);
 
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
@@ -632,10 +632,10 @@ where
 
 		RetriesOnError::<T>::remove(schedule_id);
 
-		let remaining_amount_to_use: Balance =
+		let remaining_amount: Balance =
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
-		if remaining_amount_to_use <= transaction_fee {
+		if remaining_amount <= transaction_fee {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
@@ -648,7 +648,7 @@ where
 				.checked_add(transaction_fee)
 				.ok_or(ArithmeticError::Overflow)?;
 
-			if remaining_amount_to_use < amount_for_next_trade {
+			if remaining_amount < amount_for_next_trade {
 				Self::complete_schedule(schedule_id, schedule);
 				return Ok(());
 			}
