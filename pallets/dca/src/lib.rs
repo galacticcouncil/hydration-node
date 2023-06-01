@@ -113,16 +113,20 @@ pub mod pallet {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
-			let Ok(mut random_generator) = T::RandomnessProvider::generator() else {
-				Self::deposit_event(Event::RandomnessGenerationFailed {
-					block: current_blocknumber,
-				});
-				return weight;
+			let mut randomness_generator = match T::RandomnessProvider::generator() {
+				Ok(generator) => generator,
+				Err(err) => {
+					Self::deposit_event(Event::RandomnessGenerationFailed {
+						block: current_blocknumber,
+						error: err,
+					});
+					rand::rngs::StdRng::seed_from_u64(0)
+				}
 			};
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
-			schedule_ids.sort_by_cached_key(|_| random_generator.gen::<u32>());
+			schedule_ids.sort_by_cached_key(|_| randomness_generator.gen::<u32>());
 			for schedule_id in schedule_ids {
 				Self::deposit_event(Event::ExecutionStarted {
 					id: schedule_id,
@@ -267,7 +271,10 @@ pub mod pallet {
 		///The DCA is completed and completely removed from the chain
 		Completed { id: ScheduleId, who: T::AccountId },
 		///Randomness generation failed possibly coming from missing data about relay chain
-		RandomnessGenerationFailed { block: BlockNumberFor<T> },
+		RandomnessGenerationFailed {
+			block: BlockNumberFor<T>,
+			error: DispatchError,
+		},
 	}
 
 	#[pallet::error]
@@ -952,14 +959,11 @@ pub trait RelayChainBlockHashProvider {
 }
 
 pub trait RandomnessProvider {
-	type Error;
-	fn generator() -> Result<StdRng, Self::Error>;
+	fn generator() -> Result<StdRng, DispatchError>;
 }
 
 impl<T: Config> RandomnessProvider for Pallet<T> {
-	type Error = DispatchError;
-
-	fn generator() -> Result<StdRng, Self::Error> {
+	fn generator() -> Result<StdRng, DispatchError> {
 		let hash_value = T::RelayChainBlockHashProvider::parent_hash().ok_or(Error::<T>::NoParentHashFound)?;
 		let hash_bytes = hash_value.as_fixed_bytes();
 		let mut seed_arr = [0u8; 8];

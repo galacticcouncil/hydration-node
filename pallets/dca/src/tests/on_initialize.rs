@@ -1974,6 +1974,60 @@ fn successfull_should_be_terminated_when_only_transaction_fee_left() {
 		});
 }
 
+#[test]
+fn execution_is_still_successfull_when_no_parent_hash_present() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			set_parent_hash(None);
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let schedule_id = 0;
+			expect_events(vec![
+				DcaEvent::TradeExecuted {
+					id: schedule_id,
+					who: ALICE,
+				}
+				.into(),
+				DcaEvent::ExecutionPlanned {
+					id: schedule_id,
+					who: ALICE,
+					block: 601,
+				}
+				.into(),
+			]);
+		});
+}
+
 pub fn proceed_to_blocknumber(from: u64, to: u64) {
 	for block_number in RangeInclusive::new(from, to) {
 		System::set_block_number(block_number);

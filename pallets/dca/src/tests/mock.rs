@@ -112,6 +112,11 @@ thread_local! {
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static PARENT_HASH: RefCell<Option<Hash>> = RefCell::new(Some([
+			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
+			135, 250, 171, 69, 205, 241, 47, 227, 168,
+		]
+		.into()));
 
 }
 
@@ -627,12 +632,9 @@ pub struct ParentHashGetterMock {}
 
 impl RelayChainBlockHashProvider for ParentHashGetterMock {
 	fn parent_hash() -> Option<Hash> {
-		let hash = [
-			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
-			135, 250, 171, 69, 205, 241, 47, 227, 168,
-		]
-		.into();
-		Some(hash)
+		let hash = PARENT_HASH.with(|v| *v.borrow());
+
+		hash
 	}
 }
 
@@ -855,6 +857,12 @@ impl ExtBuilder {
 pub fn set_max_price_diff(diff: Permill) {
 	MAX_PRICE_DIFFERENCE.with(|v| {
 		*v.borrow_mut() = diff;
+	});
+}
+
+pub fn set_parent_hash(hash: Option<Hash>) {
+	PARENT_HASH.with(|v| {
+		*v.borrow_mut() = hash;
 	});
 }
 
