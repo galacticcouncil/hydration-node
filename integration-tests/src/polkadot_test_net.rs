@@ -237,8 +237,8 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	.unwrap();
 
 	pallet_transaction_multi_payment::GenesisConfig::<Runtime> {
-		currencies: vec![(
-			LRNA, Price::from(1)),
+		currencies: vec![
+			(LRNA, Price::from(1)),
 			(DAI, Price::from(1)),
 			(ACA, Price::from(1)),
 			(BTC, Price::from_inner(134_000_000)),

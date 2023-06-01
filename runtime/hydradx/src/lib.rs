@@ -1101,7 +1101,7 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
-		// DCA = 66 
+		// DCA = 66
 		Router: pallet_route_executor = 67,
 		XcmRateLimiter: pallet_xcm_rate_limiter = 68,
 
