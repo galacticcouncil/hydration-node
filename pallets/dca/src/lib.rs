@@ -164,7 +164,9 @@ pub mod pallet {
 							error,
 						});
 
-						if error != Error::<T>::TradeLimitReached.into() {
+						if error != Error::<T>::TradeLimitReached.into()
+							&& error != Error::<T>::SlippageLimitReached.into()
+						{
 							Self::terminate_schedule(schedule_id, &schedule, error);
 						} else if let Err(retry_error) =
 							Self::retry_schedule(schedule_id, &schedule, current_blocknumber)
@@ -307,8 +309,10 @@ pub mod pallet {
 		ManuallyTerminated,
 		///Max number of retries reached for schedule
 		MaxRetryReached,
-		///The trade limit has been reached, leading to retry
+		///Absolutely trade limit reached reached, leading to retry
 		TradeLimitReached,
+		///Slippage limit calculated from oracle ir reached, leading to retry
+		SlippageLimitReached,
 		///The route to execute the trade on is not specified
 		RouteNotSpecified,
 		///No parent hash has been found from relay chain
@@ -555,7 +559,6 @@ where
 				let last_block_slippage_min_limit = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
-				let min_limit = max(*min_limit, last_block_slippage_min_limit);
 
 				let route = route.to_vec();
 				let trade_amounts =
@@ -563,7 +566,16 @@ where
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
-				ensure!(amount_out >= min_limit.into(), Error::<T>::TradeLimitReached);
+				let min_limit = if *min_limit > last_block_slippage_min_limit {
+					ensure!(amount_out >= (*min_limit).into(), Error::<T>::TradeLimitReached);
+					*min_limit
+				} else {
+					ensure!(
+						amount_out >= last_block_slippage_min_limit.into(),
+						Error::<T>::SlippageLimitReached
+					);
+					last_block_slippage_min_limit.into()
+				};
 
 				pallet_route_executor::Pallet::<T>::sell(
 					origin,
@@ -597,8 +609,16 @@ where
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				let max_limit = min(*max_limit, last_block_slippage_max_limit);
-				ensure!(amount_in <= max_limit, Error::<T>::TradeLimitReached);
+				let max_limit = if *max_limit < last_block_slippage_max_limit {
+					ensure!(amount_in <= *max_limit, Error::<T>::TradeLimitReached);
+					*max_limit
+				} else {
+					ensure!(
+						amount_in <= last_block_slippage_max_limit,
+						Error::<T>::SlippageLimitReached
+					);
+					last_block_slippage_max_limit
+				};
 
 				pallet_route_executor::Pallet::<T>::buy(
 					origin,

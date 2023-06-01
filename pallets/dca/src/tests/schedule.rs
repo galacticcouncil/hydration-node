@@ -401,7 +401,7 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + BUY_DCA_FEE_IN_NATIVE - 1;
+			let budget = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + BUY_DCA_FEE_IN_NATIVE - 1;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)
@@ -438,7 +438,7 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let budget = OMNIPOOL_BUY_CALCULATION_RESULT + BUY_DCA_FEE_IN_NATIVE;
+			let budget = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + BUY_DCA_FEE_IN_NATIVE;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(budget)

@@ -93,6 +93,7 @@ frame_support::construct_runtime!(
 lazy_static::lazy_static! {
 	pub static ref ORIGINAL_MIN_BUDGET_IN_NATIVE: Balance = 2_000_000;
 	pub static ref ORIGINAL_MAX_PRICE_DIFFERENCE: Permill = Permill::from_percent(10);
+	pub static ref AMOUNT_OUT_FOR_OMNIPOOL_SELL: Balance = 20 * ONE;
 }
 
 thread_local! {
@@ -112,6 +113,7 @@ thread_local! {
 	pub static SET_OMNIPOOL_ON: RefCell<bool> = RefCell::new(true);
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static CALCULATED_AMOUNT_OUT_FOR_SELL: RefCell<Balance> = RefCell::new(*AMOUNT_OUT_FOR_OMNIPOOL_SELL);
 	pub static PARENT_HASH: RefCell<Option<Hash>> = RefCell::new(Some([
 			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
 			135, 250, 171, 69, 205, 241, 47, 227, 168,
@@ -361,8 +363,7 @@ impl pallet_route_executor::Config for Test {
 
 type OriginForRuntime = OriginFor<Test>;
 pub const INVALID_CALCULATION_AMOUNT: Balance = 999;
-pub const OMNIPOOL_SELL_CALCULATION_RESULT: Balance = 20 * ONE;
-pub const OMNIPOOL_BUY_CALCULATION_RESULT: Balance = 10 * ONE;
+pub const CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY: Balance = 10 * ONE;
 
 pub struct OmniPool;
 pub struct Xyk;
@@ -384,7 +385,8 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
 		}
 
-		Ok(OMNIPOOL_SELL_CALCULATION_RESULT)
+		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
+		Ok(amount_out)
 	}
 
 	fn calculate_buy(
@@ -401,7 +403,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 			return Err(ExecutorError::Error(DispatchError::Other("Some error happened")));
 		}
 
-		Ok(OMNIPOOL_BUY_CALCULATION_RESULT)
+		Ok(CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY)
 	}
 
 	fn execute_sell(
@@ -433,7 +435,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		let Ok(who) =  ensure_signed(who) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
-		let amount_out = OMNIPOOL_SELL_CALCULATION_RESULT;
+		let amount_out = CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| *v.borrow());
 
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
@@ -468,7 +470,7 @@ impl TradeExecution<OriginForRuntime, AccountId, AssetId, Balance> for OmniPool 
 		let Ok(who) =  ensure_signed(origin) else {
 			return Err(ExecutorError::Error(Error::<Test>::InvalidState.into()));
 		};
-		let amount_in = OMNIPOOL_BUY_CALCULATION_RESULT;
+		let amount_in = CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY;
 
 		Currencies::transfer(RuntimeOrigin::signed(ASSET_PAIR_ACCOUNT), who, asset_out, amount_out)
 			.map_err(ExecutorError::Error)?;
@@ -857,6 +859,12 @@ impl ExtBuilder {
 pub fn set_max_price_diff(diff: Permill) {
 	MAX_PRICE_DIFFERENCE.with(|v| {
 		*v.borrow_mut() = diff;
+	});
+}
+
+pub fn set_sell_amount_out(balance: Balance) {
+	CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| {
+		*v.borrow_mut() = balance;
 	});
 }
 

@@ -74,7 +74,7 @@ fn successfull_sell_dca_execution_should_emit_trade_executed_event() {
 					id: schedule_id,
 					who: ALICE,
 					amount_in: amount_to_sell,
-					amount_out: OMNIPOOL_SELL_CALCULATION_RESULT,
+					amount_out: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
@@ -128,7 +128,7 @@ fn successfull_buy_dca_execution_should_emit_trade_executed_event() {
 				DcaEvent::TradeExecuted {
 					id: schedule_id,
 					who: ALICE,
-					amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
+					amount_in: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 					amount_out: amount_to_buy,
 				}
 				.into(),
@@ -152,8 +152,8 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * OMNIPOOL_SELL_CALCULATION_RESULT;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 5 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -184,7 +184,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell,
-				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 			}]);
 
 			assert_eq!(remaining_named_reserve, Currencies::reserved_balance(HDX, &ALICE));
@@ -195,7 +195,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 					id: schedule_id,
 					who: ALICE,
 					amount_in: amount_to_sell,
-					amount_out: OMNIPOOL_SELL_CALCULATION_RESULT,
+					amount_out: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
@@ -218,8 +218,8 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = OMNIPOOL_SELL_CALCULATION_RESULT * 3 / 2;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 3 / 2;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -248,8 +248,8 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
-				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+				amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 			}]);
 
 			set_to_blocknumber(601);
@@ -259,14 +259,14 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
-					min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				},
 				SellExecution {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: total_amount - amount_to_sell - SELL_DCA_FEE_IN_NATIVE - SELL_DCA_FEE_IN_NATIVE,
-					min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+					min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 			]);
 
@@ -285,8 +285,8 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = OMNIPOOL_SELL_CALCULATION_RESULT * 2 + SELL_DCA_FEE_IN_NATIVE;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = *AMOUNT_OUT_FOR_OMNIPOOL_SELL * 2 + SELL_DCA_FEE_IN_NATIVE;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -315,8 +315,8 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 			assert_executed_sell_trades!(vec![SellExecution {
 				asset_in: HDX,
 				asset_out: BTC,
-				amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
-				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+				amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 			}]);
 
 			assert!(DCA::schedules(0).is_some());
@@ -364,11 +364,11 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_out: amount_to_buy,
-				max_sell_amount: OMNIPOOL_BUY_CALCULATION_RESULT,
+				max_sell_amount: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 			}]);
 
 			assert_eq!(
-				total_amount - OMNIPOOL_BUY_CALCULATION_RESULT - BUY_DCA_FEE_IN_NATIVE,
+				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_NATIVE,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
@@ -423,7 +423,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_out: XYK_BUY_CALCULATION_RESULT,
-					max_sell_amount: OMNIPOOL_BUY_CALCULATION_RESULT,
+					max_sell_amount: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 				},
 				BuyExecution {
 					asset_in: DAI,
@@ -434,7 +434,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 			]);
 
 			assert_eq!(
-				total_amount - OMNIPOOL_BUY_CALCULATION_RESULT - BUY_DCA_FEE_IN_NATIVE,
+				total_amount - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_NATIVE,
 				Currencies::reserved_balance(HDX, &ALICE)
 			);
 		});
@@ -449,8 +449,8 @@ fn full_sell_dca_should_be_completed_with_selling_leftover_in_last_trade() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 3 * OMNIPOOL_SELL_CALCULATION_RESULT + OMNIPOOL_SELL_CALCULATION_RESULT / 2;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + *AMOUNT_OUT_FOR_OMNIPOOL_SELL / 2;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -494,7 +494,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 			let total_amount = amount_to_sell + SELL_DCA_FEE_IN_NATIVE + SELL_DCA_FEE_IN_NATIVE / 2;
 
 			let schedule = ScheduleBuilder::new()
@@ -524,7 +524,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
 			assert_number_of_executed_sell_trades!(1);
-			assert_balance!(ALICE, BTC, OMNIPOOL_SELL_CALCULATION_RESULT);
+			assert_balance!(ALICE, BTC, *AMOUNT_OUT_FOR_OMNIPOOL_SELL);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -540,7 +540,8 @@ fn full_buy_dca_should_be_completed_when_some_successfull_dca_execution_happened
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = OMNIPOOL_BUY_CALCULATION_RESULT + BUY_DCA_FEE_IN_NATIVE + BUY_DCA_FEE_IN_NATIVE / 2;
+			let total_amount =
+				CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY + BUY_DCA_FEE_IN_NATIVE + BUY_DCA_FEE_IN_NATIVE / 2;
 			let amount_to_buy = 10 * ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -570,7 +571,7 @@ fn full_buy_dca_should_be_completed_when_some_successfull_dca_execution_happened
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
 
 			assert_number_of_executed_buy_trades!(1);
-			assert_balance!(ALICE, BTC, OMNIPOOL_BUY_CALCULATION_RESULT);
+			assert_balance!(ALICE, BTC, CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
@@ -586,8 +587,8 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 3 * OMNIPOOL_SELL_CALCULATION_RESULT + OMNIPOOL_SELL_CALCULATION_RESULT / 2;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + *AMOUNT_OUT_FOR_OMNIPOOL_SELL / 2;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule_for_alice = ScheduleBuilder::new()
 				.with_owner(ALICE)
@@ -663,8 +664,8 @@ fn multiple_sell_dca_should_be_completed_for_one_user() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 3 * OMNIPOOL_SELL_CALCULATION_RESULT + OMNIPOOL_SELL_CALCULATION_RESULT / 2;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + *AMOUNT_OUT_FOR_OMNIPOOL_SELL / 2;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_owner(ALICE)
@@ -716,8 +717,8 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 3 * OMNIPOOL_SELL_CALCULATION_RESULT + 3 * SELL_DCA_FEE_IN_NATIVE;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL + 3 * SELL_DCA_FEE_IN_NATIVE;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -895,8 +896,8 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let total_amount = 3 * OMNIPOOL_SELL_CALCULATION_RESULT;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -950,7 +951,7 @@ fn buy_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
+					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 					max_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1005,7 +1006,7 @@ fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: OMNIPOOL_SELL_CALCULATION_RESULT,
+					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 					min_limit: Balance::MAX,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1059,7 +1060,7 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
+					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 					max_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1145,7 +1146,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 				.with_order(Order::Buy {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
+					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 					max_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1172,6 +1173,83 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 			set_to_blocknumber(571);
 			assert!(DCA::schedules(schedule_id).is_none());
 			assert_number_of_executed_buy_trades!(0);
+		});
+}
+
+#[test]
+fn buy_dca_schedule_should_continue_on_slippage_error() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
+					max_limit: Balance::MAX,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			//Act and assert
+			let schedule_id = 0;
+			set_to_blocknumber(501);
+			assert_scheduled_ids!(511, vec![schedule_id]);
+			let retries = DCA::retries_on_error(schedule_id);
+			assert_eq!(1, retries);
+		});
+}
+
+#[test]
+fn sell_dca_schedule_continue_on_slippage_error() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 50 * ONE;
+			let amount_to_sell = ONE;
+
+			set_sell_amount_out(ONE / 10);
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			//Act and assert
+			let schedule_id = 0;
+			set_to_blocknumber(501);
+			assert_scheduled_ids!(511, vec![schedule_id]);
+			let retries = DCA::retries_on_error(schedule_id);
+			assert_eq!(1, retries);
 		});
 }
 
@@ -1263,9 +1341,9 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			assert_number_of_executed_buy_trades!(1);
 			assert_eq!(
 				Currencies::reserved_balance(DAI, &ALICE),
-				budget - OMNIPOOL_BUY_CALCULATION_RESULT - BUY_DCA_FEE_IN_DAI
+				budget - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_DAI
 			);
-			assert_balance!(ALICE, BTC, OMNIPOOL_BUY_CALCULATION_RESULT);
+			assert_balance!(ALICE, BTC, CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 
 			assert_balance!(TreasuryAccount::get(), DAI, BUY_DCA_FEE_IN_DAI);
 		});
@@ -1287,7 +1365,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 				.with_order(Order::Buy {
 					asset_in: DAI,
 					asset_out: BTC,
-					amount_out: OMNIPOOL_BUY_CALCULATION_RESULT,
+					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
 					max_limit: 5 * ONE,
 					slippage: None,
 					route: create_bounded_vec(vec![Trade {
@@ -1323,7 +1401,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let amount_in = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let amount_in = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let budget = 1000 * ONE;
 			let schedule = ScheduleBuilder::new()
@@ -1355,7 +1433,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 				Currencies::reserved_balance(DAI, &ALICE),
 				budget - amount_in - SELL_DCA_FEE_IN_DAI
 			);
-			assert_balance!(ALICE, BTC, OMNIPOOL_SELL_CALCULATION_RESULT);
+			assert_balance!(ALICE, BTC, *AMOUNT_OUT_FOR_OMNIPOOL_SELL);
 			assert_balance!(TreasuryAccount::get(), DAI, SELL_DCA_FEE_IN_DAI);
 			assert_number_of_executed_sell_trades!(1);
 		});
@@ -1370,8 +1448,8 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 3 * OMNIPOOL_SELL_CALCULATION_RESULT;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 3 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -1400,9 +1478,9 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			//Assert
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
-				total_amount - OMNIPOOL_SELL_CALCULATION_RESULT - SELL_DCA_FEE_IN_NATIVE
+				total_amount - *AMOUNT_OUT_FOR_OMNIPOOL_SELL - SELL_DCA_FEE_IN_NATIVE
 			);
-			assert_balance!(ALICE, BTC, OMNIPOOL_SELL_CALCULATION_RESULT);
+			assert_balance!(ALICE, BTC, *AMOUNT_OUT_FOR_OMNIPOOL_SELL);
 			assert_balance!(TreasuryAccount::get(), HDX, SELL_DCA_FEE_IN_NATIVE);
 			assert_number_of_executed_sell_trades!(1);
 		});
@@ -1444,9 +1522,9 @@ fn buy_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 			//Assert
 			assert_eq!(
 				Currencies::reserved_balance(HDX, &ALICE),
-				budget - OMNIPOOL_BUY_CALCULATION_RESULT - BUY_DCA_FEE_IN_NATIVE
+				budget - CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY - BUY_DCA_FEE_IN_NATIVE
 			);
-			assert_balance!(ALICE, BTC, OMNIPOOL_BUY_CALCULATION_RESULT);
+			assert_balance!(ALICE, BTC, CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY);
 			assert_balance!(TreasuryAccount::get(), HDX, BUY_DCA_FEE_IN_NATIVE);
 			assert_number_of_executed_buy_trades!(1);
 		});
@@ -1691,8 +1769,8 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * OMNIPOOL_SELL_CALCULATION_RESULT;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 5 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 			let one_block = 1;
 
 			let schedule_id = 0;
@@ -1729,7 +1807,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_in: amount_to_sell,
-				min_buy_amount: OMNIPOOL_SELL_CALCULATION_RESULT,
+				min_buy_amount: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 			}]);
 
 			assert_that_dca_is_terminated(ALICE, schedule_id, Error::<Test>::NoFreeBlockFound.into());
@@ -1746,8 +1824,8 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = 5 * OMNIPOOL_SELL_CALCULATION_RESULT;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let total_amount = 5 * *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule_id = 0;
 			let schedule = ScheduleBuilder::new()
@@ -1794,7 +1872,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 			proceed_to_blocknumber(1, 500);
 
 			let total_amount = 3000 * ONE;
-			let amount_to_sell = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let amount_to_sell = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
@@ -1861,7 +1939,7 @@ fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_eq
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let amount_in = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let amount_in = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 			let total_amount = amount_in + SELL_DCA_FEE_IN_NATIVE;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -1901,7 +1979,7 @@ fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let amount_in = OMNIPOOL_SELL_CALCULATION_RESULT;
+			let amount_in = *AMOUNT_OUT_FOR_OMNIPOOL_SELL;
 			let total_amount = amount_in + SELL_DCA_FEE_IN_NATIVE;
 			let schedule = ScheduleBuilder::new()
 				.with_period(ONE_HUNDRED_BLOCKS)
@@ -2076,7 +2154,7 @@ fn execution_is_still_successfull_when_no_parent_hash_present() {
 					id: schedule_id,
 					who: ALICE,
 					amount_in: amount_to_sell,
-					amount_out: OMNIPOOL_SELL_CALCULATION_RESULT,
+					amount_out: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
