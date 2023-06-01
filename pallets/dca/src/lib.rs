@@ -52,8 +52,8 @@ use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
 use orml_traits::MultiCurrency;
 use orml_traits::NamedMultiReservableCurrency;
-use pallet_route_executor::Trade;
 use pallet_route_executor::TradeAmountsCalculator;
+use pallet_route_executor::{AmountInAndOut, Trade};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use sp_runtime::traits::CheckedMul;
@@ -151,8 +151,9 @@ pub mod pallet {
 				};
 
 				match Self::execute_trade(schedule_id, &schedule) {
-					Ok(_) => {
-						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, current_blocknumber) {
+					Ok(amounts) => {
+						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, current_blocknumber, amounts)
+						{
 							Self::terminate_schedule(schedule_id, &schedule, err);
 						}
 					}
@@ -255,7 +256,12 @@ pub mod pallet {
 			block: BlockNumberFor<T>,
 		},
 		///The DCA trade is successfully executed
-		TradeExecuted { id: ScheduleId, who: T::AccountId },
+		TradeExecuted {
+			id: ScheduleId,
+			who: T::AccountId,
+			amount_in: Balance,
+			amount_out: Balance,
+		},
 		///The DCA trade execution is failed
 		TradeFailed {
 			id: ScheduleId,
@@ -526,7 +532,7 @@ where
 	pub fn execute_trade(
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
-	) -> DispatchResult {
+	) -> Result<AmountInAndOut<Balance>, DispatchError> {
 		let origin: OriginFor<T> = Origin::<T>::Signed(schedule.owner.clone()).into();
 
 		match &schedule.order {
@@ -566,7 +572,12 @@ where
 					(amount_to_sell).into(),
 					min_limit.into(),
 					route,
-				)
+				)?;
+
+				Ok(AmountInAndOut {
+					amount_in: amount_to_sell,
+					amount_out: amount_out.into(),
+				})
 			}
 			Order::Buy {
 				asset_in,
@@ -596,7 +607,12 @@ where
 					(*amount_out).into(),
 					max_limit.into(),
 					route.to_vec(),
-				)
+				)?;
+
+				Ok(AmountInAndOut {
+					amount_in,
+					amount_out: (*amount_out).into(),
+				})
 			}
 		}
 	}
@@ -605,10 +621,13 @@ where
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
 		current_blocknumber: T::BlockNumber,
+		amounts: AmountInAndOut<Balance>,
 	) -> DispatchResult {
 		Self::deposit_event(Event::TradeExecuted {
 			id: schedule_id,
 			who: schedule.owner.clone(),
+			amount_in: amounts.amount_in,
+			amount_out: amounts.amount_out,
 		});
 
 		RetriesOnError::<T>::remove(schedule_id);

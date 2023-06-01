@@ -34,7 +34,7 @@ use std::borrow::Borrow;
 use std::ops::RangeInclusive;
 
 #[test]
-fn successfull_dca_execution_should_emit_trade_executed_event() {
+fn successfull_sell_dca_execution_should_emit_trade_executed_event() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -73,6 +73,63 @@ fn successfull_dca_execution_should_emit_trade_executed_event() {
 				DcaEvent::TradeExecuted {
 					id: schedule_id,
 					who: ALICE,
+					amount_in: amount_to_sell,
+					amount_out: OMNIPOOL_SELL_CALCULATION_RESULT,
+				}
+				.into(),
+				DcaEvent::ExecutionPlanned {
+					id: schedule_id,
+					who: ALICE,
+					block: 601,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
+fn successfull_buy_dca_execution_should_emit_trade_executed_event() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 50 * ONE;
+			let amount_to_buy = 10 * ONE;
+			let max_limit = 50 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit,
+					slippage: Some(Permill::from_percent(20)),
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let schedule_id = 0;
+			expect_events(vec![
+				DcaEvent::TradeExecuted {
+					id: schedule_id,
+					who: ALICE,
+					amount_in: OMNIPOOL_BUY_CALCULATION_RESULT,
+					amount_out: amount_to_buy,
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
@@ -137,6 +194,8 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 				DcaEvent::TradeExecuted {
 					id: schedule_id,
 					who: ALICE,
+					amount_in: amount_to_sell,
+					amount_out: OMNIPOOL_SELL_CALCULATION_RESULT,
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
@@ -2016,6 +2075,8 @@ fn execution_is_still_successfull_when_no_parent_hash_present() {
 				DcaEvent::TradeExecuted {
 					id: schedule_id,
 					who: ALICE,
+					amount_in: amount_to_sell,
+					amount_out: OMNIPOOL_SELL_CALCULATION_RESULT,
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {
