@@ -54,6 +54,7 @@ pub type Index = u32;
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
+use pallet_dca::types::NamedReserveIdentifier;
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -345,6 +346,15 @@ parameter_types! {
 	pub const OmnipoolLMCollectionId: CollectionId = 2584_u128;
 	pub const OmnipoolLMOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const OmnipoolLMOracleSource: Source = OMNIPOOL_SOURCE;
+}
+
+// pallet dca
+parameter_types! {
+	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
+	pub MaxSchedulesPerBlock: u32 = 20;
+	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
+	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
+	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
 
 #[cfg(test)]

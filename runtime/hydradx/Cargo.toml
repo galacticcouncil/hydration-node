@@ -1,6 +1,6 @@
 [package]
 name = "hydradx-runtime"
-version = "154.0.0"
+version = "155.0.0"
 authors = ["GalacticCouncil"]
 edition = "2021"
 license = "Apache 2.0"
@@ -28,6 +28,7 @@ pallet-genesis-history = { workspace = true }
 pallet-omnipool = { workspace = true }
 pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
+pallet-dca = { workspace = true }
 
 # pallets
 pallet-balances = { workspace = true }
@@ -62,6 +63,7 @@ pallet-transaction-pause = { workspace = true }
 pallet-duster = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
+pallet-route-executor = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -158,6 +160,8 @@ runtime-benchmarks = [
     "pallet-duster/runtime-benchmarks",
     "pallet-omnipool-liquidity-mining/runtime-benchmarks",
     "pallet-otc/runtime-benchmarks",
+    "pallet-dca/runtime-benchmarks",
+    "pallet-route-executor/runtime-benchmarks",
 ]
 std = [
     "codec/std",
@@ -217,8 +221,10 @@ std = [
     "pallet-omnipool/std",
     "pallet-circuit-breaker/std",
     "pallet-transaction-pause/std",
+    "pallet-dca/std",
     "pallet-ema-oracle/std",
     "pallet-otc/std",
+    "pallet-route-executor/std",
     "sp-api/std",
     "sp-block-builder/std",
     "sp-consensus-aura/std",
@@ -279,6 +285,7 @@ try-runtime= [
     "pallet-transaction-multi-payment/try-runtime",
     "pallet-relaychain-info/try-runtime",
     "pallet-omnipool/try-runtime",
+    "pallet-dca/try-runtime",
     "pallet-collator-rewards/try-runtime",
     "pallet-genesis-history/try-runtime",
     "pallet-claims/try-runtime",
@@ -289,4 +296,5 @@ try-runtime= [
     "pallet-circuit-breaker/try-runtime",
     "pallet-ema-oracle/try-runtime",
     "pallet-otc/try-runtime",
+    "pallet-route-executor/try-runtime",
 ]

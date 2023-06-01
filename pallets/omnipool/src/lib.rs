@@ -91,6 +91,7 @@ mod benchmarks;
 mod tests;
 
 pub mod provider;
+pub mod router_execution;
 pub mod traits;
 pub mod types;
 pub mod weights;
