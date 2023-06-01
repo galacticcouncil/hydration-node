@@ -634,9 +634,7 @@ pub struct ParentHashGetterMock {}
 
 impl RelayChainBlockHashProvider for ParentHashGetterMock {
 	fn parent_hash() -> Option<Hash> {
-		let hash = PARENT_HASH.with(|v| *v.borrow());
-
-		hash
+		PARENT_HASH.with(|v| *v.borrow())
 	}
 }
 

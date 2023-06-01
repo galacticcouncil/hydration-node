@@ -634,7 +634,7 @@ where
 
 				Ok(AmountInAndOut {
 					amount_in,
-					amount_out: (*amount_out).into(),
+					amount_out: *amount_out,
 				})
 			}
 		}
