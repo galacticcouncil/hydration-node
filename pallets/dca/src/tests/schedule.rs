@@ -26,7 +26,6 @@ use hydradx_traits::router::PoolType;
 use orml_traits::NamedMultiReservableCurrency;
 use pallet_route_executor::Trade;
 use pretty_assertions::assert_eq;
-use primitives::constants::chain::MAXIMUM_BLOCK_WEIGHT;
 use sp_runtime::DispatchError::BadOrigin;
 use std::ops::RangeInclusive;
 use test_case::test_case;
@@ -521,18 +520,6 @@ fn schedule_should_schedule_for_consequent_block_when_next_block_is_full() {
 
 			assert_scheduled_ids!(502, vec![schedule_id]);
 		});
-}
-
-//TODO: delete this test once we are at the end
-use crate::weights::WeightInfo;
-
-#[ignore]
-#[test]
-fn asd() {
-	let weight1 = <Test as crate::Config>::WeightInfo::on_initialize_with_buy_trade() * 20;
-	let weight2 = <Test as crate::Config>::WeightInfo::on_initialize_with_buy_trade();
-
-	assert_eq!(weight1 + weight2, MAXIMUM_BLOCK_WEIGHT);
 }
 
 #[test]

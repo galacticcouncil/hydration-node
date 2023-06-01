@@ -63,10 +63,7 @@ use sp_runtime::{
 	ArithmeticError, BoundedVec, DispatchError, FixedPointNumber, FixedU128, Permill,
 };
 use sp_std::vec::Vec;
-use sp_std::{
-	cmp::{max, min},
-	vec,
-};
+use sp_std::{cmp::min, vec};
 #[cfg(test)]
 mod tests;
 
