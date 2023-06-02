@@ -1196,9 +1196,11 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.3.10"
+version = "102.3.11"
 dependencies = [
+ "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
  "frame-support",
  "frame-system",
  "hydra-dx-math",
@@ -1214,6 +1216,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-ema-oracle",
  "pallet-identity",
@@ -1223,6 +1226,7 @@ dependencies = [
  "pallet-otc",
  "pallet-preimage",
  "pallet-proxy",
+ "pallet-route-executor",
  "pallet-scheduler",
  "pallet-timestamp",
  "pallet-transaction-multi-payment",
@@ -3833,7 +3837,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "154.0.0"
+version = "155.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3873,6 +3877,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-duster",
  "pallet-elections-phragmen",
@@ -3887,6 +3892,7 @@ dependencies = [
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
+ "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
  "pallet-timestamp",
@@ -3929,7 +3935,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6567,6 +6573,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dca"
+version = "1.0.0"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "hydra-dx-math",
+ "hydradx-adapters",
+ "hydradx-traits",
+ "lazy_static",
+ "log",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-currencies",
+ "pallet-ema-oracle",
+ "pallet-omnipool",
+ "pallet-relaychain-info",
+ "pallet-route-executor",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "primitive-types",
+ "primitives",
+ "proptest",
+ "rand 0.8.5",
+ "scale-info",
+ "smallvec",
+ "sp-api",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "sp-tracing",
+ "test-case 2.2.2",
+ "test-utils",
+]
+
+[[package]]
 name = "pallet-democracy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -7038,7 +7085,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "2.0.11"
+version = "2.1.1"
 dependencies = [
  "bitflags",
  "frame-benchmarking",
@@ -7232,7 +7279,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10082,7 +10129,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.8"
+version = "1.7.9"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -10120,6 +10167,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-duster",
  "pallet-elections-phragmen",
@@ -10129,6 +10177,7 @@ dependencies = [
  "pallet-omnipool-liquidity-mining",
  "pallet-otc",
  "pallet-relaychain-info",
+ "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",
@@ -12995,7 +13044,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "154.0.0"
+version = "155.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -13035,6 +13084,7 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-collective",
  "pallet-currencies",
+ "pallet-dca",
  "pallet-democracy",
  "pallet-duster",
  "pallet-elections-phragmen",
@@ -13049,6 +13099,7 @@ dependencies = [
  "pallet-preimage",
  "pallet-proxy",
  "pallet-relaychain-info",
+ "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
  "pallet-sudo",

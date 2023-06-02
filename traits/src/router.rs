@@ -1,7 +1,7 @@
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
-#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo)]
+#[derive(Encode, Decode, Clone, Copy, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub enum PoolType<AssetId> {
 	XYK,
 	LBP,

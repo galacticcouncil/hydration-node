@@ -22,7 +22,7 @@ fn omnipool_oracle_adapter_should_return_price_for_arbitraty_pairs() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
+		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
 			AssetId,
 			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
@@ -41,7 +41,7 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_a() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
+		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
 			AssetId,
 			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
@@ -60,7 +60,7 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_b() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
+		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
 			AssetId,
 			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,

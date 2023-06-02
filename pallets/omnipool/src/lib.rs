@@ -88,6 +88,7 @@ use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Pe
 mod tests;
 
 pub mod provider;
+pub mod router_execution;
 pub mod traits;
 pub mod types;
 pub mod weights;

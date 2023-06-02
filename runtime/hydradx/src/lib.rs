@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 #![allow(clippy::match_like_matches_macro)]
 
 // Make the WASM binary available.
@@ -25,6 +25,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
+use common_runtime::adapters::OraclePriceProviderAdapterForOmnipool;
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
@@ -35,13 +36,13 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
 };
+
 use sp_std::cmp::Ordering;
 use sp_std::convert::From;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-
 // A few exports that help ease life for downstream crates.
 use frame_support::traits::AsEnsureOriginWithArg;
 use frame_support::{
@@ -74,6 +75,7 @@ mod migrations;
 mod xcm;
 
 pub use hex_literal::hex;
+use hydradx_adapters::inspect::MultiInspectAdapter;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
@@ -105,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 154,
+	spec_version: 155,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -186,6 +188,42 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 
 	fn current_block_number() -> Self::BlockNumber {
 		frame_system::Pallet::<T>::current_block_number()
+	}
+}
+
+// The reason why there is difference between PROD and benchmark is that it is not possible
+// to set validation data in parachain system pallet in the benchmarks.
+// So for benchmarking, we mock it out and return some hardcoded parent hash
+pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		match validation_data {
+			Some(data) => Some(data.parent_head.hash()),
+			None => None,
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		// We use the same hash as for integration tests
+		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
+		let hash = [
+			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
+			135, 250, 171, 69, 205, 241, 47, 227, 168,
+		]
+		.into();
+		Some(hash)
 	}
 }
 
@@ -750,8 +788,8 @@ impl pallet_asset_registry::Config for Runtime {
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type AssetNativeLocation = AssetLocation;
-	type StringLimit = RegistryStrLimit;
 	type SequentialIdStartAt = SequentialIdOffset;
+	type StringLimit = RegistryStrLimit;
 	type NativeAssetId = NativeAssetId;
 	type WeightInfo = weights::registry::HydraWeight<Runtime>;
 }
@@ -913,6 +951,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 }
 
 // constants need to be in scope to use as types
+use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
 
@@ -978,6 +1017,39 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_dca::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currencies = Currencies;
+	type RandomnessProvider = DCA;
+	type OraclePriceProvider = OraclePriceProviderAdapterForOmnipool<AssetId, EmaOracle, LRNA>;
+	type SpotPriceProvider = Omnipool;
+	type MaxPriceDifferenceBetweenBlocks = MaxPriceDifference;
+	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
+	type NativeAssetId = NativeAssetId;
+	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
+	type FeeReceiver = TreasuryAccount;
+	type NamedReserveId = NamedReserveId;
+	type WeightToFee = WeightToFee;
+	type WeightInfo = weights::dca::HydraWeight<Runtime>;
+	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
+	type RelayChainBlockHashProvider = RelayChainBlockHashProviderAdapter<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxNumberOfTrades: u8 = 5;
+}
+
+impl pallet_route_executor::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Balance = Balance;
+	type MaxNumberOfTrades = MaxNumberOfTrades;
+	type Currency = MultiInspectAdapter<AccountId, AssetId, Balance, Balances, Tokens, NativeAssetId>;
+	type AMM = Omnipool;
+	type WeightInfo = weights::route_executor::HydraWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const ExistentialDepositMultiplier: u8 = 5;
 }
@@ -1029,6 +1101,7 @@ construct_runtime!(
 		OmnipoolLiquidityMining: pallet_omnipool_liquidity_mining = 63,
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
+		Router: pallet_route_executor = 67,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,
@@ -1042,6 +1115,10 @@ construct_runtime!(
 		//NOTE: Scheduler must be after ParachainSystem otherwise RelayChainBlockNumberProvider
 		//will return 0 as current block number when used with Scheduler(democracy).
 		Scheduler: pallet_scheduler = 5,
+
+		//NOTE: DCA pallet should be declared after ParachainSystem pallet,
+		//otherwise there is no data about relay chain parent hash
+		DCA: pallet_dca = 66,
 
 		PolkadotXcm: pallet_xcm = 107,
 		CumulusXcm: cumulus_pallet_xcm = 109,
@@ -1275,6 +1352,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
+			list_benchmark!(list, extra, pallet_dca, DCA);
 
 			list_benchmark!(list, extra, pallet_asset_registry, AssetRegistry);
 			list_benchmark!(list, extra, pallet_claims, Claims);
@@ -1291,6 +1369,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, pallet_transaction_multi_payment, benchmarking::multi_payment);
 			orml_list_benchmark!(list, extra, pallet_duster, benchmarking::duster);
 			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
+			orml_list_benchmark!(list, extra, pallet_route_executor, benchmarking::route_executor);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1338,7 +1417,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
-
+			add_benchmark!(params, batches, pallet_dca, DCA);
 			add_benchmark!(params, batches, pallet_asset_registry, AssetRegistry);
 			add_benchmark!(params, batches, pallet_claims, Claims);
 			add_benchmark!(params, batches, pallet_ema_oracle, EmaOracle);
@@ -1354,6 +1433,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
 			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
 			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
+orml_add_benchmark!(params, batches, pallet_route_executor, benchmarking::route_executor);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

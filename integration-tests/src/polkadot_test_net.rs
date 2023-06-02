@@ -31,8 +31,11 @@ pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 
 pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
-pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 200 * UNITS;
+pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1000 * UNITS;
+pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
+pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000 * UNITS * 1_000_000;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
+pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -206,12 +209,12 @@ pub fn hydra_ext() -> sp_io::TestExternalities {
 	orml_tokens::GenesisConfig::<Runtime> {
 		balances: vec![
 			(AccountId::from(ALICE), LRNA, 200 * UNITS),
-			(AccountId::from(ALICE), DAI, 200 * UNITS),
+			(AccountId::from(ALICE), DAI, ALICE_INITIAL_DAI_BALANCE),
 			(AccountId::from(BOB), LRNA, 1_000 * UNITS),
 			(AccountId::from(BOB), DAI, 1_000 * UNITS * 1_000_000),
 			(AccountId::from(BOB), BTC, 1_000_000),
-			(AccountId::from(CHARLIE), LRNA, 1_000 * UNITS),
 			(AccountId::from(CHARLIE), DAI, 80_000 * UNITS * 1_000_000),
+			(AccountId::from(CHARLIE), LRNA, CHARLIE_INITIAL_LRNA_BALANCE),
 			(AccountId::from(DAVE), LRNA, 1_000 * UNITS),
 			(AccountId::from(DAVE), DAI, 1_000 * UNITS * 1_000_000),
 			(omnipool_account.clone(), DAI, stable_amount),
@@ -304,7 +307,7 @@ pub fn vesting_account() -> AccountId {
 	VestingPalletId::get().into_account_truncating()
 }
 
-fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::RuntimeEvent> {
+pub fn last_hydra_events(n: usize) -> Vec<hydradx_runtime::RuntimeEvent> {
 	frame_system::Pallet::<hydradx_runtime::Runtime>::events()
 		.into_iter()
 		.rev()
@@ -345,7 +348,6 @@ pub fn set_relaychain_block_number(number: BlockNumber) {
 		}
 	));
 }
-
 pub fn polkadot_run_to_block(to: BlockNumber) {
 	use frame_support::traits::{OnFinalize, OnInitialize};
 	while hydradx_runtime::System::block_number() < to {
@@ -354,11 +356,13 @@ pub fn polkadot_run_to_block(to: BlockNumber) {
 		hydradx_runtime::System::on_finalize(b);
 		hydradx_runtime::MultiTransactionPayment::on_finalize(b);
 		hydradx_runtime::EmaOracle::on_finalize(b);
+		hydradx_runtime::DCA::on_finalize(b);
 		hydradx_runtime::CircuitBreaker::on_finalize(b);
 
 		hydradx_runtime::System::on_initialize(b + 1);
 		hydradx_runtime::MultiTransactionPayment::on_initialize(b + 1);
 		hydradx_runtime::EmaOracle::on_initialize(b + 1);
+		hydradx_runtime::DCA::on_initialize(b + 1);
 		hydradx_runtime::CircuitBreaker::on_initialize(b + 1);
 
 		hydradx_runtime::System::set_block_number(b + 1);
