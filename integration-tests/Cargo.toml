@@ -175,4 +175,7 @@ std = [
     "pallet-authorship/std",
     "hydradx-traits/std",
     "pallet-relaychain-info/std",
+    "polkadot-runtime/std",
+    "hydradx-runtime/std",
+    "common-runtime/std",
 ]

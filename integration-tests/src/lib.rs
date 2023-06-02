@@ -4,6 +4,7 @@ mod cross_chain_transfer;
 mod dca;
 mod dust;
 mod dust_removal_whitelist;
+mod exchange_asset;
 mod non_native_fee;
 mod omnipool_init;
 mod omnipool_liquidity_mining;
