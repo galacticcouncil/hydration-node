@@ -7038,7 +7038,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-omnipool"
-version = "2.0.10"
+version = "2.0.11"
 dependencies = [
  "bitflags",
  "frame-benchmarking",

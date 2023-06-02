@@ -1273,7 +1273,6 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_democracy, Democracy);
 			list_benchmark!(list, extra, council, Council);
 			list_benchmark!(list, extra, tech, TechnicalCommittee);
-			list_benchmark!(list, extra, pallet_omnipool, Omnipool);
 			list_benchmark!(list, extra, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			list_benchmark!(list, extra, pallet_circuit_breaker, CircuitBreaker);
 
@@ -1291,6 +1290,7 @@ impl_runtime_apis! {
 			orml_list_benchmark!(list, extra, orml_vesting, benchmarking::vesting);
 			orml_list_benchmark!(list, extra, pallet_transaction_multi_payment, benchmarking::multi_payment);
 			orml_list_benchmark!(list, extra, pallet_duster, benchmarking::duster);
+			orml_list_benchmark!(list, extra, pallet_omnipool, benchmarking::omnipool);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1336,7 +1336,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_democracy, Democracy);
 			add_benchmark!(params, batches, council, Council);
 			add_benchmark!(params, batches, tech, TechnicalCommittee);
-			add_benchmark!(params, batches, pallet_omnipool, Omnipool);
 			add_benchmark!(params, batches, pallet_omnipool_liquidity_mining, OmnipoolLiquidityMining);
 			add_benchmark!(params, batches, pallet_circuit_breaker, CircuitBreaker);
 
@@ -1354,6 +1353,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, orml_vesting, benchmarking::vesting);
 			orml_add_benchmark!(params, batches, pallet_transaction_multi_payment, benchmarking::multi_payment);
 			orml_add_benchmark!(params, batches, pallet_duster, benchmarking::duster);
+			orml_add_benchmark!(params, batches, pallet_omnipool, benchmarking::omnipool);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
