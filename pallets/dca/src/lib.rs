@@ -531,6 +531,11 @@ where
 		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
 
 		if Self::is_price_unstable(schedule) {
+			Self::deposit_event(Event::TradeFailed {
+				id: schedule_id,
+				who: schedule.owner.clone(),
+				error: Error::<T>::PriceUnstable.into(),
+			});
 			Self::retry_schedule(schedule_id, schedule, current_blocknumber)?;
 
 			return Err(Error::<T>::PriceUnstable.into());
