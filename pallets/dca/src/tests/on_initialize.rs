@@ -1657,6 +1657,20 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 
 			let schedule_id = 0;
 			assert_scheduled_ids!(511, vec![schedule_id]);
+			expect_dca_events(vec![
+				DcaEvent::TradeFailed {
+					id: schedule_id,
+					who: ALICE,
+					error: Error::<Test>::PriceUnstable.into(),
+				}
+				.into(),
+				DcaEvent::ExecutionPlanned {
+					id: schedule_id,
+					who: ALICE,
+					block: 511,
+				}
+				.into(),
+			]);
 		});
 }
 
