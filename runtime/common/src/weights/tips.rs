@@ -40,8 +40,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -56,22 +56,23 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Tips Tips (r:1 w:1)
 	// Proof Skipped: Tips Tips (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `r` is `[0, 1024]`.
-    fn report_awesome(r: u32, ) -> Weight {
-        // Minimum execution time: 14_131 nanoseconds.
-        Weight::from_ref_time(14_662_740 as u64)            // Standard Error: 58
-            .saturating_add(Weight::from_ref_time(1_158 as u64).saturating_mul(r as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
+	fn report_awesome(r: u32) -> Weight {
+		// Minimum execution time: 14_131 nanoseconds.
+		Weight::from_ref_time(14_662_740 as u64) // Standard Error: 58
+			.saturating_add(Weight::from_ref_time(1_158 as u64).saturating_mul(r as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
 	// Storage: Tips Tips (r:1 w:1)
 	// Proof Skipped: Tips Tips (max_values: None, max_size: None, mode: Measured)
 	// Storage: Tips Reasons (r:0 w:1)
 	// Proof Skipped: Tips Reasons (max_values: None, max_size: None, mode: Measured)
-    fn retract_tip() -> Weight {
-        // Minimum execution time: 15_821 nanoseconds.
-        Weight::from_ref_time(16_128_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
+	fn retract_tip() -> Weight {
+		// Minimum execution time: 15_821 nanoseconds.
+		Weight::from_ref_time(16_128_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
 	// Storage: Elections Members (r:1 w:0)
 	// Proof Skipped: Elections Members (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: Tips Reasons (r:1 w:1)
@@ -80,27 +81,27 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: Tips Tips (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `r` is `[0, 1024]`.
 	/// The range of component `t` is `[1, 13]`.
-    fn tip_new(r: u32, t: u32, ) -> Weight {
-        // Minimum execution time: 14_359 nanoseconds.
-        Weight::from_ref_time(14_301_765 as u64)            // Standard Error: 81
-            .saturating_add(Weight::from_ref_time(1_122 as u64).saturating_mul(r as u64))
-            // Standard Error: 6_948
-            .saturating_add(Weight::from_ref_time(55_094 as u64).saturating_mul(t as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
+	fn tip_new(r: u32, t: u32) -> Weight {
+		// Minimum execution time: 14_359 nanoseconds.
+		Weight::from_ref_time(14_301_765 as u64) // Standard Error: 81
+			.saturating_add(Weight::from_ref_time(1_122 as u64).saturating_mul(r as u64))
+			// Standard Error: 6_948
+			.saturating_add(Weight::from_ref_time(55_094 as u64).saturating_mul(t as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
 	// Storage: Elections Members (r:1 w:0)
 	// Proof Skipped: Elections Members (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: Tips Tips (r:1 w:1)
 	// Proof Skipped: Tips Tips (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `t` is `[1, 13]`.
-    fn tip(t: u32, ) -> Weight {
-        // Minimum execution time: 12_740 nanoseconds.
-        Weight::from_ref_time(12_767_833 as u64)            // Standard Error: 8_754
-            .saturating_add(Weight::from_ref_time(156_706 as u64).saturating_mul(t as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
+	fn tip(t: u32) -> Weight {
+		// Minimum execution time: 12_740 nanoseconds.
+		Weight::from_ref_time(12_767_833 as u64) // Standard Error: 8_754
+			.saturating_add(Weight::from_ref_time(156_706 as u64).saturating_mul(t as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 	// Storage: Tips Tips (r:1 w:1)
 	// Proof Skipped: Tips Tips (max_values: None, max_size: None, mode: Measured)
 	// Storage: Elections Members (r:1 w:0)
@@ -110,23 +111,23 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Tips Reasons (r:0 w:1)
 	// Proof Skipped: Tips Reasons (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `t` is `[1, 13]`.
-    fn close_tip(t: u32, ) -> Weight {
-        // Minimum execution time: 30_016 nanoseconds.
-        Weight::from_ref_time(30_895_970 as u64)            // Standard Error: 17_853
-            .saturating_add(Weight::from_ref_time(43_310 as u64).saturating_mul(t as u64))
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
+	fn close_tip(t: u32) -> Weight {
+		// Minimum execution time: 30_016 nanoseconds.
+		Weight::from_ref_time(30_895_970 as u64) // Standard Error: 17_853
+			.saturating_add(Weight::from_ref_time(43_310 as u64).saturating_mul(t as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
 	// Storage: Tips Tips (r:1 w:1)
 	// Proof Skipped: Tips Tips (max_values: None, max_size: None, mode: Measured)
 	// Storage: Tips Reasons (r:0 w:1)
 	// Proof Skipped: Tips Reasons (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `t` is `[1, 13]`.
-    fn slash_tip(t: u32, ) -> Weight {
-        // Minimum execution time: 10_127 nanoseconds.
-        Weight::from_ref_time(10_525_263 as u64)            // Standard Error: 5_118
-            .saturating_add(Weight::from_ref_time(9_616 as u64).saturating_mul(t as u64))
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
+	fn slash_tip(t: u32) -> Weight {
+		// Minimum execution time: 10_127 nanoseconds.
+		Weight::from_ref_time(10_525_263 as u64) // Standard Error: 5_118
+			.saturating_add(Weight::from_ref_time(9_616 as u64).saturating_mul(t as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
 }

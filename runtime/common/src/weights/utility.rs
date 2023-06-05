@@ -40,8 +40,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -52,27 +52,29 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `c` is `[0, 1000]`.
-    fn batch(c: u32, ) -> Weight {
-        // Minimum execution time: 4_252 nanoseconds.
-        Weight::from_ref_time(6_091_040 as u64)            // Standard Error: 5_136
-            .saturating_add(Weight::from_ref_time(1_904_406 as u64).saturating_mul(c as u64))
-    }
-    fn as_derivative() -> Weight {
-        // Minimum execution time: 3_306 nanoseconds.
-        Weight::from_ref_time(3_376_000 as u64)    }
+	fn batch(c: u32) -> Weight {
+		// Minimum execution time: 4_252 nanoseconds.
+		Weight::from_ref_time(6_091_040 as u64) // Standard Error: 5_136
+			.saturating_add(Weight::from_ref_time(1_904_406 as u64).saturating_mul(c as u64))
+	}
+	fn as_derivative() -> Weight {
+		// Minimum execution time: 3_306 nanoseconds.
+		Weight::from_ref_time(3_376_000 as u64)
+	}
 	/// The range of component `c` is `[0, 1000]`.
-    fn batch_all(c: u32, ) -> Weight {
-        // Minimum execution time: 4_450 nanoseconds.
-        Weight::from_ref_time(3_466_500 as u64)            // Standard Error: 4_776
-            .saturating_add(Weight::from_ref_time(1_943_516 as u64).saturating_mul(c as u64))
-    }
-    fn dispatch_as() -> Weight {
-        // Minimum execution time: 5_274 nanoseconds.
-        Weight::from_ref_time(5_569_000 as u64)    }
+	fn batch_all(c: u32) -> Weight {
+		// Minimum execution time: 4_450 nanoseconds.
+		Weight::from_ref_time(3_466_500 as u64) // Standard Error: 4_776
+			.saturating_add(Weight::from_ref_time(1_943_516 as u64).saturating_mul(c as u64))
+	}
+	fn dispatch_as() -> Weight {
+		// Minimum execution time: 5_274 nanoseconds.
+		Weight::from_ref_time(5_569_000 as u64)
+	}
 	/// The range of component `c` is `[0, 1000]`.
-    fn force_batch(c: u32, ) -> Weight {
-        // Minimum execution time: 4_221 nanoseconds.
-        Weight::from_ref_time(10_135_840 as u64)            // Standard Error: 4_501
-            .saturating_add(Weight::from_ref_time(1_897_789 as u64).saturating_mul(c as u64))
-    }
+	fn force_batch(c: u32) -> Weight {
+		// Minimum execution time: 4_221 nanoseconds.
+		Weight::from_ref_time(10_135_840 as u64) // Standard Error: 4_501
+			.saturating_add(Weight::from_ref_time(1_897_789 as u64).saturating_mul(c as u64))
+	}
 }

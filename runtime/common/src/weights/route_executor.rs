@@ -40,8 +40,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -72,11 +72,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
 	/// The range of component `n` is `[1, 2]`.
-    fn sell(_n: u32, ) -> Weight {
-        // Minimum execution time: 136_408 nanoseconds.
-        Weight::from_ref_time(145_812_300 as u64)            .saturating_add(T::DbWeight::get().reads(16 as u64))
-            .saturating_add(T::DbWeight::get().writes(12 as u64))
-    }
+	fn sell(_n: u32) -> Weight {
+		// Minimum execution time: 136_408 nanoseconds.
+		Weight::from_ref_time(145_812_300 as u64)
+			.saturating_add(T::DbWeight::get().reads(16 as u64))
+			.saturating_add(T::DbWeight::get().writes(12 as u64))
+	}
 	// Storage: System Account (r:2 w:2)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Omnipool Assets (r:2 w:2)
@@ -98,9 +99,10 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
 	/// The range of component `n` is `[1, 2]`.
-    fn buy(_n: u32, ) -> Weight {
-        // Minimum execution time: 134_679 nanoseconds.
-        Weight::from_ref_time(136_901_450 as u64)            .saturating_add(T::DbWeight::get().reads(16 as u64))
-            .saturating_add(T::DbWeight::get().writes(12 as u64))
-    }
+	fn buy(_n: u32) -> Weight {
+		// Minimum execution time: 134_679 nanoseconds.
+		Weight::from_ref_time(136_901_450 as u64)
+			.saturating_add(T::DbWeight::get().reads(16 as u64))
+			.saturating_add(T::DbWeight::get().writes(12 as u64))
+	}
 }

@@ -40,12 +40,12 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
-use orml_vesting::weights::WeightInfo;
+use orml_vesting::WeightInfo;
 
 /// Weights for orml_vesting using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
@@ -57,23 +57,24 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Balances Locks (r:1 w:1)
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
-    fn vested_transfer() -> Weight {
-        // Minimum execution time: 44_665 nanoseconds.
-        Weight::from_ref_time(45_670_000 as u64)            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
+	fn vested_transfer() -> Weight {
+		// Minimum execution time: 44_665 nanoseconds.
+		Weight::from_ref_time(45_670_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
 	// Storage: Vesting VestingSchedules (r:1 w:1)
 	// Proof: Vesting VestingSchedules (max_values: None, max_size: Some(2850), added: 5325, mode: MaxEncodedLen)
 	// Storage: Balances Locks (r:1 w:1)
 	// Proof: Balances Locks (max_values: None, max_size: Some(1299), added: 3774, mode: MaxEncodedLen)
 	/// The range of component `i` is `[1, 100]`.
-    fn claim(i: u32, ) -> Weight {
-        // Minimum execution time: 34_934 nanoseconds.
-        Weight::from_ref_time(36_220_431 as u64)            // Standard Error: 2_169
-            .saturating_add(Weight::from_ref_time(69_922 as u64).saturating_mul(i as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
+	fn claim(i: u32) -> Weight {
+		// Minimum execution time: 34_934 nanoseconds.
+		Weight::from_ref_time(36_220_431 as u64) // Standard Error: 2_169
+			.saturating_add(Weight::from_ref_time(69_922 as u64).saturating_mul(i as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
 	// Storage: System Account (r:1 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Balances Locks (r:1 w:1)
@@ -81,11 +82,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Vesting VestingSchedules (r:0 w:1)
 	// Proof: Vesting VestingSchedules (max_values: None, max_size: Some(2850), added: 5325, mode: MaxEncodedLen)
 	/// The range of component `i` is `[1, 100]`.
-    fn update_vesting_schedules(i: u32, ) -> Weight {
-        // Minimum execution time: 28_310 nanoseconds.
-        Weight::from_ref_time(28_730_596 as u64)            // Standard Error: 833
-            .saturating_add(Weight::from_ref_time(62_609 as u64).saturating_mul(i as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn update_vesting_schedules(i: u32) -> Weight {
+		// Minimum execution time: 28_310 nanoseconds.
+		Weight::from_ref_time(28_730_596 as u64) // Standard Error: 833
+			.saturating_add(Weight::from_ref_time(62_609 as u64).saturating_mul(i as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 }
