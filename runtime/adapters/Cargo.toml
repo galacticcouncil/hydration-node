@@ -17,6 +17,7 @@ pallet-transaction-multi-payment = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
+frame-system = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 
@@ -41,6 +42,7 @@ runtime-benchmarks = [
 std = [
     "codec/std",
     "frame-support/std",
+    "frame-system/std",
     "hydradx-traits/std",
     "pallet-transaction-multi-payment/std",
     "polkadot-xcm/std",
