@@ -25,6 +25,10 @@ polkadot-xcm = { workspace = true }
 xcm-builder = { workspace = true }
 xcm-executor = { workspace = true }
 
+# Cumulus dependencies
+cumulus-pallet-parachain-system = { workspace = true }
+cumulus-primitives-core = { workspace = true }
+
 [dev-dependencies]
 lazy_static = { features = ["spin_no_std"], version = "1.4.0" }
 
@@ -44,4 +48,5 @@ std = [
     "sp-std/std",
     "xcm-builder/std",
     "xcm-executor/std",
+    "cumulus-pallet-parachain-system/std",
 ]

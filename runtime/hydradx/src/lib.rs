@@ -64,7 +64,6 @@ use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTx
 use pallet_transaction_payment::TargetedFeeAdjustment;
 use primitives::{CollectionId, ItemId};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_runtime::traits::BlockNumberProvider;
 
 use common_runtime::adapters::{EmaOraclePriceAdapter, OmnipoolHookAdapter};
 pub use common_runtime::*;
@@ -75,7 +74,9 @@ mod migrations;
 mod xcm;
 
 pub use hex_literal::hex;
-use hydradx_adapters::inspect::MultiInspectAdapter;
+use hydradx_adapters::{
+	inspect::MultiInspectAdapter, RelayChainBlockHashProviderAdapter, RelayChainBlockNumberProvider,
+};
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
@@ -158,72 +159,6 @@ pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {
 		get_all_module_accounts().contains(a) || pallet_duster::DusterWhitelist::<Runtime>::contains(a)
-	}
-}
-
-// Relay chain Block number provider.
-// Reason why the implementation is different for benchmarks is that it is not possible
-// to set or change the block number in a benchmark using parachain system pallet.
-// That's why we revert to using the system pallet in the benchmark.
-pub struct RelayChainBlockNumberProvider<T>(sp_std::marker::PhantomData<T>);
-
-#[cfg(not(feature = "runtime-benchmarks"))]
-impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = BlockNumber;
-
-	fn current_block_number() -> Self::BlockNumber {
-		let maybe_data = cumulus_pallet_parachain_system::Pallet::<T>::validation_data();
-
-		if let Some(data) = maybe_data {
-			data.relay_parent_number
-		} else {
-			Self::BlockNumber::default()
-		}
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = <T as frame_system::Config>::BlockNumber;
-
-	fn current_block_number() -> Self::BlockNumber {
-		frame_system::Pallet::<T>::current_block_number()
-	}
-}
-
-// The reason why there is difference between PROD and benchmark is that it is not possible
-// to set validation data in parachain system pallet in the benchmarks.
-// So for benchmarking, we mock it out and return some hardcoded parent hash
-pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
-
-#[cfg(not(feature = "runtime-benchmarks"))]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
-		match validation_data {
-			Some(data) => Some(data.parent_head.hash()),
-			None => None,
-		}
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		// We use the same hash as for integration tests
-		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
-		let hash = [
-			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
-			135, 250, 171, 69, 205, 241, 47, 227, 168,
-		]
-		.into();
-		Some(hash)
 	}
 }
 
@@ -951,7 +886,6 @@ impl pallet_circuit_breaker::Config for Runtime {
 }
 
 // constants need to be in scope to use as types
-use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
 

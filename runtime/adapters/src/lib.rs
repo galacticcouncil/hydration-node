@@ -17,13 +17,14 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::weights::{Weight, WeightToFee};
 use hydradx_traits::NativePriceOracle;
 use pallet_transaction_multi_payment::DepositFee;
 use polkadot_xcm::latest::prelude::*;
 use sp_runtime::traits::Get;
 use sp_runtime::{
-	traits::{AtLeast32BitUnsigned, Convert, Saturating, Zero},
+	traits::{AtLeast32BitUnsigned, BlockNumberProvider, Convert, Saturating, Zero},
 	FixedPointNumber, FixedPointOperand, SaturatedConversion,
 };
 use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData};
@@ -217,5 +218,74 @@ impl<
 				log::trace!(target: "xcm::take_revenue", "Can only accept concrete fungible tokens as revenue.");
 			}
 		}
+	}
+}
+
+// Relay chain Block number provider.
+// Reason why the implementation is different for benchmarks is that it is not possible
+// to set or change the block number in a benchmark using parachain system pallet.
+// That's why we revert to using the system pallet in the benchmark.
+pub struct RelayChainBlockNumberProvider<T>(sp_std::marker::PhantomData<T>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
+	type BlockNumber = T::BlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		let maybe_data = cumulus_pallet_parachain_system::Pallet::<T>::validation_data();
+
+		if let Some(data) = maybe_data {
+			data.relay_parent_number.into()
+		} else {
+			Self::BlockNumber::default()
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
+	type BlockNumber = <T as frame_system::Config>::BlockNumber;
+
+	fn current_block_number() -> Self::BlockNumber {
+		frame_system::Pallet::<T>::current_block_number()
+	}
+}
+
+pub trait RelayChainBlockHashProvider {
+	fn parent_hash() -> Option<Hash>;
+}
+// The reason why there is difference between PROD and benchmark is that it is not possible
+// to set validation data in parachain system pallet in the benchmarks.
+// So for benchmarking, we mock it out and return some hardcoded parent hash
+pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		match validation_data {
+			Some(data) => Some(data.parent_head.hash()),
+			None => None,
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		// We use the same hash as for integration tests
+		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
+		let hash = [
+			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
+			135, 250, 171, 69, 205, 241, 47, 227, 168,
+		]
+		.into();
+		Some(hash)
 	}
 }

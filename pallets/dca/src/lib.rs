@@ -37,7 +37,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::traits::DefensiveOption;
 use frame_support::{
 	ensure,
@@ -47,6 +46,7 @@ use frame_support::{
 	weights::WeightToFee as FrameSupportWeight,
 };
 use frame_system::{ensure_signed, pallet_prelude::OriginFor, Origin};
+use hydradx_adapters::RelayChainBlockHashProvider;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use orml_traits::arithmetic::CheckedAdd;
@@ -999,10 +999,6 @@ where
 		RemainingAmounts::<T>::remove(schedule_id);
 		RetriesOnError::<T>::remove(schedule_id);
 	}
-}
-
-pub trait RelayChainBlockHashProvider {
-	fn parent_hash() -> Option<Hash>;
 }
 
 pub trait RandomnessProvider {

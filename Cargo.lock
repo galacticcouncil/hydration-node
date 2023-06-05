@@ -3823,6 +3823,8 @@ dependencies = [
 name = "hydradx-adapters"
 version = "0.3.0"
 dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-primitives-core",
  "frame-support",
  "hydradx-traits",
  "lazy_static",
@@ -13144,6 +13146,7 @@ dependencies = [
  "pallet-uniques",
  "pallet-utility",
  "pallet-xcm",
+ "pallet-xcm-rate-limiter",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
