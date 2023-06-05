@@ -107,4 +107,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
+
+	fn on_finalize(m: u32, n: u32) -> Weight {
+		Weight::zero()
+	}
+
+	fn on_finalize_single() -> Weight {
+		Weight::zero()
+	}
+
+	fn on_finalize_empty() -> Weight {
+		Weight::zero()
+	}
 }

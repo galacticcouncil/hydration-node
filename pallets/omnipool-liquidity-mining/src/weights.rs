@@ -47,7 +47,6 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_omnipool_liquidity_mining.
 pub trait WeightInfo {
 	fn create_global_farm() -> Weight;
-	fn update_global_farm() -> Weight;
 	fn terminate_global_farm() -> Weight;
 	fn create_yield_farm() -> Weight;
 	fn update_yield_farm() -> Weight;
@@ -68,11 +67,6 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_ref_time(86_884_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
-	}
-	fn update_global_farm() -> Weight {
-		Weight::from_ref_time(32_552_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn terminate_global_farm() -> Weight {
 		Weight::from_ref_time(85_822_000 as u64)
