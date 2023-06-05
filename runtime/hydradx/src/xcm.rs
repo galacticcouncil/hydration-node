@@ -200,7 +200,7 @@ impl pallet_xcm::Config for Runtime {
 	type MaxLockers = ConstU32<8>;
 	type WeightInfo = common_runtime::weights::xcm::WeightInfo<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
-	type ReachableDest = ();
+	type ReachableDest = ReachableDest;
 }
 
 pub struct CurrencyIdConvert;
