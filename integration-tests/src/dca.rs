@@ -23,7 +23,7 @@ use sp_runtime::Permill;
 use sp_runtime::{BoundedVec, FixedU128};
 use xcm_emulator::TestExt;
 const TREASURY_ACCOUNT_INIT_BALANCE: Balance = 1000 * UNITS;
-const BUY_DCA_EXECUTION_FEE: Balance = 3_029_516_225_960;
+//const BUY_DCA_EXECUTION_FEE: Balance = 3_029_516_225_960;
 //const BUY_DCA_EXECUTION_FEE_IN_LRNA: Balance = 1_514_758_115_400;
 const SELL_DCA_EXECUTION_FEE: Balance = 3_023_735_977_562;
 //const SELL_DCA_EXECUTION_FEE_IN_LRNA: Balance = 1_511_867_991_196;
@@ -944,7 +944,7 @@ fn full_sell_dca_should_be_executed_then_completed_for_multiple_users() {
 		assert_balance!(BOB.into(), HDX, 3663310130208360);
 		assert_reserved_balance!(&BOB.into(), HDX, 0);
 
-		let fee = (alice_number_of_trades + bob_number_of_trades) * SELL_DCA_EXECUTION_FEE;
+		//let fee = (alice_number_of_trades + bob_number_of_trades) * SELL_DCA_EXECUTION_FEE;
 		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, 1067735144230720);
 
 		let schedule = hydradx_runtime::DCA::schedules(0);
@@ -1006,7 +1006,7 @@ fn multiple_full_sell_dca_should_be_executed_then_completed_for_same_user() {
 		assert_balance!(ALICE.into(), HDX, 43914731113782130);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
-		let fee = (number_of_trades1 + number_of_trades2 + number_of_trades3) * SELL_DCA_EXECUTION_FEE;
+		//let fee = (number_of_trades1 + number_of_trades2 + number_of_trades3) * SELL_DCA_EXECUTION_FEE;
 
 		assert_balance!(&hydradx_runtime::Treasury::account_id(), HDX, 1110069609374920);
 
