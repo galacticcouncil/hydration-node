@@ -321,72 +321,69 @@ impl Contains<RuntimeCall> for SafeCallFilter {
 			return false;
 		}
 
-		match call {
+		matches!(
+			call,
 			RuntimeCall::System(frame_system::Call::kill_prefix { .. } | frame_system::Call::set_heap_pages { .. })
-			| RuntimeCall::Timestamp(..)
-			| RuntimeCall::Balances(..)
-			| RuntimeCall::Treasury(..)
-			| RuntimeCall::Utility(pallet_utility::Call::as_derivative { .. })
-			| RuntimeCall::Vesting(..)
-			| RuntimeCall::Proxy(..)
-			| RuntimeCall::CollatorSelection(
-				pallet_collator_selection::Call::set_desired_candidates { .. }
-				| pallet_collator_selection::Call::set_candidacy_bond { .. }
-				| pallet_collator_selection::Call::register_as_candidate { .. }
-				| pallet_collator_selection::Call::leave_intent { .. },
-			)
-			| RuntimeCall::Session(pallet_session::Call::purge_keys { .. })
-			| RuntimeCall::Uniques(
-				pallet_uniques::Call::create { .. }
-				| pallet_uniques::Call::force_create { .. }
-				| pallet_uniques::Call::mint { .. }
-				| pallet_uniques::Call::burn { .. }
-				| pallet_uniques::Call::transfer { .. }
-				| pallet_uniques::Call::freeze { .. }
-				| pallet_uniques::Call::thaw { .. }
-				| pallet_uniques::Call::freeze_collection { .. }
-				| pallet_uniques::Call::thaw_collection { .. }
-				| pallet_uniques::Call::transfer_ownership { .. }
-				| pallet_uniques::Call::set_team { .. }
-				| pallet_uniques::Call::approve_transfer { .. }
-				| pallet_uniques::Call::cancel_approval { .. }
-				| pallet_uniques::Call::force_item_status { .. }
-				| pallet_uniques::Call::set_attribute { .. }
-				| pallet_uniques::Call::clear_attribute { .. }
-				| pallet_uniques::Call::set_metadata { .. }
-				| pallet_uniques::Call::clear_metadata { .. }
-				| pallet_uniques::Call::set_collection_metadata { .. }
-				| pallet_uniques::Call::clear_collection_metadata { .. }
-				| pallet_uniques::Call::set_accept_ownership { .. }
-				| pallet_uniques::Call::set_price { .. }
-				| pallet_uniques::Call::buy_item { .. },
-			)
-			| RuntimeCall::Identity(
+				| RuntimeCall::Timestamp(..)
+				| RuntimeCall::Balances(..)
+				| RuntimeCall::Treasury(..)
+				| RuntimeCall::Utility(pallet_utility::Call::as_derivative { .. })
+				| RuntimeCall::Vesting(..)
+				| RuntimeCall::Proxy(..)
+				| RuntimeCall::CollatorSelection(
+					pallet_collator_selection::Call::set_desired_candidates { .. }
+						| pallet_collator_selection::Call::set_candidacy_bond { .. }
+						| pallet_collator_selection::Call::register_as_candidate { .. }
+						| pallet_collator_selection::Call::leave_intent { .. },
+				) | RuntimeCall::Session(pallet_session::Call::purge_keys { .. })
+				| RuntimeCall::Uniques(
+					pallet_uniques::Call::create { .. }
+						| pallet_uniques::Call::force_create { .. }
+						| pallet_uniques::Call::mint { .. }
+						| pallet_uniques::Call::burn { .. }
+						| pallet_uniques::Call::transfer { .. }
+						| pallet_uniques::Call::freeze { .. }
+						| pallet_uniques::Call::thaw { .. }
+						| pallet_uniques::Call::freeze_collection { .. }
+						| pallet_uniques::Call::thaw_collection { .. }
+						| pallet_uniques::Call::transfer_ownership { .. }
+						| pallet_uniques::Call::set_team { .. }
+						| pallet_uniques::Call::approve_transfer { .. }
+						| pallet_uniques::Call::cancel_approval { .. }
+						| pallet_uniques::Call::force_item_status { .. }
+						| pallet_uniques::Call::set_attribute { .. }
+						| pallet_uniques::Call::clear_attribute { .. }
+						| pallet_uniques::Call::set_metadata { .. }
+						| pallet_uniques::Call::clear_metadata { .. }
+						| pallet_uniques::Call::set_collection_metadata { .. }
+						| pallet_uniques::Call::clear_collection_metadata { .. }
+						| pallet_uniques::Call::set_accept_ownership { .. }
+						| pallet_uniques::Call::set_price { .. }
+						| pallet_uniques::Call::buy_item { .. },
+				) | RuntimeCall::Identity(
 				pallet_identity::Call::add_registrar { .. }
-				| pallet_identity::Call::set_identity { .. }
-				| pallet_identity::Call::clear_identity { .. }
-				| pallet_identity::Call::request_judgement { .. }
-				| pallet_identity::Call::cancel_request { .. }
-				| pallet_identity::Call::set_fee { .. }
-				| pallet_identity::Call::set_account_id { .. }
-				| pallet_identity::Call::set_fields { .. }
-				| pallet_identity::Call::provide_judgement { .. }
-				| pallet_identity::Call::kill_identity { .. }
-				| pallet_identity::Call::add_sub { .. }
-				| pallet_identity::Call::rename_sub { .. }
-				| pallet_identity::Call::remove_sub { .. }
-				| pallet_identity::Call::quit_sub { .. },
-			)
-			| RuntimeCall::Omnipool(..)
-			| RuntimeCall::OmnipoolLiquidityMining(..)
-			| RuntimeCall::OTC(..)
-			| RuntimeCall::CircuitBreaker(..)
-			| RuntimeCall::DCA(..)
-			| RuntimeCall::MultiTransactionPayment(..)
-			| RuntimeCall::Currencies(..)
-			| RuntimeCall::Tokens(..)
-			| RuntimeCall::OrmlXcm(..) => true,
-			_ => false,
-		}
+					| pallet_identity::Call::set_identity { .. }
+					| pallet_identity::Call::clear_identity { .. }
+					| pallet_identity::Call::request_judgement { .. }
+					| pallet_identity::Call::cancel_request { .. }
+					| pallet_identity::Call::set_fee { .. }
+					| pallet_identity::Call::set_account_id { .. }
+					| pallet_identity::Call::set_fields { .. }
+					| pallet_identity::Call::provide_judgement { .. }
+					| pallet_identity::Call::kill_identity { .. }
+					| pallet_identity::Call::add_sub { .. }
+					| pallet_identity::Call::rename_sub { .. }
+					| pallet_identity::Call::remove_sub { .. }
+					| pallet_identity::Call::quit_sub { .. },
+			) | RuntimeCall::Omnipool(..)
+				| RuntimeCall::OmnipoolLiquidityMining(..)
+				| RuntimeCall::OTC(..)
+				| RuntimeCall::CircuitBreaker(..)
+				| RuntimeCall::DCA(..)
+				| RuntimeCall::MultiTransactionPayment(..)
+				| RuntimeCall::Currencies(..)
+				| RuntimeCall::Tokens(..)
+				| RuntimeCall::OrmlXcm(..)
+		)
 	}
 }
