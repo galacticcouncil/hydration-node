@@ -45,7 +45,7 @@ fn fees_should_initialize_lazyly_when_sell_happen() {
 }
 
 #[test]
-fn fees_should_initialize_lazyly_when_buy_happen() {
+fn fees_should_initialize_lazily_when_buy_happen() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
