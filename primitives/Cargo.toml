@@ -25,4 +25,5 @@ std = [
     "codec/std",
     "scale-info/std",
     "frame-support/std",
+    "polkadot-primitives/std",
 ]

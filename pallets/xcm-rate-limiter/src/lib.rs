@@ -21,6 +21,7 @@ use codec::{Decode, Encode};
 use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 
 use frame_support::traits::Get;
+use hydra_dx_math::rate_limiter::{calculate_deferred_duration, calculate_new_accumulated_amount};
 
 use orml_traits::GetByKey;
 use polkadot_parachain::primitives::RelayChainBlockNumber;
@@ -133,38 +134,6 @@ fn get_loc_and_amount(m: &MultiAsset) -> Option<(MultiLocation, u128)> {
 		},
 		_ => None,
 	}
-}
-
-// TODO: pull out into hdx-math + add property based tests
-pub fn calculate_deferred_duration(global_duration: u32, rate_limit: u128, total_accumulated: u128) -> u32 {
-	let global_duration: u128 = global_duration.max(1).saturated_into();
-	// duration * (incoming + decayed - rate_limit)
-	let deferred_duration =
-		global_duration.saturating_mul(total_accumulated.saturating_sub(rate_limit)) / rate_limit.max(1);
-
-	deferred_duration.saturated_into()
-}
-
-pub fn calculate_new_accumulated_amount(
-	global_duration: u32,
-	rate_limit: u128,
-	incoming_amount: u128,
-	accumulated_amount: u128,
-	blocks_since_last_update: u32,
-) -> u128 {
-	incoming_amount.saturating_add(decay(
-		global_duration,
-		rate_limit,
-		accumulated_amount,
-		blocks_since_last_update,
-	))
-}
-
-pub fn decay(global_duration: u32, rate_limit: u128, accumulated_amount: u128, blocks_since_last_update: u32) -> u128 {
-	let global_duration: u128 = global_duration.max(1).saturated_into();
-	// acc - rate_limit * blocks / duration
-	accumulated_amount
-		.saturating_sub(rate_limit.saturating_mul(blocks_since_last_update.saturated_into()) / global_duration)
 }
 
 impl<T: Config> Pallet<T> {

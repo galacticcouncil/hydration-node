@@ -16,6 +16,11 @@ serde = { features = ["derive"], optional = true, version = "1.0.136" }
 codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
 scale-info = { version = "2.3.1", default-features = false, features = ["derive"] }
 
+# Hydradx
+hydradx-traits = { workspace = true }
+hydra-dx-math = { workspace = true }
+pallet-omnipool = { workspace = true }
+
 # Substrate dependencies
 frame-benchmarking = { workspace = true, optional = true}
 frame-support = { workspace = true }
@@ -33,18 +38,12 @@ polkadot-parachain = { workspace = true }
 # Cumulus
 cumulus-pallet-xcmp-queue = { workspace = true }
 
-pallet-omnipool = { workspace = true }
-
-# Warehouse
-hydradx-traits = { workspace = true }
-
 # orml
 orml-traits = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, features = ["std"] }
 orml-tokens = { workspace = true, features = ["std"] }
-hydra-dx-math = { workspace = true, features = ["std"] }
 test-utils = { workspace = true }
 pretty_assertions = "1.2.1"
 test-case = "3.0.0"
@@ -62,6 +61,7 @@ std = [
     'scale-info/std',
     'cumulus-pallet-xcmp-queue/std',
     'orml-traits/std',
+    'hydra-dx-math/std',
 ]
 runtime-benchmarks = [
   "frame-benchmarking",
