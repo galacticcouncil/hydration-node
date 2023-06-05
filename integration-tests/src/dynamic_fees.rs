@@ -11,8 +11,39 @@ const DOT_UNITS: u128 = 10_000_000_000;
 const BTC_UNITS: u128 = 10_000_000;
 const ETH_UNITS: u128 = 1_000_000_000_000_000_000;
 
+
 #[test]
-fn fees_should_initialize_lazyly_when_sell_happen() {
+fn fees_should_work_when_oracle_not_initialized() {
+	TestNet::reset();
+
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool();
+
+		let trader = DAVE;
+
+		set_balance(trader.into(), DOT, 1_000 * DOT_UNITS as i128);
+
+		assert!(hydradx_runtime::DynamicFees::current_fees(HDX).is_none());
+
+		//Act
+		assert_ok!(hydradx_runtime::Omnipool::sell(
+			hydradx_runtime::Origin::signed(DAVE.into()),
+			DOT,
+			HDX,
+			2 * DOT_UNITS,
+			0,
+		));
+
+		// REVIEW: IS THIS CORRECT? 
+		// If yes, are you testing this correctly in other tests? 
+		// looks like you are not testing the change or maybe this is a special case when not initialized?
+		assert!(hydradx_runtime::DynamicFees::current_fees(HDX).is_none());
+	});
+}
+
+#[test]
+fn fees_should_initialize_lazily_when_sell_happens() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -45,7 +76,7 @@ fn fees_should_initialize_lazyly_when_sell_happen() {
 }
 
 #[test]
-fn fees_should_initialize_lazily_when_buy_happen() {
+fn fees_should_initialize_lazily_when_buy_happens() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
@@ -125,7 +156,7 @@ fn fees_should_change_when_buys_happen_in_different_blocks() {
 }
 
 #[test]
-fn fees_should_change_when_sell_happen_in_different_blocks() {
+fn fees_should_change_when_sells_happen_in_different_blocks() {
 	TestNet::reset();
 
 	Hydra::execute_with(|| {
