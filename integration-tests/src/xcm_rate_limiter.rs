@@ -3,14 +3,10 @@
 use crate::polkadot_test_net::*;
 
 use common_runtime::Weight;
-
 use frame_support::assert_ok;
-
 use orml_traits::currency::MultiCurrency;
 use pallet_asset_registry::AssetType;
-
 use polkadot_xcm::prelude::*;
-
 use xcm_emulator::TestExt;
 
 /// Returns the message hash in the `XcmpMessageSent` event at the `n`th last event (1-indexed, so if the second to last
@@ -84,7 +80,7 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 			cumulus_pallet_xcmp_queue::Event::XcmDeferred {
 				sender: ACALA_PARA_ID.into(),
 				sent_at: 3,
-				deferred_to: 603,
+				deferred_to: 604, // received at 4 plus 600 blocks of deferral
 				message_hash,
 			}
 			.into(),
