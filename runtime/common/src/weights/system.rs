@@ -40,8 +40,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -52,52 +52,51 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `b` is `[0, 3932160]`.
-	fn remark(b: u32) -> Weight {
-		// Minimum execution time: 1_437 nanoseconds.
-		Weight::from_ref_time(1_509_000 as u64) // Standard Error: 2
-			.saturating_add(Weight::from_ref_time(307 as u64).saturating_mul(b as u64))
-	}
+    fn remark(b: u32, ) -> Weight {
+        // Minimum execution time: 1_437 nanoseconds.
+        Weight::from_ref_time(1_509_000 as u64)            // Standard Error: 2
+            .saturating_add(Weight::from_ref_time(307 as u64).saturating_mul(b as u64))
+    }
 	/// The range of component `b` is `[0, 3932160]`.
-	fn remark_with_event(b: u32) -> Weight {
-		// Minimum execution time: 4_488 nanoseconds.
-		Weight::from_ref_time(4_630_000 as u64) // Standard Error: 1
-			.saturating_add(Weight::from_ref_time(1_281 as u64).saturating_mul(b as u64))
-	}
+    fn remark_with_event(b: u32, ) -> Weight {
+        // Minimum execution time: 4_488 nanoseconds.
+        Weight::from_ref_time(4_630_000 as u64)            // Standard Error: 1
+            .saturating_add(Weight::from_ref_time(1_281 as u64).saturating_mul(b as u64))
+    }
 	// Storage: System Digest (r:1 w:1)
 	// Proof Skipped: System Digest (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: unknown `0x3a686561707061676573` (r:0 w:1)
 	// Proof Skipped: unknown `0x3a686561707061676573` (r:0 w:1)
-	fn set_heap_pages() -> Weight {
-		// Minimum execution time: 3_026 nanoseconds.
-		Weight::from_ref_time(3_264_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
+    fn set_heap_pages() -> Weight {
+        // Minimum execution time: 3_026 nanoseconds.
+        Weight::from_ref_time(3_264_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
 	// Storage: Skipped Metadata (r:0 w:0)
 	// Proof Skipped: Skipped Metadata (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `i` is `[0, 1000]`.
-	fn set_storage(i: u32) -> Weight {
-		// Minimum execution time: 1_512 nanoseconds.
-		Weight::from_ref_time(1_538_000 as u64) // Standard Error: 3_787
-			.saturating_add(Weight::from_ref_time(488_086 as u64).saturating_mul(i as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(i as u64)))
-	}
+    fn set_storage(i: u32, ) -> Weight {
+        // Minimum execution time: 1_512 nanoseconds.
+        Weight::from_ref_time(1_538_000 as u64)            // Standard Error: 3_787
+            .saturating_add(Weight::from_ref_time(488_086 as u64).saturating_mul(i as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(i as u64)))
+    }
 	// Storage: Skipped Metadata (r:0 w:0)
 	// Proof Skipped: Skipped Metadata (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `i` is `[0, 1000]`.
-	fn kill_storage(i: u32) -> Weight {
-		// Minimum execution time: 1_396 nanoseconds.
-		Weight::from_ref_time(1_443_000 as u64) // Standard Error: 3_105
-			.saturating_add(Weight::from_ref_time(410_815 as u64).saturating_mul(i as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(i as u64)))
-	}
+    fn kill_storage(i: u32, ) -> Weight {
+        // Minimum execution time: 1_396 nanoseconds.
+        Weight::from_ref_time(1_443_000 as u64)            // Standard Error: 3_105
+            .saturating_add(Weight::from_ref_time(410_815 as u64).saturating_mul(i as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(i as u64)))
+    }
 	// Storage: Skipped Metadata (r:0 w:0)
 	// Proof Skipped: Skipped Metadata (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `p` is `[0, 1000]`.
-	fn kill_prefix(p: u32) -> Weight {
-		// Minimum execution time: 3_179 nanoseconds.
-		Weight::from_ref_time(3_267_000 as u64) // Standard Error: 3_091
-			.saturating_add(Weight::from_ref_time(1_015_659 as u64).saturating_mul(p as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(p as u64)))
-	}
+    fn kill_prefix(p: u32, ) -> Weight {
+        // Minimum execution time: 3_179 nanoseconds.
+        Weight::from_ref_time(3_267_000 as u64)            // Standard Error: 3_091
+            .saturating_add(Weight::from_ref_time(1_015_659 as u64).saturating_mul(p as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(p as u64)))
+    }
 }

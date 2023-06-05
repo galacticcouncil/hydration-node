@@ -26,6 +26,7 @@
 // benchmark
 // pallet
 // --pallet=pallet-scheduler
+// --extra
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -40,8 +41,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -53,100 +54,95 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Scheduler IncompleteSince (r:1 w:1)
 	// Proof: Scheduler IncompleteSince (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
-	fn service_agendas_base() -> Weight {
-		// Minimum execution time: 2_974 nanoseconds.
-		Weight::from_ref_time(3_198_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
+    fn service_agendas_base() -> Weight {
+        // Minimum execution time: 2_994 nanoseconds.
+        Weight::from_ref_time(3_137_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
 	// Storage: Scheduler Agenda (r:1 w:1)
 	// Proof: Scheduler Agenda (max_values: None, max_size: Some(38963), added: 41438, mode: MaxEncodedLen)
 	/// The range of component `s` is `[0, 50]`.
-	fn service_agenda_base(s: u32) -> Weight {
-		// Minimum execution time: 2_233 nanoseconds.
-		Weight::from_ref_time(3_478_048 as u64) // Standard Error: 7_046
-			.saturating_add(Weight::from_ref_time(399_805 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	fn service_task_base() -> Weight {
-		// Minimum execution time: 3_074 nanoseconds.
-		Weight::from_ref_time(3_243_000 as u64)
-	}
+    fn service_agenda_base(s: u32, ) -> Weight {
+        // Minimum execution time: 2_094 nanoseconds.
+        Weight::from_ref_time(3_402_287 as u64)            // Standard Error: 7_668
+            .saturating_add(Weight::from_ref_time(380_168 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn service_task_base() -> Weight {
+        // Minimum execution time: 2_794 nanoseconds.
+        Weight::from_ref_time(2_915_000 as u64)    }
 	// Storage: Preimage PreimageFor (r:1 w:1)
 	// Proof: Preimage PreimageFor (max_values: None, max_size: Some(4194344), added: 4196819, mode: Measured)
 	// Storage: Preimage StatusFor (r:1 w:1)
 	// Proof: Preimage StatusFor (max_values: None, max_size: Some(91), added: 2566, mode: MaxEncodedLen)
 	/// The range of component `s` is `[128, 4194304]`.
-	fn service_task_fetched(s: u32) -> Weight {
-		// Minimum execution time: 13_649 nanoseconds.
-		Weight::from_ref_time(13_867_000 as u64) // Standard Error: 7
-			.saturating_add(Weight::from_ref_time(849 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
+    fn service_task_fetched(s: u32, ) -> Weight {
+        // Minimum execution time: 13_346 nanoseconds.
+        Weight::from_ref_time(13_497_000 as u64)            // Standard Error: 7
+            .saturating_add(Weight::from_ref_time(843 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
 	// Storage: Scheduler Lookup (r:0 w:1)
 	// Proof: Scheduler Lookup (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	fn service_task_named() -> Weight {
-		// Minimum execution time: 4_232 nanoseconds.
-		Weight::from_ref_time(4_450_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	fn service_task_periodic() -> Weight {
-		// Minimum execution time: 3_100 nanoseconds.
-		Weight::from_ref_time(3_320_000 as u64)
-	}
-	fn execute_dispatch_signed() -> Weight {
-		// Minimum execution time: 1_743 nanoseconds.
-		Weight::from_ref_time(1_857_000 as u64)
-	}
-	fn execute_dispatch_unsigned() -> Weight {
-		// Minimum execution time: 1_662 nanoseconds.
-		Weight::from_ref_time(1_812_000 as u64)
-	}
+    fn service_task_named() -> Weight {
+        // Minimum execution time: 3_709 nanoseconds.
+        Weight::from_ref_time(3_869_000 as u64)            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn service_task_periodic() -> Weight {
+        // Minimum execution time: 2_893 nanoseconds.
+        Weight::from_ref_time(3_044_000 as u64)    }
+    fn execute_dispatch_signed() -> Weight {
+        // Minimum execution time: 1_630 nanoseconds.
+        Weight::from_ref_time(1_771_000 as u64)    }
+    fn execute_dispatch_unsigned() -> Weight {
+        // Minimum execution time: 1_514 nanoseconds.
+        Weight::from_ref_time(1_617_000 as u64)    }
 	// Storage: Scheduler Agenda (r:1 w:1)
 	// Proof: Scheduler Agenda (max_values: None, max_size: Some(38963), added: 41438, mode: MaxEncodedLen)
 	/// The range of component `s` is `[0, 49]`.
-	fn schedule(s: u32) -> Weight {
-		// Minimum execution time: 8_193 nanoseconds.
-		Weight::from_ref_time(9_991_927 as u64) // Standard Error: 10_294
-			.saturating_add(Weight::from_ref_time(387_372 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
+    fn schedule(s: u32, ) -> Weight {
+        // Minimum execution time: 7_728 nanoseconds.
+        Weight::from_ref_time(9_448_466 as u64)            // Standard Error: 10_261
+            .saturating_add(Weight::from_ref_time(399_800 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
 	// Storage: Scheduler Agenda (r:1 w:1)
 	// Proof: Scheduler Agenda (max_values: None, max_size: Some(38963), added: 41438, mode: MaxEncodedLen)
 	// Storage: Scheduler Lookup (r:0 w:1)
 	// Proof: Scheduler Lookup (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	/// The range of component `s` is `[1, 50]`.
-	fn cancel(s: u32) -> Weight {
-		// Minimum execution time: 10_863 nanoseconds.
-		Weight::from_ref_time(10_859_582 as u64) // Standard Error: 4_940
-			.saturating_add(Weight::from_ref_time(612_439 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
+    fn cancel(s: u32, ) -> Weight {
+        // Minimum execution time: 10_527 nanoseconds.
+        Weight::from_ref_time(10_698_965 as u64)            // Standard Error: 4_868
+            .saturating_add(Weight::from_ref_time(600_437 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
 	// Storage: Scheduler Lookup (r:1 w:1)
 	// Proof: Scheduler Lookup (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	// Storage: Scheduler Agenda (r:1 w:1)
 	// Proof: Scheduler Agenda (max_values: None, max_size: Some(38963), added: 41438, mode: MaxEncodedLen)
 	/// The range of component `s` is `[0, 49]`.
-	fn schedule_named(s: u32) -> Weight {
-		// Minimum execution time: 10_176 nanoseconds.
-		Weight::from_ref_time(12_684_618 as u64) // Standard Error: 13_118
-			.saturating_add(Weight::from_ref_time(469_773 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
+    fn schedule_named(s: u32, ) -> Weight {
+        // Minimum execution time: 9_467 nanoseconds.
+        Weight::from_ref_time(11_942_697 as u64)            // Standard Error: 11_823
+            .saturating_add(Weight::from_ref_time(477_929 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
 	// Storage: Scheduler Lookup (r:1 w:1)
 	// Proof: Scheduler Lookup (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	// Storage: Scheduler Agenda (r:1 w:1)
 	// Proof: Scheduler Agenda (max_values: None, max_size: Some(38963), added: 41438, mode: MaxEncodedLen)
 	/// The range of component `s` is `[1, 50]`.
-	fn cancel_named(s: u32) -> Weight {
-		// Minimum execution time: 13_772 nanoseconds.
-		Weight::from_ref_time(14_574_624 as u64) // Standard Error: 7_085
-			.saturating_add(Weight::from_ref_time(629_519 as u64).saturating_mul(s as u64))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
+    fn cancel_named(s: u32, ) -> Weight {
+        // Minimum execution time: 12_916 nanoseconds.
+        Weight::from_ref_time(13_914_930 as u64)            // Standard Error: 8_744
+            .saturating_add(Weight::from_ref_time(630_837 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
 }

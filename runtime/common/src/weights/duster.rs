@@ -26,6 +26,7 @@
 // benchmark
 // pallet
 // --pallet=pallet-duster
+// --extra
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -40,8 +41,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -65,24 +66,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: Duster RewardAccount (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
-	fn dust_account() -> Weight {
-		// Minimum execution time: 53_243 nanoseconds.
-		Weight::from_ref_time(53_704_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(7 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
-	}
+    fn dust_account() -> Weight {
+        // Minimum execution time: 52_875 nanoseconds.
+        Weight::from_ref_time(53_910_000 as u64)            .saturating_add(T::DbWeight::get().reads(7 as u64))
+            .saturating_add(T::DbWeight::get().writes(4 as u64))
+    }
 	// Storage: Duster AccountBlacklist (r:0 w:1)
 	// Proof Skipped: Duster AccountBlacklist (max_values: None, max_size: None, mode: Measured)
-	fn add_nondustable_account() -> Weight {
-		// Minimum execution time: 14_543 nanoseconds.
-		Weight::from_ref_time(14_866_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
+    fn add_nondustable_account() -> Weight {
+        // Minimum execution time: 13_554 nanoseconds.
+        Weight::from_ref_time(14_083_000 as u64)            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
 	// Storage: Duster AccountBlacklist (r:1 w:1)
 	// Proof Skipped: Duster AccountBlacklist (max_values: None, max_size: None, mode: Measured)
-	fn remove_nondustable_account() -> Weight {
-		// Minimum execution time: 19_284 nanoseconds.
-		Weight::from_ref_time(19_819_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
+    fn remove_nondustable_account() -> Weight {
+        // Minimum execution time: 19_193 nanoseconds.
+        Weight::from_ref_time(19_447_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
 }
