@@ -30,12 +30,16 @@ pub const UNITS: Balance = 1_000_000_000_000;
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 
-pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 200 * UNITS;
-pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1000 * UNITS;
+pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 1_000 * UNITS;
+pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
 pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000 * UNITS * 1_000_000;
 pub const BOB_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const CHARLIE_INITIAL_LRNA_BALANCE: Balance = 1_000 * UNITS;
+
+pub fn parachain_reserve_account() -> AccountId {
+	polkadot_parachain::primitives::Sibling::from(ACALA_PARA_ID).into_account_truncating()
+}
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;

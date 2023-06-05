@@ -137,7 +137,7 @@ fn hydra_should_receive_asset_when_transferred_from_acala() {
 		// Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			200 * UNITS - 30 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});
 
@@ -188,7 +188,7 @@ fn transfer_from_acala_should_fail_when_transferring_insufficient_amount() {
 		);
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			200000000000000
+			ALICE_INITIAL_NATIVE_BALANCE
 		);
 	});
 
@@ -247,7 +247,7 @@ fn hydra_treasury_should_receive_asset_when_transferred_to_protocol_account() {
 		// Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			200 * UNITS - 30 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});
 
@@ -366,7 +366,7 @@ fn trap_asset() -> MultiAsset {
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			200 * UNITS - 30 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});
 

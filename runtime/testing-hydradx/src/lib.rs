@@ -114,7 +114,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 157,
+	spec_version: 158,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -258,8 +258,8 @@ parameter_types! {
 	pub ExtrinsicBaseWeight: Weight = frame_support::weights::constants::ExtrinsicBaseWeight::get();
 }
 
-pub struct BaseFilter;
-impl Contains<RuntimeCall> for BaseFilter {
+pub struct CallFilter;
+impl Contains<RuntimeCall> for CallFilter {
 	fn contains(call: &RuntimeCall) -> bool {
 		if matches!(
 			call,
@@ -309,7 +309,7 @@ impl Contains<RuntimeCall> for BaseFilter {
 
 impl frame_system::Config for Runtime {
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = BaseFilter;
+	type BaseCallFilter = CallFilter;
 	/// The ubiquitous origin type.
 	type RuntimeOrigin = RuntimeOrigin;
 	/// The aggregated dispatch type that is available for extrinsics.
