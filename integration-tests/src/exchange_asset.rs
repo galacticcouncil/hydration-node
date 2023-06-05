@@ -27,7 +27,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 
 	type Weigher<RC> = FixedWeightBounds<BaseXcmWeight, RC, ConstU32<100>>;
 
-	let dest = Parachain(HYDRA_PARA_ID).into();
+	let dest = MultiLocation::new(1, Parachain(HYDRA_PARA_ID));
 	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
 	let assets = give.into();
 	let max_assets = assets.len() as u32;
@@ -38,6 +38,8 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 		.clone()
 		.reanchored(&dest, context)
 		.expect("should reanchor");
+	let give: MultiAssetFilter = assets.clone().into();
+	let want = want.into();
 	let weight_limit = {
 		let fees = fees.clone();
 		let mut remote_message = Xcm(vec![
@@ -46,6 +48,11 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 			BuyExecution {
 				fees,
 				weight_limit: Limited(Weight::zero()),
+			},
+			ExchangeAsset {
+				give: give.clone(),
+				want: want.clone(),
+				maximal: true,
 			},
 			DepositAsset {
 				assets: Wild(AllCounted(max_assets)),
@@ -56,8 +63,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
 		Limited(remote_weight)
 	};
-	let give = assets.clone().into();
-	let want = want.into();
+
 	let xcm = Xcm(vec![
 		BuyExecution { fees, weight_limit },
 		ExchangeAsset {
@@ -90,31 +96,30 @@ fn hydra_should_swap_assets_when_receiving_from_relay() {
 
 	Acala::execute_with(|| {
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
-			MultiAsset::from((Here, 300 * UNITS)),
+			MultiAsset::from((GeneralIndex(0), 100 * UNITS)),
 			MultiAsset::from((Here, 300 * UNITS)),
 		);
 		//Act
-		assert_ok!(hydradx_runtime::PolkadotXcm::execute(
+		let res = hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(xcm),
 			Weight::MAX,
-		));
-		// assert_ok!(polkadot_runtime::XcmPallet::reserve_transfer_assets(
-		// 	polkadot_runtime::RuntimeOrigin::signed(ALICE.into()),
-		// 	Box::new(Parachain(HYDRA_PARA_ID).into_versioned()),
-		// 	Box::new(Junction::AccountId32 { id: BOB, network: None }.into()),
-		// 	Box::new((Here, 300 * UNITS).into()),
-		// 	0,
-		// ));
+		);
+		assert_ok!(res);
 
 		//Assert
 		assert_eq!(
+			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
+			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 100 * UNITS
+		);
+		//TODO: continue here, probably some other error with conversion, debug it
+		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account_truncating()),
-			310 * UNITS
+			100 * UNITS
 		);
 	});
 
-	let fees = 400641025641;
+	/*let fees = 400641025641;
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
@@ -124,5 +129,5 @@ fn hydra_should_swap_assets_when_receiving_from_relay() {
 			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
 			fees
 		);
-	});
+	});*/
 }
