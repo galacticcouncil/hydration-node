@@ -229,13 +229,13 @@ pub struct RelayChainBlockNumberProvider<T>(sp_std::marker::PhantomData<T>);
 
 #[cfg(not(feature = "runtime-benchmarks"))]
 impl<T: cumulus_pallet_parachain_system::Config> BlockNumberProvider for RelayChainBlockNumberProvider<T> {
-	type BlockNumber = T::BlockNumber;
+	type BlockNumber = polkadot_parachain::primitives::RelayChainBlockNumber;
 
 	fn current_block_number() -> Self::BlockNumber {
 		let maybe_data = cumulus_pallet_parachain_system::Pallet::<T>::validation_data();
 
 		if let Some(data) = maybe_data {
-			data.relay_parent_number.into()
+			data.relay_parent_number
 		} else {
 			Self::BlockNumber::default()
 		}

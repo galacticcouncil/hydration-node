@@ -3832,6 +3832,7 @@ dependencies = [
  "log",
  "pallet-transaction-multi-payment",
  "parity-scale-codec",
+ "polkadot-parachain",
  "sp-runtime",
  "sp-std",
  "xcm",
