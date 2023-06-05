@@ -127,11 +127,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(5 as u64))
 			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
-	fn update_global_farm() -> Weight {
-		Weight::from_ref_time(32_552_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(1 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
-	}
 	fn terminate_global_farm() -> Weight {
 		Weight::from_ref_time(85_822_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))

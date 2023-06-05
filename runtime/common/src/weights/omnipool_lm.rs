@@ -68,9 +68,6 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
 
-	fn update_global_farm() -> Weight {
-		todo!()
-	}
 
 	// Storage: OmnipoolWarehouseLM GlobalFarm (r:1 w:1)
 	// Proof: OmnipoolWarehouseLM GlobalFarm (max_values: None, max_size: Some(205), added: 2680, mode: MaxEncodedLen)
