@@ -198,7 +198,7 @@ impl pallet_xcm::Config for Runtime {
 	type TrustedLockers = ();
 	type SovereignAccountOf = ();
 	type MaxLockers = ConstU32<8>;
-	type WeightInfo = common_runtime::weights::xcm::WeightInfo<Runtime>;
+	type WeightInfo = common_runtime::weights::xcm::HydraWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 }

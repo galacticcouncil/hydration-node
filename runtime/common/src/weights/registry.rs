@@ -41,8 +41,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -64,38 +64,42 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: AssetRegistry AssetMetadataMap (max_values: None, max_size: None, mode: Measured)
 	// Storage: AssetRegistry Assets (r:0 w:1)
 	// Proof Skipped: AssetRegistry Assets (max_values: None, max_size: None, mode: Measured)
-    fn register() -> Weight {
-        // Minimum execution time: 20_471 nanoseconds.
-        Weight::from_ref_time(20_921_000 as u64)            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
+	fn register() -> Weight {
+		// Minimum execution time: 20_471 nanoseconds.
+		Weight::from_ref_time(20_921_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
 	// Storage: AssetRegistry Assets (r:1 w:1)
 	// Proof Skipped: AssetRegistry Assets (max_values: None, max_size: None, mode: Measured)
 	// Storage: AssetRegistry AssetIds (r:1 w:2)
 	// Proof Skipped: AssetRegistry AssetIds (max_values: None, max_size: None, mode: Measured)
-    fn update() -> Weight {
-        // Minimum execution time: 16_721 nanoseconds.
-        Weight::from_ref_time(17_567_000 as u64)            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn update() -> Weight {
+		// Minimum execution time: 16_721 nanoseconds.
+		Weight::from_ref_time(17_567_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 	// Storage: AssetRegistry Assets (r:1 w:0)
 	// Proof Skipped: AssetRegistry Assets (max_values: None, max_size: None, mode: Measured)
 	// Storage: AssetRegistry AssetMetadataMap (r:0 w:1)
 	// Proof Skipped: AssetRegistry AssetMetadataMap (max_values: None, max_size: None, mode: Measured)
-    fn set_metadata() -> Weight {
-        // Minimum execution time: 12_658 nanoseconds.
-        Weight::from_ref_time(13_053_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
+	fn set_metadata() -> Weight {
+		// Minimum execution time: 12_658 nanoseconds.
+		Weight::from_ref_time(13_053_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 	// Storage: AssetRegistry Assets (r:1 w:0)
 	// Proof Skipped: AssetRegistry Assets (max_values: None, max_size: None, mode: Measured)
 	// Storage: AssetRegistry LocationAssets (r:1 w:1)
 	// Proof Skipped: AssetRegistry LocationAssets (max_values: None, max_size: None, mode: Measured)
 	// Storage: AssetRegistry AssetLocations (r:1 w:1)
 	// Proof Skipped: AssetRegistry AssetLocations (max_values: None, max_size: None, mode: Measured)
-    fn set_location() -> Weight {
-        // Minimum execution time: 13_477 nanoseconds.
-        Weight::from_ref_time(13_864_000 as u64)            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-    }
+	fn set_location() -> Weight {
+		// Minimum execution time: 13_477 nanoseconds.
+		Weight::from_ref_time(13_864_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
 }
