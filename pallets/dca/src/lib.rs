@@ -734,8 +734,7 @@ where
 		};
 
 		let max_allowed_diff = schedule
-			.order
-			.get_slippage()
+			.stability_threshold
 			.unwrap_or_else(T::MaxPriceDifferenceBetweenBlocks::get);
 
 		let max_allowed = FixedU128::from(max_allowed_diff);

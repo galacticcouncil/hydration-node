@@ -1643,46 +1643,6 @@ fn buy_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 }
 
 #[test]
-fn slippage_limit_should_be_used_for_sell_dca_when_it_is_bigger_than_specified_trade_min_limit() {
-	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
-		.build()
-		.execute_with(|| {
-			//Arrange
-			proceed_to_blocknumber(1, 500);
-
-			let sell_amount = ONE;
-
-			let schedule = ScheduleBuilder::new()
-				.with_period(ONE_HUNDRED_BLOCKS)
-				.with_order(Order::Sell {
-					asset_in: HDX,
-					asset_out: DAI,
-					amount_in: sell_amount,
-					min_limit: Balance::MIN,
-					slippage: Some(Permill::from_percent(1)),
-					route: create_bounded_vec(vec![Trade {
-						pool: Omnipool,
-						asset_in: HDX,
-						asset_out: DAI,
-					}]),
-				})
-				.build();
-
-			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
-
-			//Act
-			set_to_blocknumber(501);
-
-			//Assert
-			//No trade happens because slippage limit is too small
-			assert_number_of_executed_sell_trades!(0);
-			let retries = DCA::retries_on_error(0);
-			assert_eq!(1, retries);
-		});
-}
-
-#[test]
 fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_trade_max_limit() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
@@ -1740,6 +1700,70 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
 				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(501)));
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			assert_executed_sell_trades!(vec![]);
+			assert_eq!(
+				total_amount - SELL_DCA_FEE_IN_NATIVE,
+				Currencies::reserved_balance(HDX, &ALICE)
+			);
+
+			let schedule_id = 0;
+			assert_scheduled_ids!(511, vec![schedule_id]);
+			expect_dca_events(vec![
+				DcaEvent::TradeFailed {
+					id: schedule_id,
+					who: ALICE,
+					error: Error::<Test>::PriceUnstable.into(),
+				}
+				.into(),
+				DcaEvent::ExecutionPlanned {
+					id: schedule_id,
+					who: ALICE,
+					block: 511,
+				}
+				.into(),
+			]);
+		});
+}
+
+#[test]
+fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_user_specified_treshold() {
+	let initial_alice_hdx_balance = 10000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, initial_alice_hdx_balance)])
+		.with_max_price_difference(Permill::from_percent(15))
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 5 * ONE;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_price_stability_threshold(Some(Permill::from_percent(9)))
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,

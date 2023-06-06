@@ -16,6 +16,7 @@ pub struct Schedule<AccountId, AssetId, BlockNumber> {
 	pub period: BlockNumber,
 	pub total_amount: Balance,
 	pub max_retries: Option<u8>,
+	pub stability_threshold: Option<Permill>,
 	pub order: Order<AssetId>,
 }
 

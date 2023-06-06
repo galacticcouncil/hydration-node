@@ -3,7 +3,7 @@ use crate::{Balance, Order, Schedule, ScheduleId};
 use hydradx_traits::router::PoolType;
 use pallet_route_executor::Trade;
 use sp_runtime::traits::ConstU32;
-use sp_runtime::BoundedVec;
+use sp_runtime::{BoundedVec, Permill};
 
 pub mod mock;
 pub mod on_initialize;
@@ -23,6 +23,7 @@ struct ScheduleBuilder {
 	pub order: Option<Order<AssetId>>,
 	pub total_amount: Option<Balance>,
 	pub max_retries: Option<Option<u8>>,
+	pub stability_threshold: Option<Option<Permill>>,
 }
 
 impl ScheduleBuilder {
@@ -30,6 +31,7 @@ impl ScheduleBuilder {
 		ScheduleBuilder {
 			owner: Some(ALICE),
 			period: Some(ONE_HUNDRED_BLOCKS),
+			stability_threshold: Some(None),
 			total_amount: Some(1000 * ONE),
 			max_retries: Some(None),
 			order: Some(Order::Buy {
@@ -67,6 +69,11 @@ impl ScheduleBuilder {
 		self
 	}
 
+	fn with_price_stability_threshold(mut self, treshold: Option<Permill>) -> ScheduleBuilder {
+		self.stability_threshold = Some(treshold);
+		self
+	}
+
 	fn with_max_retries(mut self, max_retries: Option<u8>) -> ScheduleBuilder {
 		self.max_retries = Some(max_retries);
 		self
@@ -76,6 +83,7 @@ impl ScheduleBuilder {
 		Schedule {
 			owner: self.owner.unwrap(),
 			period: self.period.unwrap(),
+			stability_threshold: self.stability_threshold.unwrap(),
 			total_amount: self.total_amount.unwrap(),
 			max_retries: self.max_retries.unwrap(),
 			order: self.order.unwrap(),
