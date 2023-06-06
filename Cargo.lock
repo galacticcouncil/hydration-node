@@ -1196,7 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.3.11"
+version = "102.3.12"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcmp-queue",
