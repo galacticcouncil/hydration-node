@@ -54,6 +54,7 @@ pub type Index = u32;
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
+use pallet_dca::types::NamedReserveIdentifier;
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -117,14 +118,6 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	]
 }
 
-pub struct DustRemovalWhitelist;
-
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-	}
-}
-
 pub struct CircuitBreakerWhitelist;
 
 impl Contains<AccountId> for CircuitBreakerWhitelist {
@@ -172,6 +165,8 @@ parameter_types! {
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+	/// The maximum amount of the multiplier.
+	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(4);
 }
 
 // pallet treasury
@@ -206,7 +201,6 @@ parameter_types! {
 
 // pallet preimage
 parameter_types! {
-	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub PreimageByteDeposit: Balance = deposit(0, 1);
 }
@@ -352,4 +346,24 @@ parameter_types! {
 	pub const OmnipoolLMCollectionId: CollectionId = 2584_u128;
 	pub const OmnipoolLMOraclePeriod: OraclePeriod = OraclePeriod::TenMinutes;
 	pub const OmnipoolLMOracleSource: Source = OMNIPOOL_SOURCE;
+}
+
+// pallet dca
+parameter_types! {
+	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
+	pub MaxSchedulesPerBlock: u32 = 20;
+	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
+	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
+	pub MaxNumberOfRetriesOnError: u8 = 3;
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn democracy_periods() {
+		// Make sure VoteLockingPeriod > EnactmentPeriod
+		assert!(VoteLockingPeriod::get() > EnactmentPeriod::get());
+	}
 }

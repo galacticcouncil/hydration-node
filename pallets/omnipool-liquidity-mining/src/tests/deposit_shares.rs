@@ -54,7 +54,7 @@ fn deposit_shares_should_work() {
 
 			//Act
 			assert_ok!(OmnipoolMining::deposit_shares(
-				Origin::signed(LP1),
+				RuntimeOrigin::signed(LP1),
 				global_farm_id,
 				yield_farm_id,
 				omnipool_position_id
@@ -142,7 +142,7 @@ fn deposit_shares_should_fail_with_forbidden_when_account_is_not_omnipool_positi
 			//Act
 			assert_noop!(
 				OmnipoolMining::deposit_shares(
-					Origin::signed(not_position_owner),
+					RuntimeOrigin::signed(not_position_owner),
 					global_farm_id,
 					yield_farm_id,
 					omnipool_position_id
@@ -188,7 +188,7 @@ fn deposit_shares_should_fail_with_forbidden_when_omnipool_posotion_doesnt_exist
 			//Act
 			assert_noop!(
 				OmnipoolMining::deposit_shares(
-					Origin::signed(BOB),
+					RuntimeOrigin::signed(BOB),
 					global_farm_id,
 					yield_farm_id,
 					non_existing_position_id,
@@ -234,7 +234,12 @@ fn deposit_shares_should_fail_when_origin_is_none() {
 
 			//Act & assert
 			assert_noop!(
-				OmnipoolMining::deposit_shares(Origin::none(), global_farm_id, yield_farm_id, omnipool_position_id),
+				OmnipoolMining::deposit_shares(
+					RuntimeOrigin::none(),
+					global_farm_id,
+					yield_farm_id,
+					omnipool_position_id
+				),
 				BadOrigin
 			);
 		});
@@ -276,7 +281,7 @@ fn deposit_shares_should_fail_with_asset_not_found_when_omnipool_doesnt_exists()
 			//Act
 			assert_noop!(
 				OmnipoolMining::deposit_shares(
-					Origin::signed(BOB),
+					RuntimeOrigin::signed(BOB),
 					global_farm_id,
 					yield_farm_id,
 					non_existing_position_id,
@@ -326,7 +331,7 @@ fn deposit_shares_should_fail_with_asset_not_found_when_omnipool_deosnt_exists()
 			//Act & assert
 			assert_noop!(
 				OmnipoolMining::deposit_shares(
-					Origin::signed(ALICE),
+					RuntimeOrigin::signed(ALICE),
 					global_farm_id,
 					yield_farm_id,
 					omnipool_position_id

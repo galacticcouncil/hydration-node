@@ -1,6 +1,6 @@
 [package]
 name = "scraper"
-version = "1.0.2"
+version = "1.1.1"
 description = "Scraper tool"
 authors = ["GalacticCouncil"]
 edition = "2021"
@@ -9,15 +9,17 @@ license = "Apache 2.0"
 repository = "https://github.com/galacticcouncil/HydraDX-node"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.1.5" }
+codec = { package = "parity-scale-codec", version = "3.4.0" }
 jsonrpsee = { version = "0.15.1", features = ["server", "macros"] }
 serde = { version = "1.0.136", features = ["derive"] }
 clap = { version = "3.2.11", features = [ "derive" ] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 # local dependencies
-hydradx-runtime = { path = "../runtime/hydradx" }
+hydradx-runtime = { workspace = true }
 
 # Substrate dependencies
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
-remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
+sp-runtime = { workspace = true }
+sp-rpc = { workspace = true }
+substrate-rpc-client = { workspace = true }
+frame-remote-externalities = { workspace = true }

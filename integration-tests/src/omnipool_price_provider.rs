@@ -6,7 +6,7 @@ use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use hydradx_runtime::Balance;
 use hydradx_runtime::Omnipool;
-use hydradx_runtime::Origin;
+use hydradx_runtime::RuntimeOrigin;
 use hydradx_runtime::Tokens;
 use hydradx_traits::{OraclePeriod, PriceOracle};
 use primitives::AssetId;
@@ -22,7 +22,7 @@ fn omnipool_oracle_adapter_should_return_price_for_arbitraty_pairs() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
+		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
 			AssetId,
 			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
@@ -41,7 +41,7 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_a() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
+		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
 			AssetId,
 			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
@@ -60,7 +60,7 @@ fn omnipool_oracle_adapter_should_return_price_for_when_lrna_is_asset_b() {
 
 		set_relaychain_block_number(100);
 
-		let price = common_runtime::adapters::OmnipoolPriceProviderAdapter::<
+		let price = common_runtime::adapters::OraclePriceProviderAdapterForOmnipool::<
 			AssetId,
 			hydradx_runtime::EmaOracle,
 			hydradx_runtime::LRNA,
@@ -75,10 +75,10 @@ pub fn init_omnipol() {
 	let stable_price = FixedU128::from_float(0.7);
 	hydradx_runtime::Omnipool::protocol_account();
 
-	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(Origin::root(), u128::MAX));
+	assert_ok!(hydradx_runtime::Omnipool::set_tvl_cap(RuntimeOrigin::root(), u128::MAX));
 
 	assert_ok!(hydradx_runtime::Omnipool::initialize_pool(
-		hydradx_runtime::Origin::root(),
+		hydradx_runtime::RuntimeOrigin::root(),
 		stable_price,
 		native_price,
 		Permill::from_percent(60),
@@ -98,7 +98,7 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 	));
 
 	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
+		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 		LRNA,
 		asset_1,
 		amount,
@@ -106,7 +106,7 @@ fn do_trade_to_populate_oracle(asset_1: AssetId, asset_2: AssetId, amount: Balan
 	));
 
 	assert_ok!(Omnipool::sell(
-		hydradx_runtime::Origin::signed(CHARLIE.into()),
+		hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 		LRNA,
 		asset_2,
 		amount,

@@ -1,6 +1,6 @@
-// This file is part of Hydra-node.
+// This file is part of HydraDX.
 
-// Copyright (C) 2020-2021  Intergalactic, Limited (GIB).
+// Copyright (C) 2020-2023  Intergalactic, Limited (GIB).
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,7 @@
 {{#each args as |arg|~}}
 // {{arg}}
 {{/each}}
+
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
@@ -37,32 +38,40 @@ use sp_std::marker::PhantomData;
 
 use {{pallet}}::weights::WeightInfo;
 
+/// Weights for {{pallet}} using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
-	{{~#each benchmarks as |benchmark|}}
-	fn {{benchmark.name~}}
-	(
-		{{~#each benchmark.components as |c| ~}}
-		{{~#if (not c.is_used)}}_{{/if}}{{c.name}}: u32, {{/each~}}
-	) -> Weight {
-		Weight::from_ref_time({{underscore benchmark.base_weight}} as u64)
-			{{~#each benchmark.component_weight as |cw|}}
-			// Standard Error: {{underscore cw.error}}
-			.saturating_add(({{underscore cw.slope}} as u64).saturating_mul({{cw.name}} as u64))
-			{{~/each}}
-			{{~#if (ne benchmark.base_reads "0")}}
-			.saturating_add(T::DbWeight::get().reads({{benchmark.base_reads}} as u64))
-			{{~/if}}
-			{{~#each benchmark.component_reads as |cr|}}
-			.saturating_add(T::DbWeight::get().reads(({{cr.slope}} as u64).saturating_mul({{cr.name}} as u64)))
-			{{~/each}}
-			{{~#if (ne benchmark.base_writes "0")}}
-			.saturating_add(T::DbWeight::get().writes({{benchmark.base_writes}} as u64))
-			{{~/if}}
-			{{~#each benchmark.component_writes as |cw|}}
-			.saturating_add(T::DbWeight::get().writes(({{cw.slope}} as u64).saturating_mul({{cw.name}} as u64)))
-			{{~/each}}
-	}
-	{{~/each}}
+    {{#each benchmarks as |benchmark|}}
+    {{#each benchmark.comments as |comment|}}
+	// {{comment}}
+	{{/each}}
+	{{#each benchmark.component_ranges as |range|}}
+	/// The range of component `{{range.name}}` is `[{{range.min}}, {{range.max}}]`.
+	{{/each}}
+    fn {{benchmark.name~}}
+    (
+        {{~#each benchmark.components as |c| ~}}
+        {{~#if (not c.is_used)}}_{{/if}}{{c.name}}: u32, {{/each~}}
+    ) -> Weight {
+        // Minimum execution time: {{underscore benchmark.min_execution_time}} nanoseconds.
+        Weight::from_ref_time({{underscore benchmark.base_weight}} as u64)
+            {{~#each benchmark.component_weight as |cw|}}
+            // Standard Error: {{underscore cw.error}}
+            .saturating_add(Weight::from_ref_time({{underscore cw.slope}} as u64).saturating_mul({{cw.name}} as u64))
+            {{/each}}
+            {{#if (ne benchmark.base_reads "0")}}
+            .saturating_add(T::DbWeight::get().reads({{benchmark.base_reads}} as u64))
+            {{/if}}
+            {{#each benchmark.component_reads as |cr|}}
+            .saturating_add(T::DbWeight::get().reads(({{cr.slope}} as u64).saturating_mul({{cr.name}} as u64)))
+            {{/each}}
+            {{#if (ne benchmark.base_writes "0")}}
+            .saturating_add(T::DbWeight::get().writes({{benchmark.base_writes}} as u64))
+            {{/if}}
+            {{~#each benchmark.component_writes as |cw|}}
+            .saturating_add(T::DbWeight::get().writes(({{cw.slope}} as u64).saturating_mul({{cw.name}} as u64)))
+            {{/each}}
+    }
+    {{/each}}
 }

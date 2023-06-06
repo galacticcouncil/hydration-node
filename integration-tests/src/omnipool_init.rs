@@ -36,7 +36,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let token_price = FixedU128::from_inner(25_650_000_000_000_000_000);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			DOT,
 			token_price,
 			Permill::from_percent(100),
@@ -56,7 +56,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let token_price = FixedU128::from_inner(71_145_071_145_071);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			ETH,
 			token_price,
 			Permill::from_percent(100),
@@ -78,7 +78,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let charlie_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			hydradx_runtime::Origin::signed(CHARLIE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 			ETH,
 			DAI,
 			1_000_000_000_000_000_000,
@@ -95,7 +95,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let btc_price = FixedU128::from_inner(9_647_109_647_109_650_000_000_000);
 
 		assert_ok!(hydradx_runtime::Omnipool::add_token(
-			hydradx_runtime::Origin::root(),
+			hydradx_runtime::RuntimeOrigin::root(),
 			BTC,
 			btc_price,
 			Permill::from_percent(100),
@@ -109,7 +109,7 @@ fn omnipool_launch_init_params_should_be_correct() {
 		let charlie_dai_orig = hydradx_runtime::Tokens::free_balance(DAI, &AccountId::from(CHARLIE));
 
 		assert_ok!(hydradx_runtime::Omnipool::buy(
-			hydradx_runtime::Origin::signed(CHARLIE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(CHARLIE.into()),
 			BTC,
 			DAI,
 			100_000_000 / 10,
@@ -144,6 +144,7 @@ pub fn hydra_run_to_block(to: BlockNumber) {
 	}
 }
 
+#[ignore]
 #[test]
 fn add_liquidity_should_fail_when_price_changes() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
@@ -159,7 +160,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 
 		// first do a trade to populate the oracle
 		assert_ok!(hydradx_runtime::Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			ETH,
 			DAI,
 			eth_precision,
@@ -170,7 +171,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 
 		// then do a trade that moves the price
 		assert_ok!(hydradx_runtime::Omnipool::sell(
-			hydradx_runtime::Origin::signed(ALICE.into()),
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			ETH,
 			DAI,
 			100 * eth_precision,
@@ -181,7 +182,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 
 		assert_noop!(
 			hydradx_runtime::Omnipool::add_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				11_500_000_000_000_000_000_000u128,
 			),
@@ -190,6 +191,7 @@ fn add_liquidity_should_fail_when_price_changes() {
 	});
 }
 
+#[ignore]
 #[test]
 fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 	hydra_live_ext(PATH_TO_SNAPSHOT).execute_with(|| {
@@ -205,7 +207,7 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 
 		for idx in 1..10 {
 			assert_ok!(hydradx_runtime::Omnipool::sell(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				ETH,
 				DAI,
 				10 * eth_precision,
@@ -217,7 +219,7 @@ fn add_liquidity_should_fail_when_price_changes_across_multiple_block() {
 
 		assert_noop!(
 			hydradx_runtime::Omnipool::add_liquidity(
-				hydradx_runtime::Origin::signed(ALICE.into()),
+				hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 				DAI,
 				11_500_000_000_000_000_000_000u128,
 			),

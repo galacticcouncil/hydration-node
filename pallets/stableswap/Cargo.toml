@@ -1,0 +1,70 @@
+[package]
+name = 'pallet-stableswap'
+version = '1.3.0'
+description = 'AMM for correlated assets'
+authors = ['GalacticCouncil']
+edition = '2021'
+homepage = "https://github.com/galacticcouncil/warehouse"
+license = 'Apache 2.0'
+repository = "https://github.com/galacticcouncil/warehouse"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+bitflags = "1.3.2"
+
+# parity
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0" }
+
+# primitives
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+
+# FRAME
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+# Math
+hydra-dx-math = { workspace = true }
+
+# HydraDX dependencies
+hydradx-traits = { workspace = true }
+
+# ORML dependencies
+orml-traits = { workspace = true }
+
+# Optional imports for benchmarking
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+sp-api = { workspace = true }
+sp-tracing = { workspace = true }
+orml-tokens = { workspace = true, features=["std"] }
+proptest = "1.0.0"
+
+[features]
+default = ['std']
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "hydra-dx-math/runtime-benchmarks",
+]
+std = [
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'sp-runtime/std',
+    'sp-core/std',
+    'sp-io/std',
+    'sp-std/std',
+    "scale-info/std",
+    "orml-tokens/std",
+    "frame-benchmarking/std",
+    "hydra-dx-math/std",
+]
+try-runtime = ["frame-support/try-runtime"]
