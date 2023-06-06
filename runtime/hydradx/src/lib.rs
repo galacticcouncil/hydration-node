@@ -640,7 +640,7 @@ impl pallet_tips::Config for Runtime {
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::tips::HydraWeight<Runtime>;
 }
 
 /// ORML Configurations
@@ -777,7 +777,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type SpotPriceProvider = Omnipool;
-	type WeightInfo = weights::transaction_multi_payment::HydraWeight<Runtime>;
+	type WeightInfo = weights::payment::HydraWeight<Runtime>;
 	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
 }
@@ -1017,7 +1017,7 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OracleSource = OmnipoolLMOracleSource;
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
-	type WeightInfo = ();
+	type WeightInfo = common_runtime::weights::omnipool_lm::HydraWeight<Runtime>;
 }
 
 impl pallet_dca::Config for Runtime {
@@ -1365,6 +1365,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_transaction_pause, TransactionPause);
 
 			list_benchmark!(list, extra, pallet_otc, OTC);
+			list_benchmark!(list, extra, pallet_xcm, PolkadotXcm);
 
 			orml_list_benchmark!(list, extra, pallet_currencies, benchmarking::currencies);
 			orml_list_benchmark!(list, extra, orml_tokens, benchmarking::tokens);
@@ -1429,6 +1430,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_transaction_pause, TransactionPause);
 
 			add_benchmark!(params, batches, pallet_otc, OTC);
+			add_benchmark!(params, batches, pallet_xcm, PolkadotXcm);
 
 			orml_add_benchmark!(params, batches, pallet_currencies, benchmarking::currencies);
 			orml_add_benchmark!(params, batches, orml_tokens, benchmarking::tokens);
