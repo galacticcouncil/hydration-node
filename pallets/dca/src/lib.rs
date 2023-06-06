@@ -663,7 +663,8 @@ where
 		let remaining_amount: Balance =
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
-		if remaining_amount <= transaction_fee {
+		let min_amount_for_replanning = transaction_fee.checked_mul(5).ok_or(ArithmeticError::Overflow)?;
+		if remaining_amount <= min_amount_for_replanning {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}

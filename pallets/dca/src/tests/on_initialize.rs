@@ -754,8 +754,9 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 
 #[test]
 fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_enough_balance() {
+	let alice_init_hdx_balance = 10000 * ONE;
 	ExtBuilder::default()
-		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.with_endowed_accounts(vec![(ALICE, HDX, alice_init_hdx_balance)])
 		.build()
 		.execute_with(|| {
 			//Arrange
@@ -782,6 +783,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 				.build();
 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_balance!(ALICE, HDX, alice_init_hdx_balance - total_amount);
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
 			//Act
@@ -790,6 +792,60 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 			//Assert
 			assert_number_of_executed_buy_trades!(4);
 			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+			let left_over_which_is_not_enough_for_last_trade = 9987907856000;
+			assert_balance!(
+				ALICE,
+				HDX,
+				alice_init_hdx_balance - total_amount + left_over_which_is_not_enough_for_last_trade
+			);
+
+			let schedule_id = 0;
+			assert_that_dca_is_completed(ALICE, schedule_id);
+		});
+}
+
+#[test]
+fn full_buy_dca_should_be_completed_without_leftover_fees_are_included_in_budget() {
+	let alice_init_hdx_balance = 10000 * ONE;
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, alice_init_hdx_balance)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = 50 * ONE + 5 * BUY_DCA_FEE_IN_NATIVE;
+			let amount_to_buy = 10 * ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: amount_to_buy,
+					max_limit: Balance::MAX,
+					slippage: Some(Permill::from_percent(20)),
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+			assert_balance!(ALICE, HDX, alice_init_hdx_balance - total_amount);
+			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
+
+			//Act
+			proceed_to_blocknumber(501, 2001);
+
+			//Assert
+			assert_number_of_executed_buy_trades!(5);
+			assert_eq!(0, Currencies::reserved_balance(HDX, &ALICE));
+			assert_balance!(ALICE, HDX, alice_init_hdx_balance - total_amount);
+
 			let schedule_id = 0;
 			assert_that_dca_is_completed(ALICE, schedule_id);
 		});
@@ -2138,7 +2194,7 @@ fn schedules_are_purged_when_the_block_is_over() {
 }
 
 #[test]
-fn successfull_should_be_terminated_when_only_transaction_fee_left() {
+fn sell_schedule_should_be_completed_when_only_5_transaction_fee_left() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -2146,7 +2202,7 @@ fn successfull_should_be_terminated_when_only_transaction_fee_left() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + SELL_DCA_FEE_IN_NATIVE;
+			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + 5 * SELL_DCA_FEE_IN_NATIVE;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
@@ -2176,6 +2232,51 @@ fn successfull_should_be_terminated_when_only_transaction_fee_left() {
 			expect_events(vec![DcaEvent::Completed {
 				id: schedule_id,
 				who: ALICE,
+			}
+			.into()]);
+		});
+}
+
+#[test]
+fn sell_schedule_should_be_replanned_when_more_than_5_transaction_fee_left_for_next_trade() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + 5 * SELL_DCA_FEE_IN_NATIVE + 1;
+			let amount_to_sell = ONE;
+
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Sell {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_in: amount_to_sell,
+					min_limit: Balance::MIN,
+					slippage: None,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			//Act
+			set_to_blocknumber(501);
+
+			//Assert
+			let schedule_id = 0;
+			expect_events(vec![DcaEvent::ExecutionPlanned {
+				id: schedule_id,
+				who: ALICE,
+				block: 601,
 			}
 			.into()]);
 		});
