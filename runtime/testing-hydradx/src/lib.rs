@@ -114,7 +114,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("testing-hydradx"),
 	impl_name: create_runtime_str!("testing-hydradx"),
 	authoring_version: 1,
-	spec_version: 156,
+	spec_version: 158,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -721,6 +721,21 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Transfer => matches!(
 				c,
 				RuntimeCall::Balances(..) | RuntimeCall::Currencies(..) | RuntimeCall::Tokens(..)
+			),
+			ProxyType::Omnipool => matches!(
+				c,
+				RuntimeCall::Omnipool(pallet_omnipool::Call::add_liquidity { .. })
+					| RuntimeCall::Omnipool(pallet_omnipool::Call::remove_liquidity { .. })
+			),
+			ProxyType::LiquidityMining => matches!(
+				c,
+				RuntimeCall::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Call::deposit_shares { .. })
+					| RuntimeCall::OmnipoolLiquidityMining(
+						pallet_omnipool_liquidity_mining::Call::redeposit_shares { .. }
+					) | RuntimeCall::OmnipoolLiquidityMining(pallet_omnipool_liquidity_mining::Call::claim_rewards { .. })
+					| RuntimeCall::OmnipoolLiquidityMining(
+						pallet_omnipool_liquidity_mining::Call::withdraw_shares { .. }
+					)
 			),
 		}
 	}
