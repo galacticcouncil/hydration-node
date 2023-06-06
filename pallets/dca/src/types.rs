@@ -17,6 +17,7 @@ pub struct Schedule<AccountId, AssetId, BlockNumber> {
 	pub total_amount: Balance,
 	pub max_retries: Option<u8>,
 	pub stability_threshold: Option<Permill>,
+	pub slippage: Option<Permill>,
 	pub order: Order<AssetId>,
 }
 
@@ -27,7 +28,6 @@ pub enum Order<AssetId> {
 		asset_out: AssetId,
 		amount_in: Balance,
 		min_limit: Balance,
-		slippage: Option<Permill>,
 		route: BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	},
 	Buy {
@@ -35,7 +35,6 @@ pub enum Order<AssetId> {
 		asset_out: AssetId,
 		amount_out: Balance,
 		max_limit: Balance,
-		slippage: Option<Permill>,
 		route: BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	},
 }
@@ -58,14 +57,6 @@ where
 			Order::Buy { asset_out, .. } => asset_out,
 		};
 		*asset_out
-	}
-
-	pub fn get_slippage(&self) -> Option<Permill> {
-		let slippage = match &self {
-			Order::Sell { slippage, .. } => slippage,
-			Order::Buy { slippage, .. } => slippage,
-		};
-		*slippage
 	}
 
 	pub fn get_route_length(&self) -> usize {

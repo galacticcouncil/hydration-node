@@ -51,12 +51,12 @@ fn schedule_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Co
 		total_amount: 1100 * ONE,
 		max_retries: None,
 		stability_threshold: None,
+		slippage: Some(Permill::from_percent(15)),
 		order: Order::Buy {
 			asset_in,
 			asset_out,
 			amount_out: amount,
 			max_limit: Balance::MAX,
-			slippage: Some(Permill::from_percent(15)),
 			route: create_bounded_vec::<T>(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -86,12 +86,12 @@ fn schedule_buy_fake<T: Config + pallet_route_executor::Config + pallet_omnipool
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
+		slippage: Some(Permill::from_percent(15)),
 		order: Order::Buy {
 			asset_in,
 			asset_out,
 			amount_out: amount,
 			max_limit: Balance::MAX,
-			slippage: Some(Permill::from_percent(15)),
 			route: create_bounded_vec::<T>(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -114,12 +114,12 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
+		slippage: Some(Permill::from_percent(30)),
 		order: Order::Sell {
 			asset_in,
 			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
-			slippage: Some(Permill::from_percent(30)),
 			route: create_bounded_vec::<T>(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,

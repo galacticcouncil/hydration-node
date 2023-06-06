@@ -119,12 +119,12 @@ fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
 			total_amount: dca_budget,
 			max_retries: None,
 			stability_threshold: None,
+			slippage: Some(Permill::from_percent(5)),
 			order: Order::Buy {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_out,
 				max_limit: Balance::MIN,
-				slippage: Some(Permill::from_percent(5)),
 				route: create_bounded_vec(vec![Trade {
 					pool: PoolType::Omnipool,
 					asset_in: HDX,
@@ -573,12 +573,12 @@ fn sell_schedule_should_be_terminated_after_retries() {
 			total_amount: dca_budget,
 			max_retries: None,
 			stability_threshold: None,
+			slippage: Some(Permill::from_percent(1)),
 			order: Order::Sell {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
 				min_limit: Balance::MAX,
-				slippage: Some(Permill::from_percent(1)),
 				route: create_bounded_vec(vec![Trade {
 					pool: PoolType::Omnipool,
 					asset_in: HDX,
@@ -1232,12 +1232,12 @@ fn schedule_fake_with_buy_order(
 		total_amount: budget,
 		max_retries: None,
 		stability_threshold: None,
+		slippage: Some(Permill::from_percent(5)),
 		order: Order::Buy {
 			asset_in,
 			asset_out,
 			amount_out: amount,
 			max_limit: Balance::MAX,
-			slippage: Some(Permill::from_percent(5)),
 			route: create_bounded_vec(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -1260,12 +1260,12 @@ fn schedule_fake_with_sell_order(
 		total_amount,
 		max_retries: None,
 		stability_threshold: None,
+		slippage: Some(Permill::from_percent(10)),
 		order: Order::Sell {
 			asset_in,
 			asset_out,
 			amount_in: amount,
 			min_limit: Balance::MIN,
-			slippage: Some(Permill::from_percent(10)),
 			route: create_bounded_vec(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,

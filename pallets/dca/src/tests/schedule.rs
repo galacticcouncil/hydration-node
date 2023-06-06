@@ -46,7 +46,6 @@ fn schedule_should_reserve_all_total_amount_as_named_reserve() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -82,7 +81,6 @@ fn schedule_should_store_total_amounts_in_storage() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -116,7 +114,6 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 100 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -133,7 +130,6 @@ fn schedule_should_compound_named_reserve_for_multiple_schedules() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 1000 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -373,7 +369,6 @@ fn sell_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_to_
 					asset_out: BTC,
 					amount_in: budget + BUY_DCA_FEE_IN_NATIVE,
 					min_limit: Balance::MIN,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -410,7 +405,6 @@ fn buy_schedule_should_throw_error_when_total_budget_is_smaller_than_amount_in_p
 					asset_out: BTC,
 					amount_out: 10 * ONE,
 					max_limit: budget + BUY_DCA_FEE_IN_NATIVE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -447,7 +441,6 @@ fn buy_schedule_should_work_when_total_budget_is_equal_to_calculated_amount_in_p
 					asset_out: BTC,
 					amount_out: 10 * ONE,
 					max_limit: budget + BUY_DCA_FEE_IN_NATIVE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -608,7 +601,6 @@ fn schedule_should_fail_when_total_amount_is_smaller_than_min_budget_and_sold_cu
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 100 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -642,7 +634,6 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 					asset_out: HDX,
 					amount_out: ONE,
 					max_limit: 100 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -676,7 +667,6 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 					asset_out: BTC,
 					amount_in: SELL_DCA_FEE_IN_NATIVE - 1,
 					min_limit: Balance::MIN,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -707,7 +697,6 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 					asset_out: BTC,
 					amount_in: 50,
 					min_limit: Balance::MIN,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -742,7 +731,6 @@ fn sell_schedule_should_work_when_total_amount_is_equal_to_amount_in_plus_fee() 
 					asset_out: BTC,
 					amount_in,
 					min_limit: Balance::MIN,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -772,7 +760,6 @@ fn schedule_should_init_retries_to_zero() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -807,7 +794,6 @@ fn schedule_should_fail_when_wrong_user_is_specified_in_schedule() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -842,7 +828,6 @@ fn schedule_should_fail_when_no_routes_specified() {
 					asset_out: BTC,
 					amount_out: ONE,
 					max_limit: 10 * ONE,
-					slippage: None,
 					route: create_bounded_vec(vec![]),
 				})
 				.build();

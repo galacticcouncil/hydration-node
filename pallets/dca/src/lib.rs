@@ -557,7 +557,6 @@ where
 				asset_out,
 				amount_in,
 				min_limit,
-				slippage,
 				route,
 			} => {
 				let remaining_amount =
@@ -567,7 +566,7 @@ where
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, *slippage)?;
+					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, schedule.slippage)?;
 				let last_block_slippage_min_limit = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
@@ -605,7 +604,6 @@ where
 				asset_in,
 				asset_out,
 				amount_out,
-				slippage,
 				max_limit,
 				route,
 			} => {
@@ -614,7 +612,7 @@ where
 				Self::unallocate_amount(schedule_id, schedule, amount_in)?;
 
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_last_block_slippage(*asset_in, *asset_out, *amount_out, *slippage)?;
+					Self::calculate_last_block_slippage(*asset_in, *asset_out, *amount_out, schedule.slippage)?;
 				let last_block_slippage_max_limit = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
