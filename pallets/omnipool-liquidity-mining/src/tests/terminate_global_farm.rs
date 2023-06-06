@@ -39,13 +39,14 @@ fn terminate_global_farm_should_work() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
+			FixedU128::one(),
 		)
 		.build()
 		.execute_with(|| {
 			let global_farm_id = 1;
 
 			assert_ok!(OmnipoolMining::terminate_global_farm(
-				Origin::signed(GC),
+				RuntimeOrigin::signed(GC),
 				global_farm_id,
 			));
 
@@ -83,13 +84,14 @@ fn terminate_global_farm_should_fail_when_origin_is_none() {
 			GC,
 			Perquintill::from_float(0.000_000_15_f64),
 			1_000,
+			FixedU128::one(),
 		)
 		.build()
 		.execute_with(|| {
 			let global_farm_id = 1;
 
 			assert_noop!(
-				OmnipoolMining::terminate_global_farm(Origin::none(), global_farm_id,),
+				OmnipoolMining::terminate_global_farm(RuntimeOrigin::none(), global_farm_id,),
 				BadOrigin
 			);
 		});

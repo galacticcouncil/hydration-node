@@ -22,7 +22,7 @@ pub use frame_support::{assert_noop, assert_ok, parameter_types};
 
 use frame_system::EnsureRoot;
 use hydra_dx_math::omnipool::types::BalanceUpdate;
-use orml_traits::{parameter_type_with_key, GetByKey};
+use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::traits::{ConstU128, ConstU32};
 use sp_runtime::DispatchResult;
@@ -104,8 +104,8 @@ impl frame_system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -113,7 +113,7 @@ impl frame_system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -134,7 +134,7 @@ parameter_types! {
 }
 
 impl pallet_circuit_breaker::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type Balance = Balance;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
@@ -157,7 +157,7 @@ impl Contains<AccountId> for CircuitBreakerWhitelist {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -173,19 +173,17 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
 }
 
 parameter_types! {
@@ -194,29 +192,26 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PosiitionCollectionId: u32= 1000;
 
+	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
+	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
 	pub const TVLCap: Balance = Balance::MAX;
-}
-
-pub struct FeeProvider;
-
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
-		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
-	}
+	pub MinWithdrawFee: Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
+	type ProtocolFee = ProtocolFee;
+	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -231,22 +226,23 @@ impl pallet_omnipool::Config for Test {
 	type CollectionId = u32;
 	type OmnipoolHooks = CircuitBreakerHooks<Test>;
 	type PriceBarrier = ();
-	type Fee = FeeProvider;
+	type MinWithdrawalFee = MinWithdrawFee;
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
 }
 
 pub struct CircuitBreakerHooks<T>(PhantomData<T>);
 
-impl<T> OmnipoolHooks<Origin, AssetId, Balance> for CircuitBreakerHooks<T>
+impl<T> OmnipoolHooks<RuntimeOrigin, AssetId, Balance> for CircuitBreakerHooks<T>
 where
 	// Lrna: Get<AssetId>,
 	T: Config + pallet_circuit_breaker::Config,
 	<T as pallet_circuit_breaker::Config>::Balance: From<u128>,
 	<T as pallet_circuit_breaker::Config>::AssetId: From<u32>, //TODO: get  rid of these if possible
-	<T as frame_system::Config>::Origin: From<Origin>,
+	<T as frame_system::Config>::RuntimeOrigin: From<RuntimeOrigin>,
 {
 	type Error = DispatchError;
 
-	fn on_liquidity_changed(origin: Origin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_liquidity_changed(origin: RuntimeOrigin, asset: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
 		/*CircuitBreaker::calculate_and_store_liquidity_limit(asset.asset_id, asset.before.reserve)?;
 		CircuitBreaker::ensure_and_update_liquidity_limit(asset.asset_id, asset.after.reserve)?;*/
 
@@ -273,7 +269,7 @@ where
 	}
 
 	fn on_trade(
-		_: Origin,
+		_: RuntimeOrigin,
 		asset_in: AssetInfo<AssetId, Balance>,
 		asset_out: AssetInfo<AssetId, Balance>,
 	) -> Result<Weight, Self::Error> {
@@ -299,7 +295,7 @@ where
 		Ok(Weight::zero())
 	}
 
-	fn on_hub_asset_trade(_: Origin, _: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
+	fn on_hub_asset_trade(_: RuntimeOrigin, _: AssetInfo<AssetId, Balance>) -> Result<Weight, Self::Error> {
 		Ok(Weight::zero())
 	}
 
@@ -314,6 +310,7 @@ where
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use frame_support::weights::Weight;
+use hydra_dx_math::ema::EmaPrice;
 
 pub struct DummyNFT;
 
@@ -363,7 +360,7 @@ impl<AccountId: From<u64> + Into<u64> + Copy> Mutate<AccountId> for DummyNFT {
 
 use crate::Config;
 use hydradx_traits::Registry;
-use pallet_omnipool::traits::{AssetInfo, OmnipoolHooks};
+use pallet_omnipool::traits::{AssetInfo, ExternalPriceProvider, OmnipoolHooks};
 
 pub struct DummyRegistry<T>(sp_std::marker::PhantomData<T>);
 
@@ -573,13 +570,13 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
 		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
 				assert_ok!(Omnipool::initialize_pool(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
@@ -588,13 +585,13 @@ impl ExtBuilder {
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
-						Origin::signed(owner),
+						RuntimeOrigin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
 					assert_ok!(Omnipool::add_token(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						asset_id,
 						price,
 						self.asset_weight_cap,
@@ -610,6 +607,23 @@ impl ExtBuilder {
 	}
 }
 
-pub fn expect_events(e: Vec<Event>) {
-	test_utils::expect_events::<Event, Test>(e);
+pub fn expect_events(e: Vec<RuntimeEvent>) {
+	test_utils::expect_events::<RuntimeEvent, Test>(e);
+}
+
+pub struct WithdrawFeePriceOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+		Ok(price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
 }

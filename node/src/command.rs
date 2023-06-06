@@ -249,6 +249,9 @@ pub fn run() -> sc_cli::Result<()> {
 					>(&config)?;
 					cmd.run(partials.client)
 				}),
+				#[cfg(not(feature = "runtime-benchmarks"))]
+				BenchmarkCmd::Storage(_) => Err("Storage benchmarking can be enabled with `--features runtime-benchmarks`.".into()),
+				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
 					let (client, backend, _, _) = new_partial(&config)?;
 					let db = backend.expose_db();
@@ -325,7 +328,9 @@ pub fn run() -> sc_cli::Result<()> {
 		}
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
+			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 			let runner = cli.create_runner(cmd)?;
+
 			runner.async_run(|config| {
 				// we don't need any of the components of new_partial, just a runtime, or a task
 				// manager to do `async_run`.
@@ -333,7 +338,13 @@ pub fn run() -> sc_cli::Result<()> {
 				let task_manager = sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
 					.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
-				Ok((cmd.run::<Block, service::HydraDXExecutorDispatch>(config), task_manager))
+				Ok((
+					cmd.run::<Block, ExtendedHostFunctions<
+						sp_io::SubstrateHostFunctions,
+						<service::HydraDXExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+					>>(),
+					task_manager,
+				))
 			})
 		}
 		#[cfg(not(feature = "try-runtime"))]

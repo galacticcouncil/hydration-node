@@ -75,6 +75,8 @@ thread_local! {
 	pub static MAX_OUT_RATIO: RefCell<Balance> = RefCell::new(1u128);
 	pub static MAX_PRICE_DIFF: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
 	pub static EXT_PRICE_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
+	pub static WITHDRAWAL_FEE: RefCell<Permill> = RefCell::new(Permill::from_percent(0));
+	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 }
 
 construct_runtime!(
@@ -94,8 +96,8 @@ impl frame_system::Config for Test {
 	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -103,7 +105,7 @@ impl frame_system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
@@ -120,7 +122,7 @@ impl frame_system::Config for Test {
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -136,19 +138,17 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
 }
 
 parameter_types! {
@@ -167,23 +167,18 @@ parameter_types! {
 	pub const TVLCap: Balance = Balance::MAX;
 	pub MaxPriceDiff: Permill = MAX_PRICE_DIFF.with(|v| *v.borrow());
 	pub FourPercentDiff: Permill = Permill::from_percent(4);
-}
-
-pub struct FeeProvider;
-
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
-		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
-	}
+	pub MinWithdrawFee: Permill = WITHDRAWAL_FEE.with(|v| *v.borrow());
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u32;
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
+	type ProtocolFee = ProtocolFee;
+	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -201,7 +196,8 @@ impl Config for Test {
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, FourPercentDiff, ()>,
 		EnsurePriceWithin<AccountId, AssetId, MockOracle, MaxPriceDiff, ()>,
 	);
-	type Fee = FeeProvider;
+	type MinWithdrawalFee = MinWithdrawFee;
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
 }
 
 pub struct ExtBuilder {
@@ -256,6 +252,12 @@ impl Default for ExtBuilder {
 			*v.borrow_mut() = Permill::from_percent(0);
 		});
 		EXT_PRICE_ADJUSTMENT.with(|v| {
+			*v.borrow_mut() = (0, 0, false);
+		});
+		WITHDRAWAL_FEE.with(|v| {
+			*v.borrow_mut() = Permill::from_percent(0);
+		});
+		WITHDRAWAL_ADJUSTMENT.with(|v| {
 			*v.borrow_mut() = (0, 0, false);
 		});
 
@@ -351,6 +353,15 @@ impl ExtBuilder {
 		});
 		self
 	}
+	pub fn with_min_withdrawal_fee(self, fee: Permill) -> Self {
+		WITHDRAWAL_FEE.with(|v| *v.borrow_mut() = fee);
+		self
+	}
+
+	pub fn with_withdrawal_adjustment(self, adjustment: (u32, u32, bool)) -> Self {
+		WITHDRAWAL_ADJUSTMENT.with(|v| *v.borrow_mut() = adjustment);
+		self
+	}
 
 	pub fn with_token(
 		mut self,
@@ -416,13 +427,13 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
 		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
 			r.execute_with(|| {
 				assert_ok!(Omnipool::initialize_pool(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
@@ -431,13 +442,13 @@ impl ExtBuilder {
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
-						Origin::signed(owner),
+						RuntimeOrigin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
 					assert_ok!(Omnipool::add_token(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						asset_id,
 						price,
 						self.asset_weight_cap,
@@ -538,10 +549,38 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 	type Error = DispatchError;
 
 	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
-		assert_eq!(asset_b, LRNA);
-		let asset_state = Omnipool::load_asset_state(asset_a)?;
-		let price = EmaPrice::new(asset_state.reserve, asset_state.hub_reserve);
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
 		let adjusted_price = EXT_PRICE_ADJUSTMENT.with(|v| {
+			let (n, d, neg) = *v.borrow();
+			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
+			if neg {
+				saturating_sub(price, adjustment)
+			} else {
+				saturating_add(price, adjustment)
+			}
+		});
+
+		Ok(adjusted_price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
+}
+
+pub struct WithdrawFeePriceOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+
+		let adjusted_price = WITHDRAWAL_ADJUSTMENT.with(|v| {
 			let (n, d, neg) = *v.borrow();
 			let adjustment = EmaPrice::new(price.n * n as u128, price.d * d as u128);
 			if neg {
@@ -563,7 +602,7 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for MockOracle {
 pub(super) fn round_to_rational((n, d): (U256, U256), rounding: Rounding) -> EmaPrice {
 	let shift = n.bits().max(d.bits()).saturating_sub(128);
 	let (n, d) = if shift > 0 {
-		let min_n = if n.is_zero() { 0 } else { 1 };
+		let min_n = u128::from(!n.is_zero());
 		let (bias_n, bias_d) = rounding.to_bias(1);
 		let shifted_n = (n >> shift).low_u128();
 		let shifted_d = (d >> shift).low_u128();

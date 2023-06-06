@@ -99,15 +99,15 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
-	fn anonymous(p: u32) -> Weight {
-		Weight::from_ref_time(34_159_000 as u64) // Standard Error: 6_000
-			.saturating_add(Weight::from_ref_time(41_000 as u64).saturating_mul(p as u64))
+	fn create_pure(p: u32) -> Weight {
+		Weight::from_ref_time(38_748_697 as u64)
+			.saturating_add(Weight::from_ref_time(19_022 as u64).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
-	fn kill_anonymous(p: u32) -> Weight {
-		Weight::from_ref_time(26_935_000 as u64) // Standard Error: 6_000
-			.saturating_add(Weight::from_ref_time(127_000 as u64).saturating_mul(p as u64))
+	fn kill_pure(p: u32) -> Weight {
+		Weight::from_ref_time(31_933_568 as u64)
+			.saturating_add(Weight::from_ref_time(50_250 as u64).saturating_mul(p as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}

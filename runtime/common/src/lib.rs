@@ -23,18 +23,17 @@ pub mod weights;
 use codec::alloc::vec;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
-use frame_support::{parameter_types, weights::Pays, PalletId, RuntimeDebug};
+use frame_support::{parameter_types, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
 use hydradx_traits::oracle::{OraclePeriod, Source};
-use pallet_dynamic_fees::types::FeeParams;
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
-	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, One, Verify, Zero},
-	FixedPointNumber, FixedU128, MultiSignature, Perbill, Percent, Permill, Perquintill,
+	traits::{AccountIdConversion, BlakeTwo256, Bounded, IdentifyAccount, Verify},
+	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 
@@ -55,6 +54,7 @@ pub type Index = u32;
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;
 
+use pallet_dca::types::NamedReserveIdentifier;
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
@@ -118,14 +118,6 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	]
 }
 
-pub struct DustRemovalWhitelist;
-
-impl Contains<AccountId> for DustRemovalWhitelist {
-	fn contains(a: &AccountId) -> bool {
-		get_all_module_accounts().contains(a)
-	}
-}
-
 pub struct CircuitBreakerWhitelist;
 
 impl Contains<AccountId> for CircuitBreakerWhitelist {
@@ -173,6 +165,8 @@ parameter_types! {
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+	/// The maximum amount of the multiplier.
+	pub MaximumMultiplier: Multiplier = Bounded::max_value();
 }
 
 // pallet treasury
@@ -207,7 +201,6 @@ parameter_types! {
 
 // pallet preimage
 parameter_types! {
-	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub PreimageByteDeposit: Balance = deposit(0, 1);
 }
@@ -320,11 +313,6 @@ parameter_types! {
 	pub ClaimMessagePrefix: &'static [u8] = b"I hereby claim all my HDX tokens to wallet:";
 }
 
-// pallet transaction multi payment
-parameter_types! {
-	pub const MultiPaymentCurrencySetFee: Pays = Pays::Yes;
-}
-
 // pallet asset registry
 parameter_types! {
 	pub const RegistryStrLimit: u32 = 32;
@@ -360,19 +348,22 @@ parameter_types! {
 	pub const OmnipoolLMOracleSource: Source = OMNIPOOL_SOURCE;
 }
 
-// Dynamic fees
+// pallet dca
 parameter_types! {
-	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
-		min_fee: Permill::from_rational(25u32,10000u32),
-		max_fee: Permill::from_percent(40),
-		decay: FixedU128::zero(),
-		amplification: FixedU128::one(),
-	};
+	pub MinBudgetInNativeCurrency: Balance = 1000 * UNITS;
+	pub MaxSchedulesPerBlock: u32 = 20;
+	pub MaxPriceDifference: Permill = Permill::from_rational(15u32, 1000u32);
+	pub NamedReserveId: NamedReserveIdentifier = *b"dcaorder";
+	pub MaxNumberOfRetriesOnError: u8 = 3;
+}
 
-	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
-		min_fee: Permill::from_rational(5u32,10000u32),
-		max_fee: Permill::from_percent(40),
-		decay: FixedU128::zero(),
-		amplification: FixedU128::one(),
-	};
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn democracy_periods() {
+		// Make sure VoteLockingPeriod > EnactmentPeriod
+		assert!(VoteLockingPeriod::get() > EnactmentPeriod::get());
+	}
 }

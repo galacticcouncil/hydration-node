@@ -107,13 +107,13 @@ construct_runtime!(
 		NodeBlock = Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		Omnipool: pallet_omnipool::{Pallet, Call, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Event<T>},
-		WarehouseLM: warehouse_liquidity_mining::<Instance1>::{Pallet, Storage, Event<T>},
-		OmnipoolMining: omnipool_liquidity_mining::{Pallet, Call, Storage, Event<T>},
-		EmaOracle: pallet_ema_oracle::{Pallet, Call, Storage, Event<T>},
+		System: frame_system,
+		Balances: pallet_balances,
+		Omnipool: pallet_omnipool,
+		Tokens: orml_tokens,
+		WarehouseLM: warehouse_liquidity_mining::<Instance1>,
+		OmnipoolMining: omnipool_liquidity_mining,
+		EmaOracle: pallet_ema_oracle,
 	}
 );
 
@@ -138,8 +138,8 @@ impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = BlockNumber;
 	type Hash = H256;
@@ -147,7 +147,7 @@ impl frame_system::Config for Test {
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
@@ -169,7 +169,7 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Tokens;
 	type CreateOrigin = frame_system::EnsureRoot<AccountId>;
 	type PalletId = LMPalletId;
@@ -192,6 +192,7 @@ parameter_types! {
 }
 
 impl warehouse_liquidity_mining::Config<Instance1> for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type MultiCurrency = Tokens;
 	type PalletId = WarehouseLMPalletId;
@@ -204,13 +205,12 @@ impl warehouse_liquidity_mining::Config<Instance1> for Test {
 	type AssetRegistry = DummyRegistry<Test>;
 	type NonDustableWhitelistHandler = Whitelist;
 	type PriceAdjustment = DummyOracle;
-	type Event = Event;
 }
 
 impl pallet_balances::Config for Test {
 	type Balance = Balance;
 	type DustRemoval = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ConstU128<1>;
 	type AccountStore = System;
 	type WeightInfo = ();
@@ -226,19 +226,17 @@ parameter_type_with_key! {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i128;
 	type CurrencyId = AssetId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = ();
 	type MaxLocks = ();
 	type DustRemovalWhitelist = Everything;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = ();
+	type CurrencyHooks = ();
 }
 
 //NOTE: oracle is not used in the unit tests. It's here to satify benchmarks bounds.
@@ -248,7 +246,7 @@ parameter_types! {
 		OraclePeriod::LastBlock, OraclePeriod::Short, OraclePeriod::TenMinutes]);
 }
 impl pallet_ema_oracle::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type BlockNumberProvider = MockBlockNumberProvider;
 	type SupportedPeriods = SupportedPeriods;
@@ -261,28 +259,25 @@ parameter_types! {
 	pub const DAIAssetId: AssetId = DAI;
 	pub const PositionCollectionId: CollectionId = OMNIPOOL_COLLECTION_ID;
 
+	pub ProtocolFee: Permill = PROTOCOL_FEE.with(|v| *v.borrow());
+	pub AssetFee: Permill = ASSET_FEE.with(|v| *v.borrow());
 	pub AssetWeightCap: Permill =ASSET_WEIGHT_CAP.with(|v| *v.borrow());
 	pub MinAddedLiquidity: Balance = MIN_ADDED_LIQUDIITY.with(|v| *v.borrow());
 	pub MinTradeAmount: Balance = MIN_TRADE_AMOUNT.with(|v| *v.borrow());
 	pub MaxInRatio: Balance = MAX_IN_RATIO.with(|v| *v.borrow());
 	pub MaxOutRatio: Balance = MAX_OUT_RATIO.with(|v| *v.borrow());
-}
-
-pub struct FeeProvider;
-
-impl GetByKey<AssetId, (Permill, Permill)> for FeeProvider {
-	fn get(_: &AssetId) -> (Permill, Permill) {
-		(ASSET_FEE.with(|v| *v.borrow()), PROTOCOL_FEE.with(|v| *v.borrow()))
-	}
+	pub MinWithdrawFee: Permill = Permill::from_percent(0);
 }
 
 impl pallet_omnipool::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type AssetId = AssetId;
 	type PositionItemId = u128;
 	type Currency = Tokens;
 	type AuthorityOrigin = EnsureRoot<Self::AccountId>;
 	type HubAssetId = LRNAAssetId;
+	type ProtocolFee = ProtocolFee;
+	type AssetFee = AssetFee;
 	type StableCoinAssetId = DAIAssetId;
 	type WeightInfo = ();
 	type HdxAssetId = HDXAssetId;
@@ -297,7 +292,8 @@ impl pallet_omnipool::Config for Test {
 	type CollectionId = u128;
 	type OmnipoolHooks = ();
 	type PriceBarrier = ();
-	type Fee = FeeProvider;
+	type MinWithdrawalFee = MinWithdrawFee;
+	type ExternalPriceOracle = WithdrawFeePriceOracle;
 }
 
 pub struct ExtBuilder {
@@ -323,6 +319,7 @@ pub struct ExtBuilder {
 		AccountId,
 		Perquintill,
 		Balance,
+		FixedU128,
 	)>,
 	lm_yield_farms: Vec<(AccountId, GlobalFarmId, AssetId, FarmMultiplier, Option<LoyaltyCurve>)>,
 }
@@ -428,6 +425,7 @@ impl ExtBuilder {
 		owner: AccountId,
 		yield_per_period: Perquintill,
 		min_deposit: Balance,
+		lrna_price_adjustment: FixedU128,
 	) -> Self {
 		self.lm_global_farms.push((
 			total_rewards,
@@ -437,6 +435,7 @@ impl ExtBuilder {
 			owner,
 			yield_per_period,
 			min_deposit,
+			lrna_price_adjustment,
 		));
 		self
 	}
@@ -506,7 +505,7 @@ impl ExtBuilder {
 		let mut r: sp_io::TestExternalities = t.into();
 
 		r.execute_with(|| {
-			assert_ok!(Omnipool::set_tvl_cap(Origin::root(), self.tvl_cap,));
+			assert_ok!(Omnipool::set_tvl_cap(RuntimeOrigin::root(), self.tvl_cap,));
 		});
 
 		if let Some((stable_price, native_price)) = self.init_pool {
@@ -514,7 +513,7 @@ impl ExtBuilder {
 				set_block_number(1);
 
 				assert_ok!(Omnipool::initialize_pool(
-					Origin::root(),
+					RuntimeOrigin::root(),
 					stable_price,
 					native_price,
 					Permill::from_percent(100),
@@ -523,13 +522,13 @@ impl ExtBuilder {
 
 				for (asset_id, price, owner, amount) in self.pool_tokens {
 					assert_ok!(Tokens::transfer(
-						Origin::signed(owner),
+						RuntimeOrigin::signed(owner),
 						Omnipool::protocol_account(),
 						asset_id,
 						amount
 					));
 					assert_ok!(Omnipool::add_token(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						asset_id,
 						price,
 						self.asset_weight_cap,
@@ -538,12 +537,12 @@ impl ExtBuilder {
 				}
 
 				for p in self.omnipool_liquidity {
-					assert_ok!(Omnipool::add_liquidity(Origin::signed(p.0), p.1, p.2));
+					assert_ok!(Omnipool::add_liquidity(RuntimeOrigin::signed(p.0), p.1, p.2));
 				}
 
 				for gf in self.lm_global_farms {
 					assert_ok!(OmnipoolMining::create_global_farm(
-						Origin::root(),
+						RuntimeOrigin::root(),
 						gf.0,
 						gf.1,
 						gf.2,
@@ -551,12 +550,13 @@ impl ExtBuilder {
 						gf.4,
 						gf.5,
 						gf.6,
+						gf.7,
 					));
 				}
 
 				for yf in self.lm_yield_farms {
 					assert_ok!(OmnipoolMining::create_yield_farm(
-						Origin::signed(yf.0),
+						RuntimeOrigin::signed(yf.0),
 						yf.1,
 						yf.2,
 						yf.3,
@@ -571,6 +571,8 @@ impl ExtBuilder {
 }
 
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate, Transfer};
+use hydra_dx_math::ema::EmaPrice;
+
 pub struct DummyNFT;
 
 impl<AccountId: From<u128>> Inspect<AccountId> for DummyNFT {
@@ -667,6 +669,7 @@ where
 }
 
 use hydradx_traits::oracle::AggregatedPriceOracle;
+use pallet_omnipool::traits::ExternalPriceProvider;
 
 pub struct DummyOracle;
 pub type OraclePrice = hydra_dx_math::ema::EmaPrice;
@@ -755,4 +758,21 @@ impl DustRemovalAccountWhitelist<AccountId> for Whitelist {
 
 pub fn set_block_number(n: u64) {
 	System::set_block_number(n);
+}
+
+pub struct WithdrawFeePriceOracle;
+
+impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
+	type Error = DispatchError;
+
+	fn get_price(asset_a: AssetId, asset_b: AssetId) -> Result<EmaPrice, Self::Error> {
+		assert_eq!(asset_a, LRNA);
+		let asset_state = Omnipool::load_asset_state(asset_b)?;
+		let price = EmaPrice::new(asset_state.hub_reserve, asset_state.reserve);
+		Ok(price)
+	}
+
+	fn get_price_weight() -> Weight {
+		todo!()
+	}
 }

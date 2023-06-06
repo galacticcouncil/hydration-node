@@ -168,7 +168,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// The overarching event type.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Identifier for the class of asset.
 		type AssetId: Member
@@ -195,7 +195,7 @@ pub mod pallet {
 			+ From<u128>;
 
 		/// Origin able to change the trade volume limit of an asset.
-		type TechnicalOrigin: EnsureOrigin<Self::Origin>;
+		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// List of accounts that bypass checks for adding/removing liquidity. Root is always whitelisted
 		type WhitelistedAccounts: Contains<Self::AccountId>;
@@ -333,6 +333,7 @@ pub mod pallet {
 		///
 		/// Emits `TradeVolumeLimitChanged` event when successful.
 		///
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_trade_volume_limit())]
 		pub fn set_trade_volume_limit(
 			origin: OriginFor<T>,
@@ -364,6 +365,7 @@ pub mod pallet {
 		///
 		/// Emits `AddLiquidityLimitChanged` event when successful.
 		///
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_add_liquidity_limit())]
 		pub fn set_add_liquidity_limit(
 			origin: OriginFor<T>,
@@ -397,6 +399,7 @@ pub mod pallet {
 		///
 		/// Emits `RemoveLiquidityLimitChanged` event when successful.
 		///
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::set_remove_liquidity_limit())]
 		pub fn set_remove_liquidity_limit(
 			origin: OriginFor<T>,
