@@ -899,8 +899,6 @@ impl pallet_omnipool::Config for Runtime {
 	type HdxAssetId = NativeAssetId;
 	type HubAssetId = LRNA;
 	type StableCoinAssetId = StableAssetId;
-	type ProtocolFee = ProtocolFee;
-	type AssetFee = AssetFee;
 	type MinWithdrawalFee = MinimumWithdrawalFee;
 	type MinimumTradingLimit = MinTradingLimit;
 	type MinimumPoolLiquidity = MinPoolLiquidity;
@@ -929,6 +927,7 @@ impl pallet_omnipool::Config for Runtime {
 		>,
 	);
 	type ExternalPriceOracle = EmaOraclePriceAdapter<EmaOracleSpotPriceShort, Runtime>;
+	type Fee = pallet_dynamic_fees::UpdateAndRetrieveFees<Runtime>;
 }
 
 impl pallet_transaction_pause::Config for Runtime {
@@ -1064,6 +1063,20 @@ impl pallet_otc::Config for Runtime {
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const DynamicFeesOraclePeriod: OraclePeriod = OraclePeriod::LastBlock;
+}
+
+impl pallet_dynamic_fees::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = System;
+	type Fee = Permill;
+	type AssetId = AssetId;
+	type Oracle = adapters::OracleAssetVolumeProvider<Runtime, LRNA, DynamicFeesOraclePeriod>;
+	type AssetFeeParameters = AssetFeeParams;
+	type ProtocolFeeParameters = ProtocolFeeParams;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1102,6 +1115,7 @@ construct_runtime!(
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
 		Router: pallet_route_executor = 67,
+		DynamicFees: pallet_dynamic_fees = 68,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

@@ -23,6 +23,7 @@ pallet-circuit-breaker = { workspace = true }
 pallet-omnipool-liquidity-mining = { workspace = true }
 pallet-claims = { workspace = true }
 pallet-dca = { workspace = true }
+pallet-dynamic-fees = { workspace = true }
 
 hydra-dx-math = { workspace = true }
 
