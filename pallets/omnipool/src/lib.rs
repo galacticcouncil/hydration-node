@@ -84,9 +84,6 @@ use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
-#[cfg(any(feature = "runtime-benchmarks", test))]
-mod benchmarks;
-
 #[cfg(test)]
 mod tests;
 
@@ -217,6 +214,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// State of an asset in the omnipool
+	#[pallet::getter(fn assets)]
 	pub(super) type Assets<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AssetState<Balance>>;
 
 	#[pallet::storage]
@@ -230,6 +228,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	/// LP positions. Maps NFT instance id to corresponding position
+	#[pallet::getter(fn positions)]
 	pub(super) type Positions<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::PositionItemId, Position<Balance, T::AssetId>>;
 
