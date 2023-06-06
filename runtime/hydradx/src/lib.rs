@@ -24,6 +24,9 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+#[cfg(test)]
+mod tests;
+
 use codec::{Decode, Encode};
 use common_runtime::adapters::OraclePriceProviderAdapterForOmnipool;
 use frame_system::{EnsureRoot, RawOrigin};
