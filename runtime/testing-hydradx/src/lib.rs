@@ -722,7 +722,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				c,
 				RuntimeCall::Balances(..) | RuntimeCall::Currencies(..) | RuntimeCall::Tokens(..)
 			),
-			ProxyType::Omnipool => matches!(
+			ProxyType::Liquidity => matches!(
 				c,
 				RuntimeCall::Omnipool(pallet_omnipool::Call::add_liquidity { .. })
 					| RuntimeCall::Omnipool(pallet_omnipool::Call::remove_liquidity { .. })
