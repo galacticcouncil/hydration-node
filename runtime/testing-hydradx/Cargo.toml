@@ -230,4 +230,5 @@ std = [
     "pallet-duster/std",
     "warehouse-liquidity-mining/std",
     "pallet-omnipool-liquidity-mining/std",
+    "pallet-dynamic-fees/std",
 ]
