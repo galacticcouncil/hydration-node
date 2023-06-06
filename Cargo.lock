@@ -10172,6 +10172,7 @@ dependencies = [
  "pallet-dca",
  "pallet-democracy",
  "pallet-duster",
+ "pallet-dynamic-fees",
  "pallet-elections-phragmen",
  "pallet-ema-oracle",
  "pallet-liquidity-mining",
