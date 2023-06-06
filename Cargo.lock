@@ -6425,7 +6425,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
