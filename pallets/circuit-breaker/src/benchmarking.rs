@@ -50,7 +50,6 @@ benchmarks! {
 		where T::AssetId: From<u32>,
 	}
 
-	#[extra]
 	on_finalize {
 		let n in 0 .. 400;
 		let m in 0 .. 400;
@@ -75,7 +74,6 @@ benchmarks! {
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
-	#[extra]
 	on_finalize_single {
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);
@@ -91,7 +89,6 @@ benchmarks! {
 	}: { Pallet::<T>::on_finalize(block_num); }
 	verify {}
 
-	#[extra]
 	on_finalize_empty {
 		let block_num: T::BlockNumber = 5u32.into();
 		frame_system::Pallet::<T>::set_block_number(block_num);

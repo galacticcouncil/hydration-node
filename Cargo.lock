@@ -1218,6 +1218,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-ema-oracle",
  "pallet-identity",
  "pallet-liquidity-mining",
@@ -1229,6 +1230,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-timestamp",
+ "pallet-tips",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
  "pallet-transaction-payment",
@@ -6425,7 +6427,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6574,7 +6576,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -10129,7 +10131,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.10"
+version = "1.7.11"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",

@@ -795,7 +795,7 @@ impl pallet_transaction_multi_payment::Config for Runtime {
 	type AcceptedCurrencyOrigin = SuperMajorityTechCommittee;
 	type Currencies = Currencies;
 	type SpotPriceProvider = Omnipool;
-	type WeightInfo = weights::transaction_multi_payment::HydraWeight<Runtime>;
+	type WeightInfo = weights::payment::HydraWeight<Runtime>;
 	type WeightToFee = WeightToFee;
 	type NativeAssetId = NativeAssetId;
 }
