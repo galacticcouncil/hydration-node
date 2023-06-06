@@ -40,7 +40,7 @@ impl ScheduleBuilder {
 				asset_in: HDX,
 				asset_out: BTC,
 				amount_out: ONE,
-				max_limit: 2 * ONE,
+				max_amount_in: 2 * ONE,
 				route: create_bounded_vec(vec![Trade {
 					pool: PoolType::Omnipool,
 					asset_in: HDX,

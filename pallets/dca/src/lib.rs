@@ -556,7 +556,7 @@ where
 				asset_in,
 				asset_out,
 				amount_in,
-				min_limit,
+				min_amount_out,
 				route,
 			} => {
 				let remaining_amount =
@@ -577,8 +577,8 @@ where
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
-				if *min_limit > last_block_slippage_min_limit {
-					ensure!(amount_out >= (*min_limit).into(), Error::<T>::TradeLimitReached);
+				if *min_amount_out > last_block_slippage_min_limit {
+					ensure!(amount_out >= (*min_amount_out).into(), Error::<T>::TradeLimitReached);
 				} else {
 					ensure!(
 						amount_out >= last_block_slippage_min_limit.into(),
@@ -604,7 +604,7 @@ where
 				asset_in,
 				asset_out,
 				amount_out,
-				max_limit,
+				max_amount_in,
 				route,
 			} => {
 				let amount_in = Self::get_amount_in_for_buy(amount_out, route)?;
@@ -617,8 +617,8 @@ where
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				if *max_limit < last_block_slippage_max_limit {
-					ensure!(amount_in <= *max_limit, Error::<T>::TradeLimitReached);
+				if *max_amount_in < last_block_slippage_max_limit {
+					ensure!(amount_in <= *max_amount_in, Error::<T>::TradeLimitReached);
 				} else {
 					ensure!(
 						amount_in <= last_block_slippage_max_limit,

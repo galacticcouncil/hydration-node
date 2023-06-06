@@ -56,7 +56,7 @@ fn schedule_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Co
 			asset_in,
 			asset_out,
 			amount_out: amount,
-			max_limit: Balance::MAX,
+			max_amount_in: Balance::MAX,
 			route: create_bounded_vec::<T>(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -91,7 +91,7 @@ fn schedule_buy_fake<T: Config + pallet_route_executor::Config + pallet_omnipool
 			asset_in,
 			asset_out,
 			amount_out: amount,
-			max_limit: Balance::MAX,
+			max_amount_in: Balance::MAX,
 			route: create_bounded_vec::<T>(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -119,7 +119,7 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 			asset_in,
 			asset_out,
 			amount_in: amount,
-			min_limit: Balance::MIN,
+			min_amount_out: Balance::MIN,
 			route: create_bounded_vec::<T>(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,

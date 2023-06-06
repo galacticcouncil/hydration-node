@@ -124,7 +124,7 @@ fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_out,
-				max_limit: Balance::MIN,
+				max_amount_in: Balance::MIN,
 				route: create_bounded_vec(vec![Trade {
 					pool: PoolType::Omnipool,
 					asset_in: HDX,
@@ -578,7 +578,7 @@ fn sell_schedule_should_be_terminated_after_retries() {
 				asset_in: HDX,
 				asset_out: DAI,
 				amount_in: amount_to_sell,
-				min_limit: Balance::MAX,
+				min_amount_out: Balance::MAX,
 				route: create_bounded_vec(vec![Trade {
 					pool: PoolType::Omnipool,
 					asset_in: HDX,
@@ -1237,7 +1237,7 @@ fn schedule_fake_with_buy_order(
 			asset_in,
 			asset_out,
 			amount_out: amount,
-			max_limit: Balance::MAX,
+			max_amount_in: Balance::MAX,
 			route: create_bounded_vec(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,
@@ -1265,7 +1265,7 @@ fn schedule_fake_with_sell_order(
 			asset_in,
 			asset_out,
 			amount_in: amount,
-			min_limit: Balance::MIN,
+			min_amount_out: Balance::MIN,
 			route: create_bounded_vec(vec![Trade {
 				pool: PoolType::Omnipool,
 				asset_in,

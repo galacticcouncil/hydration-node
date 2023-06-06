@@ -52,7 +52,7 @@ fn successfull_sell_dca_execution_should_emit_trade_executed_event() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -107,7 +107,7 @@ fn successfull_buy_dca_execution_should_emit_trade_executed_event() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit,
+					max_amount_in: max_limit,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -161,7 +161,7 @@ fn one_sell_dca_execution_should_unreserve_amount_in() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -226,7 +226,7 @@ fn sell_schedule_should_sell_remaining_when_there_is_not_enough_left() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -292,7 +292,7 @@ fn sell_schedule_should_continue_when_there_is_exact_amount_in_left_as_remaining
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -340,7 +340,7 @@ fn one_buy_dca_execution_should_unreserve_exact_amount_in() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit,
+					max_amount_in: max_limit,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -391,7 +391,7 @@ fn one_buy_dca_execution_should_calculate_exact_amount_in_when_multiple_pools_in
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit,
+					max_amount_in: max_limit,
 					route: create_bounded_vec(vec![
 						Trade {
 							pool: PoolType::Omnipool,
@@ -455,7 +455,7 @@ fn full_sell_dca_should_be_completed_with_selling_leftover_in_last_trade() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -499,7 +499,7 @@ fn full_sell_dca_should_be_completed_when_some_successfull_dca_execution_happene
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -546,7 +546,7 @@ fn full_buy_dca_should_be_completed_when_some_successfull_dca_execution_happened
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: Balance::MAX,
+					max_amount_in: Balance::MAX,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -592,7 +592,7 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -609,7 +609,7 @@ fn full_sell_dca_should_be_completed_for_multiple_users() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -667,7 +667,7 @@ fn multiple_sell_dca_should_be_completed_for_one_user() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -718,7 +718,7 @@ fn full_sell_dca_should_be_completed_when_exact_total_amount_specified_for_the_t
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -763,7 +763,7 @@ fn full_buy_dca_should_be_completed_when_some_execution_is_successfull_but_not_e
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: Balance::MAX,
+					max_amount_in: Balance::MAX,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -815,7 +815,7 @@ fn full_buy_dca_should_be_completed_without_leftover_fees_are_included_in_budget
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: Balance::MAX,
+					max_amount_in: Balance::MAX,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -861,7 +861,7 @@ fn one_buy_dca_execution_should_use_default_max_price_diff_for_max_limit_calcula
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit: Balance::MAX,
+					max_amount_in: Balance::MAX,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -912,7 +912,7 @@ fn schedule_is_planned_for_next_block_when_one_execution_finished() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_limit: 10 * ONE,
+					max_amount_in: 10 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -950,7 +950,7 @@ fn schedule_is_planned_with_period_when_block_has_already_planned_schedule() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -996,7 +996,7 @@ fn buy_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_limit: 5 * ONE,
+					max_amount_in: 5 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -1050,7 +1050,7 @@ fn sell_dca_schedule_should_be_retried_when_trade_limit_error_happens() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
-					min_limit: Balance::MAX,
+					min_amount_out: Balance::MAX,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -1103,7 +1103,7 @@ fn dca_trade_unallocation_should_be_rolled_back_when_trade_fails() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_limit: 5 * ONE,
+					max_amount_in: 5 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -1149,7 +1149,7 @@ fn dca_schedule_should_terminate_when_error_is_not_configured_to_continue_on() {
 					asset_in: FORBIDDEN_ASSET,
 					asset_out: BTC,
 					amount_in: ONE,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: FORBIDDEN_ASSET,
@@ -1187,7 +1187,7 @@ fn dca_schedule_should_continue_on_multiple_failures_then_terminated() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_limit: 5 * ONE,
+					max_amount_in: 5 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1232,7 +1232,7 @@ fn dca_schedule_should_use_specified_max_retry_count() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_limit: 5 * ONE,
+					max_amount_in: 5 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1285,7 +1285,7 @@ fn buy_dca_schedule_should_continue_on_slippage_error() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_limit: Balance::MAX,
+					max_amount_in: Balance::MAX,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1325,7 +1325,7 @@ fn sell_dca_schedule_continue_on_slippage_error() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1365,7 +1365,7 @@ fn dca_schedule_retry_should_be_reset_when_successfull_trade_after_failed_ones()
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1413,7 +1413,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 					asset_in: DAI,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_limit: 50 * ONE,
+					max_amount_in: 50 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: DAI,
@@ -1457,7 +1457,7 @@ fn execution_fee_should_be_still_taken_from_user_in_sold_currency_in_case_of_fai
 					asset_in: DAI,
 					asset_out: BTC,
 					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
-					max_limit: 5 * ONE,
+					max_amount_in: 5 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: DAI,
@@ -1501,7 +1501,7 @@ fn execution_fee_should_be_taken_from_user_in_sold_currency_in_case_of_successfu
 					asset_in: DAI,
 					asset_out: BTC,
 					amount_in,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: DAI,
@@ -1547,7 +1547,7 @@ fn sell_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1591,7 +1591,7 @@ fn buy_dca_native_execution_fee_should_be_taken_and_sent_to_treasury() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: 10 * ONE,
-					max_limit: 10 * ONE,
+					max_amount_in: 10 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1637,7 +1637,7 @@ fn slippage_limit_should_be_used_for_buy_dca_when_it_is_smaller_than_specified_t
 					asset_in: HDX,
 					asset_out: DAI,
 					amount_out: buy_amount,
-					max_limit: Balance::MAX,
+					max_amount_in: Balance::MAX,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1680,7 +1680,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1743,7 +1743,7 @@ fn one_sell_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_use
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1805,7 +1805,7 @@ fn one_buy_dca_execution_should_be_rescheduled_when_price_diff_is_more_than_max_
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit,
+					max_amount_in: max_limit,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1853,7 +1853,7 @@ fn specified_slippage_should_be_used_in_circuit_breaker_price_check() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_out: amount_to_buy,
-					max_limit,
+					max_amount_in: max_limit,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1904,7 +1904,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -1957,7 +1957,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -2002,7 +2002,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -2068,7 +2068,7 @@ fn dca_sell_schedule_should_be_completed_after_one_trade_when_total_amount_is_eq
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -2107,7 +2107,7 @@ fn dca_sell_schedule_should_be_terminated_when_schedule_allocation_is_more_than_
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in,
-					min_limit: 5 * ONE,
+					min_amount_out: 5 * ONE,
 					route: create_bounded_vec(vec![Trade {
 						pool: Omnipool,
 						asset_in: HDX,
@@ -2149,7 +2149,7 @@ fn schedules_are_purged_when_the_block_is_over() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -2203,7 +2203,7 @@ fn sell_schedule_should_be_completed_when_only_5_transaction_fee_left() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -2246,7 +2246,7 @@ fn sell_schedule_should_be_replanned_when_more_than_5_transaction_fee_left_for_n
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,
@@ -2290,7 +2290,7 @@ fn execution_is_still_successfull_when_no_parent_hash_present() {
 					asset_in: HDX,
 					asset_out: BTC,
 					amount_in: amount_to_sell,
-					min_limit: Balance::MIN,
+					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
 						asset_in: HDX,

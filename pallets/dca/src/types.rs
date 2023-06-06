@@ -27,14 +27,14 @@ pub enum Order<AssetId> {
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_in: Balance,
-		min_limit: Balance,
+		min_amount_out: Balance,
 		route: BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	},
 	Buy {
 		asset_in: AssetId,
 		asset_out: AssetId,
 		amount_out: Balance,
-		max_limit: Balance,
+		max_amount_in: Balance,
 		route: BoundedVec<Trade<AssetId>, ConstU32<MAX_NUMBER_OF_TRADES>>,
 	},
 }
