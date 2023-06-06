@@ -117,6 +117,7 @@ fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
 			owner: AccountId::from(ALICE),
 			period: 1u32,
 			total_amount: dca_budget,
+			max_retries: None,
 			order: Order::Buy {
 				asset_in: HDX,
 				asset_out: DAI,
@@ -569,6 +570,7 @@ fn sell_schedule_should_be_terminated_after_retries() {
 			owner: AccountId::from(ALICE),
 			period: 1u32,
 			total_amount: dca_budget,
+			max_retries: None,
 			order: Order::Sell {
 				asset_in: HDX,
 				asset_out: DAI,
@@ -1226,6 +1228,7 @@ fn schedule_fake_with_buy_order(
 		owner: AccountId::from(ALICE),
 		period: 2u32,
 		total_amount: budget,
+		max_retries: None,
 		order: Order::Buy {
 			asset_in,
 			asset_out,
@@ -1252,6 +1255,7 @@ fn schedule_fake_with_sell_order(
 		owner: AccountId::from(owner),
 		period: 3u32,
 		total_amount,
+		max_retries: None,
 		order: Order::Sell {
 			asset_in,
 			asset_out,
