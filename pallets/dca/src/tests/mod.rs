@@ -22,6 +22,7 @@ struct ScheduleBuilder {
 	pub period: Option<BlockNumber>,
 	pub order: Option<Order<AssetId>>,
 	pub total_amount: Option<Balance>,
+	pub max_retries: Option<Option<u8>>,
 }
 
 impl ScheduleBuilder {
@@ -30,6 +31,7 @@ impl ScheduleBuilder {
 			owner: Some(ALICE),
 			period: Some(ONE_HUNDRED_BLOCKS),
 			total_amount: Some(1000 * ONE),
+			max_retries: Some(None),
 			order: Some(Order::Buy {
 				asset_in: HDX,
 				asset_out: BTC,
@@ -65,11 +67,17 @@ impl ScheduleBuilder {
 		self
 	}
 
+	fn with_max_retries(mut self, max_retries: Option<u8>) -> ScheduleBuilder {
+		self.max_retries = Some(max_retries);
+		self
+	}
+
 	fn build(self) -> Schedule<AccountId, AssetId, BlockNumber> {
 		Schedule {
 			owner: self.owner.unwrap(),
 			period: self.period.unwrap(),
 			total_amount: self.total_amount.unwrap(),
+			max_retries: self.max_retries.unwrap(),
 			order: self.order.unwrap(),
 		}
 	}
