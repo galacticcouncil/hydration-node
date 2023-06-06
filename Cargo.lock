@@ -3839,7 +3839,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "157.0.0"
+version = "158.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6427,7 +6427,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6576,7 +6576,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -10131,7 +10131,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.10"
+version = "1.7.11"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -13046,7 +13046,7 @@ dependencies = [
 
 [[package]]
 name = "testing-hydradx-runtime"
-version = "157.0.0"
+version = "158.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",

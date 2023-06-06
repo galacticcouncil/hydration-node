@@ -24,6 +24,9 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+#[cfg(test)]
+mod tests;
+
 use codec::{Decode, Encode};
 use common_runtime::adapters::OraclePriceProviderAdapterForOmnipool;
 use frame_system::{EnsureRoot, RawOrigin};
@@ -107,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 157,
+	spec_version: 158,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
