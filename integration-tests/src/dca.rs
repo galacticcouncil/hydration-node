@@ -118,6 +118,7 @@ fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
 			period: 1u32,
 			total_amount: dca_budget,
 			max_retries: None,
+			stability_threshold: None,
 			order: Order::Buy {
 				asset_in: HDX,
 				asset_out: DAI,
@@ -571,6 +572,7 @@ fn sell_schedule_should_be_terminated_after_retries() {
 			period: 1u32,
 			total_amount: dca_budget,
 			max_retries: None,
+			stability_threshold: None,
 			order: Order::Sell {
 				asset_in: HDX,
 				asset_out: DAI,
@@ -1229,6 +1231,7 @@ fn schedule_fake_with_buy_order(
 		period: 2u32,
 		total_amount: budget,
 		max_retries: None,
+		stability_threshold: None,
 		order: Order::Buy {
 			asset_in,
 			asset_out,
@@ -1256,6 +1259,7 @@ fn schedule_fake_with_sell_order(
 		period: 3u32,
 		total_amount,
 		max_retries: None,
+		stability_threshold: None,
 		order: Order::Sell {
 			asset_in,
 			asset_out,

@@ -50,6 +50,7 @@ fn schedule_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Co
 		period: 3u32.into(),
 		total_amount: 1100 * ONE,
 		max_retries: None,
+		stability_threshold: None,
 		order: Order::Buy {
 			asset_in,
 			asset_out,
@@ -84,6 +85,7 @@ fn schedule_buy_fake<T: Config + pallet_route_executor::Config + pallet_omnipool
 		period: 3u32.into(),
 		total_amount: 2000 * ONE,
 		max_retries: None,
+		stability_threshold: None,
 		order: Order::Buy {
 			asset_in,
 			asset_out,
@@ -111,6 +113,7 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 		period: 3u32.into(),
 		total_amount: 2000 * ONE,
 		max_retries: None,
+		stability_threshold: None,
 		order: Order::Sell {
 			asset_in,
 			asset_out,
