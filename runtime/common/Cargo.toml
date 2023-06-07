@@ -37,6 +37,7 @@ pallet-otc = { workspace = true }
 pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-route-executor = { workspace = true }
+pallet-duster = { workspace = true }
 
 # Substrate dependencies
 sp-runtime = { workspace = true }
@@ -56,6 +57,7 @@ pallet-proxy = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-tips = { workspace = true }
 
 # Polkadot dependencies
 pallet-xcm = { workspace = true }

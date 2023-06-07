@@ -1218,6 +1218,7 @@ dependencies = [
  "pallet-currencies",
  "pallet-dca",
  "pallet-democracy",
+ "pallet-duster",
  "pallet-dynamic-fees",
  "pallet-ema-oracle",
  "pallet-identity",
@@ -1230,6 +1231,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-timestamp",
+ "pallet-tips",
  "pallet-transaction-multi-payment",
  "pallet-transaction-pause",
  "pallet-transaction-payment",
@@ -3743,7 +3745,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "9.0.1"
+version = "10.0.0"
 dependencies = [
  "clap 4.3.0",
  "common-runtime",
@@ -3815,7 +3817,6 @@ dependencies = [
  "sp-trie",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
- "testing-hydradx-runtime",
  "try-runtime-cli",
 ]
 
@@ -6576,7 +6577,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -13043,106 +13044,6 @@ version = "1.1.1"
 dependencies = [
  "frame-system",
  "pretty_assertions",
-]
-
-[[package]]
-name = "testing-hydradx-runtime"
-version = "158.0.0"
-dependencies = [
- "common-runtime",
- "cumulus-pallet-aura-ext",
- "cumulus-pallet-dmp-queue",
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-xcm",
- "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "cumulus-primitives-timestamp",
- "cumulus-primitives-utility",
- "frame-benchmarking",
- "frame-executive",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal 0.3.4",
- "hydradx-adapters",
- "hydradx-traits",
- "orml-benchmarking",
- "orml-tokens",
- "orml-traits",
- "orml-unknown-tokens",
- "orml-vesting",
- "orml-xcm",
- "orml-xcm-support",
- "orml-xtokens",
- "pallet-asset-registry",
- "pallet-aura",
- "pallet-authorship",
- "pallet-balances",
- "pallet-circuit-breaker",
- "pallet-claims",
- "pallet-collator-rewards",
- "pallet-collator-selection",
- "pallet-collective",
- "pallet-currencies",
- "pallet-dca",
- "pallet-democracy",
- "pallet-duster",
- "pallet-dynamic-fees",
- "pallet-elections-phragmen",
- "pallet-ema-oracle",
- "pallet-genesis-history",
- "pallet-identity",
- "pallet-liquidity-mining",
- "pallet-multisig",
- "pallet-omnipool",
- "pallet-omnipool-liquidity-mining",
- "pallet-otc",
- "pallet-preimage",
- "pallet-proxy",
- "pallet-relaychain-info",
- "pallet-route-executor",
- "pallet-scheduler",
- "pallet-session",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-tips",
- "pallet-transaction-multi-payment",
- "pallet-transaction-pause",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
- "pallet-uniques",
- "pallet-utility",
- "pallet-xcm",
- "parachain-info",
- "parity-scale-codec",
- "polkadot-parachain",
- "primitives",
- "scale-info",
- "serde",
- "smallvec",
- "sp-api",
- "sp-block-builder",
- "sp-consensus-aura",
- "sp-core",
- "sp-externalities",
- "sp-inherents",
- "sp-io",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-std",
- "sp-transaction-pool",
- "sp-trie",
- "sp-version",
- "substrate-build-script-utils",
- "substrate-wasm-builder",
- "xcm",
- "xcm-builder",
- "xcm-executor",
 ]
 
 [[package]]

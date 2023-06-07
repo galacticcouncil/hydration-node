@@ -1,5 +1,5 @@
 use crate::chain_spec;
-use clap::{builder::PossibleValue, Parser};
+use clap::Parser;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -13,49 +13,6 @@ impl fmt::Display for RuntimeInstanceError {
 	}
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Parser)]
-pub enum RuntimeInstance {
-	HydraDX,
-	Testing,
-}
-
-impl RuntimeInstance {
-	pub fn is_testing_runtime(&self) -> bool {
-		match self {
-			Self::HydraDX => false,
-			Self::Testing => true,
-		}
-	}
-}
-
-impl clap::ValueEnum for RuntimeInstance {
-	fn value_variants<'a>() -> &'a [Self] {
-		&[Self::HydraDX, Self::Testing]
-	}
-
-	fn to_possible_value(&self) -> Option<PossibleValue> {
-		match self {
-			Self::HydraDX => Some(PossibleValue::new("hydradx")),
-			Self::Testing => Some(PossibleValue::new("testing")),
-		}
-	}
-}
-
-impl fmt::Display for RuntimeInstance {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Self::HydraDX => write!(f, "hydradx"),
-			Self::Testing => write!(f, "testing"),
-		}
-	}
-}
-
-impl Default for RuntimeInstance {
-	fn default() -> Self {
-		RuntimeInstance::HydraDX
-	}
-}
-
 #[derive(Debug, Parser)]
 #[clap(
 	propagate_version = true,
@@ -65,10 +22,6 @@ impl Default for RuntimeInstance {
 pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: cumulus_client_cli::RunCmd,
-
-	/// Specify the runtime used by the node.
-	#[clap(default_value_t, long, value_parser = clap::builder::EnumValueParser::<RuntimeInstance>::new(), ignore_case = true)]
-	pub runtime: RuntimeInstance,
 }
 
 #[derive(Debug, Parser)]
@@ -142,11 +95,11 @@ pub enum Subcommand {
 
 	/// Export the genesis state of the parachain.
 	#[clap(name = "export-genesis-state")]
-	ExportGenesisState(ExportGenesisStateCommand),
+	ExportGenesisState(cumulus_client_cli::ExportGenesisStateCommand),
 
 	/// Export the genesis wasm of the parachain.
 	#[clap(name = "export-genesis-wasm")]
-	ExportGenesisWasm(ExportGenesisWasmCommand),
+	ExportGenesisWasm(cumulus_client_cli::ExportGenesisWasmCommand),
 
 	/// Try some command against runtime state.
 	#[cfg(feature = "try-runtime")]
@@ -155,44 +108,4 @@ pub enum Subcommand {
 	/// Try some command against runtime state. Note: `try-runtime` feature must be enabled.
 	#[cfg(not(feature = "try-runtime"))]
 	TryRuntime,
-}
-
-/// Command for exporting the genesis state of the parachain
-#[derive(Debug, Parser)]
-pub struct ExportGenesisStateCommand {
-	/// Output file name or stdout if unspecified.
-	#[clap(value_parser)]
-	pub output: Option<PathBuf>,
-
-	/// Write output in binary. Default is to write in hex.
-	#[clap(short, long)]
-	pub raw: bool,
-
-	/// The name of the chain for that the genesis state should be exported.
-	#[clap(long)]
-	pub chain: Option<String>,
-
-	/// Specify the runtime used by the node.
-	#[clap(default_value_t, long, value_parser = clap::builder::EnumValueParser::<RuntimeInstance>::new(), ignore_case = true)]
-	pub runtime: RuntimeInstance,
-}
-
-/// Command for exporting the genesis wasm file.
-#[derive(Debug, Parser)]
-pub struct ExportGenesisWasmCommand {
-	/// Output file name or stdout if unspecified.
-	#[clap(value_parser)]
-	pub output: Option<PathBuf>,
-
-	/// Write output in binary. Default is to write in hex.
-	#[clap(short, long)]
-	pub raw: bool,
-
-	/// The name of the chain for that the genesis wasm file should be exported.
-	#[clap(long)]
-	pub chain: Option<String>,
-
-	/// Specify the runtime used by the node.
-	#[clap(default_value_t, long, value_parser = clap::builder::EnumValueParser::<RuntimeInstance>::new(), ignore_case = true)]
-	pub runtime: RuntimeInstance,
 }
