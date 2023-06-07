@@ -269,6 +269,9 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 			asset_fee: Permill,
+			asset_fee_amount: Balance,
+			protocol_fee: Permill,
+			protocol_fee_amount: Balance,
 		},
 		/// Buy trade executed.
 		BuyExecuted {
@@ -278,6 +281,9 @@ pub mod pallet {
 			amount_in: Balance,
 			amount_out: Balance,
 			asset_fee: Permill,
+			asset_fee_amount: Balance,
+			protocol_fee: Permill,
+			protocol_fee_amount: Balance,
 		},
 		/// LP Position was created and NFT instance minted.
 		PositionCreated {
@@ -1168,6 +1174,9 @@ pub mod pallet {
 				amount_in: amount,
 				amount_out: *state_changes.asset_out.delta_reserve,
 				asset_fee,
+				asset_fee_amount: state_changes.fee.asset_fee,
+				protocol_fee,
+				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
 			Ok(())
@@ -1351,6 +1360,9 @@ pub mod pallet {
 				amount_in: *state_changes.asset_in.delta_reserve,
 				amount_out: *state_changes.asset_out.delta_reserve,
 				asset_fee,
+				asset_fee_amount: state_changes.fee.asset_fee,
+				protocol_fee,
+				protocol_fee_amount: state_changes.fee.protocol_fee,
 			});
 
 			Ok(())
@@ -1651,7 +1663,7 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		let (asset_fee, _) = T::Fee::get(&asset_out);
+		let (asset_fee, protocol_fee) = T::Fee::get(&asset_out);
 
 		let state_changes = hydra_dx_math::omnipool::calculate_sell_hub_state_changes(
 			&(&asset_state).into(),
@@ -1712,6 +1724,9 @@ impl<T: Config> Pallet<T> {
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
 			asset_fee,
+			asset_fee_amount: state_changes.fee.asset_fee,
+			protocol_fee,
+			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
@@ -1750,7 +1765,7 @@ impl<T: Config> Pallet<T> {
 
 		let current_hub_asset_liquidity = Self::get_hub_asset_balance_of_protocol_account();
 
-		let (asset_fee, _) = T::Fee::get(&asset_out);
+		let (asset_fee, protocol_fee) = T::Fee::get(&asset_out);
 
 		let state_changes = hydra_dx_math::omnipool::calculate_buy_for_hub_asset_state_changes(
 			&(&asset_state).into(),
@@ -1810,6 +1825,9 @@ impl<T: Config> Pallet<T> {
 			amount_in: *state_changes.asset.delta_hub_reserve,
 			amount_out: *state_changes.asset.delta_reserve,
 			asset_fee,
+			asset_fee_amount: state_changes.fee.asset_fee,
+			protocol_fee,
+			protocol_fee_amount: state_changes.fee.protocol_fee,
 		});
 
 		T::OmnipoolHooks::on_hub_asset_trade(origin, info)?;
