@@ -556,8 +556,7 @@ where
 				asset_in,
 				asset_out,
 				amount_in,
-				min_limit,
-				slippage,
+				min_amount_out,
 				route,
 			} => {
 				let remaining_amount =
@@ -567,7 +566,7 @@ where
 				Self::unallocate_amount(schedule_id, schedule, amount_to_sell)?;
 
 				let (estimated_amount_out, slippage_amount) =
-					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, *slippage)?;
+					Self::calculate_last_block_slippage(*asset_out, *asset_in, amount_to_sell, schedule.slippage)?;
 				let last_block_slippage_min_limit = estimated_amount_out
 					.checked_sub(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
@@ -578,8 +577,8 @@ where
 				let last_trade = trade_amounts.last().defensive_ok_or(Error::<T>::InvalidState)?;
 				let amount_out = last_trade.amount_out;
 
-				if *min_limit > last_block_slippage_min_limit {
-					ensure!(amount_out >= (*min_limit).into(), Error::<T>::TradeLimitReached);
+				if *min_amount_out > last_block_slippage_min_limit {
+					ensure!(amount_out >= (*min_amount_out).into(), Error::<T>::TradeLimitReached);
 				} else {
 					ensure!(
 						amount_out >= last_block_slippage_min_limit.into(),
@@ -605,8 +604,7 @@ where
 				asset_in,
 				asset_out,
 				amount_out,
-				slippage,
-				max_limit,
+				max_amount_in,
 				route,
 			} => {
 				let amount_in = Self::get_amount_in_for_buy(amount_out, route)?;
@@ -614,13 +612,13 @@ where
 				Self::unallocate_amount(schedule_id, schedule, amount_in)?;
 
 				let (estimated_amount_in, slippage_amount) =
-					Self::calculate_last_block_slippage(*asset_in, *asset_out, *amount_out, *slippage)?;
+					Self::calculate_last_block_slippage(*asset_in, *asset_out, *amount_out, schedule.slippage)?;
 				let last_block_slippage_max_limit = estimated_amount_in
 					.checked_add(slippage_amount)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				if *max_limit < last_block_slippage_max_limit {
-					ensure!(amount_in <= *max_limit, Error::<T>::TradeLimitReached);
+				if *max_amount_in < last_block_slippage_max_limit {
+					ensure!(amount_in <= *max_amount_in, Error::<T>::TradeLimitReached);
 				} else {
 					ensure!(
 						amount_in <= last_block_slippage_max_limit,
@@ -663,7 +661,8 @@ where
 		let remaining_amount: Balance =
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
-		if remaining_amount <= transaction_fee {
+		let min_amount_for_replanning = transaction_fee.checked_mul(5).ok_or(ArithmeticError::Overflow)?;
+		if remaining_amount <= min_amount_for_replanning {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
@@ -698,10 +697,8 @@ where
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id);
 
-		ensure!(
-			number_of_retries < T::MaxNumberOfRetriesOnError::get(),
-			Error::<T>::MaxRetryReached
-		);
+		let max_retries = schedule.max_retries.unwrap_or_else(T::MaxNumberOfRetriesOnError::get);
+		ensure!(number_of_retries < max_retries, Error::<T>::MaxRetryReached);
 
 		RetriesOnError::<T>::mutate(schedule_id, |retry| -> DispatchResult {
 			retry.saturating_inc();
@@ -735,8 +732,7 @@ where
 		};
 
 		let max_allowed_diff = schedule
-			.order
-			.get_slippage()
+			.stability_threshold
 			.unwrap_or_else(T::MaxPriceDifferenceBetweenBlocks::get);
 
 		let max_allowed = FixedU128::from(max_allowed_diff);
