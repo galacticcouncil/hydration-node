@@ -33,6 +33,7 @@ members = [
   'pallets/nft',
   'pallets/otc',
   'math',
+  'pallets/staking',
 ]
 
 [workspace.dependencies]
