@@ -21,6 +21,9 @@ use frame_support::traits::{Currency, Get};
 use sp_runtime::{traits::StaticLookup, DispatchResult};
 
 pub mod weights;
+#[cfg(test)]
+mod tests;
+
 pub use pallet::*;
 pub use weights::WeightInfo;
 

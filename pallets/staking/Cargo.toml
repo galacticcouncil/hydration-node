@@ -30,6 +30,8 @@ pallet-democracy = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { workspace = true }
+pallet-preimage = { workspace = true }
+pallet-scheduler = { workspace = true }
 
 [features]
 default = ["std"]
@@ -45,6 +47,9 @@ std = [
 	"sp-std/std",
 	"sp-core/std",
 	"pallet-democracy/std",
+	"pallet-balances/std",
+	"pallet-scheduler/std",
+	"pallet-preimage/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

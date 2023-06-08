@@ -7386,6 +7386,8 @@ dependencies = [
  "log",
  "pallet-balances",
  "pallet-democracy",
+ "pallet-preimage",
+ "pallet-scheduler",
  "parity-scale-codec",
  "scale-info",
  "serde",
