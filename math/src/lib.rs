@@ -25,6 +25,7 @@ pub mod omnipool;
 pub mod omnipool_subpools;
 pub mod ratio;
 pub mod stableswap;
+pub mod staking;
 pub mod support;
 #[cfg(test)]
 pub mod test_utils;
