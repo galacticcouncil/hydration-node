@@ -18,7 +18,6 @@
 //! The crate's tests.
 //!
 use super::*;
-use codec::Decode;
 use frame_support::pallet_prelude::Hooks;
 use frame_support::traits::LockIdentifier;
 use frame_support::{
@@ -322,21 +321,4 @@ fn big_nay(who: u64) -> AccountVote<u64> {
 
 fn tally(r: ReferendumIndex) -> Tally<u64> {
 	Democracy::referendum_status(r).unwrap().tally
-}
-
-/// Decode `Compact<u32>` from the trie at given key.
-pub(crate) fn decode_compact_u32_at(key: &[u8]) -> Option<u32> {
-	// `Compact<u32>` takes at most 5 bytes.
-	let mut buf = [0u8; 5];
-	let bytes = sp_io::storage::read(key, &mut buf, 0)?;
-	// The value may be smaller than 5 bytes.
-	let mut input = &buf[0..buf.len().min(bytes as usize)];
-	match codec::Compact::<u32>::decode(&mut input) {
-		Ok(c) => Some(c.0),
-		Err(_) => {
-			sp_runtime::print("Failed to decode compact u32 at:");
-			sp_runtime::print(key);
-			None
-		}
-	}
 }

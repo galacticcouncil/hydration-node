@@ -473,7 +473,7 @@ mod test_support {
 		pub fn begin_block(now: T::BlockNumber) -> Weight {
 			pallet_democracy::Pallet::<T>::on_initialize(now)
 		}
-		fn decode_compact_u32_at(key: &[u8]) -> Option<u32> {
+		pub fn decode_compact_u32_at(key: &[u8]) -> Option<u32> {
 			// `Compact<u32>` takes at most 5 bytes.
 			let mut buf = [0u8; 5];
 			let bytes = sp_io::storage::read(key, &mut buf, 0)?;
