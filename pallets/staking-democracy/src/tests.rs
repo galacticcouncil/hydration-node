@@ -17,22 +17,26 @@
 
 //! The crate's tests.
 //!
+use super::*;
 use codec::Decode;
-use crate::*;
-use pallet_democracy::*;
+use frame_support::pallet_prelude::Hooks;
+use frame_support::traits::LockIdentifier;
 use frame_support::{
 	assert_noop, assert_ok, ord_parameter_types, parameter_types,
 	traits::{
-		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, GenesisBuild, OnInitialize,
-		SortedMembers, StorePreimage, QueryPreimage,
+		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, GenesisBuild, QueryPreimage, SortedMembers, StorePreimage,
 	},
 	weights::Weight,
 };
-use frame_support::traits::LockIdentifier;
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use pallet_balances::{BalanceLock, Error as BalancesError};
+use pallet_democracy::*;
 use sp_core::H256;
-use sp_runtime::{testing::Header, traits::{BadOrigin, BlakeTwo256, IdentityLookup}, Perbill, DispatchError};
+use sp_runtime::{
+	testing::Header,
+	traits::{BadOrigin, BlakeTwo256, IdentityLookup},
+	Perbill,
+};
 mod cancellation;
 mod decoders;
 mod delegation;
@@ -43,15 +47,27 @@ mod public_proposals;
 mod scheduling;
 mod voting;
 
-const AYE: Vote = Vote { aye: true, conviction: Conviction::None };
-const NAY: Vote = Vote { aye: false, conviction: Conviction::None };
-const BIG_AYE: Vote = Vote { aye: true, conviction: Conviction::Locked1x };
-const BIG_NAY: Vote = Vote { aye: false, conviction: Conviction::Locked1x };
+const AYE: Vote = Vote {
+	aye: true,
+	conviction: Conviction::None,
+};
+const NAY: Vote = Vote {
+	aye: false,
+	conviction: Conviction::None,
+};
+const BIG_AYE: Vote = Vote {
+	aye: true,
+	conviction: Conviction::Locked1x,
+};
+const BIG_NAY: Vote = Vote {
+	aye: false,
+	conviction: Conviction::Locked1x,
+};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
-use crate as pallet_staking;
+use crate as pallet_staking_democracy;
 
 pub(crate) const DEMOCRACY_ID: LockIdentifier = *b"democrac";
 
@@ -65,7 +81,9 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Preimage: pallet_preimage,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-		Democracy: pallet_democracy,
+		Democracy: pallet_staking_democracy,
+		Staking: pallet_staking,
+		DemocracyPallet: pallet_democracy,
 	}
 );
 
@@ -146,6 +164,17 @@ impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type WeightInfo = ();
 }
+
+impl pallet_staking::Config for Test {
+	type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+}
+
+impl pallet_staking_democracy::Config for Test {
+	type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+}
+
 parameter_types! {
 	pub static PreimageByteDeposit: u64 = 0;
 	pub static InstantAllowed: bool = false;
@@ -223,7 +252,11 @@ fn params_should_work() {
 }
 
 fn set_balance_proposal(value: u64) -> BoundedCallOf<Test> {
-	let inner = pallet_balances::Call::set_balance { who: 42, new_free: value, new_reserved: 0 };
+	let inner = pallet_balances::Call::set_balance {
+		who: 42,
+		new_free: value,
+		new_reserved: 0,
+	};
 	let outer = RuntimeCall::Balances(inner);
 	Preimage::bound(outer).unwrap()
 }
@@ -260,71 +293,37 @@ fn begin_referendum() -> ReferendumIndex {
 }
 
 fn aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: AYE, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: AYE,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: NAY, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: NAY,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn big_aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: BIG_AYE, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: BIG_AYE,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn big_nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: BIG_NAY, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: BIG_NAY,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn tally(r: ReferendumIndex) -> Tally<u64> {
 	Democracy::referendum_status(r).unwrap().tally
 }
 
-
-pub trait ReferendumOps<T: pallet_democracy::Config>{
-	fn inject_referendum(
-		end: T::BlockNumber,
-		proposal: BoundedCallOf<T>,
-		threshold: VoteThreshold,
-		delay: T::BlockNumber,
-	) -> ReferendumIndex;
-
-		fn referendum_status(
-		ref_index: ReferendumIndex,
-	) -> Result<ReferendumStatus<T::BlockNumber, BoundedCallOf<T>, BalanceOf<T>>, DispatchError>;
-
-	fn len_of_deposit_of(proposal: PropIndex) -> Option<u32>;
-
-	fn begin_block(now: T::BlockNumber) -> Weight;
-}
-
-impl ReferendumOps<Test> for Democracy{
-	fn inject_referendum(end: u64, proposal: BoundedCallOf<Test>, threshold: VoteThreshold, delay: u64) -> ReferendumIndex {
-		let ref_index = Self::referendum_count();
-		ReferendumCount::<Test>::put(ref_index + 1);
-		let status =
-			ReferendumStatus { end, proposal, threshold, delay, tally: Default::default() };
-		let item = ReferendumInfo::Ongoing(status);
-		<ReferendumInfoOf<Test>>::insert(ref_index, item);
-		//Self::deposit_event(pallet_democracy::Event::<Test>::Started { ref_index, threshold });
-		ref_index
-	}
-
-	fn referendum_status(ref_index: ReferendumIndex) -> Result<ReferendumStatus<u64, BoundedCallOf<Test>, BalanceOf<Test>>, DispatchError> {
-		let info = ReferendumInfoOf::<Test>::get(ref_index).ok_or(pallet_democracy::Error::<Test>::ReferendumInvalid)?;
-		match info {
-			ReferendumInfo::Ongoing(s) => Ok(s),
-			_ => Err(pallet_democracy::Error::<Test>::ReferendumInvalid.into()),
-		}
-	}
-
-	fn len_of_deposit_of(proposal: PropIndex) -> Option<u32> {
-		decode_compact_u32_at(&<DepositOf<Test>>::hashed_key_for(proposal))
-	}
-
-	fn begin_block(now: u64) -> Weight {
-		Self::on_initialize(now)
-	}
-}
 /// Decode `Compact<u32>` from the trie at given key.
 pub(crate) fn decode_compact_u32_at(key: &[u8]) -> Option<u32> {
 	// `Compact<u32>` takes at most 5 bytes.
@@ -338,6 +337,6 @@ pub(crate) fn decode_compact_u32_at(key: &[u8]) -> Option<u32> {
 			sp_runtime::print("Failed to decode compact u32 at:");
 			sp_runtime::print(key);
 			None
-		},
+		}
 	}
 }

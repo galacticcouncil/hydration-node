@@ -34,6 +34,7 @@ members = [
   'pallets/otc',
   'math',
   'pallets/staking',
+  'pallets/staking-democracy',
 ]
 
 [workspace.dependencies]
@@ -68,6 +69,8 @@ pallet-route-executor = { path = "pallets/route-executor", default-features = fa
 pallet-stableswap = { path = "pallets/stableswap", default-features = false }
 pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment", default-features = false}
 pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
+pallet-staking = { path = "pallets/staking", default-features = false }
+
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 test-utils = { path = "utils/test-utils", default-features = false }

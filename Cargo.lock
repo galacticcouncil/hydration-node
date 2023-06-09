@@ -7384,10 +7384,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances",
- "pallet-democracy",
- "pallet-preimage",
- "pallet-scheduler",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -7417,6 +7413,28 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-staking-democracy"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-democracy",
+ "pallet-preimage",
+ "pallet-scheduler",
+ "pallet-staking 1.0.0",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 

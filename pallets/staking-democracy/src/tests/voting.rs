@@ -42,7 +42,14 @@ fn split_voting_should_work() {
 		let v = AccountVote::Split { aye: 30, nay: 20 };
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r, v));
 
-		assert_eq!(tally(r), Tally { ayes: 3, nays: 2, turnout: 50 });
+		assert_eq!(
+			tally(r),
+			Tally {
+				ayes: 3,
+				nays: 2,
+				turnout: 50
+			}
+		);
 	});
 }
 
@@ -53,7 +60,14 @@ fn split_vote_cancellation_should_work() {
 		let v = AccountVote::Split { aye: 30, nay: 20 };
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r, v));
 		assert_ok!(Democracy::remove_vote(RuntimeOrigin::signed(5), r));
-		assert_eq!(tally(r), Tally { ayes: 0, nays: 0, turnout: 0 });
+		assert_eq!(
+			tally(r),
+			Tally {
+				ayes: 0,
+				nays: 0,
+				turnout: 0
+			}
+		);
 		assert_ok!(Democracy::unlock(RuntimeOrigin::signed(5), 5));
 		assert_eq!(Balances::locks(5), vec![]);
 	});
@@ -79,7 +93,11 @@ fn single_proposal_should_work() {
 				proposal: set_balance_proposal(2),
 				threshold: VoteThreshold::SuperMajorityApprove,
 				delay: 2,
-				tally: Tally { ayes: 1, nays: 0, turnout: 10 },
+				tally: Tally {
+					ayes: 1,
+					nays: 0,
+					turnout: 10
+				},
 			})
 		);
 
@@ -104,12 +122,7 @@ fn single_proposal_should_work() {
 #[test]
 fn controversial_voting_should_work() {
 	new_test_ext().execute_with(|| {
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, big_aye(1)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(2), r, big_nay(2)));
@@ -118,7 +131,14 @@ fn controversial_voting_should_work() {
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r, big_nay(5)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(6), r, big_aye(6)));
 
-		assert_eq!(tally(r), Tally { ayes: 110, nays: 100, turnout: 210 });
+		assert_eq!(
+			tally(r),
+			Tally {
+				ayes: 110,
+				nays: 100,
+				turnout: 210
+			}
+		);
 
 		next_block();
 		next_block();
@@ -130,16 +150,18 @@ fn controversial_voting_should_work() {
 #[test]
 fn controversial_low_turnout_voting_should_work() {
 	new_test_ext().execute_with(|| {
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r, big_nay(5)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(6), r, big_aye(6)));
 
-		assert_eq!(tally(r), Tally { ayes: 60, nays: 50, turnout: 110 });
+		assert_eq!(
+			tally(r),
+			Tally {
+				ayes: 60,
+				nays: 50,
+				turnout: 110
+			}
+		);
 
 		next_block();
 		next_block();
@@ -154,16 +176,18 @@ fn passing_low_turnout_voting_should_work() {
 		assert_eq!(Balances::free_balance(42), 0);
 		assert_eq!(Balances::total_issuance(), 210);
 
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(4), r, big_aye(4)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(5), r, big_nay(5)));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(6), r, big_aye(6)));
-		assert_eq!(tally(r), Tally { ayes: 100, nays: 50, turnout: 150 });
+		assert_eq!(
+			tally(r),
+			Tally {
+				ayes: 100,
+				nays: 50,
+				turnout: 150
+			}
+		);
 
 		next_block();
 		next_block();

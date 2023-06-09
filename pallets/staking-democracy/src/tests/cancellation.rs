@@ -22,12 +22,7 @@ use super::*;
 #[test]
 fn cancel_referendum_should_work() {
 	new_test_ext().execute_with(|| {
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, aye(1)));
 		assert_ok!(Democracy::cancel_referendum(RuntimeOrigin::root(), r.into()));
 		assert_eq!(Democracy::lowest_unbaked(), 0);
@@ -46,12 +41,7 @@ fn cancel_referendum_should_work() {
 fn emergency_cancel_should_work() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(0);
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			2,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 2);
 		assert!(Democracy::referendum_status(r).is_ok());
 
 		assert_noop!(Democracy::emergency_cancel(RuntimeOrigin::signed(3), r), BadOrigin);
@@ -60,12 +50,7 @@ fn emergency_cancel_should_work() {
 
 		// some time later...
 
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal(2),
-			VoteThreshold::SuperMajorityApprove,
-			2,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal(2), VoteThreshold::SuperMajorityApprove, 2);
 		assert!(Democracy::referendum_status(r).is_ok());
 		assert_noop!(
 			Democracy::emergency_cancel(RuntimeOrigin::signed(4), r),

@@ -1,5 +1,5 @@
 [package]
-name = "pallet-staking"
+name = "pallet-staking-democracy"
 version = "1.0.0"
 authors = ['GalacticCouncil']
 edition = "2021"
@@ -26,8 +26,13 @@ sp-core = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
+pallet-democracy = { workspace = true }
+pallet-staking = { workspace = true }
 
 [dev-dependencies]
+pallet-balances = { workspace = true }
+pallet-preimage = { workspace = true }
+pallet-scheduler = { workspace = true }
 
 [features]
 default = ["std"]
@@ -42,6 +47,10 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"sp-core/std",
+	"pallet-democracy/std",
+	"pallet-balances/std",
+	"pallet-scheduler/std",
+	"pallet-preimage/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
