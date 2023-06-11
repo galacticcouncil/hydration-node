@@ -28,7 +28,6 @@ clap = { version = "4.1.8", features = [ "derive" ] }
 futures = "0.3.21"
 
 # local dependencies
-common-runtime = { workspace = true }
 hydradx-runtime = { workspace = true }
 primitives = { workspace = true }
 
