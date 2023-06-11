@@ -3694,7 +3694,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "10.0.0"
+version = "10.0.1"
 dependencies = [
  "clap 4.3.2",
  "cumulus-client-cli",
@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "158.0.0"
+version = "159.0.0"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
@@ -9300,7 +9300,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.2"
+version = "5.8.0"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -10052,7 +10052,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.11"
+version = "1.7.12"
 dependencies = [
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
