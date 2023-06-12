@@ -31,12 +31,16 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
 	let assets = give.into();
 	let max_assets = assets.len() as u32;
-	let context = GlobalConsensus(NetworkId::Polkadot).into();
+	//let context = GlobalConsensus(NetworkId::Polkadot).into();
+	let context2 = X2(
+		GlobalConsensus(NetworkId::Polkadot).into(),
+		Parachain(ACALA_PARA_ID).into(),
+	);
 	let fees = assets
 		.get(0)
 		.expect("should have at least 1 asset")
 		.clone()
-		.reanchored(&dest, context)
+		.reanchored(&dest, context2)
 		.expect("should reanchor");
 	let give: MultiAssetFilter = assets.clone().into();
 	let want = want.into();
@@ -49,6 +53,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 				fees,
 				weight_limit: Limited(Weight::zero()),
 			},
+			//TODO: continue here, enable exchange asset and do the implemnetation
 			// ExchangeAsset {
 			// 	give: give.clone(),
 			// 	want: want.clone(),
@@ -93,7 +98,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::RuntimeOrigin::root(),
 			1,
-			hydradx_runtime::AssetLocation(MultiLocation::parent())
+			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
 	});
 	dbg!("after hydra 1");
@@ -109,7 +114,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		let res = hydradx_runtime::PolkadotXcm::execute(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			Box::new(xcm),
-			Weight::MAX,
+			Weight::from_ref_time(399_600_000_000),
 		);
 		assert_ok!(res);
 
@@ -126,8 +131,8 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		expect_hydra_events(vec![
 			cumulus_pallet_xcmp_queue::Event::XcmpMessageSent {
 				message_hash: Some([
-					9, 0, 8, 33, 54, 22, 19, 20, 3, 152, 149, 31, 97, 142, 128, 167, 186, 128, 27, 162, 115, 18, 183,
-					5, 49, 22, 165, 146, 39, 125, 144, 142,
+					84, 179, 56, 30, 36, 240, 28, 224, 172, 85, 182, 195, 124, 147, 197, 229, 78, 67, 68, 120, 111,
+					149, 154, 18, 5, 199, 220, 121, 77, 201, 5, 213,
 				]),
 			}
 			.into(),
