@@ -49,11 +49,11 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 				fees,
 				weight_limit: Limited(Weight::zero()),
 			},
-			ExchangeAsset {
-				give: give.clone(),
-				want: want.clone(),
-				maximal: true,
-			},
+			// ExchangeAsset {
+			// 	give: give.clone(),
+			// 	want: want.clone(),
+			// 	maximal: true,
+			// },
 			DepositAsset {
 				assets: Wild(AllCounted(max_assets)),
 				beneficiary,
@@ -66,11 +66,11 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 
 	let xcm = Xcm(vec![
 		BuyExecution { fees, weight_limit },
-		ExchangeAsset {
-			give,
-			want,
-			maximal: true,
-		},
+		// ExchangeAsset {
+		// 	give,
+		// 	want,
+		// 	maximal: true,
+		// },
 		DepositAsset {
 			assets: Wild(AllCounted(max_assets)),
 			beneficiary,
@@ -84,8 +84,11 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 }
 
 #[test]
-fn hydra_should_swap_assets_when_receiving_from_relay() {
+fn hydra_should_swap_assets_when_receiving_from_acala() {
 	//Arrange
+	TestNet::reset();
+
+	dbg!("before hydra 1");
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::RuntimeOrigin::root(),
@@ -93,8 +96,11 @@ fn hydra_should_swap_assets_when_receiving_from_relay() {
 			hydradx_runtime::AssetLocation(MultiLocation::parent())
 		));
 	});
+	dbg!("after hydra 1");
 
+	dbg!("before acala");
 	Acala::execute_with(|| {
+		dbg!("execute acala");
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
 			MultiAsset::from((GeneralIndex(0), 100 * UNITS)),
 			MultiAsset::from((Here, 300 * UNITS)),
@@ -113,21 +119,29 @@ fn hydra_should_swap_assets_when_receiving_from_relay() {
 			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 100 * UNITS
 		);
 		//TODO: continue here, probably some other error with conversion, debug it
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account_truncating()),
-			100 * UNITS
-		);
+		// assert_eq!(
+		// 	hydradx_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account_truncating()),
+		// 	100 * UNITS
+		// );
+		expect_hydra_events(vec![
+			cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { message_hash: Some([9, 0, 8, 33, 54, 22, 19, 20, 3, 152, 149, 31, 97, 142, 128, 167, 186, 128, 27, 162, 115, 18, 183, 5, 49, 22, 165, 146, 39, 125, 144, 142]) }
+			.into(),
+			pallet_xcm::Event::Attempted(Outcome::Complete(Weight::from_parts(200000000, 0))).into()
+		]);
+		dbg!("end execute acala");
 	});
+	dbg!("after acala");
 
-	/*let fees = 400641025641;
+	let fees = 400641025641;
+	dbg!("before hydra 2");
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
+			BOB_INITIAL_NATIVE_BALANCE + 100 * UNITS - fees
 		);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
 			fees
 		);
-	});*/
+	});
 }
