@@ -124,9 +124,14 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		// 	100 * UNITS
 		// );
 		expect_hydra_events(vec![
-			cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { message_hash: Some([9, 0, 8, 33, 54, 22, 19, 20, 3, 152, 149, 31, 97, 142, 128, 167, 186, 128, 27, 162, 115, 18, 183, 5, 49, 22, 165, 146, 39, 125, 144, 142]) }
+			cumulus_pallet_xcmp_queue::Event::XcmpMessageSent {
+				message_hash: Some([
+					9, 0, 8, 33, 54, 22, 19, 20, 3, 152, 149, 31, 97, 142, 128, 167, 186, 128, 27, 162, 115, 18, 183,
+					5, 49, 22, 165, 146, 39, 125, 144, 142,
+				]),
+			}
 			.into(),
-			pallet_xcm::Event::Attempted(Outcome::Complete(Weight::from_parts(200000000, 0))).into()
+			pallet_xcm::Event::Attempted(Outcome::Complete(Weight::from_parts(200000000, 0))).into(),
 		]);
 		dbg!("end execute acala");
 	});
