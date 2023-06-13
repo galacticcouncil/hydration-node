@@ -678,7 +678,7 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_equal_to_20_times_fee() {
 			set_block_number(500);
 			assert_noop!(
 				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::TradeAmountIsLessThanFee
+				Error::<Test>::MinTradeAmountNotReached
 			);
 		});
 }
@@ -710,7 +710,7 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 			//Assert
 			assert_noop!(
 				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::TradeAmountIsLessThanFee
+				Error::<Test>::MinTradeAmountNotReached
 			);
 		});
 }

@@ -286,8 +286,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		///Schedule not exist
 		ScheduleNotFound,
-		///Trade amount is less than fee
-		TradeAmountIsLessThanFee,
+		///The min trade amount is not reached
+		MinTradeAmountNotReached,
 		///Forbidden as the user is not the owner of the schedule
 		Forbidden,
 		///The next execution block number is not in the future
@@ -400,7 +400,7 @@ pub mod pallet {
 				} => Self::get_amount_in_for_buy(&amount_out, route)?,
 			};
 			let min_trade_amount_in = transaction_fee.checked_mul(20).ok_or(ArithmeticError::Overflow)?;
-			ensure!(amount_in > min_trade_amount_in, Error::<T>::TradeAmountIsLessThanFee);
+			ensure!(amount_in > min_trade_amount_in, Error::<T>::MinTradeAmountNotReached);
 
 			let amount_in_with_transaction_fee = amount_in
 				.checked_add(transaction_fee)
