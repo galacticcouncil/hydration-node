@@ -286,7 +286,7 @@ fn assets_should_be_trapped_when_assets_are_unknown() {
 		));
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 30 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - 30 * UNITS
 		);
 	});
 
@@ -346,7 +346,7 @@ fn trap_asset() -> MultiAsset {
 	Acala::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN
+			ALICE_INITIAL_NATIVE_BALANCE
 		);
 		assert_ok!(hydradx_runtime::XTokens::transfer(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),

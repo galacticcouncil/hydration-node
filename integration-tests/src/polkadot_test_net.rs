@@ -30,7 +30,6 @@ pub const UNITS: Balance = 1_000_000_000_000;
 pub const ACALA_PARA_ID: u32 = 2_000;
 pub const HYDRA_PARA_ID: u32 = 2_034;
 
-pub const ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN: Balance = 1_000 * UNITS;
 pub const ALICE_INITIAL_NATIVE_BALANCE: Balance = 1_000 * UNITS;
 pub const ALICE_INITIAL_DAI_BALANCE: Balance = 200 * UNITS;
 pub const BOB_INITIAL_DAI_BALANCE: Balance = 1_000 * UNITS * 1_000_000;
@@ -281,7 +280,7 @@ pub fn acala_ext() -> sp_io::TestExternalities {
 		.unwrap();
 
 	pallet_balances::GenesisConfig::<Runtime> {
-		balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN)],
+		balances: vec![(AccountId::from(ALICE), ALICE_INITIAL_NATIVE_BALANCE)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();
