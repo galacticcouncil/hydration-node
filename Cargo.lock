@@ -3863,6 +3863,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "orml-unknown-tokens",
+ "orml-utilities",
  "orml-vesting",
  "orml-xcm",
  "orml-xcm-support",

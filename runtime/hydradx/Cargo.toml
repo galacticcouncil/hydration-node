@@ -70,6 +70,7 @@ orml-tokens = { workspace = true }
 orml-traits = { workspace = true }
 orml-vesting = { workspace = true }
 orml-benchmarking = { workspace = true, optional = true }
+orml-utilities = { workspace = true }
 
 # orml XCM support
 orml-xtokens = { workspace = true }

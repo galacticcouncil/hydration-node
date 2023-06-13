@@ -29,7 +29,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 
 	let dest = MultiLocation::new(1, Parachain(HYDRA_PARA_ID));
 	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
-	let assets = give.into();
+	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
 	let max_assets = assets.len() as u32;
 	//let context = GlobalConsensus(NetworkId::Polkadot).into();
 	let context2 = X2(
@@ -42,7 +42,8 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 		.clone()
 		.reanchored(&dest, context2)
 		.expect("should reanchor");
-	let give: MultiAssetFilter = assets.clone().into();
+	// TODO: reanchor
+	let give: MultiAssetFilter = Definite(give.into());
 	let want = want.into();
 	let weight_limit = {
 		let fees = fees.clone();
@@ -53,12 +54,11 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 				fees,
 				weight_limit: Limited(Weight::zero()),
 			},
-			//TODO: continue here, enable exchange asset and do the implemnetation
-			// ExchangeAsset {
-			// 	give: give.clone(),
-			// 	want: want.clone(),
-			// 	maximal: true,
-			// },
+			ExchangeAsset {
+				give: give.clone(),
+				want: want.clone(),
+				maximal: true,
+			},
 			DepositAsset {
 				assets: Wild(AllCounted(max_assets)),
 				beneficiary,
@@ -68,19 +68,20 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 		let remote_weight = Weigher::weight(&mut remote_message).expect("weighing should not fail");
 		Limited(remote_weight)
 	};
-
+	// executed on remote (on hydra)
 	let xcm = Xcm(vec![
 		BuyExecution { fees, weight_limit },
-		// ExchangeAsset {
-		// 	give,
-		// 	want,
-		// 	maximal: true,
-		// },
+		ExchangeAsset {
+			give,
+			want,
+			maximal: true,
+		},
 		DepositAsset {
 			assets: Wild(AllCounted(max_assets)),
 			beneficiary,
 		},
 	]);
+	// executed on local (acala)
 	let message = Xcm(vec![
 		SetFeesMode { jit_withdraw: true },
 		TransferReserveAsset { assets, dest, xcm },
@@ -107,7 +108,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 	Acala::execute_with(|| {
 		dbg!("execute acala");
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
-			MultiAsset::from((GeneralIndex(0), 100 * UNITS)),
+			MultiAsset::from((GeneralIndex(0), 50 * UNITS)),
 			MultiAsset::from((Here, 300 * UNITS)),
 		);
 		//Act
@@ -123,21 +124,13 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 			hydradx_runtime::Balances::free_balance(AccountId::from(ALICE)),
 			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - 100 * UNITS
 		);
-		//TODO: continue here, probably some other error with conversion, debug it
-		// assert_eq!(
-		// 	hydradx_runtime::Balances::free_balance(&ParaId::from(HYDRA_PARA_ID).into_account_truncating()),
-		// 	100 * UNITS
-		// );
-		expect_hydra_events(vec![
-			cumulus_pallet_xcmp_queue::Event::XcmpMessageSent {
-				message_hash: Some([
-					84, 179, 56, 30, 36, 240, 28, 224, 172, 85, 182, 195, 124, 147, 197, 229, 78, 67, 68, 120, 111,
-					149, 154, 18, 5, 199, 220, 121, 77, 201, 5, 213,
-				]),
-			}
-			.into(),
-			pallet_xcm::Event::Attempted(Outcome::Complete(Weight::from_parts(200000000, 0))).into(),
-		]);
+		// TODO: add utility macro?
+		assert!(matches!(
+			last_hydra_events(2).first(),
+			Some(hydradx_runtime::RuntimeEvent::XcmpQueue(
+				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
+			))
+		));
 		dbg!("end execute acala");
 	});
 	dbg!("after acala");
@@ -147,7 +140,11 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 100 * UNITS - fees
+			BOB_INITIAL_NATIVE_BALANCE + 50 * UNITS - fees
+		);
+		assert_eq!(
+			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
+			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
 		);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
