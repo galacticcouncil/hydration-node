@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::assert_ok;
+use frame_support::{assert_noop, assert_ok};
 use std::ops::RangeInclusive;
 
 use crate::{assert_balance, assert_reserved_balance};
@@ -1108,6 +1108,76 @@ fn sca_schedules_should_be_executed_and_replanned_through_multiple_blocks_when_a
 		for schedule_id in RangeInclusive::new(0, 119) {
 			assert!(hydradx_runtime::DCA::schedules(schedule_id).is_some());
 		}
+	});
+}
+
+#[test]
+fn dca_schedule_should_fail_when_no_free_blocks_found() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let alice_init_hdx_balance = 500000000000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		let bob_init_hdx_balance = 500000000000 * UNITS;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			BOB.into(),
+			bob_init_hdx_balance,
+			0,
+		));
+
+		let dca_budget = 1100000 * UNITS;
+		let amount_to_sell = 100 * UNITS;
+		let schedule_for_alice = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		let schedule_for_bob = schedule_fake_with_sell_order(BOB, dca_budget, HDX, DAI, amount_to_sell);
+
+		let execution_block = 11;
+		for _ in RangeInclusive::new(1, 120) {
+			assert_ok!(hydradx_runtime::DCA::schedule(
+				RuntimeOrigin::signed(ALICE.into()),
+				schedule_for_alice.clone(),
+				Option::Some(execution_block)
+			));
+		}
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget * 120);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget * 120);
+
+		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(11);
+		assert_eq!(20, actual_schedule_ids.len());
+
+		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(12);
+		assert_eq!(20, actual_schedule_ids.len());
+
+		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(14);
+		assert_eq!(20, actual_schedule_ids.len());
+
+		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(18);
+		assert_eq!(20, actual_schedule_ids.len());
+
+		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(26);
+		assert_eq!(20, actual_schedule_ids.len());
+
+		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(42);
+		assert_eq!(20, actual_schedule_ids.len());
+
+		//Act and assert
+		assert_noop!(
+			hydradx_runtime::DCA::schedule(
+				RuntimeOrigin::signed(BOB.into()),
+				schedule_for_bob.clone(),
+				Option::Some(execution_block)
+			),
+			pallet_dca::Error::<hydradx_runtime::Runtime>::NoFreeBlockFound
+		);
 	});
 }
 
