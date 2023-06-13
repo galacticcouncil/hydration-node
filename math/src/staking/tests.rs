@@ -1,3 +1,4 @@
+use num_traits::Zero;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 
 use crate::staking::*;
@@ -130,5 +131,52 @@ fn calculate_points_should_work() {
 		)
 		.unwrap(),
 		99_867
+	);
+}
+
+#[test]
+fn sigmoid_should_work() {
+	let a = FixedU128::from_inner(8_000_000_000_000_000);
+	let b = 2;
+
+	assert_eq!(sigmoid(0, a, b).unwrap(), FixedU128::zero());
+
+	assert_eq!(sigmoid(1, a, b).unwrap(), FixedU128::from_inner(2_047_999_995_u128));
+
+	assert_eq!(
+		sigmoid(10, a, b).unwrap(),
+		FixedU128::from_inner(20_479_580_578_189_u128)
+	);
+
+	assert_eq!(
+		sigmoid(538, a, b).unwrap(),
+		FixedU128::from_inner(994_205_484_888_725_524_u128)
+	);
+
+	assert_eq!(
+		sigmoid(1_712_904, a, b).unwrap(),
+		FixedU128::from_inner(999_999_999_999_999_943_u128)
+	);
+
+	let a = FixedU128::from_inner(250_000_000_000_000_000);
+	let b = 9_340_000;
+
+	assert_eq!(sigmoid(0, a, b).unwrap(), FixedU128::zero());
+
+	assert_eq!(sigmoid(1, a, b).unwrap(), FixedU128::from_inner(418_228_051_u128));
+
+	assert_eq!(
+		sigmoid(10, a, b).unwrap(),
+		FixedU128::from_inner(4_182_263_022_521_u128)
+	);
+
+	assert_eq!(
+		sigmoid(538, a, b).unwrap(),
+		FixedU128::from_inner(972_251_695_722_892_328_u128)
+	);
+
+	assert_eq!(
+		sigmoid(500_000, a, b).unwrap(),
+		FixedU128::from_inner(999_999_999_999_961_743_u128)
 	);
 }

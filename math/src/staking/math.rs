@@ -1,5 +1,5 @@
-use crate::{types::Balance, MathError};
-use num_traits::{CheckedAdd, One};
+use crate::{transcendental::powi, types::Balance, MathError};
+use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, One};
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 
 type BlockNumber = u128;
@@ -66,7 +66,7 @@ pub fn calculate_period_number(period_length: BlockNumber, block_number: BlockNu
 /// - `time_weight`: weight of the time points
 /// - `action_points`: amount of acction points accumulated by user
 /// - `action_weight`: weight of the action points
-/// - `slashed_points`: amount of points to slash from max points.
+/// - `slashed_points`: amount of points to slash from max points
 pub fn calculate_points(
 	entered_at: BlockNumber,
 	now: BlockNumber,
@@ -96,4 +96,30 @@ pub fn calculate_points(
 		.ok_or(MathError::Overflow)?
 		.checked_sub(slashed_points)
 		.ok_or(MathError::Overflow)
+}
+
+/// Implomentation of signoid function returning values from range (0,1)
+///
+/// f(x) = ax^4/(b + ax^4)
+///
+/// Parameters:
+/// - x: point on the curve
+/// - a & b: parameters modifying "speed" and slope of the curve
+pub fn sigmoid(x: Point, a: FixedU128, b: u32) -> Result<FixedU128, MathError> {
+	let ax = a.checked_mul(&FixedU128::from(x)).ok_or(MathError::Overflow)?;
+
+	//NOTE: I did it this way because just converting FixedU128 to Fixed we will loose precission.
+	let ax4 = ax
+		.checked_mul(&ax)
+		.ok_or(MathError::Overflow)?
+		.checked_mul(&ax)
+		.ok_or(MathError::Overflow)?
+		.checked_mul(&ax)
+		.ok_or(MathError::Overflow)?;
+
+	let denom = ax4
+		.checked_add(&FixedU128::from(b as u128))
+		.ok_or(MathError::Overflow)?;
+
+	ax4.checked_div(&denom).ok_or(MathError::Overflow)
 }
