@@ -21,6 +21,7 @@ where
 		want: &MultiAssets,
 		maximal: bool,
 	) -> Result<xcm_executor::Assets, xcm_executor::Assets> {
+		use orml_traits::MultiCurrency;
 		use orml_utilities::with_transaction_result;
 		use sp_runtime::traits::Convert;
 
@@ -50,12 +51,21 @@ where
 			let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else { return Err(give) }; // TODO: unnecessary clone, maybe?
 
 			with_transaction_result(|| {
-				// TODO: mint
-
-				Pallet::<T>::sell(origin, asset_in, asset_out, amount, min_buy_amount)
+				T::Currency::deposit(asset_in, &account, amount)?; // mint the incoming tokens
+				Pallet::<T>::sell(origin, asset_in, asset_out, amount, min_buy_amount)?;
+				debug_assert!(
+					T::Currency::free_balance(asset_in, &account) == 0,
+					"Sell should not leave any of the incoming asset."
+				);
+				let amount_received = T::Currency::free_balance(asset_out, &account);
+				debug_assert!(
+					amount_received >= min_buy_amount,
+					"Sell should return more than mininum buy amount."
+				);
+				T::Currency::withdraw(asset_out, &account, amount_received); // burn the received tokens
+				Ok(MultiAsset::from((wanted.id, amount_received)).into())
 			})
 			.map_err(|_| give)
-			.map(|_| todo!("burn and return"))
 		} else {
 			// buy
 			Err(give) // TODO

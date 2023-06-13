@@ -46,6 +46,7 @@ impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
 
 #[test]
 fn omni_exchanger_exchanges_supported_assets() {
+	// Arrange
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
 			(Omnipool::protocol_account(), DAI, 1000 * ONE),
@@ -54,10 +55,18 @@ fn omni_exchanger_exchanges_supported_assets() {
 		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
 		.build()
 		.execute_with(|| {
-			let give = MultiAsset::from((GeneralIndex(DAI.into()), 50 * UNITS)).into();
-			let want = MultiAsset::from((GeneralIndex(HDX.into()), 100 * UNITS)).into();
-			assert_ok!(
+			let give = MultiAsset::from((GeneralIndex(DAI.into()), 100 * UNITS)).into();
+			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
+			let want = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount)).into();
+			// Act
+			let received =
 				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert>::exchange_asset(None, give, &want, SELL)
-			);
+					.expect("should return ok");
+			// Assert
+			let mut iter = received.fungible_assets_iter();
+			let asset_received = iter.next().expect("there should be at least one asset");
+			assert!(iter.next().is_none(), "there should only be one asset returned");
+			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
+			assert!(received_amount >= wanted_amount);
 		});
 }
