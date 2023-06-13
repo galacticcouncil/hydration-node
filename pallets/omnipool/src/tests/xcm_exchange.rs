@@ -1,5 +1,6 @@
 use super::*;
 use crate::tests::mock::AssetId as CurrencyId;
+use crate::tests::mock::{Balances, Tokens};
 use crate::xcm_exchange::OmniExchanger;
 use frame_support::{assert_noop, parameter_types};
 use polkadot_xcm::latest::prelude::*;
@@ -68,5 +69,7 @@ fn omni_exchanger_exchanges_supported_assets() {
 			assert!(iter.next().is_none(), "there should only be one asset returned");
 			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
 			assert!(received_amount >= wanted_amount);
+			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
+			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
 		});
 }

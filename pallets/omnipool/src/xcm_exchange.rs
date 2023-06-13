@@ -62,7 +62,7 @@ where
 					amount_received >= min_buy_amount,
 					"Sell should return more than mininum buy amount."
 				);
-				T::Currency::withdraw(asset_out, &account, amount_received); // burn the received tokens
+				T::Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
 				Ok(MultiAsset::from((wanted.id, amount_received)).into())
 			})
 			.map_err(|_| give)
