@@ -399,7 +399,8 @@ pub mod pallet {
 					amount_out, ref route, ..
 				} => Self::get_amount_in_for_buy(&amount_out, route)?,
 			};
-			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+			let min_trade_amount_in = transaction_fee.checked_mul(20).ok_or(ArithmeticError::Overflow)?;
+			ensure!(amount_in > min_trade_amount_in, Error::<T>::TradeAmountIsLessThanFee);
 
 			let amount_in_with_transaction_fee = amount_in
 				.checked_add(transaction_fee)
