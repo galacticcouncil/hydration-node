@@ -20,6 +20,7 @@ mod tradability;
 mod tvl;
 mod types;
 mod verification;
+mod xcm_exchange;
 
 use mock::*;
 

@@ -7098,6 +7098,7 @@ dependencies = [
  "log",
  "orml-tokens",
  "orml-traits",
+ "orml-utilities",
  "pallet-balances",
  "parity-scale-codec",
  "pretty_assertions",
@@ -7109,6 +7110,8 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-tracing",
+ "xcm",
+ "xcm-executor",
 ]
 
 [[package]]

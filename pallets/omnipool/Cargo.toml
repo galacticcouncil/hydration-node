@@ -27,6 +27,7 @@ frame-system = { workspace = true }
 
 # ORML
 orml-traits = { workspace = true }
+orml-utilities = { workspace = true }
 
 # Warehouse
 hydradx-traits = { workspace = true }
@@ -44,6 +45,10 @@ frame-benchmarking = { workspace = true, optional = true }
 pallet-balances = { workspace = true, optional = true }
 sp-core = { workspace = true, optional = true }
 sp-io = { workspace = true, optional = true }
+
+#Polkadot
+xcm-executor = { workspace = true }
+polkadot-xcm = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true }
@@ -69,6 +74,7 @@ std = [
 	"pallet-balances/std",
 	"orml-tokens/std",
 	"frame-benchmarking/std",
+	"xcm-executor/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
