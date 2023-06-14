@@ -15,11 +15,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # XCM Rate Limiter Pallet
+//!
+//! ## Overview
+//!
+//! This pallet provides an implementation of `XcmDeferFilter` that tracks incoming tokens and defers iff
+//! they exceed the rate limit configured in `RateLimitFor`.
+//!
+//! ### Integration
+//!
+//!
+//!
+//! ### Concepts
+//!
+//!
+//! ### Implementation
+//!
+//!
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
 use cumulus_pallet_xcmp_queue::XcmDeferFilter;
 
+use frame_support::pallet_prelude::Weight;
 use frame_support::traits::Get;
 use hydra_dx_math::rate_limiter::{calculate_deferred_duration, calculate_new_accumulated_amount};
 
@@ -38,9 +57,6 @@ use xcm::VersionedXcm;
 use xcm::VersionedXcm::V3;
 
 pub mod weights;
-
-#[cfg(any(feature = "runtime-benchmarks", test))]
-mod benchmarking;
 
 #[cfg(test)]
 mod tests;
@@ -154,13 +170,13 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 		_para: polkadot_parachain::primitives::Id,
 		_sent_at: RelayChainBlockNumber,
 		versioned_xcm: &VersionedXcm<T::RuntimeCall>,
-	) -> Option<RelayChainBlockNumber> {
+	) -> (Weight, Option<RelayChainBlockNumber>) {
 		use xcm::IntoVersion;
 		let maybe_xcm = versioned_xcm.clone().into_version(3);
-		let Ok(V3(xcm)) = maybe_xcm else { return Some(T::MaxDeferDuration::get()) };
+		let Ok(V3(xcm)) = maybe_xcm else { return (Weight::default(), Some(T::MaxDeferDuration::get())) };
 		// SAFETY NOTE: It is fine to only look at the first instruction because that is how assets will arrive on chain.
 		//              This is guaranteed by `AllowTopLevelExecution` which is standard in the ecosystem.
-		let Some(instruction) = xcm.first() else { return None };
+		let Some(instruction) = xcm.first() else { return (Weight::default(), None) };
 		for (location, amount) in Pallet::<T>::get_locations_and_amounts(instruction) {
 			let accumulated_liquidity = AccumulatedAmounts::<T>::get(location);
 
@@ -169,6 +185,12 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 			let defer_duration = T::DeferDuration::get();
 
 			let current_time = T::RelayBlockNumberProvider::current_block_number();
+			// let's assume one read for `RateLimitFor` as well as a read and write for `AccumulatedAmounts` updates.
+			let weight = if current_time == accumulated_liquidity.last_updated {
+				T::DbWeight::get().reads(1)
+			} else {
+				T::DbWeight::get().reads_writes(2, 1)
+			};
 			let time_difference = current_time.saturating_sub(accumulated_liquidity.last_updated);
 
 			let new_accumulated_amount = calculate_new_accumulated_amount(
@@ -194,12 +216,15 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 			);
 
 			if deferred_by > 0 {
-				return Some(deferred_by.min(T::MaxDeferDuration::get().saturated_into()));
+				return (
+					weight,
+					Some(deferred_by.min(T::MaxDeferDuration::get().saturated_into())),
+				);
 			} else {
-				return None;
+				return (weight, None);
 			}
 		}
 
-		None
+		(Weight::default(), None)
 	}
 }
