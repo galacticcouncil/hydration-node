@@ -19,6 +19,11 @@ codec = { default-features = false, features = ["derive"], package = "parity-sca
 serde = { version = "1.0.136", features = ["derive"], optional = true }
 log = { version = "0.4.17", default-features = false }
 
+# ORML
+orml-traits = { workspace = true }
+
+hydra-dx-math = { workspace = true }
+
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 sp-io = { workspace = true }

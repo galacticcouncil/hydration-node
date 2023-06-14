@@ -81,16 +81,13 @@ fn calculate_period_number_should_work_when_period_length_is_not_zero() {
 
 #[test]
 fn calculate_points_should_work() {
-	let now = 4_235_342_u128;
-	let period_length = 100_800; //1w with 6s blocks
 	let time_points_per_period = 2_u8;
 
 	let action_points = 100_u128;
 	assert_eq!(
 		calculate_points(
-			4_000_123,
-			now,
-			period_length,
+			39_u128,
+			42_u128,
 			time_points_per_period,
 			Permill::from_percent(60),
 			action_points,
@@ -104,9 +101,8 @@ fn calculate_points_should_work() {
 	let action_points = 0_u128;
 	assert_eq!(
 		calculate_points(
-			40_000,
-			now,
-			period_length,
+			40_u128,
+			82_u128,
 			time_points_per_period,
 			Permill::from_percent(60),
 			action_points,
@@ -120,9 +116,8 @@ fn calculate_points_should_work() {
 	let action_points = 1_000_000_u128;
 	assert_eq!(
 		calculate_points(
-			40_127,
-			now,
-			period_length,
+			150_u128,
+			192_u128,
 			time_points_per_period,
 			Permill::from_percent(80),
 			action_points,
