@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-otc'
-version = '1.0.1'
+version = "1.0.2"
 description = 'A pallet for trustless over-the-counter trading'
 authors = ['GalacticCouncil']
 edition = '2021'

@@ -3724,7 +3724,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.1.0"
+version = "7.2.0"
 dependencies = [
  "approx",
  "criterion",
@@ -3822,7 +3822,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-adapters"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -7148,7 +7148,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-otc"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9389,7 +9389,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.2"
+version = "5.7.3"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
