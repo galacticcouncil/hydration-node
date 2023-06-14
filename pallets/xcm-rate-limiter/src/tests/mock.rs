@@ -510,6 +510,6 @@ impl ExternalPriceProvider<AssetId, EmaPrice> for WithdrawFeePriceOracle {
 	}
 
 	fn get_price_weight() -> Weight {
-		todo!()
+		Weight::default()
 	}
 }
