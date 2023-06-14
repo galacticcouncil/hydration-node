@@ -15,22 +15,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # XCM Rate Limiter Pallet
+//! ## XCM Rate Limiter Pallet
 //!
-//! ## Overview
+//! ### Overview
 //!
 //! This pallet provides an implementation of `XcmDeferFilter` that tracks incoming tokens and defers iff
 //! they exceed the rate limit configured in `RateLimitFor`.
 //!
-//! ### Integration
+//! #### Integration
 //!
+//! The `RateLimitFor` associated type is supposed to be provided by the `AssetRegistry`,
+//! but could work with any other implementation.
 //!
+//! This pallet does not provide any extrinsics of its own,
+//! but it is meant to provide the implementation of `XcmDeferFilter` for the `XcmpQueue`.
 //!
-//! ### Concepts
+//! #### Implementation
 //!
+//! The duration for deferring an XCM is calculated based on:
+//! - the incoming amount
+//! - the rate limit of the asset
+//! - the configured `DeferDuration`
+//! - the amounts of tokens accumulated over time but decayed based on time and rate limit
 //!
-//! ### Implementation
+//! The tokens are deferred once the rate limit is exceeded, with 2 times the rate limit corresponding to deferred duration.
+//! For example, if the rate limit is 1000 tokens per 10 blocks, then 1500 tokens will be deferred by 5 blocks.
 //!
+//! THe accumulated amounts decay linearly at the rate limit. For example: With rate limit 1000 tokens per 10 blocks,
+//! the accumulated amount will be reduced by 100 tokens per block.
+//!
+//! The filter works with XCM v3 and so assumes that other versions can be converted to it.
+//!
+//! The filter processes only the first instruction of the XCM message, because that is how assets will arrive on chain.
+//! This is guaranteed by `AllowTopLevelExecution` which is standard in the ecosystem.
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -215,6 +232,7 @@ impl<T: Config> XcmDeferFilter<T::RuntimeCall> for Pallet<T> {
 				},
 			);
 
+			//TODO: we should not return because there might be other locations/assets in the xcm to be handled. When todo is processed, extend doc.
 			if deferred_by > 0 {
 				return (
 					weight,
