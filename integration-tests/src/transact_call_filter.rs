@@ -178,10 +178,10 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 	});
 
 	Acala::execute_with(|| {
-		// filtered by the runtime call filter
-		let call = pallet_uniques::Call::<hydradx_runtime::Runtime>::create {
-			collection: 1u128,
-			admin: ALICE.into(),
+		// transfer to the Omnipool is filtered by the runtime call filter
+		let call = pallet_balances::Call::<hydradx_runtime::Runtime>::transfer {
+			dest: hydradx_runtime::Omnipool::protocol_account(),
+			value: UNITS,
 		};
 		let message = Xcm(vec![
 			WithdrawAsset(
@@ -208,7 +208,7 @@ fn safe_call_filter_should_respect_runtime_call_filter() {
 			Transact {
 				require_weight_at_most: Weight::from_parts(1_000_000_000, 2653u64),
 				origin_kind: OriginKind::Native,
-				call: hydradx_runtime::RuntimeCall::Uniques(call).encode().into(),
+				call: hydradx_runtime::RuntimeCall::Balances(call).encode().into(),
 			},
 			ExpectTransactStatus(MaybeErrorCode::Success),
 			RefundSurplus,
