@@ -929,7 +929,7 @@ where
 			(64, 127),
 			(128, 255),
 			(256, 512),
-			(513, 1024), //This range is ignored in the loop as after the last iteration we return `NoFreeBlockFound` error
+			(513, 1024), //This range is irrelevant in the loop as after the last iteration we return `NoFreeBlockFound` error
 		];
 
 		for (lower_bound, upper_bound) in radius_ranges.iter() {
