@@ -1,6 +1,6 @@
 use crate::{types::Balance, MathError};
 use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One};
-use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128, Permill};
 
 type Period = u128;
 type Point = u128;
@@ -8,8 +8,8 @@ type Point = u128;
 /// Function calculates new accumulated reward per stake.
 ///
 /// Parameters:
-/// - `current_reward_per_staken`: current value of `reward_per_stake`
-/// - `pending_rewards`: ammount of rewards ready to distribute
+/// - `current_reward_per_stake`: current value of `reward_per_stake`
+/// - `pending_rewards`: amount of rewards ready to distribute
 /// - `total_stake`: total amount of tokens staked
 pub fn calculate_accumulated_rps(
 	current_reward_per_stake: FixedU128,
@@ -22,13 +22,13 @@ pub fn calculate_accumulated_rps(
 }
 
 /// Function calculates amount of points to slash for current stake increase.
-/// Caluclated points are rounded down.
+/// Calculated points are rounded down.
 ///
 /// Parameters:
-/// - `points`: amount of points user accumulated until this points
-/// - `current_stake`: staked amount before increase
-/// - `stake_increase`: ammount added to stake
-/// - `stake_weight`: weight of `current_stake`. Bigger the weight lower the points slashed
+/// - `points`: amount of points user accumulated until this now
+/// - `current_stake`: staked amount before stake increase
+/// - `stake_increase`: amount added to stake
+/// - `stake_weight`: weight of `current_stake`. Bigger the weight lower the slashed points
 pub fn calculate_slashed_points(
 	points: Point,
 	current_stake: Balance,
@@ -46,7 +46,7 @@ pub fn calculate_slashed_points(
 		.ok_or(MathError::Overflow)
 }
 
-/// Fucntion calculated Period number from block number and period size.
+/// Function calculates period number from block number and period size.
 ///
 /// Parameters:
 /// - `period_length`: length of the one period in blocks
@@ -63,14 +63,15 @@ pub fn calculate_period_number<BlockNumber: num_traits::CheckedDiv + TryInto<u32
 	.map_err(|_| MathError::Overflow)
 }
 
-/// Function calculates `Points` for payable curve.
+/// Function calculates total amount of `Points` user have accumulated until now.
+/// Slashed points are subtracted.
 ///
 /// Parameters:
 /// - `entered_at`: period number when user entered staking
 /// - `now`: current period number
 /// - `time_points_per_period`: number of time points per 1 period
 /// - `time_weight`: weight of the time points
-/// - `action_points`: amount of acction points accumulated by user
+/// - `action_points`: amount of action points accumulated by user
 /// - `action_weight`: weight of the action points
 /// - `slashed_points`: amount of points to slash from max points
 pub fn calculate_points(
@@ -101,9 +102,9 @@ pub fn calculate_points(
 		.ok_or(MathError::Overflow)
 }
 
-/// Implomentation of signoid function returning values from range (0,1)
+/// Implementation of sigmoid function returning values from range (0,1)
 ///
-/// f(x) = ax^4/(b + ax^4)
+/// f(x) = (ax)^4/(b + (ax)^4)
 ///
 /// Parameters:
 /// - `x`: point on the curve
@@ -111,14 +112,7 @@ pub fn calculate_points(
 pub fn sigmoid(x: Point, a: FixedU128, b: u32) -> Result<FixedU128, MathError> {
 	let ax = a.checked_mul(&FixedU128::from(x)).ok_or(MathError::Overflow)?;
 
-	//NOTE: It's done this way because just by converting FixedU128 to Fixed and back we will loose precission.
-	let ax4 = ax
-		.checked_mul(&ax)
-		.ok_or(MathError::Overflow)?
-		.checked_mul(&ax)
-		.ok_or(MathError::Overflow)?
-		.checked_mul(&ax)
-		.ok_or(MathError::Overflow)?;
+	let ax4 = ax.saturating_pow(4);
 
 	let denom = ax4
 		.checked_add(&FixedU128::from(b as u128))
@@ -127,12 +121,12 @@ pub fn sigmoid(x: Point, a: FixedU128, b: u32) -> Result<FixedU128, MathError> {
 	ax4.checked_div(&denom).ok_or(MathError::Overflow)
 }
 
-/// Function calcuates amount of reards.
+/// Function calculates amount of rewards.
 ///
 /// - `accumulated_reward_per_stake`: global value of reward per stake
 /// - `reward_per_stake`: positon's reward per stake
 /// - `stake`: staked amount
-pub fn calcutale_rewards(
+pub fn calculate_rewards(
 	accumulated_reward_per_stake: FixedU128,
 	reward_per_stake: FixedU128,
 	stake: Balance,
