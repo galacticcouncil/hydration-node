@@ -97,6 +97,31 @@ fn deferred_by_should_defer_xcm_when_limit_exceeded_double_limit() {
 }
 
 #[test]
+fn deferred_by_should_defer_by_max_of_all_assets_in_xcm() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let other_asset_loc = MultiLocation::new(1, GeneralIndex(42));
+		let assets = vec![(MultiLocation::here(), 2000 * ONE), (other_asset_loc, 3000 * ONE)];
+		let versioned_xcm = create_multi_reserve_asset_deposited(assets);
+		let para_id = 999.into();
+
+		//Act
+		let deferred_block_number = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
+
+		//Assert
+		let accumulated_here = XcmRateLimiter::accumulated_amount(MultiLocation::here());
+		assert_eq!(accumulated_here.amount, 2000 * ONE);
+		assert_eq!(accumulated_here.last_updated, 1);
+
+		let accumulated_other = XcmRateLimiter::accumulated_amount(other_asset_loc);
+		assert_eq!(accumulated_other.amount, 3000 * ONE);
+		assert_eq!(accumulated_other.last_updated, 1);
+
+		assert_eq!(deferred_block_number, Some(20));
+	});
+}
+
+#[test]
 fn deferred_by_should_defer_successive_xcm_when_limit_exceeded() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -165,6 +190,17 @@ fn deferred_by_should_defer_successive_xcm_when_time_passes() {
 
 pub fn create_versioned_reserve_asset_deposited(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
 	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
+	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
+		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_assets),
+	]))
+}
+
+pub fn create_multi_reserve_asset_deposited(locs_and_amounts: Vec<(MultiLocation, u128)>) -> VersionedXcm<RuntimeCall> {
+	let locs_and_amounts = locs_and_amounts
+		.into_iter()
+		.map(|(loc, amount)| (loc, amount).into())
+		.collect();
+	let multi_assets = MultiAssets::from_sorted_and_deduplicated(locs_and_amounts).unwrap();
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
 		Instruction::<RuntimeCall>::ReserveAssetDeposited(multi_assets),
 	]))

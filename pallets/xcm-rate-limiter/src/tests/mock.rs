@@ -132,10 +132,14 @@ parameter_types! {
 pub struct ConvertIdMock;
 impl Convert<MultiLocation, Option<AssetId>> for ConvertIdMock {
 	fn convert(location: MultiLocation) -> Option<AssetId> {
-		if location == MultiLocation::here() {
-			Some(HDX)
-		} else {
-			None
+		use sp_runtime::SaturatedConversion;
+		match location {
+			loc if loc == MultiLocation::here() => Some(HDX),
+			MultiLocation {
+				parents: _,
+				interior: Junctions::X1(GeneralIndex(i)),
+			} => Some(i.saturated_into()),
+			_ => None,
 		}
 	}
 }
@@ -194,6 +198,7 @@ parameter_type_with_key! {
 			DAI => Some(1000 * ONE),
 			LRNA => Some(1000 * ONE),
 			ACA => Some(1000 * ONE),
+			42 => Some(1000 * ONE),
 			_ => None
 		}
 	};
