@@ -25,6 +25,25 @@ pub use pretty_assertions::{assert_eq, assert_ne};
 use xcm::VersionedXcm;
 
 #[test]
+fn deferred_by_should_not_track_or_limit_irrelevant_asset_xcms() {
+	ExtBuilder::default().build().execute_with(|| {
+		//Arrange
+		let versioned_xcm = create_versioned_withdraw_asset(MultiLocation::here(), 2000 * ONE);
+		let para_id = 999.into();
+
+		//Act
+		let deferred = XcmRateLimiter::deferred_by(para_id, 10, &versioned_xcm).1;
+
+		//Assert
+		assert_eq!(
+			XcmRateLimiter::accumulated_amount(MultiLocation::here()),
+			AccumulatedAmount::default()
+		);
+		assert_eq!(deferred, None);
+	});
+}
+
+#[test]
 fn deferred_by_should_track_incoming_teleported_asset_liquidity() {
 	ExtBuilder::default().build().execute_with(|| {
 		//Arrange
@@ -211,6 +230,13 @@ pub fn create_versioned_receive_teleported_asset(loc: MultiLocation, amount: u12
 	VersionedXcm::from(Xcm::<RuntimeCall>(vec![
 		Instruction::<RuntimeCall>::ReceiveTeleportedAsset(multi_assets),
 	]))
+}
+
+pub fn create_versioned_withdraw_asset(loc: MultiLocation, amount: u128) -> VersionedXcm<RuntimeCall> {
+	let multi_assets = MultiAssets::from_sorted_and_deduplicated(vec![(loc, amount).into()]).unwrap();
+	VersionedXcm::from(Xcm::<RuntimeCall>(vec![Instruction::<RuntimeCall>::WithdrawAsset(
+		multi_assets,
+	)]))
 }
 
 pub fn create_versioned_xcm_v2(amount: u128) -> VersionedXcm<RuntimeCall> {
