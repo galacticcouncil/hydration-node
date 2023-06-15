@@ -140,7 +140,7 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 		// Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			100 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - amount
 		);
 	});
 
@@ -148,7 +148,7 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
-			100 * UNITS - fee
+			amount - fee
 		);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
