@@ -31,7 +31,7 @@ use sp_runtime::Permill;
 
 pub type AssetId = u32;
 
-pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
+pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000_000;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -114,7 +114,7 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
-		slippage: Some(Permill::from_percent(30)),
+		slippage: Some(Permill::from_percent(100)),
 		order: Order::Sell {
 			asset_in,
 			asset_out,
@@ -169,8 +169,8 @@ where
 	<T as pallet_route_executor::Config>::AssetId: From<u32>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
-	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
-	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
+	let stable_amount: Balance = 5_000_000_000_000_000_000_000_000u128;
+	let native_amount: Balance = 5_000_000_000_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
 	let native_price: FixedU128 = FixedU128::from(1);
 	let acc = OmnipoolPallet::<T>::protocol_account();
@@ -286,7 +286,7 @@ benchmarks! {
 		let seller: T::AccountId = account("seller", 3, 1);
 		let other_seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_buy = 20 * ONE;
+		let amount_buy = 200 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
@@ -332,7 +332,7 @@ benchmarks! {
 		let seller: T::AccountId = account("seller", 3, 1);
 		let other_seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_sell = 10 * ONE;
+		let amount_sell = 100 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000i128)?;
 
@@ -392,7 +392,7 @@ benchmarks! {
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &caller, 100_000_000_000_000_000_000_000i128)?;
 
-		let amount_sell = 20_000_000_000_000u128;
+		let amount_sell = 200 * ONE;
 		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let execution_block = 100u32;
 		let one_block_after_execution_block = execution_block + 1;
@@ -421,7 +421,7 @@ benchmarks! {
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &caller, 100_000_000_000_000_000i128)?;
 
-		let amount_sell = 20_000_000_000_000u128;
+		let amount_sell = 200 * ONE;
 		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let schedule_id : ScheduleId = 0;
 

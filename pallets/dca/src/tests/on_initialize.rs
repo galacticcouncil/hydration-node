@@ -1916,7 +1916,7 @@ fn dca_should_be_terminated_when_dca_cannot_be_planned_due_to_not_free_blocks() 
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
-			for _ in RangeInclusive::new(1, 120) {
+			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
 				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(502)));
 			}
@@ -1969,7 +1969,7 @@ fn dca_should_be_terminated_when_price_change_is_big_but_no_free_blocks_to_repla
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(501)));
 			assert_eq!(total_amount, Currencies::reserved_balance(HDX, &ALICE));
 
-			for _ in RangeInclusive::new(1, 120) {
+			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
 				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::Some(511)));
 			}

@@ -554,28 +554,20 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 			//Arrange
 			set_block_number(500);
 
-			for _ in RangeInclusive::new(1, 120) {
+			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
 				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			}
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(504);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(508);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(516);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(532);
-			assert_eq!(20, actual_schedule_ids.len());
+			//Check if all the blocks within radiuses are fully filled
+			let search_radius = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
+			let next_block = 501;
+			let mut next_block_with_radius = next_block;
+			for radius in search_radius {
+				next_block_with_radius = next_block_with_radius + radius;
+				let actual_schedule_ids = DCA::schedule_ids_per_block(next_block_with_radius);
+				assert_eq!(20, actual_schedule_ids.len());
+			}
 
 			//Act and assert
 			let schedule = ScheduleBuilder::new().build();

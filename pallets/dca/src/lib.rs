@@ -83,7 +83,7 @@ use crate::types::*;
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
-pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
+pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10;
 
 #[frame_support::pallet]
 pub mod pallet {
