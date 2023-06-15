@@ -22,8 +22,6 @@ sp-std = { workspace = true }
 serde = { version = "1.0.136", optional = true }
 
 [dev-dependencies]
-# primitives = { workspace = true }
-
 approx = "0.5.1"
 criterion = "0.4.0"
 proptest = "1.0.0"
