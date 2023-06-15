@@ -563,7 +563,7 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 			let next_block = 501;
 			let mut next_block_with_radius = next_block;
 			for radius in GENERATED_SEARCH_RADIUSES {
-				next_block_with_radius = next_block_with_radius + radius;
+				next_block_with_radius += radius;
 				let actual_schedule_ids = DCA::schedule_ids_per_block(next_block_with_radius);
 				assert_eq!(20, actual_schedule_ids.len());
 			}

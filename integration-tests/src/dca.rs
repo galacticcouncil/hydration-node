@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::assert_ok;
 use std::ops::RangeInclusive;
 
 use crate::{assert_balance, assert_reserved_balance};
@@ -1122,7 +1122,7 @@ fn dca_schedules_should_be_executed_and_replanned_through_multiple_blocks_when_a
 
 		//Check if all blocks found within radius are filled
 		for delay in generated_radiuses {
-			execution_block = execution_block + delay;
+			execution_block += delay;
 			let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(execution_block);
 			assert_eq!(20, actual_schedule_ids.len());
 		}
@@ -1379,7 +1379,7 @@ pub fn count_failed_trade_events() -> u32 {
 			e,
 			hydradx_runtime::RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { .. })
 		) {
-			counter = counter + 1;
+			counter += 1;
 		}
 	}
 

@@ -2026,7 +2026,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 
 			//Check if all blocks found within radius are filled
 			for delay in GENERATED_SEARCH_RADIUSES {
-				execution_block = execution_block + delay;
+				execution_block += delay;
 				let actual_schedule_ids = DCA::schedule_ids_per_block(execution_block);
 				assert_eq!(20, actual_schedule_ids.len());
 			}

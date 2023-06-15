@@ -496,7 +496,7 @@ where
 	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
 	fn get_randomness_generator(current_blocknumber: T::BlockNumber) -> StdRng {
-		return match T::RandomnessProvider::generator() {
+		match T::RandomnessProvider::generator() {
 			Ok(generator) => generator,
 			Err(err) => {
 				Self::deposit_event(Event::RandomnessGenerationFailed {
@@ -505,7 +505,7 @@ where
 				});
 				rand::rngs::StdRng::seed_from_u64(0)
 			}
-		};
+		}
 	}
 
 	fn get_next_execution_block(
