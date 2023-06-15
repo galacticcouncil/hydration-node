@@ -159,7 +159,6 @@ impl pallet_xcm_rate_limiter::Config for Test {
 	type RelayBlockNumberProvider = TreatSystemAsRelayBlockNumberProvider;
 	type RateLimitFor = XcmRateLimitFor;
 	type CurrencyIdConvert = ConvertIdMock;
-	type WeightInfo = ();
 }
 
 pub struct CircuitBreakerWhitelist;

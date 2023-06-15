@@ -220,7 +220,6 @@ impl pallet_xcm_rate_limiter::Config for Runtime {
 	type RelayBlockNumberProvider = RelayChainBlockNumberProvider<Runtime>;
 	type CurrencyIdConvert = CurrencyIdConvert;
 	type RateLimitFor = pallet_asset_registry::XcmRateLimitsInRegistry<Runtime>;
-	type WeightInfo = ();
 }
 
 pub struct CurrencyIdConvert;

@@ -73,14 +73,11 @@ use xcm::lts::prelude::*;
 use xcm::VersionedXcm;
 use xcm::VersionedXcm::V3;
 
-pub mod weights;
-
 #[cfg(test)]
 mod tests;
 
 // Re-export pallet items so that they can be accessed from the crate namespace.
 pub use pallet::*;
-pub use weights::WeightInfo;
 
 #[derive(Clone, Default, Encode, Decode, RuntimeDebug, MaxEncodedLen, TypeInfo, Eq, PartialEq)]
 pub struct AccumulatedAmount {
@@ -133,9 +130,6 @@ pub mod pallet {
 
 		/// Xcm rate limit getter for each asset
 		type RateLimitFor: GetByKey<Self::AssetId, Option<u128>>;
-
-		/// Weight information for extrinsics in this pallet.
-		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
