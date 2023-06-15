@@ -39,6 +39,13 @@ pub const DAI: AssetId = 2;
 
 pub const ONE: Balance = 1_000_000_000_000;
 
+// This is the the sum of all "randomly" generated radiuses.
+// In tests the radiuses are always the same as we use a fixed parent hash for generation,
+// so it will always generate the same values
+pub const DELAY_AFTER_LAST_RADIUS: u32 = 776;
+
+pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10; //With the assumption that we have 10 retry radiuses specified when searching for a free block
+
 fn schedule_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
 	asset_in: <T as pallet_route_executor::Config>::AssetId,
@@ -314,15 +321,15 @@ benchmarks! {
 		for i in 0..number_of_all_schedules {
 			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan.into())));
 		}
-		let delay_with = 2u32.pow(RETRY_TO_SEARCH_FOR_FREE_BLOCK) - 1;
-		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
 		let new_dai_balance = <T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller);
 		assert_eq!(new_dai_balance, amount_buy);
-		assert_eq!(T::MaxSchedulePerBlock::get() as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
 	on_initialize_with_sell_trade{
@@ -359,15 +366,14 @@ benchmarks! {
 		for i in 0..number_of_all_schedules {
 			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan.into())));
 		}
-		let delay_with = 2u32.pow(RETRY_TO_SEARCH_FOR_FREE_BLOCK) - 1 ;
-		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
 		let new_dai_balance = <T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller);
 		assert!(new_dai_balance > 0);
-		assert_eq!(T::MaxSchedulePerBlock::get() as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
 	on_initialize_with_empty_block{
@@ -411,9 +417,14 @@ benchmarks! {
 		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(execution_block.into()).len());
 		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 1u32).into()).len());
 		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 3u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 7u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 15u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 31u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 6u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 11u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 25u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 54u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 89u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 172u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 397u32).into()).len());
+		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
 	terminate {

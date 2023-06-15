@@ -71,6 +71,9 @@ pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
+//Since we always use the same parent hash in the tests, the generated radiuses are always the same
+pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 2, 3, 5, 14, 29, 35, 83, 225, 379];
+
 pub const ONE: Balance = 1_000_000_000_000;
 
 frame_support::construct_runtime!(

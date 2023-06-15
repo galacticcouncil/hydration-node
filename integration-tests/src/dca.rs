@@ -1026,7 +1026,7 @@ fn multiple_full_sell_dca_should_be_executed_then_completed_for_same_user() {
 }
 
 #[test]
-fn sca_schedules_should_be_executed_and_replanned_through_multiple_blocks_when_all_blocks_are_fully_planned() {
+fn dca_schedules_should_be_executed_and_replanned_through_multiple_blocks_when_all_blocks_are_fully_planned() {
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		//Arrange
@@ -1049,65 +1049,100 @@ fn sca_schedules_should_be_executed_and_replanned_through_multiple_blocks_when_a
 
 		let dca_budget = 1100000 * UNITS;
 		let amount_to_sell = 100 * UNITS;
-		let schedule_for_alice = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
-		let schedule_for_bob = schedule_fake_with_sell_order(BOB, dca_budget, HDX, DAI, amount_to_sell);
+		let schedule_for_alice = Schedule {
+			owner: AccountId::from(ALICE),
+			period: 500u32,
+			total_amount: dca_budget,
+			max_retries: None,
+			stability_threshold: None,
+			slippage: Some(Permill::from_percent(10)),
+			order: Order::Sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: amount_to_sell,
+				min_amount_out: Balance::MIN,
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				}]),
+			},
+		};
+		let schedule_for_bob = Schedule {
+			owner: AccountId::from(BOB),
+			period: 500u32,
+			total_amount: dca_budget,
+			max_retries: None,
+			stability_threshold: None,
+			slippage: Some(Permill::from_percent(10)),
+			order: Order::Sell {
+				asset_in: HDX,
+				asset_out: DAI,
+				amount_in: amount_to_sell,
+				min_amount_out: Balance::MIN,
+				route: create_bounded_vec(vec![Trade {
+					pool: PoolType::Omnipool,
+					asset_in: HDX,
+					asset_out: DAI,
+				}]),
+			},
+		};
 
-		for _ in RangeInclusive::new(1, 60) {
+		let mut execution_block = 11;
+		for _ in RangeInclusive::new(1, 120) {
 			assert_ok!(hydradx_runtime::DCA::schedule(
 				RuntimeOrigin::signed(ALICE.into()),
 				schedule_for_alice.clone(),
-				Option::Some(11)
+				Option::Some(execution_block)
 			));
 		}
 
-		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget * 60);
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget * 120);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget * 60);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget * 120);
 
-		for _ in RangeInclusive::new(61, 120) {
+		for _ in RangeInclusive::new(121, 220) {
 			assert_ok!(hydradx_runtime::DCA::schedule(
 				RuntimeOrigin::signed(BOB.into()),
 				schedule_for_bob.clone(),
-				Option::Some(11)
+				Option::Some(execution_block)
 			));
 		}
 
-		assert_balance!(BOB.into(), HDX, alice_init_hdx_balance - dca_budget * 60);
+		assert_balance!(BOB.into(), HDX, alice_init_hdx_balance - dca_budget * 100);
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE);
-		assert_reserved_balance!(&BOB.into(), HDX, dca_budget * 60);
+		assert_reserved_balance!(&BOB.into(), HDX, dca_budget * 100);
 
+		//Check if the first block is fully filled
 		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(11);
 		assert_eq!(20, actual_schedule_ids.len());
 
-		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(12);
-		assert_eq!(20, actual_schedule_ids.len());
+		//Since we always use the same parent hash in the tests, the generated delays are always the same
+		let generated_radiuses: [u32; 10] = [1, 2, 3, 5, 14, 29, 35, 83, 225, 379];
 
-		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(14);
-		assert_eq!(20, actual_schedule_ids.len());
-
-		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(18);
-		assert_eq!(20, actual_schedule_ids.len());
-
-		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(26);
-		assert_eq!(20, actual_schedule_ids.len());
-
-		let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(42);
-		assert_eq!(20, actual_schedule_ids.len());
+		//Check if all blocks found within radius are filled
+		for delay in generated_radiuses {
+			execution_block = execution_block + delay;
+			let actual_schedule_ids = hydradx_runtime::DCA::schedule_ids_per_block(execution_block);
+			assert_eq!(20, actual_schedule_ids.len());
+		}
 
 		//Act
-		run_to_block(11, 100);
+		run_to_block(11, 700);
 
 		//Assert
-		let amount_out = 84028043372832998;
+		let amount_out = 17091264662498700;
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 
-		let amount_out = 42725817689321764;
+		let amount_out = 9969849234953196;
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
 		//Assert if none of the schedule is terminated
 		for schedule_id in RangeInclusive::new(0, 119) {
 			assert!(hydradx_runtime::DCA::schedules(schedule_id).is_some());
 		}
+
+		check_if_no_failed_events();
 	});
 }
 
@@ -1315,6 +1350,11 @@ pub fn expect_schedule_ids_from_events(e: Vec<u32>) {
 	pretty_assertions::assert_eq!(last_schedule_ids_from_events, e);
 }
 
+pub fn check_if_no_failed_events() {
+	let failed_events = count_failed_trade_events();
+	assert_eq!(0, failed_events);
+}
+
 pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 	let last_events: Vec<hydradx_runtime::RuntimeEvent> = last_hydra_events(1000);
 	let mut schedule_ids = vec![];
@@ -1327,4 +1367,21 @@ pub fn get_last_schedule_ids_from_trade_executed_events() -> Vec<u32> {
 	}
 
 	schedule_ids
+}
+
+pub fn count_failed_trade_events() -> u32 {
+	let last_events: Vec<hydradx_runtime::RuntimeEvent> = last_hydra_events(100000);
+
+	let mut counter: u32 = 0;
+	for event in last_events {
+		let e = event.clone();
+		if matches!(
+			e,
+			hydradx_runtime::RuntimeEvent::DCA(pallet_dca::Event::TradeFailed { .. })
+		) {
+			counter = counter + 1;
+		}
+	}
+
+	counter
 }

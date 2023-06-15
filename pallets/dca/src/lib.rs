@@ -83,7 +83,6 @@ use crate::types::*;
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
-pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -110,16 +109,7 @@ pub mod pallet {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
-			let mut randomness_generator = match T::RandomnessProvider::generator() {
-				Ok(generator) => generator,
-				Err(err) => {
-					Self::deposit_event(Event::RandomnessGenerationFailed {
-						block: current_blocknumber,
-						error: err,
-					});
-					rand::rngs::StdRng::seed_from_u64(0)
-				}
-			};
+			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber);
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
@@ -505,6 +495,19 @@ where
 	<T as pallet_route_executor::Config>::Balance: From<Balance>,
 	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
+	fn get_randomness_generator(current_blocknumber: T::BlockNumber) -> StdRng {
+		return match T::RandomnessProvider::generator() {
+			Ok(generator) => generator,
+			Err(err) => {
+				Self::deposit_event(Event::RandomnessGenerationFailed {
+					block: current_blocknumber,
+					error: err,
+				});
+				rand::rngs::StdRng::seed_from_u64(0)
+			}
+		};
+	}
+
 	fn get_next_execution_block(
 		start_execution_block: Option<BlockNumberFor<T>>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
@@ -912,13 +915,30 @@ where
 	fn find_next_free_block(blocknumber: T::BlockNumber) -> Result<T::BlockNumber, DispatchError> {
 		let mut next_execution_block = blocknumber;
 
-		// In a bound fashion, we search for next free block with the delays of 1 - 2 - 4 - 8 - 16.
-		for retry_index in 0u32..=RETRY_TO_SEARCH_FOR_FREE_BLOCK {
+		let mut randomness_generator =
+			Self::get_randomness_generator(frame_system::Pallet::<T>::current_block_number());
+
+		let radius_ranges = [
+			(1u32, 1u32),
+			(2, 2),
+			(2, 3),
+			(4, 7),
+			(8, 15),
+			(16, 31),
+			(32, 63),
+			(64, 127),
+			(128, 255),
+			(256, 512),
+			(513, 1024), //This range is ignored in the loop as after the last iteration we return `NoFreeBlockFound` error
+		];
+
+		for (lower_bound, upper_bound) in radius_ranges.iter() {
 			let schedule_ids = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 			if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
 				return Ok(next_execution_block);
 			}
-			let delay_with = 2u32.checked_pow(retry_index).ok_or(ArithmeticError::Overflow)?;
+
+			let delay_with = randomness_generator.gen_range(*lower_bound..=*upper_bound);
 			next_execution_block = next_execution_block.saturating_add(delay_with.into());
 		}
 

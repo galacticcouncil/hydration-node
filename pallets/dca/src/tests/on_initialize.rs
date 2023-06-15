@@ -1997,7 +1997,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 
 			let schedule = ScheduleBuilder::new()
 				.with_total_amount(total_amount)
-				.with_period(1)
+				.with_period(100)
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
@@ -2011,7 +2011,8 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 				})
 				.build();
 
-			for _ in RangeInclusive::new(1, 120) {
+			let mut execution_block = 501;
+			for _ in RangeInclusive::new(1, 220) {
 				assert_ok!(DCA::schedule(
 					RuntimeOrigin::signed(ALICE),
 					schedule.clone(),
@@ -2019,29 +2020,22 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 				));
 			}
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
+			//Check if first block is fully filled
+			let actual_schedule_ids = DCA::schedule_ids_per_block(execution_block);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(504);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(508);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(516);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(532);
-			assert_eq!(20, actual_schedule_ids.len());
+			//Check if all blocks found within radius are filled
+			for delay in GENERATED_SEARCH_RADIUSES {
+				execution_block = execution_block + delay;
+				let actual_schedule_ids = DCA::schedule_ids_per_block(execution_block);
+				assert_eq!(20, actual_schedule_ids.len());
+			}
 
 			//Act
-			proceed_to_blocknumber(501, 600);
+			proceed_to_blocknumber(501, 1524);
 
 			//Assert
-			assert_number_of_executed_sell_trades!(2000);
+			assert_number_of_executed_sell_trades!(2080);
 
 			//Assert if none of the schedule is terminated
 			for schedule_id in RangeInclusive::new(0, 119) {
@@ -2314,6 +2308,11 @@ fn execution_is_still_successfull_when_no_parent_hash_present() {
 					who: ALICE,
 					amount_in: amount_to_sell,
 					amount_out: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
+				}
+				.into(),
+				DcaEvent::RandomnessGenerationFailed {
+					block: 501,
+					error: Error::<Test>::NoParentHashFound.into(),
 				}
 				.into(),
 				DcaEvent::ExecutionPlanned {

@@ -560,10 +560,9 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 			}
 
 			//Check if all the blocks within radiuses are fully filled
-			let search_radius = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
 			let next_block = 501;
 			let mut next_block_with_radius = next_block;
-			for radius in search_radius {
+			for radius in GENERATED_SEARCH_RADIUSES {
 				next_block_with_radius = next_block_with_radius + radius;
 				let actual_schedule_ids = DCA::schedule_ids_per_block(next_block_with_radius);
 				assert_eq!(20, actual_schedule_ids.len());
