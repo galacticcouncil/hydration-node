@@ -61,7 +61,7 @@ use frame_support::{
 	},
 	BoundedVec,
 };
-use hydradx_traits::OraclePeriod;
+use hydradx_traits::{AccountIdFor, OraclePeriod};
 use orml_traits::currency::MutationHooks;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, DepositAll, RemoveTxAssetOnKilled, TransferFees};
 use pallet_transaction_payment::TargetedFeeAdjustment;
@@ -110,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 158,
+	spec_version: 159,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1067,6 +1067,51 @@ impl pallet_otc::Config for Runtime {
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
 }
 
+use core::ops::RangeInclusive;
+use sp_core::crypto::UncheckedFrom;
+use sp_std::marker::PhantomData;
+parameter_types! {
+	pub const StableswapAmplificationRange: RangeInclusive<u16> = RangeInclusive::new(2, 10_000);
+}
+
+pub struct StableswapAccountIdConstructor<T: frame_system::Config>(PhantomData<T>);
+
+impl<T: frame_system::Config> AccountIdFor<AssetId> for StableswapAccountIdConstructor<T>
+where
+	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
+{
+	type AccountId = T::AccountId;
+
+	fn from_assets(asset: &AssetId, identifier: Option<&[u8]>) -> Self::AccountId {
+		let name = Self::name(asset, identifier);
+		T::AccountId::unchecked_from(<T::Hashing as frame_support::sp_runtime::traits::Hash>::hash(&name[..]))
+	}
+
+	fn name(asset: &u32, identifier: Option<&[u8]>) -> Vec<u8> {
+		let mut buf: Vec<u8> = if let Some(ident) = identifier {
+			ident.to_vec()
+		} else {
+			vec![]
+		};
+		buf.extend_from_slice(&(asset).to_le_bytes());
+
+		buf
+	}
+}
+
+impl pallet_stableswap::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Currency = Currencies;
+	type ShareAccountId = StableswapAccountIdConstructor<Runtime>;
+	type AssetRegistry = AssetRegistry;
+	type AuthorityOrigin = EnsureRoot<AccountId>;
+	type MinPoolLiquidity = MinPoolLiquidity;
+	type MinTradingLimit = MinTradingLimit;
+	type AmplificationRange = StableswapAmplificationRange;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1105,6 +1150,7 @@ construct_runtime!(
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
 		Router: pallet_route_executor = 67,
+		Stableswap: pallet_stableswap = 68,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

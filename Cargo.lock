@@ -3838,7 +3838,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "158.0.0"
+version = "159.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3896,6 +3896,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-stableswap",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",
