@@ -646,10 +646,7 @@ fn register_asset_should_work_when_metadata_is_provided() {
 			AssetType::Token,
 			1_000_000,
 			Some(asset_id),
-			Some(Metadata {
-				symbol,
-				decimals,
-			}),
+			Some(Metadata { symbol, decimals }),
 			None,
 			None,
 		));
