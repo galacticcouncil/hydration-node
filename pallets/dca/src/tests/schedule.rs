@@ -836,6 +836,43 @@ fn schedule_should_fail_when_no_routes_specified() {
 		});
 }
 
+#[test]
+fn thousands_of_dcas_should_be_schedules_on_a_specific_block_because_of_salt_added_to_block_search_randomness() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 100000000000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let total_amount = 100 * ONE;
+			let schedule = ScheduleBuilder::new()
+				.with_total_amount(total_amount)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: ONE,
+					max_amount_in: 10 * ONE,
+					route: create_bounded_vec(vec![Trade {
+						pool: PoolType::Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			use_prod_randomness();
+
+			//Act
+			set_block_number(500);
+			for _ in RangeInclusive::new(1, 10000) {
+				assert_ok!(DCA::schedule(
+					RuntimeOrigin::signed(ALICE),
+					schedule.clone(),
+					Option::None
+				));
+			}
+		});
+}
+
 pub fn set_block_number(n: u64) {
 	System::set_block_number(n);
 }
