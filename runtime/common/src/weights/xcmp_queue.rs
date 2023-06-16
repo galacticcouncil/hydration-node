@@ -43,8 +43,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -56,22 +56,6 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: XcmpQueue QueueConfig (r:1 w:1)
 	// Proof Skipped: XcmpQueue QueueConfig (max_values: Some(1), max_size: None, mode: Measured)
-<<<<<<< HEAD
-	fn set_config_with_u32() -> Weight {
-		// Minimum execution time: 8_117 nanoseconds.
-		Weight::from_ref_time(8_353_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	// Storage: XcmpQueue QueueConfig (r:1 w:1)
-	// Proof Skipped: XcmpQueue QueueConfig (max_values: Some(1), max_size: None, mode: Measured)
-	fn set_config_with_weight() -> Weight {
-		// Minimum execution time: 8_342 nanoseconds.
-		Weight::from_ref_time(8_614_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-=======
     fn set_config_with_u32() -> Weight {
         // Minimum execution time: 7_729 nanoseconds.
         Weight::from_ref_time(8_046_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
@@ -84,5 +68,4 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
         Weight::from_ref_time(8_303_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
             .saturating_add(T::DbWeight::get().writes(1 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 }

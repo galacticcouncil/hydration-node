@@ -43,8 +43,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -56,62 +56,6 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: System Account (r:2 w:2)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn transfer() -> Weight {
-		// Minimum execution time: 75_976 nanoseconds.
-		Weight::from_ref_time(76_627_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn transfer_keep_alive() -> Weight {
-		// Minimum execution time: 48_643 nanoseconds.
-		Weight::from_ref_time(49_127_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn set_balance_creating() -> Weight {
-		// Minimum execution time: 36_236 nanoseconds.
-		Weight::from_ref_time(36_746_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn set_balance_killing() -> Weight {
-		// Minimum execution time: 40_726 nanoseconds.
-		Weight::from_ref_time(41_203_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	// Storage: System Account (r:3 w:3)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn force_transfer() -> Weight {
-		// Minimum execution time: 74_938 nanoseconds.
-		Weight::from_ref_time(80_472_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().writes(3 as u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn transfer_all() -> Weight {
-		// Minimum execution time: 67_069 nanoseconds.
-		Weight::from_ref_time(67_779_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-	// Storage: System Account (r:1 w:1)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	fn force_unreserve() -> Weight {
-		// Minimum execution time: 37_378 nanoseconds.
-		Weight::from_ref_time(38_119_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(1 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
-	}
-=======
     fn transfer() -> Weight {
         // Minimum execution time: 74_451 nanoseconds.
         Weight::from_ref_time(75_188_000 as u64)            .saturating_add(T::DbWeight::get().reads(2 as u64))
@@ -159,5 +103,4 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
         Weight::from_ref_time(31_829_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
             .saturating_add(T::DbWeight::get().writes(1 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 }

@@ -43,8 +43,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
+    traits::Get,
+    weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -64,40 +64,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: Duster AccountBlacklist (max_values: None, max_size: None, mode: Measured)
 	// Storage: OmnipoolWarehouseLM GlobalFarm (r:0 w:1)
 	// Proof: OmnipoolWarehouseLM GlobalFarm (max_values: None, max_size: Some(205), added: 2680, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn create_global_farm() -> Weight {
-		// Minimum execution time: 76_790 nanoseconds.
-		Weight::from_ref_time(77_367_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(5 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
-	}
-=======
     fn create_global_farm() -> Weight {
         // Minimum execution time: 72_756 nanoseconds.
         Weight::from_ref_time(73_412_000 as u64)            .saturating_add(T::DbWeight::get().reads(5 as u64))
             .saturating_add(T::DbWeight::get().writes(5 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: OmnipoolWarehouseLM GlobalFarm (r:1 w:1)
 	// Proof: OmnipoolWarehouseLM GlobalFarm (max_values: None, max_size: Some(205), added: 2680, mode: MaxEncodedLen)
 	// Storage: System Account (r:2 w:2)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Duster AccountBlacklist (r:1 w:1)
 	// Proof Skipped: Duster AccountBlacklist (max_values: None, max_size: None, mode: Measured)
-<<<<<<< HEAD
-	fn terminate_global_farm() -> Weight {
-		// Minimum execution time: 73_767 nanoseconds.
-		Weight::from_ref_time(74_244_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(4 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
-	}
-=======
     fn terminate_global_farm() -> Weight {
         // Minimum execution time: 72_102 nanoseconds.
         Weight::from_ref_time(73_946_000 as u64)            .saturating_add(T::DbWeight::get().reads(4 as u64))
             .saturating_add(T::DbWeight::get().writes(4 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: Omnipool Assets (r:1 w:0)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM GlobalFarm (r:1 w:1)
@@ -114,20 +96,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: OmnipoolWarehouseLM FarmSequencer (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM YieldFarm (r:0 w:1)
 	// Proof: OmnipoolWarehouseLM YieldFarm (max_values: None, max_size: Some(198), added: 2673, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn create_yield_farm() -> Weight {
-		// Minimum execution time: 112_136 nanoseconds.
-		Weight::from_ref_time(113_046_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(9 as u64))
-			.saturating_add(T::DbWeight::get().writes(6 as u64))
-	}
-=======
     fn create_yield_farm() -> Weight {
         // Minimum execution time: 109_579 nanoseconds.
         Weight::from_ref_time(110_494_000 as u64)            .saturating_add(T::DbWeight::get().reads(9 as u64))
             .saturating_add(T::DbWeight::get().writes(6 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: Omnipool Assets (r:1 w:0)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM ActiveYieldFarm (r:1 w:0)
@@ -142,20 +115,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Oracles (r:2 w:0)
 	// Proof: EmaOracle Oracles (max_values: None, max_size: Some(177), added: 2652, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn update_yield_farm() -> Weight {
-		// Minimum execution time: 115_067 nanoseconds.
-		Weight::from_ref_time(116_403_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(9 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
-	}
-=======
     fn update_yield_farm() -> Weight {
         // Minimum execution time: 114_170 nanoseconds.
         Weight::from_ref_time(114_978_000 as u64)            .saturating_add(T::DbWeight::get().reads(9 as u64))
             .saturating_add(T::DbWeight::get().writes(4 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: OmnipoolWarehouseLM ActiveYieldFarm (r:1 w:1)
 	// Proof: OmnipoolWarehouseLM ActiveYieldFarm (max_values: None, max_size: Some(44), added: 2519, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM YieldFarm (r:1 w:1)
@@ -168,20 +132,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Oracles (r:2 w:0)
 	// Proof: EmaOracle Oracles (max_values: None, max_size: Some(177), added: 2652, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn stop_yield_farm() -> Weight {
-		// Minimum execution time: 110_090 nanoseconds.
-		Weight::from_ref_time(110_747_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(8 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
-	}
-=======
     fn stop_yield_farm() -> Weight {
         // Minimum execution time: 108_386 nanoseconds.
         Weight::from_ref_time(110_956_000 as u64)            .saturating_add(T::DbWeight::get().reads(8 as u64))
             .saturating_add(T::DbWeight::get().writes(5 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: Omnipool Assets (r:1 w:0)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM ActiveYieldFarm (r:1 w:1)
@@ -196,20 +151,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Oracles (r:2 w:0)
 	// Proof: EmaOracle Oracles (max_values: None, max_size: Some(177), added: 2652, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn resume_yield_farm() -> Weight {
-		// Minimum execution time: 111_780 nanoseconds.
-		Weight::from_ref_time(112_560_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(9 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
-	}
-=======
     fn resume_yield_farm() -> Weight {
         // Minimum execution time: 109_899 nanoseconds.
         Weight::from_ref_time(110_626_000 as u64)            .saturating_add(T::DbWeight::get().reads(9 as u64))
             .saturating_add(T::DbWeight::get().writes(5 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: OmnipoolWarehouseLM ActiveYieldFarm (r:1 w:0)
 	// Proof: OmnipoolWarehouseLM ActiveYieldFarm (max_values: None, max_size: Some(44), added: 2519, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM GlobalFarm (r:1 w:1)
@@ -218,20 +164,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: OmnipoolWarehouseLM YieldFarm (max_values: None, max_size: Some(198), added: 2673, mode: MaxEncodedLen)
 	// Storage: System Account (r:2 w:2)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn terminate_yield_farm() -> Weight {
-		// Minimum execution time: 63_445 nanoseconds.
-		Weight::from_ref_time(63_833_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(5 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
-	}
-=======
     fn terminate_yield_farm() -> Weight {
         // Minimum execution time: 61_875 nanoseconds.
         Weight::from_ref_time(62_709_000 as u64)            .saturating_add(T::DbWeight::get().reads(5 as u64))
             .saturating_add(T::DbWeight::get().writes(4 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: Uniques Asset (r:2 w:2)
 	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
 	// Storage: Omnipool Positions (r:1 w:0)
@@ -262,20 +199,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: OmnipoolLiquidityMining OmniPositionId (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM Deposit (r:0 w:1)
 	// Proof: OmnipoolWarehouseLM Deposit (max_values: None, max_size: Some(385), added: 2860, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn deposit_shares() -> Weight {
-		// Minimum execution time: 203_809 nanoseconds.
-		Weight::from_ref_time(205_504_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(17 as u64))
-			.saturating_add(T::DbWeight::get().writes(14 as u64))
-	}
-=======
     fn deposit_shares() -> Weight {
         // Minimum execution time: 200_195 nanoseconds.
         Weight::from_ref_time(201_809_000 as u64)            .saturating_add(T::DbWeight::get().reads(17 as u64))
             .saturating_add(T::DbWeight::get().writes(14 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: Uniques Asset (r:2 w:0)
 	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
 	// Storage: OmnipoolLiquidityMining OmniPositionId (r:1 w:0)
@@ -296,20 +224,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Oracles (r:4 w:0)
 	// Proof: EmaOracle Oracles (max_values: None, max_size: Some(177), added: 2652, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn redeposit_shares() -> Weight {
-		// Minimum execution time: 165_755 nanoseconds.
-		Weight::from_ref_time(166_680_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(15 as u64))
-			.saturating_add(T::DbWeight::get().writes(5 as u64))
-	}
-=======
     fn redeposit_shares() -> Weight {
         // Minimum execution time: 164_227 nanoseconds.
         Weight::from_ref_time(165_071_000 as u64)            .saturating_add(T::DbWeight::get().reads(15 as u64))
             .saturating_add(T::DbWeight::get().writes(5 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: Uniques Asset (r:1 w:0)
 	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
 	// Storage: OmnipoolWarehouseLM Deposit (r:1 w:1)
@@ -324,20 +243,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: EmaOracle Oracles (r:2 w:0)
 	// Proof: EmaOracle Oracles (max_values: None, max_size: Some(177), added: 2652, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn claim_rewards() -> Weight {
-		// Minimum execution time: 141_929 nanoseconds.
-		Weight::from_ref_time(142_769_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(10 as u64))
-			.saturating_add(T::DbWeight::get().writes(6 as u64))
-	}
-=======
     fn claim_rewards() -> Weight {
         // Minimum execution time: 140_309 nanoseconds.
         Weight::from_ref_time(141_100_000 as u64)            .saturating_add(T::DbWeight::get().reads(10 as u64))
             .saturating_add(T::DbWeight::get().writes(6 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 	// Storage: Uniques Asset (r:2 w:2)
 	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
 	// Storage: OmnipoolLiquidityMining OmniPositionId (r:1 w:1)
@@ -362,18 +272,9 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques Account (max_values: None, max_size: Some(112), added: 2587, mode: MaxEncodedLen)
 	// Storage: Uniques ItemPriceOf (r:0 w:2)
 	// Proof: Uniques ItemPriceOf (max_values: None, max_size: Some(113), added: 2588, mode: MaxEncodedLen)
-<<<<<<< HEAD
-	fn withdraw_shares() -> Weight {
-		// Minimum execution time: 236_782 nanoseconds.
-		Weight::from_ref_time(238_415_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(15 as u64))
-			.saturating_add(T::DbWeight::get().writes(15 as u64))
-	}
-=======
     fn withdraw_shares() -> Weight {
         // Minimum execution time: 233_969 nanoseconds.
         Weight::from_ref_time(235_131_000 as u64)            .saturating_add(T::DbWeight::get().reads(15 as u64))
             .saturating_add(T::DbWeight::get().writes(15 as u64))
     }
->>>>>>> 8caba3a7 (new weights)
 }
