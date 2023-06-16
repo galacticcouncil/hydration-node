@@ -285,10 +285,16 @@ pub mod pallet {
 				AssetMetadataMap::<T>::insert(
 					asset_id,
 					AssetMetadata {
-						symbol,
+						symbol: symbol.clone(),
 						decimals: meta.decimals,
 					},
 				);
+
+				Self::deposit_event(Event::MetadataSet {
+					asset_id,
+					symbol,
+					decimals: meta.decimals,
+				});
 			}
 
 			if let Some(loc) = location {

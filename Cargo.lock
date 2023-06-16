@@ -6220,7 +6220,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6575,7 +6575,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6955,26 +6955,6 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-nft"
-version = "7.1.1"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "orml-utilities",
- "pallet-balances",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -9354,7 +9334,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.2"
+version = "5.7.3"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
