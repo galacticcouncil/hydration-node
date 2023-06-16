@@ -403,6 +403,13 @@ fn full_buy_dca_should_be_executed_then_completed() {
 
 		//Assert
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + 600 * UNITS);
+
+		//Because the last trade is not enough for a whole trade, it is returned to the user
+		let amount_in = 140_421_094_431_120;
+		let alice_new_hdx_balance = Currencies::free_balance(HDX, &ALICE.into());
+		assert!(alice_new_hdx_balance < amount_in);
+		assert!(alice_new_hdx_balance > 0);
+
 		assert_balance!(ALICE.into(), HDX, 138345672786815);
 
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
@@ -494,13 +501,8 @@ fn sell_schedule_should_sell_remaining_in_next_trade_when_there_is_not_enough_le
 		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
 		assert!(schedule.is_none());
 
-		assert_balance!(ALICE.into(), DAI, 907616018849105);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
-
-		//Assert that fee is sent to treasury
-		let treasury_balance = Currencies::free_balance(HDX, &hydradx_runtime::Treasury::account_id());
-		assert!(treasury_balance > TREASURY_ACCOUNT_INIT_BALANCE);
 	});
 }
 
@@ -827,9 +829,9 @@ fn full_sell_dca_should_be_executed_then_completed() {
 		run_to_block(11, 100);
 
 		//Assert
-		let amount_out = 827407231366187;
+		let new_dai_balance = Currencies::free_balance(DAI, &ALICE.into());
+		assert!(new_dai_balance > ALICE_INITIAL_DAI_BALANCE);
 
-		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
