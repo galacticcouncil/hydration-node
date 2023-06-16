@@ -83,6 +83,7 @@ use crate::types::*;
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
+pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -938,27 +939,16 @@ where
 	) -> Result<T::BlockNumber, DispatchError> {
 		let mut next_execution_block = blocknumber;
 
-		let radius_ranges = [
-			(1u32, 1u32),
-			(2, 2),
-			(2, 3),
-			(4, 7),
-			(8, 15),
-			(16, 31),
-			(32, 63),
-			(64, 127),
-			(128, 255),
-			(256, 512),
-			(513, 1024), //This range is irrelevant in the loop as after the last iteration we return `NoFreeBlockFound` error
-		];
-
-		for (lower_bound, upper_bound) in radius_ranges.iter() {
+		for i in 0..=MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING {
 			let schedule_ids = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 			if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
 				return Ok(next_execution_block);
 			}
 
-			let delay_with = randomness_generator.gen_range(*lower_bound..=*upper_bound);
+			let lower_bound = 2u32.saturating_pow(i);
+			let upper_bound = 2u32.saturating_pow(i.saturating_add(1)).saturating_sub(1);
+
+			let delay_with = randomness_generator.gen_range(lower_bound..=upper_bound);
 			next_execution_block = next_execution_block.saturating_add(delay_with.into());
 		}
 

@@ -1118,7 +1118,7 @@ fn dca_schedules_should_be_executed_and_replanned_through_multiple_blocks_when_a
 		assert_eq!(20, actual_schedule_ids.len());
 
 		//Since we always use the same parent hash in the tests, the generated delays are always the same
-		let generated_radiuses: [u32; 10] = [1, 2, 3, 5, 14, 29, 35, 83, 225, 379];
+		let generated_radiuses: [u32; 10] = [1, 3, 5, 14, 29, 35, 83, 225, 262, 989];
 
 		//Check if all blocks found within radius are filled
 		for delay in generated_radiuses {
@@ -1131,10 +1131,10 @@ fn dca_schedules_should_be_executed_and_replanned_through_multiple_blocks_when_a
 		run_to_block(11, 700);
 
 		//Assert
-		let amount_out = 17091264662498700;
+		let amount_out = 17091276428113742;
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
 
-		let amount_out = 9969849234953196;
+		let amount_out = 8545586154854837;
 		assert_balance!(BOB.into(), DAI, BOB_INITIAL_DAI_BALANCE + amount_out);
 
 		//Assert if none of the schedule is terminated

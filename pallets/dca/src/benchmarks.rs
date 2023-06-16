@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![cfg(feature = "runtime-benchmarks")]
-#![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the ACT block
+#![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use super::*;
 
@@ -42,7 +42,7 @@ pub const ONE: Balance = 1_000_000_000_000;
 // This is the the sum of all "randomly" generated radiuses.
 // In tests the radiuses are always the same as we use a fixed parent hash for generation,
 // so it will always generate the same values
-pub const DELAY_AFTER_LAST_RADIUS: u32 = 776;
+pub const DELAY_AFTER_LAST_RADIUS: u32 = 1646;
 
 pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10; //With the assumption that we have 10 retry radiuses specified when searching for a free block
 
@@ -401,7 +401,6 @@ benchmarks! {
 		let amount_sell = 200 * ONE;
 		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let execution_block = 100u32;
-		let one_block_after_execution_block = execution_block + 1;
 
 		//We fill blocks with schedules leaving only one place
 		let number_of_all_schedules = T::MaxSchedulePerBlock::get() + T::MaxSchedulePerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
@@ -411,20 +410,13 @@ benchmarks! {
 
 		let schedule_id : ScheduleId = number_of_all_schedules;
 
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + DELAY_AFTER_LAST_RADIUS).into()).len());
+
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::Some(execution_block.into()))
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(execution_block.into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 1u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 3u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 6u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 11u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 25u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 54u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 89u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 172u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 397u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + DELAY_AFTER_LAST_RADIUS).into()).len());
+
+		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
 	terminate {

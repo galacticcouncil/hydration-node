@@ -2035,7 +2035,7 @@ fn dca_should_be_executed_and_replanned_through_multiple_blocks_when_all_consque
 			proceed_to_blocknumber(501, 1524);
 
 			//Assert
-			assert_number_of_executed_sell_trades!(2080);
+			assert_number_of_executed_sell_trades!(1900);
 
 			//Assert if none of the schedule is terminated
 			for schedule_id in RangeInclusive::new(0, 119) {

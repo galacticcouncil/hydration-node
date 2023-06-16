@@ -535,13 +535,17 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
+			let block = 501;
+			let actual_schedule_ids = DCA::schedule_ids_per_block(block);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
+			let actual_schedule_ids = DCA::schedule_ids_per_block(block + GENERATED_SEARCH_RADIUSES[0]);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			assert_scheduled_ids!(504, vec![schedule_id]);
+			assert_scheduled_ids!(
+				block + GENERATED_SEARCH_RADIUSES[0] + GENERATED_SEARCH_RADIUSES[1],
+				vec![schedule_id]
+			);
 		});
 }
 
