@@ -6961,26 +6961,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-nft"
-version = "7.1.1"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "orml-utilities",
- "pallet-balances",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-nis"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -10112,7 +10092,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.11"
+version = "1.7.12"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
