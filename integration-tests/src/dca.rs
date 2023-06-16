@@ -2,7 +2,6 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use std::ops::RangeInclusive;
 
 use crate::{assert_balance, assert_reserved_balance};
 use frame_system::RawOrigin;
@@ -365,54 +364,6 @@ fn buy_schedule_and_direct_buy_and_router_should_yield_same_result_when_asset_in
 		//Assert
 		assert_balance!(ALICE.into(), LRNA, alice_init_lrna_balance - amount_in);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE + amount_out);
-	});
-}
-
-#[test]
-fn thousands_of_dcas_should_be_schedules_on_a_specific_block_because_of_salt_added_to_block_search_randomness() {
-	TestNet::reset();
-	Hydra::execute_with(|| {
-		//Arrange
-		init_omnipool_with_oracle_for_block_10();
-		let alice_init_hdx_balance = 500000000000 * UNITS;
-		assert_ok!(hydradx_runtime::Balances::set_balance(
-			hydradx_runtime::RuntimeOrigin::root(),
-			ALICE.into(),
-			alice_init_hdx_balance,
-			0,
-		));
-
-		let dca_budget = 1100000 * UNITS;
-		let amount_to_sell = 100 * UNITS;
-		let schedule_for_alice = Schedule {
-			owner: AccountId::from(ALICE),
-			period: 500u32,
-			total_amount: dca_budget,
-			max_retries: None,
-			stability_threshold: None,
-			slippage: Some(Permill::from_percent(10)),
-			order: Order::Sell {
-				asset_in: HDX,
-				asset_out: DAI,
-				amount_in: amount_to_sell,
-				min_amount_out: Balance::MIN,
-				route: create_bounded_vec(vec![Trade {
-					pool: PoolType::Omnipool,
-					asset_in: HDX,
-					asset_out: DAI,
-				}]),
-			},
-		};
-
-		for _ in RangeInclusive::new(1, 10000) {
-			assert_ok!(hydradx_runtime::DCA::schedule(
-				RuntimeOrigin::signed(ALICE.into()),
-				schedule_for_alice.clone(),
-				Option::Some(100)
-			));
-		}
-
-		check_if_no_failed_events();
 	});
 }
 

@@ -117,6 +117,7 @@ thread_local! {
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 	pub static CALCULATED_AMOUNT_OUT_FOR_SELL: RefCell<Balance> = RefCell::new(*AMOUNT_OUT_FOR_OMNIPOOL_SELL);
+	pub static USE_PROD_RANDOMNESS: RefCell<bool> = RefCell::new(false);
 	pub static PARENT_HASH: RefCell<Option<Hash>> = RefCell::new(Some([
 			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
 			135, 250, 171, 69, 205, 241, 47, 227, 168,
@@ -617,8 +618,14 @@ parameter_types! {
 pub struct RandomnessProviderMock {}
 
 impl RandomnessProvider for RandomnessProviderMock {
-	fn generator(_: Option<u32>) -> Result<StdRng, DispatchError> {
-		Ok(StdRng::seed_from_u64(0))
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
+		let use_prod_randomness = USE_PROD_RANDOMNESS.with(|v| *v.borrow());
+
+		if use_prod_randomness {
+			DCA::generator(salt)
+		} else {
+			Ok(StdRng::seed_from_u64(0))
+		}
 	}
 }
 
@@ -876,6 +883,12 @@ pub fn set_max_price_diff(diff: Permill) {
 pub fn set_sell_amount_out(balance: Balance) {
 	CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| {
 		*v.borrow_mut() = balance;
+	});
+}
+
+pub fn use_prod_randomness() {
+	USE_PROD_RANDOMNESS.with(|v| {
+		*v.borrow_mut() = true;
 	});
 }
 
