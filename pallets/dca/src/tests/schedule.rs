@@ -861,7 +861,7 @@ fn thousands_of_dcas_should_be_schedules_on_a_specific_block_because_of_salt_add
 
 			use_prod_randomness();
 
-			//Act
+			//Act and assert
 			set_block_number(500);
 			for _ in RangeInclusive::new(1, 10000) {
 				assert_ok!(DCA::schedule(
