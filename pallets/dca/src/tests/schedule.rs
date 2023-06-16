@@ -535,13 +535,17 @@ fn schedule_should_schedule_for_after_consequent_block_when_both_next_block_and_
 			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 
 			//Assert
-			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
+			let block = 501;
+			let actual_schedule_ids = DCA::schedule_ids_per_block(block);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
+			let actual_schedule_ids = DCA::schedule_ids_per_block(block + GENERATED_SEARCH_RADIUSES[0]);
 			assert_eq!(20, actual_schedule_ids.len());
 
-			assert_scheduled_ids!(504, vec![schedule_id]);
+			assert_scheduled_ids!(
+				block + GENERATED_SEARCH_RADIUSES[0] + GENERATED_SEARCH_RADIUSES[1],
+				vec![schedule_id]
+			);
 		});
 }
 
@@ -554,28 +558,19 @@ fn schedule_should_fail_when_there_is_no_free_consquent_blocks() {
 			//Arrange
 			set_block_number(500);
 
-			for _ in RangeInclusive::new(1, 120) {
+			for _ in RangeInclusive::new(1, 220) {
 				let schedule = ScheduleBuilder::new().build();
 				assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
 			}
 
-			let actual_schedule_ids = DCA::schedule_ids_per_block(501);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(502);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(504);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(508);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(516);
-			assert_eq!(20, actual_schedule_ids.len());
-
-			let actual_schedule_ids = DCA::schedule_ids_per_block(532);
-			assert_eq!(20, actual_schedule_ids.len());
+			//Check if all the blocks within radiuses are fully filled
+			let next_block = 501;
+			let mut next_block_with_radius = next_block;
+			for radius in GENERATED_SEARCH_RADIUSES {
+				next_block_with_radius += radius;
+				let actual_schedule_ids = DCA::schedule_ids_per_block(next_block_with_radius);
+				assert_eq!(20, actual_schedule_ids.len());
+			}
 
 			//Act and assert
 			let schedule = ScheduleBuilder::new().build();
@@ -653,7 +648,7 @@ fn schedule_should_fail_when_total_amount_in_non_native_currency_is_smaller_than
 }
 
 #[test]
-fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
+fn schedule_should_fail_for_sell_when_sell_amount_is_equal_to_20_times_fee() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
 		.build()
@@ -665,7 +660,7 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 				.with_order(Order::Sell {
 					asset_in: HDX,
 					asset_out: BTC,
-					amount_in: SELL_DCA_FEE_IN_NATIVE - 1,
+					amount_in: SELL_DCA_FEE_IN_NATIVE * 20,
 					min_amount_out: Balance::MIN,
 					route: create_bounded_vec(vec![Trade {
 						pool: PoolType::Omnipool,
@@ -678,7 +673,7 @@ fn schedule_should_fail_for_sell_when_sell_amount_is_smaller_than_fee() {
 			set_block_number(500);
 			assert_noop!(
 				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::TradeAmountIsLessThanFee
+				Error::<Test>::MinTradeAmountNotReached
 			);
 		});
 }
@@ -710,7 +705,7 @@ fn schedule_should_fail_when_trade_amount_is_less_than_fee() {
 			//Assert
 			assert_noop!(
 				DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None),
-				Error::<Test>::TradeAmountIsLessThanFee
+				Error::<Test>::MinTradeAmountNotReached
 			);
 		});
 }
