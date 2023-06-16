@@ -2,7 +2,6 @@
 
 use crate::polkadot_test_net::*;
 use frame_support::assert_ok;
-use std::ops::RangeInclusive;
 
 use crate::{assert_balance, assert_reserved_balance};
 use frame_system::RawOrigin;
@@ -1216,11 +1215,6 @@ pub fn run_to_block(from: BlockNumber, to: BlockNumber) {
 		set_relaychain_block_number(b);
 		do_trade_to_populate_oracle(DAI, HDX, UNITS);
 	}
-}
-
-pub fn expect_schedule_ids_from_events(e: Vec<u32>) {
-	let last_schedule_ids_from_events: Vec<u32> = get_last_schedule_ids_from_trade_executed_events();
-	pretty_assertions::assert_eq!(last_schedule_ids_from_events, e);
 }
 
 pub fn check_if_no_failed_events() {
