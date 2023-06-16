@@ -880,7 +880,7 @@ parameter_types! {
 	pub const StableAssetId: AssetId = 2;
 	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
 	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
-	pub const MinTradingLimit : Balance = 1_000_000u128;
+	pub const MinTradingLimit : Balance = 1_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
