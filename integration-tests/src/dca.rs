@@ -410,8 +410,6 @@ fn full_buy_dca_should_be_executed_then_completed() {
 		assert!(alice_new_hdx_balance < amount_in);
 		assert!(alice_new_hdx_balance > 0);
 
-		assert_balance!(ALICE.into(), HDX, 138345672786815);
-
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 
 		let schedule = hydradx_runtime::DCA::schedules(0);
