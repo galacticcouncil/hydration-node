@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Error, RelayChainBlockHashProvider};
+use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
@@ -72,7 +72,7 @@ pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
 
 //Since we always use the same parent hash in the tests, the generated radiuses are always the same
-pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 2, 3, 5, 14, 29, 35, 83, 225, 379];
+pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 3, 6, 10, 28, 34, 114, 207, 504, 947];
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -614,10 +614,18 @@ parameter_types! {
 	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
 
+pub struct RandomnessProviderMock {}
+
+impl RandomnessProvider for RandomnessProviderMock {
+	fn generator(_: Option<u32>) -> Result<StdRng, DispatchError> {
+		Ok(StdRng::seed_from_u64(0))
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Currencies;
-	type RandomnessProvider = DCA;
+	type RandomnessProvider = RandomnessProviderMock;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
@@ -650,6 +658,8 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
+use rand::prelude::StdRng;
+use rand::SeedableRng;
 use smallvec::smallvec;
 
 pub struct DummyNFT;

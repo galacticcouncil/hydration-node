@@ -110,7 +110,7 @@ pub mod pallet {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
-			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber);
+			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
@@ -431,8 +431,10 @@ pub mod pallet {
 
 			let blocknumber_for_first_schedule_execution = Self::get_next_execution_block(start_execution_block)?;
 
-			let mut randomness_generator =
-				Self::get_randomness_generator(frame_system::Pallet::<T>::current_block_number());
+			let mut randomness_generator = Self::get_randomness_generator(
+				frame_system::Pallet::<T>::current_block_number(),
+				Some(next_schedule_id),
+			);
 			Self::plan_schedule_for_block(
 				&who,
 				blocknumber_for_first_schedule_execution,
@@ -512,8 +514,8 @@ where
 	<T as pallet_route_executor::Config>::Balance: From<Balance>,
 	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
-	fn get_randomness_generator(current_blocknumber: T::BlockNumber) -> StdRng {
-		match T::RandomnessProvider::generator() {
+	fn get_randomness_generator(current_blocknumber: T::BlockNumber, salt: Option<u32>) -> StdRng {
+		match T::RandomnessProvider::generator(salt) {
 			Ok(generator) => generator,
 			Err(err) => {
 				Self::deposit_event(Event::RandomnessGenerationFailed {
@@ -1033,17 +1035,22 @@ pub trait RelayChainBlockHashProvider {
 }
 
 pub trait RandomnessProvider {
-	fn generator() -> Result<StdRng, DispatchError>;
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError>;
 }
 
 impl<T: Config> RandomnessProvider for Pallet<T> {
-	fn generator() -> Result<StdRng, DispatchError> {
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
 		let hash_value = T::RelayChainBlockHashProvider::parent_hash().ok_or(Error::<T>::NoParentHashFound)?;
 		let hash_bytes = hash_value.as_fixed_bytes();
 		let mut seed_arr = [0u8; 8];
 		let max_len = hash_bytes.len().min(seed_arr.len()); //We ensure that we don't copy more bytes, preventing potential panics
 		seed_arr[..max_len].copy_from_slice(&hash_bytes[..max_len]);
-		let seed = u64::from_le_bytes(seed_arr);
+
+		let seed = match salt {
+			Some(salt) => u64::from_le_bytes(seed_arr).wrapping_add(salt.into()),
+			None => u64::from_le_bytes(seed_arr),
+		};
+
 		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
 }

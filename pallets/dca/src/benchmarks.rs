@@ -42,9 +42,9 @@ pub const ONE: Balance = 1_000_000_000_000;
 // This is the the sum of all "randomly" generated radiuses.
 // In tests the radiuses are always the same as we use a fixed parent hash for generation,
 // so it will always generate the same values
-pub const DELAY_AFTER_LAST_RADIUS: u32 = 1646;
+pub const DELAY_AFTER_LAST_RADIUS: u32 = 1854;
 
-pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10; //With the assumption that we have 10 retry radiuses specified when searching for a free block
+pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10;
 
 fn schedule_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
