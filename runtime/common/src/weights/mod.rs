@@ -21,7 +21,6 @@ pub mod scheduler;
 pub mod system;
 pub mod technical_comittee;
 pub mod timestamp;
-pub mod tips;
 pub mod tokens;
 pub mod transaction_pause;
 pub mod treasury;

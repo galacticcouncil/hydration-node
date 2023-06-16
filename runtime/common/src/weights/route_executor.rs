@@ -42,8 +42,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -74,11 +74,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
 	/// The range of component `n` is `[1, 2]`.
-    fn sell(_n: u32, ) -> Weight {
-        // Minimum execution time: 242_968 nanoseconds.
-        Weight::from_ref_time(249_548_000 as u64)            .saturating_add(T::DbWeight::get().reads(16 as u64))
-            .saturating_add(T::DbWeight::get().writes(12 as u64))
-    }
+	fn sell(_n: u32) -> Weight {
+		// Minimum execution time: 242_968 nanoseconds.
+		Weight::from_ref_time(249_548_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(16 as u64))
+			.saturating_add(T::DbWeight::get().writes(12 as u64))
+	}
 	// Storage: System Account (r:2 w:2)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Omnipool Assets (r:2 w:2)
@@ -100,11 +101,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
 	/// The range of component `n` is `[1, 2]`.
-    fn buy(n: u32, ) -> Weight {
-        // Minimum execution time: 239_841 nanoseconds.
-        Weight::from_ref_time(238_415_250 as u64)            // Standard Error: 807_409
-            .saturating_add(Weight::from_ref_time(5_062_025 as u64).saturating_mul(n as u64))
-            .saturating_add(T::DbWeight::get().reads(16 as u64))
-            .saturating_add(T::DbWeight::get().writes(12 as u64))
-    }
+	fn buy(n: u32) -> Weight {
+		// Minimum execution time: 239_841 nanoseconds.
+		Weight::from_ref_time(238_415_250 as u64) // Standard Error: 807_409
+			.saturating_add(Weight::from_ref_time(5_062_025 as u64).saturating_mul(n as u64))
+			.saturating_add(T::DbWeight::get().reads(16 as u64))
+			.saturating_add(T::DbWeight::get().writes(12 as u64))
+	}
 }

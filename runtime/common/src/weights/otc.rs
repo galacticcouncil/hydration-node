@@ -42,8 +42,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -63,11 +63,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: OTC Orders (r:0 w:1)
 	// Proof: OTC Orders (max_values: None, max_size: Some(93), added: 2568, mode: MaxEncodedLen)
-    fn place_order() -> Weight {
-        // Minimum execution time: 48_559 nanoseconds.
-        Weight::from_ref_time(49_077_000 as u64)            .saturating_add(T::DbWeight::get().reads(5 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
+	fn place_order() -> Weight {
+		// Minimum execution time: 48_559 nanoseconds.
+		Weight::from_ref_time(49_077_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
 	// Storage: OTC Orders (r:1 w:1)
 	// Proof: OTC Orders (max_values: None, max_size: Some(93), added: 2568, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:2 w:0)
@@ -78,11 +79,12 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Balances Reserves (r:1 w:1)
 	// Proof: Balances Reserves (max_values: None, max_size: Some(1249), added: 3724, mode: MaxEncodedLen)
-    fn partial_fill_order() -> Weight {
-        // Minimum execution time: 108_792 nanoseconds.
-        Weight::from_ref_time(109_903_000 as u64)            .saturating_add(T::DbWeight::get().reads(8 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
+	fn partial_fill_order() -> Weight {
+		// Minimum execution time: 108_792 nanoseconds.
+		Weight::from_ref_time(109_903_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(8 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
 	// Storage: OTC Orders (r:1 w:1)
 	// Proof: OTC Orders (max_values: None, max_size: Some(93), added: 2568, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:2 w:2)
@@ -93,20 +95,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Balances Reserves (r:1 w:1)
 	// Proof: Balances Reserves (max_values: None, max_size: Some(1249), added: 3724, mode: MaxEncodedLen)
-    fn fill_order() -> Weight {
-        // Minimum execution time: 105_343 nanoseconds.
-        Weight::from_ref_time(106_415_000 as u64)            .saturating_add(T::DbWeight::get().reads(7 as u64))
-            .saturating_add(T::DbWeight::get().writes(6 as u64))
-    }
+	fn fill_order() -> Weight {
+		// Minimum execution time: 105_343 nanoseconds.
+		Weight::from_ref_time(106_415_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
+	}
 	// Storage: OTC Orders (r:1 w:1)
 	// Proof: OTC Orders (max_values: None, max_size: Some(93), added: 2568, mode: MaxEncodedLen)
 	// Storage: Balances Reserves (r:1 w:1)
 	// Proof: Balances Reserves (max_values: None, max_size: Some(1249), added: 3724, mode: MaxEncodedLen)
 	// Storage: System Account (r:1 w:1)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-    fn cancel_order() -> Weight {
-        // Minimum execution time: 38_218 nanoseconds.
-        Weight::from_ref_time(38_895_000 as u64)            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn cancel_order() -> Weight {
+		// Minimum execution time: 38_218 nanoseconds.
+		Weight::from_ref_time(38_895_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 }
