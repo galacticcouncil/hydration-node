@@ -2310,11 +2310,6 @@ fn execution_is_still_successfull_when_no_parent_hash_present() {
 					amount_out: *AMOUNT_OUT_FOR_OMNIPOOL_SELL,
 				}
 				.into(),
-				DcaEvent::RandomnessGenerationFailed {
-					block: 501,
-					error: Error::<Test>::NoParentHashFound.into(),
-				}
-				.into(),
 				DcaEvent::ExecutionPlanned {
 					id: schedule_id,
 					who: ALICE,
