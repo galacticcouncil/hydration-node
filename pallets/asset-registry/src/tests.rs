@@ -632,34 +632,53 @@ fn register_asset_should_fail_when_provided_asset_is_outside_reserved_range() {
 
 #[test]
 fn register_asset_should_work_when_metadata_is_provided() {
-	ExtBuilder::default().build().execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let asset_id: RegistryAssetId = 10;
+		let decimals = 18;
+		let symbol = b"SYM".to_vec();
+		let asset_name = b"asset_name".to_vec();
+		let b_symbol = AssetRegistryPallet::to_bounded_name(symbol.clone()).unwrap();
+		let b_asset_name = AssetRegistryPallet::to_bounded_name(asset_name.clone()).unwrap();
+
 		assert_ok!(AssetRegistryPallet::register(
 			RuntimeOrigin::root(),
-			b"asset_id".to_vec(),
+			asset_name,
 			AssetType::Token,
 			1_000_000,
 			Some(asset_id),
 			Some(Metadata {
-				symbol: b"SYM".to_vec(),
-				decimals: 18
+				symbol,
+				decimals,
 			}),
 			None,
-			None
-		),);
+			None,
+		));
 
-		let bn = AssetRegistryPallet::to_bounded_name(b"asset_id".to_vec()).unwrap();
+		expect_events(vec![
+			Event::Registered {
+				asset_id,
+				asset_name: b_asset_name.clone(),
+				asset_type: AssetType::Token,
+			}
+			.into(),
+			Event::MetadataSet {
+				asset_id,
+				symbol: b_symbol.clone(),
+				decimals,
+			}
+			.into(),
+		]);
+
 		assert_eq!(
 			AssetRegistryPallet::assets(asset_id).unwrap(),
 			AssetDetails {
-				name: bn,
+				name: b_asset_name,
 				asset_type: AssetType::Token,
 				existential_deposit: 1_000_000,
 				xcm_rate_limit: None,
 			}
 		);
 
-		let b_symbol: BoundedVec<u8, <Test as crate::Config>::StringLimit> = b"SYM".to_vec().try_into().unwrap();
 		assert_eq!(
 			AssetRegistryPallet::asset_metadata(asset_id).unwrap(),
 			AssetMetadata {
