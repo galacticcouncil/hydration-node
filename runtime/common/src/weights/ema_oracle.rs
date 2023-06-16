@@ -28,6 +28,7 @@
 // --pallet=pallet-ema-oracle
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -55,15 +56,23 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: EmaOracle Accumulator (r:1 w:0)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn on_finalize_no_entry() -> Weight {
 		// Minimum execution time: 3_239 nanoseconds.
 		Weight::from_ref_time(3_410_000 as u64).saturating_add(T::DbWeight::get().reads(1 as u64))
 	}
+=======
+    fn on_finalize_no_entry() -> Weight {
+        // Minimum execution time: 2_946 nanoseconds.
+        Weight::from_ref_time(3_109_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: EmaOracle Accumulator (r:1 w:1)
 	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
 	// Storage: EmaOracle Oracles (r:57 w:57)
 	// Proof: EmaOracle Oracles (max_values: None, max_size: Some(177), added: 2652, mode: MaxEncodedLen)
 	/// The range of component `b` is `[1, 19]`.
+<<<<<<< HEAD
 	fn on_finalize_multiple_tokens(b: u32) -> Weight {
 		// Minimum execution time: 43_827 nanoseconds.
 		Weight::from_ref_time(13_441_046 as u64) // Standard Error: 110_614
@@ -99,4 +108,41 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 17_420 nanoseconds.
 		Weight::from_ref_time(17_856_000 as u64).saturating_add(T::DbWeight::get().reads(2 as u64))
 	}
+=======
+    fn on_finalize_multiple_tokens(b: u32, ) -> Weight {
+        // Minimum execution time: 46_298 nanoseconds.
+        Weight::from_ref_time(14_321_486 as u64)            // Standard Error: 79_212
+            .saturating_add(Weight::from_ref_time(35_017_197 as u64).saturating_mul(b as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().reads((3 as u64).saturating_mul(b as u64)))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+            .saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(b as u64)))
+    }
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	/// The range of component `b` is `[1, 19]`.
+    fn on_trade_multiple_tokens(b: u32, ) -> Weight {
+        // Minimum execution time: 10_311 nanoseconds.
+        Weight::from_ref_time(10_186_198 as u64)            // Standard Error: 8_154
+            .saturating_add(Weight::from_ref_time(479_845 as u64).saturating_mul(b as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: EmaOracle Accumulator (r:1 w:1)
+	// Proof: EmaOracle Accumulator (max_values: Some(1), max_size: Some(2961), added: 3456, mode: MaxEncodedLen)
+	/// The range of component `b` is `[1, 19]`.
+    fn on_liquidity_changed_multiple_tokens(b: u32, ) -> Weight {
+        // Minimum execution time: 10_538 nanoseconds.
+        Weight::from_ref_time(10_506_636 as u64)            // Standard Error: 5_391
+            .saturating_add(Weight::from_ref_time(457_947 as u64).saturating_mul(b as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: EmaOracle Oracles (r:2 w:0)
+	// Proof: EmaOracle Oracles (max_values: None, max_size: Some(177), added: 2652, mode: MaxEncodedLen)
+    fn get_entry() -> Weight {
+        // Minimum execution time: 17_723 nanoseconds.
+        Weight::from_ref_time(18_231_000 as u64)            .saturating_add(T::DbWeight::get().reads(2 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

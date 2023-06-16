@@ -28,6 +28,7 @@
 // --pallet=pallet-omnipool
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -73,12 +74,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques ClassAccount (max_values: None, max_size: Some(80), added: 2555, mode: MaxEncodedLen)
 	// Storage: Omnipool HubAssetTradability (r:0 w:1)
 	// Proof: Omnipool HubAssetTradability (max_values: Some(1), max_size: Some(1), added: 496, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn initialize_pool() -> Weight {
 		// Minimum execution time: 140_783 nanoseconds.
 		Weight::from_ref_time(141_652_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(11 as u64))
 			.saturating_add(T::DbWeight::get().writes(8 as u64))
 	}
+=======
+    fn initialize_pool() -> Weight {
+        // Minimum execution time: 140_190 nanoseconds.
+        Weight::from_ref_time(141_127_000 as u64)            .saturating_add(T::DbWeight::get().reads(11 as u64))
+            .saturating_add(T::DbWeight::get().writes(8 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Omnipool Assets (r:2 w:1)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:2 w:0)
@@ -105,12 +114,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques Account (max_values: None, max_size: Some(112), added: 2587, mode: MaxEncodedLen)
 	// Storage: Omnipool Positions (r:0 w:1)
 	// Proof: Omnipool Positions (max_values: None, max_size: Some(100), added: 2575, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn add_token() -> Weight {
 		// Minimum execution time: 144_984 nanoseconds.
 		Weight::from_ref_time(149_388_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(15 as u64))
 			.saturating_add(T::DbWeight::get().writes(10 as u64))
 	}
+=======
+    fn add_token() -> Weight {
+        // Minimum execution time: 143_602 nanoseconds.
+        Weight::from_ref_time(145_117_000 as u64)            .saturating_add(T::DbWeight::get().reads(15 as u64))
+            .saturating_add(T::DbWeight::get().writes(10 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Tokens Accounts (r:4 w:3)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: Omnipool Assets (r:2 w:1)
@@ -149,12 +166,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques Account (max_values: None, max_size: Some(112), added: 2587, mode: MaxEncodedLen)
 	// Storage: Omnipool Positions (r:0 w:1)
 	// Proof: Omnipool Positions (max_values: None, max_size: Some(100), added: 2575, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn add_liquidity() -> Weight {
 		// Minimum execution time: 232_417 nanoseconds.
 		Weight::from_ref_time(233_876_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(23 as u64))
 			.saturating_add(T::DbWeight::get().writes(14 as u64))
 	}
+=======
+    fn add_liquidity() -> Weight {
+        // Minimum execution time: 225_812 nanoseconds.
+        Weight::from_ref_time(227_537_000 as u64)            .saturating_add(T::DbWeight::get().reads(23 as u64))
+            .saturating_add(T::DbWeight::get().writes(14 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Uniques Asset (r:1 w:1)
 	// Proof: Uniques Asset (max_values: None, max_size: Some(146), added: 2621, mode: MaxEncodedLen)
 	// Storage: Omnipool Positions (r:1 w:1)
@@ -193,12 +218,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques Account (max_values: None, max_size: Some(112), added: 2587, mode: MaxEncodedLen)
 	// Storage: Uniques ItemPriceOf (r:0 w:1)
 	// Proof: Uniques ItemPriceOf (max_values: None, max_size: Some(113), added: 2588, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn remove_liquidity() -> Weight {
 		// Minimum execution time: 283_345 nanoseconds.
 		Weight::from_ref_time(285_196_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(23 as u64))
 			.saturating_add(T::DbWeight::get().writes(16 as u64))
 	}
+=======
+    fn remove_liquidity() -> Weight {
+        // Minimum execution time: 282_512 nanoseconds.
+        Weight::from_ref_time(284_772_000 as u64)            .saturating_add(T::DbWeight::get().reads(23 as u64))
+            .saturating_add(T::DbWeight::get().writes(16 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Tokens Accounts (r:4 w:4)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: Omnipool Assets (r:3 w:3)
@@ -225,12 +258,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn sell() -> Weight {
 		// Minimum execution time: 234_099 nanoseconds.
 		Weight::from_ref_time(236_097_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(21 as u64))
 			.saturating_add(T::DbWeight::get().writes(14 as u64))
 	}
+=======
+    fn sell() -> Weight {
+        // Minimum execution time: 231_087 nanoseconds.
+        Weight::from_ref_time(232_886_000 as u64)            .saturating_add(T::DbWeight::get().reads(21 as u64))
+            .saturating_add(T::DbWeight::get().writes(14 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Omnipool Assets (r:3 w:3)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:4 w:4)
@@ -257,6 +298,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: CircuitBreaker LiquidityRemoveLimitPerAsset (max_values: None, max_size: Some(29), added: 2504, mode: MaxEncodedLen)
 	// Storage: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (r:1 w:0)
 	// Proof: CircuitBreaker AllowedRemoveLiquidityAmountPerAsset (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn buy() -> Weight {
 		// Minimum execution time: 233_925 nanoseconds.
 		Weight::from_ref_time(235_516_000 as u64)
@@ -271,6 +313,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn buy() -> Weight {
+        // Minimum execution time: 232_699 nanoseconds.
+        Weight::from_ref_time(235_189_000 as u64)            .saturating_add(T::DbWeight::get().reads(21 as u64))
+            .saturating_add(T::DbWeight::get().writes(14 as u64))
+    }
+	// Storage: Omnipool Assets (r:1 w:1)
+	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
+    fn set_asset_tradable_state() -> Weight {
+        // Minimum execution time: 33_283 nanoseconds.
+        Weight::from_ref_time(33_775_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Omnipool Assets (r:1 w:0)
 	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
 	// Storage: Tokens Accounts (r:2 w:2)
@@ -283,12 +339,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn refund_refused_asset() -> Weight {
 		// Minimum execution time: 105_535 nanoseconds.
 		Weight::from_ref_time(106_689_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(8 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
+=======
+    fn refund_refused_asset() -> Weight {
+        // Minimum execution time: 104_885 nanoseconds.
+        Weight::from_ref_time(105_462_000 as u64)            .saturating_add(T::DbWeight::get().reads(8 as u64))
+            .saturating_add(T::DbWeight::get().writes(5 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Omnipool Positions (r:1 w:1)
 	// Proof: Omnipool Positions (max_values: None, max_size: Some(100), added: 2575, mode: MaxEncodedLen)
 	// Storage: Uniques Asset (r:1 w:1)
@@ -301,6 +365,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: Uniques Account (max_values: None, max_size: Some(112), added: 2587, mode: MaxEncodedLen)
 	// Storage: Uniques ItemPriceOf (r:0 w:1)
 	// Proof: Uniques ItemPriceOf (max_values: None, max_size: Some(113), added: 2588, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn sacrifice_position() -> Weight {
 		// Minimum execution time: 75_734 nanoseconds.
 		Weight::from_ref_time(76_340_000 as u64)
@@ -315,4 +380,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn sacrifice_position() -> Weight {
+        // Minimum execution time: 74_980 nanoseconds.
+        Weight::from_ref_time(75_595_000 as u64)            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().writes(6 as u64))
+    }
+	// Storage: Omnipool Assets (r:1 w:1)
+	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
+    fn set_asset_weight_cap() -> Weight {
+        // Minimum execution time: 33_345 nanoseconds.
+        Weight::from_ref_time(33_948_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

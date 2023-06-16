@@ -28,6 +28,7 @@
 // --pallet=pallet-utility
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -54,6 +55,7 @@ pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `c` is `[0, 1000]`.
+<<<<<<< HEAD
 	fn batch(c: u32) -> Weight {
 		// Minimum execution time: 9_859 nanoseconds.
 		Weight::from_ref_time(15_039_980 as u64) // Standard Error: 5_718
@@ -79,4 +81,29 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		Weight::from_ref_time(24_271_320 as u64) // Standard Error: 7_206
 			.saturating_add(Weight::from_ref_time(6_101_313 as u64).saturating_mul(c as u64))
 	}
+=======
+    fn batch(c: u32, ) -> Weight {
+        // Minimum execution time: 9_548 nanoseconds.
+        Weight::from_ref_time(20_043_320 as u64)            // Standard Error: 6_918
+            .saturating_add(Weight::from_ref_time(6_230_163 as u64).saturating_mul(c as u64))
+    }
+    fn as_derivative() -> Weight {
+        // Minimum execution time: 8_348 nanoseconds.
+        Weight::from_ref_time(8_572_000 as u64)    }
+	/// The range of component `c` is `[0, 1000]`.
+    fn batch_all(c: u32, ) -> Weight {
+        // Minimum execution time: 9_774 nanoseconds.
+        Weight::from_ref_time(24_400_000 as u64)            // Standard Error: 5_980
+            .saturating_add(Weight::from_ref_time(6_581_930 as u64).saturating_mul(c as u64))
+    }
+    fn dispatch_as() -> Weight {
+        // Minimum execution time: 12_774 nanoseconds.
+        Weight::from_ref_time(13_068_000 as u64)    }
+	/// The range of component `c` is `[0, 1000]`.
+    fn force_batch(c: u32, ) -> Weight {
+        // Minimum execution time: 10_143 nanoseconds.
+        Weight::from_ref_time(21_443_840 as u64)            // Standard Error: 6_255
+            .saturating_add(Weight::from_ref_time(6_118_477 as u64).saturating_mul(c as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

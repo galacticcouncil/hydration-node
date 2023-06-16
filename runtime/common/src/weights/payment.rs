@@ -28,6 +28,7 @@
 // --pallet=pallet-transaction-multi-payment
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -55,6 +56,7 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:1)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn add_currency() -> Weight {
 		// Minimum execution time: 26_424 nanoseconds.
 		Weight::from_ref_time(26_713_000 as u64)
@@ -69,10 +71,25 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn add_currency() -> Weight {
+        // Minimum execution time: 26_216 nanoseconds.
+        Weight::from_ref_time(26_879_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:1)
+	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+    fn remove_currency() -> Weight {
+        // Minimum execution time: 26_713 nanoseconds.
+        Weight::from_ref_time(27_072_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn set_currency() -> Weight {
 		// Minimum execution time: 31_646 nanoseconds.
 		Weight::from_ref_time(32_092_000 as u64)
@@ -85,4 +102,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 6_951 nanoseconds.
 		Weight::from_ref_time(7_191_000 as u64).saturating_add(T::DbWeight::get().reads(1 as u64))
 	}
+=======
+    fn set_currency() -> Weight {
+        // Minimum execution time: 32_050 nanoseconds.
+        Weight::from_ref_time(32_478_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: Omnipool Assets (r:1 w:0)
+	// Proof: Omnipool Assets (max_values: None, max_size: Some(85), added: 2560, mode: MaxEncodedLen)
+    fn get_spot_price() -> Weight {
+        // Minimum execution time: 7_030 nanoseconds.
+        Weight::from_ref_time(7_162_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

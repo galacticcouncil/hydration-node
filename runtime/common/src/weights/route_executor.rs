@@ -28,6 +28,7 @@
 // --pallet=pallet-route-executor
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -74,12 +75,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
 	/// The range of component `n` is `[1, 2]`.
+<<<<<<< HEAD
 	fn sell(_n: u32) -> Weight {
 		// Minimum execution time: 242_968 nanoseconds.
 		Weight::from_ref_time(249_548_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(16 as u64))
 			.saturating_add(T::DbWeight::get().writes(12 as u64))
 	}
+=======
+    fn sell(_n: u32, ) -> Weight {
+        // Minimum execution time: 240_244 nanoseconds.
+        Weight::from_ref_time(252_571_000 as u64)            .saturating_add(T::DbWeight::get().reads(16 as u64))
+            .saturating_add(T::DbWeight::get().writes(12 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: System Account (r:2 w:2)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Omnipool Assets (r:2 w:2)
@@ -101,6 +110,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: CircuitBreaker AllowedTradeVolumeLimitPerAsset (r:2 w:2)
 	// Proof: CircuitBreaker AllowedTradeVolumeLimitPerAsset (max_values: None, max_size: Some(68), added: 2543, mode: MaxEncodedLen)
 	/// The range of component `n` is `[1, 2]`.
+<<<<<<< HEAD
 	fn buy(n: u32) -> Weight {
 		// Minimum execution time: 239_841 nanoseconds.
 		Weight::from_ref_time(238_415_250 as u64) // Standard Error: 807_409
@@ -108,4 +118,13 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(16 as u64))
 			.saturating_add(T::DbWeight::get().writes(12 as u64))
 	}
+=======
+    fn buy(n: u32, ) -> Weight {
+        // Minimum execution time: 237_842 nanoseconds.
+        Weight::from_ref_time(238_705_550 as u64)            // Standard Error: 227_230
+            .saturating_add(Weight::from_ref_time(1_211_375 as u64).saturating_mul(n as u64))
+            .saturating_add(T::DbWeight::get().reads(16 as u64))
+            .saturating_add(T::DbWeight::get().writes(12 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

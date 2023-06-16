@@ -28,6 +28,7 @@
 // --pallet=pallet-currencies
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -63,6 +64,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn transfer_non_native_currency() -> Weight {
 		// Minimum execution time: 92_639 nanoseconds.
 		Weight::from_ref_time(95_104_000 as u64)
@@ -77,6 +79,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn transfer_non_native_currency() -> Weight {
+        // Minimum execution time: 91_916 nanoseconds.
+        Weight::from_ref_time(92_767_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
+            .saturating_add(T::DbWeight::get().writes(4 as u64))
+    }
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    fn transfer_native_currency() -> Weight {
+        // Minimum execution time: 58_008 nanoseconds.
+        Weight::from_ref_time(58_773_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Tokens Accounts (r:1 w:1)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:1 w:0)
@@ -89,6 +105,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn update_balance_non_native_currency() -> Weight {
 		// Minimum execution time: 72_740 nanoseconds.
 		Weight::from_ref_time(73_929_000 as u64)
@@ -111,4 +128,25 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn update_balance_non_native_currency() -> Weight {
+        // Minimum execution time: 70_841 nanoseconds.
+        Weight::from_ref_time(71_599_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+    }
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    fn update_balance_native_currency_creating() -> Weight {
+        // Minimum execution time: 48_914 nanoseconds.
+        Weight::from_ref_time(49_984_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: System Account (r:1 w:1)
+	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+    fn update_balance_native_currency_killing() -> Weight {
+        // Minimum execution time: 46_369 nanoseconds.
+        Weight::from_ref_time(46_855_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

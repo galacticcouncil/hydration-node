@@ -28,6 +28,7 @@
 // --pallet=pallet-timestamp
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -55,6 +56,7 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Timestamp Now (r:1 w:1)
 	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn set() -> Weight {
 		// Minimum execution time: 9_113 nanoseconds.
 		Weight::from_ref_time(9_305_000 as u64)
@@ -65,4 +67,14 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 5_235 nanoseconds.
 		Weight::from_ref_time(5_396_000 as u64)
 	}
+=======
+    fn set() -> Weight {
+        // Minimum execution time: 9_093 nanoseconds.
+        Weight::from_ref_time(9_342_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+    fn on_finalize() -> Weight {
+        // Minimum execution time: 4_982 nanoseconds.
+        Weight::from_ref_time(5_155_000 as u64)    }
+>>>>>>> 8caba3a7 (new weights)
 }

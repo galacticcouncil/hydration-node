@@ -28,6 +28,7 @@
 // --pallet=orml-tokens
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -63,12 +64,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn transfer() -> Weight {
 		// Minimum execution time: 90_638 nanoseconds.
 		Weight::from_ref_time(91_580_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
+=======
+    fn transfer() -> Weight {
+        // Minimum execution time: 88_520 nanoseconds.
+        Weight::from_ref_time(89_174_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
+            .saturating_add(T::DbWeight::get().writes(4 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Tokens Accounts (r:2 w:2)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:1 w:0)
@@ -79,12 +88,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn transfer_all() -> Weight {
 		// Minimum execution time: 93_982 nanoseconds.
 		Weight::from_ref_time(94_994_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
+=======
+    fn transfer_all() -> Weight {
+        // Minimum execution time: 91_438 nanoseconds.
+        Weight::from_ref_time(91_965_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
+            .saturating_add(T::DbWeight::get().writes(4 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Tokens Accounts (r:2 w:2)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:1 w:0)
@@ -95,12 +112,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn transfer_keep_alive() -> Weight {
 		// Minimum execution time: 74_385 nanoseconds.
 		Weight::from_ref_time(75_110_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
+=======
+    fn transfer_keep_alive() -> Weight {
+        // Minimum execution time: 76_130 nanoseconds.
+        Weight::from_ref_time(77_015_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Tokens Accounts (r:2 w:2)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:1 w:0)
@@ -111,12 +136,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn force_transfer() -> Weight {
 		// Minimum execution time: 80_272 nanoseconds.
 		Weight::from_ref_time(81_228_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
+=======
+    fn force_transfer() -> Weight {
+        // Minimum execution time: 92_082 nanoseconds.
+        Weight::from_ref_time(93_140_000 as u64)            .saturating_add(T::DbWeight::get().reads(7 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Tokens Accounts (r:1 w:1)
 	// Proof: Tokens Accounts (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: AssetRegistry Assets (r:1 w:0)
@@ -129,10 +162,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
 	// Storage: MultiTransactionPayment AcceptedCurrencies (r:1 w:0)
 	// Proof: MultiTransactionPayment AcceptedCurrencies (max_values: None, max_size: Some(28), added: 2503, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn set_balance() -> Weight {
 		// Minimum execution time: 69_681 nanoseconds.
 		Weight::from_ref_time(70_666_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(6 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
+=======
+    fn set_balance() -> Weight {
+        // Minimum execution time: 79_716 nanoseconds.
+        Weight::from_ref_time(80_405_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

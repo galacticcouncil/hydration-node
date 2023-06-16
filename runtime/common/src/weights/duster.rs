@@ -28,6 +28,7 @@
 // --pallet=pallet-duster
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -67,6 +68,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: Duster RewardAccount (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: MultiTransactionPayment AccountCurrencyMap (r:0 w:1)
 	// Proof: MultiTransactionPayment AccountCurrencyMap (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn dust_account() -> Weight {
 		// Minimum execution time: 89_448 nanoseconds.
 		Weight::from_ref_time(90_141_000 as u64)
@@ -87,4 +89,24 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn dust_account() -> Weight {
+        // Minimum execution time: 89_223 nanoseconds.
+        Weight::from_ref_time(89_896_000 as u64)            .saturating_add(T::DbWeight::get().reads(7 as u64))
+            .saturating_add(T::DbWeight::get().writes(4 as u64))
+    }
+	// Storage: Duster AccountBlacklist (r:0 w:1)
+	// Proof Skipped: Duster AccountBlacklist (max_values: None, max_size: None, mode: Measured)
+    fn add_nondustable_account() -> Weight {
+        // Minimum execution time: 22_009 nanoseconds.
+        Weight::from_ref_time(22_568_000 as u64)            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: Duster AccountBlacklist (r:1 w:1)
+	// Proof Skipped: Duster AccountBlacklist (max_values: None, max_size: None, mode: Measured)
+    fn remove_nondustable_account() -> Weight {
+        // Minimum execution time: 27_278 nanoseconds.
+        Weight::from_ref_time(27_648_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

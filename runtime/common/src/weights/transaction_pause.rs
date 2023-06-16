@@ -28,6 +28,7 @@
 // --pallet=pallet-transaction-pause
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -55,6 +56,7 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: TransactionPause PausedTransactions (r:1 w:1)
 	// Proof Skipped: TransactionPause PausedTransactions (max_values: None, max_size: None, mode: Measured)
+<<<<<<< HEAD
 	fn pause_transaction() -> Weight {
 		// Minimum execution time: 14_789 nanoseconds.
 		Weight::from_ref_time(15_130_000 as u64)
@@ -69,4 +71,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn pause_transaction() -> Weight {
+        // Minimum execution time: 14_526 nanoseconds.
+        Weight::from_ref_time(14_862_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: TransactionPause PausedTransactions (r:1 w:1)
+	// Proof Skipped: TransactionPause PausedTransactions (max_values: None, max_size: None, mode: Measured)
+    fn unpause_transaction() -> Weight {
+        // Minimum execution time: 15_803 nanoseconds.
+        Weight::from_ref_time(16_215_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

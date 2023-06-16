@@ -28,6 +28,7 @@
 // --pallet=pallet-treasury
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -53,35 +54,58 @@ use pallet_treasury::weights::WeightInfo;
 pub struct HydraWeight<T>(PhantomData<T>);
 
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
+<<<<<<< HEAD
 	fn spend() -> Weight {
 		// Minimum execution time: 305 nanoseconds.
 		Weight::from_ref_time(350_000 as u64)
 	}
+=======
+    fn spend() -> Weight {
+        // Minimum execution time: 318 nanoseconds.
+        Weight::from_ref_time(332_000 as u64)    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Treasury ProposalCount (r:1 w:1)
 	// Proof: Treasury ProposalCount (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
 	// Storage: Treasury Proposals (r:0 w:1)
 	// Proof: Treasury Proposals (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn propose_spend() -> Weight {
 		// Minimum execution time: 32_429 nanoseconds.
 		Weight::from_ref_time(32_876_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
+=======
+    fn propose_spend() -> Weight {
+        // Minimum execution time: 31_779 nanoseconds.
+        Weight::from_ref_time(32_295_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Treasury Proposals (r:1 w:1)
 	// Proof: Treasury Proposals (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: System Account (r:2 w:2)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn reject_proposal() -> Weight {
 		// Minimum execution time: 48_249 nanoseconds.
 		Weight::from_ref_time(48_913_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
+=======
+    fn reject_proposal() -> Weight {
+        // Minimum execution time: 47_741 nanoseconds.
+        Weight::from_ref_time(48_401_000 as u64)            .saturating_add(T::DbWeight::get().reads(3 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Treasury Proposals (r:1 w:0)
 	// Proof: Treasury Proposals (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	// Storage: Treasury Approvals (r:1 w:1)
 	// Proof: Treasury Approvals (max_values: Some(1), max_size: Some(402), added: 897, mode: MaxEncodedLen)
 	/// The range of component `p` is `[0, 99]`.
+<<<<<<< HEAD
 	fn approve_proposal(p: u32) -> Weight {
 		// Minimum execution time: 13_184 nanoseconds.
 		Weight::from_ref_time(15_264_235 as u64) // Standard Error: 5_635
@@ -97,6 +121,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn approve_proposal(p: u32, ) -> Weight {
+        // Minimum execution time: 12_747 nanoseconds.
+        Weight::from_ref_time(14_827_929 as u64)            // Standard Error: 5_363
+            .saturating_add(Weight::from_ref_time(66_075 as u64).saturating_mul(p as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: Treasury Approvals (r:1 w:1)
+	// Proof: Treasury Approvals (max_values: Some(1), max_size: Some(402), added: 897, mode: MaxEncodedLen)
+    fn remove_approval() -> Weight {
+        // Minimum execution time: 9_222 nanoseconds.
+        Weight::from_ref_time(9_485_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: System Account (r:201 w:201)
 	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
 	// Storage: Treasury Deactivated (r:1 w:1)
@@ -108,6 +148,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Treasury Proposals (r:100 w:100)
 	// Proof: Treasury Proposals (max_values: None, max_size: Some(108), added: 2583, mode: MaxEncodedLen)
 	/// The range of component `p` is `[0, 100]`.
+<<<<<<< HEAD
 	fn on_initialize_proposals(p: u32) -> Weight {
 		// Minimum execution time: 37_205 nanoseconds.
 		Weight::from_ref_time(44_789_440 as u64) // Standard Error: 44_927
@@ -117,4 +158,15 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(p as u64)))
 	}
+=======
+    fn on_initialize_proposals(p: u32, ) -> Weight {
+        // Minimum execution time: 37_461 nanoseconds.
+        Weight::from_ref_time(48_793_780 as u64)            // Standard Error: 70_185
+            .saturating_add(Weight::from_ref_time(40_231_484 as u64).saturating_mul(p as u64))
+            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().reads((3 as u64).saturating_mul(p as u64)))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+            .saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(p as u64)))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

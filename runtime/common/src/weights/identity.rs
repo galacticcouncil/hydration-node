@@ -28,6 +28,7 @@
 // --pallet=pallet-identity
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -56,6 +57,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Identity Registrars (r:1 w:1)
 	// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
 	/// The range of component `r` is `[1, 19]`.
+<<<<<<< HEAD
 	fn add_registrar(r: u32) -> Weight {
 		// Minimum execution time: 15_727 nanoseconds.
 		Weight::from_ref_time(16_339_229 as u64) // Standard Error: 9_337
@@ -63,10 +65,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn add_registrar(r: u32, ) -> Weight {
+        // Minimum execution time: 15_326 nanoseconds.
+        Weight::from_ref_time(15_582_094 as u64)            // Standard Error: 4_653
+            .saturating_add(Weight::from_ref_time(176_404 as u64).saturating_mul(r as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity IdentityOf (r:1 w:1)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	/// The range of component `r` is `[1, 20]`.
 	/// The range of component `x` is `[0, 100]`.
+<<<<<<< HEAD
 	fn set_identity(r: u32, x: u32) -> Weight {
 		// Minimum execution time: 39_556 nanoseconds.
 		Weight::from_ref_time(39_309_691 as u64) // Standard Error: 7_864
@@ -76,6 +88,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn set_identity(r: u32, x: u32, ) -> Weight {
+        // Minimum execution time: 38_131 nanoseconds.
+        Weight::from_ref_time(37_398_023 as u64)            // Standard Error: 7_257
+            .saturating_add(Weight::from_ref_time(69_908 as u64).saturating_mul(r as u64))
+            // Standard Error: 1_408
+            .saturating_add(Weight::from_ref_time(531_880 as u64).saturating_mul(x as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity IdentityOf (r:1 w:0)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	// Storage: Identity SubsOf (r:1 w:1)
@@ -83,6 +106,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Identity SuperOf (r:100 w:100)
 	// Proof: Identity SuperOf (max_values: None, max_size: Some(114), added: 2589, mode: MaxEncodedLen)
 	/// The range of component `s` is `[0, 100]`.
+<<<<<<< HEAD
 	fn set_subs_new(s: u32) -> Weight {
 		// Minimum execution time: 13_609 nanoseconds.
 		Weight::from_ref_time(22_319_860 as u64) // Standard Error: 25_013
@@ -92,6 +116,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
 	}
+=======
+    fn set_subs_new(s: u32, ) -> Weight {
+        // Minimum execution time: 13_176 nanoseconds.
+        Weight::from_ref_time(20_572_660 as u64)            // Standard Error: 21_203
+            .saturating_add(Weight::from_ref_time(3_483_533 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(s as u64)))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity IdentityOf (r:1 w:0)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	// Storage: Identity SubsOf (r:1 w:1)
@@ -99,6 +134,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Identity SuperOf (r:0 w:100)
 	// Proof: Identity SuperOf (max_values: None, max_size: Some(114), added: 2589, mode: MaxEncodedLen)
 	/// The range of component `p` is `[0, 100]`.
+<<<<<<< HEAD
 	fn set_subs_old(p: u32) -> Weight {
 		// Minimum execution time: 13_494 nanoseconds.
 		Weight::from_ref_time(21_397_520 as u64) // Standard Error: 21_864
@@ -107,6 +143,16 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(p as u64)))
 	}
+=======
+    fn set_subs_old(p: u32, ) -> Weight {
+        // Minimum execution time: 12_990 nanoseconds.
+        Weight::from_ref_time(20_453_420 as u64)            // Standard Error: 21_437
+            .saturating_add(Weight::from_ref_time(1_463_947 as u64).saturating_mul(p as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(p as u64)))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity SubsOf (r:1 w:1)
 	// Proof: Identity SubsOf (max_values: None, max_size: Some(3258), added: 5733, mode: MaxEncodedLen)
 	// Storage: Identity IdentityOf (r:1 w:1)
@@ -116,6 +162,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[1, 20]`.
 	/// The range of component `s` is `[0, 100]`.
 	/// The range of component `x` is `[0, 100]`.
+<<<<<<< HEAD
 	fn clear_identity(r: u32, s: u32, x: u32) -> Weight {
 		// Minimum execution time: 62_587 nanoseconds.
 		Weight::from_ref_time(33_945_753 as u64) // Standard Error: 9_412
@@ -128,12 +175,27 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
 	}
+=======
+    fn clear_identity(r: u32, s: u32, x: u32, ) -> Weight {
+        // Minimum execution time: 60_648 nanoseconds.
+        Weight::from_ref_time(33_396_832 as u64)            // Standard Error: 15_990
+            .saturating_add(Weight::from_ref_time(90_628 as u64).saturating_mul(r as u64))
+            // Standard Error: 3_105
+            .saturating_add(Weight::from_ref_time(1_358_139 as u64).saturating_mul(s as u64))
+            // Standard Error: 3_105
+            .saturating_add(Weight::from_ref_time(268_909 as u64).saturating_mul(x as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity Registrars (r:1 w:0)
 	// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
 	// Storage: Identity IdentityOf (r:1 w:1)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	/// The range of component `r` is `[1, 20]`.
 	/// The range of component `x` is `[0, 100]`.
+<<<<<<< HEAD
 	fn request_judgement(r: u32, x: u32) -> Weight {
 		// Minimum execution time: 39_890 nanoseconds.
 		Weight::from_ref_time(36_494_128 as u64) // Standard Error: 11_158
@@ -143,10 +205,22 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn request_judgement(r: u32, x: u32, ) -> Weight {
+        // Minimum execution time: 39_197 nanoseconds.
+        Weight::from_ref_time(39_378_606 as u64)            // Standard Error: 10_835
+            .saturating_add(Weight::from_ref_time(30_127 as u64).saturating_mul(r as u64))
+            // Standard Error: 2_103
+            .saturating_add(Weight::from_ref_time(548_234 as u64).saturating_mul(x as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity IdentityOf (r:1 w:1)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	/// The range of component `r` is `[1, 20]`.
 	/// The range of component `x` is `[0, 100]`.
+<<<<<<< HEAD
 	fn cancel_request(_r: u32, x: u32) -> Weight {
 		// Minimum execution time: 36_764 nanoseconds.
 		Weight::from_ref_time(37_860_897 as u64) // Standard Error: 2_199
@@ -184,12 +258,54 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn cancel_request(r: u32, x: u32, ) -> Weight {
+        // Minimum execution time: 35_105 nanoseconds.
+        Weight::from_ref_time(35_494_233 as u64)            // Standard Error: 12_119
+            .saturating_add(Weight::from_ref_time(23_586 as u64).saturating_mul(r as u64))
+            // Standard Error: 2_352
+            .saturating_add(Weight::from_ref_time(548_868 as u64).saturating_mul(x as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: Identity Registrars (r:1 w:1)
+	// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
+	/// The range of component `r` is `[1, 19]`.
+    fn set_fee(r: u32, ) -> Weight {
+        // Minimum execution time: 9_796 nanoseconds.
+        Weight::from_ref_time(10_072_944 as u64)            // Standard Error: 2_858
+            .saturating_add(Weight::from_ref_time(132_724 as u64).saturating_mul(r as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: Identity Registrars (r:1 w:1)
+	// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
+	/// The range of component `r` is `[1, 19]`.
+    fn set_account_id(r: u32, ) -> Weight {
+        // Minimum execution time: 11_153 nanoseconds.
+        Weight::from_ref_time(11_547_123 as u64)            // Standard Error: 5_182
+            .saturating_add(Weight::from_ref_time(98_366 as u64).saturating_mul(r as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: Identity Registrars (r:1 w:1)
+	// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
+	/// The range of component `r` is `[1, 19]`.
+    fn set_fields(r: u32, ) -> Weight {
+        // Minimum execution time: 10_612 nanoseconds.
+        Weight::from_ref_time(11_180_103 as u64)            // Standard Error: 7_860
+            .saturating_add(Weight::from_ref_time(118_105 as u64).saturating_mul(r as u64))
+            .saturating_add(T::DbWeight::get().reads(1 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity Registrars (r:1 w:0)
 	// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
 	// Storage: Identity IdentityOf (r:1 w:1)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	/// The range of component `r` is `[1, 19]`.
 	/// The range of component `x` is `[0, 100]`.
+<<<<<<< HEAD
 	fn provide_judgement(r: u32, x: u32) -> Weight {
 		// Minimum execution time: 30_926 nanoseconds.
 		Weight::from_ref_time(31_389_321 as u64) // Standard Error: 14_253
@@ -199,6 +315,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn provide_judgement(r: u32, x: u32, ) -> Weight {
+        // Minimum execution time: 30_030 nanoseconds.
+        Weight::from_ref_time(28_748_819 as u64)            // Standard Error: 4_117
+            .saturating_add(Weight::from_ref_time(102_566 as u64).saturating_mul(r as u64))
+            // Standard Error: 749
+            .saturating_add(Weight::from_ref_time(889_340 as u64).saturating_mul(x as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity SubsOf (r:1 w:1)
 	// Proof: Identity SubsOf (max_values: None, max_size: Some(3258), added: 5733, mode: MaxEncodedLen)
 	// Storage: Identity IdentityOf (r:1 w:1)
@@ -210,6 +337,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `r` is `[1, 20]`.
 	/// The range of component `s` is `[0, 100]`.
 	/// The range of component `x` is `[0, 100]`.
+<<<<<<< HEAD
 	fn kill_identity(r: u32, s: u32, x: u32) -> Weight {
 		// Minimum execution time: 82_552 nanoseconds.
 		Weight::from_ref_time(55_006_677 as u64) // Standard Error: 11_434
@@ -222,6 +350,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
 	}
+=======
+    fn kill_identity(r: u32, s: u32, x: u32, ) -> Weight {
+        // Minimum execution time: 80_698 nanoseconds.
+        Weight::from_ref_time(55_614_441 as u64)            // Standard Error: 16_269
+            .saturating_add(Weight::from_ref_time(62_642 as u64).saturating_mul(r as u64))
+            // Standard Error: 3_159
+            .saturating_add(Weight::from_ref_time(1_363_105 as u64).saturating_mul(s as u64))
+            // Standard Error: 3_159
+            .saturating_add(Weight::from_ref_time(258_243 as u64).saturating_mul(x as u64))
+            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(s as u64)))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity IdentityOf (r:1 w:0)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	// Storage: Identity SuperOf (r:1 w:1)
@@ -229,6 +371,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Identity SubsOf (r:1 w:1)
 	// Proof: Identity SubsOf (max_values: None, max_size: Some(3258), added: 5733, mode: MaxEncodedLen)
 	/// The range of component `s` is `[0, 99]`.
+<<<<<<< HEAD
 	fn add_sub(s: u32) -> Weight {
 		// Minimum execution time: 36_100 nanoseconds.
 		Weight::from_ref_time(38_971_035 as u64) // Standard Error: 7_398
@@ -236,11 +379,21 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
+=======
+    fn add_sub(s: u32, ) -> Weight {
+        // Minimum execution time: 34_765 nanoseconds.
+        Weight::from_ref_time(37_717_592 as u64)            // Standard Error: 6_463
+            .saturating_add(Weight::from_ref_time(101_957 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(3 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity IdentityOf (r:1 w:0)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	// Storage: Identity SuperOf (r:1 w:1)
 	// Proof: Identity SuperOf (max_values: None, max_size: Some(114), added: 2589, mode: MaxEncodedLen)
 	/// The range of component `s` is `[1, 100]`.
+<<<<<<< HEAD
 	fn rename_sub(s: u32) -> Weight {
 		// Minimum execution time: 18_076 nanoseconds.
 		Weight::from_ref_time(19_689_871 as u64) // Standard Error: 3_520
@@ -248,6 +401,15 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn rename_sub(s: u32, ) -> Weight {
+        // Minimum execution time: 17_138 nanoseconds.
+        Weight::from_ref_time(18_541_210 as u64)            // Standard Error: 3_195
+            .saturating_add(Weight::from_ref_time(32_533 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity IdentityOf (r:1 w:0)
 	// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	// Storage: Identity SuperOf (r:1 w:1)
@@ -255,6 +417,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: Identity SubsOf (r:1 w:1)
 	// Proof: Identity SubsOf (max_values: None, max_size: Some(3258), added: 5733, mode: MaxEncodedLen)
 	/// The range of component `s` is `[1, 100]`.
+<<<<<<< HEAD
 	fn remove_sub(s: u32) -> Weight {
 		// Minimum execution time: 40_103 nanoseconds.
 		Weight::from_ref_time(42_386_529 as u64) // Standard Error: 6_060
@@ -262,11 +425,21 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
+=======
+    fn remove_sub(s: u32, ) -> Weight {
+        // Minimum execution time: 39_118 nanoseconds.
+        Weight::from_ref_time(41_145_308 as u64)            // Standard Error: 4_681
+            .saturating_add(Weight::from_ref_time(65_113 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(3 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Identity SuperOf (r:1 w:1)
 	// Proof: Identity SuperOf (max_values: None, max_size: Some(114), added: 2589, mode: MaxEncodedLen)
 	// Storage: Identity SubsOf (r:1 w:1)
 	// Proof: Identity SubsOf (max_values: None, max_size: Some(3258), added: 5733, mode: MaxEncodedLen)
 	/// The range of component `s` is `[0, 99]`.
+<<<<<<< HEAD
 	fn quit_sub(s: u32) -> Weight {
 		// Minimum execution time: 26_343 nanoseconds.
 		Weight::from_ref_time(28_336_746 as u64) // Standard Error: 5_055
@@ -274,4 +447,13 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
+=======
+    fn quit_sub(s: u32, ) -> Weight {
+        // Minimum execution time: 25_303 nanoseconds.
+        Weight::from_ref_time(27_018_647 as u64)            // Standard Error: 4_565
+            .saturating_add(Weight::from_ref_time(75_673 as u64).saturating_mul(s as u64))
+            .saturating_add(T::DbWeight::get().reads(2 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }

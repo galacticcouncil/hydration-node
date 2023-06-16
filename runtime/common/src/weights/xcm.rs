@@ -28,6 +28,7 @@
 // --pallet=pallet-xcm
 // --execution=wasm
 // --wasm-execution=compiled
+// --heap-pages=4096
 // --chain=dev
 // --extrinsic=*
 // --steps=5
@@ -63,12 +64,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: ParachainSystem HostConfiguration (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	// Proof Skipped: ParachainSystem PendingUpwardMessages (max_values: Some(1), max_size: None, mode: Measured)
+<<<<<<< HEAD
 	fn send() -> Weight {
 		// Minimum execution time: 36_846 nanoseconds.
 		Weight::from_ref_time(37_440_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(5 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
+=======
+    fn send() -> Weight {
+        // Minimum execution time: 37_052 nanoseconds.
+        Weight::from_ref_time(37_742_000 as u64)            .saturating_add(T::DbWeight::get().reads(5 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: Benchmark Override (r:0 w:0)
 	// Proof Skipped: Benchmark Override (max_values: None, max_size: None, mode: Measured)
 	fn teleport_assets() -> Weight {
@@ -77,6 +86,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	}
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	// Proof: ParachainInfo ParachainId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
+<<<<<<< HEAD
 	fn reserve_transfer_assets() -> Weight {
 		// Minimum execution time: 28_526 nanoseconds.
 		Weight::from_ref_time(28_923_000 as u64).saturating_add(T::DbWeight::get().reads(1 as u64))
@@ -97,6 +107,27 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 4_662 nanoseconds.
 		Weight::from_ref_time(4_868_000 as u64).saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
+=======
+    fn reserve_transfer_assets() -> Weight {
+        // Minimum execution time: 28_961 nanoseconds.
+        Weight::from_ref_time(29_264_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
+    }
+    fn execute() -> Weight {
+        // Minimum execution time: 13_191 nanoseconds.
+        Weight::from_ref_time(13_453_000 as u64)    }
+	// Storage: PolkadotXcm SupportedVersion (r:0 w:1)
+	// Proof Skipped: PolkadotXcm SupportedVersion (max_values: None, max_size: None, mode: Measured)
+    fn force_xcm_version() -> Weight {
+        // Minimum execution time: 13_630 nanoseconds.
+        Weight::from_ref_time(14_213_000 as u64)            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+	// Storage: PolkadotXcm SafeXcmVersion (r:0 w:1)
+	// Proof Skipped: PolkadotXcm SafeXcmVersion (max_values: Some(1), max_size: None, mode: Measured)
+    fn force_default_xcm_version() -> Weight {
+        // Minimum execution time: 4_489 nanoseconds.
+        Weight::from_ref_time(4_780_000 as u64)            .saturating_add(T::DbWeight::get().writes(1 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: PolkadotXcm VersionNotifiers (r:1 w:1)
 	// Proof Skipped: PolkadotXcm VersionNotifiers (max_values: None, max_size: None, mode: Measured)
 	// Storage: PolkadotXcm QueryCounter (r:1 w:1)
@@ -113,12 +144,20 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: ParachainSystem PendingUpwardMessages (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: PolkadotXcm Queries (r:0 w:1)
 	// Proof Skipped: PolkadotXcm Queries (max_values: None, max_size: None, mode: Measured)
+<<<<<<< HEAD
 	fn force_subscribe_version_notify() -> Weight {
 		// Minimum execution time: 44_150 nanoseconds.
 		Weight::from_ref_time(44_648_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(7 as u64))
 			.saturating_add(T::DbWeight::get().writes(5 as u64))
 	}
+=======
+    fn force_subscribe_version_notify() -> Weight {
+        // Minimum execution time: 44_665 nanoseconds.
+        Weight::from_ref_time(45_562_000 as u64)            .saturating_add(T::DbWeight::get().reads(7 as u64))
+            .saturating_add(T::DbWeight::get().writes(5 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: PolkadotXcm VersionNotifiers (r:1 w:1)
 	// Proof Skipped: PolkadotXcm VersionNotifiers (max_values: None, max_size: None, mode: Measured)
 	// Storage: PolkadotXcm SupportedVersion (r:1 w:0)
@@ -133,6 +172,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: ParachainSystem PendingUpwardMessages (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: PolkadotXcm Queries (r:0 w:1)
 	// Proof Skipped: PolkadotXcm Queries (max_values: None, max_size: None, mode: Measured)
+<<<<<<< HEAD
 	fn force_unsubscribe_version_notify() -> Weight {
 		// Minimum execution time: 44_632 nanoseconds.
 		Weight::from_ref_time(44_991_000 as u64)
@@ -161,6 +201,33 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 		// Minimum execution time: 24_356 nanoseconds.
 		Weight::from_ref_time(25_032_000 as u64).saturating_add(T::DbWeight::get().reads(5 as u64))
 	}
+=======
+    fn force_unsubscribe_version_notify() -> Weight {
+        // Minimum execution time: 44_616 nanoseconds.
+        Weight::from_ref_time(45_322_000 as u64)            .saturating_add(T::DbWeight::get().reads(6 as u64))
+            .saturating_add(T::DbWeight::get().writes(4 as u64))
+    }
+	// Storage: PolkadotXcm SupportedVersion (r:4 w:2)
+	// Proof Skipped: PolkadotXcm SupportedVersion (max_values: None, max_size: None, mode: Measured)
+    fn migrate_supported_version() -> Weight {
+        // Minimum execution time: 22_345 nanoseconds.
+        Weight::from_ref_time(22_606_000 as u64)            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+	// Storage: PolkadotXcm VersionNotifiers (r:4 w:2)
+	// Proof Skipped: PolkadotXcm VersionNotifiers (max_values: None, max_size: None, mode: Measured)
+    fn migrate_version_notifiers() -> Weight {
+        // Minimum execution time: 22_362 nanoseconds.
+        Weight::from_ref_time(23_138_000 as u64)            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+	// Storage: PolkadotXcm VersionNotifyTargets (r:5 w:0)
+	// Proof Skipped: PolkadotXcm VersionNotifyTargets (max_values: None, max_size: None, mode: Measured)
+    fn already_notified_target() -> Weight {
+        // Minimum execution time: 24_977 nanoseconds.
+        Weight::from_ref_time(25_546_000 as u64)            .saturating_add(T::DbWeight::get().reads(5 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: PolkadotXcm VersionNotifyTargets (r:2 w:1)
 	// Proof Skipped: PolkadotXcm VersionNotifyTargets (max_values: None, max_size: None, mode: Measured)
 	// Storage: PolkadotXcm SupportedVersion (r:1 w:0)
@@ -173,6 +240,7 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: ParachainSystem HostConfiguration (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	// Proof Skipped: ParachainSystem PendingUpwardMessages (max_values: Some(1), max_size: None, mode: Measured)
+<<<<<<< HEAD
 	fn notify_current_targets() -> Weight {
 		// Minimum execution time: 40_374 nanoseconds.
 		Weight::from_ref_time(41_226_000 as u64)
@@ -193,6 +261,26 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
+=======
+    fn notify_current_targets() -> Weight {
+        // Minimum execution time: 40_109 nanoseconds.
+        Weight::from_ref_time(41_074_000 as u64)            .saturating_add(T::DbWeight::get().reads(7 as u64))
+            .saturating_add(T::DbWeight::get().writes(3 as u64))
+    }
+	// Storage: PolkadotXcm VersionNotifyTargets (r:3 w:0)
+	// Proof Skipped: PolkadotXcm VersionNotifyTargets (max_values: None, max_size: None, mode: Measured)
+    fn notify_target_migration_fail() -> Weight {
+        // Minimum execution time: 12_194 nanoseconds.
+        Weight::from_ref_time(12_618_000 as u64)            .saturating_add(T::DbWeight::get().reads(3 as u64))
+    }
+	// Storage: PolkadotXcm VersionNotifyTargets (r:4 w:2)
+	// Proof Skipped: PolkadotXcm VersionNotifyTargets (max_values: None, max_size: None, mode: Measured)
+    fn migrate_version_notify_targets() -> Weight {
+        // Minimum execution time: 23_097 nanoseconds.
+        Weight::from_ref_time(23_446_000 as u64)            .saturating_add(T::DbWeight::get().reads(4 as u64))
+            .saturating_add(T::DbWeight::get().writes(2 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 	// Storage: PolkadotXcm VersionNotifyTargets (r:4 w:2)
 	// Proof Skipped: PolkadotXcm VersionNotifyTargets (max_values: None, max_size: None, mode: Measured)
 	// Storage: PolkadotXcm SupportedVersion (r:1 w:0)
@@ -205,10 +293,18 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: ParachainSystem HostConfiguration (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	// Proof Skipped: ParachainSystem PendingUpwardMessages (max_values: Some(1), max_size: None, mode: Measured)
+<<<<<<< HEAD
 	fn migrate_and_notify_old_targets() -> Weight {
 		// Minimum execution time: 49_341 nanoseconds.
 		Weight::from_ref_time(50_206_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(9 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
+=======
+    fn migrate_and_notify_old_targets() -> Weight {
+        // Minimum execution time: 49_535 nanoseconds.
+        Weight::from_ref_time(50_265_000 as u64)            .saturating_add(T::DbWeight::get().reads(9 as u64))
+            .saturating_add(T::DbWeight::get().writes(4 as u64))
+    }
+>>>>>>> 8caba3a7 (new weights)
 }
