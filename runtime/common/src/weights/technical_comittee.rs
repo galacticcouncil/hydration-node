@@ -43,12 +43,12 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
-use tech::weights::WeightInfo;
+use pallet_collective::WeightInfo;
 
 /// Weights for tech using the hydraDX node and recommended hardware.
 pub struct HydraWeight<T>(PhantomData<T>);
@@ -65,45 +65,45 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `m` is `[0, 10]`.
 	/// The range of component `n` is `[0, 10]`.
 	/// The range of component `p` is `[0, 20]`.
-    fn set_members(m: u32, _n: u32, p: u32, ) -> Weight {
-        // Minimum execution time: 12_309 nanoseconds.
-        Weight::from_ref_time(12_459_000 as u64)            // Standard Error: 341_347
-            .saturating_add(Weight::from_ref_time(3_850_003 as u64).saturating_mul(m as u64))
-            // Standard Error: 172_398
-            .saturating_add(Weight::from_ref_time(3_766_044 as u64).saturating_mul(p as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(m as u64)))
-            .saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(p as u64)))
-            .saturating_add(T::DbWeight::get().writes(2 as u64))
-            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(m as u64)))
-            .saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(p as u64)))
-    }
+	fn set_members(m: u32, _n: u32, p: u32) -> Weight {
+		// Minimum execution time: 12_309 nanoseconds.
+		Weight::from_ref_time(12_459_000 as u64) // Standard Error: 341_347
+			.saturating_add(Weight::from_ref_time(3_850_003 as u64).saturating_mul(m as u64))
+			// Standard Error: 172_398
+			.saturating_add(Weight::from_ref_time(3_766_044 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(m as u64)))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(p as u64)))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(m as u64)))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(p as u64)))
+	}
 	// Storage: TechnicalCommittee Members (r:1 w:0)
 	// Proof Skipped: TechnicalCommittee Members (max_values: Some(1), max_size: None, mode: Measured)
 	/// The range of component `b` is `[2, 1024]`.
 	/// The range of component `m` is `[1, 10]`.
-    fn execute(b: u32, m: u32, ) -> Weight {
-        // Minimum execution time: 20_335 nanoseconds.
-        Weight::from_ref_time(20_891_871 as u64)            // Standard Error: 86
-            .saturating_add(Weight::from_ref_time(2_049 as u64).saturating_mul(b as u64))
-            // Standard Error: 9_628
-            .saturating_add(Weight::from_ref_time(23_909 as u64).saturating_mul(m as u64))
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-    }
+	fn execute(b: u32, m: u32) -> Weight {
+		// Minimum execution time: 20_335 nanoseconds.
+		Weight::from_ref_time(20_891_871 as u64) // Standard Error: 86
+			.saturating_add(Weight::from_ref_time(2_049 as u64).saturating_mul(b as u64))
+			// Standard Error: 9_628
+			.saturating_add(Weight::from_ref_time(23_909 as u64).saturating_mul(m as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+	}
 	// Storage: TechnicalCommittee Members (r:1 w:0)
 	// Proof Skipped: TechnicalCommittee Members (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee ProposalOf (r:1 w:0)
 	// Proof Skipped: TechnicalCommittee ProposalOf (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `b` is `[2, 1024]`.
 	/// The range of component `m` is `[1, 10]`.
-    fn propose_execute(b: u32, m: u32, ) -> Weight {
-        // Minimum execution time: 23_953 nanoseconds.
-        Weight::from_ref_time(23_301_823 as u64)            // Standard Error: 93
-            .saturating_add(Weight::from_ref_time(2_073 as u64).saturating_mul(b as u64))
-            // Standard Error: 10_319
-            .saturating_add(Weight::from_ref_time(106_174 as u64).saturating_mul(m as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-    }
+	fn propose_execute(b: u32, m: u32) -> Weight {
+		// Minimum execution time: 23_953 nanoseconds.
+		Weight::from_ref_time(23_301_823 as u64) // Standard Error: 93
+			.saturating_add(Weight::from_ref_time(2_073 as u64).saturating_mul(b as u64))
+			// Standard Error: 10_319
+			.saturating_add(Weight::from_ref_time(106_174 as u64).saturating_mul(m as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+	}
 	// Storage: TechnicalCommittee Members (r:1 w:0)
 	// Proof Skipped: TechnicalCommittee Members (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee ProposalOf (r:1 w:1)
@@ -117,29 +117,29 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `b` is `[2, 1024]`.
 	/// The range of component `m` is `[2, 10]`.
 	/// The range of component `p` is `[1, 20]`.
-    fn propose_proposed(b: u32, m: u32, p: u32, ) -> Weight {
-        // Minimum execution time: 31_710 nanoseconds.
-        Weight::from_ref_time(31_018_735 as u64)            // Standard Error: 224
-            .saturating_add(Weight::from_ref_time(2_728 as u64).saturating_mul(b as u64))
-            // Standard Error: 28_624
-            .saturating_add(Weight::from_ref_time(8_221 as u64).saturating_mul(m as u64))
-            // Standard Error: 11_790
-            .saturating_add(Weight::from_ref_time(349_453 as u64).saturating_mul(p as u64))
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(4 as u64))
-    }
+	fn propose_proposed(b: u32, m: u32, p: u32) -> Weight {
+		// Minimum execution time: 31_710 nanoseconds.
+		Weight::from_ref_time(31_018_735 as u64) // Standard Error: 224
+			.saturating_add(Weight::from_ref_time(2_728 as u64).saturating_mul(b as u64))
+			// Standard Error: 28_624
+			.saturating_add(Weight::from_ref_time(8_221 as u64).saturating_mul(m as u64))
+			// Standard Error: 11_790
+			.saturating_add(Weight::from_ref_time(349_453 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+	}
 	// Storage: TechnicalCommittee Members (r:1 w:0)
 	// Proof Skipped: TechnicalCommittee Members (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee Voting (r:1 w:1)
 	// Proof Skipped: TechnicalCommittee Voting (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `m` is `[5, 10]`.
-    fn vote(m: u32, ) -> Weight {
-        // Minimum execution time: 25_807 nanoseconds.
-        Weight::from_ref_time(26_425_005 as u64)            // Standard Error: 26_156
-            .saturating_add(Weight::from_ref_time(28_677 as u64).saturating_mul(m as u64))
-            .saturating_add(T::DbWeight::get().reads(2 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
+	fn vote(m: u32) -> Weight {
+		// Minimum execution time: 25_807 nanoseconds.
+		Weight::from_ref_time(26_425_005 as u64) // Standard Error: 26_156
+			.saturating_add(Weight::from_ref_time(28_677 as u64).saturating_mul(m as u64))
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 	// Storage: TechnicalCommittee Voting (r:1 w:1)
 	// Proof Skipped: TechnicalCommittee Voting (max_values: None, max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee Members (r:1 w:0)
@@ -150,15 +150,15 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: TechnicalCommittee ProposalOf (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `m` is `[4, 10]`.
 	/// The range of component `p` is `[1, 20]`.
-    fn close_early_disapproved(m: u32, p: u32, ) -> Weight {
-        // Minimum execution time: 32_606 nanoseconds.
-        Weight::from_ref_time(33_190_941 as u64)            // Standard Error: 27_382
-            .saturating_add(Weight::from_ref_time(70_836 as u64).saturating_mul(m as u64))
-            // Standard Error: 8_778
-            .saturating_add(Weight::from_ref_time(279_858 as u64).saturating_mul(p as u64))
-            .saturating_add(T::DbWeight::get().reads(3 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn close_early_disapproved(m: u32, p: u32) -> Weight {
+		// Minimum execution time: 32_606 nanoseconds.
+		Weight::from_ref_time(33_190_941 as u64) // Standard Error: 27_382
+			.saturating_add(Weight::from_ref_time(70_836 as u64).saturating_mul(m as u64))
+			// Standard Error: 8_778
+			.saturating_add(Weight::from_ref_time(279_858 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 	// Storage: TechnicalCommittee Voting (r:1 w:1)
 	// Proof Skipped: TechnicalCommittee Voting (max_values: None, max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee Members (r:1 w:0)
@@ -170,17 +170,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `b` is `[2, 1024]`.
 	/// The range of component `m` is `[4, 10]`.
 	/// The range of component `p` is `[1, 20]`.
-    fn close_early_approved(b: u32, m: u32, p: u32, ) -> Weight {
-        // Minimum execution time: 47_728 nanoseconds.
-        Weight::from_ref_time(47_191_770 as u64)            // Standard Error: 254
-            .saturating_add(Weight::from_ref_time(1_607 as u64).saturating_mul(b as u64))
-            // Standard Error: 41_695
-            .saturating_add(Weight::from_ref_time(93_099 as u64).saturating_mul(m as u64))
-            // Standard Error: 13_384
-            .saturating_add(Weight::from_ref_time(337_647 as u64).saturating_mul(p as u64))
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn close_early_approved(b: u32, m: u32, p: u32) -> Weight {
+		// Minimum execution time: 47_728 nanoseconds.
+		Weight::from_ref_time(47_191_770 as u64) // Standard Error: 254
+			.saturating_add(Weight::from_ref_time(1_607 as u64).saturating_mul(b as u64))
+			// Standard Error: 41_695
+			.saturating_add(Weight::from_ref_time(93_099 as u64).saturating_mul(m as u64))
+			// Standard Error: 13_384
+			.saturating_add(Weight::from_ref_time(337_647 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 	// Storage: TechnicalCommittee Voting (r:1 w:1)
 	// Proof Skipped: TechnicalCommittee Voting (max_values: None, max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee Members (r:1 w:0)
@@ -193,13 +193,13 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Proof Skipped: TechnicalCommittee ProposalOf (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `m` is `[4, 10]`.
 	/// The range of component `p` is `[1, 20]`.
-    fn close_disapproved(m: u32, p: u32, ) -> Weight {
-        // Minimum execution time: 35_291 nanoseconds.
-        Weight::from_ref_time(36_722_445 as u64)            // Standard Error: 11_196
-            .saturating_add(Weight::from_ref_time(291_277 as u64).saturating_mul(p as u64))
-            .saturating_add(T::DbWeight::get().reads(4 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn close_disapproved(_m: u32, p: u32) -> Weight {
+		// Minimum execution time: 35_291 nanoseconds.
+		Weight::from_ref_time(36_722_445 as u64) // Standard Error: 11_196
+			.saturating_add(Weight::from_ref_time(291_277 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 	// Storage: TechnicalCommittee Voting (r:1 w:1)
 	// Proof Skipped: TechnicalCommittee Voting (max_values: None, max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee Members (r:1 w:0)
@@ -213,17 +213,17 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	/// The range of component `b` is `[2, 1024]`.
 	/// The range of component `m` is `[4, 10]`.
 	/// The range of component `p` is `[1, 20]`.
-    fn close_approved(b: u32, m: u32, p: u32, ) -> Weight {
-        // Minimum execution time: 49_758 nanoseconds.
-        Weight::from_ref_time(49_427_044 as u64)            // Standard Error: 278
-            .saturating_add(Weight::from_ref_time(1_243 as u64).saturating_mul(b as u64))
-            // Standard Error: 45_617
-            .saturating_add(Weight::from_ref_time(117_485 as u64).saturating_mul(m as u64))
-            // Standard Error: 14_643
-            .saturating_add(Weight::from_ref_time(379_567 as u64).saturating_mul(p as u64))
-            .saturating_add(T::DbWeight::get().reads(5 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn close_approved(b: u32, m: u32, p: u32) -> Weight {
+		// Minimum execution time: 49_758 nanoseconds.
+		Weight::from_ref_time(49_427_044 as u64) // Standard Error: 278
+			.saturating_add(Weight::from_ref_time(1_243 as u64).saturating_mul(b as u64))
+			// Standard Error: 45_617
+			.saturating_add(Weight::from_ref_time(117_485 as u64).saturating_mul(m as u64))
+			// Standard Error: 14_643
+			.saturating_add(Weight::from_ref_time(379_567 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 	// Storage: TechnicalCommittee Proposals (r:1 w:1)
 	// Proof Skipped: TechnicalCommittee Proposals (max_values: Some(1), max_size: None, mode: Measured)
 	// Storage: TechnicalCommittee Voting (r:0 w:1)
@@ -231,11 +231,11 @@ impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: TechnicalCommittee ProposalOf (r:0 w:1)
 	// Proof Skipped: TechnicalCommittee ProposalOf (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `p` is `[1, 20]`.
-    fn disapprove_proposal(p: u32, ) -> Weight {
-        // Minimum execution time: 21_493 nanoseconds.
-        Weight::from_ref_time(22_471_004 as u64)            // Standard Error: 11_107
-            .saturating_add(Weight::from_ref_time(191_656 as u64).saturating_mul(p as u64))
-            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(3 as u64))
-    }
+	fn disapprove_proposal(p: u32) -> Weight {
+		// Minimum execution time: 21_493 nanoseconds.
+		Weight::from_ref_time(22_471_004 as u64) // Standard Error: 11_107
+			.saturating_add(Weight::from_ref_time(191_656 as u64).saturating_mul(p as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+	}
 }

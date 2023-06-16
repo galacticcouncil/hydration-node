@@ -43,8 +43,8 @@
 #![allow(clippy::unnecessary_cast)]
 
 use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
+	traits::Get,
+	weights::{constants::RocksDbWeight, Weight},
 };
 use sp_std::marker::PhantomData;
 
@@ -56,16 +56,18 @@ pub struct HydraWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for HydraWeight<T> {
 	// Storage: TransactionPause PausedTransactions (r:1 w:1)
 	// Proof Skipped: TransactionPause PausedTransactions (max_values: None, max_size: None, mode: Measured)
-    fn pause_transaction() -> Weight {
-        // Minimum execution time: 14_526 nanoseconds.
-        Weight::from_ref_time(14_862_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
+	fn pause_transaction() -> Weight {
+		// Minimum execution time: 14_526 nanoseconds.
+		Weight::from_ref_time(14_862_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 	// Storage: TransactionPause PausedTransactions (r:1 w:1)
 	// Proof Skipped: TransactionPause PausedTransactions (max_values: None, max_size: None, mode: Measured)
-    fn unpause_transaction() -> Weight {
-        // Minimum execution time: 15_803 nanoseconds.
-        Weight::from_ref_time(16_215_000 as u64)            .saturating_add(T::DbWeight::get().reads(1 as u64))
-            .saturating_add(T::DbWeight::get().writes(1 as u64))
-    }
+	fn unpause_transaction() -> Weight {
+		// Minimum execution time: 15_803 nanoseconds.
+		Weight::from_ref_time(16_215_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 }
