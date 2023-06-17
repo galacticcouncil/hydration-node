@@ -145,16 +145,19 @@ fn buy_schedule_should_be_retried_multiple_times_then_terminated() {
 
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - fee);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id), 1);
 
 		set_relaychain_block_number(21);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id), 2);
 
 		set_relaychain_block_number(41);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
 		assert_balance!(ALICE.into(), HDX, ALICE_INITIAL_NATIVE_BALANCE - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id), 3);
 
 		//After this retry we terminate
@@ -549,30 +552,31 @@ fn sell_schedule_should_be_terminated_after_retries() {
 		let schedule_id = 0;
 
 		set_relaychain_block_number(11);
+		let fee =
+			Currencies::free_balance(HDX, &hydradx_runtime::Treasury::account_id()) - TREASURY_ACCOUNT_INIT_BALANCE;
 
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		let reserved_balance_after_1st_trade = Currencies::reserved_balance(HDX, &ALICE.into());
-		assert!(reserved_balance_after_1st_trade < dca_budget); //Fee is taken
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - fee);
+
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id), 1);
 
 		set_relaychain_block_number(21);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		let reserved_balance_after_2n_trade = Currencies::reserved_balance(HDX, &ALICE.into());
-		assert!(reserved_balance_after_2n_trade < reserved_balance_after_1st_trade); //Fee is taken
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 2 * fee);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id), 2);
 
 		set_relaychain_block_number(41);
 		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
-		let reserved_balance_after_3th_trade = Currencies::reserved_balance(HDX, &ALICE.into());
-		assert!(reserved_balance_after_3th_trade < reserved_balance_after_2n_trade); //Fee is taken
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget - 3 * fee);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id), 3);
 
 		//At this point, the schedule will be terminated as retries max number of times
 		set_relaychain_block_number(81);
 		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - 4 * fee);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 		assert_eq!(hydradx_runtime::DCA::retries_on_error(schedule_id), 0);
 		let schedule = hydradx_runtime::DCA::schedules(schedule_id);
