@@ -202,7 +202,7 @@ fn increase_stake_should_work_when_user_already_staked() {
 					accumulated_unpaid_rewards: 102_901_246_881_627_504,
 					action_points: 0,
 					accumulated_slash_points: 12,
-					locked_rewards: 432_086_451_705_829_u128,
+					accumulated_locked_rewards: 432_086_451_705_829_u128,
 				}
 			);
 		});
@@ -339,7 +339,7 @@ fn increase_stake_should_accumulate_slash_points_when_call_multiple_times() {
 					accumulated_unpaid_rewards: 102_368_155_995_740_238_u128,
 					action_points: 0,
 					accumulated_slash_points: 19,
-					locked_rewards: 965_177_337_593_095_u128,
+					accumulated_locked_rewards: 965_177_337_593_095_u128,
 				}
 			);
 		});

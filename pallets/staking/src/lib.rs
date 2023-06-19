@@ -26,7 +26,7 @@
 
 use crate::traits::PayablePercentage;
 use crate::types::{Balance, Period, Point, Position, StakingData};
-use frame_support::sp_tracing::span::Entered;
+use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
 	traits::nonfungibles::{Create, InspectEnumerable, Mutate},
@@ -195,6 +195,15 @@ pub mod pallet {
 			locked_rewards: Balance,
 			slashed_points: Point,
 		},
+
+		RewardsClaimed {
+			who: T::AccountId,
+			position_id: T::PositionItemId,
+			paid_rewards: Balance,
+			unlocked_rewards: Balance,
+			slashed_points: Point,
+			slashed_unpaid_rewards: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -208,7 +217,7 @@ pub mod pallet {
 		/// Each user can have max one position
 		TooManyPostions,
 
-		/// Position's data not found
+		/// Position has not been found
 		PositionNotFound,
 	}
 
@@ -232,12 +241,8 @@ pub mod pallet {
 			Staking::<T>::try_mutate(|staking| {
 				Self::reward_stakers(staking)?;
 
-				let mut user_position_ids = T::NFTHandler::owned_in_collection(&T::NFTCollectionId::get(), &who);
 				let (position_id, position_new_total_stake, position_new_locked_rewards, rewards, slashed_points) =
-					if let Some(position_id) = user_position_ids.next() {
-						//TODO: change to inconsistent error
-						ensure!(user_position_ids.next().is_none(), Error::<T>::TooManyPostions);
-
+					if let Some(position_id) = Self::get_user_position_id(&who)? {
 						Positions::<T>::try_mutate(
 							position_id,
 							|maybe_position| -> Result<(T::PositionItemId, Balance, Balance, Balance, Point), DispatchError> {
@@ -254,7 +259,7 @@ pub mod pallet {
 									T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
 								}
 
-								Ok((position_id, position.stake, position.locked_rewards, rewards, slashed_points))
+								Ok((position_id, position.stake, position.accumulated_locked_rewards, rewards, slashed_points))
 							},
 						)?
 					} else {
@@ -283,6 +288,104 @@ pub mod pallet {
 				Ok(())
 			})
 		}
+
+		#[pallet::call_index(1)]
+		#[pallet::weight(1_000)]
+		pub fn claim(origin: OriginFor<T>) -> DispatchResult {
+			//WARN: this is WIP, it's maybe wrong
+			let who = ensure_signed(origin)?;
+
+			let position_id = Self::get_user_position_id(&who)?;
+			ensure!(position_id.is_some(), Error::<T>::PositionNotFound);
+
+			Staking::<T>::try_mutate(|staking| {
+				Self::reward_stakers(staking)?;
+
+				Positions::<T>::try_mutate(position_id.unwrap(), |maybe_position| {
+					//TODO: inconsistent state
+					let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+
+					let current_period = Self::get_current_period()?;
+					let created_at = Self::get_period_number(position.created_at)?;
+
+					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, payable_percentage) =
+						Self::calculate_rewards(
+							position,
+							staking.accumulated_reward_per_stake,
+							current_period,
+							created_at,
+						)?;
+
+					let rewards = claimable_rewards
+						.checked_add(claimable_unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					if !rewards.is_zero() {
+						let pot = Self::pot_account_id();
+						T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
+					}
+
+					let tmp_locked_rewards = position
+						.accumulated_locked_rewards
+						.checked_sub(claimable_unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					let rewards_to_unlock = payable_percentage
+						.checked_mul_int(tmp_locked_rewards)
+						.ok_or(ArithmeticError::Overflow)?
+						.checked_sub(claimable_unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					position.accumulated_locked_rewards = position
+						.accumulated_locked_rewards
+						.checked_sub(rewards_to_unlock)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					position.accumulated_unpaid_rewards = position
+						.accumulated_unpaid_rewards
+						.checked_add(unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?
+						.checked_sub(claimable_unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					let new_locked_amount = position
+						.stake
+						.checked_add(position.accumulated_locked_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					//return what's left to redistribution
+					Self::add_pending_rewards(position.accumulated_unpaid_rewards);
+
+					//slash everything
+					let slashed_points = Self::get_points(position, current_period, created_at)?;
+					position.accumulated_slash_points = position
+						.accumulated_slash_points
+						.checked_add(slashed_points)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					let slashed_unpaid_rewards = position.accumulated_unpaid_rewards;
+					position.accumulated_unpaid_rewards = Zero::zero();
+					position.reward_per_stake = staking.accumulated_reward_per_stake;
+
+					T::Currency::set_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who, new_locked_amount)?;
+
+					let unlocked_rewards = rewards_to_unlock
+						.checked_add(claimable_unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					Self::deposit_event(Event::RewardsClaimed {
+						who,
+						position_id: position_id.unwrap(),
+						paid_rewards: claimable_rewards,
+						unlocked_rewards,
+						slashed_points,
+						slashed_unpaid_rewards,
+					});
+
+					Ok(())
+				})
+			})
+		}
 	}
 }
 
@@ -294,6 +397,20 @@ impl<T: Config> Pallet<T> {
 	/// Account id holding rewards to pay.
 	pub fn pot_account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
+	}
+
+	fn get_user_position_id(who: &T::AccountId) -> Result<Option<T::PositionItemId>, DispatchError> {
+		let mut user_position_ids = T::NFTHandler::owned_in_collection(&T::NFTCollectionId::get(), &who);
+
+		let position_id = user_position_ids.next();
+		if position_id.is_some() {
+			//TODO: change to inconsistent error
+			ensure!(user_position_ids.next().is_none(), Error::<T>::TooManyPostions);
+
+			return Ok(position_id);
+		}
+
+		Ok(None)
 	}
 
 	fn create_position_and_mint_nft(
@@ -342,8 +459,8 @@ impl<T: Config> Pallet<T> {
 			.checked_sub(claimable_unpaid_rewards)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		position.locked_rewards = position
-			.locked_rewards
+		position.accumulated_locked_rewards = position
+			.accumulated_locked_rewards
 			.checked_add(rewards_to_pay)
 			.ok_or(ArithmeticError::Overflow)?;
 

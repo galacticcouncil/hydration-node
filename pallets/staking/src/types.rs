@@ -25,7 +25,7 @@ pub struct Position<BlockNumber> {
 	/// Amount of rewards that wasn't paid yet
 	pub(crate) accumulated_unpaid_rewards: Balance,
 	/// Rewards paid&locked to user after skate increase
-	pub(crate) locked_rewards: Balance,
+	pub(crate) accumulated_locked_rewards: Balance,
 	//TODO:
 	//pub(crate) votest: BoundedVec<Vote, T::MaxVotesPerPositon>
 }
@@ -39,7 +39,7 @@ impl<BlockNumber> Position<BlockNumber> {
 			created_at,
 			accumulated_slash_points: Zero::zero(),
 			accumulated_unpaid_rewards: Zero::zero(),
-			locked_rewards: Zero::zero(),
+			accumulated_locked_rewards: Zero::zero(),
 		}
 	}
 }
