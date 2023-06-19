@@ -27,20 +27,45 @@ impl Ratio {
 		Self { n, d }
 	}
 
+	/// Return a representation of one.
+	///
+	/// Note that more than one combination of `n` and `d` can be one.
 	pub const fn one() -> Self {
 		Self::new_unchecked(1, 1)
 	}
 
+	/// Return whether `self` is one.
+	///
+	/// Should a denominator of 0 happen, this function will return `false`.
+	///
+	/// Note that more than one combination of `n` and `d` can be one.
 	pub const fn is_one(&self) -> bool {
 		self.d > 0 && self.n == self.d
 	}
 
+	/// Return a representation of zero.
+	///
+	/// Note that any combination of `n == 0` and `d` represents zero.
 	pub const fn zero() -> Self {
 		Self::new_unchecked(0, 1)
 	}
 
+	/// Return whether `self` is zero.
+	///
+	/// Note that any combination of `n == 0` and `d` represents zero.
 	pub const fn is_zero(&self) -> bool {
 		self.n == 0
+	}
+
+	/// Invert `n/d` to `d/n`.
+	///
+	/// NOTE: Zero inverts to zero.
+	pub const fn inverted(self) -> Self {
+		if self.is_zero() {
+			self
+		} else {
+			Self { n: self.d, d: self.n }
+		}
 	}
 }
 
