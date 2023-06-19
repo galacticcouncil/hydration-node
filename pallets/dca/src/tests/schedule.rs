@@ -708,7 +708,7 @@ fn schedule_should_fail_when_trade_amount_is_less_than_20x_fee() {
 }
 
 #[test]
-fn schedule_should_fail_when_trade_amount_is_less_min_trading_limit() {
+fn schedule_should_fail_when_trade_amount_is_less_than_min_trading_limit() {
 	let min_trading_limit = ONE / 10;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
