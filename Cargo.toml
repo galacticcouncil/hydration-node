@@ -31,7 +31,6 @@ members = [
   'utils/test-utils',
   'pallets/dynamic-fees',
   'pallets/duster',
-  'pallets/nft',
   'pallets/otc',
   'math',
 ]

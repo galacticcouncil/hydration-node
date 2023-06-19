@@ -71,7 +71,7 @@ fn xcm_rate_limiter_should_limit_aca_when_limit_is_exceeded() {
 		// Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			100 * UNITS
+			ALICE_INITIAL_NATIVE_BALANCE - amount
 		);
 	});
 
@@ -140,7 +140,7 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 		// Assert
 		assert_eq!(
 			hydradx_runtime::Balances::free_balance(&AccountId::from(ALICE)),
-			ALICE_INITIAL_NATIVE_BALANCE_ON_OTHER_PARACHAIN - amount
+			ALICE_INITIAL_NATIVE_BALANCE - amount
 		);
 	});
 
