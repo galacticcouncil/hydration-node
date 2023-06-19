@@ -33,7 +33,7 @@ pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
-	traits::{AccountIdConversion, BlakeTwo256, Bounded, IdentifyAccount, One, Verify, Zero},
+	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, One, Verify, Zero},
 	FixedPointNumber, FixedU128, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
@@ -167,7 +167,7 @@ parameter_types! {
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	/// The maximum amount of the multiplier.
-	pub MaximumMultiplier: Multiplier = Bounded::max_value();
+	pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_integer(4);
 }
 
 // pallet treasury
