@@ -3849,7 +3849,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "160.0.0"
+version = "161.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6583,7 +6583,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.4"
+version = "1.1.5"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9371,7 +9371,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.3"
+version = "5.7.4"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
