@@ -2360,6 +2360,39 @@ fn execution_is_still_successfull_when_no_parent_hash_present() {
 		});
 }
 
+#[test]
+fn dca_schedule_should_still_take_fee_when_order_fails() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 5000 * ONE)])
+		.build()
+		.execute_with(|| {
+			//Arrange
+			proceed_to_blocknumber(1, 500);
+
+			let schedule = ScheduleBuilder::new()
+				.with_period(ONE_HUNDRED_BLOCKS)
+				.with_order(Order::Buy {
+					asset_in: HDX,
+					asset_out: BTC,
+					amount_out: CALCULATED_AMOUNT_IN_FOR_OMNIPOOL_BUY,
+					max_amount_in: 5 * ONE,
+					route: create_bounded_vec(vec![Trade {
+						pool: Omnipool,
+						asset_in: HDX,
+						asset_out: BTC,
+					}]),
+				})
+				.build();
+
+			assert_ok!(DCA::schedule(RuntimeOrigin::signed(ALICE), schedule, Option::None));
+
+			//Act and assert
+			set_to_blocknumber(501);
+			assert_number_of_executed_buy_trades!(0);
+			assert_balance!(TreasuryAccount::get(), HDX, BUY_DCA_FEE_IN_NATIVE);
+		});
+}
+
 pub fn proceed_to_blocknumber(from: u64, to: u64) {
 	for block_number in RangeInclusive::new(from, to) {
 		System::set_block_number(block_number);
