@@ -14,19 +14,34 @@
 // limitations under the License.
 //! # Staking Pallet
 
+// TODO
+// * stake()
+//  * [] - nontransferable nft
+//  * [] - deposit for nft
+//  * [] - don't allow to skate vested tokens
+//  * [] - tests create/increase during UnclaimablePeriods
+
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::traits::PayablePercentage;
 use crate::types::{Balance, Point, Position, StakingData};
-use hydra_dx_math::{staking as math, MathError};
-use orml_traits::MultiCurrency;
+use frame_support::{
+	pallet_prelude::DispatchResult,
+	traits::nonfungibles::{Create, InspectEnumerable, Mutate},
+};
+use hydra_dx_math::staking as math;
+use orml_traits::{MultiCurrency, MultiLockableCurrency};
 use sp_core::Get;
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Zero},
-	ArithmeticError, DispatchResult, Permill,
+	ArithmeticError, Permill,
 };
 use sp_runtime::{FixedPointNumber, FixedU128};
+
+#[cfg(test)]
+mod tests;
 
 pub mod traits;
 pub mod types;
@@ -39,14 +54,31 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 	use codec::HasCompact;
-	use frame_support::pallet_prelude::ValueQuery;
-	use frame_support::pallet_prelude::*;
 	use frame_support::PalletId;
+	use frame_support::{pallet_prelude::*, traits::LockIdentifier};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
+	#[pallet::genesis_config]
+	#[cfg_attr(feature = "std", derive(Default))]
+	pub struct GenesisConfig {}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+		fn build(&self) {
+			let pallet_account = <Pallet<T>>::pot_account_id();
+
+			<T as pallet::Config>::NFTHandler::create_collection(
+				&<T as pallet::Config>::NFTCollectionId::get(),
+				&pallet_account,
+				&pallet_account,
+			)
+			.unwrap()
+		}
+	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -69,7 +101,8 @@ pub mod pallet {
 			+ TypeInfo;
 
 		/// Multi currency mechanism.
-		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>;
+		type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::AssetId, Balance = Balance>
+			+ MultiLockableCurrency<Self::AccountId>;
 
 		/// Staking period length in blocks.
 		type PeriodLength: Get<Self::BlockNumber>;
@@ -93,6 +126,7 @@ pub mod pallet {
 		/// Weight of the action points in total points calculations.
 		#[pallet::constant]
 		type ActionPointsWeight: Get<Permill>;
+		//TODO: points per action. Will there be different amount of points per different action?
 
 		/// Number of time points users receive for each period.
 		#[pallet::constant]
@@ -112,17 +146,30 @@ pub mod pallet {
 		/// accumulated.
 		type PayablePercentage: PayablePercentage<Point, Error = ArithmeticError>;
 
-		/// The block number provider
+		/// The block number provider.
 		type BlockNumberProvider: BlockNumberProvider<BlockNumber = Self::BlockNumber>;
 
-		//TODO: points per action. Will there be different amount of points per different action?
-
+		/// Position identifier type.
 		type PositionItemId: Member + Parameter + Default + Copy + HasCompact + AtLeast32BitUnsigned + MaxEncodedLen;
-		//TODO: nft stuff
+
+		/// Collection id type
+		type CollectionId: TypeInfo + MaxEncodedLen;
+
+		/// NFT collection id
+		#[pallet::constant]
+		type NFTCollectionId: Get<Self::CollectionId>;
+
+		/// Non fungible handling - mint,burn, check owner
+		type NFTHandler: Mutate<Self::AccountId>
+			+ Create<Self::AccountId>
+			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 	}
 
+	/// Lock for staked amount by user
+	pub(super) const STAKING_LOCK_ID: LockIdentifier = *b"stk_stks";
+
 	#[pallet::storage]
-	/// Global stakig state.
+	/// Global staking state.
 	#[pallet::getter(fn staking)]
 	pub(super) type Staking<T: Config> = StorageValue<_, StakingData, ValueQuery>;
 
@@ -138,7 +185,16 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {}
+	pub enum Event<T: Config> {
+		StakeAdded {
+			who: T::AccountId,
+			position_id: T::PositionItemId,
+			stake: Balance,
+			total_stake: Balance,
+			locked_rewards: Balance,
+			slashed_points: Point,
+		},
+	}
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -147,18 +203,163 @@ pub mod pallet {
 
 		/// Staked amount is too low
 		InsufficientStake,
+
+		/// Each user can have max one position
+		TooManyPostions,
+
+		/// Position's data not found
+		PositionNotFound,
 	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {}
+	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(0)]
+		#[pallet::weight(1_000)]
+		pub fn stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(amount >= T::MinStake::get(), Error::<T>::InsufficientStake);
+
+			ensure!(
+				T::Currency::free_balance(T::HdxAssetId::get(), &who) >= amount,
+				Error::<T>::InsufficientBalance
+			);
+
+			Staking::<T>::try_mutate(|staking| {
+				Self::reward_stakers(staking)?;
+
+				let mut users_positions_ids = T::NFTHandler::owned_in_collection(&T::NFTCollectionId::get(), &who);
+				let (
+					position_id,
+					position_new_total_stake,
+					position_new_locked_rewards,
+					locked_rewards,
+					slashed_points,
+				) = if let Some(position_id) = users_positions_ids.next() {
+					//TODO: change to inconsistent error
+					ensure!(users_positions_ids.next().is_none(), Error::<T>::TooManyPostions);
+
+					Positions::<T>::try_mutate(
+							position_id,
+							|maybe_position| -> Result<(T::PositionItemId, Balance, Balance, Balance, Point), DispatchError> {
+								//TODO: inconsistent state
+								let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+
+								let (new_rewards, slashed_points) = Self::do_increase_stake(position, staking, amount)?;
+
+								if !new_rewards.is_zero() {
+									let pot = Self::pot_account_id();
+									T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, new_rewards)?;
+								}
+
+								Ok((position_id, position.stake, position.locked_rewards, new_rewards, slashed_points))
+							},
+						)?
+				} else {
+					let position_id = Self::get_next_position_id()?;
+					Positions::<T>::insert(
+						position_id,
+						Position::new(
+							amount,
+							staking.accumulated_reward_per_stake,
+							T::BlockNumberProvider::current_block_number(),
+						),
+					);
+
+					T::NFTHandler::mint_into(&T::NFTCollectionId::get(), &position_id, &who)?;
+					(position_id, amount, 0, 0, 0)
+				};
+
+				let new_locked_amount = position_new_total_stake
+					.checked_add(position_new_locked_rewards)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				T::Currency::set_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who, new_locked_amount)?;
+				staking.total_stake = staking
+					.total_stake
+					.checked_add(amount)
+					.ok_or(ArithmeticError::Overflow)?;
+
+				Self::deposit_event(Event::StakeAdded {
+					who,
+					position_id,
+					stake: amount,
+					total_stake: position_new_total_stake,
+					locked_rewards,
+					slashed_points,
+				});
+
+				Ok(())
+			})
+		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
 	pub fn do_democracy_vote() -> DispatchResult {
 		Ok(())
+	}
+
+	/// Account id holding rewards to pay.
+	pub fn pot_account_id() -> T::AccountId {
+		T::PalletId::get().into_account_truncating()
+	}
+
+	fn do_increase_stake(
+		position: &mut Position<T::BlockNumber>,
+		staking: &StakingData,
+		increment: Balance,
+	) -> Result<(Balance, Point), ArithmeticError> {
+		let (rewards, claimable_unpaid_rewards, unpaid_rewards, _) =
+			Self::calculate_rewards(position, staking.accumulated_reward_per_stake)?;
+
+		let rewards_to_pay = rewards
+			.checked_add(claimable_unpaid_rewards)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		//TODO: inconsistent state - this should never fail
+		position.accumulated_unpaid_rewards = position
+			.accumulated_unpaid_rewards
+			.checked_add(unpaid_rewards)
+			.ok_or(ArithmeticError::Overflow)?
+			.checked_sub(claimable_unpaid_rewards)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		position.locked_rewards = position
+			.locked_rewards
+			.checked_add(rewards_to_pay)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		position.reward_per_stake = staking.accumulated_reward_per_stake;
+
+		let points = Self::get_points(&position)?;
+		let slash_points =
+			math::calculate_slashed_points(points, position.stake, increment, T::CurrentStakeWeight::get())
+				.map_err(|_| ArithmeticError::Overflow)?;
+
+		position.accumulated_slash_points = position
+			.accumulated_slash_points
+			.checked_add(slash_points)
+			.ok_or(ArithmeticError::Overflow)?;
+
+		position.stake = position.stake.checked_add(increment).ok_or(ArithmeticError::Overflow)?;
+
+		Ok((rewards_to_pay, slash_points))
+	}
+
+	fn get_next_position_id() -> Result<T::PositionItemId, ArithmeticError> {
+		<NextPositionId<T>>::try_mutate(|current_value| -> Result<T::PositionItemId, ArithmeticError> {
+			let next_id = *current_value;
+
+			*current_value = current_value
+				.checked_add(&T::PositionItemId::one())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			Ok(next_id)
+		})
 	}
 
 	/// This function distributes pending rewards if possible and updates `StakingData`
@@ -180,7 +381,7 @@ impl<T: Config> Pallet<T> {
 		.map_err(|_| ArithmeticError::Overflow)?;
 
 		if staking.accumulated_reward_per_stake == accumulated_rps {
-			//No pendig rewards or rewards are too small to distribute
+			//No pending rewards or rewards are too small to distribute
 			return Ok(());
 		}
 
@@ -192,24 +393,49 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// This function caluclates `claimable`, `claimable_unpaid`, `unpaid` rewards and `payable_percentage`.
+	/// This function calculates mount of point for `position`
+	fn get_points(position: &Position<T::BlockNumber>) -> Result<Point, ArithmeticError> {
+		//TODO: change to inconsistent state error
+		let entered_at_period = math::calculate_period_number(T::PeriodLength::get().into(), position.created_at)
+			.map_err(|_| ArithmeticError::Overflow)?;
+
+		//TODO: change to inconsistent state error
+		let current_period = math::calculate_period_number(
+			T::PeriodLength::get().into(),
+			T::BlockNumberProvider::current_block_number(),
+		)
+		.map_err(|_| ArithmeticError::Overflow)?;
+
+		math::calculate_points(
+			entered_at_period,
+			current_period,
+			T::TimePointsPerPeriod::get(),
+			T::TimePointsWeight::get(),
+			position.action_points,
+			T::ActionPointsWeight::get(),
+			position.accumulated_slash_points,
+		)
+		.map_err(|_| ArithmeticError::Overflow)
+	}
+
+	/// This function calculates `claimable`, `claimable_unpaid`, `unpaid` rewards and `payable_percentage`.
 	///
 	/// `claimable` - amount use can claim from the `pot`
 	/// `claimable_unpaid` - amount to unlock from `accumulated_unpaid_rewards`
 	/// `unpaid` - amount of rewards which won't be paid to user
 	/// `payable_percentage` - percentage of the rewards that is available to user
 	///
-	/// Return `(cliamable, claimable_unpaid, unpaid, payable_percentage)`
+	/// Return `(claimable, claimable_unpaid, unpaid, payable_percentage)`
 	fn calculate_rewards(
 		position: &Position<T::BlockNumber>,
 		accumulated_reward_per_stake: FixedU128,
 	) -> Result<(Balance, Balance, Balance, FixedU128), ArithmeticError> {
 		let max_rewards =
-			math::calcutale_rewards(accumulated_reward_per_stake, position.reward_per_stake, position.stake)
+			math::calculate_rewards(accumulated_reward_per_stake, position.reward_per_stake, position.stake)
 				.map_err(|_| ArithmeticError::Overflow)?;
 
 		//TODO: change to inconsistent state error
-		let entered_at_period = math::calculate_period_number(T::PeriodLength::get().into(), position.entered_at)
+		let entered_at_period = math::calculate_period_number(T::PeriodLength::get().into(), position.created_at)
 			.map_err(|_| ArithmeticError::Overflow)?;
 
 		//TODO: change to inconsistent state error
@@ -234,7 +460,7 @@ impl<T: Config> Pallet<T> {
 			T::ActionPointsWeight::get(),
 			position.accumulated_slash_points,
 		)
-		.map_err(|e| ArithmeticError::Overflow)?;
+		.map_err(|_| ArithmeticError::Overflow)?;
 
 		let payable_percentage = T::PayablePercentage::get(points)?;
 
@@ -247,5 +473,14 @@ impl<T: Config> Pallet<T> {
 			.ok_or(ArithmeticError::Overflow)?;
 
 		Ok((claimable, claimable_unpaid_rewards, unpaid_rewards, payable_percentage))
+	}
+
+	//NOTE: this is tmp - will be removed after refactor
+	pub fn add_pending_rewards(rewards: Balance) {
+		Staking::<T>::try_mutate(|s| -> Result<(), ArithmeticError> {
+			s.pending_rew = s.pending_rew + rewards;
+
+			Ok(())
+		});
 	}
 }

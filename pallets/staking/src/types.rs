@@ -1,7 +1,7 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
-use sp_runtime::FixedU128;
+use sp_runtime::{traits::Zero, FixedU128};
 
 pub type Balance = u128;
 //TODO: I don't think we need u128 I think u32 should be enough
@@ -17,14 +17,30 @@ pub struct Position<BlockNumber> {
 	pub(crate) action_points: Point,
 	/// User's reward per stake
 	pub(crate) reward_per_stake: FixedU128,
-	/// Block number user entered staking
-	pub(crate) entered_at: BlockNumber,
+	/// Block number position was created
+	pub(crate) created_at: BlockNumber,
 	/// Total amount of points to slash
 	pub(crate) accumulated_slash_points: Point,
 	/// Amount of rewards that wasn't paid yet
 	pub(crate) accumulated_unpaid_rewards: Balance,
+	/// Rewards paid&locked to user after skate increase
+	pub(crate) locked_rewards: Balance,
 	//TODO:
 	//pub(crate) votest: BoundedVec<Vote, T::MaxVotesPerPositon>
+}
+
+impl<BlockNumber> Position<BlockNumber> {
+	pub fn new(stake: Balance, reward_per_stake: FixedU128, created_at: BlockNumber) -> Self {
+		Self {
+			stake,
+			action_points: Zero::zero(),
+			reward_per_stake,
+			created_at,
+			accumulated_slash_points: Zero::zero(),
+			accumulated_unpaid_rewards: Zero::zero(),
+			locked_rewards: Zero::zero(),
+		}
+	}
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]

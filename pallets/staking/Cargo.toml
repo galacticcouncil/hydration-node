@@ -33,6 +33,10 @@ frame-system = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
+pallet-uniques = { workspace = true }
+orml-tokens = { workspace = true }
+pallet-balances = { workspace = true }
+pretty_assertions = "1.2.1"
 
 [features]
 default = ["std"]
@@ -47,6 +51,9 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"sp-core/std",
+  "pallet-balances/std",
+  "pallet-uniques/std",
+  "orml-tokens/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
