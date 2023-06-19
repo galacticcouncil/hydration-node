@@ -110,6 +110,7 @@ type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
 pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
+pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -243,6 +244,10 @@ pub mod pallet {
 		///The number of max retries in case of trade limit error
 		#[pallet::constant]
 		type MaxNumberOfRetriesOnError: Get<u8>;
+
+		/// Minimum trading limit for a single trade
+		#[pallet::constant]
+		type MinimumTradingLimit: Get<Balance>;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -437,8 +442,17 @@ pub mod pallet {
 					amount_out, ref route, ..
 				} => Self::get_amount_in_for_buy(&amount_out, route)?,
 			};
-			let min_trade_amount_in = transaction_fee.checked_mul(20).ok_or(ArithmeticError::Overflow)?;
-			ensure!(amount_in > min_trade_amount_in, Error::<T>::MinTradeAmountNotReached);
+			let min_trade_amount_in_from_fee = transaction_fee
+				.checked_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT)
+				.ok_or(ArithmeticError::Overflow)?;
+			ensure!(
+				amount_in >= min_trade_amount_in_from_fee,
+				Error::<T>::MinTradeAmountNotReached
+			);
+			ensure!(
+				amount_in >= T::MinimumTradingLimit::get(),
+				Error::<T>::MinTradeAmountNotReached
+			);
 
 			let amount_in_with_transaction_fee = amount_in
 				.checked_add(transaction_fee)
@@ -727,8 +741,10 @@ where
 		let remaining_amount: Balance =
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
-		let min_amount_for_replanning = transaction_fee.checked_mul(5).ok_or(ArithmeticError::Overflow)?;
-		if remaining_amount <= min_amount_for_replanning {
+		let min_amount_for_replanning = transaction_fee
+			.checked_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT)
+			.ok_or(ArithmeticError::Overflow)?;
+		if remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get() {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
