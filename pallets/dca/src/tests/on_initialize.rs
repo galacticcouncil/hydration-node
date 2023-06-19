@@ -2391,7 +2391,7 @@ fn dca_should_complete_when_remainder_is_smaller_than_min_trading_limit() {
 		});
 }
 #[test]
-fn dca_should_continue_when_remainer_is_equal_to_min_trading_limit() {
+fn dca_should_continue_when_remainder_is_equal_to_min_trading_limit() {
 	let min_trade_limit = ONE / 10;
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 10000 * ONE)])
