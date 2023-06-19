@@ -54,7 +54,7 @@ pub const ORACLE_ENTRY_1: OracleEntry<BlockNumber> = OracleEntry {
 		b_in: 0,
 	},
 	liquidity: Liquidity::new(2_000, 1_000),
-	timestamp: 5,
+	updated_at: 5,
 };
 pub const ORACLE_ENTRY_2: OracleEntry<BlockNumber> = OracleEntry {
 	price: Price::new(4_000, 4_000),
@@ -65,7 +65,7 @@ pub const ORACLE_ENTRY_2: OracleEntry<BlockNumber> = OracleEntry {
 		b_in: 2_000,
 	},
 	liquidity: Liquidity::new(4_000, 4_000),
-	timestamp: 5,
+	updated_at: 5,
 };
 
 frame_support::construct_runtime!(

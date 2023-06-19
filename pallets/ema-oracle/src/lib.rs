@@ -179,7 +179,7 @@ pub mod pallet {
 						price,
 						volume: Volume::default(),
 						liquidity,
-						timestamp: T::BlockNumber::zero(),
+						updated_at: T::BlockNumber::zero(),
 					};
 					if ordered_pair(asset_a, asset_b) == (asset_a, asset_b) {
 						e
@@ -274,7 +274,7 @@ impl<T: Config> Pallet<T> {
 		Self::oracle((source, assets, LastBlock)).map(|(mut last_block, init)| {
 			// update the `LastBlock` oracle to the last block if it hasn't been updated for a while
 			// price and liquidity stay constant, volume becomes zero
-			if last_block.timestamp != block {
+			if last_block.updated_at != block {
 				last_block.fast_forward_to(block);
 			}
 			(last_block, init)
@@ -310,7 +310,7 @@ impl<T: Config> Pallet<T> {
 			if let Some((prev_entry, _)) = oracle.as_mut() {
 				let parent = T::BlockNumberProvider::current_block_number().saturating_sub(One::one());
 				// update the entry to the parent block if it hasn't been updated for a while
-				if parent > prev_entry.timestamp {
+				if parent > prev_entry.updated_at {
 					Self::last_block_oracle(src, assets, parent)
                         .and_then(|(last_block, _)| {
                             prev_entry.update_outdated_to_current(period, &last_block).map(|_| ())
@@ -354,7 +354,7 @@ impl<T: Config> Pallet<T> {
 		}
 
 		let (entry, init) = Self::oracle((src, assets, period))?;
-		if entry.timestamp < parent {
+		if entry.updated_at < parent {
 			entry.calculate_current_from_outdated(period, &last_block)
 		} else {
 			Some(entry)
@@ -400,12 +400,12 @@ impl<T: Config> OnTradeHandler<AssetId, Balance> for OnActivityHandler<T> {
 		let volume = determine_normalized_volume(asset_a, asset_b, amount_a, amount_b);
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
 
-		let timestamp = T::BlockNumberProvider::current_block_number();
+		let updated_at = T::BlockNumberProvider::current_block_number();
 		let entry = OracleEntry {
 			price,
 			volume,
 			liquidity,
-			timestamp,
+			updated_at,
 		};
 		Pallet::<T>::on_trade(source, ordered_pair(asset_a, asset_b), entry)
 	}
@@ -440,13 +440,13 @@ impl<T: Config> OnLiquidityChangedHandler<AssetId, Balance> for OnActivityHandle
 			determine_normalized_price(asset_a, asset_b, liquidity_a, liquidity_b)
 		};
 		let liquidity = determine_normalized_liquidity(asset_a, asset_b, liquidity_a, liquidity_b);
-		let timestamp = T::BlockNumberProvider::current_block_number();
+		let updated_at = T::BlockNumberProvider::current_block_number();
 		let entry = OracleEntry {
 			price,
 			// liquidity provision does not count as trade volume
 			volume: Volume::default(),
 			liquidity,
-			timestamp,
+			updated_at,
 		};
 		Pallet::<T>::on_liquidity_changed(source, ordered_pair(asset_a, asset_b), entry)
 	}
