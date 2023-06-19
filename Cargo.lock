@@ -3723,7 +3723,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.1.0"
+version = "7.2.0"
 dependencies = [
  "approx",
  "criterion",
@@ -3936,7 +3936,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
