@@ -2349,7 +2349,7 @@ fn sell_schedule_should_be_replanned_when_more_than_20_transaction_fee_left_for_
 }
 
 #[test]
-fn dca_should_complete_when_amount_in_is_smaller_than_min_trading_limit() {
+fn dca_should_complete_when_remainder_is_smaller_than_min_trading_limit() {
 	let min_trade_limit = ONE / 10;
 
 	ExtBuilder::default()
@@ -2360,7 +2360,8 @@ fn dca_should_complete_when_amount_in_is_smaller_than_min_trading_limit() {
 			//Arrange
 			proceed_to_blocknumber(1, 500);
 
-			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + (min_trade_limit - 1);
+			let remainder = min_trade_limit - 1;
+			let total_amount = ONE + SELL_DCA_FEE_IN_NATIVE + remainder;
 			let amount_to_sell = ONE;
 
 			let schedule = ScheduleBuilder::new()
