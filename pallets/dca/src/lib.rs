@@ -109,7 +109,7 @@ use crate::types::*;
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
-pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
+pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -136,16 +136,7 @@ pub mod pallet {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
-			let mut randomness_generator = match T::RandomnessProvider::generator() {
-				Ok(generator) => generator,
-				Err(err) => {
-					Self::deposit_event(Event::RandomnessGenerationFailed {
-						block: current_blocknumber,
-						error: err,
-					});
-					rand::rngs::StdRng::seed_from_u64(0)
-				}
-			};
+			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
@@ -164,9 +155,13 @@ pub mod pallet {
 				let weight_for_single_execution = Self::get_trade_weight(&schedule.order);
 				weight.saturating_accrue(weight_for_single_execution);
 
-				if let Err(e) =
-					Self::prepare_schedule(current_blocknumber, weight_for_single_execution, schedule_id, &schedule)
-				{
+				if let Err(e) = Self::prepare_schedule(
+					current_blocknumber,
+					weight_for_single_execution,
+					schedule_id,
+					&schedule,
+					&mut randomness_generator,
+				) {
 					if e != Error::<T>::PriceUnstable.into() {
 						Self::terminate_schedule(schedule_id, &schedule, e);
 					};
@@ -175,8 +170,13 @@ pub mod pallet {
 
 				match Self::execute_trade(schedule_id, &schedule) {
 					Ok(amounts) => {
-						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, current_blocknumber, amounts)
-						{
+						if let Err(err) = Self::replan_or_complete(
+							schedule_id,
+							&schedule,
+							current_blocknumber,
+							amounts,
+							&mut randomness_generator,
+						) {
 							Self::terminate_schedule(schedule_id, &schedule, err);
 						}
 					}
@@ -192,7 +192,7 @@ pub mod pallet {
 						{
 							Self::terminate_schedule(schedule_id, &schedule, error);
 						} else if let Err(retry_error) =
-							Self::retry_schedule(schedule_id, &schedule, current_blocknumber)
+							Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator)
 						{
 							Self::terminate_schedule(schedule_id, &schedule, retry_error);
 						}
@@ -312,8 +312,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		///Schedule not exist
 		ScheduleNotFound,
-		///Trade amount is less than fee
-		TradeAmountIsLessThanFee,
+		///The min trade amount is not reached
+		MinTradeAmountNotReached,
 		///Forbidden as the user is not the owner of the schedule
 		Forbidden,
 		///The next execution block number is not in the future
@@ -437,7 +437,8 @@ pub mod pallet {
 					amount_out, ref route, ..
 				} => Self::get_amount_in_for_buy(&amount_out, route)?,
 			};
-			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+			let min_trade_amount_in = transaction_fee.checked_mul(20).ok_or(ArithmeticError::Overflow)?;
+			ensure!(amount_in > min_trade_amount_in, Error::<T>::MinTradeAmountNotReached);
 
 			let amount_in_with_transaction_fee = amount_in
 				.checked_add(transaction_fee)
@@ -468,7 +469,16 @@ pub mod pallet {
 
 			let blocknumber_for_first_schedule_execution = Self::get_next_execution_block(start_execution_block)?;
 
-			Self::plan_schedule_for_block(&who, blocknumber_for_first_schedule_execution, next_schedule_id)?;
+			let mut randomness_generator = Self::get_randomness_generator(
+				frame_system::Pallet::<T>::current_block_number(),
+				Some(next_schedule_id),
+			);
+			Self::plan_schedule_for_block(
+				&who,
+				blocknumber_for_first_schedule_execution,
+				next_schedule_id,
+				&mut randomness_generator,
+			)?;
 
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
@@ -545,6 +555,19 @@ where
 	<T as pallet_route_executor::Config>::Balance: From<Balance>,
 	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
+	fn get_randomness_generator(current_blocknumber: T::BlockNumber, salt: Option<u32>) -> StdRng {
+		match T::RandomnessProvider::generator(salt) {
+			Ok(generator) => generator,
+			Err(err) => {
+				Self::deposit_event(Event::RandomnessGenerationFailed {
+					block: current_blocknumber,
+					error: err,
+				});
+				rand::rngs::StdRng::seed_from_u64(0)
+			}
+		}
+	}
+
 	fn get_next_execution_block(
 		start_execution_block: Option<BlockNumberFor<T>>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
@@ -568,6 +591,7 @@ where
 		weight_for_dca_execution: Weight,
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
 
@@ -577,7 +601,7 @@ where
 				who: schedule.owner.clone(),
 				error: Error::<T>::PriceUnstable.into(),
 			});
-			Self::retry_schedule(schedule_id, schedule, current_blocknumber)?;
+			Self::retry_schedule(schedule_id, schedule, current_blocknumber, randomness_generator)?;
 
 			return Err(Error::<T>::PriceUnstable.into());
 		}
@@ -689,6 +713,7 @@ where
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
 		current_blocknumber: T::BlockNumber,
 		amounts: AmountInAndOut<Balance>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		Self::deposit_event(Event::TradeExecuted {
 			id: schedule_id,
@@ -726,7 +751,7 @@ where
 			.checked_add(&schedule.period)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id)?;
+		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id, randomness_generator)?;
 
 		Ok(())
 	}
@@ -735,6 +760,7 @@ where
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
 		current_blocknumber: T::BlockNumber,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id);
 
@@ -756,7 +782,7 @@ where
 			.checked_add(&retry_delay.into())
 			.ok_or(ArithmeticError::Overflow)?;
 
-		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id)?;
+		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id, randomness_generator)?;
 
 		Ok(())
 	}
@@ -928,11 +954,12 @@ where
 		who: &T::AccountId,
 		blocknumber: T::BlockNumber,
 		schedule_id: ScheduleId,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		let current_block_number = frame_system::Pallet::<T>::current_block_number();
 		ensure!(blocknumber > current_block_number, Error::<T>::BlockNumberIsNotInFuture);
 
-		let next_free_block = Self::find_next_free_block(blocknumber)?;
+		let next_free_block = Self::find_next_free_block(blocknumber, randomness_generator)?;
 
 		ScheduleIdsPerBlock::<T>::try_mutate(next_free_block, |schedule_ids| -> DispatchResult {
 			schedule_ids
@@ -949,16 +976,22 @@ where
 		Ok(())
 	}
 
-	fn find_next_free_block(blocknumber: T::BlockNumber) -> Result<T::BlockNumber, DispatchError> {
+	fn find_next_free_block(
+		blocknumber: T::BlockNumber,
+		randomness_generator: &mut StdRng,
+	) -> Result<T::BlockNumber, DispatchError> {
 		let mut next_execution_block = blocknumber;
 
-		// In a bound fashion, we search for next free block with the delays of 1 - 2 - 4 - 8 - 16.
-		for retry_index in 0u32..=RETRY_TO_SEARCH_FOR_FREE_BLOCK {
+		for i in 0..=MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING {
 			let schedule_ids = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 			if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
 				return Ok(next_execution_block);
 			}
-			let delay_with = 2u32.checked_pow(retry_index).ok_or(ArithmeticError::Overflow)?;
+
+			let lower_bound = 2u32.saturating_pow(i);
+			let upper_bound = 2u32.saturating_pow(i.saturating_add(1)).saturating_sub(1);
+
+			let delay_with = randomness_generator.gen_range(lower_bound..=upper_bound);
 			next_execution_block = next_execution_block.saturating_add(delay_with.into());
 		}
 
@@ -1043,17 +1076,22 @@ pub trait RelayChainBlockHashProvider {
 }
 
 pub trait RandomnessProvider {
-	fn generator() -> Result<StdRng, DispatchError>;
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError>;
 }
 
 impl<T: Config> RandomnessProvider for Pallet<T> {
-	fn generator() -> Result<StdRng, DispatchError> {
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
 		let hash_value = T::RelayChainBlockHashProvider::parent_hash().ok_or(Error::<T>::NoParentHashFound)?;
 		let hash_bytes = hash_value.as_fixed_bytes();
 		let mut seed_arr = [0u8; 8];
 		let max_len = hash_bytes.len().min(seed_arr.len()); //We ensure that we don't copy more bytes, preventing potential panics
 		seed_arr[..max_len].copy_from_slice(&hash_bytes[..max_len]);
-		let seed = u64::from_le_bytes(seed_arr);
+
+		let seed = match salt {
+			Some(salt) => u64::from_le_bytes(seed_arr).wrapping_add(salt.into()),
+			None => u64::from_le_bytes(seed_arr),
+		};
+
 		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
 }

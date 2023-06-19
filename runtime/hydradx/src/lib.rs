@@ -110,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 159,
+	spec_version: 160,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -219,14 +219,7 @@ where
 	Runtime: cumulus_pallet_parachain_system::Config,
 {
 	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		// We use the same hash as for integration tests
-		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
-		let hash = [
-			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
-			135, 250, 171, 69, 205, 241, 47, 227, 168,
-		]
-		.into();
-		Some(hash)
+		None
 	}
 }
 
@@ -639,7 +632,7 @@ impl pallet_tips::Config for Runtime {
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
-	type WeightInfo = common_runtime::weights::tips::HydraWeight<Runtime>;
+	type WeightInfo = ();
 }
 
 /// ORML Configurations
