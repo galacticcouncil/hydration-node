@@ -1,11 +1,12 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Zero, FixedU128};
+use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
 
 pub type Balance = u128;
 //TODO: I don't think we need u128 I think u32 should be enough
 pub type Point = u128;
+pub type Period = u128;
 
 /// Staking position, represents user's state in staking, eg. staked amount, slashed points,
 /// votes...
@@ -58,5 +59,10 @@ impl StakingData {
 	pub fn pending_rewards(&self) -> Balance {
 		//TODO: rewrite this to use balance
 		self.pending_rew
+	}
+
+	pub fn add_stake(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
+		self.total_stake = self.total_stake.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
+		Ok(())
 	}
 }

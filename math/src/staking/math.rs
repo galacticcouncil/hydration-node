@@ -67,7 +67,7 @@ pub fn calculate_period_number<BlockNumber: num_traits::CheckedDiv + TryInto<u32
 /// Slashed points are subtracted.
 ///
 /// Parameters:
-/// - `entered_at`: period number when user entered staking
+/// - `created_at`: period number when staking position was created
 /// - `now`: current period number
 /// - `time_points_per_period`: number of time points per 1 period
 /// - `time_weight`: weight of the time points
@@ -75,7 +75,7 @@ pub fn calculate_period_number<BlockNumber: num_traits::CheckedDiv + TryInto<u32
 /// - `action_weight`: weight of the action points
 /// - `slashed_points`: amount of points to slash from max points
 pub fn calculate_points(
-	entered_at: Period,
+	position_created_at: Period,
 	now: Period,
 	time_points_per_period: u8,
 	time_points_weight: Permill,
@@ -84,7 +84,7 @@ pub fn calculate_points(
 	slashed_points: Point,
 ) -> Result<Point, MathError> {
 	let time_points = now
-		.checked_sub(entered_at)
+		.checked_sub(position_created_at)
 		.ok_or(MathError::Overflow)?
 		.checked_mul(time_points_per_period.into())
 		.ok_or(MathError::Overflow)?;
