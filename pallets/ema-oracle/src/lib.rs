@@ -90,10 +90,6 @@ use weights::WeightInfo;
 
 mod benchmarking;
 
-/// Maximum number of unique oracle entries expected in one block. Empirically determined by running
-/// `trades_estimation.py` and rounding up from 212 to 300. Not necessarily representative for all
-/// chains, configure `MaxUniqueEntries` according to your chain.
-pub const MAX_UNIQUE_ENTRIES: u32 = 300;
 /// The maximum number of periods that could have corresponding oracles.
 pub const MAX_PERIODS: u32 = OraclePeriod::all_periods().len() as u32;
 
