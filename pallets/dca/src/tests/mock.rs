@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as dca;
-use crate::{Config, Error, RelayChainBlockHashProvider};
+use crate::{Config, Error, RandomnessProvider, RelayChainBlockHashProvider};
 use cumulus_primitives_core::relay_chain::Hash;
 use frame_support::traits::{Everything, GenesisBuild, Nothing};
 use frame_support::weights::constants::ExtrinsicBaseWeight;
@@ -58,10 +58,10 @@ pub type BlockNumber = u64;
 pub type AssetId = u32;
 type NamedReserveIdentifier = [u8; 8];
 
-pub const BUY_DCA_FEE_IN_NATIVE: Balance = 3023036000;
-pub const BUY_DCA_FEE_IN_DAI: Balance = 2660271680;
-pub const SELL_DCA_FEE_IN_NATIVE: Balance = 3014761000;
-pub const SELL_DCA_FEE_IN_DAI: Balance = 2652989680;
+pub const BUY_DCA_FEE_IN_NATIVE: Balance = 3181488000;
+pub const BUY_DCA_FEE_IN_DAI: Balance = 2799709440;
+pub const SELL_DCA_FEE_IN_NATIVE: Balance = 3175101000;
+pub const SELL_DCA_FEE_IN_DAI: Balance = 2794088880;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
@@ -70,6 +70,9 @@ pub const BTC: AssetId = 3;
 pub const FORBIDDEN_ASSET: AssetId = 4;
 pub const REGISTERED_ASSET: AssetId = 1000;
 pub const ONE_HUNDRED_BLOCKS: BlockNumber = 100;
+
+//Since we always use the same parent hash in the tests, the generated radiuses are always the same
+pub const GENERATED_SEARCH_RADIUSES: [u64; 10] = [1, 3, 6, 10, 28, 34, 114, 207, 504, 947];
 
 pub const ONE: Balance = 1_000_000_000_000;
 
@@ -114,6 +117,7 @@ thread_local! {
 	pub static MAX_PRICE_DIFFERENCE: RefCell<Permill> = RefCell::new(*ORIGINAL_MAX_PRICE_DIFFERENCE);
 	pub static WITHDRAWAL_ADJUSTMENT: RefCell<(u32,u32, bool)> = RefCell::new((0u32,0u32, false));
 	pub static CALCULATED_AMOUNT_OUT_FOR_SELL: RefCell<Balance> = RefCell::new(*AMOUNT_OUT_FOR_OMNIPOOL_SELL);
+	pub static USE_PROD_RANDOMNESS: RefCell<bool> = RefCell::new(false);
 	pub static PARENT_HASH: RefCell<Option<Hash>> = RefCell::new(Some([
 			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
 			135, 250, 171, 69, 205, 241, 47, 227, 168,
@@ -611,10 +615,24 @@ parameter_types! {
 	pub MaxNumberOfRetriesOnError: u8 = 3;
 }
 
+pub struct RandomnessProviderMock {}
+
+impl RandomnessProvider for RandomnessProviderMock {
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
+		let use_prod_randomness = USE_PROD_RANDOMNESS.with(|v| *v.borrow());
+
+		if use_prod_randomness {
+			DCA::generator(salt)
+		} else {
+			Ok(StdRng::seed_from_u64(0))
+		}
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currencies = Currencies;
-	type RandomnessProvider = DCA;
+	type RandomnessProvider = RandomnessProviderMock;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
 	type MaxSchedulePerBlock = MaxSchedulePerBlock;
 	type NativeAssetId = NativeCurrencyId;
@@ -647,6 +665,8 @@ use hydra_dx_math::types::Ratio;
 use hydradx_traits::pools::SpotPriceProvider;
 use hydradx_traits::router::{ExecutorError, PoolType, TradeExecution};
 use pallet_omnipool::traits::ExternalPriceProvider;
+use rand::prelude::StdRng;
+use rand::SeedableRng;
 use smallvec::smallvec;
 
 pub struct DummyNFT;
@@ -863,6 +883,12 @@ pub fn set_max_price_diff(diff: Permill) {
 pub fn set_sell_amount_out(balance: Balance) {
 	CALCULATED_AMOUNT_OUT_FOR_SELL.with(|v| {
 		*v.borrow_mut() = balance;
+	});
+}
+
+pub fn use_prod_randomness() {
+	USE_PROD_RANDOMNESS.with(|v| {
+		*v.borrow_mut() = true;
 	});
 }
 

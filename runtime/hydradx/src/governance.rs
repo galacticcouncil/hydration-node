@@ -302,5 +302,5 @@ impl pallet_tips::Config for Runtime {
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
 	type Tippers = Elections;
-	type WeightInfo = weights::tips::HydraWeight<Runtime>;
+	type WeightInfo = ();
 }

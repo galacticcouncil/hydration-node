@@ -29,7 +29,6 @@ members = [
   'utils/test-utils',
   'pallets/dynamic-fees',
   'pallets/duster',
-  'pallets/nft',
   'pallets/otc',
   'math',
 ]
@@ -56,7 +55,6 @@ pallet-faucet = { path = "pallets/faucet", default-features = false }
 pallet-genesis-history = { path = "pallets/genesis-history", default-features = false }
 pallet-liquidity-mining = { path = "pallets/liquidity-mining", default-features = false }
 warehouse-liquidity-mining = { package="pallet-liquidity-mining", path = "pallets/liquidity-mining", default-features = false }
-pallet-nft = { path = "pallets/nft", default-features = false }
 pallet-omnipool = { path = "pallets/omnipool", default-features = false }
 pallet-omnipool-liquidity-mining = { path = "pallets/omnipool-liquidity-mining", default-features = false }
 pallet-otc = { path = "pallets/otc", default-features = false}

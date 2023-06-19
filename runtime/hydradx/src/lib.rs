@@ -96,7 +96,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 159,
+	spec_version: 161,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -148,45 +148,6 @@ impl<T: frame_system::Config> BlockNumberProvider for RelayChainBlockNumberProvi
 		frame_system::Pallet::<T>::current_block_number()
 	}
 }
-
-// The reason why there is difference between PROD and benchmark is that it is not possible
-// to set validation data in parachain system pallet in the benchmarks.
-// So for benchmarking, we mock it out and return some hardcoded parent hash
-pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
-
-#[cfg(not(feature = "runtime-benchmarks"))]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
-		match validation_data {
-			Some(data) => Some(data.parent_head.hash()),
-			None => None,
-		}
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
-where
-	Runtime: cumulus_pallet_parachain_system::Config,
-{
-	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		// We use the same hash as for integration tests
-		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
-		let hash = [
-			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
-			135, 250, 171, 69, 205, 241, 47, 227, 168,
-		]
-		.into();
-		Some(hash)
-	}
-}
-
-// constants need to be in scope to use as types
-use pallet_dca::RelayChainBlockHashProvider;
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(

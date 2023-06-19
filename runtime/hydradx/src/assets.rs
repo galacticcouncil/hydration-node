@@ -22,6 +22,7 @@ use crate::system::NativeAssetId;
 use hydradx_adapters::inspect::MultiInspectAdapter;
 use hydradx_traits::{OraclePeriod, Source};
 use pallet_currencies::BasicCurrencyAdapter;
+use pallet_dca::RelayChainBlockHashProvider;
 use pallet_omnipool::traits::EnsurePriceWithin;
 use pallet_otc::NamedReserveIdentifier;
 use pallet_transaction_multi_payment::{AddTxAssetOnAccount, RemoveTxAssetOnKilled};
@@ -196,7 +197,7 @@ parameter_types! {
 	pub const StableAssetId: AssetId = 2;
 	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
 	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
-	pub const MinTradingLimit : Balance = 1_000_000u128;
+	pub const MinTradingLimit : Balance = 1_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
@@ -363,6 +364,35 @@ impl pallet_omnipool_liquidity_mining::Config for Runtime {
 	type OraclePeriod = OmnipoolLMOraclePeriod;
 	type PriceOracle = EmaOracle;
 	type WeightInfo = weights::omnipool_lm::HydraWeight<Runtime>;
+}
+
+// The reason why there is difference between PROD and benchmark is that it is not possible
+// to set validation data in parachain system pallet in the benchmarks.
+// So for benchmarking, we mock it out and return some hardcoded parent hash
+pub struct RelayChainBlockHashProviderAdapter<Runtime>(sp_std::marker::PhantomData<Runtime>);
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		let validation_data = cumulus_pallet_parachain_system::Pallet::<Runtime>::validation_data();
+		match validation_data {
+			Some(data) => Some(data.parent_head.hash()),
+			None => None,
+		}
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<Runtime> RelayChainBlockHashProvider for RelayChainBlockHashProviderAdapter<Runtime>
+where
+	Runtime: cumulus_pallet_parachain_system::Config,
+{
+	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
+		None
+	}
 }
 
 parameter_types! {

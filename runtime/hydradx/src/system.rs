@@ -85,7 +85,6 @@ impl Contains<RuntimeCall> for CallFilter {
 		match call {
 			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
-			RuntimeCall::Uniques(_) => false,
 			_ => true,
 		}
 	}
