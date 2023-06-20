@@ -86,7 +86,7 @@ fn omni_exchanger_allows_buying_supported_assets() {
 		.execute_with(|| {
 			let given_amount = 100 * UNITS;
 			let give_asset = MultiAsset::from((GeneralIndex(DAI.into()), given_amount));
-			let give = give_asset.clone().into();
+			let give = give_asset.into();
 			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
 			let want_asset = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount));
 			let want = want_asset.clone().into();
