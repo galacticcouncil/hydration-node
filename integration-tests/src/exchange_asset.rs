@@ -26,10 +26,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
 	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
 	let max_assets = assets.len() as u32 + 1;
-	let context = X2(
-		GlobalConsensus(NetworkId::Polkadot),
-		Parachain(ACALA_PARA_ID),
-	);
+	let context = X2(GlobalConsensus(NetworkId::Polkadot), Parachain(ACALA_PARA_ID));
 	let fees = assets
 		.get(0)
 		.expect("should have at least 1 asset")
