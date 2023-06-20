@@ -25,30 +25,33 @@ where
 		use orml_utilities::with_transaction_result;
 		use sp_runtime::traits::Convert;
 
+		let account = if origin.is_none() {
+			TempAccount::get()
+		} else {
+			// TODO: support origins other than None?
+			return Err(give);
+		};
+		let origin = T::RuntimeOrigin::from(frame_system::RawOrigin::Signed(account.clone())); //TODO: check how else it is done in hydra in a simpler way
+		if give.len() != 1 {
+			return Err(give);
+		}; // TODO: we assume only one asset given
+		if want.len() != 1 {
+			return Err(give);
+		}; // TODO: we assume only one asset wanted
+   // TODO: log errors
+		let given = give
+			.fungible_assets_iter()
+			.next()
+			.expect("length of 1 checked above; qed");
+
+		let Some(asset_in) = CurrencyIdConvert::convert(given.clone()) else { return Err(give) };
+		let Some(wanted) = want.get(0) else { return Err(give) };
+		let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else { return Err(give) };
+
 		if maximal {
 			// sell
-			let account = if origin.is_none() {
-				TempAccount::get()
-			} else {
-				return Err(give);
-			};
-			let origin = T::RuntimeOrigin::from(frame_system::RawOrigin::Signed(account.clone())); //TODO: check how else it is done in hydra in a simpler way
-			if give.len() != 1 {
-				return Err(give);
-			}; // TODO: we assume only one asset given
-			if want.len() != 1 {
-				return Err(give);
-			}; // TODO: we assume only one asset wanted
-			let given = give
-				.fungible_assets_iter()
-				.next()
-				.expect("length of 1 checked above; qed");
-			// TODO: log errors
 			let Fungible(amount) = given.fun else { return Err(give) };
-			let Some(asset_in) = CurrencyIdConvert::convert(given) else { return Err(give) };
-			let Some(wanted) = want.get(0) else { return Err(give) };
 			let Fungible(min_buy_amount) = wanted.fun else { return Err(give) };
-			let Some(asset_out) = CurrencyIdConvert::convert(wanted.clone()) else { return Err(give) }; // TODO: unnecessary clone, maybe?
 
 			with_transaction_result(|| {
 				T::Currency::deposit(asset_in, &account, amount)?; // mint the incoming tokens
@@ -68,7 +71,28 @@ where
 			.map_err(|_| give)
 		} else {
 			// buy
-			Err(give) // TODO
+			let Fungible(amount) = wanted.fun else { return Err(give) };
+			let Fungible(max_sell_amount) = given.fun else { return Err(give) };
+
+			with_transaction_result(|| {
+				T::Currency::deposit(asset_in, &account, max_sell_amount)?; // mint the incoming tokens
+				Pallet::<T>::buy(origin, asset_out, asset_in, amount, max_sell_amount)?;
+				let mut assets = vec![];
+				let left_over = T::Currency::free_balance(asset_in, &account);
+				if left_over > 0 {
+					T::Currency::withdraw(asset_in, &account, left_over)?; // burn left over tokens
+					assets.push(MultiAsset::from((given.id, left_over)));
+				}
+				let amount_received = T::Currency::free_balance(asset_out, &account);
+				debug_assert!(
+					amount_received == amount,
+					"Buy should return exactly the amount we specified."
+				);
+				T::Currency::withdraw(asset_out, &account, amount_received)?; // burn the received tokens
+				assets.push(MultiAsset::from((wanted.id, amount_received)));
+				Ok(assets.into())
+			})
+			.map_err(|_| give)
 		}
 	}
 }

@@ -46,7 +46,7 @@ impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
 }
 
 #[test]
-fn omni_exchanger_exchanges_supported_assets() {
+fn omni_exchanger_allows_selling_supported_assets() {
 	// Arrange
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -69,6 +69,43 @@ fn omni_exchanger_exchanges_supported_assets() {
 			assert!(iter.next().is_none(), "there should only be one asset returned");
 			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
 			assert!(received_amount >= wanted_amount);
+			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
+			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
+		});
+}
+
+#[test]
+fn omni_exchanger_allows_buying_supported_assets() {
+	// Arrange
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(Omnipool::protocol_account(), DAI, 1000 * ONE),
+			(Omnipool::protocol_account(), HDX, NATIVE_AMOUNT),
+		])
+		.with_initial_pool(FixedU128::from_float(0.5), FixedU128::from(1))
+		.build()
+		.execute_with(|| {
+			let given_amount = 100 * UNITS;
+			let give_asset = MultiAsset::from((GeneralIndex(DAI.into()), given_amount));
+			let give = give_asset.clone().into();
+			let wanted_amount = 45 * UNITS; // 50 - 5 to cover fees
+			let want_asset = MultiAsset::from((GeneralIndex(HDX.into()), wanted_amount));
+			let want = want_asset.clone().into();
+			// Act
+			let received =
+				OmniExchanger::<Test, ExchangeTempAccount, CurrencyIdConvert>::exchange_asset(None, give, &want, BUY)
+					.expect("should return ok");
+			// Assert
+			let mut iter = received.fungible_assets_iter();
+			let asset_received = iter.next().expect("there should be at least one asset");
+			let left_over = iter.next().expect("there should be at least some left_over asset_in");
+			assert!(iter.next().is_none(), "there should only be two assets returned");
+			let Fungible(left_over_amount) = left_over.fun else { panic!("should be fungible")};
+			assert_eq!(left_over, (GeneralIndex(DAI.into()), left_over_amount).into());
+			assert!(left_over_amount < given_amount);
+			assert_eq!(asset_received, want_asset);
+			let Fungible(received_amount) = asset_received.fun else { panic!("should be fungible")};
+			assert!(received_amount == wanted_amount);
 			assert_eq!(Tokens::free_balance(DAI, &ExchangeTempAccount::get()), 0);
 			assert_eq!(Balances::free_balance(&ExchangeTempAccount::get()), 0);
 		});
