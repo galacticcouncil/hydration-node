@@ -23,7 +23,6 @@ where
 	) -> Result<xcm_executor::Assets, xcm_executor::Assets> {
 		use orml_traits::MultiCurrency;
 		use orml_utilities::with_transaction_result;
-		use sp_runtime::traits::Convert;
 
 		let account = if origin.is_none() {
 			TempAccount::get()

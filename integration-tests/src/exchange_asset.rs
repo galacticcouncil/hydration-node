@@ -19,7 +19,7 @@ use xcm_emulator::TestExt;
 
 use frame_support::dispatch::GetDispatchInfo;
 
-fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(give: M, want: M) -> VersionedXcm<RC> {
+fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(give: MultiAsset, want: M) -> VersionedXcm<RC> {
 	use polkadot_runtime::xcm_config::BaseXcmWeight;
 	use sp_runtime::traits::ConstU32;
 	use xcm_builder::FixedWeightBounds;
@@ -31,8 +31,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
 	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
 	let max_assets = assets.len() as u32;
-	//let context = GlobalConsensus(NetworkId::Polkadot).into();
-	let context2 = X2(
+	let context = X2(
 		GlobalConsensus(NetworkId::Polkadot).into(),
 		Parachain(ACALA_PARA_ID).into(),
 	);
@@ -40,9 +39,9 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 		.get(0)
 		.expect("should have at least 1 asset")
 		.clone()
-		.reanchored(&dest, context2)
+		.reanchored(&dest, context)
 		.expect("should reanchor");
-	// TODO: reanchor
+	let give = give.reanchored(&dest, context).expect("should reanchor give");
 	let give: MultiAssetFilter = Definite(give.into());
 	let want = want.into();
 	let weight_limit = {
@@ -95,10 +94,11 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 	TestNet::reset();
 
 	dbg!("before hydra 1");
+	let aca = 1;
 	Hydra::execute_with(|| {
 		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
 			hydradx_runtime::RuntimeOrigin::root(),
-			1,
+			aca,
 			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
 		));
 	});
@@ -139,7 +139,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 	dbg!("before hydra 2");
 	Hydra::execute_with(|| {
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &AccountId::from(BOB)),
+			hydradx_runtime::Tokens::free_balance(aca, &AccountId::from(BOB)),
 			BOB_INITIAL_NATIVE_BALANCE + 50 * UNITS - fees
 		);
 		assert_eq!(
@@ -147,7 +147,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
 		);
 		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(1, &hydradx_runtime::Treasury::account_id()),
+			hydradx_runtime::Tokens::free_balance(aca, &hydradx_runtime::Treasury::account_id()),
 			fees
 		);
 	});
