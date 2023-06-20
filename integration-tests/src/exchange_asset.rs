@@ -27,8 +27,8 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
 	let max_assets = assets.len() as u32 + 1;
 	let context = X2(
-		GlobalConsensus(NetworkId::Polkadot).into(),
-		Parachain(ACALA_PARA_ID).into(),
+		GlobalConsensus(NetworkId::Polkadot),
+		Parachain(ACALA_PARA_ID),
 	);
 	let fees = assets
 		.get(0)
