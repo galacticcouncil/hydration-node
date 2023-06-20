@@ -1005,6 +1005,45 @@ fn schedules_should_be_ordered_based_on_random_number_when_executed_in_a_block()
 	});
 }
 
+#[test]
+fn sell_schedule_should_work_when_user_has_left_less_than_existential_deposit() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		//Arrange
+		init_omnipool_with_oracle_for_block_10();
+		let fee = 3178776041665;
+		let alice_init_hdx_balance = 1000 * UNITS + fee + 1;
+		assert_ok!(hydradx_runtime::Balances::set_balance(
+			hydradx_runtime::RuntimeOrigin::root(),
+			ALICE.into(),
+			alice_init_hdx_balance,
+			0,
+		));
+
+		let dca_budget = 1000 * UNITS + fee;
+		let amount_to_sell = 1000 * UNITS;
+		let schedule1 = schedule_fake_with_sell_order(ALICE, dca_budget, HDX, DAI, amount_to_sell);
+		create_schedule(ALICE, schedule1);
+
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), DAI, ALICE_INITIAL_DAI_BALANCE);
+		assert_reserved_balance!(&ALICE.into(), HDX, dca_budget);
+		assert_balance!(
+			&hydradx_runtime::Treasury::account_id(),
+			HDX,
+			TREASURY_ACCOUNT_INIT_BALANCE
+		);
+
+		//Act
+		set_relaychain_block_number(11);
+
+		//Assert
+		check_if_no_failed_events();
+		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_reserved_balance!(&ALICE.into(), HDX, 0);
+	});
+}
+
 fn create_schedule(owner: [u8; 32], schedule1: Schedule<AccountId, AssetId, u32>) {
 	assert_ok!(hydradx_runtime::DCA::schedule(
 		hydradx_runtime::RuntimeOrigin::signed(owner.into()),
