@@ -2,11 +2,10 @@ use super::*;
 use crate::tests::mock::AssetId as CurrencyId;
 use crate::tests::mock::{Balances, Tokens};
 use crate::xcm_exchange::OmniExchanger;
-use frame_support::{assert_noop, parameter_types};
+use frame_support::parameter_types;
 use polkadot_xcm::latest::prelude::*;
 use pretty_assertions::assert_eq;
 use sp_runtime::traits::Convert;
-use sp_runtime::Permill;
 use sp_runtime::SaturatedConversion;
 use xcm_executor::traits::AssetExchange;
 

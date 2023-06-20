@@ -1,12 +1,9 @@
 use crate::{Config, Pallet};
-use frame_support::traits::OriginTrait;
-use frame_system::pallet_prelude::OriginFor;
 use polkadot_xcm::latest::prelude::*;
 use sp_core::Get;
-use sp_runtime::traits::{AccountIdConversion, Convert};
+use sp_runtime::traits::Convert;
 use std::marker::PhantomData;
 use xcm_executor::traits::AssetExchange;
-
 pub struct OmniExchanger<T, TempAccount, CurrencyIdConvert>(PhantomData<(T, TempAccount, CurrencyIdConvert)>);
 
 impl<T, TempAccount, CurrencyIdConvert> AssetExchange for OmniExchanger<T, TempAccount, CurrencyIdConvert>

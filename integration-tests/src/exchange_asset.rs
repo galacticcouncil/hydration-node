@@ -1,27 +1,20 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
-use cumulus_primitives_core::ParaId;
 use frame_support::weights::Weight;
 use frame_support::{
 	assert_ok,
 	pallet_prelude::*,
-	sp_runtime::{FixedU128, Permill},
-	traits::Contains,
 };
-use hex_literal::hex;
 use orml_traits::currency::MultiCurrency;
-use polkadot_xcm::{latest::prelude::*, v3::WeightLimit, VersionedMultiAssets, VersionedXcm};
+use polkadot_xcm::{latest::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
-use sp_core::H256;
-use sp_runtime::traits::{AccountIdConversion, BlakeTwo256, Hash};
 use xcm_emulator::TestExt;
 
 use frame_support::dispatch::GetDispatchInfo;
 
 fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(give: MultiAsset, want: M) -> VersionedXcm<RC> {
 	use polkadot_runtime::xcm_config::BaseXcmWeight;
-	use sp_runtime::traits::ConstU32;
 	use xcm_builder::FixedWeightBounds;
 	use xcm_executor::traits::WeightBounds;
 

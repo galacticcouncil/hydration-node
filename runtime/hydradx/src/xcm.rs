@@ -3,7 +3,6 @@ use super::{AssetId, *};
 use common_runtime::adapters::ReroutingMultiCurrencyAdapter;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	storage::with_transaction,
 	traits::{Everything, Nothing},
 	PalletId,
 };
@@ -22,7 +21,7 @@ use xcm_builder::{
 	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 	TakeWeightCredit,
 };
-use xcm_executor::{traits::AssetExchange, Config, XcmExecutor};
+use xcm_executor::{Config, XcmExecutor};
 
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
