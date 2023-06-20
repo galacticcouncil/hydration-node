@@ -1,19 +1,21 @@
 #![cfg(test)]
 
 use crate::polkadot_test_net::*;
+use common_runtime::CORE_ASSET_ID;
 use frame_support::weights::Weight;
-use frame_support::{
-	assert_ok,
-	pallet_prelude::*,
-};
+use frame_support::{assert_ok, pallet_prelude::*};
 use orml_traits::currency::MultiCurrency;
 use polkadot_xcm::{latest::prelude::*, VersionedXcm};
 use pretty_assertions::assert_eq;
+use sp_runtime::{FixedU128, Permill};
 use xcm_emulator::TestExt;
 
 use frame_support::dispatch::GetDispatchInfo;
 
-fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(give: MultiAsset, want: M) -> VersionedXcm<RC> {
+fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
+	give: MultiAsset,
+	want: M,
+) -> VersionedXcm<RC> {
 	use polkadot_runtime::xcm_config::BaseXcmWeight;
 	use xcm_builder::FixedWeightBounds;
 	use xcm_executor::traits::WeightBounds;
@@ -23,7 +25,7 @@ fn craft_exchange_asset_xcm<M: Into<MultiAssets>, RC: Decode + GetDispatchInfo>(
 	let dest = MultiLocation::new(1, Parachain(HYDRA_PARA_ID));
 	let beneficiary = Junction::AccountId32 { id: BOB, network: None }.into();
 	let assets: MultiAssets = MultiAsset::from((GeneralIndex(0), 100 * UNITS)).into(); // hardcoded
-	let max_assets = assets.len() as u32;
+	let max_assets = assets.len() as u32 + 1;
 	let context = X2(
 		GlobalConsensus(NetworkId::Polkadot).into(),
 		Parachain(ACALA_PARA_ID).into(),
@@ -87,13 +89,38 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 	TestNet::reset();
 
 	dbg!("before hydra 1");
-	let aca = 1;
+	let aca = 1234;
+	let mut price = None;
 	Hydra::execute_with(|| {
-		assert_ok!(hydradx_runtime::AssetRegistry::set_location(
+		assert_ok!(hydradx_runtime::AssetRegistry::register(
+			hydradx_runtime::RuntimeOrigin::root(),
+			b"ACA".to_vec(),
+			pallet_asset_registry::AssetType::Token,
+			1_000_000,
+			Some(aca),
+			None,
+			Some(hydradx_runtime::AssetLocation(MultiLocation::new(
+				1,
+				X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))
+			))),
+			None
+		));
+
+		init_omnipool();
+		let omnipool_account = hydradx_runtime::Omnipool::protocol_account();
+
+		let token_price = FixedU128::from_float(1.0);
+		assert_ok!(hydradx_runtime::Tokens::deposit(aca, &omnipool_account, 3000 * UNITS));
+
+		assert_ok!(hydradx_runtime::Omnipool::add_token(
 			hydradx_runtime::RuntimeOrigin::root(),
 			aca,
-			hydradx_runtime::AssetLocation(MultiLocation::new(1, X2(Parachain(ACALA_PARA_ID), GeneralIndex(0))))
+			token_price,
+			Permill::from_percent(100),
+			AccountId::from(BOB),
 		));
+		use hydradx_traits::pools::SpotPriceProvider;
+		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, aca);
 	});
 	dbg!("after hydra 1");
 
@@ -102,7 +129,7 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		dbg!("execute acala");
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
 			MultiAsset::from((GeneralIndex(0), 50 * UNITS)),
-			MultiAsset::from((Here, 300 * UNITS)),
+			MultiAsset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
 		);
 		//Act
 		let res = hydradx_runtime::PolkadotXcm::execute(
@@ -128,17 +155,16 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 	});
 	dbg!("after acala");
 
-	let fees = 400641025641;
+	let fees = 500801282051;
 	dbg!("before hydra 2");
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(aca, &AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 50 * UNITS - fees
+			50 * UNITS - fees
 		);
-		assert_eq!(
-			hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)),
-			BOB_INITIAL_NATIVE_BALANCE + 300 * UNITS - fees
-		);
+		// We receive about 39_101 HDX
+		let received = 39_101 * UNITS + BOB_INITIAL_NATIVE_BALANCE + 207_131_554_396;
+		assert_eq!(hydradx_runtime::Balances::free_balance(&AccountId::from(BOB)), received);
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(aca, &hydradx_runtime::Treasury::account_id()),
 			fees

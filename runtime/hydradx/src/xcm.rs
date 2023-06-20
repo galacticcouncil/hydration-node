@@ -9,6 +9,7 @@ use frame_support::{
 use hydradx_adapters::{MultiCurrencyTrader, ToFeeReceiver};
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
 pub use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
+use pallet_omnipool::xcm_exchange::OmniExchanger;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 use polkadot_xcm::v3::prelude::*;
@@ -74,6 +75,7 @@ parameter_types! {
 	pub const MaxAssetsForTransfer: usize = 2;
 
 	pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+	pub TempAccount: AccountId = [42; 32].into();
 }
 
 pub struct XcmConfig;
@@ -106,7 +108,7 @@ impl Config for XcmConfig {
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetLocker = ();
-	type AssetExchanger = ();
+	type AssetExchanger = OmniExchanger<Runtime, TempAccount, CurrencyIdConvert>;
 	type AssetClaims = PolkadotXcm;
 	type SubscriptionService = PolkadotXcm;
 	type PalletInstancesInfo = AllPalletsWithSystem;

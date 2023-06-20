@@ -2,7 +2,7 @@ use crate::{Config, Pallet};
 use polkadot_xcm::latest::prelude::*;
 use sp_core::Get;
 use sp_runtime::traits::Convert;
-use std::marker::PhantomData;
+use sp_std::marker::PhantomData;
 use xcm_executor::traits::AssetExchange;
 pub struct OmniExchanger<T, TempAccount, CurrencyIdConvert>(PhantomData<(T, TempAccount, CurrencyIdConvert)>);
 
@@ -74,7 +74,7 @@ where
 			with_transaction_result(|| {
 				T::Currency::deposit(asset_in, &account, max_sell_amount)?; // mint the incoming tokens
 				Pallet::<T>::buy(origin, asset_out, asset_in, amount, max_sell_amount)?;
-				let mut assets = vec![];
+				let mut assets = sp_std::vec::Vec::new();
 				let left_over = T::Currency::free_balance(asset_in, &account);
 				if left_over > 0 {
 					T::Currency::withdraw(asset_in, &account, left_over)?; // burn left over tokens
