@@ -32,13 +32,14 @@ where
 			return Err(give);
 		};
 		let origin = T::RuntimeOrigin::from(frame_system::RawOrigin::Signed(account.clone())); //TODO: check how else it is done in hydra in a simpler way
+
+		// TODO: log errors
 		if give.len() != 1 {
 			return Err(give);
 		}; // TODO: we assume only one asset given
 		if want.len() != 1 {
 			return Err(give);
 		}; // TODO: we assume only one asset wanted
-   // TODO: log errors
 		let given = give
 			.fungible_assets_iter()
 			.next()
