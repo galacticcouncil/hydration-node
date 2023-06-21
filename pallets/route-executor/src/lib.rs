@@ -136,6 +136,8 @@ pub mod pallet {
 		RouteHasNoTrades,
 		///The user has not enough balance to execute the trade
 		InsufficientBalance,
+		///The balance after the trade is not as expected according to the trade amount
+		PostBalanceCheckError,
 		///Unexpected error which should never really happen, but the error case must be handled to prevent panics.
 		UnexpectedError,
 	}
@@ -322,7 +324,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(
 			user_balance_of_asset_out_after_trade == user_expected_balance_of_asset_out_after_trade,
-			Error::<T>::UnexpectedError
+			Error::<T>::PostBalanceCheckError
 		);
 
 		Ok(())
@@ -338,7 +340,7 @@ impl<T: Config> Pallet<T> {
 			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
 			ensure!(
 				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
-				Error::<T>::UnexpectedError
+				Error::<T>::PostBalanceCheckError
 			);
 		}
 		Ok(())
