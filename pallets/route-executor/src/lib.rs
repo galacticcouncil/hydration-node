@@ -246,7 +246,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, false);
+			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, true);
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
