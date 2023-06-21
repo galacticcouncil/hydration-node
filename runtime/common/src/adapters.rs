@@ -162,7 +162,7 @@ where
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
-	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, _amount: Balance) -> Result<Weight, Self::Error> {
+	fn on_trade_fee(_fee_account: &AccountId, _asset: AssetId, _amount: Balance) -> Result<Weight, Self::Error> {
 		Ok(Weight::zero())
 	}
 }

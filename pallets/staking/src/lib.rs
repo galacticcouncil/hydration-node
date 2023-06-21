@@ -608,4 +608,24 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		});
 	}
+
+	pub fn process_trade_fee(source: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult{
+		Ok(())
+	}
+}
+
+
+pub struct SigmoidPercentage<T>(sp_std::marker::PhantomData<T>);
+
+impl<T> PayablePercentage<Point> for SigmoidPercentage<T>
+where T: Get<FixedU128>
+{
+	type Error = ArithmeticError;
+
+	fn get(p: Point) -> Result<FixedU128, Self::Error> {
+		let a: FixedU128 = T::get();
+		let b: u32 = 40_000;
+
+		math::sigmoid(p, a, b).map_err(|_| ArithmeticError::Overflow)
+	}
 }
