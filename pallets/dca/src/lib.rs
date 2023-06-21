@@ -442,9 +442,7 @@ pub mod pallet {
 					amount_out, ref route, ..
 				} => Self::get_amount_in_for_buy(&amount_out, route)?,
 			};
-			let min_trade_amount_in_from_fee = transaction_fee
-				.checked_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT)
-				.ok_or(ArithmeticError::Overflow)?;
+			let min_trade_amount_in_from_fee = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
 			ensure!(
 				amount_in >= min_trade_amount_in_from_fee,
 				Error::<T>::MinTradeAmountNotReached
