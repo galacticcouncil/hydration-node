@@ -54,7 +54,8 @@ where
 	fn on_liquidity_changed_weight() -> Weight;
 	fn on_trade_weight() -> Weight;
 
-	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Weight, Self::Error>;
+	/// Returns unused amount
+	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error>;
 }
 
 impl<Origin, AccountId, AssetId, Balance> OmnipoolHooks<Origin, AccountId, AssetId, Balance> for ()
@@ -87,8 +88,8 @@ where
 		Weight::zero()
 	}
 
-	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, _amount: Balance) -> Result<Weight, Self::Error> {
-		Ok(Weight::zero())
+	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
+		Ok(amount)
 	}
 }
 
