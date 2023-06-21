@@ -34,7 +34,7 @@ members = [
   'pallets/otc',
   'math',
   'pallets/staking',
-  'pallets/staking-democracy',
+  'pallets/democracy',
 ]
 
 [workspace.dependencies]
@@ -70,7 +70,7 @@ pallet-stableswap = { path = "pallets/stableswap", default-features = false }
 pallet-transaction-multi-payment = { path = "pallets/transaction-multi-payment", default-features = false}
 pallet-transaction-pause = { path = "pallets/transaction-pause", default-features = false }
 pallet-staking = { path = "pallets/staking", default-features = false }
-
+pallet-democracy= { path = "pallets/democracy", default-features = false }
 
 hydra-dx-build-script-utils = { path = "utils/build-script-utils", default-features = false }
 test-utils = { path = "utils/test-utils", default-features = false }
@@ -149,7 +149,6 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-collective = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
-pallet-democracy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-preimage = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }
 pallet-proxy = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", default-features = false }

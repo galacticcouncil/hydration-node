@@ -16,20 +16,18 @@
 // limitations under the License.
 
 //! The crate's tests.
-//!
+
 use super::*;
-use frame_support::pallet_prelude::Hooks;
-use frame_support::traits::LockIdentifier;
+use crate as pallet_democracy;
 use frame_support::{
 	assert_noop, assert_ok, ord_parameter_types, parameter_types,
 	traits::{
-		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, GenesisBuild, QueryPreimage, SortedMembers, StorePreimage,
+		ConstU32, ConstU64, Contains, EqualPrivilegeOnly, GenesisBuild, OnInitialize, SortedMembers, StorePreimage,
 	},
 	weights::Weight,
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
 use pallet_balances::{BalanceLock, Error as BalancesError};
-use pallet_democracy::*;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -66,10 +64,6 @@ const BIG_NAY: Vote = Vote {
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
-use crate as pallet_staking_democracy;
-
-pub(crate) const DEMOCRACY_ID: LockIdentifier = *b"democrac";
-
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -80,9 +74,7 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Preimage: pallet_preimage,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>},
-		Democracy: pallet_staking_democracy,
-		Staking: pallet_staking,
-		DemocracyPallet: pallet_democracy,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>},
 	}
 );
 
@@ -163,17 +155,6 @@ impl pallet_balances::Config for Test {
 	type AccountStore = System;
 	type WeightInfo = ();
 }
-
-impl pallet_staking::Config for Test {
-	type WeightInfo = ();
-	type RuntimeEvent = RuntimeEvent;
-}
-
-impl pallet_staking_democracy::Config for Test {
-	type WeightInfo = ();
-	type RuntimeEvent = RuntimeEvent;
-}
-
 parameter_types! {
 	pub static PreimageByteDeposit: u64 = 0;
 	pub static InstantAllowed: bool = false;
@@ -195,7 +176,7 @@ impl SortedMembers<u64> for OneToFive {
 	fn add(_m: &u64) {}
 }
 
-impl pallet_democracy::Config for Test {
+impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = pallet_balances::Pallet<Self>;
 	type EnactmentPeriod = ConstU64<2>;
@@ -224,6 +205,7 @@ impl pallet_democracy::Config for Test {
 	type WeightInfo = ();
 	type MaxProposals = ConstU32<100>;
 	type Preimages = Preimage;
+	type DemocracyHooks = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

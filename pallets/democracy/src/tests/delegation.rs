@@ -302,19 +302,30 @@ fn split_vote_delegation_should_be_ignored() {
 	});
 }
 
-/*
 #[test]
 fn redelegation_keeps_lock() {
 	// If transactor voted, delegated vote is overwritten.
 	new_test_ext().execute_with(|| {
 		let r = begin_referendum();
 		// Delegate and vote.
-		assert_ok!(Democracy::delegate(RuntimeOrigin::signed(2), 1, Conviction::Locked6x, 20));
+		assert_ok!(Democracy::delegate(
+			RuntimeOrigin::signed(2),
+			1,
+			Conviction::Locked6x,
+			20
+		));
 		assert_ok!(Democracy::vote(RuntimeOrigin::signed(1), r, aye(1)));
 		// Delegated vote is huge.
-		assert_eq!(tally(r), Tally { ayes: 121, nays: 0, turnout: 30 });
+		assert_eq!(
+			tally(r),
+			Tally {
+				ayes: 121,
+				nays: 0,
+				turnout: 30
+			}
+		);
 
-		let mut prior_lock = pallet_democracy::PriorLock::default();
+		let mut prior_lock = vote::PriorLock::default();
 
 		// Locked balance of delegator exists
 		assert_eq!(VotingOf::<Test>::get(2).locked_balance(), 20);
@@ -341,5 +352,3 @@ fn redelegation_keeps_lock() {
 		assert_eq!(VotingOf::<Test>::get(2).locked_balance(), 10);
 	});
 }
-
- */
