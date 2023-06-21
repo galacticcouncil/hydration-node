@@ -609,6 +609,7 @@ impl pallet_democracy::Config for Runtime {
 	type Preimages = Preimage;
 	type MaxDeposits = ConstU32<100>;
 	type MaxBlacklisted = ConstU32<100>;
+	type DemocracyHooks = pallet_staking::StakingDemocracy;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {

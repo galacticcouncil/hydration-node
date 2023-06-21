@@ -7407,6 +7407,7 @@ dependencies = [
  "orml-tokens",
  "orml-traits",
  "pallet-balances",
+ "pallet-democracy 4.0.0-dev",
  "pallet-uniques",
  "parity-scale-codec",
  "pretty_assertions",
