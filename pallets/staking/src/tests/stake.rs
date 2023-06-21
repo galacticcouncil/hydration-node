@@ -13,10 +13,8 @@ fn new_stake_should_work_when_staking_is_empty() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let pot = Staking::pot_account_id();
 			let pending_rewards = 200_000 * ONE;
-			Tokens::set_balance(RuntimeOrigin::root(), pot, HDX, pending_rewards, 0).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 			let staked_amount = 100_000 * ONE;
 
 			//Act
@@ -25,6 +23,7 @@ fn new_stake_should_work_when_staking_is_empty() {
 			//Assert
 			assert_staking_data!(staked_amount, FixedU128::from(0), pending_rewards);
 			assert_hdx_lock!(ALICE, staked_amount, STAKING_LOCK);
+			assert_unlocked_balance!(ALICE, HDX, 50_000 * ONE);
 
 			let next_position_id = Staking::next_position_id();
 			assert_eq!(
@@ -47,16 +46,15 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let pot = Staking::pot_account_id();
 			let pending_rewards = 200_000 * ONE;
-			Tokens::set_balance(RuntimeOrigin::root(), pot, HDX, pending_rewards, 0).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 
 			//Act
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), 100_000 * ONE));
 			//Assert
 			assert_staking_data!(100_000 * ONE, FixedU128::from(0), pending_rewards);
 			assert_hdx_lock!(ALICE, 100_000 * ONE, STAKING_LOCK);
+			assert_unlocked_balance!(ALICE, HDX, 50_000 * ONE);
 
 			assert_eq!(
 				Staking::positions(Staking::next_position_id() - 1).unwrap(),
@@ -68,6 +66,7 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 			//Assert
 			assert_staking_data!(220_000 * ONE, FixedU128::from(2), 0);
 			assert_hdx_lock!(BOB, 120_000 * ONE, STAKING_LOCK);
+			assert_unlocked_balance!(BOB, HDX, 130_000 * ONE);
 
 			assert_eq!(
 				Staking::positions(Staking::next_position_id() - 1).unwrap(),
@@ -76,8 +75,7 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 
 			//Arrange
 			let pending_rewards = 10_000 * ONE;
-			Tokens::set_balance(RuntimeOrigin::root(), pot, HDX, pending_rewards, 0).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 			set_block_number(1_455_000);
 
 			//Act
@@ -85,6 +83,7 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 			//Assert
 			assert_staking_data!(230_000 * ONE, FixedU128::from_inner(2_045_454_545_454_545_454_u128), 0);
 			assert_hdx_lock!(CHARLIE, 10_000 * ONE, STAKING_LOCK);
+			assert_unlocked_balance!(CHARLIE, HDX, 0);
 
 			assert_eq!(
 				Staking::positions(Staking::next_position_id() - 1).unwrap(),
@@ -98,8 +97,7 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 			//Arrange
 			//rewards too small to distribute
 			let pending_rewards = 1;
-			Tokens::set_balance(RuntimeOrigin::root(), pot, HDX, pending_rewards, 0).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 			set_block_number(1_465_000);
 
 			//Act
@@ -107,6 +105,7 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 			//Assert
 			assert_staking_data!(230_010 * ONE, FixedU128::from_inner(2_045_454_545_454_545_458_u128), 0);
 			assert_hdx_lock!(DAVE, 10 * ONE, STAKING_LOCK);
+			assert_unlocked_balance!(DAVE, HDX, 99_990 * ONE);
 
 			assert_eq!(
 				Staking::positions(Staking::next_position_id() - 1).unwrap(),
@@ -120,17 +119,15 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 }
 
 #[test]
-fn new_stake_should_work_when_there_is_no_rewards_to_distribute() {
+fn new_stake_should_work_when_there_are_no_rewards_to_distribute() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE), (BOB, HDX, 150_000 * ONE)])
 		.start_at_block(1_452_987)
 		.build()
 		.execute_with(|| {
 			//Arrange
-			let pot = Staking::pot_account_id();
 			let pending_rewards = 0;
-			Tokens::set_balance(RuntimeOrigin::root(), pot, HDX, pending_rewards, 0).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 			let staked_amount = 100_000 * ONE;
 
 			//Act
@@ -139,6 +136,7 @@ fn new_stake_should_work_when_there_is_no_rewards_to_distribute() {
 			//Assert
 			assert_staking_data!(staked_amount, FixedU128::from(0), pending_rewards);
 			assert_hdx_lock!(ALICE, staked_amount, STAKING_LOCK);
+			assert_unlocked_balance!(ALICE, HDX, 50_000 * ONE);
 
 			let next_position_id = Staking::next_position_id();
 			assert_eq!(
@@ -152,6 +150,7 @@ fn new_stake_should_work_when_there_is_no_rewards_to_distribute() {
 			//Assert
 			assert_staking_data!(staked_amount + staked_amount / 2, FixedU128::from(0), pending_rewards);
 			assert_hdx_lock!(BOB, staked_amount / 2, STAKING_LOCK);
+			assert_unlocked_balance!(BOB, HDX, 100_000 * ONE);
 
 			let next_position_id = Staking::next_position_id();
 			assert_eq!(
@@ -169,6 +168,51 @@ fn increase_stake_should_work_when_user_already_staked() {
 		.build()
 		.execute_with(|| {
 			//Arrange
+			let pending_rewards = 100_000 * ONE;
+			set_pending_rewards(pending_rewards);
+			let staked_amount = 100_000 * ONE;
+
+			let alice_position_id = Staking::next_position_id();
+			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), staked_amount));
+
+			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), staked_amount / 2));
+
+			let pending_rewards = 5_000 * ONE;
+			set_pending_rewards(pending_rewards);
+
+			set_block_number(1_600_000);
+
+			//Act
+			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), 100_000 * ONE));
+
+			//Assert
+			assert_staking_data!(250_000 * ONE, FixedU128::from_inner(1_033_333_333_333_333_333_u128), 0);
+			assert_hdx_lock!(ALICE, 200_432_086_451_705_829_u128, STAKING_LOCK);
+			assert_unlocked_balance!(ALICE, HDX, 50_000 * ONE);
+
+			assert_eq!(
+				Staking::positions(alice_position_id).unwrap(),
+				Position {
+					stake: 200_000 * ONE,
+					reward_per_stake: FixedU128::from_inner(1_033_333_333_333_333_333_u128),
+					created_at: 1_452_987,
+					accumulated_unpaid_rewards: 102_901_246_881_627_504,
+					action_points: 0,
+					accumulated_slash_points: 12,
+					accumulated_locked_rewards: 432_086_451_705_829_u128,
+				}
+			);
+		});
+}
+
+#[test]
+fn increase_stake_should_work_when_user_staked_multiple_times() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 450_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
 			let pot = Staking::pot_account_id();
 			let pending_rewards = 100_000 * ONE;
 			Tokens::set_balance(RuntimeOrigin::root(), pot, HDX, pending_rewards, 0).unwrap();
@@ -181,28 +225,33 @@ fn increase_stake_should_work_when_user_already_staked() {
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), staked_amount / 2));
 
 			let pending_rewards = 5_000 * ONE;
-			Tokens::update_balance(HDX, &pot, pending_rewards as i128).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
-
+			set_pending_rewards(pending_rewards);
 			set_block_number(1_600_000);
+
+			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), 100_000 * ONE));
+
+			let pending_rewards = 10_000 * ONE;
+			set_pending_rewards(pending_rewards);
+			set_block_number(1_650_000);
 
 			//Act
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(ALICE), 100_000 * ONE));
 
 			//Assert
-			assert_staking_data!(250_000 * ONE, FixedU128::from_inner(1_033_333_333_333_333_333_u128), 0);
-			assert_hdx_lock!(ALICE, 200_432_086_451_705_829, STAKING_LOCK);
+			assert_staking_data!(350_000 * ONE, FixedU128::from_inner(1_073_333_333_333_333_333_u128), 0);
+			assert_hdx_lock!(ALICE, 300_656_207_631_252_541_u128, STAKING_LOCK);
+			assert_unlocked_balance!(ALICE, HDX, 150_000 * ONE);
 
 			assert_eq!(
 				Staking::positions(alice_position_id).unwrap(),
 				Position {
-					stake: 200_000 * ONE,
-					reward_per_stake: FixedU128::from_inner(1_033_333_333_333_333_333_u128),
+					stake: 300_000 * ONE,
+					reward_per_stake: FixedU128::from_inner(1_073_333_333_333_333_333_u128),
 					created_at: 1_452_987,
-					accumulated_unpaid_rewards: 102_901_246_881_627_504,
+					accumulated_unpaid_rewards: 110_677_125_702_080_792_u128,
 					action_points: 0,
-					accumulated_slash_points: 12,
-					accumulated_locked_rewards: 432_086_451_705_829_u128,
+					accumulated_slash_points: 17,
+					accumulated_locked_rewards: 656_207_631_252_541_u128,
 				}
 			);
 		});
@@ -281,7 +330,7 @@ fn increase_stake_should_slash_all_points_when_increase_is_big() {
 }
 
 #[test]
-fn increase_stake_should_accumulate_slash_points_when_call_multiple_times() {
+fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 500_000 * ONE), (BOB, HDX, 150_000 * ONE)])
 		.start_at_block(1_452_987)
@@ -329,6 +378,7 @@ fn increase_stake_should_accumulate_slash_points_when_call_multiple_times() {
 			//Assert
 			assert_staking_data!(450_000 * ONE, FixedU128::from_inner(1_033_333_333_333_333_333_u128), 0);
 			assert_hdx_lock!(ALICE, 400_965_177_337_593_095_u128, STAKING_LOCK);
+			assert_unlocked_balance!(ALICE, HDX, 100_000 * ONE);
 
 			assert_eq!(
 				Staking::positions(alice_position_id).unwrap(),
