@@ -27,7 +27,7 @@ use hydradx_traits::router::TradeExecution;
 use hydradx_traits::router::{ExecutorError, PoolType};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use scale_info::TypeInfo;
-use sp_runtime::DispatchError;
+use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -138,8 +138,8 @@ pub mod pallet {
 		InsufficientBalance,
 		///The balance after the trade is not as expected according to the trade amount
 		PostBalanceCheckError,
-		///Unexpected error which should never really happen, but the error case must be handled to prevent panics.
-		UnexpectedError,
+		///The calculation of route trade amounts failed in the underlying AMM
+		AmmTradeAmountCalculationError,
 	}
 
 	#[pallet::call]
@@ -178,7 +178,7 @@ pub mod pallet {
 
 			let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::UnexpectedError)?;
+			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::AmmTradeAmountCalculationError)?;
 			ensure!(
 				last_trade_amount.amount_out >= min_amount_out,
 				Error::<T>::TradingLimitReached
@@ -252,7 +252,7 @@ pub mod pallet {
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::UnexpectedError)?;
+			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::AmmTradeAmountCalculationError)?;
 			ensure!(
 				last_trade_amount.amount_in <= max_amount_in,
 				Error::<T>::TradingLimitReached
@@ -320,7 +320,7 @@ impl<T: Config> Pallet<T> {
 		let user_balance_of_asset_out_after_trade = T::Currency::reducible_balance(asset_out, &who, false);
 		let user_expected_balance_of_asset_out_after_trade = user_balance_of_asset_out_before_trade
 			.checked_add(&received_amount)
-			.ok_or(Error::<T>::UnexpectedError)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			user_balance_of_asset_out_after_trade == user_expected_balance_of_asset_out_after_trade,
