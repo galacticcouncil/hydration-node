@@ -1,5 +1,6 @@
 use core::marker::PhantomData;
 
+use crate::AccountId;
 use codec::FullCodec;
 use frame_support::{
 	traits::{Contains, Get},
@@ -38,7 +39,8 @@ pub struct OmnipoolHookAdapter<Origin, Lrna, Runtime>(PhantomData<(Origin, Lrna,
 /// The source of the data for the oracle.
 pub const OMNIPOOL_SOURCE: [u8; 8] = *b"omnipool";
 
-impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AssetId, Balance> for OmnipoolHookAdapter<Origin, Lrna, Runtime>
+impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
+	for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
 	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<RuntimeOrigin = Origin>,
@@ -158,6 +160,10 @@ where
 		let w2 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::ensure_pool_state_change_limit();
 		let w3 = <Runtime as pallet_circuit_breaker::Config>::WeightInfo::on_finalize_single(); // TODO: implement and use on_finalize_single_trade_limit_entry benchmark
 		w1.saturating_add(w2).saturating_add(w3)
+	}
+
+	fn on_trade_fee(_fee_account: AccountId, _asset: AssetId, _amount: Balance) -> Result<Weight, Self::Error> {
+		Ok(Weight::zero())
 	}
 }
 

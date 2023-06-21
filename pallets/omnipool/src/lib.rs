@@ -80,7 +80,7 @@ use sp_std::prelude::*;
 use frame_support::traits::tokens::nonfungibles::{Create, Inspect, Mutate};
 use hydra_dx_math::omnipool::types::{AssetStateChange, BalanceUpdate, I129};
 use hydradx_traits::Registry;
-use orml_traits::{MultiCurrency};
+use orml_traits::MultiCurrency;
 use scale_info::TypeInfo;
 use sp_runtime::{ArithmeticError, DispatchError, FixedPointNumber, FixedU128, Permill};
 
@@ -205,7 +205,13 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		/// Hooks are actions executed on add_liquidity, sell or buy.
-		type OmnipoolHooks: OmnipoolHooks<Self::RuntimeOrigin, Self::AssetId, Balance, Error = DispatchError>;
+		type OmnipoolHooks: OmnipoolHooks<
+			Self::RuntimeOrigin,
+			Self::AccountId,
+			Self::AssetId,
+			Balance,
+			Error = DispatchError,
+		>;
 
 		type PriceBarrier: ShouldAllow<Self::AccountId, Self::AssetId, EmaPrice>;
 
@@ -390,6 +396,8 @@ pub mod pallet {
 		InvalidOraclePrice,
 		/// Failed to calculate withdrawal fee.
 		InvalidWithdrawalFee,
+		/// More than allowed amount of fee has been transferred.
+		FeeOverdraft,
 	}
 
 	#[pallet::call]
@@ -1171,6 +1179,8 @@ pub mod pallet {
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
 
+			Self::process_trade_fee(asset_out, state_changes.fee.asset_fee)?;
+
 			Self::deposit_event(Event::SellExecuted {
 				who,
 				asset_in,
@@ -1356,6 +1366,8 @@ pub mod pallet {
 			T::OmnipoolHooks::on_trade(origin.clone(), info_in, info_out)?;
 
 			Self::update_hdx_subpool_hub_asset(origin, state_changes.hdx_hub_amount)?;
+
+			Self::process_trade_fee(asset_in, state_changes.fee.asset_fee)?;
 
 			Self::deposit_event(Event::BuyExecuted {
 				who,
@@ -1721,6 +1733,8 @@ impl<T: Config> Pallet<T> {
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
 
+		Self::process_trade_fee(asset_out, state_changes.fee.asset_fee)?;
+
 		Self::deposit_event(Event::SellExecuted {
 			who: who.clone(),
 			asset_in: T::HubAssetId::get(),
@@ -1821,6 +1835,8 @@ impl<T: Config> Pallet<T> {
 		Self::update_imbalance(state_changes.delta_imbalance)?;
 
 		Self::set_asset_state(asset_out, new_asset_out_state);
+
+		Self::process_trade_fee(T::HubAssetId::get(), state_changes.fee.asset_fee)?;
 
 		Self::deposit_event(Event::BuyExecuted {
 			who: who.clone(),
@@ -1931,5 +1947,18 @@ impl<T: Config> Pallet<T> {
 	/// Returns `true` if `asset` exists in the omnipool or `false`
 	pub fn exists(asset: T::AssetId) -> bool {
 		Assets::<T>::contains_key(asset)
+	}
+
+	/// Calls `on_trade_fee` hook and ensures that no more than the fee amount is transferred.
+	fn process_trade_fee(asset: T::AssetId, amount: Balance) -> DispatchResult {
+		let account = Self::protocol_account();
+		let asset_reserve = T::Currency::free_balance(asset, &account);
+		T::OmnipoolHooks::on_trade_fee(&account, asset, amount)?;
+		let updated_asset_reserve = T::Currency::free_balance(asset, &account);
+		ensure!(
+			updated_asset_reserve >= asset_reserve.saturating_sub(amount),
+			Error::<T>::FeeOverdraft
+		);
+		Ok(())
 	}
 }
