@@ -336,12 +336,8 @@ impl<T: Config> Pallet<T> {
 	) -> Result<(), DispatchError> {
 		if spent_amount < user_balance_of_asset_in_before_trade {
 			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
-			let user_expected_balance_of_asset_in_after_trade = user_balance_of_asset_in_before_trade
-				.checked_sub(&spent_amount)
-				.ok_or(Error::<T>::UnexpectedError)?;
-
 			ensure!(
-				user_expected_balance_of_asset_in_after_trade == user_balance_of_asset_in_after_trade,
+				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
 				Error::<T>::UnexpectedError
 			);
 		}
