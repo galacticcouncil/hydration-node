@@ -49,6 +49,8 @@ pub mod types;
 pub mod weights;
 
 pub use pallet::*;
+use pallet_democracy::traits::DemocracyHooks;
+use pallet_democracy::{AccountVote, ReferendumIndex};
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
@@ -287,7 +289,6 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(1_000)]
 		pub fn claim(origin: OriginFor<T>) -> DispatchResult {
-			//WARN: this is WIP, it's maybe wrong
 			let who = ensure_signed(origin)?;
 
 			let position_id = Self::get_user_position_id(&who)?;
@@ -594,5 +595,33 @@ impl<T: Config> Pallet<T> {
 
 			Ok(())
 		});
+	}
+
+	pub fn process_trade_fee(source: T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
+		Ok(())
+	}
+}
+
+pub struct SigmoidPercentage<T>(sp_std::marker::PhantomData<T>);
+
+impl<T> PayablePercentage<Point> for SigmoidPercentage<T>
+where
+	T: Get<FixedU128>,
+{
+	type Error = ArithmeticError;
+
+	fn get(p: Point) -> Result<FixedU128, Self::Error> {
+		let a: FixedU128 = T::get();
+		let b: u32 = 40_000;
+
+		math::sigmoid(p, a, b).map_err(|_| ArithmeticError::Overflow)
+	}
+}
+
+pub struct StakingDemocracy;
+
+impl<AccountId> DemocracyHooks<AccountId, Balance> for StakingDemocracy {
+	fn on_vote(who: &AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
+		Ok(())
 	}
 }

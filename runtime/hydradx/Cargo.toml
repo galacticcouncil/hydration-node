@@ -64,6 +64,7 @@ pallet-duster = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-otc = { workspace = true }
 pallet-route-executor = { workspace = true }
+pallet-staking = { workspace = true }
 
 # ORML dependencies
 orml-tokens = { workspace = true }
@@ -242,6 +243,7 @@ std = [
     "pallet-duster/std",
     "warehouse-liquidity-mining/std",
     "pallet-omnipool-liquidity-mining/std",
+    "pallet-staking/std",
 ]
 try-runtime= [
     "frame-try-runtime",

@@ -32,12 +32,12 @@ use common_runtime::adapters::OraclePriceProviderAdapterForOmnipool;
 use frame_system::{EnsureRoot, RawOrigin};
 use scale_info::TypeInfo;
 use sp_api::impl_runtime_apis;
-use sp_core::OpaqueMetadata;
+use sp_core::{ConstU128, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, Perbill, Permill,
+	ApplyExtrinsicResult, FixedU128, Perbill, Permill,
 };
 
 use sp_std::cmp::Ordering;
@@ -59,7 +59,7 @@ use frame_support::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
-	BoundedVec,
+	BoundedVec, PalletId,
 };
 use hydradx_traits::OraclePeriod;
 use orml_traits::currency::MutationHooks;
@@ -609,6 +609,7 @@ impl pallet_democracy::Config for Runtime {
 	type Preimages = Preimage;
 	type MaxDeposits = ConstU32<100>;
 	type MaxBlacklisted = ConstU32<100>;
+	type DemocracyHooks = pallet_staking::StakingDemocracy;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -957,6 +958,9 @@ impl pallet_circuit_breaker::Config for Runtime {
 use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
+use pallet_staking::traits::PayablePercentage;
+use pallet_staking::types::Point;
+use pallet_staking::SigmoidPercentage;
 
 parameter_types! {
 	pub SupportedPeriods: BoundedVec<OraclePeriod, ConstU32<MAX_PERIODS>> = BoundedVec::truncate_from(vec![
@@ -1067,6 +1071,40 @@ impl pallet_otc::Config for Runtime {
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const StakingPalletId: PalletId = PalletId(*b"test_stk");
+	pub const MinStake: Balance = 10_000_000_000_000;
+	pub const PeriodLength: BlockNumber = 10_000;
+	pub const TimePointsW:Permill =  Permill::from_percent(80);
+	pub const ActionPointsW: Permill = Permill::from_percent(20);
+	pub const TimePointsPerPeriod: u8 = 2;
+	pub const CurrentStakeWeight: u8 = 2;
+	pub const UnclaimablePeriods: BlockNumber = 4;
+	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
+}
+
+impl pallet_staking::Config for Runtime {
+	type WeightInfo = ();
+	type RuntimeEvent = RuntimeEvent;
+	type AssetId = AssetId;
+	type Currency = Currencies;
+	type PeriodLength = PeriodLength;
+	type PalletId = StakingPalletId;
+	type HdxAssetId = NativeAssetId;
+	type MinStake = MinStake;
+	type TimePointsWeight = TimePointsW;
+	type ActionPointsWeight = ActionPointsW;
+	type TimePointsPerPeriod = TimePointsPerPeriod;
+	type UnclaimablePeriods = UnclaimablePeriods;
+	type CurrentStakeWeight = CurrentStakeWeight;
+	type PayablePercentage = SigmoidPercentage<PointPercentage>;
+	type BlockNumberProvider = System;
+	type PositionItemId = u128;
+	type CollectionId = u128;
+	type NFTCollectionId = ConstU128<4200>;
+	type NFTHandler = Uniques;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1105,6 +1143,7 @@ construct_runtime!(
 		OTC: pallet_otc = 64,
 		CircuitBreaker: pallet_circuit_breaker = 65,
 		Router: pallet_route_executor = 67,
+		Staking: pallet_staking = 69,
 
 		// ORML related modules
 		Tokens: orml_tokens = 77,

@@ -185,19 +185,7 @@ parameter_types! {
 	pub const TimePointsPerPeriod: u8 = 2;
 	pub const CurrentStakeWeight: u8 = 2;
 	pub const UnclaimablePeriods: BlockNumber = 10;
-}
-
-pub struct SigmoidAdapter {}
-
-impl PayablePercentage<Point> for SigmoidAdapter {
-	type Error = ArithmeticError;
-
-	fn get(p: Point) -> Result<FixedU128, Self::Error> {
-		let a: FixedU128 = FixedU128::from_float(0.15_f64);
-		let b: u32 = 40_000;
-
-		math::sigmoid(p, a, b).map_err(|_| ArithmeticError::Overflow)
-	}
+	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
 }
 
 impl pallet_staking::Config for Test {
@@ -220,7 +208,7 @@ impl pallet_staking::Config for Test {
 	type NFTCollectionId = ConstU128<1>;
 	type NFTHandler = Uniques;
 
-	type PayablePercentage = SigmoidAdapter;
+	type PayablePercentage = SigmoidPercentage<PointPercentage>;
 }
 
 pub fn set_block_number(n: u64) {
