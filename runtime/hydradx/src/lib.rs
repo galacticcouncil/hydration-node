@@ -110,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 160,
+	spec_version: 161,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1022,6 +1022,7 @@ impl pallet_dca::Config for Runtime {
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
+	type MinimumTradingLimit = MinTradingLimit;
 	type FeeReceiver = TreasuryAccount;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
