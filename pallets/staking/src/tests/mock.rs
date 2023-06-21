@@ -16,14 +16,14 @@
 use crate::*;
 
 use frame_support::traits::Everything;
-use frame_support::PalletId;
+use frame_support::{assert_ok, PalletId};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, ConstU64, GenesisBuild, NeverEnsureOrigin},
 	weights::RuntimeDbWeight,
 };
 use frame_system::EnsureRoot;
-use orml_traits::{parameter_type_with_key, LockIdentifier};
+use orml_traits::{parameter_type_with_key, LockIdentifier, MultiCurrencyExtended};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -184,7 +184,7 @@ parameter_types! {
 	pub const ActionPointsW: Permill = Permill::from_percent(20);
 	pub const TimePointsPerPeriod: u8 = 2;
 	pub const CurrentStakeWeight: u8 = 2;
-	pub const UnclaimablePeriods: BlockNumber = 4;
+	pub const UnclaimablePeriods: BlockNumber = 10;
 }
 
 pub struct SigmoidAdapter {}
@@ -231,6 +231,8 @@ pub fn set_block_number(n: u64) {
 pub struct ExtBuilder {
 	endowed_accounts: Vec<(u64, AssetId, Balance)>,
 	initial_block_number: BlockNumber,
+	//(who, staked maount, created_at, pendig_rewards)
+	stakes: Vec<(AccountId, Balance, BlockNumber, Balance)>,
 }
 
 impl ExtBuilder {
@@ -239,6 +241,12 @@ impl ExtBuilder {
 		self
 	}
 
+	pub fn with_stakes(mut self, stakes: Vec<(AccountId, Balance, BlockNumber, Balance)>) -> Self {
+		self.stakes = stakes;
+		self
+	}
+
+	/// BlockNumber set before any action e.g. with_stakes()
 	pub fn start_at_block(mut self, n: BlockNumber) -> Self {
 		self.initial_block_number = n;
 		self
@@ -269,8 +277,23 @@ impl ExtBuilder {
 			} else {
 				set_block_number(self.initial_block_number);
 			}
+
+			for (who, staked_amount, at, pending_rewards) in self.stakes {
+				if !pending_rewards.is_zero() {
+					set_pending_rewards(pending_rewards);
+				}
+
+				set_block_number(at);
+				assert_ok!(Staking::stake(RuntimeOrigin::signed(who), staked_amount));
+			}
 		});
 
 		r
 	}
+}
+
+pub fn set_pending_rewards(amount: u128) {
+	let pot = Staking::pot_account_id();
+	assert_ok!(Tokens::update_balance(HDX, &pot, amount as i128));
+	Staking::add_pending_rewards(amount);
 }

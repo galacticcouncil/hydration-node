@@ -42,6 +42,14 @@ impl<BlockNumber> Position<BlockNumber> {
 			accumulated_locked_rewards: Zero::zero(),
 		}
 	}
+
+	/// Returns total amount of tokens locked under the postions.
+	/// Returne value is combination of `position.stake` and `accumulated_locked_rewards`.
+	pub fn get_total_locked(&self) -> Result<Balance, ArithmeticError> {
+		self.stake
+			.checked_add(self.accumulated_locked_rewards)
+			.ok_or(ArithmeticError::Overflow)
+	}
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]

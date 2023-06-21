@@ -15,11 +15,11 @@
 //! # Staking Pallet
 
 // TODO
-// * stake()
 //  * [] - nontransferable nft
 //  * [] - deposit for nft
 //  * [] - don't allow to skate vested tokens
 //  * [] - tests create/increase during UnclaimablePeriods
+//  * [] - user can stake already locked token multiple time so he can lock more than he have
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -241,7 +241,7 @@ pub mod pallet {
 			Staking::<T>::try_mutate(|staking| {
 				Self::reward_stakers(staking)?;
 
-				let (position_id, position_new_total_stake, position_new_locked_rewards, rewards, slashed_points) =
+				let (position_id, position_new_total_stake, amount_to_lock, locked_rewards, slashed_points) =
 					if let Some(position_id) = Self::get_user_position_id(&who)? {
 						Positions::<T>::try_mutate(
 							position_id,
@@ -254,24 +254,19 @@ pub mod pallet {
 
 								let (rewards, slashed_points) = Self::do_increase_stake(position, staking, amount, current_period, created_at)?;
 
-								if rewards.is_zero() {
-									let pot = Self::pot_account_id();
-									T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
-								}
+                                let pot = Self::pot_account_id();
+                                T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
 
-								Ok((position_id, position.stake, position.accumulated_locked_rewards, rewards, slashed_points))
+								Ok((position_id, position.stake, position.get_total_locked()?, rewards, slashed_points))
 							},
 						)?
 					} else {
 						let position_id =
 							Self::create_position_and_mint_nft(&who, amount, staking.accumulated_reward_per_stake)?;
 
-						(position_id, amount, 0, 0, 0)
+						(position_id, amount, amount, 0, 0)
 					};
 
-				let amount_to_lock = position_new_total_stake
-					.checked_add(position_new_locked_rewards)
-					.ok_or(ArithmeticError::Overflow)?;
 				T::Currency::set_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who, amount_to_lock)?;
 
 				staking.add_stake(amount)?;
@@ -281,7 +276,7 @@ pub mod pallet {
 					position_id,
 					stake: amount,
 					total_stake: position_new_total_stake,
-					locked_rewards: rewards,
+					locked_rewards,
 					slashed_points,
 				});
 
@@ -316,24 +311,15 @@ pub mod pallet {
 							created_at,
 						)?;
 
-					let rewards = claimable_rewards
+					let rewards_to_pay = claimable_rewards
 						.checked_add(claimable_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
-					if !rewards.is_zero() {
-						let pot = Self::pot_account_id();
-						T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
-					}
-
-					let tmp_locked_rewards = position
-						.accumulated_locked_rewards
-						.checked_sub(claimable_unpaid_rewards)
-						.ok_or(ArithmeticError::Overflow)?;
+					let pot = Self::pot_account_id();
+					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_pay)?;
 
 					let rewards_to_unlock = payable_percentage
-						.checked_mul_int(tmp_locked_rewards)
-						.ok_or(ArithmeticError::Overflow)?
-						.checked_sub(claimable_unpaid_rewards)
+						.checked_mul_int(position.accumulated_locked_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
 					position.accumulated_locked_rewards = position
@@ -348,37 +334,35 @@ pub mod pallet {
 						.checked_sub(claimable_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
-					let new_locked_amount = position
-						.stake
-						.checked_add(position.accumulated_locked_rewards)
-						.ok_or(ArithmeticError::Overflow)?;
-
-					//return what's left to redistribution
-					Self::add_pending_rewards(position.accumulated_unpaid_rewards);
-
-					//slash everything
-					let slashed_points = Self::get_points(position, current_period, created_at)?;
+					let points_to_slash = Self::get_points(position, current_period, created_at)?;
 					position.accumulated_slash_points = position
 						.accumulated_slash_points
-						.checked_add(slashed_points)
+						.checked_add(points_to_slash)
 						.ok_or(ArithmeticError::Overflow)?;
 
 					let slashed_unpaid_rewards = position.accumulated_unpaid_rewards;
 					position.accumulated_unpaid_rewards = Zero::zero();
 					position.reward_per_stake = staking.accumulated_reward_per_stake;
 
-					T::Currency::set_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who, new_locked_amount)?;
+					T::Currency::set_lock(
+						STAKING_LOCK_ID,
+						T::HdxAssetId::get(),
+						&who,
+						position.get_total_locked()?,
+					)?;
 
-					let unlocked_rewards = rewards_to_unlock
-						.checked_add(claimable_unpaid_rewards)
+					//return what's left to redistribution, will be removed
+					staking.pending_rew = staking
+						.pending_rew
+						.checked_add(slashed_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
 					Self::deposit_event(Event::RewardsClaimed {
 						who,
 						position_id: position_id.unwrap(),
-						paid_rewards: claimable_rewards,
-						unlocked_rewards,
-						slashed_points,
+						paid_rewards: rewards_to_pay,
+						unlocked_rewards: rewards_to_unlock,
+						slashed_points: points_to_slash,
 						slashed_unpaid_rewards,
 					});
 
@@ -436,7 +420,7 @@ impl<T: Config> Pallet<T> {
 	fn do_increase_stake(
 		position: &mut Position<T::BlockNumber>,
 		staking: &StakingData,
-		increment: Balance,
+		added_stake: Balance,
 		current_period: Period,
 		position_created_at: Period,
 	) -> Result<(Balance, Point), ArithmeticError> {
@@ -468,7 +452,7 @@ impl<T: Config> Pallet<T> {
 
 		let points = Self::get_points(&position, current_period, position_created_at)?;
 		let slash_points =
-			math::calculate_slashed_points(points, position.stake, increment, T::CurrentStakeWeight::get())
+			math::calculate_slashed_points(points, position.stake, added_stake, T::CurrentStakeWeight::get())
 				.map_err(|_| ArithmeticError::Overflow)?;
 
 		position.accumulated_slash_points = position
@@ -476,7 +460,10 @@ impl<T: Config> Pallet<T> {
 			.checked_add(slash_points)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		position.stake = position.stake.checked_add(increment).ok_or(ArithmeticError::Overflow)?;
+		position.stake = position
+			.stake
+			.checked_add(added_stake)
+			.ok_or(ArithmeticError::Overflow)?;
 
 		Ok((rewards_to_pay, slash_points))
 	}

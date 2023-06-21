@@ -277,8 +277,7 @@ fn increase_stake_should_slash_no_points_when_increase_is_small() {
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), staked_amount / 2));
 
 			let pending_rewards = 5_000 * ONE;
-			Tokens::update_balance(HDX, &pot, pending_rewards as i128).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 
 			set_block_number(1_600_000);
 
@@ -313,8 +312,7 @@ fn increase_stake_should_slash_all_points_when_increase_is_big() {
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), staked_amount / 2));
 
 			let pending_rewards = 5_000 * ONE;
-			Tokens::update_balance(HDX, &pot, pending_rewards as i128).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 
 			set_block_number(1_600_000);
 
@@ -347,8 +345,7 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 			assert_ok!(Staking::stake(RuntimeOrigin::signed(BOB), 50_000 * ONE));
 
 			let pending_rewards = 5_000 * ONE;
-			Tokens::update_balance(HDX, &pot, pending_rewards as i128).unwrap();
-			Staking::add_pending_rewards(pending_rewards);
+			set_pending_rewards(pending_rewards);
 
 			set_block_number(1_600_000);
 
