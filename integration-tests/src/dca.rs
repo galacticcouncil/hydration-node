@@ -1039,7 +1039,7 @@ fn sell_schedule_should_work_when_user_has_left_less_than_existential_deposit() 
 
 		//Assert
 		check_if_no_failed_events();
-		assert_balance!(ALICE.into(), HDX, alice_init_hdx_balance - dca_budget);
+		assert_balance!(ALICE.into(), HDX, 0);
 		assert_reserved_balance!(&ALICE.into(), HDX, 0);
 	});
 }

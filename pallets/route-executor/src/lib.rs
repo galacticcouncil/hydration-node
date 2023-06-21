@@ -183,7 +183,7 @@ pub mod pallet {
 			);
 
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
-				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, false);
+				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, true);
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -334,16 +334,17 @@ impl<T: Config> Pallet<T> {
 		user_balance_of_asset_in_before_trade: T::Balance,
 		spent_amount: T::Balance,
 	) -> Result<(), DispatchError> {
-		let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, false);
-		let user_expected_balance_of_asset_in_after_trade = user_balance_of_asset_in_before_trade
-			.checked_sub(&spent_amount)
-			.ok_or(Error::<T>::UnexpectedError)?;
+		if spent_amount < user_balance_of_asset_in_before_trade {
+			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
+			let user_expected_balance_of_asset_in_after_trade = user_balance_of_asset_in_before_trade
+				.checked_sub(&spent_amount)
+				.ok_or(Error::<T>::UnexpectedError)?;
 
-		ensure!(
-			user_expected_balance_of_asset_in_after_trade == user_balance_of_asset_in_after_trade,
-			Error::<T>::UnexpectedError
-		);
-
+			ensure!(
+				user_expected_balance_of_asset_in_after_trade == user_balance_of_asset_in_after_trade,
+				Error::<T>::UnexpectedError
+			);
+		}
 		Ok(())
 	}
 }
