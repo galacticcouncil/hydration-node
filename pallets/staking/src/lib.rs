@@ -20,6 +20,7 @@
 //  * [] - don't allow to skate vested tokens
 //  * [] - tests create/increase during UnclaimablePeriods
 //  * [] - user can stake already locked token multiple time so he can lock more than he have
+//  * [] - remove pending_rew from staking
 
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -206,6 +207,14 @@ pub mod pallet {
 			slashed_points: Point,
 			slashed_unpaid_rewards: Balance,
 		},
+
+		Unstaked {
+			who: T::AccountId,
+			position_id: T::PositionItemId,
+			unlocked_stake: Balance,
+			rewards: Balance,
+			unlocked_rewards: Balance,
+		},
 	}
 
 	#[pallet::error]
@@ -366,6 +375,67 @@ pub mod pallet {
 						slashed_points: points_to_slash,
 						slashed_unpaid_rewards,
 					});
+
+					Ok(())
+				})
+			})
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(1_000)]
+		pub fn unstake(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let position_id = Self::get_user_position_id(&who)?;
+			ensure!(position_id.is_some(), Error::<T>::PositionNotFound);
+
+			Staking::<T>::try_mutate(|staking| {
+				Self::reward_stakers(staking)?;
+
+				let position_id = position_id.unwrap();
+				Positions::<T>::try_mutate_exists(position_id, |maybe_position| {
+					//TODO: inconsistent state
+					let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+
+					let current_period = Self::get_current_period()?;
+					let created_at = Self::get_period_number(position.created_at)?;
+
+					let (claimable_rewards, claimable_unpaid_rewards, unpaid_rewards, _) = Self::calculate_rewards(
+						position,
+						staking.accumulated_reward_per_stake,
+						current_period,
+						created_at,
+					)?;
+
+					let rewards_to_pay = claimable_rewards
+						.checked_add(claimable_unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					let pot = Self::pot_account_id();
+					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_pay)?;
+
+					let return_to_pot = position
+						.accumulated_unpaid_rewards
+						.checked_add(unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?
+						.checked_sub(claimable_unpaid_rewards)
+						.ok_or(ArithmeticError::Overflow)?;
+
+					//TODO: will be removed
+					Self::add_pending_rewards(return_to_pot);
+
+					T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
+					T::Currency::remove_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who)?;
+
+					Self::deposit_event(Event::Unstaked {
+						who,
+						position_id,
+						unlocked_stake: position.stake,
+						rewards: rewards_to_pay,
+						unlocked_rewards: position.accumulated_locked_rewards,
+					});
+
+					*maybe_position = None;
 
 					Ok(())
 				})

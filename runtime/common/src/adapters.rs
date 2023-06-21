@@ -167,9 +167,9 @@ where
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
-	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Weight, Self::Error> {
+	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
 		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount)?;
-		Ok(Weight::zero())
+		Ok(Zero::zero())
 	}
 }
 
