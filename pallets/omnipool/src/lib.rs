@@ -1953,7 +1953,7 @@ impl<T: Config> Pallet<T> {
 	fn process_trade_fee(asset: T::AssetId, amount: Balance) -> DispatchResult {
 		let account = Self::protocol_account();
 		let asset_reserve = T::Currency::free_balance(asset, &account);
-		T::OmnipoolHooks::on_trade_fee(&account, asset, amount)?;
+		T::OmnipoolHooks::on_trade_fee(account.clone(), asset, amount)?;
 		let updated_asset_reserve = T::Currency::free_balance(asset, &account);
 		ensure!(
 			updated_asset_reserve >= asset_reserve.saturating_sub(amount),

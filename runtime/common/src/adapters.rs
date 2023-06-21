@@ -43,7 +43,9 @@ impl<Origin, Lrna, Runtime> OmnipoolHooks<Origin, AccountId, AssetId, Balance>
 	for OmnipoolHookAdapter<Origin, Lrna, Runtime>
 where
 	Lrna: Get<AssetId>,
-	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<RuntimeOrigin = Origin>,
+	Runtime: pallet_ema_oracle::Config + pallet_circuit_breaker::Config + frame_system::Config<RuntimeOrigin = Origin> + pallet_staking::Config,
+	<Runtime as frame_system::Config>::AccountId: From<AccountId>,
+	<Runtime as pallet_staking::Config>::AssetId: From<AssetId>,
 {
 	type Error = DispatchError;
 
@@ -162,7 +164,8 @@ where
 		w1.saturating_add(w2).saturating_add(w3)
 	}
 
-	fn on_trade_fee(_fee_account: &AccountId, _asset: AssetId, _amount: Balance) -> Result<Weight, Self::Error> {
+	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Weight, Self::Error> {
+		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount)?;
 		Ok(Weight::zero())
 	}
 }

@@ -609,7 +609,7 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn process_trade_fee(source: &T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult{
+	pub fn process_trade_fee(source: T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult{
 		Ok(())
 	}
 }

@@ -1229,6 +1229,7 @@ dependencies = [
  "pallet-proxy",
  "pallet-route-executor",
  "pallet-scheduler",
+ "pallet-staking 1.0.0",
  "pallet-timestamp",
  "pallet-tips",
  "pallet-transaction-multi-payment",

@@ -37,6 +37,7 @@ pallet-ema-oracle = { workspace = true }
 warehouse-liquidity-mining = { workspace = true }
 pallet-route-executor = { workspace = true }
 pallet-duster = { workspace = true }
+pallet-staking = { workspace = true }
 
 # Substrate dependencies
 sp-runtime = { workspace = true }
