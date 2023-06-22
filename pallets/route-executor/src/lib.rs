@@ -136,10 +136,10 @@ pub mod pallet {
 		RouteHasNoTrades,
 		///The user has not enough balance to execute the trade
 		InsufficientBalance,
-		///The balance after the trade is not as expected according to the trade amount
-		PostBalanceCheckError,
+		///The route execution failed in the underlying AMM
+		InvalidRouteExecution,
 		///The calculation of route trade amounts failed in the underlying AMM
-		AmmTradeAmountCalculationError,
+		RouteCalculationFailed,
 	}
 
 	#[pallet::call]
@@ -178,7 +178,7 @@ pub mod pallet {
 
 			let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::AmmTradeAmountCalculationError)?;
+			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(
 				last_trade_amount.amount_out >= min_amount_out,
 				Error::<T>::TradingLimitReached
@@ -252,7 +252,7 @@ pub mod pallet {
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::AmmTradeAmountCalculationError)?;
+			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(
 				last_trade_amount.amount_in <= max_amount_in,
 				Error::<T>::TradingLimitReached
@@ -324,7 +324,7 @@ impl<T: Config> Pallet<T> {
 
 		ensure!(
 			user_balance_of_asset_out_after_trade == user_expected_balance_of_asset_out_after_trade,
-			Error::<T>::PostBalanceCheckError
+			Error::<T>::InvalidRouteExecution
 		);
 
 		Ok(())
@@ -340,7 +340,7 @@ impl<T: Config> Pallet<T> {
 			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
 			ensure!(
 				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
-				Error::<T>::PostBalanceCheckError
+				Error::<T>::InvalidRouteExecution
 			);
 		}
 		Ok(())
