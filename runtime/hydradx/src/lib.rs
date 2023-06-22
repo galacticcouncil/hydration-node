@@ -1028,6 +1028,7 @@ impl pallet_dca::Config for Runtime {
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
+	type MinimumTradingLimit = MinTradingLimit;
 	type FeeReceiver = TreasuryAccount;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
