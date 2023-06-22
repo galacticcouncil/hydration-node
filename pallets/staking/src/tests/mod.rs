@@ -8,8 +8,9 @@ use orml_tokens::BalanceLock;
 mod claim;
 pub(crate) mod mock;
 mod stake;
+mod unstake;
 
-/// Assert amount of locked tokens.
+/// Assert amount of locked tokens. `amount == 0` asserts no lock.
 ///
 /// Parameters:
 /// - `who`
@@ -21,7 +22,11 @@ macro_rules! assert_hdx_lock {
 		let locks = Tokens::locks($x, HDX);
 		let lock = locks.iter().find(|e| e.id == $z);
 
-		assert_eq!(lock, Some(&BalanceLock { id: $z, amount: $y }));
+		if $y == 0 {
+			assert_eq!(lock, None);
+		} else {
+			assert_eq!(lock, Some(&BalanceLock { id: $z, amount: $y }));
+		}
 	};
 }
 

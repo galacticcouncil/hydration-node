@@ -1,7 +1,6 @@
 use super::*;
 
 use mock::Staking;
-use orml_traits::MultiCurrencyExtended;
 use pretty_assertions::assert_eq;
 use sp_runtime::FixedU128;
 

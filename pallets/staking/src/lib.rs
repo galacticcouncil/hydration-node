@@ -414,6 +414,11 @@ pub mod pallet {
 					let pot = Self::pot_account_id();
 					T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards_to_pay)?;
 
+					staking.total_stake = staking
+						.total_stake
+						.checked_sub(position.stake)
+						.ok_or(ArithmeticError::Overflow)?;
+
 					let return_to_pot = position
 						.accumulated_unpaid_rewards
 						.checked_add(unpaid_rewards)
@@ -421,8 +426,8 @@ pub mod pallet {
 						.checked_sub(claimable_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
-					//TODO: will be removed
-					Self::add_pending_rewards(return_to_pot);
+					//TODO: tmp will be removed
+					staking.pending_rew += return_to_pot;
 
 					T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 					T::Currency::remove_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who)?;
