@@ -169,7 +169,7 @@ where
 
 	fn on_trade_fee(fee_account: AccountId, asset: AssetId, amount: Balance) -> Result<Balance, Self::Error> {
 		pallet_staking::Pallet::<Runtime>::process_trade_fee(fee_account.into(), asset.into(), amount)?;
-		Ok(Zero::zero())
+		Ok(amount)
 	}
 }
 
