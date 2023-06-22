@@ -363,14 +363,14 @@ parameter_types! {
 	pub AssetFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(25u32,10000u32),
 		max_fee: Permill::from_rational(4u32,1000u32),
-		decay: FixedU128::zero(),
+		decay: FixedU128::from_rational(5,1000000);
 		amplification: FixedU128::one(),
 	};
 
 	pub ProtocolFeeParams: FeeParams<Permill> = FeeParams{
 		min_fee: Permill::from_rational(5u32,10000u32),
-		max_fee: Permill::from_rational(4u32,1000u32),
-		decay: FixedU128::zero(),
+		max_fee: Permill::from_rational(1u32,1000u32),
+		decay: FixedU128::from_rational(5,1000000);
 		amplification: FixedU128::one(),
 	};
 }
