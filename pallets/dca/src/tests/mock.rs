@@ -646,6 +646,7 @@ impl Config for Test {
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type TechnicalOrigin = EnsureRoot<Self::AccountId>;
 	type RelayChainBlockHashProvider = ParentHashGetterMock;
+	type MinimumTradingLimit = MinTradeAmount;
 }
 
 pub struct ParentHashGetterMock {}
@@ -753,6 +754,7 @@ pub struct ExtBuilder {
 	init_pool: Option<(FixedU128, FixedU128)>,
 	pool_tokens: Vec<(AssetId, FixedU128, AccountId, Balance)>,
 	max_price_difference: Permill,
+	min_trading_limit: Balance,
 }
 
 impl Default for ExtBuilder {
@@ -775,6 +777,7 @@ impl Default for ExtBuilder {
 			register_stable_asset: true,
 			pool_tokens: vec![],
 			max_price_difference: Permill::from_percent(10),
+			min_trading_limit: 1000,
 		}
 	}
 }
@@ -787,6 +790,11 @@ impl ExtBuilder {
 
 	pub fn with_max_price_difference(mut self, price_diff: Permill) -> Self {
 		self.max_price_difference = price_diff;
+		self
+	}
+
+	pub fn with_min_trading_limit(mut self, limit: Balance) -> Self {
+		self.min_trading_limit = limit;
 		self
 	}
 
@@ -806,6 +814,10 @@ impl ExtBuilder {
 
 		MAX_PRICE_DIFFERENCE.with(|v| {
 			*v.borrow_mut() = self.max_price_difference;
+		});
+
+		MIN_TRADE_AMOUNT.with(|v| {
+			*v.borrow_mut() = self.min_trading_limit;
 		});
 
 		let mut initial_native_accounts: Vec<(AccountId, Balance)> = vec![(ASSET_PAIR_ACCOUNT, 10000 * ONE)];
