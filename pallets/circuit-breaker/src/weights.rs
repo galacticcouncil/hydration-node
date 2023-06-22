@@ -69,7 +69,9 @@ impl WeightInfo for () {
 	fn on_finalize_single_liquidity_limit_entry() -> Weight {
 		Weight::zero()
 	}
-	fn on_finalize_single_trade_limit_entry() -> Weight { Weight::zero() }
+	fn on_finalize_single_trade_limit_entry() -> Weight {
+		Weight::zero()
+	}
 	fn on_finalize_empty() -> Weight {
 		Weight::zero()
 	}
