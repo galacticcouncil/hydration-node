@@ -7242,7 +7242,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10092,7 +10092,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.15"
+version = "1.7.16"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
