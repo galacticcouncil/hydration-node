@@ -1067,7 +1067,7 @@ impl pallet_otc::Config for Runtime {
 }
 
 parameter_types! {
-	pub const DynamicFeesOraclePeriod: OraclePeriod = OraclePeriod::LastBlock;
+	pub const DynamicFeesOraclePeriod: OraclePeriod = OraclePeriod::Short;
 }
 
 impl pallet_dynamic_fees::Config for Runtime {

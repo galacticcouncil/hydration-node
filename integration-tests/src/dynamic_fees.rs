@@ -62,15 +62,13 @@ fn fees_should_initialize_lazily_to_min_value_when_first_trade_happens() {
 		));
 
 		let asset_fee_params = <hydradx_runtime::Runtime as pallet_dynamic_fees::Config>::AssetFeeParameters::get();
-		let protocol_fee_params =
-			<hydradx_runtime::Runtime as pallet_dynamic_fees::Config>::ProtocolFeeParameters::get();
 
 		//Assert
 		assert_eq!(
 			hydradx_runtime::DynamicFees::current_fees(HDX).unwrap(),
 			FeeEntry {
 				asset_fee: asset_fee_params.min_fee,
-				protocol_fee: protocol_fee_params.min_fee,
+				protocol_fee: Permill::from_float(0.000788_f64),
 				timestamp: 10_u32
 			}
 		);
@@ -100,15 +98,13 @@ fn fees_should_initialize_lazily_to_min_value_when_first_buy_happens() {
 		));
 
 		let asset_fee_params = <hydradx_runtime::Runtime as pallet_dynamic_fees::Config>::AssetFeeParameters::get();
-		let protocol_fee_params =
-			<hydradx_runtime::Runtime as pallet_dynamic_fees::Config>::ProtocolFeeParameters::get();
 
 		//Assert
 		assert_eq!(
 			hydradx_runtime::DynamicFees::current_fees(HDX).unwrap(),
 			FeeEntry {
 				asset_fee: asset_fee_params.min_fee,
-				protocol_fee: protocol_fee_params.min_fee,
+				protocol_fee: Permill::from_float(0.000788_f64),
 				timestamp: 10_u32
 			}
 		);
@@ -154,7 +150,7 @@ fn fees_should_change_when_buys_happen_in_different_blocks() {
 			current_fee,
 			FeeEntry {
 				asset_fee: Permill::from_float(0.0025_f64),
-				protocol_fee: Permill::from_float(0.000957_f64),
+				protocol_fee: Permill::from_float(0.001_f64),
 				timestamp: 11_u32
 			}
 		);
@@ -197,8 +193,8 @@ fn fees_should_change_when_sells_happen_in_different_blocks() {
 		assert_eq!(
 			current_fee,
 			FeeEntry {
-				asset_fee: Permill::from_float(0.002954_f64),
-				protocol_fee: Permill::from_float(0.0005_f64),
+				asset_fee: Permill::from_float(0.0025_f64),
+				protocol_fee: Permill::from_float(0.000926_f64),
 				timestamp: 11_u32
 			}
 		);
@@ -241,8 +237,8 @@ fn fees_should_change_when_trades_happen_in_different_blocks() {
 		assert_eq!(
 			current_fee,
 			FeeEntry {
-				asset_fee: Permill::from_float(0.002954_f64),
-				protocol_fee: Permill::from_float(0.0005_f64),
+				asset_fee: Permill::from_float(0.0025_f64),
+				protocol_fee: Permill::from_float(0.000926_f64),
 				timestamp: 11_u32
 			}
 		);
@@ -285,8 +281,8 @@ fn fees_should_change_only_one_when_trades_happen_in_the_same_block() {
 		assert_eq!(
 			current_fee,
 			FeeEntry {
-				asset_fee: Permill::from_float(0.002954_f64),
-				protocol_fee: Permill::from_float(0.0005_f64),
+				asset_fee: Permill::from_float(0.0025_f64),
+				protocol_fee: Permill::from_float(0.000926_f64),
 				timestamp: 11_u32
 			}
 		);
