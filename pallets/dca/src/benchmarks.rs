@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![cfg(feature = "runtime-benchmarks")]
-#![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the ACT block
+#![allow(unused_assignments)] // At test `on_initialize_with_empty_block` it does not recognize the assignment in the Act block
 
 use super::*;
 
@@ -31,13 +31,20 @@ use sp_runtime::Permill;
 
 pub type AssetId = u32;
 
-pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000;
+pub const TVL_CAP: Balance = 222_222_000_000_000_000_000_000_000;
 
 pub const HDX: AssetId = 0;
 pub const LRNA: AssetId = 1;
 pub const DAI: AssetId = 2;
 
 pub const ONE: Balance = 1_000_000_000_000;
+
+// This is the the sum of all "randomly" generated radiuses.
+// In tests the radiuses are always the same as we use a fixed parent hash for generation,
+// so it will always generate the same values
+pub const DELAY_AFTER_LAST_RADIUS: u32 = 1854;
+
+pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 10;
 
 fn schedule_fake<T: Config + pallet_route_executor::Config + pallet_omnipool::Config>(
 	owner: T::AccountId,
@@ -114,7 +121,7 @@ fn schedule_sell_fake<T: Config + pallet_route_executor::Config + pallet_omnipoo
 		total_amount: 2000 * ONE,
 		max_retries: None,
 		stability_threshold: None,
-		slippage: Some(Permill::from_percent(30)),
+		slippage: Some(Permill::from_percent(100)),
 		order: Order::Sell {
 			asset_in,
 			asset_out,
@@ -169,8 +176,8 @@ where
 	<T as pallet_route_executor::Config>::AssetId: From<u32>,
 	<T as pallet_omnipool::Config>::AssetId: From<u32>,
 {
-	let stable_amount: Balance = 5_000_000_000_000_000_000_000u128;
-	let native_amount: Balance = 5_000_000_000_000_000_000_000u128;
+	let stable_amount: Balance = 5_000_000_000_000_000_000_000_000u128;
+	let native_amount: Balance = 5_000_000_000_000_000_000_000_000u128;
 	let stable_price: FixedU128 = FixedU128::from((1, 2));
 	let native_price: FixedU128 = FixedU128::from(1);
 	let acc = OmnipoolPallet::<T>::protocol_account();
@@ -286,7 +293,7 @@ benchmarks! {
 		let seller: T::AccountId = account("seller", 3, 1);
 		let other_seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_buy = 20 * ONE;
+		let amount_buy = 200 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000_000_000i128)?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(0u32.into(), &seller, 500_000_000_000_000i128)?;
@@ -314,15 +321,15 @@ benchmarks! {
 		for i in 0..number_of_all_schedules {
 			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan.into())));
 		}
-		let delay_with = 2u32.pow(RETRY_TO_SEARCH_FOR_FREE_BLOCK) - 1;
-		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
 		let new_dai_balance = <T as pallet_omnipool::Config>::Currency::free_balance(DAI.into(), &seller);
 		assert_eq!(new_dai_balance, amount_buy);
-		assert_eq!(T::MaxSchedulePerBlock::get() as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
 	on_initialize_with_sell_trade{
@@ -332,7 +339,7 @@ benchmarks! {
 		let seller: T::AccountId = account("seller", 3, 1);
 		let other_seller: T::AccountId = account("seller", 3, 1);
 
-		let amount_sell = 10 * ONE;
+		let amount_sell = 100 * ONE;
 
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &seller, 20_000_000_000_000_000i128)?;
 
@@ -359,15 +366,14 @@ benchmarks! {
 		for i in 0..number_of_all_schedules {
 			assert_ok!(crate::Pallet::<T>::schedule(RawOrigin::Signed(other_seller.clone()).into(), schedule1.clone(), Option::Some(next_block_to_replan.into())));
 		}
-		let delay_with = 2u32.pow(RETRY_TO_SEARCH_FOR_FREE_BLOCK) - 1 ;
-		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}: {
 		crate::Pallet::<T>::on_initialize(execution_block.into());
 	}
 	verify {
 		let new_dai_balance = <T as pallet_omnipool::Config>::Currency::free_balance(T::StableCoinAssetId::get(), &seller);
 		assert!(new_dai_balance > 0);
-		assert_eq!(T::MaxSchedulePerBlock::get() as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + delay_with).into()).len());
+		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((next_block_to_replan + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
 	on_initialize_with_empty_block{
@@ -392,10 +398,9 @@ benchmarks! {
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &caller, 100_000_000_000_000_000_000_000i128)?;
 
-		let amount_sell = 20_000_000_000_000u128;
+		let amount_sell = 200 * ONE;
 		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let execution_block = 100u32;
-		let one_block_after_execution_block = execution_block + 1;
 
 		//We fill blocks with schedules leaving only one place
 		let number_of_all_schedules = T::MaxSchedulePerBlock::get() + T::MaxSchedulePerBlock::get() * RETRY_TO_SEARCH_FOR_FREE_BLOCK - 1;
@@ -405,15 +410,13 @@ benchmarks! {
 
 		let schedule_id : ScheduleId = number_of_all_schedules;
 
+		assert_eq!((T::MaxSchedulePerBlock::get() - 1) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + DELAY_AFTER_LAST_RADIUS).into()).len());
+
 	}: _(RawOrigin::Signed(caller.clone()), schedule1, Option::Some(execution_block.into()))
 	verify {
 		assert!(<Schedules<T>>::get::<ScheduleId>(schedule_id).is_some());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>(execution_block.into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 1u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 3u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 7u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 15u32).into()).len());
-		assert_eq!(20, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + 31u32).into()).len());
+
+		assert_eq!((T::MaxSchedulePerBlock::get()) as usize, <ScheduleIdsPerBlock<T>>::get::<BlockNumberFor<T>>((execution_block + DELAY_AFTER_LAST_RADIUS).into()).len());
 	}
 
 	terminate {
@@ -421,7 +424,7 @@ benchmarks! {
 		let caller: T::AccountId = create_account_with_native_balance::<T>()?;
 		<T as pallet_omnipool::Config>::Currency::update_balance(HDX.into(), &caller, 100_000_000_000_000_000i128)?;
 
-		let amount_sell = 20_000_000_000_000u128;
+		let amount_sell = 200 * ONE;
 		let schedule1 = schedule_fake::<T>(caller.clone(), HDX.into(), DAI.into(), amount_sell);
 		let schedule_id : ScheduleId = 0;
 

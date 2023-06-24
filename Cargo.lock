@@ -3744,7 +3744,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx"
-version = "9.0.1"
+version = "10.0.0"
 dependencies = [
  "clap 4.3.0",
  "common-runtime",
@@ -3816,7 +3816,6 @@ dependencies = [
  "sp-trie",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
- "testing-hydradx-runtime",
  "try-runtime-cli",
 ]
 
@@ -3839,7 +3838,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "159.0.0"
+version = "162.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -6221,7 +6220,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-asset-registry"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6576,7 +6575,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-dca"
-version = "1.1.0"
+version = "1.1.5"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -6962,26 +6961,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-nft"
-version = "7.1.1"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "hydradx-traits",
- "orml-utilities",
- "pallet-balances",
- "pallet-uniques",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-nis"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -7181,24 +7160,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-price-oracle"
-version = "0.3.3"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "hydradx-traits",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-std",
- "test-utils",
-]
-
-[[package]]
 name = "pallet-proxy"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38#bcff60a227d455d95b4712b6cb356ce56b1ff672"
@@ -7281,7 +7242,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9373,7 +9334,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "5.7.2"
+version = "5.7.3"
 dependencies = [
  "frame-support",
  "hex-literal 0.3.4",
@@ -10131,7 +10092,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.11"
+version = "1.7.16"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -13042,105 +13003,6 @@ version = "1.1.1"
 dependencies = [
  "frame-system",
  "pretty_assertions",
-]
-
-[[package]]
-name = "testing-hydradx-runtime"
-version = "159.0.0"
-dependencies = [
- "common-runtime",
- "cumulus-pallet-aura-ext",
- "cumulus-pallet-dmp-queue",
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-xcm",
- "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
- "cumulus-primitives-timestamp",
- "cumulus-primitives-utility",
- "frame-benchmarking",
- "frame-executive",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal 0.3.4",
- "hydradx-adapters",
- "hydradx-traits",
- "orml-benchmarking",
- "orml-tokens",
- "orml-traits",
- "orml-unknown-tokens",
- "orml-vesting",
- "orml-xcm",
- "orml-xcm-support",
- "orml-xtokens",
- "pallet-asset-registry",
- "pallet-aura",
- "pallet-authorship",
- "pallet-balances",
- "pallet-circuit-breaker",
- "pallet-claims",
- "pallet-collator-rewards",
- "pallet-collator-selection",
- "pallet-collective",
- "pallet-currencies",
- "pallet-dca",
- "pallet-democracy",
- "pallet-duster",
- "pallet-elections-phragmen",
- "pallet-ema-oracle",
- "pallet-genesis-history",
- "pallet-identity",
- "pallet-liquidity-mining",
- "pallet-multisig",
- "pallet-omnipool",
- "pallet-omnipool-liquidity-mining",
- "pallet-otc",
- "pallet-preimage",
- "pallet-proxy",
- "pallet-relaychain-info",
- "pallet-route-executor",
- "pallet-scheduler",
- "pallet-session",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-tips",
- "pallet-transaction-multi-payment",
- "pallet-transaction-pause",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
- "pallet-uniques",
- "pallet-utility",
- "pallet-xcm",
- "parachain-info",
- "parity-scale-codec",
- "polkadot-parachain",
- "primitives",
- "scale-info",
- "serde",
- "smallvec",
- "sp-api",
- "sp-block-builder",
- "sp-consensus-aura",
- "sp-core",
- "sp-externalities",
- "sp-inherents",
- "sp-io",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-std",
- "sp-transaction-pool",
- "sp-trie",
- "sp-version",
- "substrate-build-script-utils",
- "substrate-wasm-builder",
- "xcm",
- "xcm-builder",
- "xcm-executor",
 ]
 
 [[package]]

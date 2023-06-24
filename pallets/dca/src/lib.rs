@@ -19,21 +19,47 @@
 //!
 //! ## Overview
 //!
-//! A dollar-cost averaging pallet that enables users to perform repeating orders.
+//! The DCA pallet provides dollar-cost averaging functionality, allowing users to perform repeating orders.
+//! This pallet enables the creation, execution and termination of schedules.
 //!
-//! When an order is submitted, it will reserve the total amount (budget) specified by the user.
+//! ## Creating a Schedule
 //!
-//! A named reserve is allocated for the reserved amount of all DCA held by each user.
+//! Users can create a DCA schedule, which is planned to execute in a specific block.
+//! If the block is not specified, the execution is planned for the next block.
+//! In case the given block is full, the execution will be scheduled for the subsequent block.
 //!
-//! The DCA plan is executed as long as there is remaining balance in the budget.
+//! Upon creating a schedule, the user specifies a budget (`total_amount`) that will be reserved.
+//! The currency of this reservation is the sold (`amount_in`) currency.
 //!
-//! If a trade fails due to specific errors whitelisted in the pallet config,
-//! then retry happens up to the maximum number of retries specified also as config.
-//! Once the max number of retries reached, the order is terminated permanently.
+//! ### Executing a Schedule
 //!
-//! If a trade fails due to other kind of errors, the order is terminated permanently without any retry logic.
+//! Orders are executed during block initialization and are sorted based on randomness derived from the relay chain block hash.
 //!
-//! Orders are executed on block initialize and they are sorted based on randomness derived from relay chain block hash.
+//! A trade is executed and replanned as long as there is remaining budget from the initial allocation.
+//!
+//! For both successful and failed trades, a fee is deducted from the schedule owner.
+//! The fee is deducted in the sold (`amount_in`) currency.
+//!
+//! A trade can fail due to two main reasons:
+//!
+//! 1. Price Stability Error: If the price difference between the short oracle price and the current price
+//! exceeds the specified threshold. The user can customize this threshold,
+//! or the default value from the pallet configuration will be used.
+//! 2. Slippage Error: If the minimum amount out (sell) or maximum amount in (buy) slippage limits are not reached.
+//! These limits are calculated based on the last block's oracle price and the user-specified slippage.
+//! If no slippage is specified, the default value from the pallet configuration will be used.
+//!
+//! If a trade fails due to these errors, the trade will be retried.
+//! If the number of retries reaches the maximum number of retries, the schedule will be permanently terminated.
+//! In the case of a successful trade, the retry counter is reset.
+//!
+//! If a trade fails due to other types of errors, the order is terminated without any retry logic.
+//!
+//! ## Terminating a Schedule
+//!
+//! Both users and technical origin can terminate a DCA schedule. However, users can only terminate schedules that they own.
+//!
+//! Once a schedule is terminated, it is completely and permanently removed from the blockchain.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -83,7 +109,8 @@ use crate::types::*;
 type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 
 pub const SHORT_ORACLE_BLOCK_PERIOD: u32 = 10;
-pub const RETRY_TO_SEARCH_FOR_FREE_BLOCK: u32 = 5;
+pub const MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING: u32 = 10;
+pub const FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT: Balance = 20;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -110,16 +137,7 @@ pub mod pallet {
 		fn on_initialize(current_blocknumber: T::BlockNumber) -> Weight {
 			let mut weight = <T as pallet::Config>::WeightInfo::on_initialize_with_empty_block();
 
-			let mut randomness_generator = match T::RandomnessProvider::generator() {
-				Ok(generator) => generator,
-				Err(err) => {
-					Self::deposit_event(Event::RandomnessGenerationFailed {
-						block: current_blocknumber,
-						error: err,
-					});
-					rand::rngs::StdRng::seed_from_u64(0)
-				}
-			};
+			let mut randomness_generator = Self::get_randomness_generator(current_blocknumber, None);
 
 			let mut schedule_ids: Vec<ScheduleId> = ScheduleIdsPerBlock::<T>::take(current_blocknumber).to_vec();
 
@@ -138,9 +156,13 @@ pub mod pallet {
 				let weight_for_single_execution = Self::get_trade_weight(&schedule.order);
 				weight.saturating_accrue(weight_for_single_execution);
 
-				if let Err(e) =
-					Self::prepare_schedule(current_blocknumber, weight_for_single_execution, schedule_id, &schedule)
-				{
+				if let Err(e) = Self::prepare_schedule(
+					current_blocknumber,
+					weight_for_single_execution,
+					schedule_id,
+					&schedule,
+					&mut randomness_generator,
+				) {
 					if e != Error::<T>::PriceUnstable.into() {
 						Self::terminate_schedule(schedule_id, &schedule, e);
 					};
@@ -149,8 +171,13 @@ pub mod pallet {
 
 				match Self::execute_trade(schedule_id, &schedule) {
 					Ok(amounts) => {
-						if let Err(err) = Self::replan_or_complete(schedule_id, &schedule, current_blocknumber, amounts)
-						{
+						if let Err(err) = Self::replan_or_complete(
+							schedule_id,
+							&schedule,
+							current_blocknumber,
+							amounts,
+							&mut randomness_generator,
+						) {
 							Self::terminate_schedule(schedule_id, &schedule, err);
 						}
 					}
@@ -166,7 +193,7 @@ pub mod pallet {
 						{
 							Self::terminate_schedule(schedule_id, &schedule, error);
 						} else if let Err(retry_error) =
-							Self::retry_schedule(schedule_id, &schedule, current_blocknumber)
+							Self::retry_schedule(schedule_id, &schedule, current_blocknumber, &mut randomness_generator)
 						{
 							Self::terminate_schedule(schedule_id, &schedule, retry_error);
 						}
@@ -217,6 +244,10 @@ pub mod pallet {
 		///The number of max retries in case of trade limit error
 		#[pallet::constant]
 		type MaxNumberOfRetriesOnError: Get<u8>;
+
+		/// Minimum trading limit for a single trade
+		#[pallet::constant]
+		type MinimumTradingLimit: Get<Balance>;
 
 		/// Native Asset Id
 		#[pallet::constant]
@@ -286,8 +317,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		///Schedule not exist
 		ScheduleNotFound,
-		///Trade amount is less than fee
-		TradeAmountIsLessThanFee,
+		///The min trade amount is not reached
+		MinTradeAmountNotReached,
 		///Forbidden as the user is not the owner of the schedule
 		Forbidden,
 		///The next execution block number is not in the future
@@ -308,7 +339,7 @@ pub mod pallet {
 		MaxRetryReached,
 		///Absolutely trade limit reached reached, leading to retry
 		TradeLimitReached,
-		///Slippage limit calculated from oracle ir reached, leading to retry
+		///Slippage limit calculated from oracle is reached, leading to retry
 		SlippageLimitReached,
 		///The route to execute the trade on is not specified
 		RouteNotSpecified,
@@ -357,10 +388,22 @@ pub mod pallet {
 		<T as pallet_route_executor::Config>::Balance: From<Balance>,
 		Balance: From<<T as pallet_route_executor::Config>::Balance>,
 	{
-		/// Creates a new DCA schedule and plans the execution in the specified start execution block.
-		/// If start execution block number is not specified, then the schedule is planned in the consequent block.
+		/// Creates a new DCA (Dollar-Cost Averaging) schedule and plans the next execution
+		/// for the specified block.
 		///
-		/// The order will be executed within the configured AMM trade pool
+		/// If the block is not specified, the execution is planned for the next block.
+		/// If the given block is full, the execution will be planned in the subsequent block.
+		///
+		/// Once the schedule is created, the specified `total_amount` will be reserved for DCA.
+		/// The reservation currency will be the `amount_in` currency of the order.
+		///
+		/// Trades are executed as long as there is budget remaining
+		/// from the initial `total_amount` allocation.
+		///
+		/// If a trade fails due to slippage limit or price stability errors, it will be retried.
+		/// If the number of retries reaches the maximum allowed,
+		/// the schedule will be terminated permanently.
+		/// In the case of a successful trade, the retry counter is reset.
 		///
 		/// Parameters:
 		/// - `origin`: schedule owner
@@ -399,7 +442,15 @@ pub mod pallet {
 					amount_out, ref route, ..
 				} => Self::get_amount_in_for_buy(&amount_out, route)?,
 			};
-			ensure!(amount_in > transaction_fee, Error::<T>::TradeAmountIsLessThanFee);
+			let min_trade_amount_in_from_fee = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
+			ensure!(
+				amount_in >= min_trade_amount_in_from_fee,
+				Error::<T>::MinTradeAmountNotReached
+			);
+			ensure!(
+				amount_in >= T::MinimumTradingLimit::get(),
+				Error::<T>::MinTradeAmountNotReached
+			);
 
 			let amount_in_with_transaction_fee = amount_in
 				.checked_add(transaction_fee)
@@ -430,7 +481,16 @@ pub mod pallet {
 
 			let blocknumber_for_first_schedule_execution = Self::get_next_execution_block(start_execution_block)?;
 
-			Self::plan_schedule_for_block(&who, blocknumber_for_first_schedule_execution, next_schedule_id)?;
+			let mut randomness_generator = Self::get_randomness_generator(
+				frame_system::Pallet::<T>::current_block_number(),
+				Some(next_schedule_id),
+			);
+			Self::plan_schedule_for_block(
+				&who,
+				blocknumber_for_first_schedule_execution,
+				next_schedule_id,
+				&mut randomness_generator,
+			)?;
 
 			Self::deposit_event(Event::Scheduled {
 				id: next_schedule_id,
@@ -440,7 +500,9 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Admin endpoint to terminate a DCA schedule and remove it completely from the chain.
+		/// Terminates a DCA schedule and remove it completely from the chain.
+		///
+		/// This can be called by both schedule owner or the configured `T::TechnicalOrigin`
 		///
 		/// Parameters:
 		/// - `origin`: schedule owner
@@ -448,6 +510,7 @@ pub mod pallet {
 		/// - `next_execution_block`: block number where the schedule is planned.
 		///
 		/// Emits `Terminated` event when successful.
+		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::terminate())]
 		#[transactional]
@@ -504,6 +567,19 @@ where
 	<T as pallet_route_executor::Config>::Balance: From<Balance>,
 	Balance: From<<T as pallet_route_executor::Config>::Balance>,
 {
+	fn get_randomness_generator(current_blocknumber: T::BlockNumber, salt: Option<u32>) -> StdRng {
+		match T::RandomnessProvider::generator(salt) {
+			Ok(generator) => generator,
+			Err(err) => {
+				Self::deposit_event(Event::RandomnessGenerationFailed {
+					block: current_blocknumber,
+					error: err,
+				});
+				rand::rngs::StdRng::seed_from_u64(0)
+			}
+		}
+	}
+
 	fn get_next_execution_block(
 		start_execution_block: Option<BlockNumberFor<T>>,
 	) -> Result<BlockNumberFor<T>, DispatchError> {
@@ -527,6 +603,7 @@ where
 		weight_for_dca_execution: Weight,
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		Self::take_transaction_fee_from_user(schedule_id, schedule, weight_for_dca_execution)?;
 
@@ -536,7 +613,7 @@ where
 				who: schedule.owner.clone(),
 				error: Error::<T>::PriceUnstable.into(),
 			});
-			Self::retry_schedule(schedule_id, schedule, current_blocknumber)?;
+			Self::retry_schedule(schedule_id, schedule, current_blocknumber, randomness_generator)?;
 
 			return Err(Error::<T>::PriceUnstable.into());
 		}
@@ -648,6 +725,7 @@ where
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
 		current_blocknumber: T::BlockNumber,
 		amounts: AmountInAndOut<Balance>,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		Self::deposit_event(Event::TradeExecuted {
 			id: schedule_id,
@@ -661,8 +739,8 @@ where
 		let remaining_amount: Balance =
 			RemainingAmounts::<T>::get(schedule_id).defensive_ok_or(Error::<T>::InvalidState)?;
 		let transaction_fee = Self::get_transaction_fee(&schedule.order)?;
-		let min_amount_for_replanning = transaction_fee.checked_mul(5).ok_or(ArithmeticError::Overflow)?;
-		if remaining_amount <= min_amount_for_replanning {
+		let min_amount_for_replanning = transaction_fee.saturating_mul(FEE_MULTIPLIER_FOR_MIN_TRADE_LIMIT);
+		if remaining_amount < min_amount_for_replanning || remaining_amount < T::MinimumTradingLimit::get() {
 			Self::complete_schedule(schedule_id, schedule);
 			return Ok(());
 		}
@@ -685,7 +763,7 @@ where
 			.checked_add(&schedule.period)
 			.ok_or(ArithmeticError::Overflow)?;
 
-		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id)?;
+		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id, randomness_generator)?;
 
 		Ok(())
 	}
@@ -694,6 +772,7 @@ where
 		schedule_id: ScheduleId,
 		schedule: &Schedule<T::AccountId, T::AssetId, T::BlockNumber>,
 		current_blocknumber: T::BlockNumber,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		let number_of_retries = Self::retries_on_error(schedule_id);
 
@@ -715,7 +794,7 @@ where
 			.checked_add(&retry_delay.into())
 			.ok_or(ArithmeticError::Overflow)?;
 
-		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id)?;
+		Self::plan_schedule_for_block(&schedule.owner, next_execution_block, schedule_id, randomness_generator)?;
 
 		Ok(())
 	}
@@ -887,11 +966,12 @@ where
 		who: &T::AccountId,
 		blocknumber: T::BlockNumber,
 		schedule_id: ScheduleId,
+		randomness_generator: &mut StdRng,
 	) -> DispatchResult {
 		let current_block_number = frame_system::Pallet::<T>::current_block_number();
 		ensure!(blocknumber > current_block_number, Error::<T>::BlockNumberIsNotInFuture);
 
-		let next_free_block = Self::find_next_free_block(blocknumber)?;
+		let next_free_block = Self::find_next_free_block(blocknumber, randomness_generator)?;
 
 		ScheduleIdsPerBlock::<T>::try_mutate(next_free_block, |schedule_ids| -> DispatchResult {
 			schedule_ids
@@ -908,16 +988,22 @@ where
 		Ok(())
 	}
 
-	fn find_next_free_block(blocknumber: T::BlockNumber) -> Result<T::BlockNumber, DispatchError> {
+	fn find_next_free_block(
+		blocknumber: T::BlockNumber,
+		randomness_generator: &mut StdRng,
+	) -> Result<T::BlockNumber, DispatchError> {
 		let mut next_execution_block = blocknumber;
 
-		// In a bound fashion, we search for next free block with the delays of 1 - 2 - 4 - 8 - 16.
-		for retry_index in 0u32..=RETRY_TO_SEARCH_FOR_FREE_BLOCK {
+		for i in 0..=MAX_NUMBER_OF_RETRY_FOR_RESCHEDULING {
 			let schedule_ids = ScheduleIdsPerBlock::<T>::get(next_execution_block);
 			if schedule_ids.len() < T::MaxSchedulePerBlock::get() as usize {
 				return Ok(next_execution_block);
 			}
-			let delay_with = 2u32.checked_pow(retry_index).ok_or(ArithmeticError::Overflow)?;
+
+			let lower_bound = 2u32.saturating_pow(i);
+			let upper_bound = 2u32.saturating_pow(i.saturating_add(1)).saturating_sub(1);
+
+			let delay_with = randomness_generator.gen_range(lower_bound..=upper_bound);
 			next_execution_block = next_execution_block.saturating_add(delay_with.into());
 		}
 
@@ -1002,17 +1088,22 @@ pub trait RelayChainBlockHashProvider {
 }
 
 pub trait RandomnessProvider {
-	fn generator() -> Result<StdRng, DispatchError>;
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError>;
 }
 
 impl<T: Config> RandomnessProvider for Pallet<T> {
-	fn generator() -> Result<StdRng, DispatchError> {
+	fn generator(salt: Option<u32>) -> Result<StdRng, DispatchError> {
 		let hash_value = T::RelayChainBlockHashProvider::parent_hash().ok_or(Error::<T>::NoParentHashFound)?;
 		let hash_bytes = hash_value.as_fixed_bytes();
 		let mut seed_arr = [0u8; 8];
 		let max_len = hash_bytes.len().min(seed_arr.len()); //We ensure that we don't copy more bytes, preventing potential panics
 		seed_arr[..max_len].copy_from_slice(&hash_bytes[..max_len]);
-		let seed = u64::from_le_bytes(seed_arr);
+
+		let seed = match salt {
+			Some(salt) => u64::from_le_bytes(seed_arr).wrapping_add(salt.into()),
+			None => u64::from_le_bytes(seed_arr),
+		};
+
 		Ok(rand::rngs::StdRng::seed_from_u64(seed))
 	}
 }

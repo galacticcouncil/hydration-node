@@ -110,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("hydradx"),
 	impl_name: create_runtime_str!("hydradx"),
 	authoring_version: 1,
-	spec_version: 159,
+	spec_version: 162,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -219,14 +219,7 @@ where
 	Runtime: cumulus_pallet_parachain_system::Config,
 {
 	fn parent_hash() -> Option<cumulus_primitives_core::relay_chain::Hash> {
-		// We use the same hash as for integration tests
-		// so the integration tests don't fail when they are run with 'runtime-benchmark' feature
-		let hash = [
-			14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71, 119, 143, 119,
-			135, 250, 171, 69, 205, 241, 47, 227, 168,
-		]
-		.into();
-		Some(hash)
+		None
 	}
 }
 
@@ -276,7 +269,6 @@ impl Contains<RuntimeCall> for CallFilter {
 		match call {
 			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::OrmlXcm(_) => false,
-			RuntimeCall::Uniques(_) => false,
 			_ => true,
 		}
 	}
@@ -640,7 +632,7 @@ impl pallet_tips::Config for Runtime {
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
-	type WeightInfo = common_runtime::weights::tips::HydraWeight<Runtime>;
+	type WeightInfo = ();
 }
 
 /// ORML Configurations
@@ -896,7 +888,7 @@ parameter_types! {
 	pub const StableAssetId: AssetId = 2;
 	pub ProtocolFee: Permill = Permill::from_rational(5u32,10000u32);
 	pub AssetFee: Permill = Permill::from_rational(25u32,10000u32);
-	pub const MinTradingLimit : Balance = 1_000_000u128;
+	pub const MinTradingLimit : Balance = 1_000u128;
 	pub const MinPoolLiquidity: Balance = 1_000_000u128;
 	pub const MaxInRatio: Balance = 3u128;
 	pub const MaxOutRatio: Balance = 3u128;
@@ -1045,6 +1037,7 @@ impl pallet_dca::Config for Runtime {
 	type MaxSchedulePerBlock = MaxSchedulesPerBlock;
 	type NativeAssetId = NativeAssetId;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
+	type MinimumTradingLimit = MinTradingLimit;
 	type FeeReceiver = TreasuryAccount;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
