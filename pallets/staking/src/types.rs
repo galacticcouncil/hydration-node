@@ -90,15 +90,23 @@ pub enum Conviction {
 	Locked6x = 6,
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Vote {
 	pub(crate) amount: Balance,
 	pub(crate) conviction: Conviction,
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 #[codec(mel_bound(skip_type_params(MaxVotes)))]
 #[scale_info(skip_type_params(MaxVotes))]
 pub struct Voting<MaxVotes: Get<u32>> {
 	pub votes: BoundedVec<(ReferendumIndex, Vote), MaxVotes>,
+}
+
+impl<MaxVotes: Get<u32>> Default for Voting<MaxVotes> {
+	fn default() -> Self {
+		Voting {
+			votes: Default::default(),
+		}
+	}
 }

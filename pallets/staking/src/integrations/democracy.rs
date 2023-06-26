@@ -47,6 +47,7 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 			}
 			Ok(())
 		})?;
+		//TODO: event?
 		Ok(())
 	}
 }

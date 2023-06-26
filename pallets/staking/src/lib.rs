@@ -169,7 +169,7 @@ pub mod pallet {
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
 
 		#[pallet::constant]
-		type MaxVotes: Get<u32> + Default;
+		type MaxVotes: Get<u32>;
 	}
 
 	/// Lock for staked amount by user

@@ -609,7 +609,7 @@ impl pallet_democracy::Config for Runtime {
 	type Preimages = Preimage;
 	type MaxDeposits = ConstU32<100>;
 	type MaxBlacklisted = ConstU32<100>;
-	type DemocracyHooks = pallet_staking::StakingDemocracy;
+	type DemocracyHooks = pallet_staking::integrations::democracy::StakingDemocracy<Runtime>;
 }
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -958,8 +958,6 @@ impl pallet_circuit_breaker::Config for Runtime {
 use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
-use pallet_staking::traits::PayablePercentage;
-use pallet_staking::types::Point;
 use pallet_staking::SigmoidPercentage;
 
 parameter_types! {
@@ -1103,6 +1101,7 @@ impl pallet_staking::Config for Runtime {
 	type CollectionId = u128;
 	type NFTCollectionId = ConstU128<4200>;
 	type NFTHandler = Uniques;
+	type MaxVotes = ConstU32<100>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
