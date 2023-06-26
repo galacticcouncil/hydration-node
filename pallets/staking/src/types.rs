@@ -1,6 +1,9 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
+use pallet_democracy::ReferendumIndex;
 use scale_info::TypeInfo;
+use sp_core::bounded::BoundedVec;
+use sp_core::Get;
 use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
 
 pub type Balance = u128;
@@ -73,4 +76,29 @@ impl StakingData {
 		self.total_stake = self.total_stake.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
 		Ok(())
 	}
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+pub enum Conviction {
+	#[default]
+	None = 0,
+	Locked1x = 1,
+	Locked2x = 2,
+	Locked3x = 3,
+	Locked4x = 4,
+	Locked5x = 5,
+	Locked6x = 6,
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+pub struct Vote {
+	pub(crate) amount: Balance,
+	pub(crate) conviction: Conviction,
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+#[codec(mel_bound(skip_type_params(MaxVotes)))]
+#[scale_info(skip_type_params(MaxVotes))]
+pub struct Voting<MaxVotes: Get<u32>> {
+	pub votes: BoundedVec<(ReferendumIndex, Vote), MaxVotes>,
 }

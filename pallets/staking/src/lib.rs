@@ -45,18 +45,18 @@ use sp_runtime::{DispatchError, FixedPointNumber, FixedU128};
 #[cfg(test)]
 mod tests;
 
+pub mod integrations;
 pub mod traits;
 pub mod types;
 pub mod weights;
 
 pub use pallet::*;
-use pallet_democracy::traits::DemocracyHooks;
-use pallet_democracy::{AccountVote, ReferendumIndex};
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
 	use frame_support::{pallet_prelude::*, traits::LockIdentifier};
@@ -167,6 +167,9 @@ pub mod pallet {
 		type NFTHandler: Mutate<Self::AccountId>
 			+ Create<Self::AccountId>
 			+ InspectEnumerable<Self::AccountId, ItemId = Self::PositionItemId, CollectionId = Self::CollectionId>;
+
+		#[pallet::constant]
+		type MaxVotes: Get<u32> + Default;
 	}
 
 	/// Lock for staked amount by user
@@ -186,6 +189,12 @@ pub mod pallet {
 	#[pallet::getter(fn next_position_id)]
 	/// Position ids sequencer
 	pub(super) type NextPositionId<T: Config> = StorageValue<_, T::PositionItemId, ValueQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn position_votes)]
+	/// List of position votes
+	pub(super) type PositionVotes<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::PositionItemId, Voting<T::MaxVotes>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -230,6 +239,9 @@ pub mod pallet {
 
 		/// Position has not been found
 		PositionNotFound,
+
+		///
+		MaxVotesReached,
 	}
 
 	#[pallet::hooks]
@@ -672,8 +684,13 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	pub fn process_trade_fee(source: T::AccountId, asset: T::AssetId, amount: Balance) -> DispatchResult {
-		Ok(())
+	pub fn process_trade_fee(
+		source: T::AccountId,
+		asset: T::AssetId,
+		amount: Balance,
+	) -> Result<Balance, DispatchError> {
+		T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
+		Ok(Balance::zero())
 	}
 }
 
@@ -690,13 +707,5 @@ where
 		let b: u32 = 40_000;
 
 		math::sigmoid(p, a, b).map_err(|_| ArithmeticError::Overflow)
-	}
-}
-
-pub struct StakingDemocracy;
-
-impl<AccountId> DemocracyHooks<AccountId, Balance> for StakingDemocracy {
-	fn on_vote(who: &AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
-		Ok(())
 	}
 }
