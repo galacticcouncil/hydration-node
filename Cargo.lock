@@ -1196,7 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.3.12"
+version = "102.4.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcmp-queue",
@@ -3838,7 +3838,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "161.0.0"
+version = "162.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
