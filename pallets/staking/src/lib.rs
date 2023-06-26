@@ -705,8 +705,12 @@ impl<T: Config> Pallet<T> {
 		asset: T::AssetId,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
-		Ok(Balance::zero())
+		if asset == T::HdxAssetId::get(){
+			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
+			Ok(Balance::zero())
+		}else{
+			Ok(amount)
+		}
 	}
 
 	fn process_votes(position_id: T::PositionItemId, position: &mut Position<T::BlockNumber>) -> DispatchResult {
