@@ -26,16 +26,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage};
-use crate::types::{Action, Balance, Period, Point, Position, StakingData, Vote, Voting};
+use crate::types::{Action, Balance, Period, Point, Position, StakingData, Voting};
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
 	traits::nonfungibles::{Create, InspectEnumerable, Mutate},
 };
 use hydra_dx_math::staking as math;
-use orml_traits::{MultiCurrency, MultiLockableCurrency};
+use orml_traits::{GetByKey, MultiCurrency, MultiLockableCurrency};
 use sp_core::Get;
-use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One};
+use sp_runtime::traits::{AccountIdConversion, CheckedAdd, One, Scale};
 use sp_runtime::{
 	traits::{BlockNumberProvider, Zero},
 	ArithmeticError, Permill,
@@ -56,13 +56,14 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::traits::DemocracyReferendum;
 	use crate::types::Voting;
 	use codec::HasCompact;
 	use frame_support::PalletId;
 	use frame_support::{pallet_prelude::*, traits::LockIdentifier};
 	use frame_system::pallet_prelude::*;
+	use orml_traits::GetByKey;
 	use sp_runtime::traits::AtLeast32BitUnsigned;
-	use crate::traits::DemocracyReferendum;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -173,6 +174,8 @@ pub mod pallet {
 		type MaxVotes: Get<u32>;
 
 		type ReferendumInfo: DemocracyReferendum;
+
+		type ActionMultiplier: GetByKey<Action, u32>;
 	}
 
 	/// Lock for staked amount by user
@@ -695,6 +698,8 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
+	/// Transfer given fee to pot account
+	/// Returns amount of unused fee
 	pub fn process_trade_fee(
 		source: T::AccountId,
 		asset: T::AssetId,
@@ -704,27 +709,35 @@ impl<T: Config> Pallet<T> {
 		Ok(Balance::zero())
 	}
 
-	fn process_votes(position_id: T::PositionItemId, position: &mut Position<T::BlockNumber>) -> DispatchResult{
+	fn process_votes(position_id: T::PositionItemId, position: &mut Position<T::BlockNumber>) -> DispatchResult {
 		let voting: Voting<T::MaxVotes> = if PositionVotes::<T>::contains_key(position_id) {
 			PositionVotes::<T>::get(position_id)
-		}else{
+		} else {
 			return Ok(());
 		};
 
-		for (ref_index, vote) in voting.votes{
-			if T::ReferendumInfo::is_referendum_finished(ref_index){
+		for (ref_index, vote) in voting.votes {
+			if T::ReferendumInfo::is_referendum_finished(ref_index) {
 				let points = Self::calculate_points_for_action(Action::DemocracyVote, vote);
-				position.action_points = position.action_points.checked_add(points).ok_or(ArithmeticError::Overflow)?;
+				position.action_points = position
+					.action_points
+					.checked_add(points)
+					.ok_or(ArithmeticError::Overflow)?;
 
-				//TODO: remove the vote
-				//TODO: how to actually remove this ? or update the vector?
+				//TODO: remove this vote
+				//TODO: how to actually remove this ? how to update the vector in reasonable way?
 			}
 		}
 		Ok(())
 	}
 
-	fn calculate_points_for_action<V: ActionData>(action: Action, data: V) -> Balance{
-		Balance::zero()
+	fn calculate_points_for_action<V: ActionData>(action: Action, data: V) -> Balance {
+		let total = data
+			.amount()
+			.saturating_mul(data.conviction() as u128)
+			.div(1_000_000_000_000u128); // TODO: make this as configurable constant?
+		let c = T::ActionMultiplier::get(&action);
+		total.saturating_mul(c as u128)
 	}
 }
 

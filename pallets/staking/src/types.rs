@@ -1,3 +1,4 @@
+use crate::traits::ActionData;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
 use pallet_democracy::ReferendumIndex;
@@ -5,14 +6,13 @@ use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::Get;
 use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
-use crate::traits::ActionData;
 
 pub type Balance = u128;
 //TODO: I don't think we need u128 I think u32 should be enough
 pub type Point = u128;
 pub type Period = u128;
 
-pub enum Action{
+pub enum Action {
 	DemocracyVote,
 }
 
