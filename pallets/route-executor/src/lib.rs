@@ -27,7 +27,7 @@ use hydradx_traits::router::TradeExecution;
 use hydradx_traits::router::{ExecutorError, PoolType};
 use orml_traits::arithmetic::{CheckedAdd, CheckedSub};
 use scale_info::TypeInfo;
-use sp_runtime::DispatchError;
+use sp_runtime::{ArithmeticError, DispatchError};
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -136,8 +136,10 @@ pub mod pallet {
 		RouteHasNoTrades,
 		///The user has not enough balance to execute the trade
 		InsufficientBalance,
-		///Unexpected error which should never really happen, but the error case must be handled to prevent panics.
-		UnexpectedError,
+		///The route execution failed in the underlying AMM
+		InvalidRouteExecution,
+		///The calculation of route trade amounts failed in the underlying AMM
+		RouteCalculationFailed,
 	}
 
 	#[pallet::call]
@@ -176,14 +178,14 @@ pub mod pallet {
 
 			let trade_amounts = Self::calculate_sell_trade_amounts(&route, amount_in)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::UnexpectedError)?;
+			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(
 				last_trade_amount.amount_out >= min_amount_out,
 				Error::<T>::TradingLimitReached
 			);
 
 			for (trade_amount, trade) in trade_amounts.iter().zip(route) {
-				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, false);
+				let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(trade.asset_in, &who, true);
 
 				let execution_result = T::AMM::execute_sell(
 					origin.clone(),
@@ -246,11 +248,11 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			Self::ensure_route_size(route.len())?;
 
-			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, false);
+			let user_balance_of_asset_in_before_trade = T::Currency::reducible_balance(asset_in, &who, true);
 
 			let trade_amounts = Self::calculate_buy_trade_amounts(&route, amount_out)?;
 
-			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::UnexpectedError)?;
+			let last_trade_amount = trade_amounts.last().ok_or(Error::<T>::RouteCalculationFailed)?;
 			ensure!(
 				last_trade_amount.amount_in <= max_amount_in,
 				Error::<T>::TradingLimitReached
@@ -318,11 +320,11 @@ impl<T: Config> Pallet<T> {
 		let user_balance_of_asset_out_after_trade = T::Currency::reducible_balance(asset_out, &who, false);
 		let user_expected_balance_of_asset_out_after_trade = user_balance_of_asset_out_before_trade
 			.checked_add(&received_amount)
-			.ok_or(Error::<T>::UnexpectedError)?;
+			.ok_or(ArithmeticError::Overflow)?;
 
 		ensure!(
 			user_balance_of_asset_out_after_trade == user_expected_balance_of_asset_out_after_trade,
-			Error::<T>::UnexpectedError
+			Error::<T>::InvalidRouteExecution
 		);
 
 		Ok(())
@@ -334,16 +336,13 @@ impl<T: Config> Pallet<T> {
 		user_balance_of_asset_in_before_trade: T::Balance,
 		spent_amount: T::Balance,
 	) -> Result<(), DispatchError> {
-		let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, false);
-		let user_expected_balance_of_asset_in_after_trade = user_balance_of_asset_in_before_trade
-			.checked_sub(&spent_amount)
-			.ok_or(Error::<T>::UnexpectedError)?;
-
-		ensure!(
-			user_expected_balance_of_asset_in_after_trade == user_balance_of_asset_in_after_trade,
-			Error::<T>::UnexpectedError
-		);
-
+		if spent_amount < user_balance_of_asset_in_before_trade {
+			let user_balance_of_asset_in_after_trade = T::Currency::reducible_balance(asset_in, &who, true);
+			ensure!(
+				user_balance_of_asset_in_before_trade - spent_amount == user_balance_of_asset_in_after_trade,
+				Error::<T>::InvalidRouteExecution
+			);
+		}
 		Ok(())
 	}
 }
