@@ -47,7 +47,7 @@ pub struct OracleEntry<BlockNumber> {
 }
 
 impl<BlockNumber> OracleEntry<BlockNumber> {
-	/// Construct a new `OracleEntry`. Will invert the price to determine `inverted_price`.
+	/// Construct a new `OracleEntry`.
 	pub const fn new(
 		price: Price,
 		volume: Volume<Balance>,
