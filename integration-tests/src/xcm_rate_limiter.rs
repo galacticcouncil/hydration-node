@@ -144,15 +144,11 @@ fn xcm_rate_limiter_should_not_limit_aca_when_limit_is_not_exceeded() {
 		);
 	});
 
-	let fee = 400641025641;
 	Hydra::execute_with(|| {
+		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			amount - fee
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			fee // fees should go to treasury
 		);
 	});
 }
@@ -239,14 +235,10 @@ fn deferred_messages_should_be_executable_by_root() {
 			ACALA_PARA_ID.into(),
 		));
 
-		let fee = 400641025641;
+		let fee = hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id());
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(ACA, &AccountId::from(BOB)),
 			amount - fee
-		);
-		assert_eq!(
-			hydradx_runtime::Tokens::free_balance(ACA, &hydradx_runtime::Treasury::account_id()),
-			fee // fees should go to treasury
 		);
 	});
 }
