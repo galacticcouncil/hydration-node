@@ -5,11 +5,16 @@ use scale_info::TypeInfo;
 use sp_core::bounded::BoundedVec;
 use sp_core::Get;
 use sp_runtime::{traits::Zero, ArithmeticError, FixedU128};
+use crate::traits::ActionData;
 
 pub type Balance = u128;
 //TODO: I don't think we need u128 I think u32 should be enough
 pub type Point = u128;
 pub type Period = u128;
+
+pub enum Action{
+	DemocracyVote,
+}
 
 /// Staking position, represents user's state in staking, eg. staked amount, slashed points,
 /// votes...
@@ -78,7 +83,7 @@ impl StakingData {
 	}
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
+#[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
 pub enum Conviction {
 	#[default]
 	None = 0,
@@ -94,6 +99,16 @@ pub enum Conviction {
 pub struct Vote {
 	pub(crate) amount: Balance,
 	pub(crate) conviction: Conviction,
+}
+
+impl ActionData for Vote {
+	fn amount(&self) -> Balance {
+		self.amount
+	}
+
+	fn conviction(&self) -> u32 {
+		self.conviction as u32
+	}
 }
 
 #[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]

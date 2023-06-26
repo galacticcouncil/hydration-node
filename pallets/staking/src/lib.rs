@@ -25,8 +25,8 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::{DemocracyReferendum, PayablePercentage};
-use crate::types::{Balance, Period, Point, Position, StakingData, Voting};
+use crate::traits::{ActionData, DemocracyReferendum, PayablePercentage};
+use crate::types::{Action, Balance, Period, Point, Position, StakingData, Vote, Voting};
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
@@ -275,6 +275,8 @@ pub mod pallet {
 								//TODO: inconsistent state
 								let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
 
+								Self::process_votes(position_id, position)?;
+
                                 let current_period = Self::get_current_period()?;
                                 let created_at = Self::get_period_number(position.created_at)?;
 
@@ -321,9 +323,13 @@ pub mod pallet {
 			Staking::<T>::try_mutate(|staking| {
 				Self::reward_stakers(staking)?;
 
-				Positions::<T>::try_mutate(position_id.unwrap(), |maybe_position| {
+				let position_id = position_id.unwrap();
+
+				Positions::<T>::try_mutate(position_id, |maybe_position| {
 					//TODO: inconsistent state
 					let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+
+					Self::process_votes(position_id, position)?;
 
 					let current_period = Self::get_current_period()?;
 					let created_at = Self::get_period_number(position.created_at)?;
@@ -384,7 +390,7 @@ pub mod pallet {
 
 					Self::deposit_event(Event::RewardsClaimed {
 						who,
-						position_id: position_id.unwrap(),
+						position_id: position_id,
 						paid_rewards: rewards_to_pay,
 						unlocked_rewards: rewards_to_unlock,
 						slashed_points: points_to_slash,
@@ -411,6 +417,8 @@ pub mod pallet {
 				Positions::<T>::try_mutate_exists(position_id, |maybe_position| {
 					//TODO: inconsistent state
 					let position = maybe_position.as_mut().ok_or(Error::<T>::PositionNotFound)?;
+
+					Self::process_votes(position_id, position)?;
 
 					let current_period = Self::get_current_period()?;
 					let created_at = Self::get_period_number(position.created_at)?;
@@ -696,7 +704,7 @@ impl<T: Config> Pallet<T> {
 		Ok(Balance::zero())
 	}
 
-	fn process_votes(position_id: T::PositionItemId) -> DispatchResult{
+	fn process_votes(position_id: T::PositionItemId, position: &mut Position<T::BlockNumber>) -> DispatchResult{
 		let voting: Voting<T::MaxVotes> = if PositionVotes::<T>::contains_key(position_id) {
 			PositionVotes::<T>::get(position_id)
 		}else{
@@ -705,11 +713,18 @@ impl<T: Config> Pallet<T> {
 
 		for (ref_index, vote) in voting.votes{
 			if T::ReferendumInfo::is_referendum_finished(ref_index){
-				//TODO: add points for this vote
+				let points = Self::calculate_points_for_action(Action::DemocracyVote, vote);
+				position.action_points = position.action_points.checked_add(points).ok_or(ArithmeticError::Overflow)?;
+
+				//TODO: remove the vote
+				//TODO: how to actually remove this ? or update the vector?
 			}
-			//TODO: how to actually remove this ? or update the vector?
 		}
 		Ok(())
+	}
+
+	fn calculate_points_for_action<V: ActionData>(action: Action, data: V) -> Balance{
+		Balance::zero()
 	}
 }
 

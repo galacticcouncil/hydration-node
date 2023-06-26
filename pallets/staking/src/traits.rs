@@ -1,5 +1,6 @@
 use sp_runtime::FixedU128;
 use pallet_democracy::ReferendumIndex;
+use crate::types::Balance;
 
 pub trait PayablePercentage<Point> {
 	type Error;
@@ -10,4 +11,9 @@ pub trait PayablePercentage<Point> {
 
 pub trait DemocracyReferendum{
 	fn is_referendum_finished(index: ReferendumIndex) -> bool;
+}
+
+pub(crate) trait ActionData{
+	fn amount(&self) -> Balance;
+	fn conviction(&self) -> u32;
 }
