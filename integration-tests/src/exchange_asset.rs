@@ -85,7 +85,6 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 	//Arrange
 	TestNet::reset();
 
-	dbg!("before hydra 1");
 	let aca = 1234;
 	let mut price = None;
 	Hydra::execute_with(|| {
@@ -119,11 +118,8 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		use hydradx_traits::pools::SpotPriceProvider;
 		price = hydradx_runtime::Omnipool::spot_price(CORE_ASSET_ID, aca);
 	});
-	dbg!("after hydra 1");
 
-	dbg!("before acala");
 	Acala::execute_with(|| {
-		dbg!("execute acala");
 		let xcm = craft_exchange_asset_xcm::<_, hydradx_runtime::RuntimeCall>(
 			MultiAsset::from((GeneralIndex(0), 50 * UNITS)),
 			MultiAsset::from((GeneralIndex(CORE_ASSET_ID.into()), 300 * UNITS)),
@@ -148,12 +144,9 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 				cumulus_pallet_xcmp_queue::Event::XcmpMessageSent { .. }
 			))
 		));
-		dbg!("end execute acala");
 	});
-	dbg!("after acala");
 
 	let fees = 500801282051;
-	dbg!("before hydra 2");
 	Hydra::execute_with(|| {
 		assert_eq!(
 			hydradx_runtime::Tokens::free_balance(aca, &AccountId::from(BOB)),
