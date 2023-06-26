@@ -25,8 +25,8 @@
 #![recursion_limit = "256"]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use crate::traits::PayablePercentage;
-use crate::types::{Balance, Period, Point, Position, StakingData};
+use crate::traits::{DemocracyReferendum, PayablePercentage};
+use crate::types::{Balance, Period, Point, Position, StakingData, Voting};
 use frame_support::ensure;
 use frame_support::{
 	pallet_prelude::DispatchResult,
@@ -62,6 +62,7 @@ pub mod pallet {
 	use frame_support::{pallet_prelude::*, traits::LockIdentifier};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::AtLeast32BitUnsigned;
+	use crate::traits::DemocracyReferendum;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -170,6 +171,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxVotes: Get<u32>;
+
+		type ReferendumInfo: DemocracyReferendum;
 	}
 
 	/// Lock for staked amount by user
@@ -691,6 +694,22 @@ impl<T: Config> Pallet<T> {
 	) -> Result<Balance, DispatchError> {
 		T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
 		Ok(Balance::zero())
+	}
+
+	fn process_votes(position_id: T::PositionItemId) -> DispatchResult{
+		let voting: Voting<T::MaxVotes> = if PositionVotes::<T>::contains_key(position_id) {
+			PositionVotes::<T>::get(position_id)
+		}else{
+			return Ok(());
+		};
+
+		for (ref_index, vote) in voting.votes{
+			if T::ReferendumInfo::is_referendum_finished(ref_index){
+				//TODO: add points for this vote
+			}
+			//TODO: how to actually remove this ? or update the vector?
+		}
+		Ok(())
 	}
 }
 
