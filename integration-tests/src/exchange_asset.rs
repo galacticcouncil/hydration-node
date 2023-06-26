@@ -161,3 +161,35 @@ fn hydra_should_swap_assets_when_receiving_from_acala() {
 		);
 	});
 }
+
+// TODO test with Acala -> Hydra Swap -> Acala
+
+// Support different transfers of swap results
+// send HDX back to Acala
+// DepositReserveAsset { assets: hdx_filter, dest: acala, xcm:
+// 	Xcm(vec![BuyExecution { fees, weight_limit }, DepositAsset {
+// 		assets: Wild(AllCounted(max_assets)),
+// 		beneficiary,
+// 	}])
+// },
+// send ACA back to Acala
+// InitiateReserveWithdraw { assets: aca_filter, reserve: acala, xcm:
+// 	Xcm(vec![BuyExecution { fees, weight_limit }, DepositAsset {
+// 		assets: Wild(AllCounted(max_assets)),
+// 		beneficiary,
+// 	}])
+// },
+// send BTC back to Acala
+// InitiateReserveWithdraw { assets: btc_filter, reserve: interlay, xcm: // Hydra
+// 	Xcm(vec![BuyExecution { fees, weight_limit }, DepositReserveAsset { // Interlay
+// 		assets: Wild(AllCounted(max_assets)),
+// 		dest: acala,
+// 		xcm: Xcm(vec![BuyExecution { fees, weight_limit }, DepositAsset { // Acala
+// 			assets: Wild(AllCounted(max_assets)),
+// 			beneficiary,
+// 		}]),
+// 	}])
+// },
+// send HDX to interlay
+// send BTC to interlay
+// send ACA to interlay

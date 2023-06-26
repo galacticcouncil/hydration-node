@@ -32,7 +32,7 @@ where
 		// TODO: log errors
 		if give.len() != 1 {
 			return Err(give);
-		}; // TODO: we assume only one asset given
+		}; // TODO: support multiple input assets
 		if want.len() != 1 {
 			return Err(give);
 		}; // TODO: we assume only one asset wanted
