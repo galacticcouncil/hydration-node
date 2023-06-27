@@ -11,6 +11,7 @@ mod omnipool_price_provider;
 mod oracle;
 mod otc;
 mod polkadot_test_net;
+mod staking;
 mod vesting;
 
 #[macro_export]

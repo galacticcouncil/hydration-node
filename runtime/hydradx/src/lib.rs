@@ -37,7 +37,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, BlakeTwo256, Block as BlockT, IdentityLookup},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedU128, Perbill, Permill,
+	ApplyExtrinsicResult, Perbill, Permill,
 };
 
 use sp_std::cmp::Ordering;
@@ -59,7 +59,7 @@ use frame_support::{
 		constants::{BlockExecutionWeight, RocksDbWeight},
 		ConstantMultiplier, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
-	BoundedVec, PalletId,
+	BoundedVec,
 };
 use hydradx_traits::OraclePeriod;
 use orml_traits::currency::MutationHooks;
@@ -79,7 +79,6 @@ mod xcm;
 
 pub use hex_literal::hex;
 use hydradx_adapters::inspect::MultiInspectAdapter;
-use orml_traits::GetByKey;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
@@ -959,7 +958,6 @@ impl pallet_circuit_breaker::Config for Runtime {
 use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
-use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 
 parameter_types! {
@@ -1069,28 +1067,6 @@ impl pallet_otc::Config for Runtime {
 	type ExistentialDeposits = AssetRegistry;
 	type ExistentialDepositMultiplier = ExistentialDepositMultiplier;
 	type WeightInfo = weights::otc::HydraWeight<Runtime>;
-}
-
-parameter_types! {
-	pub const StakingPalletId: PalletId = PalletId(*b"test_stk");
-	pub const MinStake: Balance = 10_000_000_000_000;
-	pub const PeriodLength: BlockNumber = 10_000;
-	pub const TimePointsW:Permill =  Permill::from_percent(80);
-	pub const ActionPointsW: Permill = Permill::from_percent(20);
-	pub const TimePointsPerPeriod: u8 = 2;
-	pub const CurrentStakeWeight: u8 = 2;
-	pub const UnclaimablePeriods: BlockNumber = 4;
-	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
-}
-
-pub struct ActionMultiplier;
-
-impl GetByKey<pallet_staking::types::Action, u32> for ActionMultiplier {
-	fn get(k: &Action) -> u32 {
-		match k {
-			Action::DemocracyVote => 1u32,
-		}
-	}
 }
 
 impl pallet_staking::Config for Runtime {

@@ -25,6 +25,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
 use frame_support::{parameter_types, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
+use orml_traits::GetByKey;
 use hydradx_traits::oracle::{OraclePeriod, Source};
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
@@ -33,7 +34,7 @@ use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
 	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
-	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill,
+	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill, FixedU128,
 };
 use sp_std::prelude::*;
 
@@ -57,6 +58,7 @@ pub type Hash = sp_core::H256;
 use pallet_dca::types::NamedReserveIdentifier;
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+use pallet_staking::types::Action;
 
 use self::adapters::OMNIPOOL_SOURCE;
 
@@ -115,6 +117,7 @@ pub fn get_all_module_accounts() -> Vec<AccountId> {
 	vec![
 		TreasuryPalletId::get().into_account_truncating(),
 		VestingPalletId::get().into_account_truncating(),
+		StakingPalletId::get().into_account_truncating(),
 	]
 }
 
@@ -365,5 +368,28 @@ mod tests {
 	fn democracy_periods() {
 		// Make sure VoteLockingPeriod > EnactmentPeriod
 		assert!(VoteLockingPeriod::get() > EnactmentPeriod::get());
+	}
+}
+
+// Staking
+parameter_types! {
+	pub const StakingPalletId: PalletId = PalletId(*b"test_stk");
+	pub const MinStake: Balance = 10_000_000_000_000;
+	pub const PeriodLength: BlockNumber = 10_000;
+	pub const TimePointsW:Permill =  Permill::from_percent(80);
+	pub const ActionPointsW: Permill = Permill::from_percent(20);
+	pub const TimePointsPerPeriod: u8 = 2;
+	pub const CurrentStakeWeight: u8 = 2;
+	pub const UnclaimablePeriods: BlockNumber = 4;
+	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
+}
+
+pub struct ActionMultiplier;
+
+impl GetByKey<pallet_staking::types::Action, u32> for ActionMultiplier {
+	fn get(k: &Action) -> u32 {
+		match k {
+			Action::DemocracyVote => 1u32,
+		}
 	}
 }

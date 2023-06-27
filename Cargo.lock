@@ -10206,6 +10206,7 @@ dependencies = [
  "pallet-route-executor",
  "pallet-scheduler",
  "pallet-session",
+ "pallet-staking 1.0.0",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
