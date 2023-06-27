@@ -705,10 +705,10 @@ impl<T: Config> Pallet<T> {
 		asset: T::AssetId,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		if asset == T::HdxAssetId::get(){
+		if asset == T::HdxAssetId::get() {
 			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
 			Ok(Balance::zero())
-		}else{
+		} else {
 			Ok(amount)
 		}
 	}

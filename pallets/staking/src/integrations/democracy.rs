@@ -1,9 +1,10 @@
 use crate::pallet::{PositionVotes, Positions};
+use crate::traits::DemocracyReferendum;
 use crate::types::{Balance, Conviction, Vote};
 use crate::{Config, Error, Pallet};
 use frame_support::dispatch::DispatchResult;
 use pallet_democracy::traits::DemocracyHooks;
-use pallet_democracy::{AccountVote, ReferendumIndex};
+use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
 
 pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
@@ -49,5 +50,20 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 		})?;
 		//TODO: event?
 		Ok(())
+	}
+}
+
+pub struct ReferendumStatus<T>(sp_std::marker::PhantomData<T>);
+
+impl<T: pallet_democracy::Config> DemocracyReferendum for ReferendumStatus<T> {
+	fn is_referendum_finished(index: ReferendumIndex) -> bool {
+		let maybe_info = pallet_democracy::Pallet::<T>::referendum_info(index);
+		match maybe_info {
+			Some(info) => match info {
+				ReferendumInfo::Finished { .. } => true,
+				_ => false,
+			},
+			_ => false,
+		}
 	}
 }

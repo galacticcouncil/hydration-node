@@ -79,6 +79,7 @@ mod xcm;
 
 pub use hex_literal::hex;
 use hydradx_adapters::inspect::MultiInspectAdapter;
+use orml_traits::GetByKey;
 /// Import HydraDX pallets
 pub use pallet_claims;
 pub use pallet_genesis_history;
@@ -958,6 +959,7 @@ impl pallet_circuit_breaker::Config for Runtime {
 use pallet_dca::RelayChainBlockHashProvider;
 use pallet_ema_oracle::MAX_PERIODS;
 use pallet_omnipool::traits::EnsurePriceWithin;
+use pallet_staking::types::Action;
 use pallet_staking::SigmoidPercentage;
 
 parameter_types! {
@@ -1081,6 +1083,16 @@ parameter_types! {
 	pub const PointPercentage: FixedU128 = FixedU128::from_rational(15,100);
 }
 
+pub struct ActionMultiplier;
+
+impl GetByKey<pallet_staking::types::Action, u32> for ActionMultiplier {
+	fn get(k: &Action) -> u32 {
+		match k {
+			Action::DemocracyVote => 1u32,
+		}
+	}
+}
+
 impl pallet_staking::Config for Runtime {
 	type WeightInfo = ();
 	type RuntimeEvent = RuntimeEvent;
@@ -1102,6 +1114,8 @@ impl pallet_staking::Config for Runtime {
 	type NFTCollectionId = ConstU128<4200>;
 	type NFTHandler = Uniques;
 	type MaxVotes = ConstU32<100>;
+	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
+	type ActionMultiplier = ActionMultiplier;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
