@@ -209,6 +209,27 @@ impl pallet_staking::Config for Test {
 	type NFTHandler = Uniques;
 
 	type PayablePercentage = SigmoidPercentage<PointPercentage>;
+	type MaxVotes = ConstU32<10>;
+	type ActionMultiplier = DummyActionMultiplier;
+	type ReferendumInfo = DummyReferendumStatus;
+}
+
+pub struct DummyActionMultiplier;
+
+impl GetByKey<Action, u32> for DummyActionMultiplier {
+	fn get(k: &Action) -> u32 {
+		match k {
+			Action::DemocracyVote => 1u32,
+		}
+	}
+}
+
+pub struct DummyReferendumStatus;
+
+impl DemocracyReferendum for DummyReferendumStatus {
+	fn is_referendum_finished(_index: pallet_democracy::ReferendumIndex) -> bool {
+		false
+	}
 }
 
 pub fn set_block_number(n: u64) {
