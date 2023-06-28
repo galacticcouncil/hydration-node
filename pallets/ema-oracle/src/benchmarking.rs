@@ -59,7 +59,7 @@ benchmarks! {
 			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
+			updated_at: block_num,
 		};
 
 		assert_eq!(Accumulator::<T>::get().into_inner(), [((SOURCE, ordered_pair(HDX, DOT)), entry.clone())].into_iter().collect());
@@ -91,7 +91,7 @@ benchmarks! {
 			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
+			updated_at: block_num,
 		};
 
 		assert_eq!(Accumulator::<T>::get().into_inner(), [((SOURCE, ordered_pair(HDX, DOT)), entry.clone())].into_iter().collect());
@@ -132,7 +132,7 @@ benchmarks! {
 			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
+			updated_at: block_num,
 		};
 
 		for i in 0 .. b {
@@ -167,7 +167,7 @@ benchmarks! {
 			price: Price::from((liquidity_asset_in, liquidity_asset_out)),
 			volume: Volume::from_a_in_b_out(amount_in, amount_out),
 			liquidity: Liquidity::new(liquidity_asset_in, liquidity_asset_out),
-			timestamp: block_num,
+			updated_at: block_num,
 		};
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
@@ -217,7 +217,7 @@ benchmarks! {
 			price: Price::from((liquidity_asset_a, liquidity_asset_b)),
 			volume: Volume::from_a_in_b_out(amount_a, amount_b),
 			liquidity: Liquidity::new(liquidity_asset_a, liquidity_asset_b),
-			timestamp: block_num,
+			updated_at: block_num,
 		};
 		for i in 0 .. b {
 			let asset_a = i * 1_000;
@@ -241,7 +241,7 @@ benchmarks! {
 			price: Price::from((liquidity_asset_a, liquidity_asset_b)),
 			volume: Volume::default(),
 			liquidity: Liquidity::new(liquidity_asset_a, liquidity_asset_b),
-			timestamp: block_num,
+			updated_at: block_num,
 		};
 		entries.push(((SOURCE, ordered_pair(asset_a, asset_b)), liquidity_entry));
 

@@ -1196,7 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.3.12"
+version = "102.4.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcmp-queue",
@@ -3723,7 +3723,7 @@ dependencies = [
 
 [[package]]
 name = "hydra-dx-math"
-version = "7.1.0"
+version = "7.2.0"
 dependencies = [
  "approx",
  "criterion",
@@ -3838,7 +3838,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "161.0.0"
+version = "162.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3936,7 +3936,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6734,7 +6734,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7242,7 +7242,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-route-executor"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10092,7 +10092,7 @@ dependencies = [
 
 [[package]]
 name = "runtime-integration-tests"
-version = "1.7.15"
+version = "1.7.16"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",

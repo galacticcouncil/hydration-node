@@ -35,15 +35,32 @@ pub type Balance = u128;
 /// A price is a tuple of two `u128`s representing the numerator and denominator of a rational number.
 pub type Price = EmaPrice;
 
-/// A type representing data produced by a trade or liquidity event. Timestamped to the block where
-/// it was created.
+/// A type representing data produced by a trade or liquidity event.
+/// Includes the block number where it was created/updated.
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(RuntimeDebug, Encode, Decode, Clone, PartialEq, Eq, Default, TypeInfo, MaxEncodedLen)]
 pub struct OracleEntry<BlockNumber> {
 	pub price: Price,
 	pub volume: Volume<Balance>,
 	pub liquidity: Liquidity<Balance>,
-	pub timestamp: BlockNumber,
+	pub updated_at: BlockNumber,
+}
+
+impl<BlockNumber> OracleEntry<BlockNumber> {
+	/// Construct a new `OracleEntry`.
+	pub const fn new(
+		price: Price,
+		volume: Volume<Balance>,
+		liquidity: Liquidity<Balance>,
+		updated_at: BlockNumber,
+	) -> Self {
+		Self {
+			price,
+			volume,
+			liquidity,
+			updated_at,
+		}
+	}
 }
 
 impl<BlockNumber> OracleEntry<BlockNumber>
@@ -51,17 +68,17 @@ where
 	BlockNumber: AtLeast32BitUnsigned + Copy + UniqueSaturatedInto<u64>,
 {
 	/// Convert the `OracleEntry` into an `AggregatedEntry` for consumption. Determines the age by
-	/// subtracting `initialized` from the timestamp.
+	/// subtracting `initialized` from `self.updated_at`.
 	pub fn into_aggregated(self, initialized: BlockNumber) -> AggregatedEntry<Balance, BlockNumber, Price> {
 		AggregatedEntry {
 			price: self.price,
 			volume: self.volume,
 			liquidity: self.liquidity,
-			oracle_age: self.timestamp.saturating_sub(initialized),
+			oracle_age: self.updated_at.saturating_sub(initialized),
 		}
 	}
 
-	/// Return the raw data of the entry as a tuple of tuples, excluding the timestamp.
+	/// Return the raw data of the entry as a tuple of tuples, excluding the block number.
 	pub fn raw_data(&self) -> (Price, (Balance, Balance, Balance, Balance), (Balance, Balance)) {
 		(self.price, self.volume.clone().into(), self.liquidity.into())
 	}
@@ -82,7 +99,7 @@ where
 			price,
 			volume,
 			liquidity,
-			timestamp: self.timestamp,
+			updated_at: self.updated_at,
 		}
 	}
 
@@ -92,12 +109,12 @@ where
 		self.volume = incoming.volume.saturating_add(&self.volume);
 		self.price = incoming.price;
 		self.liquidity = incoming.liquidity;
-		self.timestamp = incoming.timestamp;
+		self.updated_at = incoming.updated_at;
 	}
 
-	/// Fast forward the oracle value to `new_timestamp`. Updates the timestamp and resets the volume.
-	pub fn fast_forward_to(&mut self, new_timestamp: BlockNumber) {
-		self.timestamp = new_timestamp;
+	/// Fast forward the oracle value to `new_updated_at`. Updates the block number and resets the volume.
+	pub fn fast_forward_to(&mut self, new_updated_at: BlockNumber) {
+		self.updated_at = new_updated_at;
 		self.volume = Volume::default();
 	}
 
@@ -109,7 +126,7 @@ where
 			price: self.price,
 			volume,
 			liquidity: self.liquidity,
-			timestamp: self.timestamp,
+			updated_at: self.updated_at,
 		}
 	}
 
@@ -122,7 +139,7 @@ where
 	/// The period is used to determine the smoothing factor alpha for an exponential moving average.
 	pub fn calculate_new_by_integrating_incoming(&self, period: OraclePeriod, incoming: &Self) -> Option<Self> {
 		// incoming should be one step ahead of the previous value
-		if !incoming.timestamp.checked_sub(&self.timestamp)?.is_one() {
+		if !incoming.updated_at.checked_sub(&self.updated_at)?.is_one() {
 			return None;
 		}
 		if period == OraclePeriod::LastBlock {
@@ -137,7 +154,7 @@ where
 			price,
 			volume: volume.into(),
 			liquidity: liquidity.into(),
-			timestamp: incoming.timestamp,
+			updated_at: incoming.updated_at,
 		})
 	}
 
@@ -159,9 +176,9 @@ where
 	///
 	/// The period is used to determine the smoothing factor alpha for an exponential moving average.
 	///
-	/// Uses the difference between the `timestamp`s to determine the time (i.e. iterations) to cover.
+	/// Uses the difference between `updated_at` to determine the time (i.e. iterations) to cover.
 	pub fn calculate_current_from_outdated(&self, period: OraclePeriod, update_with: &Self) -> Option<Self> {
-		let iterations = update_with.timestamp.checked_sub(&self.timestamp)?;
+		let iterations = update_with.updated_at.checked_sub(&self.updated_at)?;
 		if iterations.is_zero() {
 			return None;
 		}
@@ -181,7 +198,7 @@ where
 			price,
 			volume: volume.into(),
 			liquidity: liquidity.into(),
-			timestamp: update_with.timestamp,
+			updated_at: update_with.updated_at,
 		})
 	}
 
@@ -207,12 +224,12 @@ pub fn into_smoothing(period: OraclePeriod) -> Fraction {
 }
 
 impl<BlockNumber> From<(Price, Volume<Balance>, Liquidity<Balance>, BlockNumber)> for OracleEntry<BlockNumber> {
-	fn from((price, volume, liquidity, timestamp): (Price, Volume<Balance>, Liquidity<Balance>, BlockNumber)) -> Self {
+	fn from((price, volume, liquidity, updated_at): (Price, Volume<Balance>, Liquidity<Balance>, BlockNumber)) -> Self {
 		Self {
 			price,
 			volume,
 			liquidity,
-			timestamp,
+			updated_at,
 		}
 	}
 }

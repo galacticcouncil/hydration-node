@@ -285,6 +285,8 @@ pub enum ProxyType {
 	CancelProxy,
 	Governance,
 	Transfer,
+	Liquidity,
+	LiquidityMining,
 }
 impl Default for ProxyType {
 	fn default() -> Self {

@@ -61,12 +61,12 @@ pub enum OraclePeriod {
 impl OraclePeriod {
 	pub const fn all_periods() -> &'static [OraclePeriod] {
 		use OraclePeriod::*;
-		&[LastBlock, TenMinutes, Hour, Day, Week]
+		&[LastBlock, Short, TenMinutes, Hour, Day, Week]
 	}
 
 	pub const fn non_immediate_periods() -> &'static [OraclePeriod] {
 		use OraclePeriod::*;
-		&[TenMinutes, Hour, Day, Week]
+		&[Short, TenMinutes, Hour, Day, Week]
 	}
 }
 
