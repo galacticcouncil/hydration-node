@@ -30,7 +30,7 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 		};
 
 		let staking_vote = Vote {
-			amount: amount.max(position.stake), // use only max staked amount
+			amount: amount.min(position.stake), // use only max staked amount
 			conviction,
 		};
 

@@ -7,9 +7,10 @@ use frame_support::traits::Bounded;
 use frame_support::traits::OnInitialize;
 use frame_support::traits::StorePreimage;
 use frame_system::RawOrigin;
-use hydradx_runtime::{Balances, Currencies, Democracy, Omnipool, Preimage, Scheduler, System, Tokens};
+use hydradx_runtime::{Balances, Currencies, Democracy, Omnipool, Preimage, Scheduler, Staking, System, Tokens};
 use orml_traits::currency::MultiCurrency;
 use pallet_democracy::{AccountVote, Conviction, ReferendumIndex, Vote};
+use primitives::constants::time::DAYS;
 use xcm_emulator::TestExt;
 
 type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
@@ -34,13 +35,16 @@ fn propose_set_balance(who: AccountId, dest: AccountId, value: u128) -> Dispatch
 }
 
 fn begin_referendum() -> ReferendumIndex {
-	assert_ok!(propose_set_balance(ALICE.into(), ALICE.into(), 2));
-	fast_forward_to(2);
+	assert_ok!(propose_set_balance(ALICE.into(), CHARLIE.into(), 2));
+	fast_forward_to(3 * DAYS);
 	0
 }
+fn end_referendum() {
+	fast_forward_to(7 * DAYS);
+}
+
 fn fast_forward_to(n: u32) {
 	while System::block_number() < n {
-		dbg!(System::block_number());
 		next_block();
 	}
 }
@@ -95,6 +99,8 @@ fn democracy_vote_should_record_stake_vote() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
+		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
@@ -110,10 +116,86 @@ fn democracy_vote_should_record_stake_vote() {
 			0,
 		));
 		let r = begin_referendum();
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
 		assert_ok!(Democracy::vote(
 			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
 			r,
 			aye(2 * UNITS)
 		));
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+
+		assert!(!stake_voting.votes.is_empty());
+		let (ref_vote_idx, vote) = stake_voting.votes[0];
+		assert_eq!(ref_vote_idx, 0);
+		assert_eq!(
+			vote,
+			pallet_staking::types::Vote::new(2 * UNITS, pallet_staking::types::Conviction::None)
+		);
+		end_referendum();
+	});
+}
+
+#[test]
+fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		let r = begin_referendum();
+
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+		end_referendum();
+
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+		let stake_position =
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
+
+		assert_eq!(stake_position.get_action_points(), 10);
+		assert!(stake_voting.votes.is_empty()); //TODO: this should be empty!!
 	});
 }

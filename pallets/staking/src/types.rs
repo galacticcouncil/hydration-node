@@ -58,6 +58,10 @@ impl<BlockNumber> Position<BlockNumber> {
 			.checked_add(self.accumulated_locked_rewards)
 			.ok_or(ArithmeticError::Overflow)
 	}
+
+	pub fn get_action_points(&self) -> Point{
+		self.action_points
+	}
 }
 
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
@@ -95,10 +99,16 @@ pub enum Conviction {
 	Locked6x = 6,
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode,Copy,Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Vote {
 	pub(crate) amount: Balance,
 	pub(crate) conviction: Conviction,
+}
+
+impl Vote {
+	pub fn new(amount: Balance, conviction: Conviction) -> Self{
+		Self{amount, conviction}
+	}
 }
 
 impl ActionData for Vote {
