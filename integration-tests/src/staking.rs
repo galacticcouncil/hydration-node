@@ -11,6 +11,7 @@ use hydradx_runtime::{Balances, Currencies, Democracy, Omnipool, Preimage, Sched
 use orml_traits::currency::MultiCurrency;
 use pallet_democracy::{AccountVote, Conviction, ReferendumIndex, Vote};
 use primitives::constants::time::DAYS;
+use sp_runtime::AccountId32;
 use xcm_emulator::TestExt;
 
 type CallOf<T> = <T as frame_system::Config>::RuntimeCall;
@@ -200,6 +201,72 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 
 		assert_eq!(stake_position.get_action_points(), 2);
+		assert!(stake_voting.votes.is_empty()); //TODO: this should be empty!!
+	});
+}
+
+#[test]
+fn staking_should_transfer_rewards_when_claimed() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		let r = begin_referendum();
+
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+		end_referendum();
+
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
+
+		assert_ok!(Staking::claim(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())));
+
+		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
+
+		dbg!(alice_balance);
+		dbg!(alice_balance_after_claim);
+
+		assert!(alice_balance_after_claim > alice_balance);
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+		let stake_position =
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
+
+		assert_eq!(stake_position.get_action_points(), 4); // note this should be 0 after claim
 		assert!(stake_voting.votes.is_empty()); //TODO: this should be empty!!
 	});
 }
