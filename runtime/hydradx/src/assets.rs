@@ -416,6 +416,7 @@ impl pallet_dca::Config for Runtime {
 	type MaxNumberOfRetriesOnError = MaxNumberOfRetriesOnError;
 	type NativeAssetId = NativeAssetId;
 	type MinBudgetInNativeCurrency = MinBudgetInNativeCurrency;
+	type MinimumTradingLimit = MinTradingLimit;
 	type FeeReceiver = TreasuryAccount;
 	type NamedReserveId = NamedReserveId;
 	type WeightToFee = WeightToFee;
