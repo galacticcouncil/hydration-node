@@ -90,13 +90,13 @@ impl StakingData {
 #[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo, Default)]
 pub enum Conviction {
 	#[default]
-	None = 0,
-	Locked1x = 1,
-	Locked2x = 2,
-	Locked3x = 3,
-	Locked4x = 4,
-	Locked5x = 5,
-	Locked6x = 6,
+	None = 1,
+	Locked1x = 2,
+	Locked2x = 3,
+	Locked3x = 4,
+	Locked4x = 5,
+	Locked5x = 6,
+	Locked6x = 7,
 }
 
 #[derive(Encode, Decode,Copy,Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
