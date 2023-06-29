@@ -25,8 +25,8 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::{Contains, EitherOfDiverse, LockIdentifier};
 use frame_support::{parameter_types, PalletId, RuntimeDebug};
 use frame_system::EnsureRoot;
-use orml_traits::GetByKey;
 use hydradx_traits::oracle::{OraclePeriod, Source};
+use orml_traits::GetByKey;
 pub use pallet_transaction_payment::Multiplier;
 pub use primitives::constants::{chain::*, currency::*, time::*};
 pub use primitives::{Amount, AssetId, Balance, BlockNumber, CollectionId};
@@ -34,7 +34,7 @@ use scale_info::TypeInfo;
 use sp_runtime::{
 	generic,
 	traits::{AccountIdConversion, BlakeTwo256, IdentifyAccount, Verify},
-	FixedPointNumber, MultiSignature, Perbill, Percent, Permill, Perquintill, FixedU128,
+	FixedPointNumber, FixedU128, MultiSignature, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 
@@ -56,9 +56,9 @@ pub type Index = u32;
 pub type Hash = sp_core::H256;
 
 use pallet_dca::types::NamedReserveIdentifier;
+use pallet_staking::types::Action;
 /// Opaque, encoded, unchecked extrinsic.
 pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
-use pallet_staking::types::Action;
 
 use self::adapters::OMNIPOOL_SOURCE;
 

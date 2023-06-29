@@ -30,12 +30,12 @@ macro_rules! assert_hdx_lock {
 	};
 }
 
-/// Assert StakingData saved in pallet staking storage.
+/// Assert `StakingData` saved in pallet staking storage.
 ///
 /// Parameters:
 /// - `total_stake`
 /// - `accumulated_reward_per_stake`
-/// - `pendig_rew`
+/// - `accumulated_distributed_rewards`
 #[macro_export]
 macro_rules! assert_staking_data {
 	($x: expr, $y: expr, $z: expr) => {
@@ -44,7 +44,7 @@ macro_rules! assert_staking_data {
 			StakingData {
 				total_stake: $x,
 				accumulated_reward_per_stake: $y,
-				pending_rew: $z,
+				accumulated_distributed_rewards: $z,
 			}
 		);
 	};

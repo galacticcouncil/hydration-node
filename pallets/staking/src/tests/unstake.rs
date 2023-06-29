@@ -39,7 +39,7 @@ fn unstake_should_work_when_staking_position_exists() {
 			assert_staking_data!(
 				110_010 * ONE,
 				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
-				10_336_797_680_797_565_u128
+				209_663_202_319_202_436_u128
 			);
 		});
 }
@@ -78,7 +78,7 @@ fn unstake_should_claim_zero_rewards_when_unstaking_during_unclaimable_periods()
 			assert_staking_data!(
 				110_010 * ONE,
 				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
-				10_671_709_925_655_406_u128
+				209_328_290_074_344_595_u128
 			);
 		});
 }
@@ -119,7 +119,7 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 			assert_staking_data!(
 				110_010 * ONE,
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
-				65_536_836_933_362_451_u128
+				255_367_170_895_881_767_u128
 			);
 		});
 }
@@ -162,8 +162,8 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 
 			assert_staking_data!(
 				110_010 * ONE,
-				FixedU128::from_inner(2_625_787_010_142_549_959_u128),
-				51_933_872_025_079_204_u128
+				FixedU128::from_inner(2_624_680_135_471_373_855_u128),
+				268_848_368_521_588_930_u128
 			);
 		});
 }
@@ -199,10 +199,10 @@ fn unstake_should_work_when_called_by_all_stakers() {
 			assert_ok!(Staking::unstake(RuntimeOrigin::signed(DAVE)));
 
 			//Assert
-			assert_unlocked_balance!(&ALICE, HDX, 157_965_081_713_348_758_u128);
+			assert_unlocked_balance!(&ALICE, HDX, 157_951_370_453_331_101_u128);
 			assert_unlocked_balance!(&BOB, HDX, 500_682_646_815_225_830_u128);
-			assert_unlocked_balance!(&CHARLIE, HDX, 18_023_126_771_488_456_u128);
-			assert_unlocked_balance!(&DAVE, HDX, 105_672_178_270_331_647_u128);
+			assert_unlocked_balance!(&CHARLIE, HDX, 17_804_173_029_722_706_u128);
+			assert_unlocked_balance!(&DAVE, HDX, 105_371_923_939_346_989_u128);
 
 			assert_hdx_lock!(ALICE, 0, STAKING_LOCK);
 			assert_hdx_lock!(BOB, 0, STAKING_LOCK);
@@ -221,8 +221,8 @@ fn unstake_should_work_when_called_by_all_stakers() {
 
 			assert_staking_data!(
 				0,
-				FixedU128::from_inner(30_435_394_707_147_845_603_253_u128),
-				298_656_966_429_605_307_u128
+				FixedU128::from_inner(28_824_441_394_573_800_928_500_u128),
+				21_714_122_066_870_846_u128
 			);
 		});
 }

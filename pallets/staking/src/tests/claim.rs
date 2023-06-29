@@ -48,7 +48,7 @@ fn claim_should_work_when_staking_position_exists() {
 			assert_staking_data!(
 				230_010 * ONE,
 				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
-				10_336_797_680_797_565_u128
+				209_663_202_319_202_436_u128
 			);
 		});
 }
@@ -90,14 +90,14 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods() {
 					reward_per_stake: FixedU128::from_inner(2_088_930_916_047_128_389_u128),
 					accumulated_slash_points: 3,
 					accumulated_locked_rewards: Zero::zero(),
-					accumulated_unpaid_rewards: Zero::zero(),
+					accumulated_unpaid_rewards: 10_671_709_925_655_406_u128,
 				}
 			);
 
 			assert_staking_data!(
 				230_010 * ONE,
 				FixedU128::from_inner(2_088_930_916_047_128_389_u128),
-				10_671_709_925_655_406_u128
+				220_000_000_000_000_001_u128
 			);
 		});
 }
@@ -141,14 +141,14 @@ fn claim_should_claim_nothing_when_claiming_during_unclaimable_periods_and_stake
 					reward_per_stake: FixedU128::from_inner(2_502_134_933_892_361_376_u128),
 					accumulated_slash_points: 6,
 					accumulated_locked_rewards: Zero::zero(),
-					accumulated_unpaid_rewards: Zero::zero(),
+					accumulated_unpaid_rewards: 66_219_483_748_588_281_u128,
 				}
 			);
 
 			assert_staking_data!(
 				530_010 * ONE,
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
-				66_219_483_748_588_281_u128
+				321_000_000_000_000_001_u128
 			);
 		});
 }
@@ -199,7 +199,7 @@ fn claim_should_work_when_claiming_after_unclaimable_periods() {
 			assert_staking_data!(
 				530_010 * ONE,
 				FixedU128::from_inner(2_502_134_933_892_361_376_u128),
-				65_631_977_451_377_841_u128
+				255_368_022_548_622_160_u128
 			);
 		});
 }
@@ -257,7 +257,7 @@ fn claim_should_work_when_claiming_multiple_times() {
 			assert_staking_data!(
 				360_010 * ONE,
 				FixedU128::from_inner(3_061_853_686_489_680_776_u128),
-				39_992_706_885_866_227_u128
+				333_933_922_975_778_772_u128
 			);
 		});
 }
@@ -306,7 +306,7 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 					stake: 250_000 * ONE,
 					action_points: Zero::zero(),
 					created_at: 1_452_987,
-					reward_per_stake: FixedU128::from_inner(3_172_941_453_179_123_366_u128),
+					reward_per_stake: FixedU128::from_inner(3_123_517_875_338_556_934_u128),
 					accumulated_slash_points: 104,
 					accumulated_locked_rewards: 31_886_766_680_027_536_u128,
 					accumulated_unpaid_rewards: Zero::zero(),
@@ -315,8 +315,8 @@ fn claim_should_claim_zero_rewards_when_claiming_in_same_block_without_additiona
 
 			assert_staking_data!(
 				360_010 * ONE,
-				FixedU128::from_inner(3_172_941_453_179_123_366_u128),
-				27_771_941_672_360_647_u128
+				FixedU128::from_inner(3_123_517_875_338_556_934_u128),
+				340_717_600_391_043_639_u128
 			);
 		});
 }

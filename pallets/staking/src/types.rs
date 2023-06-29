@@ -35,7 +35,7 @@ pub struct Position<BlockNumber> {
 	/// Rewards paid&locked to user after skate increase
 	pub(crate) accumulated_locked_rewards: Balance,
 	//TODO:
-	//pub(crate) votest: BoundedVec<Vote, T::MaxVotesPerPositon>
+	//pub(crate) votes: BoundedVec<Vote, T::MaxVotesPerPositon>
 }
 
 impl<BlockNumber> Position<BlockNumber> {
@@ -51,15 +51,15 @@ impl<BlockNumber> Position<BlockNumber> {
 		}
 	}
 
-	/// Returns total amount of tokens locked under the postions.
-	/// Returne value is combination of `position.stake` and `accumulated_locked_rewards`.
+	/// Returns total amount of tokens locked under the positions.
+	/// Returned value is combination of `position.stake` and `accumulated_locked_rewards`.
 	pub fn get_total_locked(&self) -> Result<Balance, ArithmeticError> {
 		self.stake
 			.checked_add(self.accumulated_locked_rewards)
 			.ok_or(ArithmeticError::Overflow)
 	}
 
-	pub fn get_action_points(&self) -> Point{
+	pub fn get_action_points(&self) -> Point {
 		self.action_points
 	}
 }
@@ -70,17 +70,13 @@ pub struct StakingData {
 	pub(crate) total_stake: Balance,
 	/// Accumulated reward per stake
 	pub(crate) accumulated_reward_per_stake: FixedU128,
-
-	//TODO: get rid of this and use balance on the account
-	pub(crate) pending_rew: Balance,
+	/// Accumulated amount of rewards allocated for stakers. These rewards are not unnecessarily gone
+	/// from the `pot`.
+	//TODO: rename
+	pub(crate) accumulated_distributed_rewards: Balance,
 }
 
 impl StakingData {
-	pub fn pending_rewards(&self) -> Balance {
-		//TODO: rewrite this to use balance
-		self.pending_rew
-	}
-
 	pub fn add_stake(&mut self, amount: Balance) -> Result<(), ArithmeticError> {
 		self.total_stake = self.total_stake.checked_add(amount).ok_or(ArithmeticError::Overflow)?;
 		Ok(())
@@ -99,15 +95,15 @@ pub enum Conviction {
 	Locked6x = 6,
 }
 
-#[derive(Encode, Decode,Copy,Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Vote {
 	pub(crate) amount: Balance,
 	pub(crate) conviction: Conviction,
 }
 
 impl Vote {
-	pub fn new(amount: Balance, conviction: Conviction) -> Self{
-		Self{amount, conviction}
+	pub fn new(amount: Balance, conviction: Conviction) -> Self {
+		Self { amount, conviction }
 	}
 }
 

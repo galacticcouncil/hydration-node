@@ -304,5 +304,4 @@ impl ExtBuilder {
 pub fn set_pending_rewards(amount: u128) {
 	let pot = Staking::pot_account_id();
 	assert_ok!(Tokens::update_balance(HDX, &pot, amount as i128));
-	Staking::add_pending_rewards(amount);
 }

@@ -191,6 +191,10 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 		)
 		.unwrap()
 		.unwrap();
+		println!(
+			"{:?}",
+			pallet_staking::Pallet::<hydradx_runtime::Runtime>::positions(stake_position_id)
+		);
 		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();

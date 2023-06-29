@@ -283,10 +283,13 @@ pub mod pallet {
                                 let current_period = Self::get_current_period()?;
                                 let created_at = Self::get_period_number(position.created_at)?;
 
+
 								let (rewards, slashed_points) = Self::do_increase_stake(position, staking, amount, current_period, created_at)?;
 
                                 let pot = Self::pot_account_id();
                                 T::Currency::transfer(T::HdxAssetId::get(), &pot, &who, rewards)?;
+                                //TODO: Fix
+                                staking.accumulated_distributed_rewards -= rewards;
 
 								Ok((position_id, position.stake, position.get_total_locked()?, rewards, slashed_points))
 							},
@@ -374,8 +377,14 @@ pub mod pallet {
 						.checked_add(points_to_slash)
 						.ok_or(ArithmeticError::Overflow)?;
 
-					let slashed_unpaid_rewards = position.accumulated_unpaid_rewards;
-					position.accumulated_unpaid_rewards = Zero::zero();
+					//TODO:
+					let slashed_unpaid_rewards = if current_period - created_at > T::UnclaimablePeriods::get() {
+						let p = position.accumulated_unpaid_rewards;
+						position.accumulated_unpaid_rewards = Zero::zero();
+						p
+					} else {
+						Zero::zero()
+					};
 					position.reward_per_stake = staking.accumulated_reward_per_stake;
 
 					T::Currency::set_lock(
@@ -386,14 +395,14 @@ pub mod pallet {
 					)?;
 
 					//return what's left to redistribution, will be removed
-					staking.pending_rew = staking
-						.pending_rew
-						.checked_add(slashed_unpaid_rewards)
+					staking.accumulated_distributed_rewards = staking
+						.accumulated_distributed_rewards
+						.checked_sub(slashed_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
 					Self::deposit_event(Event::RewardsClaimed {
 						who,
-						position_id: position_id,
+						position_id,
 						paid_rewards: rewards_to_pay,
 						unlocked_rewards: rewards_to_unlock,
 						slashed_points: points_to_slash,
@@ -452,8 +461,10 @@ pub mod pallet {
 						.checked_sub(claimable_unpaid_rewards)
 						.ok_or(ArithmeticError::Overflow)?;
 
-					//TODO: tmp will be removed
-					staking.pending_rew += return_to_pot;
+					staking.accumulated_distributed_rewards = staking
+						.accumulated_distributed_rewards
+						.checked_sub(return_to_pot)
+						.ok_or(ArithmeticError::Overflow)?;
 
 					T::NFTHandler::burn(&T::NFTCollectionId::get(), &position_id, Some(&who))?;
 					T::Currency::remove_lock(STAKING_LOCK_ID, T::HdxAssetId::get(), &who)?;
@@ -584,7 +595,9 @@ impl<T: Config> Pallet<T> {
 			return Ok(());
 		}
 
-		let pending_rewards = staking.pending_rewards();
+		let pending_rewards = T::Currency::free_balance(T::HdxAssetId::get(), &Self::pot_account_id())
+			.checked_sub(staking.accumulated_distributed_rewards)
+			.ok_or(ArithmeticError::Overflow)?;
 		if pending_rewards.is_zero() {
 			return Ok(());
 		}
@@ -603,8 +616,8 @@ impl<T: Config> Pallet<T> {
 
 		staking.accumulated_reward_per_stake = accumulated_rps;
 
-		//TODO:
-		staking.pending_rew = 0;
+		//TODO: fix
+		staking.accumulated_distributed_rewards += pending_rewards;
 
 		Ok(())
 	}
@@ -685,15 +698,6 @@ impl<T: Config> Pallet<T> {
 		))
 	}
 
-	//NOTE: this is tmp - will be removed after refactor
-	pub fn add_pending_rewards(rewards: Balance) {
-		Staking::<T>::try_mutate(|s| -> Result<(), ArithmeticError> {
-			s.pending_rew = s.pending_rew + rewards;
-
-			Ok(())
-		});
-	}
-
 	/// Transfer given fee to pot account
 	/// Returns amount of unused fee
 	pub fn process_trade_fee(
@@ -741,8 +745,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> Pallet<T>{
-
+impl<T: Config> Pallet<T> {
 	pub fn create_collection() {
 		let pallet_account = <Pallet<T>>::pot_account_id();
 		<T as pallet::Config>::NFTHandler::create_collection(
@@ -750,14 +753,14 @@ impl<T: Config> Pallet<T>{
 			&pallet_account,
 			&pallet_account,
 		)
-			.unwrap()
+		.unwrap()
 	}
 
-	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<T::BlockNumber>>{
+	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<T::BlockNumber>> {
 		Positions::<T>::get(position_id)
 	}
 
-	pub fn get_position_votes(position_id: T::PositionItemId) -> Voting<T::MaxVotes>{
+	pub fn get_position_votes(position_id: T::PositionItemId) -> Voting<T::MaxVotes> {
 		PositionVotes::<T>::get(position_id)
 	}
 }
