@@ -179,4 +179,5 @@ std = [
     "common-runtime/std",
     "polkadot-runtime/std",
     "hydradx-runtime/std",
+    "pallet-staking/std",
 ]

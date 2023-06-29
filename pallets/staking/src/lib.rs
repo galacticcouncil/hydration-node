@@ -476,16 +476,12 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn do_democracy_vote() -> DispatchResult {
-		Ok(())
-	}
-
 	/// Account id holding rewards to pay.
 	pub fn pot_account_id() -> T::AccountId {
 		T::PalletId::get().into_account_truncating()
 	}
 
-	fn get_user_position_id(who: &T::AccountId) -> Result<Option<T::PositionItemId>, DispatchError> {
+	pub fn get_user_position_id(who: &T::AccountId) -> Result<Option<T::PositionItemId>, DispatchError> {
 		let mut user_position_ids = T::NFTHandler::owned_in_collection(&T::NFTCollectionId::get(), &who);
 
 		let position_id = user_position_ids.next();
@@ -742,6 +738,27 @@ impl<T: Config> Pallet<T> {
 			.div(1_000_000_000_000u128); // TODO: make this as configurable constant?
 		let c = T::ActionMultiplier::get(&action);
 		total.saturating_mul(c as u128)
+	}
+}
+
+impl<T: Config> Pallet<T>{
+
+	pub fn create_collection() {
+		let pallet_account = <Pallet<T>>::pot_account_id();
+		<T as pallet::Config>::NFTHandler::create_collection(
+			&<T as pallet::Config>::NFTCollectionId::get(),
+			&pallet_account,
+			&pallet_account,
+		)
+			.unwrap()
+	}
+
+	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<T::BlockNumber>>{
+		Positions::<T>::get(position_id)
+	}
+
+	pub fn get_position_votes(position_id: T::PositionItemId) -> Voting<T::MaxVotes>{
+		PositionVotes::<T>::get(position_id)
 	}
 }
 
