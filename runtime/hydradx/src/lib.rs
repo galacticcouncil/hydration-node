@@ -1092,6 +1092,7 @@ impl pallet_staking::Config for Runtime {
 	type MaxVotes = ConstU32<100>;
 	type ReferendumInfo = pallet_staking::integrations::democracy::ReferendumStatus<Runtime>;
 	type ActionMultiplier = ActionMultiplier;
+	type TechnicalOrigin = SuperMajorityTechCommittee;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

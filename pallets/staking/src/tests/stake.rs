@@ -5,9 +5,30 @@ use pretty_assertions::assert_eq;
 use sp_runtime::FixedU128;
 
 #[test]
+fn stake_should_not_work_when_staking_is_not_initialized() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE)])
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			let pending_rewards = 200_000 * ONE;
+			set_pending_rewards(pending_rewards);
+			let staked_amount = 100_000 * ONE;
+
+			//Act & assert
+			assert_noop!(
+				Staking::stake(RuntimeOrigin::signed(ALICE), staked_amount),
+				Error::<Test>::NotInitialized
+			);
+		});
+}
+
+#[test]
 fn new_stake_should_work_when_staking_is_empty() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.build()
 		.execute_with(|| {
@@ -41,6 +62,7 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 			(CHARLIE, HDX, 10_000 * ONE),
 			(DAVE, HDX, 100_000 * ONE),
 		])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.build()
 		.execute_with(|| {
@@ -130,6 +152,7 @@ fn new_stake_should_work_when_staking_is_not_empty() {
 fn new_stake_should_work_when_there_are_no_rewards_to_distribute() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.build()
 		.execute_with(|| {
@@ -172,6 +195,7 @@ fn new_stake_should_work_when_there_are_no_rewards_to_distribute() {
 fn increase_stake_should_work_when_user_already_staked() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 250_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE),
 			(BOB, 50_000 * ONE, 1_452_987, 0),
@@ -215,6 +239,7 @@ fn increase_stake_should_work_when_user_already_staked() {
 fn increase_stake_should_work_when_user_staked_multiple_times() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 450_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE),
 			(BOB, 50_000 * ONE, 1_452_987, 0),
@@ -259,6 +284,7 @@ fn increase_stake_should_work_when_user_staked_multiple_times() {
 fn increase_stake_should_slash_no_points_when_increase_is_small() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 250_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE),
 			(BOB, 50_000 * ONE, 1_452_987, 0),
@@ -285,6 +311,7 @@ fn increase_stake_should_slash_no_points_when_increase_is_small() {
 fn increase_stake_should_slash_all_points_when_increase_is_big() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 20_050_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE),
 			(BOB, 50_000 * ONE, 1_452_987, 0),
@@ -313,6 +340,7 @@ fn increase_stake_should_slash_all_points_when_increase_is_big() {
 fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 500_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 100_000 * ONE),
 			(BOB, 50_000 * ONE, 1_452_987, 0),
@@ -377,6 +405,7 @@ fn increase_stake_should_accumulate_slash_points_when_called_multiple_times() {
 fn stake_should_not_work_when_stake_amount_is_lt_min_stake() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.build()
 		.execute_with(|| {
@@ -397,6 +426,7 @@ fn stake_should_not_work_when_stake_amount_is_lt_min_stake() {
 fn increase_stake_should_not_work_when_increase_is_lt_min_stake() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![(ALICE, HDX, 150_000 * ONE), (BOB, HDX, 150_000 * ONE)])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.build()
 		.execute_with(|| {

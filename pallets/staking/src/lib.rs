@@ -59,30 +59,12 @@ pub mod pallet {
 	use codec::HasCompact;
 	use frame_support::PalletId;
 	use frame_support::{pallet_prelude::*, traits::LockIdentifier};
-	use frame_system::pallet_prelude::*;
+	use frame_system::{ensure_signed, pallet_prelude::*};
 	use orml_traits::GetByKey;
 	use sp_runtime::traits::AtLeast32BitUnsigned;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
-
-	#[pallet::genesis_config]
-	#[cfg_attr(feature = "std", derive(Default))]
-	pub struct GenesisConfig {}
-
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
-		fn build(&self) {
-			let pallet_account = <Pallet<T>>::pot_account_id();
-
-			<T as pallet::Config>::NFTHandler::create_collection(
-				&<T as pallet::Config>::NFTCollectionId::get(),
-				&pallet_account,
-				&pallet_account,
-			)
-			.unwrap()
-		}
-	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
@@ -174,6 +156,9 @@ pub mod pallet {
 		type ReferendumInfo: DemocracyReferendum;
 
 		type ActionMultiplier: GetByKey<Action, u32>;
+
+		/// Origin to initialize staking
+		type TechnicalOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 	}
 
 	/// Lock for staked amount by user
@@ -246,6 +231,12 @@ pub mod pallet {
 
 		///
 		MaxVotesReached,
+
+		/// Staking is no initialized
+		NotInitialized,
+
+		/// Staking is already initialized
+		AlreadyInitialized,
 	}
 
 	#[pallet::hooks]
@@ -255,10 +246,31 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(1_000)]
+		pub fn initialize_staking(origin: OriginFor<T>, _non_dustable_amount: Balance) -> DispatchResult {
+			T::TechnicalOrigin::ensure_origin(origin)?;
+
+			ensure!(!Self::is_initialized(), Error::<T>::AlreadyInitialized);
+
+			Staking::<T>::put(StakingData::default());
+
+			//TODO: tx & lock non_dustable_amount
+			let pallet_account = <Pallet<T>>::pot_account_id();
+
+			<T as pallet::Config>::NFTHandler::create_collection(
+				&<T as pallet::Config>::NFTCollectionId::get(),
+				&pallet_account,
+				&pallet_account,
+			)
+		}
+
+		#[pallet::call_index(1)]
+		#[pallet::weight(1_000)]
 		pub fn stake(origin: OriginFor<T>, amount: Balance) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			ensure!(amount >= T::MinStake::get(), Error::<T>::InsufficientStake);
+
+			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
 			ensure!(
 				T::Currency::free_balance(T::HdxAssetId::get(), &who) >= amount,
@@ -315,10 +327,12 @@ pub mod pallet {
 			})
 		}
 
-		#[pallet::call_index(1)]
+		#[pallet::call_index(2)]
 		#[pallet::weight(1_000)]
 		pub fn claim(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
 			let position_id = Self::get_user_position_id(&who)?.ok_or(Error::<T>::PositionNotFound)?;
 			Staking::<T>::try_mutate(|staking| {
@@ -406,10 +420,12 @@ pub mod pallet {
 			})
 		}
 
-		#[pallet::call_index(2)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(1_000)]
 		pub fn unstake(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			ensure!(Self::is_initialized(), Error::<T>::NotInitialized);
 
 			let position_id = Self::get_user_position_id(&who)?.ok_or(Error::<T>::PositionNotFound)?;
 			Staking::<T>::try_mutate(|staking| {
@@ -695,7 +711,7 @@ impl<T: Config> Pallet<T> {
 		asset: T::AssetId,
 		amount: Balance,
 	) -> Result<Balance, DispatchError> {
-		if asset == T::HdxAssetId::get() {
+		if asset == T::HdxAssetId::get() && Self::is_initialized() {
 			T::Currency::transfer(asset, &source, &Self::pot_account_id(), amount)?;
 			Ok(Balance::zero())
 		} else {
@@ -733,19 +749,13 @@ impl<T: Config> Pallet<T> {
 		let c = T::ActionMultiplier::get(&action);
 		total.saturating_mul(c as u128)
 	}
+
+	fn is_initialized() -> bool {
+		Staking::<T>::exists()
+	}
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn create_collection() {
-		let pallet_account = <Pallet<T>>::pot_account_id();
-		<T as pallet::Config>::NFTHandler::create_collection(
-			&<T as pallet::Config>::NFTCollectionId::get(),
-			&pallet_account,
-			&pallet_account,
-		)
-		.unwrap()
-	}
-
 	pub fn get_position(position_id: T::PositionItemId) -> Option<Position<T::BlockNumber>> {
 		Positions::<T>::get(position_id)
 	}

@@ -22,7 +22,7 @@ use frame_support::{
 	traits::{AsEnsureOriginWithArg, ConstU128, ConstU32, ConstU64, GenesisBuild, NeverEnsureOrigin},
 	weights::RuntimeDbWeight,
 };
-use frame_system::EnsureRoot;
+use frame_system::{EnsureRoot, RawOrigin};
 use orml_traits::{parameter_type_with_key, LockIdentifier, MultiCurrencyExtended};
 use sp_core::H256;
 use sp_runtime::{
@@ -212,6 +212,7 @@ impl pallet_staking::Config for Test {
 	type MaxVotes = ConstU32<10>;
 	type ActionMultiplier = DummyActionMultiplier;
 	type ReferendumInfo = DummyReferendumStatus;
+	type TechnicalOrigin = EnsureRoot<AccountId>;
 }
 
 pub struct DummyActionMultiplier;
@@ -242,6 +243,7 @@ pub struct ExtBuilder {
 	initial_block_number: BlockNumber,
 	//(who, staked maount, created_at, pendig_rewards)
 	stakes: Vec<(AccountId, Balance, BlockNumber, Balance)>,
+	init_staking: bool,
 }
 
 impl ExtBuilder {
@@ -260,6 +262,11 @@ impl ExtBuilder {
 		self.initial_block_number = n;
 		self
 	}
+
+	pub fn with_initialized_staking(mut self) -> Self {
+		self.init_staking = true;
+		self
+	}
 }
 
 impl ExtBuilder {
@@ -276,15 +283,17 @@ impl ExtBuilder {
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-		let staking = pallet_staking::GenesisConfig::default();
-		<pallet::GenesisConfig as GenesisBuild<Test>>::assimilate_storage(&staking, &mut t).unwrap();
-
 		let mut r: sp_io::TestExternalities = t.into();
 		r.execute_with(|| {
 			if self.initial_block_number.is_zero() {
 				set_block_number(1);
 			} else {
 				set_block_number(self.initial_block_number);
+			}
+
+			if self.init_staking {
+				//TODO: set real amount
+				assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0));
 			}
 
 			for (who, staked_amount, at, pending_rewards) in self.stakes {

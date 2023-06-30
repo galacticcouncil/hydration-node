@@ -5,6 +5,30 @@ use pretty_assertions::assert_eq;
 use sp_runtime::FixedU128;
 
 #[test]
+fn unstake_should_not_work_when_staking_is_not_initialized() {
+	ExtBuilder::default()
+		.with_endowed_accounts(vec![
+			(ALICE, HDX, 150_000 * ONE),
+			(BOB, HDX, 250_000 * ONE),
+			(CHARLIE, HDX, 10_000 * ONE),
+			(DAVE, HDX, 100_000 * ONE),
+		])
+		.start_at_block(1_452_987)
+		.build()
+		.execute_with(|| {
+			//Arrange
+			set_pending_rewards(10_000 * ONE);
+			set_block_number(1_700_000);
+
+			//Act & assert
+			assert_noop!(
+				Staking::unstake(RuntimeOrigin::signed(BOB)),
+				Error::<Test>::NotInitialized
+			);
+		});
+}
+
+#[test]
 fn unstake_should_work_when_staking_position_exists() {
 	ExtBuilder::default()
 		.with_endowed_accounts(vec![
@@ -13,6 +37,7 @@ fn unstake_should_work_when_staking_position_exists() {
 			(CHARLIE, HDX, 10_000 * ONE),
 			(DAVE, HDX, 100_000 * ONE),
 		])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
@@ -53,6 +78,7 @@ fn unstake_should_claim_zero_rewards_when_unstaking_during_unclaimable_periods()
 			(CHARLIE, HDX, 10_000 * ONE),
 			(DAVE, HDX, 100_000 * ONE),
 		])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
@@ -92,6 +118,7 @@ fn unstake_should_work_when_called_after_unclaimable_periods_and_stake_was_incre
 			(CHARLIE, HDX, 10_000 * ONE),
 			(DAVE, HDX, 100_000 * ONE),
 		])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
@@ -133,6 +160,7 @@ fn unstake_should_claim_no_additional_rewards_when_called_immediately_after_clai
 			(CHARLIE, HDX, 10_000 * ONE),
 			(DAVE, HDX, 100_000 * ONE),
 		])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
@@ -177,6 +205,7 @@ fn unstake_should_work_when_called_by_all_stakers() {
 			(CHARLIE, HDX, 10_000 * ONE),
 			(DAVE, HDX, 100_000 * ONE),
 		])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),
@@ -236,6 +265,7 @@ fn unstake_should_not_work_when_staking_position_doesnt_exists() {
 			(CHARLIE, HDX, 10_000 * ONE),
 			(DAVE, HDX, 100_000 * ONE),
 		])
+		.with_initialized_staking()
 		.start_at_block(1_452_987)
 		.with_stakes(vec![
 			(ALICE, 100_000 * ONE, 1_452_987, 200_000 * ONE),

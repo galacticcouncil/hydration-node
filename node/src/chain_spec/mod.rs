@@ -179,7 +179,6 @@ pub fn parachain_genesis(
 		duster,
 		omnipool_warehouse_lm: Default::default(),
 		omnipool_liquidity_mining: Default::default(),
-		staking: Default::default(),
 	}
 }
 

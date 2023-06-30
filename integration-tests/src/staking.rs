@@ -100,7 +100,7 @@ fn democracy_vote_should_record_stake_vote() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -152,7 +152,7 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Tokens::set_balance(
@@ -211,7 +211,7 @@ fn staking_should_transfer_rewards_when_claimed() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
@@ -273,7 +273,7 @@ fn staking_should_not_reward_when_double_claimed() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
@@ -322,7 +322,7 @@ fn staking_should_not_reward_when_stake_again_and_no_vote_activity() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
@@ -376,7 +376,7 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 	Hydra::execute_with(|| {
 		System::set_block_number(0);
 		init_omnipool();
-		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
 
 		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
 		assert_ok!(Balances::set_balance(
