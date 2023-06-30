@@ -1196,7 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.3.13"
+version = "102.5.1"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcmp-queue",
@@ -3839,7 +3839,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-runtime"
-version = "161.0.0"
+version = "162.0.0"
 dependencies = [
  "common-runtime",
  "cumulus-pallet-aura-ext",
@@ -3938,7 +3938,7 @@ dependencies = [
 
 [[package]]
 name = "hydradx-traits"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -6736,7 +6736,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-ema-oracle"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

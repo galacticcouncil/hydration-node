@@ -51,28 +51,32 @@ fn any_liquidity() -> impl Strategy<Value = Liquidity<Balance>> {
 	(any::<Balance>(), any::<Balance>()).prop_map(|l| l.into())
 }
 
-fn oracle_entry_with_timestamp(timestamp: BlockNumber) -> impl Strategy<Value = OracleEntry<BlockNumber>> {
-	(any_price(), any_volume(), any_liquidity(), Just(timestamp)).prop_map(|(price, volume, liquidity, timestamp)| {
+fn oracle_entry_with_updated_at(updated_at: BlockNumber) -> impl Strategy<Value = OracleEntry<BlockNumber>> {
+	(any_price(), any_volume(), any_liquidity(), Just(updated_at)).prop_map(|(price, volume, liquidity, updated_at)| {
 		OracleEntry {
 			price,
 			volume,
 			liquidity,
-			timestamp,
+			updated_at,
 		}
 	})
 }
 
-fn oracle_entry_within_timestamp_range(
-	(timestamp_min, timestamp_max): (BlockNumber, BlockNumber),
+fn oracle_entry_within_updated_at_range(
+	(updated_at_min, updated_at_max): (BlockNumber, BlockNumber),
 ) -> impl Strategy<Value = OracleEntry<BlockNumber>> {
-	(any_price(), any_volume(), any_liquidity(), timestamp_min..timestamp_max).prop_map(
-		|(price, volume, liquidity, timestamp)| OracleEntry {
+	(
+		any_price(),
+		any_volume(),
+		any_liquidity(),
+		updated_at_min..updated_at_max,
+	)
+		.prop_map(|(price, volume, liquidity, updated_at)| OracleEntry {
 			price,
 			volume,
 			liquidity,
-			timestamp,
-		},
-	)
+			updated_at,
+		})
 }
 
 // Tests
@@ -98,8 +102,8 @@ proptest! {
 		(second_liquidity_a, second_liquidity_b) in (non_zero_amount(), non_zero_amount()),
 	) {
 		new_test_ext().execute_with(|| {
-			let timestamp = 5;
-			System::set_block_number(timestamp);
+			let updated_at = 5;
+			System::set_block_number(updated_at);
 			assert_ok!(OnActivityHandler::<Test>::on_trade(SOURCE, asset_a, asset_b, amount_a, amount_b, liquidity_a, liquidity_b));
 			let volume_before = get_accumulator_entry(SOURCE, (asset_a, asset_b)).unwrap().volume;
 			assert_ok!(OnActivityHandler::<Test>::on_liquidity_changed(SOURCE, asset_a, asset_b, second_amount_a, second_amount_b, second_liquidity_a, second_liquidity_b));
@@ -112,8 +116,8 @@ proptest! {
 proptest! {
 	#[test]
 	fn update_outdated_to_current_equals_calculate_current_from_outdated(
-		start_oracle in oracle_entry_within_timestamp_range((0, 1_000)),
-		incoming_value in oracle_entry_within_timestamp_range((1_001, 100_000)),
+		start_oracle in oracle_entry_within_updated_at_range((0, 1_000)),
+		incoming_value in oracle_entry_within_updated_at_range((1_001, 100_000)),
 	) {
 		let next_oracle = start_oracle.calculate_current_from_outdated(TenMinutes, &incoming_value);
 
@@ -126,8 +130,8 @@ proptest! {
 proptest! {
 	#[test]
 	fn update_to_new_by_integrating_incoming_equals_calculate_new_by_integrating_incoming(
-		start_oracle in oracle_entry_with_timestamp(10_000),
-		incoming_value in oracle_entry_with_timestamp(10_001),
+		start_oracle in oracle_entry_with_updated_at(10_000),
+		incoming_value in oracle_entry_with_updated_at(10_001),
 	) {
 		let next_oracle = start_oracle.calculate_new_by_integrating_incoming(TenMinutes, &incoming_value);
 
