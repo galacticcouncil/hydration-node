@@ -1196,7 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "common-runtime"
-version = "102.4.0"
+version = "102.5.0"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-xcmp-queue",
@@ -6426,7 +6426,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-circuit-breaker"
-version = "1.1.12"
+version = "1.1.13"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
