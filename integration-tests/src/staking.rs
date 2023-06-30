@@ -71,6 +71,7 @@ fn staking_should_transfer_hdx_fees_to_pot_account_when_omnipool_trade_is_execut
 	TestNet::reset();
 	Hydra::execute_with(|| {
 		init_omnipool();
+		assert_ok!(Staking::initialize_staking(RawOrigin::Root.into(), 0_u128));
 
 		assert_ok!(Tokens::set_balance(
 			RawOrigin::Root.into(),
