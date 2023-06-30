@@ -201,7 +201,7 @@ fn staking_action_should_claim_points_for_finished_referendums_when_voted() {
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 
 		assert_eq!(stake_position.get_action_points(), 2);
-		assert!(stake_voting.votes.is_empty()); //TODO: this should be empty!!
+		assert!(stake_voting.votes.is_empty());
 	});
 }
 
@@ -262,8 +262,8 @@ fn staking_should_transfer_rewards_when_claimed() {
 		let stake_position =
 			pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position(stake_position_id).unwrap();
 
-		assert_eq!(stake_position.get_action_points(), 4);
-		assert!(stake_voting.votes.is_empty()); //TODO: this should be empty!!
+		assert_eq!(stake_position.get_action_points(), 2);
+		assert!(stake_voting.votes.is_empty());
 	});
 }
 

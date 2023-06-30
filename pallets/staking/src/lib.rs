@@ -728,8 +728,10 @@ impl<T: Config> Pallet<T> {
 					.checked_add(points)
 					.ok_or(ArithmeticError::Overflow)?;
 
-				//TODO: remove this vote
-				//TODO: how to actually remove this ? how to update the vector in reasonable way?
+				// TODO: this could be optimized, we can do the other way round - do the check in the retain itself
+				PositionVotes::<T>::mutate(position_id, |voting| {
+					voting.votes.retain(|(idx, _)| *idx != ref_index);
+				});
 			}
 		}
 		Ok(())
