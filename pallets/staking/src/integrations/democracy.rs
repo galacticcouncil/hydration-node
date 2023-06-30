@@ -9,6 +9,7 @@ use pallet_democracy::{AccountVote, ReferendumIndex, ReferendumInfo};
 pub struct StakingDemocracy<T>(sp_std::marker::PhantomData<T>);
 
 impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
+	//TODO: note that this cannot return error if position or vote does not exist - it is not an error!
 	fn on_vote(who: &T::AccountId, ref_index: ReferendumIndex, vote: AccountVote<Balance>) -> DispatchResult {
 		//TODO: handle unwraps
 		let position_id = Pallet::<T>::get_user_position_id(who)?.unwrap();
@@ -46,6 +47,20 @@ impl<T: Config> DemocracyHooks<T::AccountId, Balance> for StakingDemocracy<T> {
 						.map_err(|_| Error::<T>::MaxVotesReached)?;
 				}
 			}
+			Ok(())
+		})?;
+		//TODO: event?
+		Ok(())
+	}
+
+	//TODO: note that this cannot return error if position or vote does not exist - it is not an error!
+	fn on_remove_vote(who: &T::AccountId, ref_index: ReferendumIndex) -> DispatchResult {
+		//TODO: handle unwraps
+		let position_id = Pallet::<T>::get_user_position_id(who)?.unwrap();
+
+		PositionVotes::<T>::try_mutate_exists(position_id, |value| -> DispatchResult {
+			let voting = value.as_mut().ok_or(Error::<T>::MaxVotesReached)?;
+			voting.votes.retain(|(idx, _)| *idx != ref_index);
 			Ok(())
 		})?;
 		//TODO: event?

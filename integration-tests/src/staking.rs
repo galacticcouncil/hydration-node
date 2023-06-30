@@ -423,3 +423,177 @@ fn staking_should_claim_and_unreserve_rewards_when_unstaked() {
 		assert!(stake_position_id.is_none());
 	});
 }
+
+#[test]
+fn staking_should_remove_vote_when_democracy_removes_vote() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+		let r = begin_referendum();
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+		assert!(!stake_voting.votes.is_empty());
+		let (ref_vote_idx, vote) = stake_voting.votes[0];
+		assert_eq!(ref_vote_idx, 0);
+		assert_eq!(
+			vote,
+			pallet_staking::types::Vote::new(2 * UNITS, pallet_staking::types::Conviction::None)
+		);
+
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r
+		));
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+		assert!(stake_voting.votes.is_empty());
+		end_referendum();
+	});
+}
+
+#[test]
+fn staking_should_not_reward_when_refenrendum_is_ongoing() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+		let r = begin_referendum();
+		assert_ok!(Staking::stake(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			10 * UNITS
+		));
+
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+
+		let stake_position_id = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_user_position_id(
+			&sp_runtime::AccountId32::from(ALICE),
+		)
+		.unwrap()
+		.unwrap();
+		let stake_voting = pallet_staking::Pallet::<hydradx_runtime::Runtime>::get_position_votes(stake_position_id);
+		assert!(!stake_voting.votes.is_empty());
+		let alice_balance = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
+		assert_ok!(Staking::claim(hydradx_runtime::RuntimeOrigin::signed(ALICE.into())));
+		let alice_balance_after_claim = Currencies::free_balance(HDX, &AccountId32::from(ALICE));
+		assert_eq!(alice_balance, alice_balance_after_claim);
+		end_referendum();
+	});
+}
+
+#[test]
+fn democracy_vote_should_work_correctly_when_account_has_no_stake() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+		let r = begin_referendum();
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+		end_referendum();
+	});
+}
+#[test]
+fn democracy_remote_vote_should_work_correctly_when_account_has_no_stake() {
+	TestNet::reset();
+	Hydra::execute_with(|| {
+		System::set_block_number(0);
+		init_omnipool();
+		pallet_staking::Pallet::<hydradx_runtime::Runtime>::create_collection();
+
+		let staking_account = pallet_staking::Pallet::<hydradx_runtime::Runtime>::pot_account_id();
+		assert_ok!(Tokens::set_balance(
+			RawOrigin::Root.into(),
+			staking_account,
+			HDX,
+			10_000 * UNITS,
+			0,
+		));
+		assert_ok!(Balances::set_balance(
+			RawOrigin::Root.into(),
+			ALICE.into(),
+			1_000_000 * UNITS,
+			0,
+		));
+		let r = begin_referendum();
+		assert_ok!(Democracy::vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r,
+			aye(2 * UNITS)
+		));
+		assert_ok!(Democracy::remove_vote(
+			hydradx_runtime::RuntimeOrigin::signed(ALICE.into()),
+			r
+		));
+		end_referendum();
+	});
+}

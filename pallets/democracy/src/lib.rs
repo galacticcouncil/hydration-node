@@ -1270,6 +1270,7 @@ impl<T: Config> Pallet<T> {
 					None => {} // Referendum was cancelled.
 				}
 				votes.remove(i);
+				T::DemocracyHooks::on_remove_vote(who, ref_index)?;
 			}
 			Ok(())
 		})?;
